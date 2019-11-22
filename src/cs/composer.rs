@@ -1,5 +1,7 @@
 use bls12_381::Scalar;
-
+/// A composer is a circuit builder
+/// and will dictate how a cirucit is built
+/// We will have a default Composer called `StandardComposer`
 pub struct StandardComposer {
     // n represents the number of arithmetic gates in the circuit
     n: usize,
@@ -26,24 +28,24 @@ pub struct StandardComposer {
     // N.B. They should not be exposed to the end user once added into the composer
     variables: Vec<Scalar>,
 
-    // maps variables to the wire metadata that they are assosciated with
+    // maps variables to the wire data that they are assosciated with
     // To then later create the necessary permutations
     // XXX: the index will be the Variable reference, so it may be better to use a map to be more explicit here
-    variable_map: Vec<Vec<WireMetadata>>,
+    variable_map: Vec<Vec<WireData>>,
 
     sigmas: Vec<Vec<usize>>,
 }
 
-// Stores the metadata for a specific wire
+// Stores the data for a specific wire
 // This data is the gate index and the type of wire
-struct WireMetadata {
+struct WireData {
     gate_index: usize,
     wire_type: WireType,
 }
 
-impl WireMetadata {
+impl WireData {
     fn new(index: usize, wire_type: WireType) -> Self {
-        WireMetadata {
+        WireData {
             gate_index: index,
             wire_type: wire_type,
         }
@@ -121,9 +123,9 @@ impl StandardComposer {
         assert!(num_variables > c.0);
 
 
-        let left: WireMetadata = WireMetadata::new(self.n, WireType::Left);
-        let right: WireMetadata = WireMetadata::new(self.n, WireType::Right);
-        let output: WireMetadata = WireMetadata::new(self.n, WireType::Output);
+        let left: WireData = WireData::new(self.n, WireType::Left);
+        let right: WireData = WireData::new(self.n, WireType::Right);
+        let output: WireData = WireData::new(self.n, WireType::Output);
 
         // Map each variable to the wires it is assosciated with
         self.variable_map[a.0].push(left);
@@ -218,7 +220,7 @@ impl StandardComposer {
         self.sigmas = vec![sigma_1, sigma_2, sigma_3];
 
         for (v_index, variable) in self.variable_map.iter().enumerate() {
-            // Gets the metadata for each wire assosciated with this variable
+            // Gets the data for each wire assosciated with this variable
             for current_wire in variable {
                 // Fetch index of the next wire, if it is the last element
                 // We loop back around to the beginning
