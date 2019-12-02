@@ -1,6 +1,5 @@
 use super::constraint_system::{Variable, WireData, WireType};
-use algebra::curves::PairingEngine;
-use algebra::fields::PrimeField;
+use algebra::{curves::PairingEngine, fields::PrimeField};
 use ff_fft::{DensePolynomial as Polynomial, EvaluationDomain};
 use std::marker::PhantomData;
 

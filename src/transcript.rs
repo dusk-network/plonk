@@ -1,5 +1,4 @@
-use algebra::fields::PrimeField;
-use algebra::{to_bytes, PairingEngine, ToBytes};
+use algebra::{fields::PrimeField, to_bytes, PairingEngine, ToBytes};
 use merlin::Transcript;
 use poly_commit::kzg10::Commitment;
 
