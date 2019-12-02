@@ -139,9 +139,8 @@ impl<E: PairingEngine> StandardComposer<E> {
         &mut self,
         public_parameters: &UniversalParams<E>,
         transcript: &mut dyn TranscriptProtocol<E>,
+        domain: &EvaluationDomain<E::Fr>,
     ) {
-        let domain = EvaluationDomain::new(self.n).unwrap();
-
         let k = self.q_m.len();
         assert!(self.q_o.len() == k);
         assert!(self.q_l.len() == k);
@@ -188,21 +187,21 @@ impl<E: PairingEngine> StandardComposer<E> {
         // --------- //
 
         // Now compute the permutation polynomials
-        let (left_sigma_poly, right_sigma_poly, out_sigma_poly) = self.compute_sigma_polynomials();
+        let (left_sigma_poly, right_sigma_poly, out_sigma_poly) =
+            self.compute_sigma_polynomials(domain);
     }
 
     fn compute_sigma_polynomials(
         &mut self,
+        domain: &EvaluationDomain<E::Fr>,
     ) -> (Polynomial<E::Fr>, Polynomial<E::Fr>, Polynomial<E::Fr>) {
-        let domain = EvaluationDomain::new(self.n).unwrap();
-
         // Compute sigma mappings
         self.compute_sigma_permutations();
 
         // convert the permutation mappings to actual functions
-        let left_sigma = self.compute_permutation_lagrange(&self.sigmas[0]);
-        let right_sigma = self.compute_permutation_lagrange(&self.sigmas[1]);
-        let out_sigma = self.compute_permutation_lagrange(&self.sigmas[2]);
+        let left_sigma = self.compute_permutation_lagrange(&self.sigmas[0], domain);
+        let right_sigma = self.compute_permutation_lagrange(&self.sigmas[1], domain);
+        let out_sigma = self.compute_permutation_lagrange(&self.sigmas[2], domain);
 
         let left_sigma_poly = Polynomial::from_coefficients_vec(domain.ifft(&left_sigma));
         let right_sigma_poly = Polynomial::from_coefficients_vec(domain.ifft(&right_sigma));
@@ -211,9 +210,11 @@ impl<E: PairingEngine> StandardComposer<E> {
         (left_sigma_poly, right_sigma_poly, out_sigma_poly)
     }
 
-    fn compute_permutation_lagrange(&self, sigma_mapping: &[usize]) -> Vec<E::Fr> {
-        let domain = EvaluationDomain::new(self.n).unwrap();
-
+    fn compute_permutation_lagrange(
+        &self,
+        sigma_mapping: &[usize],
+        domain: &EvaluationDomain<E::Fr>,
+    ) -> Vec<E::Fr> {
         let k1 = E::Fr::multiplicative_generator();
         let k2 = E::Fr::from_repr_raw(13.into());
 
@@ -238,12 +239,12 @@ impl<E: PairingEngine> StandardComposer<E> {
     pub fn prove(
         &mut self,
         public_parameters: &UniversalParams<E>,
-        transcript: &mut TranscriptProtocol<E>,
+        transcript: &mut dyn TranscriptProtocol<E>,
     ) {
-        // Pre-process circuit
-        self.preprocess(public_parameters, transcript);
-
         let domain = EvaluationDomain::new(self.n).unwrap();
+
+        // Pre-process circuit
+        self.preprocess(public_parameters, transcript, &domain);
 
         //1. Witness Polynomials
         //
@@ -429,7 +430,7 @@ impl<E: PairingEngine> StandardComposer<E> {
 mod tests {
     use super::*;
     use algebra::curves::bls12_381::Bls12_381;
-
+    use algebra::fields::bls12_381::Fr;
     // Ensures a + b - c = 0
     fn simple_add_gadget<E: PairingEngine>(
         composer: &mut StandardComposer<E>,
@@ -523,14 +524,16 @@ mod tests {
         let max_degree = 100;
         let public_parameters = srs::setup(max_degree);
 
+        let domain = EvaluationDomain::new(composer.n).unwrap();
+
         // Pre-process circuit
-        let preprocessed_circuit = composer.prove(&public_parameters, &mut transcript);
+        let preprocessed_circuit =
+            composer.preprocess(&public_parameters, &mut transcript, &domain);
     }
 
     #[test]
     fn test_circuit_size() {
         let mut composer: StandardComposer<Bls12_381> = StandardComposer::new();
-        use algebra::fields::bls12_381::Fr;
 
         let one = Fr::one();
         let two = one + &one;
