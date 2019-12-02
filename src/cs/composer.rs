@@ -1,28 +1,31 @@
-use crate::srs;
-use algebra::curves::bls12_381::Bls12_381;
-use algebra::fields::{bls12_381::Fr, Field};
+use algebra::curves::PairingEngine;
+use algebra::fields::{Field, PrimeField};
 use ff_fft::{DensePolynomial as Polynomial, EvaluationDomain};
 use poly_commit::kzg10::UniversalParams;
-use std::str::FromStr;
+
+use crate::srs;
+use crate::transcript::TranscriptProtocol;
+use merlin::Transcript;
+
 /// A composer is a circuit builder
 /// and will dictate how a cirucit is built
 /// We will have a default Composer called `StandardComposer`
-pub struct StandardComposer {
+pub struct StandardComposer<E: PairingEngine> {
     // n represents the number of arithmetic gates in the circuit
     n: usize,
 
     // Selector vectors
     //
     // Multiplier selector
-    q_m: Vec<Fr>,
+    q_m: Vec<E::Fr>,
     // Left wire selector
-    q_l: Vec<Fr>,
+    q_l: Vec<E::Fr>,
     // Right wire selector
-    q_r: Vec<Fr>,
+    q_r: Vec<E::Fr>,
     // output wire selector
-    q_o: Vec<Fr>,
+    q_o: Vec<E::Fr>,
     // constant wire selector
-    q_c: Vec<Fr>,
+    q_c: Vec<E::Fr>,
 
     // witness vectors
     w_l: Vec<Variable>,
@@ -31,7 +34,7 @@ pub struct StandardComposer {
 
     // These are the actual variable values
     // N.B. They should not be exposed to the end user once added into the composer
-    variables: Vec<Fr>,
+    variables: Vec<E::Fr>,
 
     // maps variables to the wire data that they are assosciated with
     // To then later create the necessary permutations
@@ -79,7 +82,7 @@ impl From<&usize> for WireType {
 #[derive(Eq, PartialEq, Clone, Copy, Hash)]
 pub struct Variable(usize);
 
-impl StandardComposer {
+impl<E: PairingEngine> StandardComposer<E> {
     pub fn new() -> Self {
         StandardComposer::with_expected_size(0)
     }
@@ -111,7 +114,7 @@ impl StandardComposer {
     // diff is the difference between circuit size and next power of two
     fn pad(&mut self, diff: usize) {
         // Add a zero variable to circuit
-        let zero_scalar = Fr::zero();
+        let zero_scalar = E::Fr::zero();
         let zero_var = self.add_input(zero_scalar);
 
         let zeroes_scalar = vec![zero_scalar; diff];
@@ -132,7 +135,11 @@ impl StandardComposer {
 
     // Computes the pre-processed polynomials
     // So the verifier can verify a proof made using this circuit
-    pub fn preprocess(&mut self, public_parameters: &UniversalParams<Bls12_381>) {
+    pub fn preprocess(
+        &mut self,
+        public_parameters: &UniversalParams<E>,
+        transcript: &mut dyn TranscriptProtocol<E>,
+    ) {
         let domain = EvaluationDomain::new(self.n).unwrap();
 
         let k = self.q_m.len();
@@ -165,6 +172,18 @@ impl StandardComposer {
         let q_o_poly_commit = srs::commit(&ck, &q_o_poly);
         let q_c_poly_commit = srs::commit(&ck, &q_c_poly);
 
+        // Add selector polynomials to transcript
+        transcript.append_commitments(
+            vec![b"q_m", b"q_l", b"q_r", b"q_o", b"q_c"],
+            vec![
+                &q_m_poly_commit,
+                &q_l_poly_commit,
+                &q_r_poly_commit,
+                &q_o_poly_commit,
+                &q_c_poly_commit,
+            ],
+        );
+
         // FIRST SNARK OUPUT COMPLETE
         // --------- //
 
@@ -172,16 +191,18 @@ impl StandardComposer {
         let (left_sigma_poly, right_sigma_poly, out_sigma_poly) = self.compute_sigma_polynomials();
     }
 
-    fn compute_sigma_polynomials(&mut self) -> (Polynomial<Fr>, Polynomial<Fr>, Polynomial<Fr>) {
+    fn compute_sigma_polynomials(
+        &mut self,
+    ) -> (Polynomial<E::Fr>, Polynomial<E::Fr>, Polynomial<E::Fr>) {
         let domain = EvaluationDomain::new(self.n).unwrap();
 
         // Compute sigma mappings
         self.compute_sigma_permutations();
 
         // convert the permutation mappings to actual functions
-        let left_sigma = StandardComposer::compute_permutation_lagrange(self.n, &self.sigmas[0]);
-        let right_sigma = StandardComposer::compute_permutation_lagrange(self.n, &self.sigmas[1]);
-        let out_sigma = StandardComposer::compute_permutation_lagrange(self.n, &self.sigmas[2]);
+        let left_sigma = self.compute_permutation_lagrange(&self.sigmas[0]);
+        let right_sigma = self.compute_permutation_lagrange(&self.sigmas[1]);
+        let out_sigma = self.compute_permutation_lagrange(&self.sigmas[2]);
 
         let left_sigma_poly = Polynomial::from_coefficients_vec(domain.ifft(&left_sigma));
         let right_sigma_poly = Polynomial::from_coefficients_vec(domain.ifft(&right_sigma));
@@ -190,12 +211,11 @@ impl StandardComposer {
         (left_sigma_poly, right_sigma_poly, out_sigma_poly)
     }
 
-    fn compute_permutation_lagrange(n: usize, sigma_mapping: &[usize]) -> Vec<Fr> {
-        let domain = EvaluationDomain::new(n).unwrap();
+    fn compute_permutation_lagrange(&self, sigma_mapping: &[usize]) -> Vec<E::Fr> {
+        let domain = EvaluationDomain::new(self.n).unwrap();
 
-        use algebra::fields::PrimeField;
-        let k1 = Fr::multiplicative_generator();
-        let k2 = Fr::from_str("13").unwrap();
+        let k1 = E::Fr::multiplicative_generator();
+        let k2 = E::Fr::from_repr_raw(13.into());
 
         let lagrange_poly = domain
             .elements()
@@ -215,9 +235,13 @@ impl StandardComposer {
 
     // Prove will compute the pre-processed polynomials and
     // produce a proof
-    pub fn prove(&mut self, public_parameters: &UniversalParams<Bls12_381>) {
+    pub fn prove(
+        &mut self,
+        public_parameters: &UniversalParams<E>,
+        transcript: &mut TranscriptProtocol<E>,
+    ) {
         // Pre-process circuit
-        self.preprocess(public_parameters);
+        self.preprocess(public_parameters, transcript);
 
         let domain = EvaluationDomain::new(self.n).unwrap();
 
@@ -234,16 +258,15 @@ impl StandardComposer {
         let mut w_o_poly = Polynomial::from_coefficients_vec(domain.ifft(&w_o_scalar));
 
         // Add blinding values to polynomial
-        // XXX: For now we will manually add these
-        let b_1 = Fr::from_str("1").unwrap();
-        let b_2 = Fr::from_str("2").unwrap();
-        let b_3 = Fr::from_str("3").unwrap();
-        let b_4 = Fr::from_str("4").unwrap();
-        let b_5 = Fr::from_str("5").unwrap();
-        let b_6 = Fr::from_str("6").unwrap();
+        let b_1 = transcript.challenge_scalar(b"b_1");
+        let b_2 = transcript.challenge_scalar(b"b_2");
+        let b_3 = transcript.challenge_scalar(b"b_3");
+        let b_4 = transcript.challenge_scalar(b"b_4");
+        let b_5 = transcript.challenge_scalar(b"b_5");
+        let b_6 = transcript.challenge_scalar(b"b_6");
 
         let w_l_blinder =
-            Polynomial::from_coefficients_slice(&[b_2, b_1]).mul_by_vanishing_poly(domain);
+            Polynomial::from_coefficients_slice(&[b_1, b_2]).mul_by_vanishing_poly(domain);
         let w_r_blinder =
             Polynomial::from_coefficients_slice(&[b_4, b_3]).mul_by_vanishing_poly(domain);
         let w_o_blinder =
@@ -263,7 +286,7 @@ impl StandardComposer {
 
     // Adds a value to the circuit and returns its
     // index reference
-    fn add_input(&mut self, s: Fr) -> Variable {
+    fn add_input(&mut self, s: E::Fr) -> Variable {
         self.variables.push(s);
 
         self.variable_map.push(Vec::new());
@@ -298,17 +321,17 @@ impl StandardComposer {
         a: Variable,
         b: Variable,
         c: Variable,
-        q_l: Fr,
-        q_r: Fr,
-        q_o: Fr,
-        q_c: Fr,
+        q_l: E::Fr,
+        q_r: E::Fr,
+        q_o: E::Fr,
+        q_c: E::Fr,
     ) {
         self.w_l.push(a);
         self.w_r.push(b);
         self.w_o.push(c);
 
         // For an add gate, q_m is zero
-        self.q_m.push(Fr::zero());
+        self.q_m.push(E::Fr::zero());
 
         // Add selector vectors
         self.q_l.push(q_l);
@@ -321,14 +344,22 @@ impl StandardComposer {
         self.n = self.n + 1;
     }
 
-    pub fn mul_gate(&mut self, a: Variable, b: Variable, c: Variable, q_m: Fr, q_o: Fr, q_c: Fr) {
+    pub fn mul_gate(
+        &mut self,
+        a: Variable,
+        b: Variable,
+        c: Variable,
+        q_m: E::Fr,
+        q_o: E::Fr,
+        q_c: E::Fr,
+    ) {
         self.w_l.push(a);
         self.w_r.push(b);
         self.w_o.push(c);
 
         // For a mul gate q_L and q_R is zero
-        self.q_l.push(Fr::zero());
-        self.q_r.push(Fr::zero());
+        self.q_l.push(E::Fr::zero());
+        self.q_r.push(E::Fr::zero());
 
         // Add selector vectors
         self.q_m.push(q_m);
@@ -345,11 +376,11 @@ impl StandardComposer {
         self.w_r.push(a);
         self.w_o.push(a);
 
-        self.q_m.push(Fr::one());
-        self.q_l.push(Fr::zero());
-        self.q_r.push(Fr::zero());
-        self.q_o.push(-Fr::one());
-        self.q_c.push(Fr::zero());
+        self.q_m.push(E::Fr::one());
+        self.q_l.push(E::Fr::zero());
+        self.q_r.push(E::Fr::zero());
+        self.q_o.push(-E::Fr::one());
+        self.q_c.push(E::Fr::zero());
 
         self.add_variable_to_map(a, a, a);
 
@@ -394,28 +425,32 @@ impl StandardComposer {
     }
 }
 
+#[cfg(test)]
 mod tests {
-
     use super::*;
+    use algebra::curves::bls12_381::Bls12_381;
 
     // Ensures a + b - c = 0
-    #[cfg(test)]
-    fn simple_add_gadget(composer: &mut StandardComposer, a: Variable, b: Variable, c: Variable) {
-        let q_l = Fr::one();
-        let q_r = Fr::one();
-        let q_o = -Fr::one();
-        let q_c = Fr::zero();
+    fn simple_add_gadget<E: PairingEngine>(
+        composer: &mut StandardComposer<E>,
+        a: Variable,
+        b: Variable,
+        c: Variable,
+    ) {
+        let q_l = E::Fr::one();
+        let q_r = E::Fr::one();
+        let q_o = -E::Fr::one();
+        let q_c = E::Fr::zero();
 
         composer.add_gate(a, b, c, q_l, q_r, q_o, q_c);
     }
 
     // Returns a composer with `n` constraints
-    #[cfg(test)]
-    fn add_dummy_composer(n: usize) -> StandardComposer {
+    fn add_dummy_composer<E: PairingEngine>(n: usize) -> StandardComposer<E> {
         let mut composer = StandardComposer::new();
 
-        let one = Fr::one();
-        let two = Fr::one() + &Fr::one();
+        let one = E::Fr::one();
+        let two = E::Fr::one() + &E::Fr::one();
 
         let var_one = composer.add_input(one);
         let var_two = composer.add_input(two);
@@ -425,26 +460,28 @@ mod tests {
         }
 
         // Add a dummy constraint so that we do not have zero polynomials
-        composer.q_m.push(Fr::from_str("1").unwrap());
-        composer.q_l.push(Fr::from_str("2").unwrap());
-        composer.q_r.push(Fr::from_str("3").unwrap());
-        composer.q_o.push(Fr::from_str("4").unwrap());
-        composer.q_c.push(Fr::from_str("5").unwrap());
+        composer.q_m.push(E::Fr::from(1));
+        composer.q_l.push(E::Fr::from(2));
+        composer.q_r.push(E::Fr::from(3));
+        composer.q_o.push(E::Fr::from(4));
+        composer.q_c.push(E::Fr::from(5));
 
-        let var_six = composer.add_input(Fr::from_str("6").unwrap());
-        let var_seven = composer.add_input(Fr::from_str("7").unwrap());
-        let var_min_twenty = composer.add_input(-Fr::from_str("20").unwrap());
+        let var_six = composer.add_input(E::Fr::from(6.into()));
+        let var_seven = composer.add_input(E::Fr::from(7.into()));
+        let var_min_twenty = composer.add_input(-E::Fr::from(20.into()));
 
         composer.w_l.push(var_six);
         composer.w_r.push(var_seven);
         composer.w_o.push(var_min_twenty);
+
+        composer.n = composer.n + 1;
 
         composer
     }
     #[test]
     fn test_pad() {
         let num_constraints = 100;
-        let mut composer = add_dummy_composer(num_constraints);
+        let mut composer: StandardComposer<Bls12_381> = add_dummy_composer(num_constraints);
 
         // Pad the circuit to next power of two
         let next_pow_2 = composer.n.next_power_of_two() as u64;
@@ -464,8 +501,10 @@ mod tests {
 
     #[test]
     fn test_compute_permutation() {
-        let num_constraints = 1000;
-        let mut composer = add_dummy_composer(num_constraints);
+        let mut transcript = Transcript::new(b"plonk");
+
+        let num_constraints = 10;
+        let mut composer: StandardComposer<Bls12_381> = add_dummy_composer(num_constraints);
 
         // Pad the circuit to next power of two
         let next_pow_2 = composer.n.next_power_of_two() as u64;
@@ -481,19 +520,20 @@ mod tests {
         assert_eq!(composer.sigmas[1].len(), composer.n);
         assert_eq!(composer.sigmas[2].len(), composer.n);
 
-        let max_degree = 10000;
+        let max_degree = 100;
         let public_parameters = srs::setup(max_degree);
 
         // Pre-process circuit
-        let preprocessed_circuit = composer.preprocess(&public_parameters);
+        let preprocessed_circuit = composer.prove(&public_parameters, &mut transcript);
     }
 
     #[test]
     fn test_circuit_size() {
-        let mut composer = StandardComposer::new();
+        let mut composer: StandardComposer<Bls12_381> = StandardComposer::new();
+        use algebra::fields::bls12_381::Fr;
 
         let one = Fr::one();
-        let two = Fr::one() + &Fr::one();
+        let two = one + &one;
 
         let var_one = composer.add_input(one);
         let var_two = composer.add_input(two);
