@@ -1,11 +1,11 @@
-use algebra::curves::PairingEngine;
-use algebra::fields::{Field, PrimeField};
+use super::{
+    constraint_system::Variable, permutation::Permutation, Composer, PreProcessedCircuit, Proof,
+};
+use crate::{srs, transcript::TranscriptProtocol};
+use algebra::{curves::PairingEngine, fields::Field};
 use ff_fft::{DensePolynomial as Polynomial, EvaluationDomain};
-use poly_commit::kzg10::UniversalParams;
-
-use crate::srs;
-use crate::transcript::TranscriptProtocol;
 use merlin::Transcript;
+use poly_commit::kzg10::UniversalParams;
 
 /// A composer is a circuit builder
 /// and will dictate how a cirucit is built
@@ -36,111 +36,18 @@ pub struct StandardComposer<E: PairingEngine> {
     // N.B. They should not be exposed to the end user once added into the composer
     variables: Vec<E::Fr>,
 
-    // maps variables to the wire data that they are assosciated with
-    // To then later create the necessary permutations
-    // XXX: the index will be the Variable reference, so it may be better to use a map to be more explicit here
-    variable_map: Vec<Vec<WireData>>,
-
-    sigmas: Vec<Vec<usize>>,
+    perm: Permutation<E>,
 }
 
-// Stores the data for a specific wire
-// This data is the gate index and the type of wire
-struct WireData {
-    gate_index: usize,
-    wire_type: WireType,
-}
-
-impl WireData {
-    fn new(index: usize, wire_type: WireType) -> Self {
-        WireData {
-            gate_index: index,
-            wire_type: wire_type,
-        }
-    }
-}
-
-// Encoding for different wire types
-#[derive(Copy, Clone)]
-enum WireType {
-    Left = 0,
-    Right = (1 << 30),
-    Output = (1 << 31),
-}
-
-impl From<&usize> for WireType {
-    fn from(n: &usize) -> WireType {
-        match ((n >> 30) as usize) & (3 as usize) {
-            2 => WireType::Output,
-            1 => WireType::Right,
-            _ => WireType::Left,
-        }
-    }
-}
-/// Represents a variable in a constraint system.
-/// The value is a reference to the position of the value in the variables vector
-#[derive(Eq, PartialEq, Clone, Copy, Hash)]
-pub struct Variable(usize);
-
-impl<E: PairingEngine> StandardComposer<E> {
-    pub fn new() -> Self {
-        StandardComposer::with_expected_size(0)
-    }
-
-    // Creates a new circuit with an expected circuit size
-    // This will allow for less reallocations when building the circuit
-    pub fn with_expected_size(expected_size: usize) -> Self {
-        StandardComposer {
-            n: 0,
-
-            q_m: Vec::with_capacity(expected_size),
-            q_l: Vec::with_capacity(expected_size),
-            q_r: Vec::with_capacity(expected_size),
-            q_o: Vec::with_capacity(expected_size),
-            q_c: Vec::with_capacity(expected_size),
-
-            w_l: Vec::with_capacity(expected_size),
-            w_r: Vec::with_capacity(expected_size),
-            w_o: Vec::with_capacity(expected_size),
-
-            variables: Vec::with_capacity(expected_size),
-            variable_map: Vec::new(),
-
-            sigmas: Vec::new(),
-        }
-    }
-
-    // Pads the circuit to the next power of two
-    // diff is the difference between circuit size and next power of two
-    fn pad(&mut self, diff: usize) {
-        // Add a zero variable to circuit
-        let zero_scalar = E::Fr::zero();
-        let zero_var = self.add_input(zero_scalar);
-
-        let zeroes_scalar = vec![zero_scalar; diff];
-        let zeroes_var = vec![zero_var; diff];
-
-        self.q_m.extend(zeroes_scalar.iter());
-        self.q_l.extend(zeroes_scalar.iter());
-        self.q_r.extend(zeroes_scalar.iter());
-        self.q_o.extend(zeroes_scalar.iter());
-        self.q_c.extend(zeroes_scalar.iter());
-
-        self.w_l.extend(zeroes_var.iter());
-        self.w_r.extend(zeroes_var.iter());
-        self.w_o.extend(zeroes_var.iter());
-
-        self.n = self.n + diff;
-    }
-
+impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
     // Computes the pre-processed polynomials
     // So the verifier can verify a proof made using this circuit
-    pub fn preprocess(
+    fn preprocess(
         &mut self,
         public_parameters: &UniversalParams<E>,
         transcript: &mut dyn TranscriptProtocol<E>,
         domain: &EvaluationDomain<E::Fr>,
-    ) {
+    ) -> PreProcessedCircuit<E> {
         let k = self.q_m.len();
         assert!(self.q_o.len() == k);
         assert!(self.q_l.len() == k);
@@ -150,97 +57,67 @@ impl<E: PairingEngine> StandardComposer<E> {
         assert!(self.w_r.len() == k);
         assert!(self.w_o.len() == k);
 
-        //0. Pad circuit
+        //1. Pad circuit to a power of two
         self.pad(domain.size as usize - self.n);
 
-        // 2. Circuit polynomials
-        //
-        // IFFT to get lagrange polynomials on witness instances
+        // 2. Convert selector vectors to selector polynomials
         let q_m_poly = Polynomial::from_coefficients_vec(domain.ifft(&self.q_m));
         let q_l_poly = Polynomial::from_coefficients_vec(domain.ifft(&self.q_l));
         let q_r_poly = Polynomial::from_coefficients_vec(domain.ifft(&self.q_r));
         let q_o_poly = Polynomial::from_coefficients_vec(domain.ifft(&self.q_o));
         let q_c_poly = Polynomial::from_coefficients_vec(domain.ifft(&self.q_c));
 
-        // Commit to circuit polynomials
+        // 3. Compute the sigma polynomials
+        let (left_sigma_poly, right_sigma_poly, out_sigma_poly) =
+            self.perm.compute_sigma_polynomials(self.n, domain);
+
+        // 4. Commit to polynomials
         //
         let (ck, vk) = srs::trim(public_parameters, self.n).unwrap();
+        //
         let q_m_poly_commit = srs::commit(&ck, &q_m_poly);
         let q_l_poly_commit = srs::commit(&ck, &q_l_poly);
         let q_r_poly_commit = srs::commit(&ck, &q_r_poly);
         let q_o_poly_commit = srs::commit(&ck, &q_o_poly);
         let q_c_poly_commit = srs::commit(&ck, &q_c_poly);
 
-        // Add selector polynomials to transcript
-        transcript.append_commitments(
-            vec![b"q_m", b"q_l", b"q_r", b"q_o", b"q_c"],
-            vec![
-                &q_m_poly_commit,
-                &q_l_poly_commit,
-                &q_r_poly_commit,
-                &q_o_poly_commit,
-                &q_c_poly_commit,
+        let left_sigma_poly_commit = srs::commit(&ck, &left_sigma_poly);
+        let right_sigma_poly_commit = srs::commit(&ck, &right_sigma_poly);
+        let out_sigma_poly_commit = srs::commit(&ck, &out_sigma_poly);
+
+        //5. Add polynomial commitments to transcript
+        //
+        transcript.append_commitment(b"q_m", &q_m_poly_commit);
+        transcript.append_commitment(b"q_l", &q_l_poly_commit);
+        transcript.append_commitment(b"q_r", &q_r_poly_commit);
+        transcript.append_commitment(b"q_o", &q_o_poly_commit);
+        transcript.append_commitment(b"q_c", &q_c_poly_commit);
+
+        transcript.append_commitment(b"left_sigma", &left_sigma_poly_commit);
+        transcript.append_commitment(b"right_sigma", &right_sigma_poly_commit);
+        transcript.append_commitment(b"out_sigma", &out_sigma_poly_commit);
+
+        PreProcessedCircuit {
+            selector_polys: vec![
+                q_m_poly_commit,
+                q_l_poly_commit,
+                q_r_poly_commit,
+                q_o_poly_commit,
+                q_c_poly_commit,
             ],
-        );
-
-        // FIRST SNARK OUPUT COMPLETE
-        // --------- //
-
-        // Now compute the permutation polynomials
-        let (left_sigma_poly, right_sigma_poly, out_sigma_poly) =
-            self.compute_sigma_polynomials(domain);
-    }
-
-    fn compute_sigma_polynomials(
-        &mut self,
-        domain: &EvaluationDomain<E::Fr>,
-    ) -> (Polynomial<E::Fr>, Polynomial<E::Fr>, Polynomial<E::Fr>) {
-        // Compute sigma mappings
-        self.compute_sigma_permutations();
-
-        // convert the permutation mappings to actual functions
-        let left_sigma = self.compute_permutation_lagrange(&self.sigmas[0], domain);
-        let right_sigma = self.compute_permutation_lagrange(&self.sigmas[1], domain);
-        let out_sigma = self.compute_permutation_lagrange(&self.sigmas[2], domain);
-
-        let left_sigma_poly = Polynomial::from_coefficients_vec(domain.ifft(&left_sigma));
-        let right_sigma_poly = Polynomial::from_coefficients_vec(domain.ifft(&right_sigma));
-        let out_sigma_poly = Polynomial::from_coefficients_vec(domain.ifft(&out_sigma));
-
-        (left_sigma_poly, right_sigma_poly, out_sigma_poly)
-    }
-
-    fn compute_permutation_lagrange(
-        &self,
-        sigma_mapping: &[usize],
-        domain: &EvaluationDomain<E::Fr>,
-    ) -> Vec<E::Fr> {
-        let k1 = E::Fr::multiplicative_generator();
-        let k2 = E::Fr::from_repr_raw(13.into());
-
-        let lagrange_poly = domain
-            .elements()
-            .zip(sigma_mapping.iter())
-            .map(|(w, encoded_wire)| {
-                let wire_type: WireType = encoded_wire.into();
-
-                match wire_type {
-                    WireType::Left => w,
-                    WireType::Right => w * &k1,
-                    WireType::Output => w * &k2,
-                }
-            })
-            .collect();
-        lagrange_poly
+            left_sigma_poly: left_sigma_poly_commit,
+            right_sigma_poly: right_sigma_poly_commit,
+            out_sigma_poly: out_sigma_poly_commit,
+        }
     }
 
     // Prove will compute the pre-processed polynomials and
     // produce a proof
-    pub fn prove(
+    fn prove(
         &mut self,
         public_parameters: &UniversalParams<E>,
         transcript: &mut dyn TranscriptProtocol<E>,
-    ) {
+    ) -> Proof {
         let domain = EvaluationDomain::new(self.n).unwrap();
 
         // Pre-process circuit
@@ -283,6 +160,63 @@ impl<E: PairingEngine> StandardComposer<E> {
         let w_l_poly_commit = srs::commit(&ck, &w_l_poly);
         let w_r_poly_commit = srs::commit(&ck, &w_r_poly);
         let w_o_poly_commit = srs::commit(&ck, &w_o_poly);
+
+        Proof {}
+    }
+
+    fn circuit_size(&self) -> usize {
+        self.n
+    }
+}
+
+impl<E: PairingEngine> StandardComposer<E> {
+    pub fn new() -> Self {
+        StandardComposer::with_expected_size(0)
+    }
+
+    // Creates a new circuit with an expected circuit size
+    // This will allow for less reallocations when building the circuit
+    pub fn with_expected_size(expected_size: usize) -> Self {
+        StandardComposer {
+            n: 0,
+
+            q_m: Vec::with_capacity(expected_size),
+            q_l: Vec::with_capacity(expected_size),
+            q_r: Vec::with_capacity(expected_size),
+            q_o: Vec::with_capacity(expected_size),
+            q_c: Vec::with_capacity(expected_size),
+
+            w_l: Vec::with_capacity(expected_size),
+            w_r: Vec::with_capacity(expected_size),
+            w_o: Vec::with_capacity(expected_size),
+
+            variables: Vec::with_capacity(expected_size),
+
+            perm: Permutation::new(),
+        }
+    }
+
+    // Pads the circuit to the next power of two
+    // diff is the difference between circuit size and next power of two
+    fn pad(&mut self, diff: usize) {
+        // Add a zero variable to circuit
+        let zero_scalar = E::Fr::zero();
+        let zero_var = self.add_input(zero_scalar);
+
+        let zeroes_scalar = vec![zero_scalar; diff];
+        let zeroes_var = vec![zero_var; diff];
+
+        self.q_m.extend(zeroes_scalar.iter());
+        self.q_l.extend(zeroes_scalar.iter());
+        self.q_r.extend(zeroes_scalar.iter());
+        self.q_o.extend(zeroes_scalar.iter());
+        self.q_c.extend(zeroes_scalar.iter());
+
+        self.w_l.extend(zeroes_var.iter());
+        self.w_r.extend(zeroes_var.iter());
+        self.w_o.extend(zeroes_var.iter());
+
+        self.n = self.n + diff;
     }
 
     // Adds a value to the circuit and returns its
@@ -290,33 +224,12 @@ impl<E: PairingEngine> StandardComposer<E> {
     fn add_input(&mut self, s: E::Fr) -> Variable {
         self.variables.push(s);
 
-        self.variable_map.push(Vec::new());
+        self.perm.variable_map.push(Vec::new());
 
         Variable(self.variables.len() - 1)
     }
-    // Circuit size is the amount of gates in the circuit
-    fn circuit_size(&self) -> usize {
-        self.n
-    }
-
-    fn add_variable_to_map(&mut self, a: Variable, b: Variable, c: Variable) {
-        let num_variables = self.variable_map.len();
-        assert!(num_variables > a.0);
-        assert!(num_variables > b.0);
-        assert!(num_variables > c.0);
-
-        let left: WireData = WireData::new(self.n, WireType::Left);
-        let right: WireData = WireData::new(self.n, WireType::Right);
-        let output: WireData = WireData::new(self.n, WireType::Output);
-
-        // Map each variable to the wires it is assosciated with
-        self.variable_map[a.0].push(left);
-        self.variable_map[b.0].push(right);
-        self.variable_map[c.0].push(output);
-    }
 
     // Adds an add gate to the circuit
-    // This API is not great for the average user, what we can do is make separate functions for r1cs format
     pub fn add_gate(
         &mut self,
         a: Variable,
@@ -340,7 +253,7 @@ impl<E: PairingEngine> StandardComposer<E> {
         self.q_o.push(q_o);
         self.q_c.push(q_c);
 
-        self.add_variable_to_map(a, b, c);
+        self.perm.add_variable_to_map(a, b, c, self.n);
 
         self.n = self.n + 1;
     }
@@ -367,7 +280,7 @@ impl<E: PairingEngine> StandardComposer<E> {
         self.q_o.push(q_o);
         self.q_c.push(q_c);
 
-        self.add_variable_to_map(a, b, c);
+        self.perm.add_variable_to_map(a, b, c, self.n);
 
         self.n = self.n + 1;
     }
@@ -383,46 +296,9 @@ impl<E: PairingEngine> StandardComposer<E> {
         self.q_o.push(-E::Fr::one());
         self.q_c.push(E::Fr::zero());
 
-        self.add_variable_to_map(a, a, a);
+        self.perm.add_variable_to_map(a, a, a, self.n);
 
         self.n = self.n + 1;
-    }
-
-    // Computes sigma_1, sigma_2 and sigma_3 permutations
-    fn compute_sigma_permutations(&mut self) {
-        let sigma_1: Vec<_> =
-            (0 + WireType::Left as usize..self.n + WireType::Left as usize).collect();
-        let sigma_2: Vec<_> =
-            (0 + WireType::Right as usize..self.n + WireType::Right as usize).collect();
-        let sigma_3: Vec<_> =
-            (0 + WireType::Output as usize..self.n + WireType::Output as usize).collect();
-
-        assert_eq!(sigma_1.len(), self.n);
-        assert_eq!(sigma_2.len(), self.n);
-        assert_eq!(sigma_3.len(), self.n);
-
-        self.sigmas = vec![sigma_1, sigma_2, sigma_3];
-
-        for variable in self.variable_map.iter() {
-            // Gets the data for each wire assosciated with this variable
-            for (wire_index, current_wire) in variable.iter().enumerate() {
-                // Fetch index of the next wire, if it is the last element
-                // We loop back around to the beginning
-                let next_index = match wire_index == variable.len() - 1 {
-                    true => 0,
-                    false => wire_index + 1,
-                };
-
-                // Fetch the next wire
-                let next_wire = &variable[next_index];
-
-                // Map current wire to the next wire
-                // XXX: We could probably split up sigmas and do a match statement here
-                // Or even better, to avoid the allocations when defining sigma_1,sigma_2 and sigma_3 we can use a better more explicit encoding
-                self.sigmas[current_wire.wire_type as usize >> 30][current_wire.gate_index] =
-                    next_wire.gate_index + next_wire.wire_type as usize;
-            }
-        }
     }
 }
 
@@ -500,10 +376,10 @@ mod tests {
         assert!(composer.w_o.len() == size);
     }
 
+    //XXX: Move this test into permutation module and make `compute_sigma_permutation` private
     #[test]
     fn test_compute_permutation() {
         let mut transcript = Transcript::new(b"plonk");
-
         let num_constraints = 10;
         let mut composer: StandardComposer<Bls12_381> = add_dummy_composer(num_constraints);
 
@@ -512,14 +388,14 @@ mod tests {
         composer.pad(next_pow_2 as usize - composer.n);
 
         // Compute permutation mappings
-        composer.compute_sigma_permutations();
+        composer.perm.compute_sigma_permutations(composer.n);
 
         // Check that the permutations are the correct size
         // and that we have the correct amount of permutation functions
-        assert_eq!(composer.sigmas.len(), 3);
-        assert_eq!(composer.sigmas[0].len(), composer.n);
-        assert_eq!(composer.sigmas[1].len(), composer.n);
-        assert_eq!(composer.sigmas[2].len(), composer.n);
+        assert_eq!(composer.perm.sigmas.len(), 3);
+        assert_eq!(composer.perm.sigmas[0].len(), composer.n);
+        assert_eq!(composer.perm.sigmas[1].len(), composer.n);
+        assert_eq!(composer.perm.sigmas[2].len(), composer.n);
 
         let max_degree = 100;
         let public_parameters = srs::setup(max_degree);
