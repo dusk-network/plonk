@@ -162,7 +162,7 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
         let w_o_poly_commit = srs::commit(&ck, &w_o_poly);
 
         
-        // THIRD SNARK OUTPUT COMPUTATION
+        // -----------THIRD SNARK OUTPUT COMPUTATION-----------//
         
         // Lets assume that we already have `[z]` as 2nd
         // SNARK output.
@@ -176,8 +176,21 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
 
         let alpha = transcript.challenge_scalar(b"alpha");
         
-        // Compute t(X) poly.
+        ///////// Compute t(X) poly.
         
+        // Get wire selector polynomials. 
+        // IFFT to get Lagrange Polynomials of wire selectors.
+        let qm_ws_poly = Polynomial::from_coefficients_vec(domain.ifft(&self.q_m));
+        let ql_ws_poly = Polynomial::from_coefficients_vec(domain.ifft(&self.q_l));
+        let qr_ws_poly = Polynomial::from_coefficients_vec(domain.ifft(&self.q_r));
+        let qo_ws_poly = Polynomial::from_coefficients_vec(domain.ifft(&self.q_o));
+        let qc_ws_poly = Polynomial::from_coefficients_vec(domain.ifft(&self.q_c));
+
+        // `Beta` will be provided by the second step, so we assume we have it. 
+        let beta = alpha.clone();
+        // We assume that `PI(X)` will be also provided by the second step. 
+        let pi_poly = qc_ws_poly.clone();
+
 
         //let domain_2n = EvaluationDomain::new(domain.size() * 2)
         Proof {}
