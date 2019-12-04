@@ -161,6 +161,25 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
         let w_r_poly_commit = srs::commit(&ck, &w_r_poly);
         let w_o_poly_commit = srs::commit(&ck, &w_o_poly);
 
+        
+        // THIRD SNARK OUTPUT COMPUTATION
+        
+        // Lets assume that we already have `[z]` as 2nd
+        // SNARK output.
+        let z_poly_commit = srs::commit(&ck, &w_l_poly);
+
+        // Compute `Alpha` randomness
+        transcript.append_commitment(b"a", &w_l_poly_commit);
+        transcript.append_commitment(b"b", &w_r_poly_commit);
+        transcript.append_commitment(b"v", &w_o_poly_commit);
+        transcript.append_commitment(b"z", &z_poly_commit);
+
+        let alpha = transcript.challenge_scalar(b"alpha");
+        
+        // Compute t(X) poly.
+        
+
+        //let domain_2n = EvaluationDomain::new(domain.size() * 2)
         Proof {}
     }
 
