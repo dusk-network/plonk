@@ -9,7 +9,9 @@ edition = "2018"
 [dependencies]
 merlin = "1.2"
 rand = "0.7.2"
+rand_core = { version = "0.5.1", default-features = false }
 bls12_381 = { git = "https://github.com/zkcrypto/bls12_381", branch = "master" }
 algebra = { git = "https://github.com/scipr-lab/zexe/", features = [ "parallel" ] }
 ff-fft = { git = "https://github.com/scipr-lab/zexe/" }
 poly-commit = { git = "https://github.com/scipr-lab/poly-commit", branch = "master"}
+itertools = "0.8.2"
