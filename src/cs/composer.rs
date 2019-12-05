@@ -6,7 +6,8 @@ use algebra::{curves::PairingEngine, fields::Field};
 use ff_fft::{DensePolynomial as Polynomial, EvaluationDomain};
 use merlin::Transcript;
 use poly_commit::kzg10::UniversalParams;
-
+use rand_core::{CryptoRng, RngCore};
+use algebra::UniformRand;
 /// A composer is a circuit builder
 /// and will dictate how a cirucit is built
 /// We will have a default Composer called `StandardComposer`
@@ -113,10 +114,11 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
 
     // Prove will compute the pre-processed polynomials and
     // produce a proof
-    fn prove(
+    fn prove<R: RngCore + CryptoRng>(
         &mut self,
         public_parameters: &UniversalParams<E>,
         transcript: &mut dyn TranscriptProtocol<E>,
+        mut rng : &mut R,
     ) -> Proof {
         let domain = EvaluationDomain::new(self.n).unwrap();
 
@@ -136,12 +138,12 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
         let mut w_o_poly = Polynomial::from_coefficients_vec(domain.ifft(&w_o_scalar));
 
         // Add blinding values to polynomial
-        let b_1 = transcript.challenge_scalar(b"b_1");
-        let b_2 = transcript.challenge_scalar(b"b_2");
-        let b_3 = transcript.challenge_scalar(b"b_3");
-        let b_4 = transcript.challenge_scalar(b"b_4");
-        let b_5 = transcript.challenge_scalar(b"b_5");
-        let b_6 = transcript.challenge_scalar(b"b_6");
+        let b_1 = E::Fr::rand(&mut rng);
+        let b_2 = E::Fr::rand(&mut rng);
+        let b_3 = E::Fr::rand(&mut rng);
+        let b_4 = E::Fr::rand(&mut rng);
+        let b_5 = E::Fr::rand(&mut rng);
+        let b_6 = E::Fr::rand(&mut rng);
 
         let w_l_blinder =
             Polynomial::from_coefficients_slice(&[b_1, b_2]).mul_by_vanishing_poly(domain);
