@@ -73,7 +73,7 @@ impl<E: PairingEngine> Permutation<E> {
         left_sigma_poly: Vec<E::Fr>,
         right_sigma_poly: Vec<E::Fr>,
         out_sigma_poly: Vec<E::Fr>,
-    ) -> Polynomial<E::Fr>
+    ) -> (Polynomial<E::Fr>, E::Fr, E::Fr)
     where
         I: Iterator<Item = E::Fr>,
         R: RngCore + CryptoRng,
@@ -228,7 +228,7 @@ impl<E: PairingEngine> Permutation<E> {
 
         let z_poly_blinded = &z_poly + &z_blinder;
 
-        z_poly_blinded
+        (z_poly_blinded, beta,gamma)
     }
 
     fn compute_permutation_lagrange(
