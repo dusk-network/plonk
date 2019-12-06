@@ -132,7 +132,7 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
         let domain = EvaluationDomain::new(self.n).unwrap();
 
         // Pre-process circuit
-        self.preprocess(public_parameters, transcript, &domain);
+        let preprocessed_circuit = self.preprocess(public_parameters, transcript, &domain);
 
         //1. Witness Polynomials
         //
@@ -169,6 +169,20 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
         let w_l_poly_commit = srs::commit(&ck, &w_l_poly);
         let w_r_poly_commit = srs::commit(&ck, &w_r_poly);
         let w_o_poly_commit = srs::commit(&ck, &w_o_poly);
+
+        // compute permutation polynomial
+        let (z, beta, gamma) = self.perm.compute_permutation_poly(
+            self.n,
+            &domain,
+            transcript,
+            rng,
+            w_l_scalar.into_iter(),
+            w_r_scalar.into_iter(),
+            w_o_scalar.into_iter(),
+            preprocessed_circuit.left_sigma_poly.0,
+            preprocessed_circuit.right_sigma_poly.0,
+            preprocessed_circuit.out_sigma_poly.0,
+        );
 
         Proof {}
     }
