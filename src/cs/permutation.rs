@@ -228,7 +228,7 @@ impl<E: PairingEngine> Permutation<E> {
 
         let z_poly_blinded = &z_poly + &z_blinder;
 
-        (z_poly_blinded, beta,gamma)
+        (z_poly_blinded, beta, gamma)
     }
 
     fn compute_permutation_lagrange(
