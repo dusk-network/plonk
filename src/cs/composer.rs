@@ -175,7 +175,7 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
         transcript.append_commitment(b"z", &z_poly_commit);
 
         let alpha = transcript.challenge_scalar(b"alpha");
-        
+        let alpha_poly = Polynomial::from_coefficients_slice(&[alpha]);
         ///////// Compute t(X) poly.
         
         // Get wire selector polynomials. 
@@ -187,10 +187,22 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
         let qc_ws_poly = Polynomial::from_coefficients_vec(domain.ifft(&self.q_c));
 
         // `Beta` will be provided by the second step, so we assume we have it. 
-        let beta = alpha.clone();
+        let beta = alpha_poly.clone();
+
         // We assume that `PI(X)` will be also provided by the second step. 
         let pi_poly = qc_ws_poly.clone();
 
+        let t0 = {
+            let t00 = &(&w_l_poly * &w_r_poly) * &qm_ws_poly;
+            let t01 = &w_l_poly * &ql_ws_poly; 
+            let t02 = &w_r_poly * &qr_ws_poly; 
+            let t03 = &w_o_poly * &qo_ws_poly; 
+            let t04 = &pi_poly + &qc_ws_poly;
+            // What we do with the remainder??
+            let t05 = alpha_poly.divide_by_vanishing_poly(domain).unwrap();
+
+            &(&(&(&(&t00 + &t01) + &t02) + &t03) + &t04) * &t05.0
+        };
 
         //let domain_2n = EvaluationDomain::new(domain.size() * 2)
         Proof {}
@@ -199,6 +211,11 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
     fn circuit_size(&self) -> usize {
         self.n
     }
+
+    /*
+    fn compute_quotient_poly() -> ! {
+
+    }*/
 }
 
 impl<E: PairingEngine> StandardComposer<E> {
