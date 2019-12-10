@@ -311,6 +311,8 @@ impl<E: PairingEngine> Permutation<E> {
             let t30 = &z_poly - &one_poly;
             // Compute `alpha^3/Zh(X)`
             let (t31, _) = Polynomial::from_coefficients_slice(&[alpha.square() * &alpha]).divide_by_vanishing_poly(*domain).unwrap();
+            // Get L1(x) and compute the result. 
+            &(&t30 * &t31) * &self.compute_lagrange_poly_evaluation(n as u8);
         };
 
         unimplemented!()
