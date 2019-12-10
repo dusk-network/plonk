@@ -72,9 +72,9 @@ impl<E: PairingEngine> Permutation<E> {
         w_l: I,
         w_r: I,
         w_o: I,
-        left_sigma_poly: Vec<E::Fr>,
-        right_sigma_poly: Vec<E::Fr>,
-        out_sigma_poly: Vec<E::Fr>,
+        left_sigma_poly: &Vec<E::Fr>,
+        right_sigma_poly: &Vec<E::Fr>,
+        out_sigma_poly: &Vec<E::Fr>,
     ) -> (Polynomial<E::Fr>, E::Fr, E::Fr)
     where
         I: Iterator<Item = E::Fr>,
@@ -239,7 +239,7 @@ impl<E: PairingEngine> Permutation<E> {
         n: usize,
         domain: &EvaluationDomain<E::Fr>,
         transcript: &mut dyn TranscriptProtocol<E>,
-        prep_circ: PreProcessedCircuit<E>,
+        prep_circ: &PreProcessedCircuit<E>,
         w_poly: &[Polynomial<E::Fr>; 3],
         pi_poly: Polynomial<E::Fr>,
         beta: E::Fr,
