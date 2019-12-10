@@ -1,6 +1,7 @@
 mod composer;
 mod constraint_system;
 mod linearisation;
+mod opening;
 mod permutation;
 
 use algebra::curves::PairingEngine;
