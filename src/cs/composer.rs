@@ -180,9 +180,25 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
             w_l_scalar.into_iter(),
             w_r_scalar.into_iter(),
             w_o_scalar.into_iter(),
-            preprocessed_circuit.left_sigma_poly.0,
-            preprocessed_circuit.right_sigma_poly.0,
-            preprocessed_circuit.out_sigma_poly.0,
+            preprocessed_circuit.left_sigma_poly.0.clone(),
+            preprocessed_circuit.right_sigma_poly.0.clone(),
+            preprocessed_circuit.out_sigma_poly.0.clone(),
+        );
+
+        // Compute quotient polynomial. 
+        let (t_hi, t_mid, t_low) = self.perm.compute_quotient_poly(
+            self.n, 
+            &domain, 
+            transcript, 
+            preprocessed_circuit.clone(), 
+            &[w_l_poly, w_r_poly, w_o_poly],
+
+            // TODO: Get Public Inputs polynomial. 
+            z.clone(), 
+
+            beta, 
+            gamma, 
+            z,
         );
 
         Proof {}

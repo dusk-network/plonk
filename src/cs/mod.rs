@@ -12,6 +12,7 @@ use poly_commit::kzg10::UniversalParams;
 use rand_core::{CryptoRng, RngCore};
 
 // Preprocessed cirucit includes the commitment to the selector polynomials and the simga polynomials
+#[derive(Clone)]
 pub struct PreProcessedCircuit<E: PairingEngine> {
     selector_polys: Vec<(Polynomial<E::Fr>, Commitment<E>)>,
     left_sigma_poly: (Vec<E::Fr>, Commitment<E>),
