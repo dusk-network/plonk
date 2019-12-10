@@ -263,19 +263,21 @@ impl<E: PairingEngine> Permutation<E> {
         let qo_ws_poly = prep_circ.selector_polys[3].0.clone();
         let qc_ws_poly = prep_circ.selector_polys[4].0.clone();
 
-
+        // t0 represents the first polynomial that forms `t(X)`. 
         let t0 = {
             let t00 = &(w_l_poly * w_r_poly) * &qm_ws_poly;
             let t01 = w_l_poly * &ql_ws_poly; 
             let t02 = w_r_poly * &qr_ws_poly; 
             let t03 = w_o_poly * &qo_ws_poly; 
             let t04 = &pi_poly + &qc_ws_poly;
+            // Compute `alpha/Zh(X)`
             // What we do with the remainder??
             let t05 = alpha_poly.divide_by_vanishing_poly(*domain).unwrap();
 
             &(&(&(&(&t00 + &t01) + &t02) + &t03) + &t04) * &t05.0
         };
 
+        // t1 represents the second polynomial that forms `t(X)`.
         let t1 = {
             // beta*X poly
             let beta_x_poly = Polynomial::from_coefficients_slice(&[E::Fr::zero(), beta]);
@@ -292,11 +294,29 @@ impl<E: PairingEngine> Permutation<E> {
             // Beta*k2 poly
             let beta_k2_poly = Polynomial::from_coefficients_slice(&[E::Fr::zero(), beta_k2]);
             let t12 = &(w_o_poly + &beta_k2_poly) + &gamma_poly;
+            // Compute `alpha^2/Zh(X)`
             // AGAIN, WHAT TO DO WITH THE REMAINDER??
             let t14 = Polynomial::from_coefficients_slice(&[alpha.square()]).divide_by_vanishing_poly(*domain).unwrap();
             
             &(&(&(&t10 * &t11) * &t12) * &z_poly) * &t14.0
         };
+
+        // t2 represents the third polynomial that forms `t(X)`. 
+        let t2 = {
+            
+        };
+
+        // t3 represents the fourth polynomial that forms `t(X)`.
+        let t3 = {
+            // Build `1` poly (degree 0). 
+            let one_poly = Polynomial::from_coefficients_slice(&[E::Fr::from(1)]);
+            let t30 = &z_poly - &one_poly;
+            // Compute `alpha^3/Zh(X)`
+            let t31 = Polynomial::from_coefficients_slice(&[alpha.square() * &alpha]).divide_by_vanishing_poly(*domain).unwrap();
+            // TODO: Multiply by L1(X)
+            &t30 * &t31.0
+        };
+
         unimplemented!()
     }
 
