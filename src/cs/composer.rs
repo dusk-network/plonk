@@ -194,11 +194,11 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
             &[w_l_poly, w_r_poly, w_o_poly],
 
             // TODO: Get Public Inputs polynomial. 
-            z.clone(), 
+            &z, 
 
-            beta, 
-            gamma, 
-            z,
+            &beta, 
+            &gamma, 
+            &z,
         );
 
         Proof {}

@@ -241,10 +241,10 @@ impl<E: PairingEngine> Permutation<E> {
         transcript: &mut dyn TranscriptProtocol<E>,
         prep_circ: &PreProcessedCircuit<E>,
         w_poly: &[Polynomial<E::Fr>; 3],
-        pi_poly: Polynomial<E::Fr>,
-        beta: E::Fr,
-        gamma: E::Fr,
-        z_poly: Polynomial<E::Fr>,
+        pi_poly: &Polynomial<E::Fr>,
+        beta: &E::Fr,
+        gamma: &E::Fr,
+        z_poly: &Polynomial<E::Fr>,
     ) -> (Polynomial<E::Fr>, Polynomial<E::Fr>, Polynomial<E::Fr>) {
 
         // Compute `Alpha` randomness
@@ -257,19 +257,19 @@ impl<E: PairingEngine> Permutation<E> {
         let w_r_poly = &w_poly[1];
         let w_o_poly = &w_poly[2];
         // Rename wire-selector polynomials to clarify code. 
-        let qm_ws_poly = prep_circ.selector_polys[0].0.clone();
-        let ql_ws_poly = prep_circ.selector_polys[1].0.clone();
-        let qr_ws_poly = prep_circ.selector_polys[2].0.clone();
-        let qo_ws_poly = prep_circ.selector_polys[3].0.clone();
-        let qc_ws_poly = prep_circ.selector_polys[4].0.clone();
+        let qm_ws_poly = &prep_circ.selector_polys[0].0;
+        let ql_ws_poly = &prep_circ.selector_polys[1].0;
+        let qr_ws_poly = &prep_circ.selector_polys[2].0;
+        let qo_ws_poly = &prep_circ.selector_polys[3].0;
+        let qc_ws_poly = &prep_circ.selector_polys[4].0;
 
         // t0 represents the first polynomial that forms `t(X)`. 
         let t0 = {
-            let t00 = &(w_l_poly * w_r_poly) * &qm_ws_poly;
-            let t01 = w_l_poly * &ql_ws_poly; 
-            let t02 = w_r_poly * &qr_ws_poly; 
-            let t03 = w_o_poly * &qo_ws_poly; 
-            let t04 = &pi_poly + &qc_ws_poly;
+            let t00 = &(w_l_poly * w_r_poly) * qm_ws_poly;
+            let t01 = w_l_poly * ql_ws_poly; 
+            let t02 = w_r_poly * qr_ws_poly; 
+            let t03 = w_o_poly * qo_ws_poly; 
+            let t04 = pi_poly + qc_ws_poly;
             // Compute `alpha/Zh(X)`
             let (t05, _) = alpha_poly.divide_by_vanishing_poly(*domain).unwrap();
 
@@ -279,17 +279,17 @@ impl<E: PairingEngine> Permutation<E> {
         // t1 represents the second polynomial that forms `t(X)`.
         let t1 = {
             // beta*X poly
-            let beta_x_poly = Polynomial::from_coefficients_slice(&[E::Fr::zero(), beta]);
+            let beta_x_poly = Polynomial::from_coefficients_slice(&[E::Fr::zero(), *beta]);
             // gamma poly
-            let gamma_poly = Polynomial::from_coefficients_slice(&[gamma]);
+            let gamma_poly = Polynomial::from_coefficients_slice(&[*gamma]);
             let t10 = w_l_poly + &(&beta_x_poly * &gamma_poly);
             // Beta*k1
-            let beta_k1 : E::Fr = beta * &E::Fr::multiplicative_generator();
+            let beta_k1 : E::Fr = *beta * &E::Fr::multiplicative_generator();
             // Beta*k1 poly
             let beta_k1_poly = Polynomial::from_coefficients_slice(&[E::Fr::zero(), beta_k1]);
             let t11 = &(w_r_poly + &beta_k1_poly) + &gamma_poly;
             // Beta*k2
-            let beta_k2 : E::Fr = beta * &E::Fr::from(13);
+            let beta_k2 : E::Fr = *beta * &E::Fr::from(13);
             // Beta*k2 poly
             let beta_k2_poly = Polynomial::from_coefficients_slice(&[E::Fr::zero(), beta_k2]);
             let t12 = &(w_o_poly + &beta_k2_poly) + &gamma_poly;
@@ -308,7 +308,7 @@ impl<E: PairingEngine> Permutation<E> {
         let t3 = {
             // Build `1` poly (degree 0). 
             let one_poly = Polynomial::from_coefficients_slice(&[E::Fr::from(1)]);
-            let t30 = &z_poly - &one_poly;
+            let t30 = z_poly - &one_poly;
             // Compute `alpha^3/Zh(X)`
             let (t31, _) = Polynomial::from_coefficients_slice(&[alpha.square() * &alpha]).divide_by_vanishing_poly(*domain).unwrap();
             // Get L1(x) and compute the result. 
