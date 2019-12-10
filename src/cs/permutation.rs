@@ -70,9 +70,9 @@ impl<E: PairingEngine> Permutation<E> {
         w_l: I,
         w_r: I,
         w_o: I,
-        left_sigma_poly: Vec<E::Fr>,
-        right_sigma_poly: Vec<E::Fr>,
-        out_sigma_poly: Vec<E::Fr>,
+        left_sigma_poly: &[E::Fr],
+        right_sigma_poly: &[E::Fr],
+        out_sigma_poly: &[E::Fr],
     ) -> (Polynomial<E::Fr>, E::Fr, E::Fr)
     where
         I: Iterator<Item = E::Fr>,
