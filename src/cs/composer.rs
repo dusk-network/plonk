@@ -192,7 +192,7 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
         //
         // Fourth output
         let lineariser = lineariser::new();
-        let evaluations = lineariser.evaluate_linearisation_polynomial(
+        let (lin_poly,evaluations) = lineariser.evaluate_linearisation_polynomial(
             transcript,
             &domain,
             &preprocessed_circuit,
@@ -205,6 +205,9 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
             &quotient_poly,
             &z_poly,
         );
+
+        // Fifth output
+
 
         Proof {}
     }

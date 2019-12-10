@@ -27,7 +27,7 @@ impl<E: PairingEngine> lineariser<E> {
         w_o_poly: &Polynomial<E::Fr>,
         quotient_poly: &Polynomial<E::Fr>,
         z_poly: &Polynomial<E::Fr>,
-    ) -> (E::Fr, E::Fr, E::Fr, E::Fr, E::Fr, E::Fr, E::Fr, E::Fr) {
+    ) -> (Polynomial<E::Fr>,(E::Fr, E::Fr, E::Fr, E::Fr, E::Fr, E::Fr, E::Fr, E::Fr)) {
         let alpha_sq = alpha.square();
         let alpha_cu = alpha * &alpha_sq;
 
@@ -101,7 +101,7 @@ impl<E: PairingEngine> lineariser<E> {
         // Evalutate linearisation polynomial at z_challenge
         let lin_poly_eval = lin_poly.evaluate(z_challenge);
 
-        (
+        (lin_poly,(
             a_eval,
             b_eval,
             c_eval,
@@ -110,7 +110,7 @@ impl<E: PairingEngine> lineariser<E> {
             perm_eval,
             quot_eval,
             lin_poly_eval,
-        )
+        ))
     }
 
     fn compute_first_component(
