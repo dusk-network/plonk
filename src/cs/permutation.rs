@@ -1,4 +1,5 @@
 use super::constraint_system::{Variable, WireData, WireType};
+use crate::cs::PreProcessedCircuit;
 use crate::transcript::TranscriptProtocol;
 use algebra::UniformRand;
 use algebra::{
@@ -6,6 +7,7 @@ use algebra::{
     fields::{Field, PrimeField},
 };
 use ff_fft::{DensePolynomial as Polynomial, EvaluationDomain};
+use poly_commit::kzg10::Commitment;
 use itertools::izip;
 use rand_core::{CryptoRng, RngCore};
 use std::marker::PhantomData;
@@ -229,6 +231,73 @@ impl<E: PairingEngine> Permutation<E> {
         let z_poly_blinded = &z_poly + &z_blinder;
 
         (z_poly_blinded, beta, gamma)
+    }
+    
+    #[allow(dead_code)]
+    pub fn compute_quotient_poly (
+        &self,
+        n: usize,
+        domain: &EvaluationDomain<E::Fr>,
+        transcript: &mut dyn TranscriptProtocol<E>,
+        prep_circ: PreProcessedCircuit<E>,
+        w_poly: &[Polynomial<E::Fr>; 3],
+        pi_poly: Polynomial<E::Fr>,
+        beta: E::Fr,
+        gamma: E::Fr,
+        z_poly: Polynomial<E::Fr>,
+    ) -> (Polynomial<E::Fr>, Polynomial<E::Fr>, Polynomial<E::Fr>) {
+
+        // Compute `Alpha` randomness
+        let alpha = transcript.challenge_scalar(b"alpha");
+        // Compute `alpha` polynomial (degree zero).
+        let alpha_poly = Polynomial::from_coefficients_slice(&[alpha]);
+
+        // Get wire polynomials by its names to clarify the rest of the code.
+        let w_l_poly = &w_poly[0];
+        let w_r_poly = &w_poly[1];
+        let w_o_poly = &w_poly[2];
+        // Rename wire-selector polynomials to clarify code. 
+        let qm_ws_poly = prep_circ.selector_polys[0].0.clone();
+        let ql_ws_poly = prep_circ.selector_polys[1].0.clone();
+        let qr_ws_poly = prep_circ.selector_polys[2].0.clone();
+        let qo_ws_poly = prep_circ.selector_polys[3].0.clone();
+        let qc_ws_poly = prep_circ.selector_polys[4].0.clone();
+
+
+        let t0 = {
+            let t00 = &(w_l_poly * w_r_poly) * &qm_ws_poly;
+            let t01 = w_l_poly * &ql_ws_poly; 
+            let t02 = w_r_poly * &qr_ws_poly; 
+            let t03 = w_o_poly * &qo_ws_poly; 
+            let t04 = &pi_poly + &qc_ws_poly;
+            // What we do with the remainder??
+            let t05 = alpha_poly.divide_by_vanishing_poly(*domain).unwrap();
+
+            &(&(&(&(&t00 + &t01) + &t02) + &t03) + &t04) * &t05.0
+        };
+
+        let t1 = {
+            // beta*X poly
+            let beta_x_poly = Polynomial::from_coefficients_slice(&[E::Fr::zero(), beta]);
+            // gamma poly
+            let gamma_poly = Polynomial::from_coefficients_slice(&[gamma]);
+            let t10 = w_l_poly + &(&beta_x_poly * &gamma_poly);
+            // Beta*k1
+            let beta_k1 : E::Fr = beta * &E::Fr::multiplicative_generator();
+            // Beta*k1 poly
+            let beta_k1_poly = Polynomial::from_coefficients_slice(&[E::Fr::zero(), beta_k1]);
+            let t11 = &(w_r_poly + &beta_k1_poly) + &gamma_poly;
+            // Beta*k2
+            let beta_k2 : E::Fr = beta * &E::Fr::from(13);
+            // Beta*k2 poly
+            let beta_k2_poly = Polynomial::from_coefficients_slice(&[E::Fr::zero(), beta_k2]);
+            let t12 = &(w_o_poly + &beta_k2_poly) + &gamma_poly;
+            // AGAIN, WHAT TO DO WITH THE REMAINDER??
+            let t14 = Polynomial::from_coefficients_slice(&[alpha.square()]).divide_by_vanishing_poly(*domain).unwrap();
+            
+            &(&(&(&t10 * &t11) * &t12) * &z_poly) * &t14.0
+        };
+        unimplemented!()
     }
 
     fn compute_permutation_lagrange(
