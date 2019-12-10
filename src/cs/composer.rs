@@ -2,10 +2,11 @@ use super::{
     constraint_system::Variable, permutation::Permutation, Composer, PreProcessedCircuit, Proof,
 };
 use crate::{srs, transcript::TranscriptProtocol};
-use algebra::{curves::PairingEngine, fields::Field};
+use algebra::{curves::PairingEngine, fields::Field, fields::PrimeField};
 use ff_fft::{DensePolynomial as Polynomial, EvaluationDomain};
 use merlin::Transcript;
 use poly_commit::kzg10::UniversalParams;
+use poly_commit::kzg10::Commitment;
 
 /// A composer is a circuit builder
 /// and will dictate how a cirucit is built
@@ -187,10 +188,14 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
         let qc_ws_poly = Polynomial::from_coefficients_vec(domain.ifft(&self.q_c));
 
         // `Beta` will be provided by the second step, so we assume we have it. 
-        let beta = alpha_poly.clone();
+        let beta = alpha;
+        let gamma = alpha;
 
         // We assume that `PI(X)` will be also provided by the second step. 
         let pi_poly = qc_ws_poly.clone();
+
+        // We assume that `z(X)` will be given by the second step. 
+        let z_poly = pi_poly.clone();
 
         let t0 = {
             let t00 = &(&w_l_poly * &w_r_poly) * &qm_ws_poly;
@@ -204,18 +209,34 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
             &(&(&(&(&t00 + &t01) + &t02) + &t03) + &t04) * &t05.0
         };
 
-        //let domain_2n = EvaluationDomain::new(domain.size() * 2)
+        let t1 = {
+            // beta*X poly
+            let beta_x_poly = Polynomial::from_coefficients_slice(&[E::Fr::zero(), beta]);
+            // gamma poly
+            let gamma_poly = Polynomial::from_coefficients_slice(&[gamma]);
+            let t10 = &w_l_poly + &(&beta_x_poly * &gamma_poly);
+            // Beta*k1
+            let beta_k1 : E::Fr = beta * &E::Fr::multiplicative_generator();
+            // Beta*k1 poly
+            let beta_k1_poly = Polynomial::from_coefficients_slice(&[E::Fr::zero(), beta_k1]);
+            let t11 = &(&w_r_poly + &beta_k1_poly) + &gamma_poly;
+            // Beta*k2
+            let beta_k2 : E::Fr = beta * &E::Fr::from(13);
+            // Beta*k2 poly
+            let beta_k2_poly = Polynomial::from_coefficients_slice(&[E::Fr::zero(), beta_k2]);
+            let t12 = &(&w_o_poly + &beta_k2_poly) + &gamma_poly;
+            // AGAIN, WHAT TO DO WITH THE REMAINDER??
+            let t14 = Polynomial::from_coefficients_slice(&[alpha.square()]).divide_by_vanishing_poly(domain).unwrap();
+            
+            &(&(&(&t10 * &t11) * &t12) * &z_poly) * &t14.0
+        };
+        
         Proof {}
     }
 
     fn circuit_size(&self) -> usize {
         self.n
     }
-
-    /*
-    fn compute_quotient_poly() -> ! {
-
-    }*/
 }
 
 impl<E: PairingEngine> StandardComposer<E> {
