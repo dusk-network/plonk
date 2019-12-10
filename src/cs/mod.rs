@@ -1,5 +1,6 @@
 mod composer;
 mod constraint_system;
+mod linearisation;
 mod permutation;
 
 use algebra::curves::PairingEngine;
@@ -19,7 +20,23 @@ pub struct PreProcessedCircuit<E: PairingEngine> {
     right_sigma_poly: (Vec<E::Fr>, Commitment<E>),
     out_sigma_poly: (Vec<E::Fr>, Commitment<E>),
 }
-
+impl<E: PairingEngine> PreProcessedCircuit<E> {
+    pub fn qm_poly(&self) -> &Polynomial<E::Fr> {
+        &self.selector_polys[0].0
+    }
+    pub fn ql_poly(&self) -> &Polynomial<E::Fr> {
+        &self.selector_polys[1].0
+    }
+    pub fn qr_poly(&self) -> &Polynomial<E::Fr> {
+        &self.selector_polys[2].0
+    }
+    pub fn qo_poly(&self) -> &Polynomial<E::Fr> {
+        &self.selector_polys[3].0
+    }
+    pub fn qc_poly(&self) -> &Polynomial<E::Fr> {
+        &self.selector_polys[4].0
+    }
+}
 // Empty proof struct that for now, will only be used for the Composer trait
 pub struct Proof {}
 
