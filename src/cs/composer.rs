@@ -1,3 +1,4 @@
+use super::linearisation::lineariser;
 use super::{
     constraint_system::Variable, permutation::Permutation, Composer, PreProcessedCircuit, Proof,
 };
@@ -171,7 +172,7 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
         let w_o_poly_commit = srs::commit(&ck, &w_o_poly);
 
         // compute permutation polynomial
-        let (z, beta, gamma) = self.perm.compute_permutation_poly(
+        let (z_poly, beta, gamma) = self.perm.compute_permutation_poly(
             self.n,
             &domain,
             transcript,
@@ -179,9 +180,30 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
             w_l_scalar.into_iter(),
             w_r_scalar.into_iter(),
             w_o_scalar.into_iter(),
-            preprocessed_circuit.left_sigma_poly.0,
-            preprocessed_circuit.right_sigma_poly.0,
-            preprocessed_circuit.out_sigma_poly.0,
+            &preprocessed_circuit.left_sigma_poly.0,
+            &preprocessed_circuit.right_sigma_poly.0,
+            &preprocessed_circuit.out_sigma_poly.0,
+        );
+
+        // Third output being done by Carlos
+        //
+        let alpha = E::Fr::rand(&mut rng); // Comes from quotient computation
+        let quotient_poly = Polynomial::from_coefficients_vec(vec![E::Fr::one()]);
+        //
+        // Fourth output
+        let lineariser = lineariser::new();
+        let evaluations = lineariser.evaluate_linearisation_polynomial(
+            transcript,
+            &domain,
+            &preprocessed_circuit,
+            alpha,
+            beta,
+            gamma,
+            &w_l_poly,
+            &w_r_poly,
+            &w_o_poly,
+            &quotient_poly,
+            &z_poly,
         );
 
         Proof {}
