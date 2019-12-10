@@ -1,8 +1,14 @@
 use super::constraint_system::{Variable, WireData, WireType};
-use algebra::{curves::PairingEngine, fields::PrimeField};
+use crate::transcript::TranscriptProtocol;
+use algebra::UniformRand;
+use algebra::{
+    curves::PairingEngine,
+    fields::{Field, PrimeField},
+};
 use ff_fft::{DensePolynomial as Polynomial, EvaluationDomain};
+use itertools::izip;
+use rand_core::{CryptoRng, RngCore};
 use std::marker::PhantomData;
-
 pub struct Permutation<E: PairingEngine> {
     _engine: PhantomData<E>,
     // maps variables to the wire data that they are assosciated with
@@ -39,7 +45,7 @@ impl<E: PairingEngine> Permutation<E> {
         &mut self,
         n: usize,
         domain: &EvaluationDomain<E::Fr>,
-    ) -> (Polynomial<E::Fr>, Polynomial<E::Fr>, Polynomial<E::Fr>) {
+    ) -> (Vec<E::Fr>, Vec<E::Fr>, Vec<E::Fr>) {
         // Compute sigma mappings
         self.compute_sigma_permutations(n);
 
@@ -48,11 +54,181 @@ impl<E: PairingEngine> Permutation<E> {
         let right_sigma = self.compute_permutation_lagrange(&self.sigmas[1], domain);
         let out_sigma = self.compute_permutation_lagrange(&self.sigmas[2], domain);
 
-        let left_sigma_poly = Polynomial::from_coefficients_vec(domain.ifft(&left_sigma));
-        let right_sigma_poly = Polynomial::from_coefficients_vec(domain.ifft(&right_sigma));
-        let out_sigma_poly = Polynomial::from_coefficients_vec(domain.ifft(&out_sigma));
+        (
+            domain.ifft(&left_sigma),
+            domain.ifft(&right_sigma),
+            domain.ifft(&out_sigma),
+        )
+    }
 
-        (left_sigma_poly, right_sigma_poly, out_sigma_poly)
+    pub(crate) fn compute_permutation_poly<R, I>(
+        &self,
+        n: usize,
+        domain: &EvaluationDomain<E::Fr>,
+        transcript: &mut dyn TranscriptProtocol<E>,
+        mut rng: &mut R,
+        w_l: I,
+        w_r: I,
+        w_o: I,
+        left_sigma_poly: Vec<E::Fr>,
+        right_sigma_poly: Vec<E::Fr>,
+        out_sigma_poly: Vec<E::Fr>,
+    ) -> (Polynomial<E::Fr>, E::Fr, E::Fr)
+    where
+        I: Iterator<Item = E::Fr>,
+        R: RngCore + CryptoRng,
+    {
+        let k1 = E::Fr::multiplicative_generator();
+        let k2 = E::Fr::from_repr_raw(13.into());
+
+        // Compute challenges
+        let beta = transcript.challenge_scalar(b"beta");
+        let gamma = transcript.challenge_scalar(b"gamma");
+
+        // Compute beta * sigma polynomials
+        let beta_left_sigma = left_sigma_poly.iter().map(|sigma| *sigma * &beta);
+        let beta_right_sigma = right_sigma_poly.iter().map(|sigma| *sigma * &beta);
+        let beta_out_sigma = out_sigma_poly.iter().map(|sigma| *sigma * &beta);
+
+        // Compute beta * roots
+        let common_roots_iter = domain.elements().map(|root| root * &beta);
+
+        // Compute beta * roots * k1
+        let beta_roots_k1 = domain.elements().map(|root| beta * &root * &k1);
+
+        // Compute beta * roots * k2
+        let beta_roots_k2 = domain.elements().map(|root| beta * &root * &k2);
+
+        // Compute left_wire + gamma
+        let wL_gamma = w_l.map(|w_L| w_L + &gamma);
+
+        // Compute right_wire + gamma
+        let wR_gamma = w_r.map(|w_R| w_R + &gamma);
+
+        // Compute out_wire + gamma
+        let wO_gamma = w_o.map(|w_O| w_O + &gamma);
+
+        // Compute 6 acumulator components
+        let mut acumulator_components_without_l1 = izip!(
+            wL_gamma,
+            wR_gamma,
+            wO_gamma,
+            common_roots_iter,
+            beta_roots_k1,
+            beta_roots_k2,
+            beta_left_sigma,
+            beta_right_sigma,
+            beta_out_sigma,
+        )
+        .map(
+            |(
+                w_l_gamma,
+                w_r_gamma,
+                w_o_gamma,
+                beta_root,
+                beta_root_k1,
+                beta_root_k2,
+                beta_left_sigma,
+                beta_right_sigma,
+                beta_out_sigma,
+            )| {
+                // w_j + beta * root^j-1 + gamma
+                let AC1 = w_l_gamma + &beta_root;
+
+                // w_{n+j} + beta * k1 * root^j-1 + gamma
+                let AC2 = w_r_gamma + &beta_root_k1;
+
+                // w_{2n+j} + beta * k2 * root^j-1 + gamma
+                let AC3 = w_o_gamma + &beta_root_k2;
+
+                // 1 / w_j + beta * sigma(j) + gamma
+                let mut AC4 = w_l_gamma + &beta_left_sigma;
+                AC4.inverse_in_place().unwrap();
+
+                // 1 / w_{n+j} + beta * k1 * sigma(n+j) + gamma
+                let mut AC5 = w_r_gamma + &beta_right_sigma;
+                AC5.inverse_in_place().unwrap();
+
+                // 1 / w_{2n+j} + beta * k2 * sigma(2n+j) + gamma
+                let mut AC6 = w_o_gamma + &beta_out_sigma;
+                AC6.inverse_in_place().unwrap();
+
+                (AC1, AC2, AC3, AC4, AC5, AC6)
+            },
+        );
+
+        // Remove the last element and prepend ones to the beginning of each acumulator to signify L_1(x)
+        let acumulator_components = std::iter::once((
+            E::Fr::one(),
+            E::Fr::one(),
+            E::Fr::one(),
+            E::Fr::one(),
+            E::Fr::one(),
+            E::Fr::one(),
+        ))
+        .chain(acumulator_components_without_l1.take(n - 1));
+
+        // XXX: We could put this in with the previous iter method, but it will not be clear
+        // Multiply each component of the accumulators
+        // A simplified example is the following:
+        // A1 = [1,2,3,4]
+        // result = [1, 1*2, 1*2*3, 1*2*3*4]
+        let mut prev = (
+            E::Fr::one(),
+            E::Fr::one(),
+            E::Fr::one(),
+            E::Fr::one(),
+            E::Fr::one(),
+            E::Fr::one(),
+        );
+        let product_acumulated_components = acumulator_components.map(move |current_component| {
+            prev.0 *= &current_component.0;
+            prev.1 *= &current_component.1;
+            prev.2 *= &current_component.2;
+            prev.3 *= &current_component.3;
+            prev.4 *= &current_component.4;
+            prev.5 *= &current_component.5;
+
+            prev
+        });
+
+        // right now we basically have 6 acumulators of the form:
+        // A1 = [a1, a1 * a2, a1*a2*a3,...]
+        // A2 = [b1, b1 * b2, b1*b2*b3,...]
+        // A3 = [c1, c1 * c2, c1*c2*c3,...]
+        // ... and so on
+        // We want:
+        // [a1*b*c1, a1 * a2 *b1 * b2 * c1 * c2,...]
+        let mut prev = E::Fr::one();
+        let z: Vec<_> = product_acumulated_components
+            .map(move |current_component| {
+                prev *= &current_component.0;
+                prev *= &current_component.1;
+                prev *= &current_component.2;
+                prev *= &current_component.3;
+                prev *= &current_component.4;
+                prev *= &current_component.5;
+
+                prev
+            })
+            .collect();
+
+        assert_eq!(n, z.len());
+
+        // Compute permutation polynomail and blind it
+        let mut z_poly = Polynomial::from_coefficients_vec(domain.ifft(&z));
+
+        // Compute blinder polynomial
+        let b_7 = E::Fr::rand(&mut rng);
+        let b_8 = E::Fr::rand(&mut rng);
+        let b_9 = E::Fr::rand(&mut rng);
+
+        let z_blinder =
+            Polynomial::from_coefficients_slice(&[b_9, b_8, b_7]).mul_by_vanishing_poly(*domain);
+
+        let z_poly_blinded = &z_poly + &z_blinder;
+
+        (z_poly_blinded, beta, gamma)
     }
 
     fn compute_permutation_lagrange(

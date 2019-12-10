@@ -2,12 +2,13 @@ use super::{
     constraint_system::Variable, permutation::Permutation, Composer, PreProcessedCircuit, Proof,
 };
 use crate::{srs, transcript::TranscriptProtocol};
+use algebra::UniformRand;
 use algebra::{curves::PairingEngine, fields::Field, fields::PrimeField};
 use ff_fft::{DensePolynomial as Polynomial, EvaluationDomain};
 use merlin::Transcript;
 use poly_commit::kzg10::UniversalParams;
 use poly_commit::kzg10::Commitment;
-
+use rand_core::{CryptoRng, RngCore};
 /// A composer is a circuit builder
 /// and will dictate how a cirucit is built
 /// We will have a default Composer called `StandardComposer`
@@ -82,9 +83,18 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
         let q_o_poly_commit = srs::commit(&ck, &q_o_poly);
         let q_c_poly_commit = srs::commit(&ck, &q_c_poly);
 
-        let left_sigma_poly_commit = srs::commit(&ck, &left_sigma_poly);
-        let right_sigma_poly_commit = srs::commit(&ck, &right_sigma_poly);
-        let out_sigma_poly_commit = srs::commit(&ck, &out_sigma_poly);
+        let left_sigma_poly_commit = srs::commit(
+            &ck,
+            &Polynomial::from_coefficients_vec(left_sigma_poly.clone()),
+        );
+        let right_sigma_poly_commit = srs::commit(
+            &ck,
+            &Polynomial::from_coefficients_vec(right_sigma_poly.clone()),
+        );
+        let out_sigma_poly_commit = srs::commit(
+            &ck,
+            &Polynomial::from_coefficients_vec(out_sigma_poly.clone()),
+        );
 
         //5. Add polynomial commitments to transcript
         //
@@ -100,36 +110,35 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
 
         PreProcessedCircuit {
             selector_polys: vec![
-                q_m_poly_commit,
-                q_l_poly_commit,
-                q_r_poly_commit,
-                q_o_poly_commit,
-                q_c_poly_commit,
+                (q_m_poly, q_m_poly_commit),
+                (q_l_poly, q_l_poly_commit),
+                (q_r_poly, q_r_poly_commit),
+                (q_o_poly, q_o_poly_commit),
+                (q_c_poly, q_c_poly_commit),
             ],
-            left_sigma_poly: left_sigma_poly_commit,
-            right_sigma_poly: right_sigma_poly_commit,
-            out_sigma_poly: out_sigma_poly_commit,
+            left_sigma_poly: (left_sigma_poly, left_sigma_poly_commit),
+            right_sigma_poly: (right_sigma_poly, right_sigma_poly_commit),
+            out_sigma_poly: (out_sigma_poly, out_sigma_poly_commit),
         }
     }
 
     // Prove will compute the pre-processed polynomials and
     // produce a proof
-    fn prove(
+    fn prove<R: RngCore + CryptoRng>(
         &mut self,
         public_parameters: &UniversalParams<E>,
         transcript: &mut dyn TranscriptProtocol<E>,
+        mut rng: &mut R,
     ) -> Proof {
         let domain = EvaluationDomain::new(self.n).unwrap();
 
         // Pre-process circuit
-        self.preprocess(public_parameters, transcript, &domain);
+        let preprocessed_circuit = self.preprocess(public_parameters, transcript, &domain);
 
         //1. Witness Polynomials
         //
         // Convert Variables to Scalars
-        let w_l_scalar: Vec<_> = self.w_l.iter().map(|var| self.variables[var.0]).collect();
-        let w_r_scalar: Vec<_> = self.w_r.iter().map(|var| self.variables[var.0]).collect();
-        let w_o_scalar: Vec<_> = self.w_o.iter().map(|var| self.variables[var.0]).collect();
+        let (w_l_scalar, w_r_scalar, w_o_scalar) = self.witness_vars_to_scalars();
 
         // IFFT to get lagrange polynomials on witnesses
         let mut w_l_poly = Polynomial::from_coefficients_vec(domain.ifft(&w_l_scalar));
@@ -137,12 +146,12 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
         let mut w_o_poly = Polynomial::from_coefficients_vec(domain.ifft(&w_o_scalar));
 
         // Add blinding values to polynomial
-        let b_1 = transcript.challenge_scalar(b"b_1");
-        let b_2 = transcript.challenge_scalar(b"b_2");
-        let b_3 = transcript.challenge_scalar(b"b_3");
-        let b_4 = transcript.challenge_scalar(b"b_4");
-        let b_5 = transcript.challenge_scalar(b"b_5");
-        let b_6 = transcript.challenge_scalar(b"b_6");
+        let b_1 = E::Fr::rand(&mut rng);
+        let b_2 = E::Fr::rand(&mut rng);
+        let b_3 = E::Fr::rand(&mut rng);
+        let b_4 = E::Fr::rand(&mut rng);
+        let b_5 = E::Fr::rand(&mut rng);
+        let b_6 = E::Fr::rand(&mut rng);
 
         let w_l_blinder =
             Polynomial::from_coefficients_slice(&[b_1, b_2]).mul_by_vanishing_poly(domain);
@@ -162,75 +171,20 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
         let w_r_poly_commit = srs::commit(&ck, &w_r_poly);
         let w_o_poly_commit = srs::commit(&ck, &w_o_poly);
 
-        
-        // -----------THIRD SNARK OUTPUT COMPUTATION-----------//
-        
-        // Lets assume that we already have `[z]` as 2nd
-        // SNARK output.
-        let z_poly_commit = srs::commit(&ck, &w_l_poly);
+        // compute permutation polynomial
+        let (z, beta, gamma) = self.perm.compute_permutation_poly(
+            self.n,
+            &domain,
+            transcript,
+            rng,
+            w_l_scalar.into_iter(),
+            w_r_scalar.into_iter(),
+            w_o_scalar.into_iter(),
+            preprocessed_circuit.left_sigma_poly.0,
+            preprocessed_circuit.right_sigma_poly.0,
+            preprocessed_circuit.out_sigma_poly.0,
+        );
 
-        // Compute `Alpha` randomness
-        transcript.append_commitment(b"a", &w_l_poly_commit);
-        transcript.append_commitment(b"b", &w_r_poly_commit);
-        transcript.append_commitment(b"v", &w_o_poly_commit);
-        transcript.append_commitment(b"z", &z_poly_commit);
-
-        let alpha = transcript.challenge_scalar(b"alpha");
-        let alpha_poly = Polynomial::from_coefficients_slice(&[alpha]);
-        ///////// Compute t(X) poly.
-        
-        // Get wire selector polynomials. 
-        // IFFT to get Lagrange Polynomials of wire selectors.
-        let qm_ws_poly = Polynomial::from_coefficients_vec(domain.ifft(&self.q_m));
-        let ql_ws_poly = Polynomial::from_coefficients_vec(domain.ifft(&self.q_l));
-        let qr_ws_poly = Polynomial::from_coefficients_vec(domain.ifft(&self.q_r));
-        let qo_ws_poly = Polynomial::from_coefficients_vec(domain.ifft(&self.q_o));
-        let qc_ws_poly = Polynomial::from_coefficients_vec(domain.ifft(&self.q_c));
-
-        // `Beta` will be provided by the second step, so we assume we have it. 
-        let beta = alpha;
-        let gamma = alpha;
-
-        // We assume that `PI(X)` will be also provided by the second step. 
-        let pi_poly = qc_ws_poly.clone();
-
-        // We assume that `z(X)` will be given by the second step. 
-        let z_poly = pi_poly.clone();
-
-        let t0 = {
-            let t00 = &(&w_l_poly * &w_r_poly) * &qm_ws_poly;
-            let t01 = &w_l_poly * &ql_ws_poly; 
-            let t02 = &w_r_poly * &qr_ws_poly; 
-            let t03 = &w_o_poly * &qo_ws_poly; 
-            let t04 = &pi_poly + &qc_ws_poly;
-            // What we do with the remainder??
-            let t05 = alpha_poly.divide_by_vanishing_poly(domain).unwrap();
-
-            &(&(&(&(&t00 + &t01) + &t02) + &t03) + &t04) * &t05.0
-        };
-
-        let t1 = {
-            // beta*X poly
-            let beta_x_poly = Polynomial::from_coefficients_slice(&[E::Fr::zero(), beta]);
-            // gamma poly
-            let gamma_poly = Polynomial::from_coefficients_slice(&[gamma]);
-            let t10 = &w_l_poly + &(&beta_x_poly * &gamma_poly);
-            // Beta*k1
-            let beta_k1 : E::Fr = beta * &E::Fr::multiplicative_generator();
-            // Beta*k1 poly
-            let beta_k1_poly = Polynomial::from_coefficients_slice(&[E::Fr::zero(), beta_k1]);
-            let t11 = &(&w_r_poly + &beta_k1_poly) + &gamma_poly;
-            // Beta*k2
-            let beta_k2 : E::Fr = beta * &E::Fr::from(13);
-            // Beta*k2 poly
-            let beta_k2_poly = Polynomial::from_coefficients_slice(&[E::Fr::zero(), beta_k2]);
-            let t12 = &(&w_o_poly + &beta_k2_poly) + &gamma_poly;
-            // AGAIN, WHAT TO DO WITH THE REMAINDER??
-            let t14 = Polynomial::from_coefficients_slice(&[alpha.square()]).divide_by_vanishing_poly(domain).unwrap();
-            
-            &(&(&(&t10 * &t11) * &t12) * &z_poly) * &t14.0
-        };
-        
         Proof {}
     }
 
@@ -242,6 +196,14 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
 impl<E: PairingEngine> StandardComposer<E> {
     pub fn new() -> Self {
         StandardComposer::with_expected_size(0)
+    }
+
+    fn witness_vars_to_scalars(&self) -> (Vec<E::Fr>, Vec<E::Fr>, Vec<E::Fr>) {
+        let w_l_scalar: Vec<_> = self.w_l.iter().map(|var| self.variables[var.0]).collect();
+        let w_r_scalar: Vec<_> = self.w_r.iter().map(|var| self.variables[var.0]).collect();
+        let w_o_scalar: Vec<_> = self.w_o.iter().map(|var| self.variables[var.0]).collect();
+
+        (w_l_scalar, w_r_scalar, w_o_scalar)
     }
 
     // Creates a new circuit with an expected circuit size
@@ -377,6 +339,9 @@ mod tests {
     use super::*;
     use algebra::curves::bls12_381::Bls12_381;
     use algebra::fields::bls12_381::Fr;
+
+    use rand::thread_rng;
+
     // Ensures a + b - c = 0
     fn simple_add_gadget<E: PairingEngine>(
         composer: &mut StandardComposer<E>,
@@ -449,9 +414,12 @@ mod tests {
     //XXX: Move this test into permutation module and make `compute_sigma_permutation` private
     #[test]
     fn test_compute_permutation() {
-        let mut transcript = Transcript::new(b"plonk");
-        let num_constraints = 10;
+        let num_constraints = 70;
         let mut composer: StandardComposer<Bls12_381> = add_dummy_composer(num_constraints);
+
+        // Setup srs
+        let max_degree = num_constraints.next_power_of_two() + 1;
+        let public_parameters = srs::setup(max_degree);
 
         // Pad the circuit to next power of two
         let next_pow_2 = composer.n.next_power_of_two() as u64;
@@ -467,10 +435,10 @@ mod tests {
         assert_eq!(composer.perm.sigmas[1].len(), composer.n);
         assert_eq!(composer.perm.sigmas[2].len(), composer.n);
 
-        let max_degree = 100;
-        let public_parameters = srs::setup(max_degree);
-
         let domain = EvaluationDomain::new(composer.n).unwrap();
+
+        // Create transcript
+        let mut transcript = Transcript::new(b"plonk");
 
         // Pre-process circuit
         let preprocessed_circuit =
