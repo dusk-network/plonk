@@ -72,9 +72,9 @@ impl<E: PairingEngine> Permutation<E> {
         w_l: I,
         w_r: I,
         w_o: I,
-        left_sigma_poly: &Vec<E::Fr>,
-        right_sigma_poly: &Vec<E::Fr>,
-        out_sigma_poly: &Vec<E::Fr>,
+        left_sigma_poly: &[E::Fr],
+        right_sigma_poly: &[E::Fr],
+        out_sigma_poly: &[E::Fr],
     ) -> (Polynomial<E::Fr>, E::Fr, E::Fr)
     where
         I: Iterator<Item = E::Fr>,
@@ -240,7 +240,7 @@ impl<E: PairingEngine> Permutation<E> {
         domain: &EvaluationDomain<E::Fr>,
         transcript: &mut dyn TranscriptProtocol<E>,
         prep_circ: &PreProcessedCircuit<E>,
-        w_poly: &[Polynomial<E::Fr>; 3],
+        w_poly: [&Polynomial<E::Fr>; 3],
         pi_poly: &Polynomial<E::Fr>,
         beta: &E::Fr,
         gamma: &E::Fr,
@@ -253,9 +253,9 @@ impl<E: PairingEngine> Permutation<E> {
         let alpha_poly = Polynomial::from_coefficients_slice(&[alpha]);
 
         // Get wire polynomials by its names to clarify the rest of the code.
-        let w_l_poly = &w_poly[0];
-        let w_r_poly = &w_poly[1];
-        let w_o_poly = &w_poly[2];
+        let w_l_poly = w_poly[0];
+        let w_r_poly = w_poly[1];
+        let w_o_poly = w_poly[2];
         // Rename wire-selector polynomials to clarify code. 
         let qm_ws_poly = &prep_circ.selector_polys[0].0;
         let ql_ws_poly = &prep_circ.selector_polys[1].0;
