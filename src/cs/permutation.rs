@@ -218,13 +218,9 @@ impl<E: PairingEngine> Permutation<E> {
         // Compute permutation polynomail and blind it
         let mut z_poly = Polynomial::from_coefficients_vec(domain.ifft(&z));
 
-        // Compute blinder polynomial
-        let b_7 = E::Fr::rand(&mut rng);
-        let b_8 = E::Fr::rand(&mut rng);
-        let b_9 = E::Fr::rand(&mut rng);
-
+        // Compute blinding polynomial
         let z_blinder =
-            Polynomial::from_coefficients_slice(&[b_9, b_8, b_7]).mul_by_vanishing_poly(*domain);
+        Polynomial::rand(3, &mut rng).mul_by_vanishing_poly(*domain);
 
         let z_poly_blinded = &z_poly + &z_blinder;
 
