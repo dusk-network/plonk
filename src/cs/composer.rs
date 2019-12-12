@@ -187,7 +187,7 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
         );
 
         // Compute quotient polynomial. 
-        let (t_hi, t_mid, t_low) = self.perm.compute_quotient_poly(
+        let (t_hi, t_mid, t_low, alpha) = self.perm.compute_quotient_poly(
             self.n, 
             &domain, 
             transcript, 
@@ -202,9 +202,6 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
             &z_poly,
         );
 
-        // Third output being done by Carlos
-        //
-        let alpha = E::Fr::rand(&mut rng); // Comes from quotient computation
         let quotient_poly = Polynomial::from_coefficients_vec(vec![E::Fr::one()]);
         //
         // Fourth output
