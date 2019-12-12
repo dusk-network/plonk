@@ -251,6 +251,8 @@ impl<E: PairingEngine> Permutation<E> {
         let alpha = transcript.challenge_scalar(b"alpha");
         // Compute `alpha` polynomial (degree zero).
         let alpha_poly = Polynomial::from_coefficients_slice(&[alpha]);
+        // Compute `gamma` polynomial (degree zero). 
+        let gamma_poly = Polynomial::from_coefficients_slice(&[*gamma]);
 
         // Get wire polynomials by its names to clarify the rest of the code.
         let w_l_poly = w_poly[0];
@@ -280,8 +282,6 @@ impl<E: PairingEngine> Permutation<E> {
         let t1 = {
             // beta*X poly
             let beta_x_poly = Polynomial::from_coefficients_slice(&[E::Fr::zero(), *beta]);
-            // gamma poly
-            let gamma_poly = Polynomial::from_coefficients_slice(&[*gamma]);
             let t10 = w_l_poly + &(&beta_x_poly * &gamma_poly);
             // Beta*k1
             let beta_k1 : E::Fr = *beta * &E::Fr::multiplicative_generator();
@@ -294,14 +294,31 @@ impl<E: PairingEngine> Permutation<E> {
             let beta_k2_poly = Polynomial::from_coefficients_slice(&[E::Fr::zero(), beta_k2]);
             let t12 = &(w_o_poly + &beta_k2_poly) + &gamma_poly;
             // Compute `alpha^2/Zh(X)`
-            let t14 = Polynomial::from_coefficients_slice(&[alpha.square()]).divide_by_vanishing_poly(*domain).unwrap();
+            let (t14, _) = Polynomial::from_coefficients_slice(&[alpha.square()]).divide_by_vanishing_poly(*domain).unwrap();
             
-            &(&(&(&t10 * &t11) * &t12) * &z_poly) * &t14.0
+            &(&(&(&t10 * &t11) * &t12) * &z_poly) * &t14
         };
 
         // t2 represents the third polynomial that forms `t(X)`. 
         let t2 = {
-            
+            // Beta poly (Degree 0). 
+            let beta_poly = Polynomial::from_coefficients_slice(&[*beta]);
+            // Compute Sigma polys. 
+            let sigma_1_beta_poly =
+            &Polynomial::from_coefficients_slice(&prep_circ.left_sigma_poly.0) * &beta_poly;
+            let sigma_2_beta_poly =
+            &Polynomial::from_coefficients_slice(&prep_circ.right_sigma_poly.0) * &beta_poly;
+            let sigma_3_beta_poly =
+            &Polynomial::from_coefficients_slice(&prep_circ.out_sigma_poly.0) * &beta_poly;
+
+            let t20 = &(w_l_poly + &sigma_1_beta_poly) + &gamma_poly;
+            let t21 = &(w_r_poly + &sigma_2_beta_poly) + &gamma_poly;
+            let t22 = &(w_o_poly + &sigma_3_beta_poly) + &gamma_poly;
+            // TODO: Compute z(Xw). 
+
+            // Compute `alpha^2/Zh(X)`
+            let (t24, _) = Polynomial::from_coefficients_slice(&[alpha.square()]).divide_by_vanishing_poly(*domain).unwrap();
+            &(&(&t20 * &t21) * &t22) * &t24
         };
 
         // t3 represents the fourth polynomial that forms `t(X)`.
@@ -312,18 +329,33 @@ impl<E: PairingEngine> Permutation<E> {
             // Compute `alpha^3/Zh(X)`
             let (t31, _) = Polynomial::from_coefficients_slice(&[alpha.square() * &alpha]).divide_by_vanishing_poly(*domain).unwrap();
             // Get L1(x) and compute the result. 
-            &(&t30 * &t31) * &self.compute_lagrange_poly_evaluation(n as u8);
+            //TODO: Review this.
+            &(&t30 * &t31) * &self.compute_lagrange_poly_evaluation(n as u8)
         };
+
+        let t_x = &(&(&t0 + &t1) - &t2) + &t3;
+        // Build 0+ X + X^n + X^2n poly. 
+        let x_pow_2n = {
+            let mut vec = Vec::new();
+            for _ in 0..(n*2) {
+                vec.push(E::Fr::zero());
+            };
+            vec.push(E::Fr::from(1));
+            vec
+        };
+        let x_pow_2n_poly = Polynomial::from_coefficients_slice(&x_pow_2n);
+        let x_pow_n_poly = Polynomial::from_coefficients_slice(&x_pow_2n[0..=n]);
 
         unimplemented!()
     }
 
+    // TODO: Review this comp!!!
     /// Computes the Lagrange polynomial evaluation `L1(z)`. 
     pub fn compute_lagrange_poly_evaluation(&self, n: u8) -> Polynomial<E::Fr> {
         // One as a polynomial of degree 0. 
         let one_poly = Polynomial::from_coefficients_slice(&[E::Fr::from(1)]);
         // Build z_nth vector to get the poly directly in coef form.
-        let mut z_nth = Vec::with_capacity(n as usize);
+        let mut z_nth = Vec::new();
         for _ in 0..n {
             z_nth.push(E::Fr::zero());
         };
