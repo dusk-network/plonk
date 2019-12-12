@@ -334,6 +334,8 @@ impl<E: PairingEngine> Permutation<E> {
         };
 
         let t_x = &(&(&t0 + &t1) - &t2) + &t3;
+        // Split `t(X)`
+
         // Build 0+ X + X^n + X^2n poly. 
         let x_pow_2n = {
             let mut vec = Vec::new();
@@ -346,7 +348,14 @@ impl<E: PairingEngine> Permutation<E> {
         let x_pow_2n_poly = Polynomial::from_coefficients_slice(&x_pow_2n);
         let x_pow_n_poly = Polynomial::from_coefficients_slice(&x_pow_2n[0..=n]);
 
-        unimplemented!()
+        let t_x_split = self.split_tx_poly(n, t_x);
+        // Build t_low(X)
+        let t_lo = t_x_split[0].clone();
+        // Build t_mid(X)
+        let t_mid = &x_pow_n_poly * &t_x_split[1];
+        // Build t_hi(X)
+        let t_hi = &x_pow_2n_poly * &t_x_split[2];
+        (t_lo, t_mid, t_hi)
     }
 
     // TODO: Review this comp!!!
@@ -368,6 +377,20 @@ impl<E: PairingEngine> Permutation<E> {
         let z_poly = Polynomial::from_coefficients_slice(&[E::Fr::zero(), E::Fr::from(1)]);
 
         &(&z_nth_poly - &one_poly) / &(&n_poly * &(&z_poly - &one_poly))
+    }
+
+    // Split `t(X)` poly into degree-n polynomials.
+    pub fn split_tx_poly(&self, n: usize, t_x: Polynomial<E::Fr>) -> [Polynomial<E::Fr>;3] {
+        let mut t_lo = t_x.clone();
+        t_lo[2*n+1] = E::Fr::zero();
+        t_lo[3*n+1] = E::Fr::zero();
+        let mut t_mid = t_x.clone();
+        t_mid[3*n+1] = E::Fr::zero();
+        t_mid[n+1] = E::Fr::zero();
+        let mut t_hi = t_x.clone();
+        t_hi[2*n+1] = E::Fr::zero();
+        t_hi[n+1] = E::Fr::zero();
+        [t_lo, t_mid, t_hi]
     }
 
     fn compute_permutation_lagrange(
