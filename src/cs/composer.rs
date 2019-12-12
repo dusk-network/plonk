@@ -146,22 +146,15 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
         let mut w_r_poly = Polynomial::from_coefficients_vec(domain.ifft(&w_r_scalar));
         let mut w_o_poly = Polynomial::from_coefficients_vec(domain.ifft(&w_o_scalar));
 
-        // Add blinding values to polynomial
-        let b_1 = E::Fr::rand(&mut rng);
-        let b_2 = E::Fr::rand(&mut rng);
-        let b_3 = E::Fr::rand(&mut rng);
-        let b_4 = E::Fr::rand(&mut rng);
-        let b_5 = E::Fr::rand(&mut rng);
-        let b_6 = E::Fr::rand(&mut rng);
-
+        // Generate blinding polynomials
         let w_l_blinder =
-            Polynomial::from_coefficients_slice(&[b_1, b_2]).mul_by_vanishing_poly(domain);
+            Polynomial::rand(2, &mut rng).mul_by_vanishing_poly(domain);
         let w_r_blinder =
-            Polynomial::from_coefficients_slice(&[b_4, b_3]).mul_by_vanishing_poly(domain);
+        Polynomial::rand(2, &mut rng).mul_by_vanishing_poly(domain);
         let w_o_blinder =
-            Polynomial::from_coefficients_slice(&[b_6, b_5]).mul_by_vanishing_poly(domain);
+        Polynomial::rand(2, &mut rng).mul_by_vanishing_poly(domain);
 
-        // blind with zero polynomials
+        // Blind witness polynomials
         w_l_poly = &w_l_poly + &w_l_blinder;
         w_r_poly = &w_r_poly + &w_r_blinder;
         w_o_poly = &w_o_poly + &w_o_blinder;
