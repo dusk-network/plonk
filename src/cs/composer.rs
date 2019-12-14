@@ -1,4 +1,5 @@
 use super::linearisation::lineariser;
+use super::opening::commitmentOpener;
 use super::{
     constraint_system::Variable, permutation::Permutation, Composer, PreProcessedCircuit, Proof,
 };
@@ -210,9 +211,19 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
         // Assemble quotient poly
         let quotient_poly = &(&t_hi_poly + &t_mid_poly) + &t_low_poly;
 
+        // XXX: The problem is that when we compute the permutation poly, we need the mapping
+        // But everywhere else, we need the polynomial made using the lagrange bases
+        // This will be one of the bigger refactors
+        let left_sigma_poly =
+            Polynomial::from_coefficients_slice(&preprocessed_circuit.left_sigma_poly.0);
+        let right_sigma_poly =
+            Polynomial::from_coefficients_slice(&preprocessed_circuit.right_sigma_poly.0);
+        let out_sigma_poly =
+            Polynomial::from_coefficients_slice(&preprocessed_circuit.out_sigma_poly.0);
+
         // Fourth output
         let lineariser = lineariser::new();
-        let (lin_poly,evaluations) = lineariser.evaluate_linearisation_polynomial(
+        let (lin_poly, evaluations, z_challenge) = lineariser.evaluate_linearisation_polynomial(
             transcript,
             &domain,
             &preprocessed_circuit,
@@ -227,7 +238,27 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
         );
 
         // Fifth output
+        let comm_opener = commitmentOpener::new();
+        let (W_z, W_zx) = comm_opener.compute_opening_polynomials(
+            transcript,
+            domain.group_gen,
+            domain.size(),
+            z_challenge,
+            &lin_poly,
+            &evaluations,
+            &t_low_poly,
+            &t_mid_poly,
+            &t_hi_poly,
+            &w_l_poly,
+            &w_r_poly,
+            &w_o_poly,
+            &left_sigma_poly,
+            &right_sigma_poly,
+            &z_poly,
+        );
 
+        let comm_w_z = srs::commit(&ck, &W_z);
+        let comm_w_z_x = srs::commit(&ck, &W_zx);
 
         Proof {}
     }
