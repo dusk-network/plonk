@@ -346,8 +346,6 @@ impl<E: PairingEngine> Permutation<E> {
         };
         let x_pow_2n_poly = Polynomial::from_coefficients_slice(&x_pow_2n);
         let x_pow_n_poly = Polynomial::from_coefficients_slice(&x_pow_2n[0..=n]);
-
-        //TODO: Commit to kzg10. 
         
         let t_x_split = self.split_tx_poly(n, t_x);
         // Build t_low(X)
@@ -388,7 +386,8 @@ impl<E: PairingEngine> Permutation<E> {
         poly_coef.push(poly_coef[3]);
         let mut coefs_rotated: Vec<E::Fr> = Vec::with_capacity(poly_coef.len());
         coefs_rotated.clone_from_slice(&poly_coef[4..]);
-        Polynomial::from_coefficients_vec(domain_4n.ifft(&coefs_rotated));
+        let final_poly = Polynomial::from_coefficients_vec(domain_4n.ifft(&coefs_rotated));
+        final_poly
     }
 
     // Split `t(X)` poly into degree-n polynomials.
