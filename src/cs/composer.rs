@@ -187,7 +187,7 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
         );
 
         // Compute quotient polynomial. 
-        let (t_hi, t_mid, t_low, alpha) = self.perm.compute_quotient_poly(
+        let (t_hi_poly, t_mid_poly, t_low_poly, alpha) = self.perm.compute_quotient_poly(
             self.n, 
             &domain, 
             transcript, 
@@ -202,8 +202,14 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
             &z_poly,
         );
 
-        let quotient_poly = Polynomial::from_coefficients_vec(vec![E::Fr::one()]);
-        //
+        // Commit polynomials.
+        let t_low_commit = srs::commit(&ck, &t_low_poly);
+        let t_mid_commit = srs::commit(&ck, &t_mid_poly);
+        let t_hi_commit = srs::commit(&ck, &t_hi_poly);
+
+        // Assemble quotient poly
+        let quotient_poly = &(&t_hi_poly + &t_mid_poly) + &t_low_poly;
+
         // Fourth output
         let lineariser = lineariser::new();
         let (lin_poly,evaluations) = lineariser.evaluate_linearisation_polynomial(
