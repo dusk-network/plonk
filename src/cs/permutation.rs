@@ -20,6 +20,10 @@ pub struct Permutation<E: PairingEngine> {
     // To then later create the necessary permutations
     // XXX: the index will be the Variable reference, so it may be better to use a map to be more explicit here
     pub(crate) variable_map: Vec<Vec<WireData>>,
+
+    left_sigma_mapping: Option<Vec<E::Fr>>,
+    right_sigma_mapping: Option<Vec<E::Fr>>,
+    out_sigma_mapping: Option<Vec<E::Fr>>,
 }
 
 impl<E: PairingEngine> Permutation<E> {
@@ -32,6 +36,10 @@ impl<E: PairingEngine> Permutation<E> {
             _engine: PhantomData,
             variables: Vec::with_capacity(expected_size),
             variable_map: Vec::with_capacity(expected_size),
+
+            left_sigma_mapping: None,
+            right_sigma_mapping: None,
+            out_sigma_mapping: None,
         }
     }
     /// Adds a Scalar into the system and creates a new variable for it
@@ -160,7 +168,7 @@ impl<E: PairingEngine> Permutation<E> {
         &mut self,
         n: usize,
         domain: &EvaluationDomain<E::Fr>,
-    ) -> (Vec<E::Fr>, Vec<E::Fr>, Vec<E::Fr>) {
+    ) -> (Polynomial<E::Fr>, Polynomial<E::Fr>, Polynomial<E::Fr>) {
         // Compute sigma mappings
         let sigmas = self.compute_sigma_permutations(n);
 
@@ -173,11 +181,15 @@ impl<E: PairingEngine> Permutation<E> {
         let right_sigma = self.compute_permutation_lagrange(&sigmas[1], domain);
         let out_sigma = self.compute_permutation_lagrange(&sigmas[2], domain);
 
-        (
-            domain.ifft(&left_sigma),
-            domain.ifft(&right_sigma),
-            domain.ifft(&out_sigma),
-        )
+        let left_sigma_poly = Polynomial::from_coefficients_vec(domain.ifft(&left_sigma));
+        let right_sigma_poly = Polynomial::from_coefficients_vec(domain.ifft(&right_sigma));
+        let out_sigma_poly = Polynomial::from_coefficients_vec(domain.ifft(&out_sigma));
+
+        self.left_sigma_mapping = Some(left_sigma);
+        self.right_sigma_mapping = Some(right_sigma);
+        self.out_sigma_mapping = Some(out_sigma);
+
+        (left_sigma_poly, right_sigma_poly, out_sigma_poly)
     }
 
     pub(crate) fn compute_permutation_poly<R, I>(
@@ -189,9 +201,6 @@ impl<E: PairingEngine> Permutation<E> {
         w_l: I,
         w_r: I,
         w_o: I,
-        left_sigma_poly: &[E::Fr],
-        right_sigma_poly: &[E::Fr],
-        out_sigma_poly: &[E::Fr],
     ) -> (Polynomial<E::Fr>, E::Fr, E::Fr)
     where
         I: Iterator<Item = E::Fr>,
@@ -200,14 +209,18 @@ impl<E: PairingEngine> Permutation<E> {
         let k1 = E::Fr::multiplicative_generator();
         let k2 = E::Fr::from_repr_raw(13.into());
 
+        let left_sigma_mapping = self.left_sigma_mapping.as_ref().unwrap();
+        let right_sigma_mapping = self.right_sigma_mapping.as_ref().unwrap();
+        let out_sigma_mapping = self.out_sigma_mapping.as_ref().unwrap();
+
         // Compute challenges
         let beta = transcript.challenge_scalar(b"beta");
         let gamma = transcript.challenge_scalar(b"gamma");
 
         // Compute beta * sigma polynomials
-        let beta_left_sigma = left_sigma_poly.iter().map(|sigma| *sigma * &beta);
-        let beta_right_sigma = right_sigma_poly.iter().map(|sigma| *sigma * &beta);
-        let beta_out_sigma = out_sigma_poly.iter().map(|sigma| *sigma * &beta);
+        let beta_left_sigma = left_sigma_mapping.iter().map(|sigma| *sigma * &beta);
+        let beta_right_sigma = right_sigma_mapping.iter().map(|sigma| *sigma * &beta);
+        let beta_out_sigma = out_sigma_mapping.iter().map(|sigma| *sigma * &beta);
 
         // Compute beta * roots
         let common_roots_iter = domain.elements().map(|root| root * &beta);

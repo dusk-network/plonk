@@ -13,12 +13,15 @@ use ff_fft::EvaluationDomain;
 use poly_commit::kzg10::UniversalParams;
 use rand_core::{CryptoRng, RngCore};
 
-// Preprocessed cirucit includes the commitment to the selector polynomials and the simga polynomials
+// Preprocessed cirucit includes the commitment to the selector polynomials and the sigma polynomials
 pub struct PreProcessedCircuit<E: PairingEngine> {
+    // Returns the selector polynomials q_m, q_l, q_r, q_o, q_c, other custom polynomials
     selector_polys: Vec<(Polynomial<E::Fr>, Commitment<E>)>,
-    left_sigma_poly: (Vec<E::Fr>, Commitment<E>),
-    right_sigma_poly: (Vec<E::Fr>, Commitment<E>),
-    out_sigma_poly: (Vec<E::Fr>, Commitment<E>),
+
+    // Returns the permutation polynomials
+    left_sigma_poly: (Polynomial<E::Fr>, Commitment<E>),
+    right_sigma_poly: (Polynomial<E::Fr>, Commitment<E>),
+    out_sigma_poly: (Polynomial<E::Fr>, Commitment<E>),
 }
 impl<E: PairingEngine> PreProcessedCircuit<E> {
     pub fn qm_poly(&self) -> &Polynomial<E::Fr> {
