@@ -35,10 +35,6 @@ pub struct StandardComposer<E: PairingEngine> {
     w_r: Vec<Variable>,
     w_o: Vec<Variable>,
 
-    // These are the actual variable values
-    // N.B. They should not be exposed to the end user once added into the composer
-    variables: Vec<E::Fr>,
-
     perm: Permutation<E>,
 }
 
@@ -139,7 +135,9 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
         //1. Witness Polynomials
         //
         // Convert Variables to Scalars
-        let (w_l_scalar, w_r_scalar, w_o_scalar) = self.witness_vars_to_scalars();
+        let (w_l_scalar, w_r_scalar, w_o_scalar) = self
+            .perm
+            .witness_vars_to_scalars(&self.w_l, &self.w_r, &self.w_o);
 
         // IFFT to get lagrange polynomials on witnesses
         let mut w_l_poly = Polynomial::from_coefficients_vec(domain.ifft(&w_l_scalar));
@@ -147,12 +145,9 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
         let mut w_o_poly = Polynomial::from_coefficients_vec(domain.ifft(&w_o_scalar));
 
         // Generate blinding polynomials
-        let w_l_blinder =
-            Polynomial::rand(2, &mut rng).mul_by_vanishing_poly(domain);
-        let w_r_blinder =
-        Polynomial::rand(2, &mut rng).mul_by_vanishing_poly(domain);
-        let w_o_blinder =
-        Polynomial::rand(2, &mut rng).mul_by_vanishing_poly(domain);
+        let w_l_blinder = Polynomial::rand(2, &mut rng).mul_by_vanishing_poly(domain);
+        let w_r_blinder = Polynomial::rand(2, &mut rng).mul_by_vanishing_poly(domain);
+        let w_o_blinder = Polynomial::rand(2, &mut rng).mul_by_vanishing_poly(domain);
 
         // Blind witness polynomials
         w_l_poly = &w_l_poly + &w_l_blinder;
@@ -249,14 +244,6 @@ impl<E: PairingEngine> StandardComposer<E> {
         StandardComposer::with_expected_size(0)
     }
 
-    fn witness_vars_to_scalars(&self) -> (Vec<E::Fr>, Vec<E::Fr>, Vec<E::Fr>) {
-        let w_l_scalar: Vec<_> = self.w_l.iter().map(|var| self.variables[var.0]).collect();
-        let w_r_scalar: Vec<_> = self.w_r.iter().map(|var| self.variables[var.0]).collect();
-        let w_o_scalar: Vec<_> = self.w_o.iter().map(|var| self.variables[var.0]).collect();
-
-        (w_l_scalar, w_r_scalar, w_o_scalar)
-    }
-
     // Creates a new circuit with an expected circuit size
     // This will allow for less reallocations when building the circuit
     pub fn with_expected_size(expected_size: usize) -> Self {
@@ -272,8 +259,6 @@ impl<E: PairingEngine> StandardComposer<E> {
             w_l: Vec::with_capacity(expected_size),
             w_r: Vec::with_capacity(expected_size),
             w_o: Vec::with_capacity(expected_size),
-
-            variables: Vec::with_capacity(expected_size),
 
             perm: Permutation::new(),
         }
@@ -302,14 +287,10 @@ impl<E: PairingEngine> StandardComposer<E> {
         self.n = self.n + diff;
     }
 
-    // Adds a value to the circuit and returns its
-    // index reference
+    // Adds a Scalar to the circuit and returns its
+    // reference in the constraint system
     fn add_input(&mut self, s: E::Fr) -> Variable {
-        self.variables.push(s);
-
-        self.perm.variable_map.push(Vec::new());
-
-        Variable(self.variables.len() - 1)
+        self.perm.new_variable(s)
     }
 
     // Adds an add gate to the circuit
@@ -478,13 +459,6 @@ mod tests {
 
         // Compute permutation mappings
         composer.perm.compute_sigma_permutations(composer.n);
-
-        // Check that the permutations are the correct size
-        // and that we have the correct amount of permutation functions
-        assert_eq!(composer.perm.sigmas.len(), 3);
-        assert_eq!(composer.perm.sigmas[0].len(), composer.n);
-        assert_eq!(composer.perm.sigmas[1].len(), composer.n);
-        assert_eq!(composer.perm.sigmas[2].len(), composer.n);
 
         let domain = EvaluationDomain::new(composer.n).unwrap();
 
