@@ -351,7 +351,7 @@ impl<E: PairingEngine> Permutation<E> {
         let mut z_poly = Polynomial::from_coefficients_vec(domain.ifft(&z));
 
         // Compute blinding polynomial
-        let z_blinder = Polynomial::rand(3, &mut rng).mul_by_vanishing_poly(*domain);
+        let z_blinder = Polynomial::rand(2, &mut rng).mul_by_vanishing_poly(*domain);
 
         let z_poly_blinded = &z_poly + &z_blinder;
 
