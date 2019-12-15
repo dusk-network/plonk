@@ -80,18 +80,9 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
         let q_o_poly_commit = srs::commit(&ck, &q_o_poly);
         let q_c_poly_commit = srs::commit(&ck, &q_c_poly);
 
-        let left_sigma_poly_commit = srs::commit(
-            &ck,
-            &Polynomial::from_coefficients_vec(left_sigma_poly.clone()),
-        );
-        let right_sigma_poly_commit = srs::commit(
-            &ck,
-            &Polynomial::from_coefficients_vec(right_sigma_poly.clone()),
-        );
-        let out_sigma_poly_commit = srs::commit(
-            &ck,
-            &Polynomial::from_coefficients_vec(out_sigma_poly.clone()),
-        );
+        let left_sigma_poly_commit = srs::commit(&ck, &left_sigma_poly);
+        let right_sigma_poly_commit = srs::commit(&ck, &right_sigma_poly);
+        let out_sigma_poly_commit = srs::commit(&ck, &out_sigma_poly);
 
         //5. Add polynomial commitments to transcript
         //
@@ -169,20 +160,7 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
             w_l_scalar.into_iter(),
             w_r_scalar.into_iter(),
             w_o_scalar.into_iter(),
-            &preprocessed_circuit.left_sigma_poly.0,
-            &preprocessed_circuit.right_sigma_poly.0,
-            &preprocessed_circuit.out_sigma_poly.0,
         );
-
-        // XXX: The problem is that when we compute the permutation poly, we need the mapping
-        // But everywhere else, we need the polynomial made using the lagrange bases
-        // This will be one of the bigger refactors
-        let left_sigma_poly =
-            Polynomial::from_coefficients_slice(&preprocessed_circuit.left_sigma_poly.0);
-        let right_sigma_poly =
-            Polynomial::from_coefficients_slice(&preprocessed_circuit.right_sigma_poly.0);
-        let out_sigma_poly =
-            Polynomial::from_coefficients_slice(&preprocessed_circuit.out_sigma_poly.0);
 
         // Third output being done by Carlos
         //
@@ -223,8 +201,8 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
             &w_l_poly,
             &w_r_poly,
             &w_o_poly,
-            &left_sigma_poly,
-            &right_sigma_poly,
+            &preprocessed_circuit.left_sigma_poly.0,
+            &preprocessed_circuit.right_sigma_poly.0,
             &z_poly,
         );
 
