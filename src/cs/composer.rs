@@ -1,7 +1,8 @@
 use super::linearisation::lineariser;
 use super::opening::commitmentOpener;
 use super::{
-    constraint_system::Variable, permutation::Permutation, Composer, PreProcessedCircuit, Proof,
+    constraint_system::Variable, permutation::Permutation, proof::Proof, Composer,
+    PreProcessedCircuit,
 };
 use crate::{srs, transcript::TranscriptProtocol};
 use algebra::UniformRand;
@@ -117,7 +118,7 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
         public_parameters: &UniversalParams<E>,
         transcript: &mut dyn TranscriptProtocol<E>,
         mut rng: &mut R,
-    ) -> Proof {
+    ) -> Proof<E> {
         let domain = EvaluationDomain::new(self.n).unwrap();
 
         // Pre-process circuit
@@ -210,7 +211,7 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
         let comm_w_z = srs::commit(&ck, &W_z);
         let comm_w_z_x = srs::commit(&ck, &W_zx);
 
-        Proof {}
+        Proof::empty()
     }
 
     fn circuit_size(&self) -> usize {
