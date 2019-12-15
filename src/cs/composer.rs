@@ -137,9 +137,9 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
         let mut w_o_poly = Polynomial::from_coefficients_vec(domain.ifft(&w_o_scalar));
 
         // Generate blinding polynomials
-        let w_l_blinder = Polynomial::rand(2, &mut rng).mul_by_vanishing_poly(domain);
-        let w_r_blinder = Polynomial::rand(2, &mut rng).mul_by_vanishing_poly(domain);
-        let w_o_blinder = Polynomial::rand(2, &mut rng).mul_by_vanishing_poly(domain);
+        let w_l_blinder = Polynomial::rand(1, &mut rng).mul_by_vanishing_poly(domain);
+        let w_r_blinder = Polynomial::rand(1, &mut rng).mul_by_vanishing_poly(domain);
+        let w_o_blinder = Polynomial::rand(1, &mut rng).mul_by_vanishing_poly(domain);
 
         // Blind witness polynomials
         w_l_poly = &w_l_poly + &w_l_blinder;
