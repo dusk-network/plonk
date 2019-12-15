@@ -3,6 +3,7 @@ mod constraint_system;
 mod linearisation;
 mod opening;
 mod permutation;
+mod proof;
 
 use algebra::curves::PairingEngine;
 use ff_fft::DensePolynomial as Polynomial;
@@ -40,8 +41,6 @@ impl<E: PairingEngine> PreProcessedCircuit<E> {
         &self.selector_polys[4].0
     }
 }
-// Empty proof struct that for now, will only be used for the Composer trait
-pub struct Proof {}
 
 pub trait Composer<E: PairingEngine> {
     // Circuit size is the amount of gates in the circuit
@@ -62,5 +61,5 @@ pub trait Composer<E: PairingEngine> {
         public_parameters: &UniversalParams<E>,
         transcript: &mut dyn TranscriptProtocol<E>,
         rng: &mut R,
-    ) -> Proof;
+    ) -> proof::Proof<E>;
 }
