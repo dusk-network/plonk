@@ -165,7 +165,6 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
         // Third output being done by Carlos
         //
         let alpha = E::Fr::rand(&mut rng); // Comes from quotient computation
-        let quotient_poly = Polynomial::from_coefficients_vec(vec![E::Fr::one()]);
         let t_lo = Polynomial::from_coefficients_vec(vec![E::Fr::one()]);
         let t_mid = Polynomial::from_coefficients_vec(vec![E::Fr::one()]);
         let t_hi = Polynomial::from_coefficients_vec(vec![E::Fr::one()]);
@@ -182,7 +181,9 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
             &w_l_poly,
             &w_r_poly,
             &w_o_poly,
-            &quotient_poly,
+            &t_lo,
+            &t_mid,
+            &t_hi,
             &z_poly,
         );
 

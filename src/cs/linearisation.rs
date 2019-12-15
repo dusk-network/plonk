@@ -25,7 +25,9 @@ impl<E: PairingEngine> lineariser<E> {
         w_l_poly: &Polynomial<E::Fr>,
         w_r_poly: &Polynomial<E::Fr>,
         w_o_poly: &Polynomial<E::Fr>,
-        quotient_poly: &Polynomial<E::Fr>,
+        t_lo: &Polynomial<E::Fr>,
+        t_mid: &Polynomial<E::Fr>,
+        t_hi: &Polynomial<E::Fr>,
         z_poly: &Polynomial<E::Fr>,
     ) -> (Polynomial<E::Fr>, Vec<E::Fr>, E::Fr) {
         let alpha_sq = alpha.square();
@@ -51,7 +53,19 @@ impl<E: PairingEngine> lineariser<E> {
         let sig_2_eval = sigma_2_poly.evaluate(z_challenge);
 
         // Evaluate quotient poly
-        let quot_eval = quotient_poly.evaluate(z_challenge);
+        // Evaluate t_lo
+        let t_lo_eval = t_lo.evaluate(z_challenge);
+        // Evaluate t_mid
+        let z_n = z_challenge.pow(&[domain.size() as u64]);
+        let t_mid_eval = t_mid.evaluate(z_challenge);
+        let quot_mid = z_n * &t_mid_eval;
+        // Evaluate t_hi
+        let z_two_n = z_challenge.pow(&[2 * domain.size() as u64]);
+        let t_hi_eval = t_hi.evaluate(z_challenge);
+        let quot_hi = z_two_n * &t_hi_eval;
+        //
+        let mut quot_eval = t_lo_eval + &quot_mid;
+        quot_eval += &quot_hi;
 
         // Evaluate permutation poly_commit
         let perm_eval = z_poly.evaluate(z_challenge * &domain.group_gen);
