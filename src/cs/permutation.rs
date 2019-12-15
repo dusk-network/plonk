@@ -393,12 +393,16 @@ mod test {
     }
     #[test]
     fn test_permutation_compute_sigmas() {
+
         let mut perm: Permutation<E> = Permutation::new();
 
         let var_one = perm.new_variable(Fr::one());
         let var_two = perm.new_variable(Fr::one() + &Fr::one());
         let var_three = perm.new_variable(Fr::one() + &Fr::one() + &Fr::one());
 
+        let num_wire_mappings = 4;
+
+        // Add four wire mappings
         perm.add_variable_to_map(var_one, var_one, var_two, 0);
         perm.add_variable_to_map(var_two, var_one, var_two, 1);
         perm.add_variable_to_map(var_three, var_three, var_one, 2);
@@ -417,7 +421,7 @@ mod test {
 
         */
 
-        let sigmas = perm.compute_sigma_permutations(4);
+        let sigmas = perm.compute_sigma_permutations(num_wire_mappings);
         let left_sigma = &sigmas[0];
         let right_sigma = &sigmas[1];
         let out_sigma = &sigmas[2];
@@ -439,6 +443,49 @@ mod test {
         assert_eq!(out_sigma[1] - (WireType::Left as usize), 3);
         assert_eq!(out_sigma[2] - (WireType::Right as usize), 3);
         assert_eq!(out_sigma[3] - (WireType::Left as usize), 2);
+
+        /*
+
+        Check that the unique encodings of the sigma polynomials have been computed properly
+        
+        Left_Sigma : {R0,O1,R2,O0}
+            When encoded using w, k1,k2 we have {1 * k1, w * k2, w^2 *k1, w^3 * k2}
+
+        Right_Sigma : {R1, O2, O3, L0}
+            When encoded using w, k1,k2 we have {1 * k1, w * k2, w^2 * k2, w^3}
+
+        Out_Sigma : {L1, L3, R3, L2}
+            When encoded using w, k1, k2 we have {1, w , w^2 * k1, w^3}
+        */
+        let domain = EvaluationDomain::new(num_wire_mappings).unwrap();
+        let k1 = Fr::multiplicative_generator();
+        let k2 = Fr::from_repr_raw(13.into());
+        let w : Fr = domain.group_gen;
+        let w_squared = w.pow(&[2 as u64]);
+        let w_cubed = w.pow(&[3 as u64]);
+        
+        // check the left sigmas have been encoded properly
+        let encoded_left_sigma = perm.compute_permutation_lagrange(left_sigma, &domain);    
+        assert_eq!(encoded_left_sigma[0], k1);
+        assert_eq!(encoded_left_sigma[1], w * &k2);
+        assert_eq!(encoded_left_sigma[2], w_squared * &k1);
+        assert_eq!(encoded_left_sigma[3], w_cubed * &k2);
+        
+        
+        // check the right sigmas have been encoded properly
+        let encoded_right_sigma = perm.compute_permutation_lagrange(right_sigma, &domain);    
+        assert_eq!(encoded_right_sigma[0], k1);
+        assert_eq!(encoded_right_sigma[1], w * &k2);
+        assert_eq!(encoded_right_sigma[2], w_squared * &k2);
+        assert_eq!(encoded_right_sigma[3], w_cubed);
+
+        // check the output sigmas have been encoded properly
+        let encoded_output_sigma = perm.compute_permutation_lagrange(out_sigma, &domain);    
+        assert_eq!(encoded_output_sigma[0], Fr::one());
+        assert_eq!(encoded_output_sigma[1], w);
+        assert_eq!(encoded_output_sigma[2], w_squared * &k1);
+        assert_eq!(encoded_output_sigma[3], w_cubed);
+
     }
 }
 
