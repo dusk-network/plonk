@@ -386,11 +386,11 @@ impl<E: PairingEngine> Permutation<E> {
         let w_r_poly = w_poly[1];
         let w_o_poly = w_poly[2];
         // Rename wire-selector polynomials to clarify code. 
-        let qm_ws_poly = &prep_circ.selector_polys[0].0;
-        let ql_ws_poly = &prep_circ.selector_polys[1].0;
-        let qr_ws_poly = &prep_circ.selector_polys[2].0;
-        let qo_ws_poly = &prep_circ.selector_polys[3].0;
-        let qc_ws_poly = &prep_circ.selector_polys[4].0;
+        let qm_ws_poly = &prep_circ.qm_poly();
+        let ql_ws_poly = &prep_circ.ql_poly();
+        let qr_ws_poly = &prep_circ.qr_poly();
+        let qo_ws_poly = &prep_circ.qo_poly();
+        let qc_ws_poly = &prep_circ.qc_poly();
 
         // t0 represents the first polynomial that forms `t(X)`. 
         let t0 = {
