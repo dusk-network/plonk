@@ -32,6 +32,8 @@ impl<E: PairingEngine> QuotientToolkit<E> {
         &(&z_nth_poly - &one_poly) / &(&n_poly * &(&z_poly - &one_poly))
     }
 
+    // Moves the polynomial on the complex plane in respect to the 
+    // first root of unity.
     pub fn transpolate_poly_to_unity_root(&self, n: usize, poly: &Polynomial<E::Fr>) -> Polynomial<E::Fr> {
         let domain_4n = EvaluationDomain::new(4*n).unwrap();
         let mut poly_coef = domain_4n.fft(poly);
@@ -47,15 +49,40 @@ impl<E: PairingEngine> QuotientToolkit<E> {
 
     // Split `t(X)` poly into degree-n polynomials.
     pub fn split_tx_poly(&self, n: usize, t_x: Polynomial<E::Fr>) -> [Polynomial<E::Fr>;3] {
-        let mut t_lo = t_x.clone();
-        t_lo[2*n+1] = E::Fr::zero();
-        t_lo[3*n+1] = E::Fr::zero();
-        let mut t_mid = t_x.clone();
-        t_mid[3*n+1] = E::Fr::zero();
-        t_mid[n+1] = E::Fr::zero();
-        let mut t_hi = t_x.clone();
-        t_hi[2*n+1] = E::Fr::zero();
-        t_hi[n+1] = E::Fr::zero();
-        [t_lo, t_mid, t_hi]
+        let zero = E::Fr::zero();
+
+        let t_lo: Vec<E::Fr> = t_x.into_iter()
+        .enumerate()
+        .filter(|(i, _)| i <= &n)
+        .map(|(_, x)| *x)
+        .collect();
+
+        let t_mid: Vec<E::Fr> = t_x.into_iter()
+        .enumerate()
+        .filter(|(i, _)| i <= &(2*n))
+        .map(|(i, mut x)| {
+            if i == n {
+                x = &zero;
+            }
+            *x
+        })
+        .collect();
+
+        let t_hi: Vec<E::Fr> = t_x.into_iter()
+        .enumerate()
+        .filter(|(i, _)| i <= &(3*n))
+        .map(|(i, mut x)| {
+            if i == n || i == 2*n {
+                x = &zero;
+            }
+            *x
+        })
+        .collect();
+        
+        [
+        Polynomial::from_coefficients_vec(t_lo), 
+        Polynomial::from_coefficients_vec(t_mid), 
+        Polynomial::from_coefficients_vec(t_hi),
+        ]
     }
 }
