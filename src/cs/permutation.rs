@@ -1,6 +1,8 @@
 use super::constraint_system::{Variable, WireData, WireType};
+use super::quotient_poly::QuotientToolkit;
 use crate::cs::PreProcessedCircuit;
 use crate::transcript::TranscriptProtocol;
+
 use algebra::{
     curves::PairingEngine,
     fields::{Field, PrimeField},
@@ -373,7 +375,8 @@ impl<E: PairingEngine> Permutation<E> {
         gamma: &E::Fr,
         z_poly: &Polynomial<E::Fr>,
     ) -> (Polynomial<E::Fr>, Polynomial<E::Fr>, Polynomial<E::Fr>, E::Fr) {
-
+        // Generate QuotientToolkit
+        let toolkit: QuotientToolkit<E> = QuotientToolkit::new();
         // Compute `Alpha` randomness
         let alpha = transcript.challenge_scalar(b"alpha");
         // Compute `alpha` polynomial (degree zero).
@@ -441,7 +444,7 @@ impl<E: PairingEngine> Permutation<E> {
             let t20 = &(w_l_poly + &sigma_1_beta_poly) + &gamma_poly;
             let t21 = &(w_r_poly + &sigma_2_beta_poly) + &gamma_poly;
             let t22 = &(w_o_poly + &sigma_3_beta_poly) + &gamma_poly;
-            let t23 = self.transpolate_poly_to_unity_root(n, &z_poly);
+            let t23 = &toolkit.transpolate_poly_to_unity_root(n, &z_poly);
 
             // Compute `alpha^2/Zh(X)`
             let (t24, _) = Polynomial::from_coefficients_slice(&[alpha.square()]).divide_by_vanishing_poly(*domain).unwrap();
@@ -456,7 +459,7 @@ impl<E: PairingEngine> Permutation<E> {
             // Compute `alpha^3/Zh(X)`
             let (t31, _) = Polynomial::from_coefficients_slice(&[alpha.square() * &alpha]).divide_by_vanishing_poly(*domain).unwrap();
             // Get L1(x) and compute the result. 
-            &(&t30 * &t31) * &self.compute_lagrange_poly_evaluation(n as u8)
+            &(&t30 * &t31) * &toolkit.compute_lagrange_poly_evaluation(n as u8)
         };
 
         let t_x = &(&(&t0 + &t1) - &t2) + &t3;
@@ -474,7 +477,7 @@ impl<E: PairingEngine> Permutation<E> {
         let x_pow_2n_poly = Polynomial::from_coefficients_slice(&x_pow_2n);
         let x_pow_n_poly = Polynomial::from_coefficients_slice(&x_pow_2n[0..=n]);
         
-        let t_x_split = self.split_tx_poly(n, t_x);
+        let t_x_split = toolkit.split_tx_poly(n, t_x);
         // Build t_low(X)
         let t_lo = t_x_split[0].clone();
         // Build t_mid(X)
@@ -482,53 +485,6 @@ impl<E: PairingEngine> Permutation<E> {
         // Build t_hi(X)
         let t_hi = &x_pow_2n_poly * &t_x_split[2];
         (t_lo, t_mid, t_hi, alpha)
-    }
-
-    /// Computes the Lagrange polynomial evaluation `L1(z)`. 
-    pub fn compute_lagrange_poly_evaluation(&self, n: u8) -> Polynomial<E::Fr> {
-        // One as a polynomial of degree 0. 
-        let one_poly = Polynomial::from_coefficients_slice(&[E::Fr::from(1)]);
-        // Build z_nth vector to get the poly directly in coef form.
-        let mut z_nth = Vec::new();
-        for _ in 0..n {
-            z_nth.push(E::Fr::zero());
-        };
-        // Add 1 on the n'th term of the vec. 
-        z_nth.push(E::Fr::from(1));
-        // Build the poly. 
-        let z_nth_poly = Polynomial::from_coefficients_vec(z_nth);
-        // `n` as polynomial of degree 0. 
-        let n_poly = Polynomial::from_coefficients_slice(&[E::Fr::from(n as u8)]);
-        let z_poly = Polynomial::from_coefficients_slice(&[E::Fr::zero(), E::Fr::from(1)]);
-
-        &(&z_nth_poly - &one_poly) / &(&n_poly * &(&z_poly - &one_poly))
-    }
-
-    pub fn transpolate_poly_to_unity_root(&self, n: usize, poly: &Polynomial<E::Fr>) -> Polynomial<E::Fr> {
-        let domain_4n = EvaluationDomain::new(4*n).unwrap();
-        let mut poly_coef = domain_4n.fft(poly);
-        poly_coef.push(poly_coef[0]);
-        poly_coef.push(poly_coef[1]);
-        poly_coef.push(poly_coef[2]);
-        poly_coef.push(poly_coef[3]);
-        let mut coefs_rotated: Vec<E::Fr> = Vec::with_capacity(poly_coef.len());
-        coefs_rotated.clone_from_slice(&poly_coef[4..]);
-        let final_poly = Polynomial::from_coefficients_vec(domain_4n.ifft(&coefs_rotated));
-        final_poly
-    }
-
-    // Split `t(X)` poly into degree-n polynomials.
-    pub fn split_tx_poly(&self, n: usize, t_x: Polynomial<E::Fr>) -> [Polynomial<E::Fr>;3] {
-        let mut t_lo = t_x.clone();
-        t_lo[2*n+1] = E::Fr::zero();
-        t_lo[3*n+1] = E::Fr::zero();
-        let mut t_mid = t_x.clone();
-        t_mid[3*n+1] = E::Fr::zero();
-        t_mid[n+1] = E::Fr::zero();
-        let mut t_hi = t_x.clone();
-        t_hi[2*n+1] = E::Fr::zero();
-        t_hi[n+1] = E::Fr::zero();
-        [t_lo, t_mid, t_hi]
     }
 }
 
