@@ -409,7 +409,7 @@ impl<E: PairingEngine> Permutation<E> {
         let t1 = {
             // beta*X poly
             let beta_x_poly = Polynomial::from_coefficients_slice(&[E::Fr::zero(), *beta]);
-            let t10 = w_l_poly + &(&beta_x_poly * &gamma_poly);
+            let t10 = w_l_poly + &(&beta_x_poly + &gamma_poly);
             // Beta*k1
             let beta_k1 : E::Fr = *beta * &E::Fr::multiplicative_generator();
             // Beta*k1 poly
