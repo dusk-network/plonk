@@ -444,11 +444,22 @@ impl<E: PairingEngine> Permutation<E> {
             let t20 = &(w_l_poly + &sigma_1_beta_poly) + &gamma_poly;
             let t21 = &(w_r_poly + &sigma_2_beta_poly) + &gamma_poly;
             let t22 = &(w_o_poly + &sigma_3_beta_poly) + &gamma_poly;
-            let t23 = &toolkit.transpolate_poly_to_unity_root(n, &z_poly);
+
+            // FFT t20-23 with 4n domain. Then transpolate z(X), multiply them and ifft.
+            // Then multiply by vanishing poly.
+            let t_0_3_mul = toolkit.mul_and_transp_in_4n(
+                n,
+                &[
+                    t20,
+                    t21,
+                    t22,
+                ],
+                z_poly
+            );
 
             // Compute `alpha^2/Zh(X)`
             let (t24, _) = Polynomial::from_coefficients_slice(&[alpha.square()]).divide_by_vanishing_poly(*domain).unwrap();
-            &(&(&(&t20 * &t21) * &t22) * &t23) * &t24
+            &t_0_3_mul * &t24
         };
 
         // t3 represents the fourth polynomial that forms `t(X)`.
