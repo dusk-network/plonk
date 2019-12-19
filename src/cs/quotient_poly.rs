@@ -73,7 +73,7 @@ impl<E: PairingEngine> QuotientToolkit<E> {
     }
 
     // Split `t(X)` poly into degree-n polynomials.
-    pub fn split_tx_poly(&self, n: usize, t_x: Polynomial<E::Fr>) -> [Polynomial<E::Fr>;3] {
+    pub fn split_tx_poly(&self,n: usize, t_x: Polynomial<E::Fr>) -> [Polynomial<E::Fr>;3] {
         let zero = E::Fr::zero();
 
         let t_lo: Vec<E::Fr> = t_x.into_iter()
@@ -109,5 +109,44 @@ impl<E: PairingEngine> QuotientToolkit<E> {
         Polynomial::from_coefficients_vec(t_mid), 
         Polynomial::from_coefficients_vec(t_hi),
         ]
+    }
+}
+#[cfg(test)]
+mod test {
+    use super::*;
+    use algebra::fields::bls12_381::Fr;
+    use algebra::curves::bls12_381::Bls12_381 as E;
+
+    #[test]
+    fn test_split_poly() {
+        let n = 10;
+        
+        // Compute random point
+        use algebra::UniformRand;
+        let rand_point = Fr::rand(&mut rand::thread_rng());
+        let rand_point_n = rand_point.pow(&[n as u64]);
+        let rand_point_2n = rand_point.pow(&[2 * n as u64]);
+
+        // Generate a random quotient polynomial
+        let t_x = Polynomial::rand(3*n, &mut rand::thread_rng());
+        let t_x_eval = t_x.evaluate(rand_point);
+
+        // Split t(x) into 3 n-degree polynomials
+        let toolkit: QuotientToolkit<E> = QuotientToolkit::new();
+        let t_components = toolkit.split_tx_poly(n,t_x);
+
+        // Eval n-degree polynomials
+        let t_lo_eval = t_components[0].evaluate(rand_point);
+        
+        let mut t_mid_eval = t_components[1].evaluate(rand_point);
+        t_mid_eval = t_mid_eval * &rand_point_n;
+
+        let mut t_hi_eval = t_components[2].evaluate(rand_point);
+        t_hi_eval = t_hi_eval * &rand_point_2n;
+
+        let mut t_components_eval = t_lo_eval + &t_mid_eval;
+        t_components_eval += &t_hi_eval;
+
+        assert_eq!(t_x_eval, t_components_eval);
     }
 }
