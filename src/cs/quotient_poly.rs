@@ -142,7 +142,7 @@ impl<E: PairingEngine> QuotientToolkit<E> {
         };
         let x_pow_2n_poly = Polynomial::from_coefficients_slice(&x_pow_2n);
         let x_pow_n_poly = Polynomial::from_coefficients_slice(&x_pow_2n[0..=n]);
-        let t_x_split = self.split_tx_poly(n, t_x);
+        let t_x_split = self.split_tx_poly(n, &t_x);
         // Build t_low(X)
         let t_lo = t_x_split[0].clone();
         // Build t_mid(X)
@@ -222,57 +222,26 @@ impl<E: PairingEngine> QuotientToolkit<E> {
         Polynomial::from_coefficients_vec(coefs_rotated)
     }
 
-    // Split `t(X)` poly into degree-n polynomials.
-    pub fn split_tx_poly(&self,n: usize, t_x: Polynomial<E::Fr>) -> [Polynomial<E::Fr>;3] {
-        let zero = E::Fr::zero();
-
-        let t_lo: Vec<E::Fr> = t_x
-            .into_iter()
-            .enumerate()
-            .filter(|(i, _)| i <= &n)
-            .map(|(_, x)| *x)
-            .collect();
-
-        let t_mid: Vec<E::Fr> = t_x
-            .into_iter()
-            .enumerate()
-            .filter(|(i, _)| i <= &(2 * n))
-            .map(|(i, mut x)| {
-                if i == n {
-                    x = &zero;
-                }
-                *x
-            })
-            .collect();
-
-        let t_hi: Vec<E::Fr> = t_x
-            .into_iter()
-            .enumerate()
-            .filter(|(i, _)| i <= &(3 * n))
-            .map(|(i, mut x)| {
-                if i == n || i == 2 * n {
-                    x = &zero;
-                }
-                *x
-            })
-            .collect();
+    // Split `t(X)` poly into three degree-n polynomials.
+    pub fn split_tx_poly(&self, n: usize, t_x: &Polynomial<E::Fr>) -> [Polynomial<E::Fr>; 3] {
         [
-            Polynomial::from_coefficients_vec(t_lo),
-            Polynomial::from_coefficients_vec(t_mid),
-            Polynomial::from_coefficients_vec(t_hi),
+            Polynomial::from_coefficients_slice(&t_x[0..n]),
+            Polynomial::from_coefficients_slice(&t_x[n..2 * n]),
+            Polynomial::from_coefficients_slice(&t_x[2 * n..]),
         ]
     }
 }
+
 #[cfg(test)]
 mod test {
     use super::*;
-    use algebra::fields::bls12_381::Fr;
     use algebra::curves::bls12_381::Bls12_381 as E;
+    use algebra::fields::bls12_381::Fr;
 
     #[test]
     fn test_split_poly() {
-        let n = 10;
-        
+        let n = 4;
+
         // Compute random point
         use algebra::UniformRand;
         let rand_point = Fr::rand(&mut rand::thread_rng());
@@ -280,16 +249,16 @@ mod test {
         let rand_point_2n = rand_point.pow(&[2 * n as u64]);
 
         // Generate a random quotient polynomial
-        let t_x = Polynomial::rand(3*n, &mut rand::thread_rng());
+        let t_x = Polynomial::rand(3 * n, &mut rand::thread_rng());
         let t_x_eval = t_x.evaluate(rand_point);
 
         // Split t(x) into 3 n-degree polynomials
         let toolkit: QuotientToolkit<E> = QuotientToolkit::new();
-        let t_components = toolkit.split_tx_poly(n,t_x);
+        let t_components = toolkit.split_tx_poly(n, &t_x);
 
-        // Eval n-degree polynomials
+        // Evaluate n-degree polynomials
         let t_lo_eval = t_components[0].evaluate(rand_point);
-        
+
         let mut t_mid_eval = t_components[1].evaluate(rand_point);
         t_mid_eval = t_mid_eval * &rand_point_n;
 
