@@ -5,11 +5,8 @@ use super::{
     PreProcessedCircuit,
 };
 use crate::{cs::quotient_poly::QuotientToolkit, srs, transcript::TranscriptProtocol};
-use algebra::UniformRand;
-use algebra::{curves::PairingEngine, fields::Field, fields::PrimeField};
+use algebra::{curves::PairingEngine, fields::Field};
 use ff_fft::{DensePolynomial as Polynomial, EvaluationDomain};
-use merlin::Transcript;
-use poly_commit::kzg10::Commitment;
 use poly_commit::kzg10::UniversalParams;
 use rand_core::{CryptoRng, RngCore};
 /// A composer is a circuit builder
@@ -380,6 +377,7 @@ mod tests {
     use super::*;
     use algebra::curves::bls12_381::Bls12_381;
     use algebra::fields::bls12_381::Fr;
+    use merlin::Transcript;
 
     use rand::thread_rng;
 

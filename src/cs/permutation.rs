@@ -1,6 +1,4 @@
 use super::constraint_system::{Variable, WireData, WireType};
-use super::quotient_poly::QuotientToolkit;
-use crate::cs::PreProcessedCircuit;
 use crate::transcript::TranscriptProtocol;
 
 use algebra::{
@@ -9,7 +7,6 @@ use algebra::{
 };
 use ff_fft::{DensePolynomial as Polynomial, EvaluationDomain};
 use itertools::izip;
-use poly_commit::kzg10::Commitment;
 use rand_core::{CryptoRng, RngCore};
 use std::marker::PhantomData;
 
