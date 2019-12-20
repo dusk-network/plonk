@@ -1,5 +1,6 @@
 use super::constraint_system::{Variable, WireData, WireType};
 use crate::transcript::TranscriptProtocol;
+
 use algebra::{
     curves::PairingEngine,
     fields::{Field, PrimeField},
@@ -393,7 +394,6 @@ mod test {
     }
     #[test]
     fn test_permutation_compute_sigmas() {
-
         let mut perm: Permutation<E> = Permutation::new();
 
         let var_one = perm.new_variable(Fr::one());
@@ -447,7 +447,6 @@ mod test {
         /*
 
         Check that the unique encodings of the sigma polynomials have been computed properly
-        
         Left_Sigma : {R0,O1,R2,O0}
             When encoded using w, k1,k2 we have {1 * k1, w * k2, w^2 *k1, w^3 * k2}
 
@@ -460,32 +459,28 @@ mod test {
         let domain = EvaluationDomain::new(num_wire_mappings).unwrap();
         let k1 = Fr::multiplicative_generator();
         let k2 = Fr::from_repr_raw(13.into());
-        let w : Fr = domain.group_gen;
+        let w: Fr = domain.group_gen;
         let w_squared = w.pow(&[2 as u64]);
         let w_cubed = w.pow(&[3 as u64]);
-        
         // check the left sigmas have been encoded properly
-        let encoded_left_sigma = perm.compute_permutation_lagrange(left_sigma, &domain);    
+        let encoded_left_sigma = perm.compute_permutation_lagrange(left_sigma, &domain);
         assert_eq!(encoded_left_sigma[0], k1);
         assert_eq!(encoded_left_sigma[1], w * &k2);
         assert_eq!(encoded_left_sigma[2], w_squared * &k1);
         assert_eq!(encoded_left_sigma[3], w_cubed * &k2);
-        
-        
         // check the right sigmas have been encoded properly
-        let encoded_right_sigma = perm.compute_permutation_lagrange(right_sigma, &domain);    
+        let encoded_right_sigma = perm.compute_permutation_lagrange(right_sigma, &domain);
         assert_eq!(encoded_right_sigma[0], k1);
         assert_eq!(encoded_right_sigma[1], w * &k2);
         assert_eq!(encoded_right_sigma[2], w_squared * &k2);
         assert_eq!(encoded_right_sigma[3], w_cubed);
 
         // check the output sigmas have been encoded properly
-        let encoded_output_sigma = perm.compute_permutation_lagrange(out_sigma, &domain);    
+        let encoded_output_sigma = perm.compute_permutation_lagrange(out_sigma, &domain);
         assert_eq!(encoded_output_sigma[0], Fr::one());
         assert_eq!(encoded_output_sigma[1], w);
         assert_eq!(encoded_output_sigma[2], w_squared * &k1);
         assert_eq!(encoded_output_sigma[3], w_cubed);
-
     }
 }
 

@@ -4,6 +4,7 @@ mod linearisation;
 mod opening;
 mod permutation;
 mod proof;
+mod quotient_poly;
 
 use algebra::curves::PairingEngine;
 use ff_fft::DensePolynomial as Polynomial;
