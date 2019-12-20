@@ -16,10 +16,10 @@ impl<E: PairingEngine> TranscriptProtocol<E> for Transcript {
     }
 
     fn challenge_scalar(&mut self, label: &'static [u8]) -> E::Fr {
+        use algebra::UniformRand;
         use rand_chacha::ChaChaRng;
         use rand_core::SeedableRng;
-        use algebra::UniformRand;
-        
+
         // XXX: This is not very fast as build_rng clones the transcript each time
         // The problem is that the E::Fr::from_rand_bytes() stalls at spontaneous points
         // If we switch to bls12_381 we can generate the challenge bytes then give it to the bls function for reducing bytes to a scalar
