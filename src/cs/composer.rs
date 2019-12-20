@@ -4,11 +4,9 @@ use super::{
     constraint_system::Variable, permutation::Permutation, proof::Proof, Composer,
     PreProcessedCircuit,
 };
-use crate::{srs, transcript::TranscriptProtocol};
-use algebra::UniformRand;
+use crate::{cs::quotient_poly::QuotientToolkit, srs, transcript::TranscriptProtocol};
 use algebra::{curves::PairingEngine, fields::Field};
 use ff_fft::{DensePolynomial as Polynomial, EvaluationDomain};
-use merlin::Transcript;
 use poly_commit::kzg10::UniversalParams;
 use rand_core::{CryptoRng, RngCore};
 /// A composer is a circuit builder
@@ -163,13 +161,41 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
             w_o_scalar.into_iter(),
         );
 
-        // Third output being done by Carlos
-        //
-        let alpha = E::Fr::rand(&mut rng); // Comes from quotient computation
-        let t_lo = Polynomial::from_coefficients_vec(vec![E::Fr::one()]);
-        let t_mid = Polynomial::from_coefficients_vec(vec![E::Fr::one()]);
-        let t_hi = Polynomial::from_coefficients_vec(vec![E::Fr::one()]);
-        //
+        // Create QuotientToolkit
+        let qt_toolkit = QuotientToolkit::new();
+
+        // Compute quotient polynomial.
+        let (t_hi_poly, t_mid_poly, t_low_poly, alpha) = qt_toolkit.compute_quotient_poly(
+            self.n,
+            &domain,
+            transcript,
+            &preprocessed_circuit,
+            [&w_l_poly, &w_r_poly, &w_o_poly],
+            // TODO: Get Public Inputs polynomial.
+            &z_poly,
+            &beta,
+            &gamma,
+            &z_poly,
+        );
+
+        // Commit polynomials.
+        let t_low_commit = srs::commit(&ck, &t_low_poly);
+        let t_mid_commit = srs::commit(&ck, &t_mid_poly);
+        let t_hi_commit = srs::commit(&ck, &t_hi_poly);
+
+        // Assemble quotient poly
+        let quotient_poly = &(&t_hi_poly + &t_mid_poly) + &t_low_poly;
+
+        // XXX: The problem is that when we compute the permutation poly, we need the mapping
+        // But everywhere else, we need the polynomial made using the lagrange bases
+        // This will be one of the bigger refactors
+        let left_sigma_poly =
+            Polynomial::from_coefficients_slice(&preprocessed_circuit.left_sigma_poly.0);
+        let right_sigma_poly =
+            Polynomial::from_coefficients_slice(&preprocessed_circuit.right_sigma_poly.0);
+        let out_sigma_poly =
+            Polynomial::from_coefficients_slice(&preprocessed_circuit.out_sigma_poly.0);
+
         // Fourth output
         let lineariser = lineariser::new();
         let (lin_poly, evaluations, z_challenge) = lineariser.evaluate_linearisation_polynomial(
@@ -182,9 +208,9 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
             &w_l_poly,
             &w_r_poly,
             &w_o_poly,
-            &t_lo,
-            &t_mid,
-            &t_hi,
+            &t_low_poly,
+            &t_mid_poly,
+            &t_hi_poly,
             &z_poly,
         );
 
@@ -197,9 +223,9 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
             z_challenge,
             &lin_poly,
             &evaluations,
-            &t_lo,
-            &t_mid,
-            &t_hi,
+            &t_low_poly,
+            &t_mid_poly,
+            &t_hi_poly,
             &w_l_poly,
             &w_r_poly,
             &w_o_poly,
@@ -351,6 +377,7 @@ mod tests {
     use super::*;
     use algebra::curves::bls12_381::Bls12_381;
     use algebra::fields::bls12_381::Fr;
+    use merlin::Transcript;
 
     use rand::thread_rng;
 
