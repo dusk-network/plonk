@@ -4,13 +4,13 @@ use super::{
     constraint_system::Variable, permutation::Permutation, proof::Proof, Composer,
     PreProcessedCircuit,
 };
-use crate::{srs, transcript::TranscriptProtocol};
+use crate::{cs::quotient_poly::QuotientToolkit, srs, transcript::TranscriptProtocol};
 use algebra::UniformRand;
 use algebra::{curves::PairingEngine, fields::Field, fields::PrimeField};
 use ff_fft::{DensePolynomial as Polynomial, EvaluationDomain};
 use merlin::Transcript;
-use poly_commit::kzg10::UniversalParams;
 use poly_commit::kzg10::Commitment;
+use poly_commit::kzg10::UniversalParams;
 use rand_core::{CryptoRng, RngCore};
 /// A composer is a circuit builder
 /// and will dictate how a cirucit is built
@@ -164,19 +164,20 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
             w_o_scalar.into_iter(),
         );
 
-        // Compute quotient polynomial. 
-        let (t_hi_poly, t_mid_poly, t_low_poly, alpha) = self.perm.compute_quotient_poly(
-            self.n, 
-            &domain, 
-            transcript, 
-            &preprocessed_circuit, 
+        // Create QuotientToolkit
+        let qt_toolkit = QuotientToolkit::new();
+
+        // Compute quotient polynomial.
+        let (t_hi_poly, t_mid_poly, t_low_poly, alpha) = qt_toolkit.compute_quotient_poly(
+            self.n,
+            &domain,
+            transcript,
+            &preprocessed_circuit,
             [&w_l_poly, &w_r_poly, &w_o_poly],
-
-            // TODO: Get Public Inputs polynomial. 
-            &z_poly, 
-
-            &beta, 
-            &gamma, 
+            // TODO: Get Public Inputs polynomial.
+            &z_poly,
+            &beta,
+            &gamma,
             &z_poly,
         );
 

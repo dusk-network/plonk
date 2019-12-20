@@ -8,8 +8,8 @@ use algebra::{
     fields::{Field, PrimeField},
 };
 use ff_fft::{DensePolynomial as Polynomial, EvaluationDomain};
-use poly_commit::kzg10::Commitment;
 use itertools::izip;
+use poly_commit::kzg10::Commitment;
 use rand_core::{CryptoRng, RngCore};
 use std::marker::PhantomData;
 
@@ -361,142 +361,6 @@ impl<E: PairingEngine> Permutation<E> {
 
         (z_poly_blinded, beta, gamma)
     }
-    
-    #[allow(dead_code)]
-    pub fn compute_quotient_poly (
-        &self,
-        n: usize,
-        domain: &EvaluationDomain<E::Fr>,
-        transcript: &mut dyn TranscriptProtocol<E>,
-        prep_circ: &PreProcessedCircuit<E>,
-        w_poly: [&Polynomial<E::Fr>; 3],
-        pi_poly: &Polynomial<E::Fr>,
-        beta: &E::Fr,
-        gamma: &E::Fr,
-        z_poly: &Polynomial<E::Fr>,
-    ) -> (Polynomial<E::Fr>, Polynomial<E::Fr>, Polynomial<E::Fr>, E::Fr) {
-        // Generate QuotientToolkit
-        let toolkit: QuotientToolkit<E> = QuotientToolkit::new();
-        // Compute `Alpha` randomness
-        let alpha = transcript.challenge_scalar(b"alpha");
-        // Compute `alpha` polynomial (degree zero).
-        let alpha_poly = Polynomial::from_coefficients_slice(&[alpha]);
-        // Compute `gamma` polynomial (degree zero). 
-        let gamma_poly = Polynomial::from_coefficients_slice(&[*gamma]);
-
-        // Get wire polynomials by its names to clarify the rest of the code.
-        let w_l_poly = w_poly[0];
-        let w_r_poly = w_poly[1];
-        let w_o_poly = w_poly[2];
-        // Rename wire-selector polynomials to clarify code. 
-        let qm_ws_poly = &prep_circ.qm_poly();
-        let ql_ws_poly = &prep_circ.ql_poly();
-        let qr_ws_poly = &prep_circ.qr_poly();
-        let qo_ws_poly = &prep_circ.qo_poly();
-        let qc_ws_poly = &prep_circ.qc_poly();
-
-        // t0 represents the first polynomial that forms `t(X)`. 
-        let t0 = {
-            let t00 = &(w_l_poly * w_r_poly) * qm_ws_poly;
-            let t01 = w_l_poly * ql_ws_poly; 
-            let t02 = w_r_poly * qr_ws_poly; 
-            let t03 = w_o_poly * qo_ws_poly; 
-            let t04 = pi_poly + qc_ws_poly;
-            // Compute `alpha/Zh(X)`
-            let (t05, _) = alpha_poly.divide_by_vanishing_poly(*domain).unwrap();
-
-            &(&(&(&(&t00 + &t01) + &t02) + &t03) + &t04) * &t05
-        };
-
-        // t1 represents the second polynomial that forms `t(X)`.
-        let t1 = {
-            // beta*X poly
-            let beta_x_poly = Polynomial::from_coefficients_slice(&[E::Fr::zero(), *beta]);
-            let t10 = w_l_poly + &(&beta_x_poly + &gamma_poly);
-            // Beta*k1
-            let beta_k1 : E::Fr = *beta * &E::Fr::multiplicative_generator();
-            // Beta*k1 poly
-            let beta_k1_poly = Polynomial::from_coefficients_slice(&[E::Fr::zero(), beta_k1]);
-            let t11 = &(w_r_poly + &beta_k1_poly) + &gamma_poly;
-            // Beta*k2
-            let beta_k2 : E::Fr = *beta * &E::Fr::from(13);
-            // Beta*k2 poly
-            let beta_k2_poly = Polynomial::from_coefficients_slice(&[E::Fr::zero(), beta_k2]);
-            let t12 = &(w_o_poly + &beta_k2_poly) + &gamma_poly;
-            // Compute `alpha^2/Zh(X)`
-            let (t14, _) = Polynomial::from_coefficients_slice(&[alpha.square()]).divide_by_vanishing_poly(*domain).unwrap();
-            
-            &(&(&(&t10 * &t11) * &t12) * &z_poly) * &t14
-        };
-
-        // t2 represents the third polynomial that forms `t(X)`. 
-        let t2 = {
-            // Beta poly (Degree 0). 
-            let beta_poly = Polynomial::from_coefficients_slice(&[*beta]);
-            // Compute Sigma polys. 
-            let sigma_1_beta_poly =
-            &Polynomial::from_coefficients_slice(&prep_circ.left_sigma_poly.0) * &beta_poly;
-            let sigma_2_beta_poly =
-            &Polynomial::from_coefficients_slice(&prep_circ.right_sigma_poly.0) * &beta_poly;
-            let sigma_3_beta_poly =
-            &Polynomial::from_coefficients_slice(&prep_circ.out_sigma_poly.0) * &beta_poly;
-
-            let t20 = &(w_l_poly + &sigma_1_beta_poly) + &gamma_poly;
-            let t21 = &(w_r_poly + &sigma_2_beta_poly) + &gamma_poly;
-            let t22 = &(w_o_poly + &sigma_3_beta_poly) + &gamma_poly;
-
-            // FFT t20-23 with 4n domain. Then transpolate z(X), multiply them and ifft.
-            // Then multiply by vanishing poly.
-            let t_0_3_mul = toolkit.mul_and_transp_in_4n(
-                n,
-                &[
-                    t20,
-                    t21,
-                    t22,
-                ],
-                z_poly
-            );
-
-            // Compute `alpha^2/Zh(X)`
-            let (t24, _) = Polynomial::from_coefficients_slice(&[alpha.square()]).divide_by_vanishing_poly(*domain).unwrap();
-            &t_0_3_mul * &t24
-        };
-
-        // t3 represents the fourth polynomial that forms `t(X)`.
-        let t3 = {
-            // Build `1` poly (degree 0). 
-            let one_poly = Polynomial::from_coefficients_slice(&[E::Fr::from(1)]);
-            let t30 = z_poly - &one_poly;
-            // Compute `alpha^3/Zh(X)`
-            let (t31, _) = Polynomial::from_coefficients_slice(&[alpha.square() * &alpha]).divide_by_vanishing_poly(*domain).unwrap();
-            // Get L1(x) and compute the result. 
-            &(&t30 * &t31) * &toolkit.compute_lagrange_poly_evaluation(n as u8)
-        };
-
-        let t_x = &(&(&t0 + &t1) - &t2) + &t3;
-        // Split `t(X)`
-
-        // Build 0+ X + X^n + X^2n poly. 
-        let x_pow_2n = {
-            let mut vec = Vec::new();
-            for _ in 0..(n*2) {
-                vec.push(E::Fr::zero());
-            };
-            vec.push(E::Fr::from(1));
-            vec
-        };
-        let x_pow_2n_poly = Polynomial::from_coefficients_slice(&x_pow_2n);
-        let x_pow_n_poly = Polynomial::from_coefficients_slice(&x_pow_2n[0..=n]);
-        
-        let t_x_split = toolkit.split_tx_poly(n, t_x);
-        // Build t_low(X)
-        let t_lo = t_x_split[0].clone();
-        // Build t_mid(X)
-        let t_mid = &x_pow_n_poly * &t_x_split[1];
-        // Build t_hi(X)
-        let t_hi = &x_pow_2n_poly * &t_x_split[2];
-        (t_lo, t_mid, t_hi, alpha)
-    }
 }
 
 #[cfg(test)]
@@ -533,7 +397,6 @@ mod test {
     }
     #[test]
     fn test_permutation_compute_sigmas() {
-
         let mut perm: Permutation<E> = Permutation::new();
 
         let var_one = perm.new_variable(Fr::one());
@@ -587,7 +450,6 @@ mod test {
         /*
 
         Check that the unique encodings of the sigma polynomials have been computed properly
-        
         Left_Sigma : {R0,O1,R2,O0}
             When encoded using w, k1,k2 we have {1 * k1, w * k2, w^2 *k1, w^3 * k2}
 
@@ -600,32 +462,28 @@ mod test {
         let domain = EvaluationDomain::new(num_wire_mappings).unwrap();
         let k1 = Fr::multiplicative_generator();
         let k2 = Fr::from_repr_raw(13.into());
-        let w : Fr = domain.group_gen;
+        let w: Fr = domain.group_gen;
         let w_squared = w.pow(&[2 as u64]);
         let w_cubed = w.pow(&[3 as u64]);
-        
         // check the left sigmas have been encoded properly
-        let encoded_left_sigma = perm.compute_permutation_lagrange(left_sigma, &domain);    
+        let encoded_left_sigma = perm.compute_permutation_lagrange(left_sigma, &domain);
         assert_eq!(encoded_left_sigma[0], k1);
         assert_eq!(encoded_left_sigma[1], w * &k2);
         assert_eq!(encoded_left_sigma[2], w_squared * &k1);
         assert_eq!(encoded_left_sigma[3], w_cubed * &k2);
-        
-        
         // check the right sigmas have been encoded properly
-        let encoded_right_sigma = perm.compute_permutation_lagrange(right_sigma, &domain);    
+        let encoded_right_sigma = perm.compute_permutation_lagrange(right_sigma, &domain);
         assert_eq!(encoded_right_sigma[0], k1);
         assert_eq!(encoded_right_sigma[1], w * &k2);
         assert_eq!(encoded_right_sigma[2], w_squared * &k2);
         assert_eq!(encoded_right_sigma[3], w_cubed);
 
         // check the output sigmas have been encoded properly
-        let encoded_output_sigma = perm.compute_permutation_lagrange(out_sigma, &domain);    
+        let encoded_output_sigma = perm.compute_permutation_lagrange(out_sigma, &domain);
         assert_eq!(encoded_output_sigma[0], Fr::one());
         assert_eq!(encoded_output_sigma[1], w);
         assert_eq!(encoded_output_sigma[2], w_squared * &k1);
         assert_eq!(encoded_output_sigma[3], w_cubed);
-
     }
 }
 
