@@ -8,8 +8,6 @@ matrix:
   fast_finish: false
   include:
   - rust: stable
-  - rust: beta
-  - rust: nightly
 
 
 before_install:
@@ -18,7 +16,7 @@ before_install:
 # Main build
 script:
   - cargo check
-  - cargo build --release --verbose --all
+  - cargo build --verbose --all
   - cargo test --verbose --all
 
 
