@@ -21,7 +21,19 @@ impl WireData {
     }
 }
 
+const MASK: usize = (1 << 29) - 1;
+
+impl From<&usize> for WireData {
+    fn from(n: &usize) -> WireData {
+        let wire_idx = n & MASK;
+        WireData {
+            gate_index: wire_idx,
+            wire_type: n.into(),
+        }
+    }
+}
 /// Encoding for different wire types
+/// // XXX: Something like Right(10) would look like a better encoding
 #[derive(Copy, Clone)]
 pub enum WireType {
     Left = 0,
