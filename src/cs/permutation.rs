@@ -228,7 +228,6 @@ impl<E: PairingEngine> Permutation<E> {
         (z_poly_blinded, beta, gamma)
     }
 
-    // XXX: This is the unoptimised testing version
     fn compute_slow_permutation_poly<R, I>(
         &self,
         domain: &EvaluationDomain<E::Fr>,
@@ -374,6 +373,165 @@ impl<E: PairingEngine> Permutation<E> {
             numerator_partial_components,
             denominator_partial_components,
         )
+    }
+
+    fn compute_fast_permutation_poly<R, I>(
+        &self,
+        domain: &EvaluationDomain<E::Fr>,
+        transcript: &mut dyn TranscriptProtocol<E>,
+        mut rng: &mut R,
+        w_l: I,
+        w_r: I,
+        w_o: I,
+        beta: &E::Fr,
+        gamma: &E::Fr,
+    ) -> Vec<E::Fr>
+    where
+        I: Iterator<Item = E::Fr>,
+        R: RngCore + CryptoRng,
+    {
+        let n = domain.size();
+
+        let k1 = E::Fr::multiplicative_generator();
+        let k2 = E::Fr::from_repr_raw(13.into());
+
+        let left_sigma_mapping = self.left_sigma_mapping.as_ref().unwrap();
+        let right_sigma_mapping = self.right_sigma_mapping.as_ref().unwrap();
+        let out_sigma_mapping = self.out_sigma_mapping.as_ref().unwrap();
+
+        // Compute beta * sigma polynomials
+        let beta_left_sigmas = left_sigma_mapping.iter().map(|sigma| *sigma * beta);
+        let beta_right_sigmas = right_sigma_mapping.iter().map(|sigma| *sigma * beta);
+        let beta_out_sigmas = out_sigma_mapping.iter().map(|sigma| *sigma * beta);
+
+        // Compute beta * roots
+        let common_roots_iter = domain.elements().map(|root| root * beta);
+
+        // Compute beta * roots * k1
+        let beta_roots_k1 = domain.elements().map(|root| *beta * &root * &k1);
+
+        // Compute beta * roots * k2
+        let beta_roots_k2 = domain.elements().map(|root| *beta * &root * &k2);
+
+        // Compute left_wire + gamma
+        let wL_gamma = w_l.map(|w_L| w_L + gamma);
+
+        // Compute right_wire + gamma
+        let wR_gamma = w_r.map(|w_R| w_R + gamma);
+
+        // Compute out_wire + gamma
+        let wO_gamma = w_o.map(|w_O| w_O + gamma);
+
+        // Compute 6 acumulator components
+        let mut acumulator_components_without_l1 = izip!(
+            wL_gamma,
+            wR_gamma,
+            wO_gamma,
+            common_roots_iter,
+            beta_roots_k1,
+            beta_roots_k2,
+            beta_left_sigmas,
+            beta_right_sigmas,
+            beta_out_sigmas,
+        )
+        .map(
+            |(
+                w_l_gamma,
+                w_r_gamma,
+                w_o_gamma,
+                beta_root,
+                beta_root_k1,
+                beta_root_k2,
+                beta_left_sigma,
+                beta_right_sigma,
+                beta_out_sigma,
+            )| {
+                // w_j + beta * root^j-1 + gamma
+                let AC1 = w_l_gamma + &beta_root;
+
+                // w_{n+j} + beta * k1 * root^j-1 + gamma
+                let AC2 = w_r_gamma + &beta_root_k1;
+
+                // w_{2n+j} + beta * k2 * root^j-1 + gamma
+                let AC3 = w_o_gamma + &beta_root_k2;
+
+                // 1 / w_j + beta * sigma(j) + gamma
+                let mut AC4 = w_l_gamma + &beta_left_sigma;
+                AC4.inverse_in_place().unwrap();
+
+                // 1 / w_{n+j} + beta * sigma(n+j) + gamma
+                let mut AC5 = w_r_gamma + &beta_right_sigma;
+                AC5.inverse_in_place().unwrap();
+
+                // 1 / w_{2n+j} + beta * sigma(2n+j) + gamma
+                let mut AC6 = w_o_gamma + &beta_out_sigma;
+                AC6.inverse_in_place().unwrap();
+
+                (AC1, AC2, AC3, AC4, AC5, AC6)
+            },
+        );
+
+        // Prepend ones to the beginning of each acumulator to signify L_1(x)
+        let acumulator_components = std::iter::once((
+            E::Fr::one(),
+            E::Fr::one(),
+            E::Fr::one(),
+            E::Fr::one(),
+            E::Fr::one(),
+            E::Fr::one(),
+        ))
+        .chain(acumulator_components_without_l1);
+
+        // XXX: We could put this in with the previous iter method, but it will not be clear
+        // Multiply each component of the accumulators
+        // A simplified example is the following:
+        // A1 = [1,2,3,4]
+        // result = [1, 1*2, 1*2*3, 1*2*3*4]
+        let mut prev = (
+            E::Fr::one(),
+            E::Fr::one(),
+            E::Fr::one(),
+            E::Fr::one(),
+            E::Fr::one(),
+            E::Fr::one(),
+        );
+        let product_acumulated_components = acumulator_components.map(move |current_component| {
+            prev.0 *= &current_component.0;
+            prev.1 *= &current_component.1;
+            prev.2 *= &current_component.2;
+            prev.3 *= &current_component.3;
+            prev.4 *= &current_component.4;
+            prev.5 *= &current_component.5;
+
+            prev
+        });
+
+        // right now we basically have 6 acumulators of the form:
+        // A1 = [a1, a1 * a2, a1*a2*a3,...]
+        // A2 = [b1, b1 * b2, b1*b2*b3,...]
+        // A3 = [c1, c1 * c2, c1*c2*c3,...]
+        // ... and so on
+        // We want:
+        // [a1*b1*c1, a1 * a2 *b1 * b2 * c1 * c2,...]
+        let mut z: Vec<_> = product_acumulated_components
+            .map(move |current_component| {
+                let mut prev = E::Fr::one();
+                prev *= &current_component.0;
+                prev *= &current_component.1;
+                prev *= &current_component.2;
+                prev *= &current_component.3;
+                prev *= &current_component.4;
+                prev *= &current_component.5;
+
+                prev
+            })
+            .collect();
+        // Remove the last(n+1'th) element
+        z.remove(n);
+
+        assert_eq!(n, z.len());
+
+        z
     }
 }
 
@@ -530,27 +688,13 @@ mod test {
         let w_r = vec![Fr::from(2 as u8), Fr::one(), Fr::one(), Fr::one()];
         let w_o = vec![Fr::one(), Fr::one(), Fr::one(), Fr::one()];
 
-        let beta = Fr::rand(&mut rand::thread_rng());
-        let gamma = Fr::rand(&mut rand::thread_rng());
-        assert_ne!(gamma, beta); // This will make the z(gW) = 0
-
-        perm.compute_sigma_polynomials(num_wire_mappings, &domain);
-        let (z, num_components, den_components) = perm.compute_slow_permutation_poly(
-            &domain,
-            &mut Transcript::new(b""),
-            &mut rand::thread_rng(),
-            w_l.into_iter(),
-            w_r.into_iter(),
-            w_o.into_iter(),
-            &beta,
-            &gamma,
-        );
         test_permutation_poly(
             num_wire_mappings,
+            perm,
             &domain,
-            z,
-            num_components,
-            den_components,
+            w_l.clone(),
+            w_r.clone(),
+            w_o.clone(),
         );
     }
     #[test]
@@ -709,19 +853,53 @@ mod test {
         perm.add_variable_to_map(var_one, var_two, var_three, 0);
         perm.add_variable_to_map(var_three, var_two, var_one, 1);
 
-        perm.compute_sigma_polynomials(num_wire_mappings, &domain);
-
         let w_l: Vec<_> = vec![Fr::one(), Fr::from(3 as u8)];
         let w_r: Vec<_> = vec![Fr::from(2 as u8), Fr::from(2 as u8)];
         let w_o: Vec<_> = vec![Fr::from(3 as u8), Fr::one()];
 
+        test_permutation_poly(
+            num_wire_mappings,
+            perm,
+            &domain,
+            w_l.clone(),
+            w_r.clone(),
+            w_o.clone(),
+        );
+    }
+
+    fn test_permutation_poly(
+        n: usize,
+        mut perm: Permutation<E>,
+        domain: &EvaluationDomain<Fr>,
+        w_l: Vec<Fr>,
+        w_r: Vec<Fr>,
+        w_o: Vec<Fr>,
+    ) {
+        //0. Generate beta and gammma challenges
+        //
         let beta = Fr::rand(&mut rand::thread_rng());
         let gamma = Fr::rand(&mut rand::thread_rng());
-        assert_ne!(gamma, beta); // This will make the z(gW) = 0
+        assert_ne!(gamma, beta); // This will make the z(gW) =
 
-        let (z, num_components, den_components) = perm.compute_slow_permutation_poly(
-            &domain,
-            &mut transcript,
+        //1. Compute the permutation polynomial using both methods
+        // XXX: We should run benchmarks for these two methods
+        //
+        perm.compute_sigma_polynomials(n, &domain);
+        let (z_vec, numerator_components, denominator_components) = perm
+            .compute_slow_permutation_poly(
+                domain,
+                &mut Transcript::new(b""),
+                &mut rand::thread_rng(),
+                w_l.clone().into_iter(),
+                w_r.clone().into_iter(),
+                w_o.clone().into_iter(),
+                &beta,
+                &gamma,
+            );
+
+        let fast_z_vec = perm.compute_fast_permutation_poly(
+            domain,
+            &mut Transcript::new(b""),
             &mut rand::thread_rng(),
             w_l.into_iter(),
             w_r.into_iter(),
@@ -729,23 +907,9 @@ mod test {
             &beta,
             &gamma,
         );
-        test_permutation_poly(
-            num_wire_mappings,
-            &domain,
-            z,
-            num_components,
-            den_components,
-        );
-    }
+        assert_eq!(fast_z_vec, z_vec);
 
-    fn test_permutation_poly(
-        n: usize,
-        domain: &EvaluationDomain<Fr>,
-        z_vec: Vec<Fr>,
-        numerator_components: Vec<Fr>,
-        denominator_components: Vec<Fr>,
-    ) {
-        // 1. First we perform basic tests on the permutation vector
+        // 2. First we perform basic tests on the permutation vector
         //
         // Check that the vector has length `n` and that the first element is `1`
         assert_eq!(z_vec.len(), n);
@@ -762,7 +926,7 @@ mod test {
         }
         assert_eq!(a_0 / &b_0, Fr::one());
 
-        //2. Now we perform the two checks that need to be done on the permutation polynomial (z)
+        //3. Now we perform the two checks that need to be done on the permutation polynomial (z)
         let z_poly = Polynomial::from_coefficients_vec(domain.ifft(&z_vec));
         //
         // Check that z(w^{n+1}) == z(1) == 1
