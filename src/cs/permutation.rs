@@ -506,7 +506,6 @@ impl<E: PairingEngine> Permutation<E> {
             prev
         });
 
-
         // right now we basically have 6 acumulators of the form:
         // A1 = [a1, a1 * a2, a1*a2*a3,...]
         // A2 = [b1, b1 * b2, b1*b2*b3,...]
@@ -515,8 +514,8 @@ impl<E: PairingEngine> Permutation<E> {
         // We want:
         // [a1*b1*c1, a1 * a2 *b1 * b2 * c1 * c2,...]
         let mut z: Vec<_> = product_acumulated_components
-        .map(move |current_component| {
-            let mut prev = E::Fr::one();
+            .map(move |current_component| {
+                let mut prev = E::Fr::one();
                 prev *= &current_component.0;
                 prev *= &current_component.1;
                 prev *= &current_component.2;
@@ -527,7 +526,7 @@ impl<E: PairingEngine> Permutation<E> {
                 prev
             })
             .collect();
-        // Remove the last(n+1'th) element 
+        // Remove the last(n+1'th) element
         z.remove(n);
 
         assert_eq!(n, z.len());
