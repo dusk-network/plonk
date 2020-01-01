@@ -608,7 +608,6 @@ mod test {
         /*
 
         Check that the unique encodings of the sigma polynomials have been computed properly
-
         Left_Sigma : {R0,O1,R2,O0}
             When encoded using w, k1,k2 we have {1 * k1, w * k2, w^2 *k1, w^3 * k2}
 
@@ -624,7 +623,6 @@ mod test {
         let w: Fr = domain.group_gen;
         let w_squared = w.pow(&[2 as u64]);
         let w_cubed = w.pow(&[3 as u64]);
-
         // check the left sigmas have been encoded properly
         let encoded_left_sigma = perm.compute_permutation_lagrange(left_sigma, &domain);
         assert_eq!(encoded_left_sigma[0], k1);

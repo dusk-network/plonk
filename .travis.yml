@@ -1,0 +1,25 @@
+language: rust
+sudo: true
+cache: cargo
+os: 
+  - linux
+
+matrix:
+  fast_finish: false
+  include:
+  - rust: stable
+
+
+before_install:
+  - sudo apt-get update
+
+# Main build
+script:
+  - cargo check
+  - cargo build --verbose --all
+  - cargo test --verbose --all
+
+
+# Send a notification to the Dusk build Status Telegram channel once the CI build completes
+after_script:
+  - bash <(curl -s https://raw.githubusercontent.com/dusk-network/tools/master/bash/telegram_ci_notifications.sh)
