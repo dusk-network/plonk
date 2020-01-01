@@ -152,7 +152,6 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
 
         // compute permutation polynomial
         let (z_poly, beta, gamma) = self.perm.compute_permutation_poly(
-            self.n,
             &domain,
             transcript,
             rng,
