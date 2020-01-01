@@ -545,7 +545,13 @@ mod test {
             &beta,
             &gamma,
         );
-        test_permutation_poly(num_wire_mappings, &domain, z, num_components, den_components);
+        test_permutation_poly(
+            num_wire_mappings,
+            &domain,
+            z,
+            num_components,
+            den_components,
+        );
     }
     #[test]
     fn test_permutation_compute_sigmas() {
@@ -690,10 +696,9 @@ mod test {
 
         assert_eq!(identity_grand_prod / &copy_grand_prod, Fr::one());
     }
-    
+
     #[test]
     fn test_basic_slow_permutation_poly() {
-
         let num_wire_mappings = 2;
         let mut perm: Permutation<E> = Permutation::new();
         let mut transcript = Transcript::new(b"");
@@ -726,11 +731,22 @@ mod test {
             &beta,
             &gamma,
         );
-        test_permutation_poly(num_wire_mappings, &domain, z, num_components, den_components);
+        test_permutation_poly(
+            num_wire_mappings,
+            &domain,
+            z,
+            num_components,
+            den_components,
+        );
     }
 
-    fn test_permutation_poly(n : usize, domain: &EvaluationDomain<Fr>,z_vec : Vec<Fr>,numerator_components : Vec<Fr>,denominator_components : Vec<Fr>) {
-
+    fn test_permutation_poly(
+        n: usize,
+        domain: &EvaluationDomain<Fr>,
+        z_vec: Vec<Fr>,
+        numerator_components: Vec<Fr>,
+        denominator_components: Vec<Fr>,
+    ) {
         // 1. First we perform basic tests on the permutation vector
         //
         // Check that the vector has length `n` and that the first element is `1`
@@ -739,18 +755,18 @@ mod test {
         //
         // Check that the \prod{f_i} / \prod{g_i} = 1
         // Where f_i and g_i are the numerator and denominator components in the permutation polynomial
-        let (mut a_0,mut b_0) = (Fr::one(), Fr::one());
+        let (mut a_0, mut b_0) = (Fr::one(), Fr::one());
         for n in numerator_components.iter() {
             a_0 = a_0 * &n;
         }
         for n in denominator_components.iter() {
             b_0 = b_0 * &n;
         }
-        assert_eq!(a_0/ &b_0, Fr::one());
+        assert_eq!(a_0 / &b_0, Fr::one());
 
         //2. Now we perform the two checks that need to be done on the permutation polynomial (z)
         let z_poly = Polynomial::from_coefficients_vec(domain.ifft(&z_vec));
-        // 
+        //
         // Check that z(w^{n+1}) == z(1) == 1
         // This is the first check in the protocol
         assert_eq!(z_poly.evaluate(Fr::one()), Fr::one());
@@ -765,7 +781,6 @@ mod test {
         let roots: Vec<_> = domain.elements().collect();
 
         for i in 1..roots.len() {
-
             let current_root = roots[i];
             let next_root = current_root * &domain.group_gen;
 
@@ -787,7 +802,11 @@ mod test {
             let lhs = z_eval_shifted * &current_copy_perm_product;
             // Z(X) * iden_perm
             let rhs = z_eval * &current_identity_perm_product;
-            assert_eq!(lhs, rhs, "check failed at index: {}\'n lhs is : {:?} \n rhs is :{:?}", i, lhs, rhs);
+            assert_eq!(
+                lhs, rhs,
+                "check failed at index: {}\'n lhs is : {:?} \n rhs is :{:?}",
+                i, lhs, rhs
+            );
         }
     }
 }
