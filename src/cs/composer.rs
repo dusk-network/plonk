@@ -155,9 +155,9 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
             &domain,
             transcript,
             rng,
-            w_l_scalar.into_iter(),
-            w_r_scalar.into_iter(),
-            w_o_scalar.into_iter(),
+            &w_l_scalar,
+            &w_r_scalar,
+            &w_o_scalar,
         );
 
         // Create QuotientToolkit
