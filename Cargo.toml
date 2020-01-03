@@ -16,3 +16,4 @@ ff-fft = { git = "https://github.com/scipr-lab/zexe/" }
 poly-commit = { git = "https://github.com/scipr-lab/poly-commit", branch = "master"}
 itertools = "0.8.2"
 rand_chacha = "0.2"
+rayon = "1.3.0"
