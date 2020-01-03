@@ -259,3 +259,116 @@ impl<E: PairingEngine> lineariser<E> {
         &poly_a * z_poly
     }
 }
+#[cfg(test)]
+mod test {
+    use super::*;
+    use algebra::curves::bls12_381::Bls12_381 as E;
+    use algebra::fields::bls12_381::Fr;
+    use algebra::UniformRand;
+    #[test]
+    fn test_first_component() {
+        let lin : lineariser<E> = lineariser::new();
+        
+        let alpha = Fr::one();
+        let a_eval = Fr::one();
+        let b_eval = Fr::one();
+        let c_eval = Fr::one();
+
+        let qm = Polynomial::rand(10, &mut rand::thread_rng());
+        let ql = Polynomial::rand(10, &mut rand::thread_rng());
+        let qr = Polynomial::rand(10, &mut rand::thread_rng());
+        let qo = Polynomial::rand(10, &mut rand::thread_rng());
+        let qc = Polynomial::rand(10, &mut rand::thread_rng());
+        
+        let got_poly = lin.compute_first_component(alpha, a_eval, b_eval, c_eval, &qm,&ql, &qr, &qo, &qc);
+        
+        let mut expected_poly = &qm + &ql;
+        expected_poly += &qr;
+        expected_poly += &qo;
+        expected_poly += &qc;
+        
+        assert_eq!(got_poly, expected_poly);
+    }
+    
+    #[test]
+    fn test_second_component() {
+
+        let lin : lineariser<E> = lineariser::new();
+
+        let k1 = Fr::multiplicative_generator();
+        let k2 = Fr::from_repr_raw(13.into());
+
+        let alpha = Fr::one();
+        let beta = Fr::one();
+        let gamma = Fr::one();
+
+        let a_eval = Fr::one();
+        let b_eval = Fr::one();
+        let c_eval = Fr::one();
+        let z_challenge = Fr::one();
+        
+        let z_poly = Polynomial::rand(10, &mut rand::thread_rng());
+
+        let got_poly = lin.compute_second_component(a_eval, b_eval, c_eval, z_challenge, alpha, beta, gamma, &z_poly);
+
+        let first_bracket = Polynomial::from_coefficients_vec(vec![Fr::from(3 as u8)]);
+        let second_bracket = Polynomial::from_coefficients_vec(vec![Fr::from(2 as u8) + &k1]);
+        let third_bracket = Polynomial::from_coefficients_vec(vec![Fr::from(2 as u8) + &k2]);
+
+        let mut expected_poly = &first_bracket * &second_bracket;
+        expected_poly = &expected_poly * &third_bracket;
+        expected_poly = &expected_poly * &z_poly;
+    
+        assert_eq!(got_poly, expected_poly);
+    }
+    #[test]
+    fn test_third_component() {
+
+        let lin : lineariser<E> = lineariser::new();
+
+        let alpha = Fr::one();
+        let beta = Fr::one();
+        let gamma = Fr::one();
+
+        let a_eval = Fr::one();
+        let b_eval = Fr::one();
+        let c_eval = Fr::one();
+        let sig1_eval = Fr::one();
+        let sig2_eval = Fr::one();
+        let z_eval = Fr::one();
+        
+        let sig3_poly = Polynomial::rand(10, &mut rand::thread_rng());
+
+        let got_poly = lin.compute_third_component(a_eval, b_eval, c_eval, z_eval, sig1_eval, sig2_eval, alpha, beta, gamma, &sig3_poly);
+
+        let first_bracket = Polynomial::from_coefficients_vec(vec![Fr::from(3 as u8)]);
+        let second_bracket = Polynomial::from_coefficients_vec(vec![Fr::from(3 as u8)]);
+        let third_bracket = Polynomial::from_coefficients_vec(vec![z_eval]);
+
+        let mut expected_poly = &first_bracket * &second_bracket;
+        expected_poly = &expected_poly * &third_bracket;
+        expected_poly = &expected_poly * &sig3_poly;
+    
+        assert_eq!(got_poly, expected_poly);
+    }
+    #[test]
+    fn test_fourth_component() {
+
+        let lin : lineariser<E> = lineariser::new();
+
+        let alpha = Fr::one();
+        let z_challenge = Fr::rand(&mut rand::thread_rng());
+        let domain = EvaluationDomain::new(10).unwrap();
+        let z_poly = Polynomial::rand(10, &mut rand::thread_rng());
+
+
+        let got_poly = lin.compute_fourth_component(&domain, z_challenge, alpha, &z_poly);
+
+        let l1_eval = domain.evaluate_all_lagrange_coefficients(z_challenge)[0];
+        let l1_eval_poly = Polynomial::from_coefficients_vec(vec![l1_eval]);
+
+        let expected_poly = &z_poly * &l1_eval_poly;
+    
+        assert_eq!(got_poly, expected_poly);
+    }
+}
