@@ -375,18 +375,19 @@ impl<E: PairingEngine> Permutation<E> {
         )
     }
 
-    fn compute_fast_permutation_poly<R>(
+    fn compute_fast_permutation_poly<R, I>(
         &self,
         domain: &EvaluationDomain<E::Fr>,
         transcript: &mut dyn TranscriptProtocol<E>,
         mut rng: &mut R,
-        w_l: &[E::Fr],
-        w_r: &[E::Fr],
-        w_o: &[E::Fr],
+        w_l: I,
+        w_r: I,
+        w_o: I,
         beta: &E::Fr,
         gamma: &E::Fr,
     ) -> Vec<E::Fr>
     where
+        I: Iterator<Item = E::Fr>,
         R: RngCore + CryptoRng,
     {
         let n = domain.size();
@@ -394,94 +395,81 @@ impl<E: PairingEngine> Permutation<E> {
         let k1 = E::Fr::multiplicative_generator();
         let k2 = E::Fr::from_repr_raw(13.into());
 
-        // Compute beta * roots
-        let common_roots: Vec<_> = domain.elements().map(|root| root * beta).collect();
-
-        use rayon::iter::ParallelIterator;
         let left_sigma_mapping = self.left_sigma_mapping.as_ref().unwrap();
         let right_sigma_mapping = self.right_sigma_mapping.as_ref().unwrap();
         let out_sigma_mapping = self.out_sigma_mapping.as_ref().unwrap();
 
         // Compute beta * sigma polynomials
-        let beta_left_sigmas: Vec<_> = left_sigma_mapping
-            .par_iter()
-            .map(|sigma| *sigma * beta)
-            .collect();
-        let beta_right_sigmas: Vec<_> = right_sigma_mapping
-            .par_iter()
-            .map(|sigma| *sigma * beta)
-            .collect();
-        let beta_out_sigmas: Vec<_> = out_sigma_mapping
-            .par_iter()
-            .map(|sigma| *sigma * beta)
-            .collect();
+        let beta_left_sigmas = left_sigma_mapping.iter().map(|sigma| *sigma * beta);
+        let beta_right_sigmas = right_sigma_mapping.iter().map(|sigma| *sigma * beta);
+        let beta_out_sigmas = out_sigma_mapping.iter().map(|sigma| *sigma * beta);
+
+        // Compute beta * roots
+        let common_roots_iter = domain.elements().map(|root| root * beta);
 
         // Compute beta * roots * k1
-        let beta_roots_k1: Vec<_> = common_roots.par_iter().map(|x| *x * &k1).collect();
+        let beta_roots_k1 = domain.elements().map(|root| *beta * &root * &k1);
 
         // Compute beta * roots * k2
-        let beta_roots_k2: Vec<_> = common_roots.par_iter().map(|x| *x * &k2).collect();
+        let beta_roots_k2 = domain.elements().map(|root| *beta * &root * &k2);
 
         // Compute left_wire + gamma
-        let wL_gamma: Vec<_> = w_l.par_iter().map(|w_L| *w_L + gamma).collect();
+        let wL_gamma = w_l.map(|w_L| w_L + gamma);
 
         // Compute right_wire + gamma
-        let wR_gamma: Vec<_> = w_r.par_iter().map(|w_R| *w_R + gamma).collect();
+        let wR_gamma = w_r.map(|w_R| w_R + gamma);
 
         // Compute out_wire + gamma
-        let wO_gamma: Vec<_> = w_o.par_iter().map(|w_O| *w_O + gamma).collect();
+        let wO_gamma = w_o.map(|w_O| w_O + gamma);
 
         // Compute 6 acumulator components
-        // Parallisable
-        let mut acumulator_components_without_l1: Vec<_> = (
+        let mut acumulator_components_without_l1 = izip!(
             wL_gamma,
             wR_gamma,
             wO_gamma,
-            common_roots,
+            common_roots_iter,
             beta_roots_k1,
             beta_roots_k2,
             beta_left_sigmas,
             beta_right_sigmas,
             beta_out_sigmas,
         )
-            .into_par_iter()
-            .map(
-                |(
-                    w_l_gamma,
-                    w_r_gamma,
-                    w_o_gamma,
-                    beta_root,
-                    beta_root_k1,
-                    beta_root_k2,
-                    beta_left_sigma,
-                    beta_right_sigma,
-                    beta_out_sigma,
-                )| {
-                    // w_j + beta * root^j-1 + gamma
-                    let AC1 = w_l_gamma + &beta_root;
+        .map(
+            |(
+                w_l_gamma,
+                w_r_gamma,
+                w_o_gamma,
+                beta_root,
+                beta_root_k1,
+                beta_root_k2,
+                beta_left_sigma,
+                beta_right_sigma,
+                beta_out_sigma,
+            )| {
+                // w_j + beta * root^j-1 + gamma
+                let AC1 = w_l_gamma + &beta_root;
 
-                    // w_{n+j} + beta * k1 * root^j-1 + gamma
-                    let AC2 = w_r_gamma + &beta_root_k1;
+                // w_{n+j} + beta * k1 * root^j-1 + gamma
+                let AC2 = w_r_gamma + &beta_root_k1;
 
-                    // w_{2n+j} + beta * k2 * root^j-1 + gamma
-                    let AC3 = w_o_gamma + &beta_root_k2;
+                // w_{2n+j} + beta * k2 * root^j-1 + gamma
+                let AC3 = w_o_gamma + &beta_root_k2;
 
-                    // 1 / w_j + beta * sigma(j) + gamma
-                    let mut AC4 = w_l_gamma + &beta_left_sigma;
-                    AC4.inverse_in_place().unwrap();
+                // 1 / w_j + beta * sigma(j) + gamma
+                let mut AC4 = w_l_gamma + &beta_left_sigma;
+                AC4.inverse_in_place().unwrap();
 
-                    // 1 / w_{n+j} + beta * sigma(n+j) + gamma
-                    let mut AC5 = w_r_gamma + &beta_right_sigma;
-                    AC5.inverse_in_place().unwrap();
+                // 1 / w_{n+j} + beta * sigma(n+j) + gamma
+                let mut AC5 = w_r_gamma + &beta_right_sigma;
+                AC5.inverse_in_place().unwrap();
 
-                    // 1 / w_{2n+j} + beta * sigma(2n+j) + gamma
-                    let mut AC6 = w_o_gamma + &beta_out_sigma;
-                    AC6.inverse_in_place().unwrap();
+                // 1 / w_{2n+j} + beta * sigma(2n+j) + gamma
+                let mut AC6 = w_o_gamma + &beta_out_sigma;
+                AC6.inverse_in_place().unwrap();
 
-                    (AC1, AC2, AC3, AC4, AC5, AC6)
-                },
-            )
-            .collect();
+                (AC1, AC2, AC3, AC4, AC5, AC6)
+            },
+        );
 
         // Prepend ones to the beginning of each acumulator to signify L_1(x)
         let acumulator_components = std::iter::once((
@@ -495,12 +483,10 @@ impl<E: PairingEngine> Permutation<E> {
         .chain(acumulator_components_without_l1);
 
         // XXX: We could put this in with the previous iter method, but it will not be clear
-        // Actually, we should not because the first part is parallelisable, while this section is not
         // Multiply each component of the accumulators
         // A simplified example is the following:
         // A1 = [1,2,3,4]
         // result = [1, 1*2, 1*2*3, 1*2*3*4]
-        // Non Parallisable
         let mut prev = (
             E::Fr::one(),
             E::Fr::one(),
@@ -509,18 +495,16 @@ impl<E: PairingEngine> Permutation<E> {
             E::Fr::one(),
             E::Fr::one(),
         );
-        let product_acumulated_components: Vec<_> = acumulator_components
-            .map(move |current_component| {
-                prev.0 *= &current_component.0;
-                prev.1 *= &current_component.1;
-                prev.2 *= &current_component.2;
-                prev.3 *= &current_component.3;
-                prev.4 *= &current_component.4;
-                prev.5 *= &current_component.5;
+        let product_acumulated_components = acumulator_components.map(move |current_component| {
+            prev.0 *= &current_component.0;
+            prev.1 *= &current_component.1;
+            prev.2 *= &current_component.2;
+            prev.3 *= &current_component.3;
+            prev.4 *= &current_component.4;
+            prev.5 *= &current_component.5;
 
-                prev
-            })
-            .collect();
+            prev
+        });
 
         // right now we basically have 6 acumulators of the form:
         // A1 = [a1, a1 * a2, a1*a2*a3,...]
@@ -529,9 +513,7 @@ impl<E: PairingEngine> Permutation<E> {
         // ... and so on
         // We want:
         // [a1*b1*c1, a1 * a2 *b1 * b2 * c1 * c2,...]
-        // Parallisable
         let mut z: Vec<_> = product_acumulated_components
-            .par_iter()
             .map(move |current_component| {
                 let mut prev = E::Fr::one();
                 prev *= &current_component.0;
@@ -544,7 +526,6 @@ impl<E: PairingEngine> Permutation<E> {
                 prev
             })
             .collect();
-
         // Remove the last(n+1'th) element
         z.remove(n);
 
@@ -920,9 +901,9 @@ mod test {
             domain,
             &mut Transcript::new(b""),
             &mut rand::thread_rng(),
-            &w_l,
-            &w_r,
-            &w_o,
+            w_l.into_iter(),
+            w_r.into_iter(),
+            w_o.into_iter(),
             &beta,
             &gamma,
         );
