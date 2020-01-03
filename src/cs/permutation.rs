@@ -100,9 +100,9 @@ impl<E: PairingEngine> Permutation<E> {
         );
 
         (
-            w_l.iter().map(|var| self.variables[var.0]).collect(),
-            w_r.iter().map(|var| self.variables[var.0]).collect(),
-            w_o.iter().map(|var| self.variables[var.0]).collect(),
+            w_l.par_iter().map(|var| self.variables[var.0]).collect(),
+            w_r.par_iter().map(|var| self.variables[var.0]).collect(),
+            w_o.par_iter().map(|var| self.variables[var.0]).collect(),
         )
     }
 
