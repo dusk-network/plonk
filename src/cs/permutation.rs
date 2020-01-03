@@ -544,7 +544,6 @@ impl<E: PairingEngine> Permutation<E> {
                 prev
             })
             .collect();
-
         // Remove the last(n+1'th) element
         z.remove(n);
 
