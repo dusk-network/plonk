@@ -33,10 +33,13 @@ impl<E: PairingEngine> lineariser<E> {
         let alpha_sq = alpha.square();
         let alpha_cu = alpha * &alpha_sq;
 
-        let sigma_1_poly = &preprocessed_circuit.left_sigma_poly.0;
-        let sigma_2_poly = &preprocessed_circuit.right_sigma_poly.0;
-        let sigma_3_poly = &preprocessed_circuit.out_sigma_poly.0;
-        
+        let sigma_1_poly =
+            Polynomial::from_coefficients_slice(&preprocessed_circuit.left_sigma_poly());
+        let sigma_2_poly =
+            Polynomial::from_coefficients_slice(&preprocessed_circuit.right_sigma_poly());
+        let sigma_3_poly =
+            Polynomial::from_coefficients_slice(&preprocessed_circuit.out_sigma_poly());
+
         // Compute challenge
         let z_challenge = transcript.challenge_scalar(b"z");
 
