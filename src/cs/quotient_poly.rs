@@ -94,11 +94,11 @@ impl<E: PairingEngine> QuotientToolkit<E> {
             let beta_poly = Polynomial::from_coefficients_slice(&[*beta]);
             // Compute Sigma polys.
             let sigma_1_beta_poly =
-                &Polynomial::from_coefficients_slice(&prep_circ.left_sigma_poly.0) * &beta_poly;
+                &Polynomial::from_coefficients_slice(prep_circ.left_sigma_poly()) * &beta_poly;
             let sigma_2_beta_poly =
-                &Polynomial::from_coefficients_slice(&prep_circ.right_sigma_poly.0) * &beta_poly;
+                &Polynomial::from_coefficients_slice(prep_circ.right_sigma_poly()) * &beta_poly;
             let sigma_3_beta_poly =
-                &Polynomial::from_coefficients_slice(&prep_circ.out_sigma_poly.0) * &beta_poly;
+                &Polynomial::from_coefficients_slice(prep_circ.out_sigma_poly()) * &beta_poly;
 
             let t20 = &(w_l_poly + &sigma_1_beta_poly) + &gamma_poly;
             let t21 = &(w_r_poly + &sigma_2_beta_poly) + &gamma_poly;

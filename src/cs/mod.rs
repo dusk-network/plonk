@@ -17,29 +17,62 @@ use rand_core::{CryptoRng, RngCore};
 
 // Preprocessed cirucit includes the commitment to the selector polynomials and the sigma polynomials
 pub struct PreProcessedCircuit<E: PairingEngine> {
-    // Returns the selector polynomials q_m, q_l, q_r, q_o, q_c, other custom polynomials
-    selector_polys: Vec<(Polynomial<E::Fr>, Commitment<E>)>,
+    // Selector polynomials q_m, q_l, q_r, q_o, q_c and their commitments
+    selectors: Vec<(Polynomial<E::Fr>, Commitment<E>)>,
 
-    // Returns the permutation polynomials
-    left_sigma_poly: (Polynomial<E::Fr>, Commitment<E>),
-    right_sigma_poly: (Polynomial<E::Fr>, Commitment<E>),
-    out_sigma_poly: (Polynomial<E::Fr>, Commitment<E>),
+    // Sigma polynomials and their commitments
+    left_sigma: (Polynomial<E::Fr>, Commitment<E>),
+    right_sigma: (Polynomial<E::Fr>, Commitment<E>),
+    out_sigma: (Polynomial<E::Fr>, Commitment<E>),
 }
 impl<E: PairingEngine> PreProcessedCircuit<E> {
     pub fn qm_poly(&self) -> &Polynomial<E::Fr> {
-        &self.selector_polys[0].0
+        &self.selectors[0].0
     }
     pub fn ql_poly(&self) -> &Polynomial<E::Fr> {
-        &self.selector_polys[1].0
+        &self.selectors[1].0
     }
     pub fn qr_poly(&self) -> &Polynomial<E::Fr> {
-        &self.selector_polys[2].0
+        &self.selectors[2].0
     }
     pub fn qo_poly(&self) -> &Polynomial<E::Fr> {
-        &self.selector_polys[3].0
+        &self.selectors[3].0
     }
     pub fn qc_poly(&self) -> &Polynomial<E::Fr> {
-        &self.selector_polys[4].0
+        &self.selectors[4].0
+    }
+    pub fn left_sigma_poly(&self) -> &Polynomial<E::Fr> {
+        &self.left_sigma.0
+    }
+    pub fn right_sigma_poly(&self) -> &Polynomial<E::Fr> {
+        &self.right_sigma.0
+    }
+    pub fn out_sigma_poly(&self) -> &Polynomial<E::Fr> {
+        &self.out_sigma.0
+    }
+    pub fn qm_comm(&self) -> &Commitment<E> {
+        &self.selectors[0].1
+    }
+    pub fn ql_comm(&self) -> &Commitment<E> {
+        &self.selectors[1].1
+    }
+    pub fn qr_comm(&self) -> &Commitment<E> {
+        &self.selectors[2].1
+    }
+    pub fn qo_comm(&self) -> &Commitment<E> {
+        &self.selectors[3].1
+    }
+    pub fn qc_comm(&self) -> &Commitment<E> {
+        &self.selectors[4].1
+    }
+    pub fn left_sigma_comm(&self) -> &Commitment<E> {
+        &self.left_sigma.1
+    }
+    pub fn right_sigma_comm(&self) -> &Commitment<E> {
+        &self.right_sigma.1
+    }
+    pub fn out_sigma_comm(&self) -> &Commitment<E> {
+        &self.out_sigma.1
     }
 }
 
