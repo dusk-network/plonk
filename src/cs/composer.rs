@@ -96,16 +96,16 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
         transcript.append_commitment(b"out_sigma", &out_sigma_poly_commit);
 
         PreProcessedCircuit {
-            selector_polys: vec![
+            selectors: vec![
                 (q_m_poly, q_m_poly_commit),
                 (q_l_poly, q_l_poly_commit),
                 (q_r_poly, q_r_poly_commit),
                 (q_o_poly, q_o_poly_commit),
                 (q_c_poly, q_c_poly_commit),
             ],
-            left_sigma_poly: (left_sigma_poly, left_sigma_poly_commit),
-            right_sigma_poly: (right_sigma_poly, right_sigma_poly_commit),
-            out_sigma_poly: (out_sigma_poly, out_sigma_poly_commit),
+            left_sigma: (left_sigma_poly, left_sigma_poly_commit),
+            right_sigma: (right_sigma_poly, right_sigma_poly_commit),
+            out_sigma: (out_sigma_poly, out_sigma_poly_commit),
         }
     }
 
@@ -189,11 +189,11 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
         // But everywhere else, we need the polynomial made using the lagrange bases
         // This will be one of the bigger refactors
         let left_sigma_poly =
-            Polynomial::from_coefficients_slice(&preprocessed_circuit.left_sigma_poly.0);
+            Polynomial::from_coefficients_slice(preprocessed_circuit.left_sigma_poly());
         let right_sigma_poly =
-            Polynomial::from_coefficients_slice(&preprocessed_circuit.right_sigma_poly.0);
+            Polynomial::from_coefficients_slice(preprocessed_circuit.right_sigma_poly());
         let out_sigma_poly =
-            Polynomial::from_coefficients_slice(&preprocessed_circuit.out_sigma_poly.0);
+            Polynomial::from_coefficients_slice(&preprocessed_circuit.out_sigma_poly());
 
         // Fourth output
         let lineariser = lineariser::new();
@@ -228,8 +228,8 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
             &w_l_poly,
             &w_r_poly,
             &w_o_poly,
-            &preprocessed_circuit.left_sigma_poly.0,
-            &preprocessed_circuit.right_sigma_poly.0,
+            &preprocessed_circuit.left_sigma_poly(),
+            &preprocessed_circuit.right_sigma_poly(),
             &z_poly,
         );
 
