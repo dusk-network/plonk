@@ -96,7 +96,7 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
         transcript.append_commitment(b"out_sigma", &out_sigma_poly_commit);
 
         PreProcessedCircuit {
-            n : self.n,
+            n: self.n,
             selectors: vec![
                 (q_m_poly, q_m_poly_commit),
                 (q_l_poly, q_l_poly_commit),
