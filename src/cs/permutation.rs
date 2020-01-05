@@ -997,7 +997,7 @@ mod test {
 
         // Test that the public API version is also correct
         let mut transcript = Transcript::new(b"");
-        let (z_x, z_xw,_,_) = perm.compute_permutation_poly(
+        let (z_x, z_xw, _, _) = perm.compute_permutation_poly(
             &domain,
             &mut transcript,
             &mut rand::thread_rng(),
@@ -1011,6 +1011,5 @@ mod test {
 
             assert_eq!(z_eval, shifted_z_eval)
         }
-
     }
 }
