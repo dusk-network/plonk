@@ -207,7 +207,7 @@ impl<E: PairingEngine> Permutation<E> {
         w_l: &[E::Fr],
         w_r: &[E::Fr],
         w_o: &[E::Fr],
-    ) -> (Polynomial<E::Fr>, E::Fr, E::Fr)
+    ) -> (Polynomial<E::Fr>, Polynomial<E::Fr>, E::Fr, E::Fr)
     where
         R: RngCore + CryptoRng,
     {
@@ -215,25 +215,36 @@ impl<E: PairingEngine> Permutation<E> {
         transcript.append_scalar(b"beta", &beta);
         let gamma = transcript.challenge_scalar(b"gamma");
 
-        let z_coefficients = self
-            .compute_fast_permutation_poly(domain, transcript, rng, w_l, w_r, w_o, &beta, &gamma);
+        let z_coefficients =
+            self.compute_fast_permutation_poly(domain, w_l, w_r, w_o, &beta, &gamma);
 
-        // Compute permutation polynomail and blind it
+        // Compute permutation polynomial, the shifted version and blind it
         let mut z_poly = Polynomial::from_coefficients_vec(domain.ifft(&z_coefficients));
+
+        // Shift permutation coefficients by one and compute the shifted polynomial
+        let mut shifted_z_coefficients = self.shift_poly_by_one(z_coefficients);
+        let mut shifted_z_poly =
+            Polynomial::from_coefficients_vec(domain.ifft(&shifted_z_coefficients));
 
         // Compute blinding polynomial
         let z_blinder = Polynomial::rand(2, &mut rng).mul_by_vanishing_poly(*domain);
 
         let z_poly_blinded = &z_poly + &z_blinder;
+        let shifted_z_poly_blinded = &shifted_z_poly + &z_blinder;
 
-        (z_poly_blinded, beta, gamma)
+        (z_poly_blinded, shifted_z_poly_blinded, beta, gamma)
+    }
+    // shifts the polynomials by one root of unity
+    fn shift_poly_by_one(&self, z_coefficients: Vec<E::Fr>) -> Vec<E::Fr> {
+        let mut shifted_z_coefficients = z_coefficients;
+        shifted_z_coefficients.push(shifted_z_coefficients[0]);
+        shifted_z_coefficients.remove(0);
+        shifted_z_coefficients
     }
 
-    fn compute_slow_permutation_poly<R, I>(
+    fn compute_slow_permutation_poly<I>(
         &self,
         domain: &EvaluationDomain<E::Fr>,
-        transcript: &mut dyn TranscriptProtocol<E>,
-        mut rng: &mut R,
         w_l: I,
         w_r: I,
         w_o: I,
@@ -242,7 +253,6 @@ impl<E: PairingEngine> Permutation<E> {
     ) -> (Vec<E::Fr>, Vec<E::Fr>, Vec<E::Fr>)
     where
         I: Iterator<Item = E::Fr>,
-        R: RngCore + CryptoRng,
     {
         let n = domain.size();
 
@@ -376,20 +386,15 @@ impl<E: PairingEngine> Permutation<E> {
         )
     }
 
-    fn compute_fast_permutation_poly<R>(
+    fn compute_fast_permutation_poly(
         &self,
         domain: &EvaluationDomain<E::Fr>,
-        transcript: &mut dyn TranscriptProtocol<E>,
-        mut rng: &mut R,
         w_l: &[E::Fr],
         w_r: &[E::Fr],
         w_o: &[E::Fr],
         beta: &E::Fr,
         gamma: &E::Fr,
-    ) -> Vec<E::Fr>
-    where
-        R: RngCore + CryptoRng,
-    {
+    ) -> Vec<E::Fr> {
         let n = domain.size();
 
         let k1 = E::Fr::multiplicative_generator();
@@ -707,7 +712,7 @@ mod test {
         let w_r = vec![Fr::from(2 as u8), Fr::one(), Fr::one(), Fr::one()];
         let w_o = vec![Fr::one(), Fr::one(), Fr::one(), Fr::one()];
 
-        test_permutation_poly(
+        test_correct_permutation_poly(
             num_wire_mappings,
             perm,
             &domain,
@@ -876,7 +881,7 @@ mod test {
         let w_r: Vec<_> = vec![Fr::from(2 as u8), Fr::from(2 as u8)];
         let w_o: Vec<_> = vec![Fr::from(3 as u8), Fr::one()];
 
-        test_permutation_poly(
+        test_correct_permutation_poly(
             num_wire_mappings,
             perm,
             &domain,
@@ -886,7 +891,7 @@ mod test {
         );
     }
 
-    fn test_permutation_poly(
+    fn test_correct_permutation_poly(
         n: usize,
         mut perm: Permutation<E>,
         domain: &EvaluationDomain<Fr>,
@@ -894,7 +899,7 @@ mod test {
         w_r: Vec<Fr>,
         w_o: Vec<Fr>,
     ) {
-        //0. Generate beta and gammma challenges
+        // 0. Generate beta and gammma challenges
         //
         let beta = Fr::rand(&mut rand::thread_rng());
         let gamma = Fr::rand(&mut rand::thread_rng());
@@ -907,8 +912,6 @@ mod test {
         let (z_vec, numerator_components, denominator_components) = perm
             .compute_slow_permutation_poly(
                 domain,
-                &mut Transcript::new(b""),
-                &mut rand::thread_rng(),
                 w_l.clone().into_iter(),
                 w_r.clone().into_iter(),
                 w_o.clone().into_iter(),
@@ -916,16 +919,8 @@ mod test {
                 &gamma,
             );
 
-        let fast_z_vec = perm.compute_fast_permutation_poly(
-            domain,
-            &mut Transcript::new(b""),
-            &mut rand::thread_rng(),
-            &w_l,
-            &w_r,
-            &w_o,
-            &beta,
-            &gamma,
-        );
+        let fast_z_vec =
+            perm.compute_fast_permutation_poly(domain, &w_l, &w_r, &w_o, &beta, &gamma);
         assert_eq!(fast_z_vec, z_vec);
 
         // 2. First we perform basic tests on the permutation vector
@@ -989,5 +984,33 @@ mod test {
                 i, lhs, rhs
             );
         }
+
+        // Test that the shifted polynomial is correct
+        let shifted_z = perm.shift_poly_by_one(fast_z_vec);
+        let shifted_z_poly = Polynomial::from_coefficients_vec(domain.ifft(&shifted_z));
+        for element in domain.elements() {
+            let z_eval = z_poly.evaluate(element * &domain.group_gen);
+            let shifted_z_eval = shifted_z_poly.evaluate(element);
+
+            assert_eq!(z_eval, shifted_z_eval)
+        }
+
+        // Test that the public API version is also correct
+        let mut transcript = Transcript::new(b"");
+        let (z_x, z_xw,_,_) = perm.compute_permutation_poly(
+            &domain,
+            &mut transcript,
+            &mut rand::thread_rng(),
+            &w_l,
+            &w_r,
+            &w_o,
+        );
+        for element in domain.elements() {
+            let z_eval = z_x.evaluate(element * &domain.group_gen);
+            let shifted_z_eval = z_xw.evaluate(element);
+
+            assert_eq!(z_eval, shifted_z_eval)
+        }
+
     }
 }
