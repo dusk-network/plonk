@@ -8,7 +8,7 @@ use rand::thread_rng;
 type KZG_Bls12_381 = KZG10<Bls12_381>;
 
 pub fn setup(max_deg: usize) -> UniversalParams<Bls12_381> {
- KZG_Bls12_381::setup(max_deg, false, &mut thread_rng()).unwrap()
+    KZG_Bls12_381::setup(max_deg, false, &mut thread_rng()).unwrap()
 }
 
 pub fn trim<E: PairingEngine>(
