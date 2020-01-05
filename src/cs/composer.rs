@@ -157,7 +157,7 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
         transcript.append_commitment(b"w_o", &w_o_poly_commit);
 
         // compute permutation polynomial
-        let (z_poly, _, beta, gamma) = self.perm.compute_permutation_poly(
+        let (z_poly, z_poly_shifted, beta, gamma) = self.perm.compute_permutation_poly(
             &domain,
             transcript,
             rng,
@@ -175,6 +175,7 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
             &domain,
             transcript,
             &preprocessed_circuit,
+            &z_poly_shifted,
             [&w_l_poly, &w_r_poly, &w_o_poly],
             // TODO: Get Public Inputs polynomial.
             &z_poly,

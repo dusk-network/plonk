@@ -24,6 +24,7 @@ impl<E: PairingEngine> QuotientToolkit<E> {
         domain: &EvaluationDomain<E::Fr>,
         transcript: &mut dyn TranscriptProtocol<E>,
         prep_circ: &PreProcessedCircuit<E>,
+        shifted_z_poly: &Polynomial<E::Fr>,
         w_poly: [&Polynomial<E::Fr>; 3],
         pi_poly: &Polynomial<E::Fr>,
         beta: &E::Fr,
@@ -170,56 +171,6 @@ impl<E: PairingEngine> QuotientToolkit<E> {
         let z_poly = Polynomial::from_coefficients_slice(&[E::Fr::zero(), E::Fr::from(1)]);
 
         &(&z_nth_poly - &one_poly) / &(&n_poly * &(&z_poly - &one_poly))
-    }
-
-    // Gets a set of polynomials, passes them to coeficient form
-    // with EvalDomain = 4*n. Then multiplies them by `z(Xw)` and
-    // returns the ifft of the mul over the domain `4n` again.
-    pub fn mul_and_transp_in_4n(
-        &self,
-        n: usize,
-        t2s_polys: &[Polynomial<E::Fr>; 3],
-        z_poly: &Polynomial<E::Fr>,
-    ) -> Polynomial<E::Fr> {
-        let ev_dom_4n = EvaluationDomain::new(4 * n).unwrap();
-        let polys_4n: Vec<Polynomial<E::Fr>> = t2s_polys
-            .into_iter()
-            .map(|p| {
-                let pol = { Polynomial::from_coefficients_slice(&ev_dom_4n.fft(p)) };
-                pol
-            })
-            .collect();
-
-        let z_eval_coef = self.transpolate_poly_to_unity_root(n, &z_poly);
-
-        let total_poly: Polynomial<E::Fr> = {
-            let mut tot: Polynomial<E::Fr> = Polynomial::zero();
-            for poly in polys_4n {
-                tot = &tot * &poly;
-            }
-            tot = &tot * &z_eval_coef;
-            tot
-        };
-
-        Polynomial::from_coefficients_slice(&ev_dom_4n.ifft(&total_poly))
-    }
-
-    // Moves the polynomial on the complex plane in respect to the
-    // first root of unity and returns the poly in coeficient form.
-    pub fn transpolate_poly_to_unity_root(
-        &self,
-        n: usize,
-        poly: &Polynomial<E::Fr>,
-    ) -> Polynomial<E::Fr> {
-        let domain_4n = EvaluationDomain::new(4 * n).unwrap();
-        let mut poly_coef = domain_4n.fft(poly);
-        poly_coef.push(poly_coef[0]);
-        poly_coef.push(poly_coef[1]);
-        poly_coef.push(poly_coef[2]);
-        poly_coef.push(poly_coef[3]);
-        let mut coefs_rotated: Vec<E::Fr> = Vec::with_capacity(poly_coef.len());
-        coefs_rotated.clone_from_slice(&poly_coef[4..]);
-        Polynomial::from_coefficients_vec(coefs_rotated)
     }
 
     // Split `t(X)` poly into three degree-n polynomials.
