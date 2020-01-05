@@ -38,7 +38,7 @@ impl<E: PairingEngine> commitmentOpener<E> {
         let v = transcript.challenge_scalar(b"v");
         let mut v_pow: Vec<E::Fr> = Vec::with_capacity(6);
         v_pow.push(E::Fr::one());
-        for i in 1..9 {
+        for i in 1..=7 {
             v_pow[i] = v_pow[i - 1] * &v;
         }
 

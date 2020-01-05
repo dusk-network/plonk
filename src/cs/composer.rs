@@ -96,6 +96,7 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
         transcript.append_commitment(b"out_sigma", &out_sigma_poly_commit);
 
         PreProcessedCircuit {
+            n: self.n,
             selectors: vec![
                 (q_m_poly, q_m_poly_commit),
                 (q_l_poly, q_l_poly_commit),
@@ -149,6 +150,11 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
         let w_l_poly_commit = srs::commit(&ck, &w_l_poly);
         let w_r_poly_commit = srs::commit(&ck, &w_r_poly);
         let w_o_poly_commit = srs::commit(&ck, &w_o_poly);
+
+        // Add witnesses to transcript
+        transcript.append_commitment(b"w_l", &w_l_poly_commit);
+        transcript.append_commitment(b"w_r", &w_r_poly_commit);
+        transcript.append_commitment(b"w_o", &w_o_poly_commit);
 
         // compute permutation polynomial
         let (z_poly, beta, gamma) = self.perm.compute_permutation_poly(
