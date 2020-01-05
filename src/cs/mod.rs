@@ -17,6 +17,8 @@ use rand_core::{CryptoRng, RngCore};
 
 // Preprocessed cirucit includes the commitment to the selector polynomials and the sigma polynomials
 pub struct PreProcessedCircuit<E: PairingEngine> {
+    // The number of gates in the circuit
+    n: usize,
     // Selector polynomials q_m, q_l, q_r, q_o, q_c and their commitments
     selectors: Vec<(Polynomial<E::Fr>, Commitment<E>)>,
 
