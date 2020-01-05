@@ -212,6 +212,7 @@ impl<E: PairingEngine> Permutation<E> {
         R: RngCore + CryptoRng,
     {
         let beta = transcript.challenge_scalar(b"beta");
+        transcript.append_scalar(b"beta",&beta);
         let gamma = transcript.challenge_scalar(b"gamma");
 
         let z_coefficients = self
