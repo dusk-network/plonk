@@ -171,17 +171,16 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
 
         // Compute quotient polynomial.
         let (t_hi_poly, t_mid_poly, t_low_poly, alpha) = qt_toolkit.compute_quotient_poly(
-            self.n,
             &domain,
             transcript,
             &preprocessed_circuit,
+            &z_poly,
             &z_poly_shifted,
             [&w_l_poly, &w_r_poly, &w_o_poly],
             // TODO: Get Public Inputs polynomial.
-            &z_poly,
+            &Polynomial::from_coefficients_vec(vec![E::Fr::zero()]),
             &beta,
             &gamma,
-            &z_poly,
         );
 
         // Commit polynomials.
