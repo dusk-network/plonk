@@ -83,8 +83,6 @@ impl<E: PairingEngine> QuotientToolkit<E> {
         let t_3 = self.compute_quotient_third_component(
             domain,
             &alpha_sq_poly,
-            &k1,
-            &k2,
             beta,
             shifted_z_poly,
             &w_l_gamma_poly,
