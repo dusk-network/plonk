@@ -6,6 +6,9 @@ pub trait TranscriptProtocol<E: PairingEngine> {
     /// Append a `commitment` with the given `label`.
     fn append_commitment(&mut self, label: &'static [u8], comm: &Commitment<E>);
 
+    /// Append a `Scalar` with the given `label`.
+    fn append_scalar(&mut self, label: &'static [u8], s: &E::Fr);
+
     /// Compute a `label`ed challenge variable.
     fn challenge_scalar(&mut self, label: &'static [u8]) -> E::Fr;
 }
@@ -13,6 +16,10 @@ pub trait TranscriptProtocol<E: PairingEngine> {
 impl<E: PairingEngine> TranscriptProtocol<E> for Transcript {
     fn append_commitment(&mut self, label: &'static [u8], comm: &Commitment<E>) {
         self.append_message(label, &to_bytes![comm].unwrap());
+    }
+
+    fn append_scalar(&mut self, label: &'static [u8], s: &E::Fr) {
+        self.append_message(label, &to_bytes![s].unwrap())
     }
 
     fn challenge_scalar(&mut self, label: &'static [u8]) -> E::Fr {
