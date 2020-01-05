@@ -244,30 +244,30 @@ impl<E: PairingEngine> QuotientToolkit<E> {
         let n = domain.size();
         // (Z(x) - 1) * l1(X) / Z_H
         let mut k = z_poly - &Polynomial::from_coefficients_slice(&[E::Fr::from(1)]);
-        k = &k * &self.compute_lagrange_poly_evaluation(n as u8);
+        k = &k * &self.compute_first_lagrange_poly(n);
         k = &k * &alpha_cu_poly;
         k.divide_by_vanishing_poly(*domain).unwrap();
         k
     }
 
-    /// Computes the Lagrange polynomial evaluation `L1(z)`.
-    pub fn compute_lagrange_poly_evaluation(&self, n: u8) -> Polynomial<E::Fr> {
-        // One as a polynomial of degree 0.
-        let one_poly = Polynomial::from_coefficients_slice(&[E::Fr::from(1)]);
-        // Build z_nth vector to get the poly directly in coef form.
-        let mut z_nth = Vec::new();
-        for _ in 0..n {
-            z_nth.push(E::Fr::zero());
-        }
-        // Add 1 on the n'th term of the vec.
-        z_nth.push(E::Fr::from(1));
-        // Build the poly.
-        let z_nth_poly = Polynomial::from_coefficients_vec(z_nth);
-        // `n` as polynomial of degree 0.
-        let n_poly = Polynomial::from_coefficients_slice(&[E::Fr::from(n as u8)]);
-        let z_poly = Polynomial::from_coefficients_slice(&[E::Fr::zero(), E::Fr::from(1)]);
+    /// Computes the Lagrange polynomial `L1(X)`.
+    /// x^n - 1 / n(x-1)
+    pub fn compute_first_lagrange_poly(&self, size: usize) -> Polynomial<E::Fr> {
+        
+        let n = E::Fr::from(size as u64);
+        
+        use ff_fft::{SparsePolynomial, DenseOrSparsePolynomial};
 
-        &(&z_nth_poly - &one_poly) / &(&n_poly * &(&z_poly - &one_poly))
+        let numerator_coeffs = vec![(0, -E::Fr::one()), (size, E::Fr::one())]; 
+        let numerator_poly : DenseOrSparsePolynomial<E::Fr> = SparsePolynomial::from_coefficients_vec(numerator_coeffs).into();
+
+        let denominator_coeffs = vec![(0, -n), (1, n)];
+        let denominator_poly : DenseOrSparsePolynomial<E::Fr> = SparsePolynomial::from_coefficients_vec(denominator_coeffs).into();
+
+        let (q,r) = numerator_poly.divide_with_q_and_r(&denominator_poly).unwrap();
+        assert_eq!(r, Polynomial::zero());
+
+        q
     }
 
     // Split `t(X)` poly into three degree-n polynomials.
@@ -321,5 +321,23 @@ mod test {
         t_components_eval += &t_hi_eval;
 
         assert_eq!(t_x_eval, t_components_eval);
+    }
+
+    #[test]
+    fn test_l1_x_poly() {
+        let toolkit: QuotientToolkit<E> = QuotientToolkit::new();
+
+        let n = 4;
+        let domain = EvaluationDomain::new(n).unwrap();
+        
+        use algebra::UniformRand;
+        let rand_point = Fr::rand(&mut rand::thread_rng());
+        
+        let expected_l1_eval = domain.evaluate_all_lagrange_coefficients(rand_point)[0];
+        let q = toolkit.compute_first_lagrange_poly(domain.size());
+        let got_l1_eval = q.evaluate(rand_point);
+
+        assert_eq!(expected_l1_eval,got_l1_eval);
+        assert_eq!(Fr::one(), q.evaluate(Fr::one()))
     }
 }
