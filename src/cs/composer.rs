@@ -115,13 +115,11 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
     fn prove<R: RngCore + CryptoRng>(
         &mut self,
         public_parameters: &UniversalParams<E>,
+        preprocessed_circuit : &PreProcessedCircuit<E>,
         transcript: &mut dyn TranscriptProtocol<E>,
         mut rng: &mut R,
     ) -> Proof<E> {
         let domain = EvaluationDomain::new(self.n).unwrap();
-
-        // Pre-process circuit
-        let preprocessed_circuit = self.preprocess(public_parameters, transcript, &domain);
 
         //1. Witness Polynomials
         //
