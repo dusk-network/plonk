@@ -36,7 +36,7 @@ impl<E: PairingEngine> QuotientToolkit<E> {
     ) {
         let n = domain.size();
         let k1 = E::Fr::multiplicative_generator();
-        let k2 = E::Fr::from_repr_raw(13.into());
+        let k2 = E::Fr::from_repr(13.into());
 
         // Generate challenge scalars
         let alpha = transcript.challenge_scalar(b"alpha");
@@ -254,7 +254,7 @@ impl<E: PairingEngine> QuotientToolkit<E> {
     /// x^n - 1 / n(x-1)
     pub fn compute_first_lagrange_poly(&self, size: usize) -> Polynomial<E::Fr> {
         
-        let n = E::Fr::from(size as u64);
+        let n = E::Fr::from_repr((size as u64).into());
         
         use ff_fft::{SparsePolynomial, DenseOrSparsePolynomial};
 
