@@ -39,7 +39,7 @@ impl<E: PairingEngine> commitmentOpener<E> {
         let mut v_pow: Vec<E::Fr> = Vec::with_capacity(6);
         v_pow.push(E::Fr::one());
         for i in 1..=7 {
-            v_pow[i] = v_pow[i - 1] * &v;
+            v_pow.push(v_pow[i - 1] * &v);
         }
 
         let v_7 = v_pow.pop().unwrap();
