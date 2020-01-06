@@ -37,7 +37,7 @@ impl<E: PairingEngine> QuotientToolkit<E> {
         let n = domain.size();
         let k1 = E::Fr::multiplicative_generator();
         let k2 = E::Fr::from_repr(13.into());
-
+        
         // Generate challenge scalars
         let alpha = transcript.challenge_scalar(b"alpha");
         let alpha_poly = Polynomial::from_coefficients_slice(&[alpha]);
@@ -45,16 +45,17 @@ impl<E: PairingEngine> QuotientToolkit<E> {
         let alpha_sq_poly = Polynomial::from_coefficients_slice(&[alpha_sq]);
         let alpha_cu = alpha.square() * &alpha;
         let alpha_cu_poly = Polynomial::from_coefficients_slice(&[alpha_cu]);
-
+        
         let w_l_poly = w_poly[0];
         let w_r_poly = w_poly[1];
         let w_o_poly = w_poly[2];
-
+        
         let gamma_poly = Polynomial::from_coefficients_slice(&[*gamma]);
         let w_l_gamma_poly = w_l_poly + &gamma_poly;
         let w_r_gamma_poly = w_r_poly + &gamma_poly;
         let w_o_gamma_poly = w_o_poly + &gamma_poly;
-
+        
+        
         // Compute components for t(X)
         let t_1 = self.compute_quotient_first_component(
             domain,
@@ -93,11 +94,15 @@ impl<E: PairingEngine> QuotientToolkit<E> {
             preprocessed_circuit.out_sigma_poly(),
         );
         let t_4 = self.compute_quotient_fourth_component(domain, z_poly, alpha_cu_poly);
+        
+        let t_x_0 = &t_1 + &t_2;
+        assert_eq!(t_x_0.degree(), 3 * n + 5);
+        let t_x_1 = &t_3 + &t_4;
+        assert_eq!(t_x_1.degree(), 3 * n + 5);
 
-        let mut t_x = &t_1 + &t_2;
-        t_x += &t_3;
-        t_x += &t_4;
-
+        // XXX: Adding all components in one variable using AddAsign produces a panic
+        let t_x = &t_x_0 + &t_x_1;       
+ 
         let (t_lo, t_mid, t_hi) = self.split_tx_poly(n, &t_x);
         (t_lo, t_mid, t_hi, alpha)
     }
@@ -231,7 +236,7 @@ impl<E: PairingEngine> QuotientToolkit<E> {
         a = &a * &alpha_sq_poly; // (a(x) + beta* Sigma1(X) + gamma) (b(X) + beta * Sigma2(X) + gamma) (c(X) + beta * Sigma3(X) + gamma) Z(X.omega) * alpha^2
         let (q, _) = a.divide_by_vanishing_poly(*domain).unwrap(); // (a(x) + beta * Sigma1(X) + gamma) (b(X) + beta * Sigma2(X) + gamma) (c(X) + beta * Sigma3(X) + gamma) Z(X.omega) * alpha^2 / Z_H
 
-        assert_eq!(q.degree(), 3 * n + 2);
+        assert_eq!(q.degree(), 3 * n + 5);
         -q
     }
 
