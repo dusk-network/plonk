@@ -11,44 +11,47 @@ use ff_fft::EvaluationDomain;
 use poly_commit::kzg10::{Commitment, VerifierKey};
 pub struct Proof<E: PairingEngine> {
     // Commitment to the witness polynomial for the left wires
-    a_comm: Commitment<E>,
+    pub a_comm: Commitment<E>,
     // Commitment to the witness polynomial for the right wires
-    b_comm: Commitment<E>,
+    pub b_comm: Commitment<E>,
     // Commitment to the witness polynomial for the output wires
-    c_comm: Commitment<E>,
+    pub c_comm: Commitment<E>,
 
     // Commitment to the permutation polynomial
-    z_comm: Commitment<E>,
+    pub z_comm: Commitment<E>,
 
     // Commitment to the quotient polynomial
-    t_lo_comm: Commitment<E>,
-    t_mid_comm: Commitment<E>,
-    t_hi_comm: Commitment<E>,
+    pub t_lo_comm: Commitment<E>,
+    pub t_mid_comm: Commitment<E>,
+    pub t_hi_comm: Commitment<E>,
 
     // Commitment to the opening polynomial
-    w_z_comm: Commitment<E>,
+    pub w_z_comm: Commitment<E>,
     // Commitment to the shifted opening polynomial
-    w_zw_comm: Commitment<E>,
+    pub w_zw_comm: Commitment<E>,
 
     // Evaluation of the witness polynomial for the left wires at `z`
-    a_eval: E::Fr,
+    pub a_eval: E::Fr,
     // Evaluation of the witness polynomial for the right wires at `z`
-    b_eval: E::Fr,
+    pub b_eval: E::Fr,
     // Evaluation of the witness polynomial for the output wires at `z`
-    c_eval: E::Fr,
+    pub c_eval: E::Fr,
 
     // Evaluation of the left sigma polynomial at `z`
-    left_sigma_eval: E::Fr,
+    pub left_sigma_eval: E::Fr,
     // Evaluation of the right sigma polynomial at `z`
-    right_sigma_eval: E::Fr,
+    pub right_sigma_eval: E::Fr,
 
     // Evaluation of the linearisation sigma polynomial at `z`
-    lin_poly_eval: E::Fr,
+    pub lin_poly_eval: E::Fr,
 
     // (Shifted) Evaluation of the permutation polynomial at `z * root of unity`
-    z_hat_eval: E::Fr,
+    pub z_hat_eval: E::Fr,
     // XXX: Need to confirm that for custom gates we do need more commitments for custom selector polynomial, as the selector polynomial is a part of the circit description
     // Furthermore, we may not need any extra commitments as the checks are baked into the quotient polynomial and the setup elements can be put into the witness polynomials
+
+    // XXX:DEBUG VALUES (DELETE ONCE VERIFIER PASSES)
+    pub debug_t_eval : E::Fr,
 }
 
 impl<E: PairingEngine> Proof<E> {
@@ -79,6 +82,9 @@ impl<E: PairingEngine> Proof<E> {
             lin_poly_eval: E::Fr::zero(),
 
             z_hat_eval: E::Fr::zero(),
+
+            // DEBUG VALUES, DELETE ONCE VERIFIER PASSES
+            debug_t_eval : E::Fr::zero(),
         }
     }
 
@@ -86,23 +92,13 @@ impl<E: PairingEngine> Proof<E> {
         &self,
         preprocessed_circuit: &PreProcessedCircuit<E>,
         transcript: &mut dyn TranscriptProtocol<E>,
-        commit_verifier_key: &VerifierKey<E>,
+        verifier_key: &VerifierKey<E>,
     ) -> bool {
         let domain = EvaluationDomain::new(preprocessed_circuit.n).unwrap();
 
         // XXX: Check if components are valid
 
-        // Add commitment circuit polynomials and witness polynomials to transcript
-        transcript.append_commitment(b"q_m", preprocessed_circuit.qc_comm());
-        transcript.append_commitment(b"q_l", preprocessed_circuit.ql_comm());
-        transcript.append_commitment(b"q_r", preprocessed_circuit.qr_comm());
-        transcript.append_commitment(b"q_o", preprocessed_circuit.qo_comm());
-        transcript.append_commitment(b"q_c", preprocessed_circuit.qc_comm());
-
-        transcript.append_commitment(b"left_sigma", preprocessed_circuit.left_sigma_comm());
-        transcript.append_commitment(b"right_sigma", preprocessed_circuit.right_sigma_comm());
-        transcript.append_commitment(b"out_sigma", preprocessed_circuit.out_sigma_comm());
-
+        // Add witness polynomials to transcript
         transcript.append_commitment(b"w_l", &self.a_comm);
         transcript.append_commitment(b"w_r", &self.b_comm);
         transcript.append_commitment(b"w_o", &self.c_comm);
@@ -111,18 +107,17 @@ impl<E: PairingEngine> Proof<E> {
         let beta = transcript.challenge_scalar(b"beta");
         transcript.append_scalar(b"beta", &beta);
         let gamma = transcript.challenge_scalar(b"gamma");
-
         // Add commitment to permutation polynomial to transcript
         transcript.append_commitment(b"z", &self.z_comm);
-
+        
         // Compute quotient challenge
-        let alpha = transcript.challenge_scalar(b"z");
-
+        let alpha = transcript.challenge_scalar(b"alpha");
+        
         // Add commitment to quotient polynomial to transcript
         transcript.append_commitment(b"t_lo", &self.t_lo_comm);
         transcript.append_commitment(b"t_mid", &self.t_mid_comm);
         transcript.append_commitment(b"t_hi", &self.t_hi_comm);
-
+        
         // Compute evaluation challenge
         let z_challenge = transcript.challenge_scalar(b"z");
 
@@ -146,6 +141,8 @@ impl<E: PairingEngine> Proof<E> {
             z_h_eval,
             self.z_hat_eval,
         );
+        // DEBUG statement remove once verification passes
+        assert_eq!(self.debug_t_eval, t_eval);
 
         // Add evaluations to transcript
         transcript.append_scalar(b"a_eval", &self.a_eval);
@@ -190,14 +187,14 @@ impl<E: PairingEngine> Proof<E> {
             v,
             t_eval,
             &preprocessed_circuit,
-            &commit_verifier_key,
+            &verifier_key,
         );
 
         // Validate
 
         let lhs = E::pairing(
             self.w_z_comm.0.into_projective() + &self.w_zw_comm.0.into_projective().mul(&u),
-            commit_verifier_key.beta_h,
+            verifier_key.beta_h,
         );
 
         let inner = {
@@ -209,7 +206,7 @@ impl<E: PairingEngine> Proof<E> {
             k_0 + &k_1 + &f_comm.into_projective() - &e_comm.into_projective()
         };
 
-        let rhs = E::pairing(inner, commit_verifier_key.h);
+        let rhs = E::pairing(inner, verifier_key.h);
 
         lhs == rhs
     }
@@ -322,7 +319,7 @@ impl<E: PairingEngine> Proof<E> {
         let mut v_pow: Vec<E::Fr> = Vec::with_capacity(6);
         v_pow.push(E::Fr::one());
         for i in 1..=6 {
-            v_pow[i] = v_pow[i - 1] * &v;
+            v_pow.push(v_pow[i - 1] * &v);
         }
 
         let z_n = z_challenge.pow(&[n as u64]);
@@ -365,7 +362,7 @@ impl<E: PairingEngine> Proof<E> {
         let mut v_pow: Vec<E::Fr> = Vec::with_capacity(6);
         v_pow.push(E::Fr::one());
         for i in 1..=7 {
-            v_pow[i] = v_pow[i - 1] * &v;
+            v_pow.push(v_pow[i - 1] * &v);
         }
 
         // All components of batch evaluation commitment after the quotient evaluation, without the opening challenge
