@@ -95,7 +95,7 @@ pub trait Composer<E: PairingEngine> {
     fn prove<R: RngCore + CryptoRng>(
         &mut self,
         public_parameters: &UniversalParams<E>,
-        preprocessed_circuit : &PreProcessedCircuit<E>,
+        preprocessed_circuit: &PreProcessedCircuit<E>,
         transcript: &mut dyn TranscriptProtocol<E>,
         rng: &mut R,
     ) -> proof::Proof<E>;
