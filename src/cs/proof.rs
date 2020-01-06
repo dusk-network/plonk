@@ -51,7 +51,7 @@ pub struct Proof<E: PairingEngine> {
     // Furthermore, we may not need any extra commitments as the checks are baked into the quotient polynomial and the setup elements can be put into the witness polynomials
 
     // XXX:DEBUG VALUES (DELETE ONCE VERIFIER PASSES)
-    pub debug_t_eval : E::Fr,
+    pub debug_t_eval: E::Fr,
 }
 
 impl<E: PairingEngine> Proof<E> {
@@ -84,7 +84,7 @@ impl<E: PairingEngine> Proof<E> {
             z_hat_eval: E::Fr::zero(),
 
             // DEBUG VALUES, DELETE ONCE VERIFIER PASSES
-            debug_t_eval : E::Fr::zero(),
+            debug_t_eval: E::Fr::zero(),
         }
     }
 
@@ -109,15 +109,15 @@ impl<E: PairingEngine> Proof<E> {
         let gamma = transcript.challenge_scalar(b"gamma");
         // Add commitment to permutation polynomial to transcript
         transcript.append_commitment(b"z", &self.z_comm);
-        
+
         // Compute quotient challenge
         let alpha = transcript.challenge_scalar(b"alpha");
-        
+
         // Add commitment to quotient polynomial to transcript
         transcript.append_commitment(b"t_lo", &self.t_lo_comm);
         transcript.append_commitment(b"t_mid", &self.t_mid_comm);
         transcript.append_commitment(b"t_hi", &self.t_hi_comm);
-        
+
         // Compute evaluation challenge
         let z_challenge = transcript.challenge_scalar(b"z");
 

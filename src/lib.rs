@@ -1,3 +1,3 @@
-mod cs;
-mod srs;
+pub mod cs;
+pub mod srs;
 mod transcript;

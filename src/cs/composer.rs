@@ -93,7 +93,7 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
         transcript.append_commitment(b"right_sigma", &right_sigma_poly_commit);
         transcript.append_commitment(b"out_sigma", &out_sigma_poly_commit);
 
-       PreProcessedCircuit {
+        PreProcessedCircuit {
             n: self.n,
             selectors: vec![
                 (q_m_poly, q_m_poly_commit),
@@ -147,12 +147,12 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
         let w_l_poly_commit = srs::commit(commit_key, &w_l_poly);
         let w_r_poly_commit = srs::commit(commit_key, &w_r_poly);
         let w_o_poly_commit = srs::commit(commit_key, &w_o_poly);
-        
+
         // Add witnesses to transcript
         transcript.append_commitment(b"w_l", &w_l_poly_commit);
         transcript.append_commitment(b"w_r", &w_r_poly_commit);
         transcript.append_commitment(b"w_o", &w_o_poly_commit);
-        
+
         // compute permutation polynomial
         let (z_poly, z_poly_shifted, beta, gamma) = self.perm.compute_permutation_poly(
             &domain,
@@ -163,14 +163,13 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
             &w_o_scalar,
         );
 
-        
         // Commit to the permutation polynomial
         let z_poly_commit = srs::commit(commit_key, &z_poly);
         transcript.append_commitment(b"z", &z_poly_commit);
-        
+
         // Create QuotientToolkit
         let qt_toolkit = QuotientToolkit::new();
-        
+
         // Compute quotient polynomial.
         let (t_hi_poly, t_mid_poly, t_low_poly, alpha) = qt_toolkit.compute_quotient_poly(
             &domain,
@@ -184,7 +183,7 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
             &beta,
             &gamma,
         );
-        
+
         // Commit polynomials.
         let t_low_commit = srs::commit(commit_key, &t_low_poly);
         let t_mid_commit = srs::commit(commit_key, &t_mid_poly);
@@ -226,7 +225,7 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
         let mut quot_eval = t_lo_eval + &quot_mid;
         quot_eval += &quot_hi;
 
-        println!(" quot eval {:?}", quot_eval);
+        // println!(" quot eval {:?}", quot_eval);
         // END DEBUG
 
         // Fifth output
@@ -256,27 +255,27 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
             a_comm: w_l_poly_commit,
             b_comm: w_r_poly_commit,
             c_comm: w_o_poly_commit,
-        
-            z_comm: z_poly_commit ,
-        
+
+            z_comm: z_poly_commit,
+
             t_lo_comm: t_low_commit,
             t_mid_comm: t_mid_commit,
             t_hi_comm: t_hi_commit,
-        
+
             w_z_comm: w_z_comm,
             w_zw_comm: w_z_x_comm,
-        
+
             a_eval: evaluations[0],
             b_eval: evaluations[1],
             c_eval: evaluations[2],
-        
+
             left_sigma_eval: evaluations[3],
-            right_sigma_eval: evaluations[4],        
+            right_sigma_eval: evaluations[4],
             lin_poly_eval: evaluations[5],
             z_hat_eval: evaluations[6],
 
             // DEBUG VALUES, DELETE ONCE TEST PASSES
-            debug_t_eval : quot_eval,
+            debug_t_eval: quot_eval,
         }
     }
 
@@ -335,7 +334,7 @@ impl<E: PairingEngine> StandardComposer<E> {
 
     // Adds a Scalar to the circuit and returns its
     // reference in the constraint system
-    fn add_input(&mut self, s: E::Fr) -> Variable {
+    pub fn add_input(&mut self, s: E::Fr) -> Variable {
         self.perm.new_variable(s)
     }
 
@@ -410,6 +409,10 @@ impl<E: PairingEngine> StandardComposer<E> {
 
         self.n = self.n + 1;
     }
+
+    pub fn size(&self) -> usize {
+        self.n
+    }
 }
 
 #[cfg(test)]
@@ -437,7 +440,7 @@ mod tests {
     }
 
     // Returns a composer with `n` constraints
-    fn add_dummy_composer<E: PairingEngine>(n: usize) -> StandardComposer<E> {
+    pub fn add_dummy_composer<E: PairingEngine>(n: usize) -> StandardComposer<E> {
         let mut composer = StandardComposer::new();
 
         let one = E::Fr::one();
@@ -499,7 +502,7 @@ mod tests {
         // Setup srs
         let max_degree = num_constraints.next_power_of_two() + 1;
         let public_parameters = srs::setup(max_degree);
-        let (ck,_) = srs::trim(&public_parameters, num_constraints.next_power_of_two()).unwrap();
+        let (ck, _) = srs::trim(&public_parameters, num_constraints.next_power_of_two()).unwrap();
 
         // Pad the circuit to next power of two
         let next_pow_2 = composer.n.next_power_of_two() as u64;
@@ -514,40 +517,34 @@ mod tests {
         let mut transcript = Transcript::new(b"plonk");
 
         // Pre-process circuit
-        let preprocessed_circuit =
-            composer.preprocess(&ck, &mut transcript, &domain);
+        let preprocessed_circuit = composer.preprocess(&ck, &mut transcript, &domain);
     }
 
     #[test]
     fn test_prove_verify() {
-
         // Common View
         //
-        let mut composer : StandardComposer<Bls12_381> = StandardComposer::new();
+        let mut composer: StandardComposer<Bls12_381> = StandardComposer::new();
 
         let var_one = composer.add_input(Fr::one());
         let var_two = composer.add_input(Fr::one() + &Fr::one());
 
-        simple_add_gadget(&mut composer,var_one,var_one, var_two);
+        simple_add_gadget(&mut composer, var_one, var_one, var_two);
         composer.mul_gate(var_one, var_one, var_one, Fr::one(), Fr::one(), Fr::one());
         composer.mul_gate(var_one, var_two, var_two, Fr::one(), Fr::one(), Fr::one());
-        
+
         // setup srs
         // XXX: We have 2 *n here because the blinding polynomials add a few extra terms to the degree, so it's more than n, we can adjust this later on to be less conservative
         let public_parameters = srs::setup(2 * composer.n.next_power_of_two());
-        let (ck,vk) = srs::trim(&public_parameters, 2 *composer.n.next_power_of_two()).unwrap();
+        let (ck, vk) = srs::trim(&public_parameters, 2 * composer.n.next_power_of_two()).unwrap();
 
         // Provers View
         //
         let proof = {
-
-    
             // setup transcript
             let mut transcript = Transcript::new(b"");
-    
-           composer.prove(&ck, &mut transcript,&mut rand::thread_rng())
 
-
+            composer.prove(&ck, &mut transcript, &mut rand::thread_rng())
         };
 
         // Verifiers view
@@ -562,7 +559,7 @@ mod tests {
 
         // Verify proof
         let ok = proof.verify(&preprocessed_circuit, &mut transcript, &vk);
-   
+
         assert!(ok);
     }
 

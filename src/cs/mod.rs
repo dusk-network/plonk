@@ -1,10 +1,13 @@
-mod composer;
+pub mod composer;
 mod constraint_system;
 mod linearisation;
 mod opening;
 mod permutation;
-mod proof;
+pub mod proof;
 mod quotient_poly;
+
+pub use self::composer::StandardComposer;
+pub use self::constraint_system::Variable;
 
 use algebra::curves::PairingEngine;
 use ff_fft::DensePolynomial as Polynomial;

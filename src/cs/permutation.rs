@@ -214,7 +214,7 @@ impl<E: PairingEngine> Permutation<E> {
         let beta = transcript.challenge_scalar(b"beta");
         transcript.append_scalar(b"beta", &beta);
         let gamma = transcript.challenge_scalar(b"gamma");
-        
+
         let z_coefficients =
             self.compute_fast_permutation_poly(domain, w_l, w_r, w_o, &beta, &gamma);
 
