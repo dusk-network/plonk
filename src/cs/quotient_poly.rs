@@ -37,24 +37,23 @@ impl<E: PairingEngine> QuotientToolkit<E> {
         let n = domain.size();
         let k1 = E::Fr::multiplicative_generator();
         let k2 = E::Fr::from_repr(13.into());
-        
+
         // Generate challenge
         let alpha = transcript.challenge_scalar(b"alpha");
 
         let alpha_poly = Polynomial::from_coefficients_slice(&[alpha]);
         let alpha_sq_poly = Polynomial::from_coefficients_slice(&[alpha.square()]);
         let alpha_cu_poly = Polynomial::from_coefficients_slice(&[alpha.square() * &alpha]);
-        
+
         let w_l_poly = w_poly[0];
         let w_r_poly = w_poly[1];
         let w_o_poly = w_poly[2];
-        
+
         let gamma_poly = Polynomial::from_coefficients_slice(&[*gamma]);
         let w_l_gamma_poly = w_l_poly + &gamma_poly;
         let w_r_gamma_poly = w_r_poly + &gamma_poly;
         let w_o_gamma_poly = w_o_poly + &gamma_poly;
-        
-        
+
         // Compute components for t(X)
         let t_1 = self.compute_quotient_first_component(
             domain,
@@ -93,15 +92,15 @@ impl<E: PairingEngine> QuotientToolkit<E> {
             preprocessed_circuit.out_sigma_poly(),
         );
         let t_4 = self.compute_quotient_fourth_component(domain, z_poly, alpha_cu_poly);
-        
+
         let t_x_0 = &t_1 + &t_2;
         assert_eq!(t_x_0.degree(), 3 * n + 5);
         let t_x_1 = &t_3 + &t_4;
         assert_eq!(t_x_1.degree(), 3 * n + 5);
 
         // XXX: Adding all components in one variable using AddAsign produces a panic
-        let t_x = &t_x_0 + &t_x_1;       
- 
+        let t_x = &t_x_0 + &t_x_1;
+
         let (t_lo, t_mid, t_hi) = self.split_tx_poly(n, &t_x);
         (t_lo, t_mid, t_hi, alpha)
     }
@@ -257,18 +256,21 @@ impl<E: PairingEngine> QuotientToolkit<E> {
     /// Computes the Lagrange polynomial `L1(X)`.
     /// x^n - 1 / n(x-1)
     pub fn compute_first_lagrange_poly(&self, size: usize) -> Polynomial<E::Fr> {
-        
         let n = E::Fr::from_repr((size as u64).into());
-        
-        use ff_fft::{SparsePolynomial, DenseOrSparsePolynomial};
 
-        let numerator_coeffs = vec![(0, -E::Fr::one()), (size, E::Fr::one())]; 
-        let numerator_poly : DenseOrSparsePolynomial<E::Fr> = SparsePolynomial::from_coefficients_vec(numerator_coeffs).into();
+        use ff_fft::{DenseOrSparsePolynomial, SparsePolynomial};
+
+        let numerator_coeffs = vec![(0, -E::Fr::one()), (size, E::Fr::one())];
+        let numerator_poly: DenseOrSparsePolynomial<E::Fr> =
+            SparsePolynomial::from_coefficients_vec(numerator_coeffs).into();
 
         let denominator_coeffs = vec![(0, -n), (1, n)];
-        let denominator_poly : DenseOrSparsePolynomial<E::Fr> = SparsePolynomial::from_coefficients_vec(denominator_coeffs).into();
+        let denominator_poly: DenseOrSparsePolynomial<E::Fr> =
+            SparsePolynomial::from_coefficients_vec(denominator_coeffs).into();
 
-        let (q,r) = numerator_poly.divide_with_q_and_r(&denominator_poly).unwrap();
+        let (q, r) = numerator_poly
+            .divide_with_q_and_r(&denominator_poly)
+            .unwrap();
         assert_eq!(r, Polynomial::zero());
 
         q
@@ -333,15 +335,15 @@ mod test {
 
         let n = 4;
         let domain = EvaluationDomain::new(n).unwrap();
-        
+
         use algebra::UniformRand;
         let rand_point = Fr::rand(&mut rand::thread_rng());
-        
+
         let expected_l1_eval = domain.evaluate_all_lagrange_coefficients(rand_point)[0];
         let q = toolkit.compute_first_lagrange_poly(domain.size());
         let got_l1_eval = q.evaluate(rand_point);
 
-        assert_eq!(expected_l1_eval,got_l1_eval);
+        assert_eq!(expected_l1_eval, got_l1_eval);
         assert_eq!(Fr::one(), q.evaluate(Fr::one()))
     }
 }
