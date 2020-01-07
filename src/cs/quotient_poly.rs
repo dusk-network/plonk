@@ -38,13 +38,12 @@ impl<E: PairingEngine> QuotientToolkit<E> {
         let k1 = E::Fr::multiplicative_generator();
         let k2 = E::Fr::from_repr(13.into());
         
-        // Generate challenge scalars
+        // Generate challenge
         let alpha = transcript.challenge_scalar(b"alpha");
+
         let alpha_poly = Polynomial::from_coefficients_slice(&[alpha]);
-        let alpha_sq = alpha.square();
-        let alpha_sq_poly = Polynomial::from_coefficients_slice(&[alpha_sq]);
-        let alpha_cu = alpha.square() * &alpha;
-        let alpha_cu_poly = Polynomial::from_coefficients_slice(&[alpha_cu]);
+        let alpha_sq_poly = Polynomial::from_coefficients_slice(&[alpha.square()]);
+        let alpha_cu_poly = Polynomial::from_coefficients_slice(&[alpha.square() * &alpha]);
         
         let w_l_poly = w_poly[0];
         let w_r_poly = w_poly[1];
