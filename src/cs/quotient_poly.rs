@@ -22,12 +22,10 @@ impl<E: PairingEngine> QuotientToolkit<E> {
         &self,
         n: usize,
         domain: &EvaluationDomain<E::Fr>,
-        transcript: &mut dyn TranscriptProtocol<E>,
         prep_circ: &PreProcessedCircuit<E>,
         w_poly: [&Polynomial<E::Fr>; 3],
         pi_poly: &Polynomial<E::Fr>,
-        beta: &E::Fr,
-        gamma: &E::Fr,
+        (gamma, beta, alpha): &(E::Fr, E::Fr, E::Fr),
         z_poly: &Polynomial<E::Fr>,
     ) -> (
         Polynomial<E::Fr>,
@@ -35,10 +33,8 @@ impl<E: PairingEngine> QuotientToolkit<E> {
         Polynomial<E::Fr>,
         E::Fr,
     ) {
-        // Compute `Alpha` randomness
-        let alpha = transcript.challenge_scalar(b"alpha");
         // Compute `alpha` polynomial (degree zero).
-        let alpha_poly = Polynomial::from_coefficients_slice(&[alpha]);
+        let alpha_poly = Polynomial::from_coefficients_slice(&[*alpha]);
         // Compute `gamma` polynomial (degree zero).
         let gamma_poly = Polynomial::from_coefficients_slice(&[*gamma]);
 
@@ -149,7 +145,7 @@ impl<E: PairingEngine> QuotientToolkit<E> {
         let t_mid = &x_pow_n_poly * &t_x_split[1];
         // Build t_hi(X)
         let t_hi = &x_pow_2n_poly * &t_x_split[2];
-        (t_lo, t_mid, t_hi, alpha)
+        (t_lo, t_mid, t_hi, *alpha)
     }
 
     /// Computes the Lagrange polynomial evaluation `L1(z)`.
