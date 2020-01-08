@@ -150,7 +150,7 @@ impl<E: PairingEngine> Permutation<E> {
         domain: &EvaluationDomain<E::Fr>,
     ) -> Vec<E::Fr> {
         let k1 = E::Fr::multiplicative_generator();
-        let k2 = E::Fr::from_repr_raw(13.into());
+        let k2 = E::Fr::from_repr(13.into());
 
         let roots: Vec<_> = domain.elements().collect();
 
@@ -257,7 +257,7 @@ impl<E: PairingEngine> Permutation<E> {
         let n = domain.size();
 
         let k1 = E::Fr::multiplicative_generator();
-        let k2 = E::Fr::from_repr_raw(13.into());
+        let k2 = E::Fr::from_repr(13.into());
 
         let left_sigma_mapping = self.left_sigma_mapping.as_ref().unwrap();
         let right_sigma_mapping = self.right_sigma_mapping.as_ref().unwrap();
@@ -398,7 +398,7 @@ impl<E: PairingEngine> Permutation<E> {
         let n = domain.size();
 
         let k1 = E::Fr::multiplicative_generator();
-        let k2 = E::Fr::from_repr_raw(13.into());
+        let k2 = E::Fr::from_repr(13.into());
 
         // Compute beta * roots
         let common_roots: Vec<_> = domain.elements().map(|root| root * beta).collect();
@@ -671,7 +671,7 @@ mod test {
 
         let domain = EvaluationDomain::new(num_wire_mappings).unwrap();
         let k1 = Fr::multiplicative_generator();
-        let k2 = Fr::from_repr_raw(13.into());
+        let k2 = Fr::from_repr(13.into());
         let w: Fr = domain.group_gen;
         let w_squared = w.pow(&[2 as u64]);
         let w_cubed = w.pow(&[3 as u64]);
@@ -787,7 +787,7 @@ mod test {
         */
         let domain = EvaluationDomain::new(num_wire_mappings).unwrap();
         let k1 = Fr::multiplicative_generator();
-        let k2 = Fr::from_repr_raw(13.into());
+        let k2 = Fr::from_repr(13.into());
         let w: Fr = domain.group_gen;
         let w_squared = w.pow(&[2 as u64]);
         let w_cubed = w.pow(&[3 as u64]);
@@ -820,7 +820,7 @@ mod test {
     fn test_permutation_encoding_has_unique_values() {
         let mut perm: Permutation<E> = Permutation::new();
         let k1 = Fr::multiplicative_generator();
-        let k2 = Fr::from_repr_raw(13.into());
+        let k2 = Fr::from_repr(13.into());
 
         let num_wire_mappings = 4;
 
