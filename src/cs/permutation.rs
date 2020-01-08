@@ -202,21 +202,16 @@ impl<E: PairingEngine> Permutation<E> {
     pub(crate) fn compute_permutation_poly<R>(
         &self,
         domain: &EvaluationDomain<E::Fr>,
-        transcript: &mut dyn TranscriptProtocol<E>,
         mut rng: &mut R,
         w_l: &[E::Fr],
         w_r: &[E::Fr],
         w_o: &[E::Fr],
+        (beta, gamma): &(E::Fr, E::Fr),
     ) -> (Polynomial<E::Fr>, Polynomial<E::Fr>, E::Fr, E::Fr)
     where
         R: RngCore + CryptoRng,
     {
-        let beta = transcript.challenge_scalar(b"beta");
-        transcript.append_scalar(b"beta", &beta);
-        let gamma = transcript.challenge_scalar(b"gamma");
-
-        let z_coefficients =
-            self.compute_fast_permutation_poly(domain, w_l, w_r, w_o, &beta, &gamma);
+        let z_coefficients = self.compute_fast_permutation_poly(domain, w_l, w_r, w_o, beta, gamma);
 
         // Compute permutation polynomial, the shifted version and blind it
         let mut z_poly = Polynomial::from_coefficients_vec(domain.ifft(&z_coefficients));
@@ -232,7 +227,7 @@ impl<E: PairingEngine> Permutation<E> {
         let z_poly_blinded = &z_poly + &z_blinder;
         let shifted_z_poly_blinded = &shifted_z_poly + &z_blinder;
 
-        (z_poly_blinded, shifted_z_poly_blinded, beta, gamma)
+        (z_poly_blinded, shifted_z_poly_blinded, *beta, *gamma)
     }
     // shifts the polynomials by one root of unity
     fn shift_poly_by_one(&self, z_coefficients: Vec<E::Fr>) -> Vec<E::Fr> {
@@ -996,14 +991,14 @@ mod test {
         }
 
         // Test that the public API version is also correct
-        let mut transcript = Transcript::new(b"");
-        let (z_x, z_xw,_,_) = perm.compute_permutation_poly(
+        // We avoid the `Transcript` creation here since it will not do anything on the test
+        let (z_x, z_xw, _, _) = perm.compute_permutation_poly(
             &domain,
-            &mut transcript,
             &mut rand::thread_rng(),
             &w_l,
             &w_r,
             &w_o,
+            &(beta, gamma),
         );
         for element in domain.elements() {
             let z_eval = z_x.evaluate(element * &domain.group_gen);
@@ -1011,6 +1006,5 @@ mod test {
 
             assert_eq!(z_eval, shifted_z_eval)
         }
-
     }
 }
