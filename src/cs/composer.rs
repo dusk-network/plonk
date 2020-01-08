@@ -157,7 +157,7 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
         transcript.append_commitment(b"w_o", &w_o_poly_commit);
 
         // compute permutation polynomial
-        let (z_poly, _, beta, gamma) = self.perm.compute_permutation_poly(
+        let (z_poly, z_poly_shifted, beta, gamma) = self.perm.compute_permutation_poly(
             &domain,
             transcript,
             rng,
@@ -171,16 +171,16 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
 
         // Compute quotient polynomial.
         let (t_hi_poly, t_mid_poly, t_low_poly, alpha) = qt_toolkit.compute_quotient_poly(
-            self.n,
             &domain,
             transcript,
             &preprocessed_circuit,
+            &z_poly,
+            &z_poly_shifted,
             [&w_l_poly, &w_r_poly, &w_o_poly],
             // TODO: Get Public Inputs polynomial.
-            &z_poly,
+            &Polynomial::from_coefficients_vec(vec![E::Fr::zero()]),
             &beta,
             &gamma,
-            &z_poly,
         );
 
         // Commit polynomials.
