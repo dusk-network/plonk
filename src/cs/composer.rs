@@ -207,15 +207,15 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
         let out_sigma_poly =
             Polynomial::from_coefficients_slice(&preprocessed_circuit.out_sigma_poly());
 
+        // Compute challenge for `z`
+        let z_challenge = transcript.challenge_scalar(b"z");
         // Fourth output
         let lineariser = lineariser::new();
         let (lin_poly, evaluations, z_challenge) = lineariser.evaluate_linearisation_polynomial(
             transcript,
             &domain,
             &preprocessed_circuit,
-            alpha,
-            beta,
-            gamma,
+            &(alpha, beta, gamma, z_challenge),
             &w_l_poly,
             &w_r_poly,
             &w_o_poly,
