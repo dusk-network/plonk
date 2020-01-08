@@ -207,7 +207,7 @@ impl<E: PairingEngine> Permutation<E> {
         w_r: &[E::Fr],
         w_o: &[E::Fr],
         (beta, gamma): &(E::Fr, E::Fr),
-    ) -> (Polynomial<E::Fr>, Polynomial<E::Fr>, E::Fr, E::Fr)
+    ) -> (Polynomial<E::Fr>, Polynomial<E::Fr>)
     where
         R: RngCore + CryptoRng,
     {
@@ -227,7 +227,7 @@ impl<E: PairingEngine> Permutation<E> {
         let z_poly_blinded = &z_poly + &z_blinder;
         let shifted_z_poly_blinded = &shifted_z_poly + &z_blinder;
 
-        (z_poly_blinded, shifted_z_poly_blinded, *beta, *gamma)
+        (z_poly_blinded, shifted_z_poly_blinded)
     }
     // shifts the polynomials by one root of unity
     fn shift_poly_by_one(&self, z_coefficients: Vec<E::Fr>) -> Vec<E::Fr> {
@@ -993,7 +993,7 @@ mod test {
 
         // Test that the public API version is also correct
         // We avoid the `Transcript` creation here since it will not do anything on the test
-        let (z_x, z_xw, _, _) = perm.compute_permutation_poly(
+        let (z_x, z_xw) = perm.compute_permutation_poly(
             &domain,
             &mut rand::thread_rng(),
             &w_l,

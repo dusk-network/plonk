@@ -27,7 +27,7 @@ impl<E: PairingEngine> lineariser<E> {
         t_mid: &Polynomial<E::Fr>,
         t_hi: &Polynomial<E::Fr>,
         z_poly: &Polynomial<E::Fr>,
-    ) -> (Polynomial<E::Fr>, Vec<E::Fr>, E::Fr) {
+    ) -> (Polynomial<E::Fr>, Vec<E::Fr>) {
         let alpha_sq = alpha.square();
         let alpha_cu = *alpha * &alpha_sq;
 
@@ -122,7 +122,6 @@ impl<E: PairingEngine> lineariser<E> {
                 lin_poly_eval,
                 perm_eval,
             ],
-            *z_challenge,
         )
     }
 
