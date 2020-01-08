@@ -226,9 +226,12 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
         );
 
         // Fifth output
-        let comm_opener = commitmentOpener::new();
+        let comm_opener: commitmentOpener<E> = commitmentOpener::new();
+        // Set transcript `v`
+        let v = transcript.challenge_scalar(b"v");
+        transcript.append_scalar(b"v", &v);
+        // Compute opening polynomial
         let (W_z, W_zx) = comm_opener.compute_opening_polynomials(
-            transcript,
             domain.group_gen,
             domain.size(),
             z_challenge,
@@ -243,6 +246,7 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
             &preprocessed_circuit.left_sigma_poly(),
             &preprocessed_circuit.right_sigma_poly(),
             &z_poly,
+            &v,
         );
 
         let comm_w_z = srs::commit(&ck, &W_z);
