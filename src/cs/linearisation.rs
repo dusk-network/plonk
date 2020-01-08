@@ -178,7 +178,7 @@ impl<E: PairingEngine> lineariser<E> {
         z_poly: &Polynomial<E::Fr>,
     ) -> Polynomial<E::Fr> {
         let k1 = E::Fr::multiplicative_generator();
-        let k2 = E::Fr::from_repr_raw(13.into());
+        let k2 = E::Fr::from(13.into());
 
         let beta_z = beta * &z_challenge;
 
@@ -260,6 +260,7 @@ mod test {
     use algebra::curves::bls12_381::Bls12_381 as E;
     use algebra::fields::bls12_381::Fr;
     use algebra::UniformRand;
+    use std::str::FromStr;
     #[test]
     fn test_first_component() {
         let lin: lineariser<E> = lineariser::new();
@@ -291,7 +292,7 @@ mod test {
         let lin: lineariser<E> = lineariser::new();
 
         let k1 = Fr::multiplicative_generator();
-        let k2 = Fr::from_repr_raw(13.into());
+        let k2 = Fr::from_str("13").unwrap();
 
         let alpha = Fr::one();
         let beta = Fr::one();
