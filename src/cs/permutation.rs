@@ -150,7 +150,7 @@ impl<E: PairingEngine> Permutation<E> {
         domain: &EvaluationDomain<E::Fr>,
     ) -> Vec<E::Fr> {
         let k1 = E::Fr::multiplicative_generator();
-        let k2 = E::Fr::from_repr_raw(13.into());
+        let k2 = E::Fr::from(13.into());
 
         let roots: Vec<_> = domain.elements().collect();
 
@@ -252,7 +252,7 @@ impl<E: PairingEngine> Permutation<E> {
         let n = domain.size();
 
         let k1 = E::Fr::multiplicative_generator();
-        let k2 = E::Fr::from_repr_raw(13.into());
+        let k2 = E::Fr::from(13.into());
 
         let left_sigma_mapping = self.left_sigma_mapping.as_ref().unwrap();
         let right_sigma_mapping = self.right_sigma_mapping.as_ref().unwrap();
@@ -393,7 +393,7 @@ impl<E: PairingEngine> Permutation<E> {
         let n = domain.size();
 
         let k1 = E::Fr::multiplicative_generator();
-        let k2 = E::Fr::from_repr_raw(13.into());
+        let k2 = E::Fr::from(13.into());
 
         // Compute beta * roots
         let common_roots: Vec<_> = domain.elements().map(|root| root * beta).collect();
@@ -560,6 +560,7 @@ mod test {
     use algebra::curves::bls12_381::Bls12_381 as E;
     use algebra::fields::bls12_381::Fr;
     use algebra::UniformRand;
+    use std::str::FromStr;
     #[test]
     fn test_permutation_format() {
         let mut perm: Permutation<E> = Permutation::new();
@@ -666,7 +667,7 @@ mod test {
 
         let domain = EvaluationDomain::new(num_wire_mappings).unwrap();
         let k1 = Fr::multiplicative_generator();
-        let k2 = Fr::from_repr_raw(13.into());
+        let k2 = Fr::from_str("13").unwrap();
         let w: Fr = domain.group_gen;
         let w_squared = w.pow(&[2 as u64]);
         let w_cubed = w.pow(&[3 as u64]);
@@ -782,7 +783,7 @@ mod test {
         */
         let domain = EvaluationDomain::new(num_wire_mappings).unwrap();
         let k1 = Fr::multiplicative_generator();
-        let k2 = Fr::from_repr_raw(13.into());
+        let k2 = Fr::from_str("13").unwrap();
         let w: Fr = domain.group_gen;
         let w_squared = w.pow(&[2 as u64]);
         let w_cubed = w.pow(&[3 as u64]);
@@ -815,7 +816,7 @@ mod test {
     fn test_permutation_encoding_has_unique_values() {
         let mut perm: Permutation<E> = Permutation::new();
         let k1 = Fr::multiplicative_generator();
-        let k2 = Fr::from_repr_raw(13.into());
+        let k2 = Fr::from_str("13").unwrap();
 
         let num_wire_mappings = 4;
 
