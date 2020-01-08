@@ -16,7 +16,6 @@ impl<E: PairingEngine> commitmentOpener<E> {
 
     pub fn compute_opening_polynomials(
         &self,
-        transcript: &mut TranscriptProtocol<E>,
         root_of_unity: E::Fr,
         n: usize,
         z_challenge: E::Fr,
@@ -31,11 +30,11 @@ impl<E: PairingEngine> commitmentOpener<E> {
         sigma_1_poly: &Polynomial<E::Fr>,
         sigma_2_poly: &Polynomial<E::Fr>,
         z_poly: &Polynomial<E::Fr>,
+        v: &E::Fr,
     ) -> (Polynomial<E::Fr>, Polynomial<E::Fr>) {
         let mut evaluations = evaluations.to_vec();
 
         // Compute 1,v, v^2, v^3,..v^7
-        let v = transcript.challenge_scalar(b"v");
         let mut v_pow: Vec<E::Fr> = Vec::with_capacity(6);
         v_pow.push(E::Fr::one());
         for i in 1..=7 {
