@@ -182,6 +182,8 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
             self.n,
             &domain,
             &preprocessed_circuit,
+            &z_poly,
+            &z_poly_shifted,
             [&w_l_poly, &w_r_poly, &w_o_poly],
             // TODO: Get Public Inputs polynomial.
             &z_poly,
