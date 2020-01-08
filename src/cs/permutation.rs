@@ -394,7 +394,6 @@ impl<E: PairingEngine> Permutation<E> {
 
         let k1 = E::Fr::multiplicative_generator();
         let k2 = E::Fr::from(13.into());
-
         // Compute beta * roots
         let common_roots: Vec<_> = domain.elements().map(|root| root * beta).collect();
 
