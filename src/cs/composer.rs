@@ -156,14 +156,20 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
         transcript.append_commitment(b"w_r", &w_r_poly_commit);
         transcript.append_commitment(b"w_o", &w_o_poly_commit);
 
+        // Append permutation poly variables to transcript
+        let beta = transcript.challenge_scalar(b"beta");
+        transcript.append_scalar(b"beta", &beta);
+        let gamma = transcript.challenge_scalar(b"gamma");
+        transcript.append_scalar(b"gamma", &gamma);
+
         // compute permutation polynomial
         let (z_poly, _, beta, gamma) = self.perm.compute_permutation_poly(
             &domain,
-            transcript,
             rng,
             &w_l_scalar,
             &w_r_scalar,
             &w_o_scalar,
+            &(beta, gamma),
         );
 
         // Create QuotientToolkit
