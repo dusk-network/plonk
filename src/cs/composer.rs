@@ -163,7 +163,7 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
         transcript.append_scalar(b"gamma", &gamma);
 
         // compute permutation polynomial
-        let (z_poly, _, beta, gamma) = self.perm.compute_permutation_poly(
+        let (z_poly, _) = self.perm.compute_permutation_poly(
             &domain,
             rng,
             &w_l_scalar,
@@ -178,7 +178,7 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
         let alpha = transcript.challenge_scalar(b"alpha");
         transcript.append_scalar(b"alpha", &alpha);
         // Compute quotient polynomial.
-        let (t_hi_poly, t_mid_poly, t_low_poly, alpha) = qt_toolkit.compute_quotient_poly(
+        let (t_hi_poly, t_mid_poly, t_low_poly) = qt_toolkit.compute_quotient_poly(
             self.n,
             &domain,
             &preprocessed_circuit,
@@ -211,7 +211,7 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
         let z_challenge = transcript.challenge_scalar(b"z");
         // Fourth output
         let lineariser = lineariser::new();
-        let (lin_poly, evaluations, z_challenge) = lineariser.evaluate_linearisation_polynomial(
+        let (lin_poly, evaluations) = lineariser.evaluate_linearisation_polynomial(
             transcript,
             &domain,
             &preprocessed_circuit,
