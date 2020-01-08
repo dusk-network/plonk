@@ -174,18 +174,18 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
 
         // Create QuotientToolkit
         let qt_toolkit = QuotientToolkit::new();
-
+        // Compute `Alpha` randomness and add it to the transcript
+        let alpha = transcript.challenge_scalar(b"alpha");
+        transcript.append_scalar(b"alpha", &alpha);
         // Compute quotient polynomial.
         let (t_hi_poly, t_mid_poly, t_low_poly, alpha) = qt_toolkit.compute_quotient_poly(
             self.n,
             &domain,
-            transcript,
             &preprocessed_circuit,
             [&w_l_poly, &w_r_poly, &w_o_poly],
             // TODO: Get Public Inputs polynomial.
             &z_poly,
-            &beta,
-            &gamma,
+            &(gamma, beta, alpha),
             &z_poly,
         );
 
