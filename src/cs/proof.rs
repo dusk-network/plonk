@@ -263,7 +263,7 @@ impl<E: PairingEngine> Proof<E> {
         preprocessed_circuit: &PreProcessedCircuit<E>,
     ) -> E::G1Affine {
         let k1 = E::Fr::multiplicative_generator();
-        let k2 = E::Fr::from_repr(13.into());
+        let k2 = E::Fr::from(13.into());
 
         let mut scalars: Vec<_> = Vec::with_capacity(6);
         let mut points: Vec<E::G1Affine> = Vec::with_capacity(6);
