@@ -862,7 +862,6 @@ mod test {
     fn test_basic_slow_permutation_poly() {
         let num_wire_mappings = 2;
         let mut perm: Permutation<E> = Permutation::new();
-        let mut transcript = Transcript::new(b"");
         let domain = EvaluationDomain::new(num_wire_mappings).unwrap();
 
         let var_one = perm.new_variable(Fr::one());
