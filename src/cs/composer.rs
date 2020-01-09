@@ -5,7 +5,10 @@ use super::{
     PreProcessedCircuit,
 };
 use crate::{cs::quotient_poly::QuotientToolkit, srs, transcript::TranscriptProtocol};
-use algebra::{curves::PairingEngine, fields::Field};
+use algebra::{
+    curves::PairingEngine,
+    fields::{Field, PrimeField},
+};
 use ff_fft::{DensePolynomial as Polynomial, EvaluationDomain};
 use poly_commit::kzg10::UniversalParams;
 use rand_core::{CryptoRng, RngCore};
@@ -94,6 +97,12 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
         transcript.append_commitment(b"left_sigma", &left_sigma_poly_commit);
         transcript.append_commitment(b"right_sigma", &right_sigma_poly_commit);
         transcript.append_commitment(b"out_sigma", &out_sigma_poly_commit);
+
+        // Append circuit size to transcript
+        transcript.append_scalar(
+            b"cric_size",
+            &E::Fr::from_random_bytes(&to_bytes(&self.n)[..]).unwrap(),
+        );
 
         PreProcessedCircuit {
             n: self.n,
@@ -383,6 +392,17 @@ impl<E: PairingEngine> StandardComposer<E> {
 
         self.n = self.n + 1;
     }
+}
+
+// Deserializes a usize into a byte slice.
+pub(self) fn to_bytes(num: &usize) -> Vec<u8> {
+    let mut num = num.clone();
+    let mut bytes = Vec::new();
+    while num > 0usize {
+        bytes.push((num & 0b11111111) as u8);
+        num = num >> 8;
+    }
+    bytes
 }
 
 #[cfg(test)]
