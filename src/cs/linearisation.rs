@@ -109,7 +109,7 @@ impl<E: PairingEngine> lineariser<E> {
         let f_4 = self.compute_fourth_component(domain, z_challenge, alpha_cu, z_poly);
 
         let mut lin_poly = &f_1 + &f_2;
-        lin_poly += &f_3;
+        lin_poly -= &f_3;
         lin_poly += &f_4;
 
         // Evalutate linearisation polynomial at z_challenge
