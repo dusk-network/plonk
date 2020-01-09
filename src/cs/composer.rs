@@ -112,7 +112,7 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
     // produce a proof
     fn prove<R: RngCore + CryptoRng>(
         &mut self,
-        public_parameters: &UniversalParams<E>,
+        commit_key: &Powers<E>,
         preprocessed_circuit: &PreProcessedCircuit<E>,
         transcript: &mut dyn TranscriptProtocol<E>,
         mut rng: &mut R,
