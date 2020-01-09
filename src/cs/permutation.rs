@@ -150,7 +150,7 @@ impl<E: PairingEngine> Permutation<E> {
         domain: &EvaluationDomain<E::Fr>,
     ) -> Vec<E::Fr> {
         let k1 = E::Fr::multiplicative_generator();
-        let k2 = E::Fr::from_repr(13.into());
+        let k2 = E::Fr::from(13.into());
 
         let roots: Vec<_> = domain.elements().collect();
 
@@ -202,21 +202,16 @@ impl<E: PairingEngine> Permutation<E> {
     pub(crate) fn compute_permutation_poly<R>(
         &self,
         domain: &EvaluationDomain<E::Fr>,
-        transcript: &mut dyn TranscriptProtocol<E>,
         mut rng: &mut R,
         w_l: &[E::Fr],
         w_r: &[E::Fr],
         w_o: &[E::Fr],
-    ) -> (Polynomial<E::Fr>, Polynomial<E::Fr>, E::Fr, E::Fr)
+        (beta, gamma): &(E::Fr, E::Fr),
+    ) -> (Polynomial<E::Fr>, Polynomial<E::Fr>)
     where
         R: RngCore + CryptoRng,
     {
-        let beta = transcript.challenge_scalar(b"beta");
-        transcript.append_scalar(b"beta", &beta);
-        let gamma = transcript.challenge_scalar(b"gamma");
-
-        let z_coefficients =
-            self.compute_fast_permutation_poly(domain, w_l, w_r, w_o, &beta, &gamma);
+        let z_coefficients = self.compute_fast_permutation_poly(domain, w_l, w_r, w_o, beta, gamma);
 
         // Compute permutation polynomial, the shifted version and blind it
         let mut z_poly = Polynomial::from_coefficients_vec(domain.ifft(&z_coefficients));
@@ -232,7 +227,7 @@ impl<E: PairingEngine> Permutation<E> {
         let z_poly_blinded = &z_poly + &z_blinder;
         let shifted_z_poly_blinded = &shifted_z_poly + &z_blinder;
 
-        (z_poly_blinded, shifted_z_poly_blinded, beta, gamma)
+        (z_poly_blinded, shifted_z_poly_blinded)
     }
     // shifts the polynomials by one root of unity
     fn shift_poly_by_one(&self, z_coefficients: Vec<E::Fr>) -> Vec<E::Fr> {
@@ -257,7 +252,7 @@ impl<E: PairingEngine> Permutation<E> {
         let n = domain.size();
 
         let k1 = E::Fr::multiplicative_generator();
-        let k2 = E::Fr::from_repr(13.into());
+        let k2 = E::Fr::from(13.into());
 
         let left_sigma_mapping = self.left_sigma_mapping.as_ref().unwrap();
         let right_sigma_mapping = self.right_sigma_mapping.as_ref().unwrap();
@@ -398,8 +393,7 @@ impl<E: PairingEngine> Permutation<E> {
         let n = domain.size();
 
         let k1 = E::Fr::multiplicative_generator();
-        let k2 = E::Fr::from_repr(13.into());
-
+        let k2 = E::Fr::from(13.into());
         // Compute beta * roots
         let common_roots: Vec<_> = domain.elements().map(|root| root * beta).collect();
 
@@ -565,6 +559,7 @@ mod test {
     use algebra::curves::bls12_381::Bls12_381 as E;
     use algebra::fields::bls12_381::Fr;
     use algebra::UniformRand;
+    use std::str::FromStr;
     #[test]
     fn test_permutation_format() {
         let mut perm: Permutation<E> = Permutation::new();
@@ -671,7 +666,7 @@ mod test {
 
         let domain = EvaluationDomain::new(num_wire_mappings).unwrap();
         let k1 = Fr::multiplicative_generator();
-        let k2 = Fr::from_repr(13.into());
+        let k2 = Fr::from_str("13").unwrap();
         let w: Fr = domain.group_gen;
         let w_squared = w.pow(&[2 as u64]);
         let w_cubed = w.pow(&[3 as u64]);
@@ -787,7 +782,7 @@ mod test {
         */
         let domain = EvaluationDomain::new(num_wire_mappings).unwrap();
         let k1 = Fr::multiplicative_generator();
-        let k2 = Fr::from_repr(13.into());
+        let k2 = Fr::from_str("13").unwrap();
         let w: Fr = domain.group_gen;
         let w_squared = w.pow(&[2 as u64]);
         let w_cubed = w.pow(&[3 as u64]);
@@ -820,7 +815,7 @@ mod test {
     fn test_permutation_encoding_has_unique_values() {
         let mut perm: Permutation<E> = Permutation::new();
         let k1 = Fr::multiplicative_generator();
-        let k2 = Fr::from_repr(13.into());
+        let k2 = Fr::from_str("13").unwrap();
 
         let num_wire_mappings = 4;
 
@@ -995,14 +990,14 @@ mod test {
         }
 
         // Test that the public API version is also correct
-        let mut transcript = Transcript::new(b"");
-        let (z_x, z_xw, _, _) = perm.compute_permutation_poly(
+        // We avoid the `Transcript` creation here since it will not do anything on the test
+        let (z_x, z_xw) = perm.compute_permutation_poly(
             &domain,
-            &mut transcript,
             &mut rand::thread_rng(),
             &w_l,
             &w_r,
             &w_o,
+            &(beta, gamma),
         );
         for element in domain.elements() {
             let z_eval = z_x.evaluate(element * &domain.group_gen);

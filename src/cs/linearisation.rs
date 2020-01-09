@@ -19,9 +19,7 @@ impl<E: PairingEngine> lineariser<E> {
         transcript: &mut TranscriptProtocol<E>,
         domain: &EvaluationDomain<E::Fr>,
         preprocessed_circuit: &PreProcessedCircuit<E>,
-        alpha: E::Fr,
-        beta: E::Fr,
-        gamma: E::Fr,
+        (alpha, beta, gamma, z_challenge): &(E::Fr, E::Fr, E::Fr, E::Fr),
         w_l_poly: &Polynomial<E::Fr>,
         w_r_poly: &Polynomial<E::Fr>,
         w_o_poly: &Polynomial<E::Fr>,
@@ -29,9 +27,9 @@ impl<E: PairingEngine> lineariser<E> {
         t_mid: &Polynomial<E::Fr>,
         t_hi: &Polynomial<E::Fr>,
         z_poly: &Polynomial<E::Fr>,
-    ) -> (Polynomial<E::Fr>, Vec<E::Fr>, E::Fr) {
+    ) -> (Polynomial<E::Fr>, Vec<E::Fr>) {
         let alpha_sq = alpha.square();
-        let alpha_cu = alpha * &alpha_sq;
+        let alpha_cu = *alpha * &alpha_sq;
 
         let sigma_1_poly =
             Polynomial::from_coefficients_slice(&preprocessed_circuit.left_sigma_poly());
@@ -40,38 +38,35 @@ impl<E: PairingEngine> lineariser<E> {
         let sigma_3_poly =
             Polynomial::from_coefficients_slice(&preprocessed_circuit.out_sigma_poly());
 
-        // Compute challenge
-        let z_challenge = transcript.challenge_scalar(b"z");
-
         // Evaluate a(x), b(x) and c(x)
-        let a_eval = w_l_poly.evaluate(z_challenge);
-        let b_eval = w_r_poly.evaluate(z_challenge);
-        let c_eval = w_o_poly.evaluate(z_challenge);
+        let a_eval = w_l_poly.evaluate(*z_challenge);
+        let b_eval = w_r_poly.evaluate(*z_challenge);
+        let c_eval = w_o_poly.evaluate(*z_challenge);
 
         // Evaluate sigma1 and sigma2
-        let sig_1_eval = sigma_1_poly.evaluate(z_challenge);
-        let sig_2_eval = sigma_2_poly.evaluate(z_challenge);
+        let sig_1_eval = sigma_1_poly.evaluate(*z_challenge);
+        let sig_2_eval = sigma_2_poly.evaluate(*z_challenge);
 
         // Evaluate quotient poly
         // Evaluate t_lo
-        let t_lo_eval = t_lo.evaluate(z_challenge);
+        let t_lo_eval = t_lo.evaluate(*z_challenge);
         // Evaluate t_mid
         let z_n = z_challenge.pow(&[domain.size() as u64]);
-        let t_mid_eval = t_mid.evaluate(z_challenge);
+        let t_mid_eval = t_mid.evaluate(*z_challenge);
         let quot_mid = z_n * &t_mid_eval;
         // Evaluate t_hi
         let z_two_n = z_challenge.pow(&[2 * domain.size() as u64]);
-        let t_hi_eval = t_hi.evaluate(z_challenge);
+        let t_hi_eval = t_hi.evaluate(*z_challenge);
         let quot_hi = z_two_n * &t_hi_eval;
         //
         let mut quot_eval = t_lo_eval + &quot_mid;
         quot_eval += &quot_hi;
 
         // Evaluate permutation poly_commit
-        let perm_eval = z_poly.evaluate(z_challenge * &domain.group_gen);
+        let perm_eval = z_poly.evaluate(*z_challenge * &domain.group_gen);
 
         let f_1 = self.compute_first_component(
-            alpha,
+            *alpha,
             a_eval,
             b_eval,
             c_eval,
@@ -86,10 +81,10 @@ impl<E: PairingEngine> lineariser<E> {
             a_eval,
             b_eval,
             c_eval,
-            z_challenge,
+            *z_challenge,
             alpha_sq,
-            beta,
-            gamma,
+            *beta,
+            *gamma,
             z_poly,
         );
 
@@ -101,19 +96,19 @@ impl<E: PairingEngine> lineariser<E> {
             sig_1_eval,
             sig_2_eval,
             alpha_sq,
-            beta,
-            gamma,
+            *beta,
+            *gamma,
             &sigma_3_poly,
         );
 
-        let f_4 = self.compute_fourth_component(domain, z_challenge, alpha_cu, z_poly);
+        let f_4 = self.compute_fourth_component(domain, *z_challenge, alpha_cu, z_poly);
 
         let mut lin_poly = &f_1 + &f_2;
         lin_poly -= &f_3;
         lin_poly += &f_4;
 
         // Evalutate linearisation polynomial at z_challenge
-        let lin_poly_eval = lin_poly.evaluate(z_challenge);
+        let lin_poly_eval = lin_poly.evaluate(*z_challenge);
 
         (
             lin_poly,
@@ -127,7 +122,6 @@ impl<E: PairingEngine> lineariser<E> {
                 lin_poly_eval,
                 perm_eval,
             ],
-            z_challenge,
         )
     }
 
@@ -183,7 +177,7 @@ impl<E: PairingEngine> lineariser<E> {
         z_poly: &Polynomial<E::Fr>,
     ) -> Polynomial<E::Fr> {
         let k1 = E::Fr::multiplicative_generator();
-        let k2 = E::Fr::from_repr(13.into());
+        let k2 = E::Fr::from(13.into());
 
         let beta_z = beta * &z_challenge;
 
@@ -265,6 +259,7 @@ mod test {
     use algebra::curves::bls12_381::Bls12_381 as E;
     use algebra::fields::bls12_381::Fr;
     use algebra::UniformRand;
+    use std::str::FromStr;
     #[test]
     fn test_first_component() {
         let lin: lineariser<E> = lineariser::new();
@@ -296,7 +291,7 @@ mod test {
         let lin: lineariser<E> = lineariser::new();
 
         let k1 = Fr::multiplicative_generator();
-        let k2 = Fr::from_repr(13.into());
+        let k2 = Fr::from_str("13").unwrap();
 
         let alpha = Fr::one();
         let beta = Fr::one();

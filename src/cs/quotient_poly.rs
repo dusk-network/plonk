@@ -20,28 +20,18 @@ impl<E: PairingEngine> QuotientToolkit<E> {
     pub fn compute_quotient_poly(
         &self,
         domain: &EvaluationDomain<E::Fr>,
-        transcript: &mut dyn TranscriptProtocol<E>,
         preprocessed_circuit: &PreProcessedCircuit<E>,
         z_poly: &Polynomial<E::Fr>,
         shifted_z_poly: &Polynomial<E::Fr>,
         w_poly: [&Polynomial<E::Fr>; 3],
         public_input_poly: &Polynomial<E::Fr>,
-        beta: &E::Fr,
-        gamma: &E::Fr,
-    ) -> (
-        Polynomial<E::Fr>,
-        Polynomial<E::Fr>,
-        Polynomial<E::Fr>,
-        E::Fr,
-    ) {
+        (alpha, beta, gamma): &(E::Fr, E::Fr, E::Fr),
+    ) -> (Polynomial<E::Fr>, Polynomial<E::Fr>, Polynomial<E::Fr>) {
         let n = domain.size();
         let k1 = E::Fr::multiplicative_generator();
         let k2 = E::Fr::from_repr(13.into());
 
-        // Generate challenge
-        let alpha = transcript.challenge_scalar(b"alpha");
-
-        let alpha_poly = Polynomial::from_coefficients_slice(&[alpha]);
+        let alpha_poly = Polynomial::from_coefficients_slice(&[*alpha]);
         let alpha_sq_poly = Polynomial::from_coefficients_slice(&[alpha.square()]);
         let alpha_cu_poly = Polynomial::from_coefficients_slice(&[alpha.square() * &alpha]);
 
@@ -102,7 +92,7 @@ impl<E: PairingEngine> QuotientToolkit<E> {
         let t_x = &t_x_0 + &t_x_1;
 
         let (t_lo, t_mid, t_hi) = self.split_tx_poly(n, &t_x);
-        (t_lo, t_mid, t_hi, alpha)
+        (t_lo, t_mid, t_hi)
     }
 
     fn compute_quotient_first_component(
