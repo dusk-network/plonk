@@ -163,7 +163,7 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
         transcript.append_scalar(b"gamma", &gamma);
 
         // compute permutation polynomial
-        let (z_poly, _) = self.perm.compute_permutation_poly(
+        let (z_poly, z_poly_shifted) = self.perm.compute_permutation_poly(
             &domain,
             rng,
             &w_l_scalar,
@@ -182,11 +182,9 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
             self.n,
             &domain,
             &preprocessed_circuit,
-            &z_poly,
-            &z_poly_shifted,
             [&w_l_poly, &w_r_poly, &w_o_poly],
             // TODO: Get Public Inputs polynomial.
-            &z_poly,
+            &Polynomial::from_coefficients_vec(vec![E::Fr::zero()]),
             &(gamma, beta, alpha),
             &z_poly,
         );
