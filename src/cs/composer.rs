@@ -177,14 +177,14 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
         transcript.append_scalar(b"alpha", &alpha);
         // Compute quotient polynomial.
         let (t_hi_poly, t_mid_poly, t_low_poly) = qt_toolkit.compute_quotient_poly(
-            self.n,
             &domain,
             &preprocessed_circuit,
+            &z_poly,
+            &z_poly_shifted,
             [&w_l_poly, &w_r_poly, &w_o_poly],
             // TODO: Get Public Inputs polynomial.
             &Polynomial::from_coefficients_vec(vec![E::Fr::zero()]),
-            &(gamma, beta, alpha),
-            &z_poly,
+            &(alpha, beta, gamma),
         );
 
         // Commit polynomials.
