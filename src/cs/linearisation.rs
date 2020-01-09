@@ -107,7 +107,7 @@ impl<E: PairingEngine> lineariser<E> {
         lin_poly += &f_3;
         lin_poly += &f_4;
 
-        // Evalutate linearisation polynomial at z_challenge
+        // Evaluate linearisation polynomial at z_challenge
         let lin_poly_eval = lin_poly.evaluate(*z_challenge);
 
         (
