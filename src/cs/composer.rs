@@ -163,13 +163,12 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
         transcript.append_commitment(b"w_r", &w_r_poly_commit);
         transcript.append_commitment(b"w_o", &w_o_poly_commit);
 
-        // Append permutation poly variables to transcript
+        // Compute Permutation challenges to the transcript `beta` and `gamma`
         let beta = transcript.challenge_scalar(b"beta");
         transcript.append_scalar(b"beta", &beta);
         let gamma = transcript.challenge_scalar(b"gamma");
-        transcript.append_scalar(b"gamma", &gamma);
 
-        // compute permutation polynomial
+        // compute Permutation polynomial
         let (z_poly, z_poly_shifted) = self.perm.compute_permutation_poly(
             &domain,
             rng,
@@ -179,20 +178,18 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
             &(beta, gamma),
         );
 
-        // Create QuotientToolkit
-        let qt_toolkit = QuotientToolkit::new();
-        // Compute `Alpha` randomness and add it to the transcript
+        // Compute Quotient challenge `alpha`
         let alpha = transcript.challenge_scalar(b"alpha");
-        transcript.append_scalar(b"alpha", &alpha);
-        // Compute quotient polynomial.
+
+        // Compute Quotient polynomial.
+        let qt_toolkit = QuotientToolkit::new();
         let (t_hi_poly, t_mid_poly, t_low_poly) = qt_toolkit.compute_quotient_poly(
             &domain,
             &preprocessed_circuit,
             &z_poly,
             &z_poly_shifted,
             [&w_l_poly, &w_r_poly, &w_o_poly],
-            // TODO: Get Public Inputs polynomial.
-            &Polynomial::from_coefficients_vec(vec![E::Fr::zero()]),
+            &Polynomial::zero(),
             &(alpha, beta, gamma),
         );
 
@@ -201,22 +198,10 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
         let t_mid_commit = srs::commit(&ck, &t_mid_poly);
         let t_hi_commit = srs::commit(&ck, &t_hi_poly);
 
-        // Assemble quotient poly
-        let quotient_poly = &(&t_hi_poly + &t_mid_poly) + &t_low_poly;
-
-        // XXX: The problem is that when we compute the permutation poly, we need the mapping
-        // But everywhere else, we need the polynomial made using the lagrange bases
-        // This will be one of the bigger refactors
-        let left_sigma_poly =
-            Polynomial::from_coefficients_slice(preprocessed_circuit.left_sigma_poly());
-        let right_sigma_poly =
-            Polynomial::from_coefficients_slice(preprocessed_circuit.right_sigma_poly());
-        let out_sigma_poly =
-            Polynomial::from_coefficients_slice(&preprocessed_circuit.out_sigma_poly());
-
-        // Compute challenge for `z`
+        // Compute evaluation challenge `z`
         let z_challenge = transcript.challenge_scalar(b"z");
-        // Fourth output
+
+        // Compute Linearisation polynomial
         let lineariser = lineariser::new();
         let (lin_poly, evaluations) = lineariser.evaluate_linearisation_polynomial(
             transcript,
@@ -232,12 +217,11 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
             &z_poly,
         );
 
-        // Fifth output
-        let comm_opener: commitmentOpener<E> = commitmentOpener::new();
-        // Set transcript `v`
+        // Compute opening challenge `v`
         let v = transcript.challenge_scalar(b"v");
-        transcript.append_scalar(b"v", &v);
+
         // Compute opening polynomial
+        let comm_opener: commitmentOpener<E> = commitmentOpener::new();
         let (W_z, W_zx) = comm_opener.compute_opening_polynomials(
             domain.group_gen,
             domain.size(),
