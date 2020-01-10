@@ -5,10 +5,7 @@ use super::{
     PreProcessedCircuit,
 };
 use crate::{cs::quotient_poly::QuotientToolkit, srs, transcript::TranscriptProtocol};
-use algebra::{
-    curves::PairingEngine,
-    fields::{Field, PrimeField},
-};
+use algebra::{curves::PairingEngine, fields::Field};
 use ff_fft::{DensePolynomial as Polynomial, EvaluationDomain};
 use poly_commit::kzg10::UniversalParams;
 use rand_core::{CryptoRng, RngCore};
@@ -373,17 +370,6 @@ impl<E: PairingEngine> StandardComposer<E> {
 
         self.n = self.n + 1;
     }
-}
-
-// Deserializes a usize into a byte slice.
-pub(self) fn to_bytes(num: &usize) -> Vec<u8> {
-    let mut num = num.clone();
-    let mut bytes = Vec::new();
-    while num > 0usize {
-        bytes.push((num & 0b11111111) as u8);
-        num = num >> 8;
-    }
-    bytes
 }
 
 #[cfg(test)]
