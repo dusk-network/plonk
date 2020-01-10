@@ -11,6 +11,9 @@ pub trait TranscriptProtocol<E: PairingEngine> {
 
     /// Compute a `label`ed challenge variable.
     fn challenge_scalar(&mut self, label: &'static [u8]) -> E::Fr;
+
+    /// Append domain separator for the circuit size.
+    fn circuit_domain_sep(&mut self, n: u64);
 }
 
 impl<E: PairingEngine> TranscriptProtocol<E> for Transcript {
@@ -36,5 +39,10 @@ impl<E: PairingEngine> TranscriptProtocol<E> for Transcript {
 
         let mut rng = &mut self.build_rng().finalize(&mut ChaChaRng::from_seed(buf));
         E::Fr::rand(&mut rng)
+    }
+
+    fn circuit_domain_sep(&mut self, n: u64) {
+        self.append_message(b"dom-sep", b"circuit_size");
+        self.append_u64(b"n", n);
     }
 }
