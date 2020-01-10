@@ -212,23 +212,6 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
             &z_poly,
         );
 
-        // START DEBUG
-        let t_lo_eval = t_low_poly.evaluate(z_challenge);
-        // Evaluate t_mid
-        let z_n = z_challenge.pow(&[domain.size() as u64]);
-        let t_mid_eval = t_mid_poly.evaluate(z_challenge);
-        let quot_mid = z_n * &t_mid_eval;
-        // Evaluate t_hi
-        let z_two_n = z_challenge.pow(&[2 * domain.size() as u64]);
-        let t_hi_eval = t_hi_poly.evaluate(z_challenge);
-        let quot_hi = z_two_n * &t_hi_eval;
-        //
-        let mut quot_eval = t_lo_eval + &quot_mid;
-        quot_eval += &quot_hi;
-
-        println!(" quot eval {:?}", quot_eval);
-        // END DEBUG
-
         // Fifth output
         let comm_opener: commitmentOpener<E> = commitmentOpener::new();
         // Set transcript `v`
@@ -272,11 +255,11 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
             c_eval: evaluations[2],
             left_sigma_eval: evaluations[3],
             right_sigma_eval: evaluations[4],
-            lin_poly_eval: evaluations[5],
-            z_hat_eval: evaluations[6],
+            lin_poly_eval: evaluations[6],
+            z_hat_eval: evaluations[7],
 
             // DEBUG VALUES, DELETE ONCE TEST PASSES
-            debug_t_eval: quot_eval,
+            debug_t_eval: evaluations[5],
         }
     }
 
@@ -521,31 +504,31 @@ mod tests {
     fn test_prove_verify() {
         // Common View
         //
-        let mut composer: StandardComposer<Bls12_381> = StandardComposer::new();
-
-        let var_one = composer.add_input(Fr::one());
-        let var_two = composer.add_input(Fr::one() + &Fr::one());
-
-        simple_add_gadget(&mut composer, var_one, var_one, var_two);
-        composer.mul_gate(var_one, var_one, var_one, Fr::one(), Fr::one(), Fr::one());
-        composer.mul_gate(var_one, var_two, var_two, Fr::one(), Fr::one(), Fr::one());
+        let mut composer: StandardComposer<Bls12_381> = add_dummy_composer(2);
         // setup srs
         // XXX: We have 2 *n here because the blinding polynomials add a few extra terms to the degree, so it's more than n, we can adjust this later on to be less conservative
         let public_parameters = srs::setup(2 * composer.n.next_power_of_two());
         let (ck, vk) = srs::trim(&public_parameters, 2 * composer.n.next_power_of_two()).unwrap();
+        let domain = EvaluationDomain::new(composer.n).unwrap();
 
         // Provers View
         //
         let proof = {
             // setup transcript
             let mut transcript = Transcript::new(b"");
+            // Preprocess circuit
+            let preprocessed_circuit = composer.preprocess(&ck, &mut transcript, &domain);
 
-            composer.prove(&ck, &mut transcript, &mut rand::thread_rng())
+            composer.prove(
+                &ck,
+                &preprocessed_circuit,
+                &mut transcript,
+                &mut rand::thread_rng(),
+            )
         };
 
         // Verifiers view
         //
-        let domain = EvaluationDomain::new(composer.n).unwrap();
 
         // setup transcript
         let mut transcript = Transcript::new(b"");
