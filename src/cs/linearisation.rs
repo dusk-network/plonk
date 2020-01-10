@@ -31,21 +31,18 @@ impl<E: PairingEngine> lineariser<E> {
         let alpha_sq = alpha.square();
         let alpha_cu = *alpha * &alpha_sq;
 
-        let sigma_1_poly =
-            Polynomial::from_coefficients_slice(&preprocessed_circuit.left_sigma_poly());
-        let sigma_2_poly =
-            Polynomial::from_coefficients_slice(&preprocessed_circuit.right_sigma_poly());
-        let sigma_3_poly =
-            Polynomial::from_coefficients_slice(&preprocessed_circuit.out_sigma_poly());
-
         // Evaluate a(x), b(x) and c(x)
         let a_eval = w_l_poly.evaluate(*z_challenge);
         let b_eval = w_r_poly.evaluate(*z_challenge);
         let c_eval = w_o_poly.evaluate(*z_challenge);
 
         // Evaluate sigma1 and sigma2
-        let sig_1_eval = sigma_1_poly.evaluate(*z_challenge);
-        let sig_2_eval = sigma_2_poly.evaluate(*z_challenge);
+        let sig_1_eval = preprocessed_circuit
+            .left_sigma_poly()
+            .evaluate(*z_challenge);
+        let sig_2_eval = preprocessed_circuit
+            .right_sigma_poly()
+            .evaluate(*z_challenge);
 
         // Evaluate quotient poly
         // Evaluate t_lo
@@ -98,7 +95,7 @@ impl<E: PairingEngine> lineariser<E> {
             alpha_sq,
             *beta,
             *gamma,
-            &sigma_3_poly,
+            preprocessed_circuit.out_sigma_poly(),
         );
 
         let f_4 = self.compute_fourth_component(domain, *z_challenge, alpha_cu, z_poly);
