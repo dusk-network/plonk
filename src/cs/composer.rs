@@ -99,10 +99,7 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
         transcript.append_commitment(b"out_sigma", &out_sigma_poly_commit);
 
         // Append circuit size to transcript
-        transcript.append_scalar(
-            b"cric_size",
-            &E::Fr::from_random_bytes(&to_bytes(&self.n)[..]).unwrap(),
-        );
+        transcript.circuit_domain_sep(self.circuit_size() as u64);
 
         PreProcessedCircuit {
             n: self.n,
