@@ -93,6 +93,9 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
         transcript.append_commitment(b"right_sigma", &right_sigma_poly_commit);
         transcript.append_commitment(b"out_sigma", &out_sigma_poly_commit);
 
+        // Append circuit size to transcript
+        transcript.circuit_domain_sep(self.circuit_size() as u64);
+
         PreProcessedCircuit {
             n: self.n,
             selectors: vec![
@@ -150,13 +153,12 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
         transcript.append_commitment(b"w_r", &w_r_poly_commit);
         transcript.append_commitment(b"w_o", &w_o_poly_commit);
 
-        // Append permutation poly variables to transcript
+        // Compute Permutation challenges to the transcript `beta` and `gamma`
         let beta = transcript.challenge_scalar(b"beta");
         transcript.append_scalar(b"beta", &beta);
         let gamma = transcript.challenge_scalar(b"gamma");
-        transcript.append_scalar(b"gamma", &gamma);
 
-        // compute permutation polynomial
+        // compute Permutation polynomial
         let (z_poly, z_poly_shifted) = self.perm.compute_permutation_poly(
             &domain,
             rng,
@@ -166,37 +168,29 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
             &(beta, gamma),
         );
 
-        // Commit to the permutation polynomial
-        let z_poly_commit = srs::commit(commit_key, &z_poly);
-        transcript.append_commitment(b"z", &z_poly_commit);
-        // Create QuotientToolkit
-        let qt_toolkit = QuotientToolkit::new();
-        // Compute `Alpha` randomness and add it to the transcript
+        // Compute Quotient challenge `alpha`
         let alpha = transcript.challenge_scalar(b"alpha");
-        transcript.append_scalar(b"alpha", &alpha);
-        // Compute quotient polynomial.
+
+        // Compute Quotient polynomial.
+        let qt_toolkit = QuotientToolkit::new();
         let (t_hi_poly, t_mid_poly, t_low_poly) = qt_toolkit.compute_quotient_poly(
             &domain,
             &preprocessed_circuit,
             &z_poly,
             &z_poly_shifted,
             [&w_l_poly, &w_r_poly, &w_o_poly],
-            // TODO: Get Public Inputs polynomial.
-            &Polynomial::from_coefficients_vec(vec![E::Fr::zero()]),
+            &Polynomial::zero(),
             &(alpha, beta, gamma),
         );
         // Commit polynomials.
-        let t_low_commit = srs::commit(commit_key, &t_low_poly);
-        let t_mid_commit = srs::commit(commit_key, &t_mid_poly);
-        let t_hi_commit = srs::commit(commit_key, &t_hi_poly);
+        let t_low_commit = srs::commit(&ck, &t_low_poly);
+        let t_mid_commit = srs::commit(&ck, &t_mid_poly);
+        let t_hi_commit = srs::commit(&ck, &t_hi_poly);
 
-        transcript.append_commitment(b"t_lo", &t_low_commit);
-        transcript.append_commitment(b"t_mid", &t_mid_commit);
-        transcript.append_commitment(b"t_hi", &t_hi_commit);
-
-        // Compute challenge for `z`
+        // Compute evaluation challenge `z`
         let z_challenge = transcript.challenge_scalar(b"z");
-        // Fourth output
+
+        // Compute Linearisation polynomial
         let lineariser = lineariser::new();
         let (lin_poly, evaluations) = lineariser.evaluate_linearisation_polynomial(
             transcript,
@@ -212,12 +206,11 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
             &z_poly,
         );
 
-        // Fifth output
-        let comm_opener: commitmentOpener<E> = commitmentOpener::new();
-        // Set transcript `v`
+        // Compute opening challenge `v`
         let v = transcript.challenge_scalar(b"v");
-        transcript.append_scalar(b"v", &v);
+
         // Compute opening polynomial
+        let comm_opener: commitmentOpener<E> = commitmentOpener::new();
         let (W_z, W_zx) = comm_opener.compute_opening_polynomials(
             domain.group_gen,
             domain.size(),
