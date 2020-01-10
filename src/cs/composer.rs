@@ -168,6 +168,9 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
             &(beta, gamma),
         );
 
+        let z_poly_commit = srs::commit(commit_key, &z_poly);
+        transcript.append_commitment(b"z", &z_poly_commit);
+
         // Compute Quotient challenge `alpha`
         let alpha = transcript.challenge_scalar(b"alpha");
 
@@ -183,9 +186,13 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
             &(alpha, beta, gamma),
         );
         // Commit polynomials.
-        let t_low_commit = srs::commit(&ck, &t_low_poly);
-        let t_mid_commit = srs::commit(&ck, &t_mid_poly);
-        let t_hi_commit = srs::commit(&ck, &t_hi_poly);
+        let t_low_commit = srs::commit(commit_key, &t_low_poly);
+        let t_mid_commit = srs::commit(commit_key, &t_mid_poly);
+        let t_hi_commit = srs::commit(commit_key, &t_hi_poly);
+
+        transcript.append_commitment(b"t_lo", &t_low_commit);
+        transcript.append_commitment(b"t_mid", &t_mid_commit);
+        transcript.append_commitment(b"t_hi", &t_hi_commit);
 
         // Compute evaluation challenge `z`
         let z_challenge = transcript.challenge_scalar(b"z");
@@ -253,6 +260,10 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
 
             // DEBUG VALUES, DELETE ONCE TEST PASSES
             debug_t_eval: evaluations[5],
+            debug_z: z_challenge,
+            debug_alpha: alpha,
+            debug_beta: beta,
+            debug_gamma: gamma,
         }
     }
 

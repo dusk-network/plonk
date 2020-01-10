@@ -51,7 +51,11 @@ pub struct Proof<E: PairingEngine> {
     // Furthermore, we may not need any extra commitments as the checks are baked into the quotient polynomial and the setup elements can be put into the witness polynomials
 
     // XXX:DEBUG VALUES (DELETE ONCE VERIFIER PASSES)
-    pub debug_t_eval : E::Fr,
+    pub debug_t_eval: E::Fr,
+    pub debug_z: E::Fr,
+    pub debug_alpha: E::Fr,
+    pub debug_gamma: E::Fr,
+    pub debug_beta: E::Fr,
 }
 
 impl<E: PairingEngine> Proof<E> {
@@ -84,7 +88,11 @@ impl<E: PairingEngine> Proof<E> {
             z_hat_eval: E::Fr::zero(),
 
             // DEBUG VALUES, DELETE ONCE VERIFIER PASSES
-            debug_t_eval : E::Fr::zero(),
+            debug_t_eval: E::Fr::zero(),
+            debug_z: E::Fr::zero(),
+            debug_alpha: E::Fr::zero(),
+            debug_beta: E::Fr::zero(),
+            debug_gamma: E::Fr::zero(),
         }
     }
 
@@ -105,22 +113,22 @@ impl<E: PairingEngine> Proof<E> {
 
         // Compute beta and gamma
         let beta = transcript.challenge_scalar(b"beta");
+        assert_eq!(beta, self.debug_beta);
         transcript.append_scalar(b"beta", &beta);
         let gamma = transcript.challenge_scalar(b"gamma");
+        assert_eq!(gamma, self.debug_gamma);
         // Add commitment to permutation polynomial to transcript
         transcript.append_commitment(b"z", &self.z_comm);
-        
         // Compute quotient challenge
         let alpha = transcript.challenge_scalar(b"alpha");
-        
+        assert_eq!(self.debug_alpha, alpha);
         // Add commitment to quotient polynomial to transcript
         transcript.append_commitment(b"t_lo", &self.t_lo_comm);
         transcript.append_commitment(b"t_mid", &self.t_mid_comm);
         transcript.append_commitment(b"t_hi", &self.t_hi_comm);
-        
         // Compute evaluation challenge
         let z_challenge = transcript.challenge_scalar(b"z");
-
+        assert_eq!(z_challenge, self.debug_z);
         // Compute zero polynomial evaluated at `z_challenge`
         let z_h_eval = domain.evaluate_vanishing_polynomial(z_challenge);
 
