@@ -282,22 +282,19 @@ impl<E: PairingEngine> QuotientToolkit<E> {
         )
     }
 
-    // Evaluates the quotient polynomial at a certain point.
-    pub fn eval_quotient_poly(
+    // Evaluates the splited quotient polynomial at a certain point.
+    // NOTE that the splited parts are `t_lo`, `t_mid`, `t_hi`.
+    pub fn eval_splited_quotient_poly(
         &self,
-        quot_poly: &Polynomial<E::Fr>,
-        scalar: &E::Fr,
+        split_qp: &[Polynomial<E::Fr>; 3],
         n: usize,
+        scalar: &E::Fr,
     ) -> E::Fr {
         let pows = vec![
             E::Fr::one(),
             scalar.pow(&[n as u64]),
             scalar.pow(&[2 * n as u64]),
         ];
-        let split_qp = {
-            let (t_lo, t_mid, t_hi) = self.split_tx_poly(n, &quot_poly);
-            [t_lo, t_mid, t_hi]
-        };
         let evaluations: Vec<E::Fr> = split_qp
             .into_par_iter()
             .zip(pows)
@@ -310,6 +307,20 @@ impl<E: PairingEngine> QuotientToolkit<E> {
             res = res + eval;
         }
         res
+    }
+
+    // Evaluates the quotient polynomial at a certain point.
+    pub fn eval_quotient_poly(
+        &self,
+        quot_poly: &Polynomial<E::Fr>,
+        scalar: &E::Fr,
+        n: usize,
+    ) -> E::Fr {
+        let split_qp = {
+            let (t_lo, t_mid, t_hi) = self.split_tx_poly(n, &quot_poly);
+            [t_lo, t_mid, t_hi]
+        };
+        self.eval_splited_quotient_poly(&split_qp, n, scalar)
     }
 }
 
