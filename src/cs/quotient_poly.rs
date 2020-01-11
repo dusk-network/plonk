@@ -5,6 +5,9 @@ use algebra::{
     fields::{Field, PrimeField},
 };
 use ff_fft::{DensePolynomial as Polynomial, EvaluationDomain};
+use rayon::iter::{
+    FromParallelIterator, IndexedParallelIterator, IntoParallelIterator, ParallelIterator,
+};
 use std::marker::PhantomData;
 
 pub struct QuotientToolkit<E: PairingEngine> {
@@ -278,6 +281,36 @@ impl<E: PairingEngine> QuotientToolkit<E> {
             Polynomial::from_coefficients_slice(&t_x[2 * n..]),
         )
     }
+
+    // Evaluates the quotient polynomial at a certain point.
+    pub fn eval_quotient_poly(
+        &self,
+        quot_poly: &Polynomial<E::Fr>,
+        scalar: &E::Fr,
+        n: usize,
+    ) -> E::Fr {
+        let pows = vec![
+            E::Fr::one(),
+            scalar.pow(&[n as u64]),
+            scalar.pow(&[2 * n as u64]),
+        ];
+        let split_qp = {
+            let (t_lo, t_mid, t_hi) = self.split_tx_poly(n, &quot_poly);
+            [t_lo, t_mid, t_hi]
+        };
+        let evaluations: Vec<E::Fr> = split_qp
+            .into_par_iter()
+            .zip(pows)
+            .map(|(poly, pow)| pow * &poly.evaluate(*scalar))
+            .collect();
+        // Since `Slice<E::Fr>` does not support `Sum()` we add it with
+        // a for loop.
+        let mut res = E::Fr::zero();
+        for eval in &evaluations {
+            res = res + eval;
+        }
+        res
+    }
 }
 
 #[cfg(test)]
@@ -316,7 +349,10 @@ mod test {
         let mut t_components_eval = t_lo_eval + &t_mid_eval;
         t_components_eval += &t_hi_eval;
 
+        let eval_test = toolkit.eval_quotient_poly(&t_x, &rand_point, n);
+
         assert_eq!(t_x_eval, t_components_eval);
+        assert_eq!(t_x_eval, eval_test);
     }
 
     #[test]
