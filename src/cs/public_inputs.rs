@@ -7,8 +7,17 @@ use algebra::{
 use ff_fft::{DensePolynomial as Polynomial, EvaluationDomain};
 use std::marker::PhantomData;
 
-/// Computation for the public inputs. Utilising the Lagrange polynomials, 
-/// and summing all of them bar the first. We also compute the sum of the witness 
+/// Computation for the public inputs. Utilising the Lagrange polynomials,
+/// and summing them all. We also compute the sum of the witness
 /// polynomials, which are notably seperate from the witnesses that are private.
 
-pub fn compute_langrange_polynomial
+pub struct PIInputsToolKit<E: PairingEngine> {
+    _engine: PhantomData<E>,
+}
+impl<E: PairingEngine> PIInputsToolKit<E> {
+    pub fn new() -> Self {
+        PIInputsToolKit {
+            _engine: PhantomData,
+        }
+    }
+}
