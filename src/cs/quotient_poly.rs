@@ -240,7 +240,7 @@ impl<E: PairingEngine> QuotientToolkit<E> {
         k = &k * &self.compute_first_lagrange_poly(n);
         k = &k * &alpha_cu_poly;
         k.divide_by_vanishing_poly(*domain).unwrap();
-        
+        k
     }
 
     /// Computes the Lagrange polynomial `L1(X)`.
@@ -262,8 +262,7 @@ impl<E: PairingEngine> QuotientToolkit<E> {
             .divide_with_q_and_r(&denominator_poly)
             .unwrap();
         assert_eq!(r, Polynomial::zero());
-
-        
+        q
     }
 
     // Split `t(X)` poly into three degree-n polynomials.
