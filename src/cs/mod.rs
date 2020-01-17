@@ -7,7 +7,10 @@ mod proof;
 mod public_inputs;
 mod quotient_poly;
 
-use algebra::curves::PairingEngine;
+use algebra::{
+    curves::PairingEngine,
+    fields::{Field, PrimeField},
+};
 use ff_fft::DensePolynomial as Polynomial;
 use poly_commit::kzg10::Commitment;
 
@@ -76,6 +79,24 @@ impl<E: PairingEngine> PreProcessedCircuit<E> {
     }
     pub fn out_sigma_comm(&self) -> &Commitment<E> {
         &self.out_sigma.1
+    }
+
+    pub fn compute_n_lagrange_polys(&self, size: usize) -> Vec<Polynomial<E::Fr>> {
+        use ff_fft::SparsePolynomial;
+        let num_polys = self.qm_poly().len();
+        // Compute the denominator.
+        let numerators = {
+            let mut nums: Vec<SparsePolynomial<E::Fr>> = Vec::default();
+            for i in 0..num_polys {
+                nums.push(SparsePolynomial::from_coefficients_slice(&[
+                    (0, -E::Fr::one()),
+                    (i + 1, E::Fr::one()),
+                ]));
+            }
+            nums
+        };
+
+        unimplemented!()
     }
 }
 
