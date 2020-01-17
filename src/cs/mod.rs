@@ -85,7 +85,7 @@ impl<E: PairingEngine> PreProcessedCircuit<E> {
         use ff_fft::SparsePolynomial;
         let num_polys = self.qm_poly().len();
         // Compute the denominator.
-        let numerators = {
+        let numerator = {
             let mut nums: Vec<SparsePolynomial<E::Fr>> = Vec::default();
             for i in 0..num_polys {
                 nums.push(SparsePolynomial::from_coefficients_slice(&[
@@ -96,6 +96,18 @@ impl<E: PairingEngine> PreProcessedCircuit<E> {
             nums
         };
 
+        let den_polys = self.qm_poly().len();
+
+        let demoninator = {
+            let mut den: Vec<SparsePolynomial<E::Fr>> = Vec::default();
+            for i in 0..den_polys {
+                den.push(SparsePolynomial::from_coefficients_slice(&[
+                    (1, E::Fr::one()),
+                    (0, -E::Fr::from_repr((i as u32).into())),
+                ]));
+            }
+            den
+        };
         unimplemented!()
     }
 }
