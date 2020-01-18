@@ -26,18 +26,17 @@ impl<E: PairingEngine> PIInputsToolKit<E> {
         use ff_fft::{DenseOrSparsePolynomial, SparsePolynomial};
         use std::str::FromStr;
         // Compute the denominator.
-        // TODO: What should we do with the constant `Cx`?
         let numerator: DenseOrSparsePolynomial<E::Fr> =
             SparsePolynomial::from_coefficients_slice(&[(0, -E::Fr::one()), (size, E::Fr::one())])
                 .into();
 
-        let denoninators: Vec<DenseOrSparsePolynomial<E::Fr>> = {
+        let denominators: Vec<DenseOrSparsePolynomial<E::Fr>> = {
             let mut den: Vec<DenseOrSparsePolynomial<E::Fr>> = Vec::default();
             for i in 0..size {
                 den.push(
                     SparsePolynomial::from_coefficients_slice(&[
                         (1, E::Fr::one()),
-                        // Weird but `from_repr` and `from` are not suitable for this impl.
+                        // Weird, however, `from_repr` and `from` are not working for this implementation.
                         (0, -E::Fr::from_str(&format!("{}", i)).ok().unwrap()),
                     ])
                     .into(),
@@ -45,7 +44,7 @@ impl<E: PairingEngine> PIInputsToolKit<E> {
             }
             den
         };
-        let res: Vec<Polynomial<E::Fr>> = denoninators
+        let res: Vec<Polynomial<E::Fr>> = denominators
             .into_iter()
             .map(|den| numerator.divide_with_q_and_r(&den).unwrap().0)
             .collect();
@@ -94,7 +93,7 @@ mod tests {
     #[test]
     fn first_lagrange_poly() {
         let pi_tool: PIInputsToolKit<E> = PIInputsToolKit::new();
-        let first_lag = pi_tool.compute_n_lagrange_polys(2usize);
+        let first_lag = pi_tool.compute_n_lagrange_polys(1usize);
         println!("{:?}", first_lag);
     }
 }
