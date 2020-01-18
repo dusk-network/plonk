@@ -22,6 +22,36 @@ impl<E: PairingEngine> PIInputsToolKit<E> {
         }
     }
 
+    pub fn compute_n_lagrange_polys(&self, size: usize) -> Vec<Polynomial<E::Fr>> {
+        use ff_fft::{DenseOrSparsePolynomial, SparsePolynomial};
+        use std::str::FromStr;
+        // Compute the denominator.
+        // TODO: What should we do with the constant `Cx`?
+        let numerator: DenseOrSparsePolynomial<E::Fr> =
+            SparsePolynomial::from_coefficients_slice(&[(0, -E::Fr::one()), (size, E::Fr::one())])
+                .into();
+
+        let denoninators: Vec<DenseOrSparsePolynomial<E::Fr>> = {
+            let mut den: Vec<DenseOrSparsePolynomial<E::Fr>> = Vec::default();
+            for i in 0..size {
+                den.push(
+                    SparsePolynomial::from_coefficients_slice(&[
+                        (1, E::Fr::one()),
+                        // Weird but `from_repr` and `from` are not suitable for this impl.
+                        (0, -E::Fr::from_str(&format!("{}", i)).ok().unwrap()),
+                    ])
+                    .into(),
+                );
+            }
+            den
+        };
+        let res: Vec<Polynomial<E::Fr>> = denoninators
+            .into_iter()
+            .map(|den| numerator.divide_with_q_and_r(&den).unwrap().0)
+            .collect();
+        res
+    }
+
     // Generates the Public Inputs polynomial PI(X) from
     // a PreProcessedCircuit and the Public Input coeficients.
     //
@@ -34,7 +64,7 @@ impl<E: PairingEngine> PIInputsToolKit<E> {
     ) -> Polynomial<E::Fr> {
         assert!(prep_circ.qm_poly().len() > 0);
         // Get Lagrange polys.
-        let lagrange_polys = prep_circ.compute_n_lagrange_polys();
+        let lagrange_polys = self.compute_n_lagrange_polys(prep_circ.qm_poly().len());
         // Get PI negated factors as 0 degree polynomials
         let neg_inputs_as_polys: Vec<Polynomial<E::Fr>> = pub_inputs
             .into_iter()
@@ -53,5 +83,18 @@ impl<E: PairingEngine> PIInputsToolKit<E> {
             res = &res + &item;
         }
         res
+    }
+}
+
+mod tests {
+    use super::*;
+    use crate::cs::public_inputs::PIInputsToolKit;
+    use algebra::curves::bls12_381::Bls12_381 as E;
+    use algebra::fields::bls12_381::Fr;
+    #[test]
+    fn first_lagrange_poly() {
+        let pi_tool: PIInputsToolKit<E> = PIInputsToolKit::new();
+        let first_lag = pi_tool.compute_n_lagrange_polys(2usize);
+        println!("{:?}", first_lag);
     }
 }
