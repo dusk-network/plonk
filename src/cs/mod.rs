@@ -81,34 +81,35 @@ impl<E: PairingEngine> PreProcessedCircuit<E> {
         &self.out_sigma.1
     }
 
-    pub fn compute_n_lagrange_polys(&self, size: usize) -> Vec<Polynomial<E::Fr>> {
-        use ff_fft::SparsePolynomial;
-        let num_polys = self.qm_poly().len();
+    pub fn compute_n_lagrange_polys(&self) -> Vec<Polynomial<E::Fr>> {
+        use ff_fft::{DenseOrSparsePolynomial, SparsePolynomial};
+        use std::str::FromStr;
+        let n = self.qm_poly().len();
         // Compute the denominator.
-        let numerator = {
-            let mut nums: Vec<SparsePolynomial<E::Fr>> = Vec::default();
-            for i in 0..num_polys {
-                nums.push(SparsePolynomial::from_coefficients_slice(&[
-                    (0, -E::Fr::one()),
-                    (i + 1, E::Fr::one()),
-                ]));
-            }
-            nums
-        };
+        // TODO: What should we do with the constant `Cx`?
+        let numerator: DenseOrSparsePolynomial<E::Fr> =
+            SparsePolynomial::from_coefficients_slice(&[(0, -E::Fr::one()), (n, E::Fr::one())])
+                .into();
 
-        let den_polys = self.qm_poly().len();
-
-        let demoninator = {
-            let mut den: Vec<SparsePolynomial<E::Fr>> = Vec::default();
-            for i in 0..den_polys {
-                den.push(SparsePolynomial::from_coefficients_slice(&[
-                    (1, E::Fr::one()),
-                    (0, -E::Fr::from_repr((i as u32).into())),
-                ]));
+        let denoninators: Vec<DenseOrSparsePolynomial<E::Fr>> = {
+            let mut den: Vec<DenseOrSparsePolynomial<E::Fr>> = Vec::default();
+            for i in 0..n {
+                den.push(
+                    SparsePolynomial::from_coefficients_slice(&[
+                        (1, E::Fr::one()),
+                        // Weird but `from_repr` and `from` are not suitable for this impl.
+                        (0, -E::Fr::from_str(&format!("{}", i)).ok().unwrap()),
+                    ])
+                    .into(),
+                );
             }
             den
         };
-        unimplemented!()
+        let res: Vec<Polynomial<E::Fr>> = denoninators
+            .into_iter()
+            .map(|den| numerator.divide_with_q_and_r(&den).unwrap().0)
+            .collect();
+        res
     }
 }
 
