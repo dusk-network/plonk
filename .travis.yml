@@ -1,6 +1,5 @@
 language: rust
 sudo: true
-cache: cargo
 os: 
   - linux
 
