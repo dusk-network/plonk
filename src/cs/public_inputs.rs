@@ -27,7 +27,7 @@ impl<E: PairingEngine> PIInputsToolKit<E> {
         let domain = EvaluationDomain::new(w_i.len()).unwrap();
         Polynomial::from_coefficients_vec(domain.ifft(w_i))
     }
-    pub fn evaluate_pi_poly(w_i: &Polynomial<E::Fr>) -> E::Fr {
+    pub fn evaluate_pi_poly(w_i: &Polynomial<E::Fr>) -> Polynomial<E::Fr> {
         w_i.iter().map(|(w, l)| w * l).sum()
     }
 }
