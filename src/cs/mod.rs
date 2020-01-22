@@ -4,9 +4,13 @@ mod linearisation;
 mod opening;
 mod permutation;
 mod proof;
+mod public_inputs;
 mod quotient_poly;
 
-use algebra::curves::PairingEngine;
+use algebra::{
+    curves::PairingEngine,
+    fields::{Field, PrimeField},
+};
 use ff_fft::DensePolynomial as Polynomial;
 use poly_commit::kzg10::Commitment;
 
