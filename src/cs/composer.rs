@@ -177,7 +177,7 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
 
         // Compute Quotient polynomial.
         let qt_toolkit = QuotientToolkit::new();
-        let (t_hi_poly, t_mid_poly, t_low_poly) = qt_toolkit.compute_quotient_poly(
+        let (t_hi_poly, t_mid_poly, t_lo_poly) = qt_toolkit.compute_quotient_poly(
             &domain,
             &preprocessed_circuit,
             &z_poly,
@@ -188,7 +188,7 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
         );
 
         // Commit polynomials.
-        let t_low_commit = srs::commit(&ck, &t_low_poly);
+        let t_lo_commit = srs::commit(&ck, &t_lo_poly);
         let t_mid_commit = srs::commit(&ck, &t_mid_poly);
         let t_hi_commit = srs::commit(&ck, &t_hi_poly);
 
@@ -205,7 +205,7 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
             &w_l_poly,
             &w_r_poly,
             &w_o_poly,
-            &t_low_poly,
+            &t_lo_poly,
             &t_mid_poly,
             &t_hi_poly,
             &z_poly,
@@ -222,7 +222,7 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
             z_challenge,
             &lin_poly,
             &evaluations,
-            &t_low_poly,
+            &t_lo_poly,
             &t_mid_poly,
             &t_hi_poly,
             &w_l_poly,
