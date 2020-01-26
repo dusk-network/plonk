@@ -7,7 +7,7 @@ use super::{
 use crate::{cs::quotient_poly::QuotientToolkit, srs, transcript::TranscriptProtocol};
 use algebra::{curves::PairingEngine, fields::Field};
 use ff_fft::{DensePolynomial as Polynomial, EvaluationDomain};
-use poly_commit::kzg10::UniversalParams;
+use poly_commit::kzg10::Powers;
 use rand_core::{CryptoRng, RngCore};
 /// A composer is a circuit builder
 /// and will dictate how a cirucit is built
@@ -42,7 +42,7 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
     // So the verifier can verify a proof made using this circuit
     fn preprocess(
         &mut self,
-        public_parameters: &UniversalParams<E>,
+        commit_key: &Powers<E>,
         transcript: &mut dyn TranscriptProtocol<E>,
         domain: &EvaluationDomain<E::Fr>,
     ) -> PreProcessedCircuit<E> {
@@ -71,17 +71,15 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
 
         // 4. Commit to polynomials
         //
-        let (ck, vk) = srs::trim(public_parameters, self.n).unwrap();
-        //
-        let q_m_poly_commit = srs::commit(&ck, &q_m_poly);
-        let q_l_poly_commit = srs::commit(&ck, &q_l_poly);
-        let q_r_poly_commit = srs::commit(&ck, &q_r_poly);
-        let q_o_poly_commit = srs::commit(&ck, &q_o_poly);
-        let q_c_poly_commit = srs::commit(&ck, &q_c_poly);
+        let q_m_poly_commit = srs::commit(commit_key, &q_m_poly);
+        let q_l_poly_commit = srs::commit(commit_key, &q_l_poly);
+        let q_r_poly_commit = srs::commit(commit_key, &q_r_poly);
+        let q_o_poly_commit = srs::commit(commit_key, &q_o_poly);
+        let q_c_poly_commit = srs::commit(commit_key, &q_c_poly);
 
-        let left_sigma_poly_commit = srs::commit(&ck, &left_sigma_poly);
-        let right_sigma_poly_commit = srs::commit(&ck, &right_sigma_poly);
-        let out_sigma_poly_commit = srs::commit(&ck, &out_sigma_poly);
+        let left_sigma_poly_commit = srs::commit(commit_key, &left_sigma_poly);
+        let right_sigma_poly_commit = srs::commit(commit_key, &right_sigma_poly);
+        let out_sigma_poly_commit = srs::commit(commit_key, &out_sigma_poly);
 
         //5. Add polynomial commitments to transcript
         //
@@ -117,7 +115,7 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
     // produce a proof
     fn prove<R: RngCore + CryptoRng>(
         &mut self,
-        public_parameters: &UniversalParams<E>,
+        commit_key: &Powers<E>,
         preprocessed_circuit: &PreProcessedCircuit<E>,
         transcript: &mut dyn TranscriptProtocol<E>,
         mut rng: &mut R,
@@ -147,11 +145,9 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
         w_o_poly = &w_o_poly + &w_o_blinder;
 
         // Commit to witness polynomials
-        let (ck, vk) = srs::trim(public_parameters, self.n).unwrap();
-        let w_l_poly_commit = srs::commit(&ck, &w_l_poly);
-        let w_r_poly_commit = srs::commit(&ck, &w_r_poly);
-        let w_o_poly_commit = srs::commit(&ck, &w_o_poly);
-
+        let w_l_poly_commit = srs::commit(commit_key, &w_l_poly);
+        let w_r_poly_commit = srs::commit(commit_key, &w_r_poly);
+        let w_o_poly_commit = srs::commit(commit_key, &w_o_poly);
         // Add witnesses to transcript
         transcript.append_commitment(b"w_l", &w_l_poly_commit);
         transcript.append_commitment(b"w_r", &w_r_poly_commit);
@@ -172,25 +168,33 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
             &(beta, gamma),
         );
 
+        let z_poly_commit = srs::commit(commit_key, &z_poly);
+        transcript.append_commitment(b"z", &z_poly_commit);
+
         // Compute Quotient challenge `alpha`
         let alpha = transcript.challenge_scalar(b"alpha");
 
         // Compute Quotient polynomial.
         let qt_toolkit = QuotientToolkit::new();
-        let (t_hi_poly, t_mid_poly, t_lo_poly) = qt_toolkit.compute_quotient_poly(
+        let (t_x) = qt_toolkit.compute_quotient_poly(
             &domain,
             &preprocessed_circuit,
             &z_poly,
             &z_poly_shifted,
             [&w_l_poly, &w_r_poly, &w_o_poly],
-            &Polynomial::zero(),
             &(alpha, beta, gamma),
         );
 
+        let (t_low_poly, t_mid_poly, t_hi_poly) = self.split_tx_poly(domain.size(), &t_x);
+
         // Commit polynomials.
-        let t_lo_commit = srs::commit(&ck, &t_lo_poly);
-        let t_mid_commit = srs::commit(&ck, &t_mid_poly);
-        let t_hi_commit = srs::commit(&ck, &t_hi_poly);
+        let t_low_commit = srs::commit(commit_key, &t_low_poly);
+        let t_mid_commit = srs::commit(commit_key, &t_mid_poly);
+        let t_hi_commit = srs::commit(commit_key, &t_hi_poly);
+
+        transcript.append_commitment(b"t_lo", &t_low_commit);
+        transcript.append_commitment(b"t_mid", &t_mid_commit);
+        transcript.append_commitment(b"t_hi", &t_hi_commit);
 
         // Compute evaluation challenge `z`
         let z_challenge = transcript.challenge_scalar(b"z");
@@ -205,11 +209,29 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
             &w_l_poly,
             &w_r_poly,
             &w_o_poly,
-            &t_lo_poly,
-            &t_mid_poly,
-            &t_hi_poly,
+            &t_x,
             &z_poly,
+            &z_poly_shifted,
         );
+
+        let a_eval = evaluations[0];
+        let b_eval = evaluations[1];
+        let c_eval = evaluations[2];
+        let left_sigma_eval = evaluations[3];
+        let right_sigma_eval = evaluations[4];
+        let quot_eval = evaluations[5];
+        let lin_poly_eval = evaluations[6];
+        let z_hat_eval = evaluations[7];
+
+        // Add evaluations to transcript
+        transcript.append_scalar(b"a_eval", &a_eval);
+        transcript.append_scalar(b"b_eval", &b_eval);
+        transcript.append_scalar(b"c_eval", &c_eval);
+        transcript.append_scalar(b"left_sig_eval", &left_sigma_eval);
+        transcript.append_scalar(b"right_sig_eval", &right_sigma_eval);
+        transcript.append_scalar(b"z_hat_eval", &z_hat_eval);
+        transcript.append_scalar(b"t_eval", &quot_eval);
+        transcript.append_scalar(b"r_eval", &lin_poly_eval);
 
         // Compute opening challenge `v`
         let v = transcript.challenge_scalar(b"v");
@@ -222,7 +244,7 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
             z_challenge,
             &lin_poly,
             &evaluations,
-            &t_lo_poly,
+            &t_low_poly,
             &t_mid_poly,
             &t_hi_poly,
             &w_l_poly,
@@ -234,10 +256,28 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
             &v,
         );
 
-        let comm_w_z = srs::commit(&ck, &W_z);
-        let comm_w_z_x = srs::commit(&ck, &W_zx);
+        let w_z_comm = srs::commit(commit_key, &W_z);
+        let w_z_x_comm = srs::commit(commit_key, &W_zx);
 
-        Proof::empty()
+        Proof {
+            a_comm: w_l_poly_commit,
+            b_comm: w_r_poly_commit,
+            c_comm: w_o_poly_commit,
+
+            z_comm: z_poly_commit,
+            t_lo_comm: t_low_commit,
+            t_mid_comm: t_mid_commit,
+            t_hi_comm: t_hi_commit,
+            w_z_comm: w_z_comm,
+            w_zw_comm: w_z_x_comm,
+            a_eval: a_eval,
+            b_eval: b_eval,
+            c_eval: c_eval,
+            left_sigma_eval: left_sigma_eval,
+            right_sigma_eval: right_sigma_eval,
+            lin_poly_eval: lin_poly_eval,
+            z_hat_eval: z_hat_eval,
+        }
     }
 
     fn circuit_size(&self) -> usize {
@@ -248,6 +288,19 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
 impl<E: PairingEngine> StandardComposer<E> {
     pub fn new() -> Self {
         StandardComposer::with_expected_size(0)
+    }
+
+    // Split `t(X)` poly into three degree-n polynomials.
+    pub fn split_tx_poly(
+        &self,
+        n: usize,
+        t_x: &Polynomial<E::Fr>,
+    ) -> (Polynomial<E::Fr>, Polynomial<E::Fr>, Polynomial<E::Fr>) {
+        (
+            Polynomial::from_coefficients_slice(&t_x[0..n]),
+            Polynomial::from_coefficients_slice(&t_x[n..2 * n]),
+            Polynomial::from_coefficients_slice(&t_x[2 * n..]),
+        )
     }
 
     // Creates a new circuit with an expected circuit size
@@ -355,7 +408,7 @@ impl<E: PairingEngine> StandardComposer<E> {
         self.n = self.n + 1;
     }
 
-    pub fn add_bool_gate(&mut self, a: Variable) {
+    pub fn bool_gate(&mut self, a: Variable) {
         self.w_l.push(a);
         self.w_r.push(a);
         self.w_o.push(a);
@@ -459,6 +512,7 @@ mod tests {
         // Setup srs
         let max_degree = num_constraints.next_power_of_two() + 1;
         let public_parameters = srs::setup(max_degree);
+        let (ck, _) = srs::trim(&public_parameters, num_constraints.next_power_of_two()).unwrap();
 
         // Pad the circuit to next power of two
         let next_pow_2 = composer.n.next_power_of_two() as u64;
@@ -473,8 +527,47 @@ mod tests {
         let mut transcript = Transcript::new(b"plonk");
 
         // Pre-process circuit
-        let preprocessed_circuit =
-            composer.preprocess(&public_parameters, &mut transcript, &domain);
+        let preprocessed_circuit = composer.preprocess(&ck, &mut transcript, &domain);
+    }
+
+    #[test]
+    fn test_prove_verify() {
+        // Common View
+        //
+        let mut composer: StandardComposer<Bls12_381> = add_dummy_composer(7);
+        // setup srs
+        // XXX: We have 2 *n here because the blinding polynomials add a few extra terms to the degree, so it's more than n, we can adjust this later on to be less conservative
+        let public_parameters = srs::setup(2 * composer.n.next_power_of_two());
+        let (ck, vk) = srs::trim(&public_parameters, 2 * composer.n.next_power_of_two()).unwrap();
+        let domain = EvaluationDomain::new(composer.n).unwrap();
+        // Provers View
+        //
+        let proof = {
+            // setup transcript
+            let mut transcript = Transcript::new(b"");
+            // Preprocess circuit
+            let preprocessed_circuit = composer.preprocess(&ck, &mut transcript, &domain);
+
+            composer.prove(
+                &ck,
+                &preprocessed_circuit,
+                &mut transcript,
+                &mut rand::thread_rng(),
+            )
+        };
+
+        // Verifiers view
+        //
+
+        // setup transcript
+        let mut transcript = Transcript::new(b"");
+
+        // Preprocess circuit
+        let preprocessed_circuit = composer.preprocess(&ck, &mut transcript, &domain);
+
+        // Verify proof
+        let ok = proof.verify(&preprocessed_circuit, &mut transcript, &vk);
+        assert!(ok);
     }
 
     #[test]

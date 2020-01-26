@@ -16,10 +16,10 @@ use poly_commit::kzg10::Commitment;
 
 use crate::transcript::TranscriptProtocol;
 use ff_fft::EvaluationDomain;
-use poly_commit::kzg10::UniversalParams;
+use poly_commit::kzg10::Powers;
 use rand_core::{CryptoRng, RngCore};
 
-// Preprocessed cirucit includes the commitment to the selector polynomials and the sigma polynomials
+// Preprocessed circuit includes the commitment to the selector polynomials and the sigma polynomials
 pub struct PreProcessedCircuit<E: PairingEngine> {
     // The number of gates in the circuit
     n: usize,
@@ -88,17 +88,13 @@ pub trait Composer<E: PairingEngine> {
     // Preprocessing produces a preprocessed circuit
     fn preprocess(
         &mut self,
-        public_parameters: &UniversalParams<E>,
+        commit_key: &Powers<E>,
         transcript: &mut dyn TranscriptProtocol<E>,
         domain: &EvaluationDomain<E::Fr>,
-    ) -> PreProcessedCircuit<E>;
-    // Prove creates a proof by preprocessing the circuit first and computing the necessary polynomials
-    // N.B. We could pass a `PreprocessedCircuit` into `Prove` however, we must ensure that it contains
-    // enough state to build the rest of the proof. We can do this by adding the necessary polynomials into the
-    // preprocessed circuit along with their commitments and size of circuit, etc
+    ) -> (PreProcessedCircuit<E>);
     fn prove<R: RngCore + CryptoRng>(
         &mut self,
-        public_parameters: &UniversalParams<E>,
+        commit_key: &Powers<E>,
         preprocessed_circuit: &PreProcessedCircuit<E>,
         transcript: &mut dyn TranscriptProtocol<E>,
         rng: &mut R,
