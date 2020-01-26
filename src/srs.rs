@@ -37,7 +37,8 @@ pub fn trim<E: PairingEngine>(
 }
 
 // XXX: This seems to panic on polynomials with zero degree
-pub fn commit<E: PairingEngine>(powers: &Powers<E>, p: &Polynomial<E::Fr>) -> Commitment<E> {
+pub fn commit<E: PairingEngine>(powers: &Powers<E>, p_slice: &[E::Fr]) -> Commitment<E> {
+    let p = Polynomial::from_coefficients_slice(p_slice);
     let hiding_bound = None;
     let (comm, _) = KZG10::commit(&powers, &p, hiding_bound, None).unwrap();
     comm

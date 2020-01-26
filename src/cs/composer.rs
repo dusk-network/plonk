@@ -71,15 +71,15 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
 
         // 4. Commit to polynomials
         //
-        let q_m_poly_commit = srs::commit(commit_key, &q_m_poly);
-        let q_l_poly_commit = srs::commit(commit_key, &q_l_poly);
-        let q_r_poly_commit = srs::commit(commit_key, &q_r_poly);
-        let q_o_poly_commit = srs::commit(commit_key, &q_o_poly);
-        let q_c_poly_commit = srs::commit(commit_key, &q_c_poly);
+        let q_m_poly_commit = srs::commit(commit_key, &q_m_poly.coeffs);
+        let q_l_poly_commit = srs::commit(commit_key, &q_l_poly.coeffs);
+        let q_r_poly_commit = srs::commit(commit_key, &q_r_poly.coeffs);
+        let q_o_poly_commit = srs::commit(commit_key, &q_o_poly.coeffs);
+        let q_c_poly_commit = srs::commit(commit_key, &q_c_poly.coeffs);
 
-        let left_sigma_poly_commit = srs::commit(commit_key, &left_sigma_poly);
-        let right_sigma_poly_commit = srs::commit(commit_key, &right_sigma_poly);
-        let out_sigma_poly_commit = srs::commit(commit_key, &out_sigma_poly);
+        let left_sigma_poly_commit = srs::commit(commit_key, &left_sigma_poly.coeffs);
+        let right_sigma_poly_commit = srs::commit(commit_key, &right_sigma_poly.coeffs);
+        let out_sigma_poly_commit = srs::commit(commit_key, &out_sigma_poly.coeffs);
 
         //5. Add polynomial commitments to transcript
         //
@@ -145,9 +145,9 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
         w_o_poly = &w_o_poly + &w_o_blinder;
 
         // Commit to witness polynomials
-        let w_l_poly_commit = srs::commit(commit_key, &w_l_poly);
-        let w_r_poly_commit = srs::commit(commit_key, &w_r_poly);
-        let w_o_poly_commit = srs::commit(commit_key, &w_o_poly);
+        let w_l_poly_commit = srs::commit(commit_key, &w_l_poly.coeffs);
+        let w_r_poly_commit = srs::commit(commit_key, &w_r_poly.coeffs);
+        let w_o_poly_commit = srs::commit(commit_key, &w_o_poly.coeffs);
         // Add witnesses to transcript
         transcript.append_commitment(b"w_l", &w_l_poly_commit);
         transcript.append_commitment(b"w_r", &w_r_poly_commit);
@@ -168,7 +168,7 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
             &(beta, gamma),
         );
 
-        let z_poly_commit = srs::commit(commit_key, &z_poly);
+        let z_poly_commit = srs::commit(commit_key, &z_poly.coeffs);
         transcript.append_commitment(b"z", &z_poly_commit);
 
         // Compute Quotient challenge `alpha`
@@ -188,9 +188,9 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
         let (t_low_poly, t_mid_poly, t_hi_poly) = self.split_tx_poly(domain.size(), &t_x);
 
         // Commit polynomials.
-        let t_low_commit = srs::commit(commit_key, &t_low_poly);
-        let t_mid_commit = srs::commit(commit_key, &t_mid_poly);
-        let t_hi_commit = srs::commit(commit_key, &t_hi_poly);
+        let t_low_commit = srs::commit(commit_key, &t_low_poly.coeffs);
+        let t_mid_commit = srs::commit(commit_key, &t_mid_poly.coeffs);
+        let t_hi_commit = srs::commit(commit_key, &t_hi_poly.coeffs);
 
         transcript.append_commitment(b"t_lo", &t_low_commit);
         transcript.append_commitment(b"t_mid", &t_mid_commit);
@@ -256,8 +256,8 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
             &v,
         );
 
-        let w_z_comm = srs::commit(commit_key, &W_z);
-        let w_z_x_comm = srs::commit(commit_key, &W_zx);
+        let w_z_comm = srs::commit(commit_key, &W_z.coeffs);
+        let w_z_x_comm = srs::commit(commit_key, &W_zx.coeffs);
 
         Proof {
             a_comm: w_l_poly_commit,
