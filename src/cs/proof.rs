@@ -8,53 +8,52 @@ use algebra::{
     msm::VariableBaseMSM,
 };
 use ff_fft::EvaluationDomain;
+use poly_commit::data_structures::PCCommitment;
 use poly_commit::kzg10::{Commitment, VerifierKey};
 pub struct Proof<E: PairingEngine> {
     // Commitment to the witness polynomial for the left wires
-    a_comm: Commitment<E>,
+    pub a_comm: Commitment<E>,
     // Commitment to the witness polynomial for the right wires
-    b_comm: Commitment<E>,
+    pub b_comm: Commitment<E>,
     // Commitment to the witness polynomial for the output wires
-    c_comm: Commitment<E>,
+    pub c_comm: Commitment<E>,
 
     // Commitment to the permutation polynomial
-    z_comm: Commitment<E>,
+    pub z_comm: Commitment<E>,
 
     // Commitment to the quotient polynomial
-    t_lo_comm: Commitment<E>,
-    t_mid_comm: Commitment<E>,
-    t_hi_comm: Commitment<E>,
+    pub t_lo_comm: Commitment<E>,
+    pub t_mid_comm: Commitment<E>,
+    pub t_hi_comm: Commitment<E>,
 
     // Commitment to the opening polynomial
-    w_z_comm: Commitment<E>,
+    pub w_z_comm: Commitment<E>,
     // Commitment to the shifted opening polynomial
-    w_zw_comm: Commitment<E>,
+    pub w_zw_comm: Commitment<E>,
 
     // Evaluation of the witness polynomial for the left wires at `z`
-    a_eval: E::Fr,
+    pub a_eval: E::Fr,
     // Evaluation of the witness polynomial for the right wires at `z`
-    b_eval: E::Fr,
+    pub b_eval: E::Fr,
     // Evaluation of the witness polynomial for the output wires at `z`
-    c_eval: E::Fr,
+    pub c_eval: E::Fr,
 
     // Evaluation of the left sigma polynomial at `z`
-    left_sigma_eval: E::Fr,
+    pub left_sigma_eval: E::Fr,
     // Evaluation of the right sigma polynomial at `z`
-    right_sigma_eval: E::Fr,
+    pub right_sigma_eval: E::Fr,
 
     // Evaluation of the linearisation sigma polynomial at `z`
-    lin_poly_eval: E::Fr,
+    pub lin_poly_eval: E::Fr,
 
     // (Shifted) Evaluation of the permutation polynomial at `z * root of unity`
-    z_hat_eval: E::Fr,
-    // XXX: Need to confirm that for custom gates we do need more commitments for custom selector polynomial, as the selector polynomial is a part of the circit description
+    pub z_hat_eval: E::Fr,
+    // XXX: Need to confirm that for custom gates we do need more commitments for custom selector polynomial, as the selector polynomial is a part of the circuit description
     // Furthermore, we may not need any extra commitments as the checks are baked into the quotient polynomial and the setup elements can be put into the witness polynomials
 }
 
 impl<E: PairingEngine> Proof<E> {
     pub fn empty() -> Proof<E> {
-        use algebra::fields::Field;
-        use poly_commit::data_structures::PCCommitment;
         Proof {
             a_comm: Commitment::empty(),
             b_comm: Commitment::empty(),
@@ -86,23 +85,13 @@ impl<E: PairingEngine> Proof<E> {
         &self,
         preprocessed_circuit: &PreProcessedCircuit<E>,
         transcript: &mut dyn TranscriptProtocol<E>,
-        commit_verifier_key: &VerifierKey<E>,
+        verifier_key: &VerifierKey<E>,
     ) -> bool {
         let domain = EvaluationDomain::new(preprocessed_circuit.n).unwrap();
 
         // XXX: Check if components are valid
 
-        // Add commitment circuit polynomials and witness polynomials to transcript
-        transcript.append_commitment(b"q_m", preprocessed_circuit.qc_comm());
-        transcript.append_commitment(b"q_l", preprocessed_circuit.ql_comm());
-        transcript.append_commitment(b"q_r", preprocessed_circuit.qr_comm());
-        transcript.append_commitment(b"q_o", preprocessed_circuit.qo_comm());
-        transcript.append_commitment(b"q_c", preprocessed_circuit.qc_comm());
-
-        transcript.append_commitment(b"left_sigma", preprocessed_circuit.left_sigma_comm());
-        transcript.append_commitment(b"right_sigma", preprocessed_circuit.right_sigma_comm());
-        transcript.append_commitment(b"out_sigma", preprocessed_circuit.out_sigma_comm());
-
+        // Add witness polynomials to transcript
         transcript.append_commitment(b"w_l", &self.a_comm);
         transcript.append_commitment(b"w_r", &self.b_comm);
         transcript.append_commitment(b"w_o", &self.c_comm);
@@ -111,21 +100,16 @@ impl<E: PairingEngine> Proof<E> {
         let beta = transcript.challenge_scalar(b"beta");
         transcript.append_scalar(b"beta", &beta);
         let gamma = transcript.challenge_scalar(b"gamma");
-
         // Add commitment to permutation polynomial to transcript
         transcript.append_commitment(b"z", &self.z_comm);
-
         // Compute quotient challenge
-        let alpha = transcript.challenge_scalar(b"z");
-
+        let alpha = transcript.challenge_scalar(b"alpha");
         // Add commitment to quotient polynomial to transcript
         transcript.append_commitment(b"t_lo", &self.t_lo_comm);
         transcript.append_commitment(b"t_mid", &self.t_mid_comm);
         transcript.append_commitment(b"t_hi", &self.t_hi_comm);
-
         // Compute evaluation challenge
         let z_challenge = transcript.challenge_scalar(b"z");
-
         // Compute zero polynomial evaluated at `z_challenge`
         let z_h_eval = domain.evaluate_vanishing_polynomial(z_challenge);
 
@@ -159,7 +143,6 @@ impl<E: PairingEngine> Proof<E> {
 
         // Compute opening challenge
         let v = transcript.challenge_scalar(b"v");
-
         // Add commitment to openings to transcript
         transcript.append_commitment(b"w_z", &self.w_z_comm);
         transcript.append_commitment(b"w_z_w", &self.w_zw_comm);
@@ -180,24 +163,21 @@ impl<E: PairingEngine> Proof<E> {
         );
 
         // Compute batch opening commitment
-        let f_comm =
-            self.compute_batch_opening_commitment(z_challenge, v, d_comm, &preprocessed_circuit);
+        let f_comm = self.compute_batch_opening_commitment(
+            z_challenge,
+            v,
+            d_comm.into_affine(),
+            &preprocessed_circuit,
+        );
 
         // Compute batch evaluation commitment
-        let e_comm = self.compute_batch_evaluation_commitment(
-            z_challenge,
-            u,
-            v,
-            t_eval,
-            &preprocessed_circuit,
-            &commit_verifier_key,
-        );
+        let e_comm = self.compute_batch_evaluation_commitment(u, v, t_eval, &verifier_key);
 
         // Validate
 
         let lhs = E::pairing(
             self.w_z_comm.0.into_projective() + &self.w_zw_comm.0.into_projective().mul(&u),
-            commit_verifier_key.beta_h,
+            verifier_key.beta_h,
         );
 
         let inner = {
@@ -206,10 +186,10 @@ impl<E: PairingEngine> Proof<E> {
             let u_z_root = u * &z_challenge * &domain.group_gen;
             let k_1 = self.w_zw_comm.0.into_projective().mul(&u_z_root);
 
-            k_0 + &k_1 + &f_comm.into_projective() - &e_comm.into_projective()
+            k_0 + &k_1 + &f_comm - &e_comm
         };
 
-        let rhs = E::pairing(inner, commit_verifier_key.h);
+        let rhs = E::pairing(inner, verifier_key.h);
 
         lhs == rhs
     }
@@ -261,7 +241,7 @@ impl<E: PairingEngine> Proof<E> {
         v: E::Fr,
         l1_eval: E::Fr,
         preprocessed_circuit: &PreProcessedCircuit<E>,
-    ) -> E::G1Affine {
+    ) -> E::G1Projective {
         let k1 = E::Fr::multiplicative_generator();
         let k2 = E::Fr::from(13.into());
 
@@ -280,11 +260,11 @@ impl<E: PairingEngine> Proof<E> {
         scalars.push(self.c_eval * &alpha * &v);
         points.push(preprocessed_circuit.qo_comm().0);
 
-        scalars.push(E::Fr::one() * &alpha * &v);
+        scalars.push(alpha * &v);
         points.push(preprocessed_circuit.qc_comm().0);
 
         // (a_eval + beta * z + gamma)(b_eval + beta * z * k1 + gamma)(c_eval + beta * k2* z + gamma) * alpha^2 * v
-        let q = {
+        let x = {
             let beta_z = beta * &z_challenge;
             let q_0 = self.a_eval + &beta_z + &gamma;
 
@@ -296,17 +276,33 @@ impl<E: PairingEngine> Proof<E> {
 
             q_0 * &q_1 * &q_2
         };
-        // l1(z) * alpha^4 * v
-        let r = l1_eval * &alpha.pow(&[4 as u64]) * &v;
+
+        // l1(z) * alpha^3 * v
+        let r = l1_eval * &alpha.pow(&[3 as u64]) * &v;
         // v^7* u
         let s = v.pow(&[7 as u64]) * &u;
 
-        scalars.push(q + &r + &s);
+        scalars.push(x + &r + &s);
         points.push(self.z_comm.0);
+
+        // (a_eval + beta * sigma_1_eval + gamma)(b_eval + beta * sigma_2_eval + gamma)(c_eval + beta * sigma_3_eval + gamma) *alpha^2 * v
+        let y = {
+            let beta_sigma_1 = beta * &self.left_sigma_eval;
+            let q_0 = self.a_eval + &beta_sigma_1 + &gamma;
+
+            let beta_sigma_2 = beta * &self.right_sigma_eval;
+            let q_1 = self.b_eval + &beta_sigma_2 + &gamma;
+
+            let q_2 = beta * &self.z_hat_eval * &alpha * &alpha * &v;
+
+            q_0 * &q_1 * &q_2
+        };
+        scalars.push(-y);
+        points.push(preprocessed_circuit.out_sigma_comm().0);
 
         let scalars: Vec<_> = scalars.iter().map(|s| s.into_repr()).collect();
 
-        VariableBaseMSM::multi_scalar_mul(&points, &scalars).into_affine()
+        VariableBaseMSM::multi_scalar_mul(&points, &scalars)
     }
     fn compute_batch_opening_commitment(
         &self,
@@ -314,16 +310,10 @@ impl<E: PairingEngine> Proof<E> {
         v: E::Fr,
         d_comm: E::G1Affine,
         preprocessed_circuit: &PreProcessedCircuit<E>,
-    ) -> E::G1Affine {
+    ) -> E::G1Projective {
         let mut scalars: Vec<_> = Vec::with_capacity(6);
         let mut points: Vec<E::G1Affine> = Vec::with_capacity(6);
         let n = preprocessed_circuit.n;
-
-        let mut v_pow: Vec<E::Fr> = Vec::with_capacity(6);
-        v_pow.push(E::Fr::one());
-        for i in 1..=6 {
-            v_pow[i] = v_pow[i - 1] * &v;
-        }
 
         let z_n = z_challenge.pow(&[n as u64]);
         let z_two_n = z_challenge.pow(&[2 * n as u64]);
@@ -337,53 +327,51 @@ impl<E: PairingEngine> Proof<E> {
         scalars.push(z_two_n);
         points.push(self.t_hi_comm.0);
 
-        scalars.extend(v_pow);
-        points.extend(vec![
-            d_comm,
-            self.a_comm.0,
-            self.b_comm.0,
-            self.c_comm.0,
-            preprocessed_circuit.left_sigma_comm().0,
-            preprocessed_circuit.right_sigma_comm().0,
-        ]);
+        scalars.push(E::Fr::one());
+        points.push(d_comm);
+
+        scalars.push(v.pow(&[2 as u64]));
+        points.push(self.a_comm.0);
+
+        scalars.push(v.pow(&[3 as u64]));
+        points.push(self.b_comm.0);
+
+        scalars.push(v.pow(&[4 as u64]));
+        points.push(self.c_comm.0);
+
+        scalars.push(v.pow(&[5 as u64]));
+        points.push(preprocessed_circuit.left_sigma_comm().0);
+
+        scalars.push(v.pow(&[6 as u64]));
+        points.push(preprocessed_circuit.right_sigma_comm().0);
 
         let scalars: Vec<_> = scalars.iter().map(|s| s.into_repr()).collect();
 
-        VariableBaseMSM::multi_scalar_mul(&points, &scalars).into_affine()
+        VariableBaseMSM::multi_scalar_mul(&points, &scalars)
     }
     fn compute_batch_evaluation_commitment(
         &self,
-        z_challenge: E::Fr,
         u: E::Fr,
         v: E::Fr,
         t_eval: E::Fr,
-        preprocessed_circuit: &PreProcessedCircuit<E>,
         vk: &VerifierKey<E>,
-    ) -> E::G1Affine {
-        let n = preprocessed_circuit.n;
-
-        let mut v_pow: Vec<E::Fr> = Vec::with_capacity(6);
-        v_pow.push(E::Fr::one());
-        for i in 1..=7 {
-            v_pow[i] = v_pow[i - 1] * &v;
-        }
-
-        // All components of batch evaluation commitment after the quotient evaluation, without the opening challenge
+    ) -> E::G1Projective {
         let x = vec![
-            self.lin_poly_eval,
-            self.a_eval,
-            self.b_eval,
-            self.c_eval,
-            self.left_sigma_eval,
-            self.right_sigma_eval,
-            (u * &self.z_hat_eval),
+            (E::Fr::one(), t_eval),
+            (v, self.lin_poly_eval),
+            (v.pow(&[2 as u64]), self.a_eval),
+            (v.pow(&[3 as u64]), self.b_eval),
+            (v.pow(&[4 as u64]), self.c_eval),
+            (v.pow(&[5 as u64]), self.left_sigma_eval),
+            (v.pow(&[6 as u64]), self.right_sigma_eval),
+            (v.pow(&[7 as u64]), u * &self.z_hat_eval),
         ];
 
-        let mut result = t_eval;
-        for (i, j) in v_pow.into_iter().zip(x.iter()) {
-            result += &(i * j);
+        let mut result = E::Fr::zero();
+        for (i, j) in x.iter() {
+            result += &(*i * j);
         }
 
-        vk.g.into_projective().mul(&result).into_affine()
+        vk.g.into_projective().mul(&result)
     }
 }

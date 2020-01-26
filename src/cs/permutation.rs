@@ -211,6 +211,7 @@ impl<E: PairingEngine> Permutation<E> {
     where
         R: RngCore + CryptoRng,
     {
+        //
         let z_coefficients = self.compute_fast_permutation_poly(domain, w_l, w_r, w_o, beta, gamma);
 
         // Compute permutation polynomial, the shifted version and blind it
@@ -221,13 +222,7 @@ impl<E: PairingEngine> Permutation<E> {
         let mut shifted_z_poly =
             Polynomial::from_coefficients_vec(domain.ifft(&shifted_z_coefficients));
 
-        // Compute blinding polynomial
-        let z_blinder = Polynomial::rand(2, &mut rng).mul_by_vanishing_poly(*domain);
-
-        let z_poly_blinded = &z_poly + &z_blinder;
-        let shifted_z_poly_blinded = &shifted_z_poly + &z_blinder;
-
-        (z_poly_blinded, shifted_z_poly_blinded)
+        (z_poly, shifted_z_poly)
     }
     // shifts the polynomials by one root of unity
     fn shift_poly_by_one(&self, z_coefficients: Vec<E::Fr>) -> Vec<E::Fr> {
@@ -1000,6 +995,15 @@ mod test {
             &(beta, gamma),
         );
         for element in domain.elements() {
+            let z_eval = z_x.evaluate(element * &domain.group_gen);
+            let shifted_z_eval = z_xw.evaluate(element);
+
+            assert_eq!(z_eval, shifted_z_eval)
+        }
+
+        for _ in (0..100) {
+            let element = Fr::rand(&mut rand::thread_rng());
+
             let z_eval = z_x.evaluate(element * &domain.group_gen);
             let shifted_z_eval = z_xw.evaluate(element);
 

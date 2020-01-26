@@ -27,9 +27,8 @@ impl<E: PairingEngine> QuotientToolkit<E> {
         z_poly: &Polynomial<E::Fr>,
         shifted_z_poly: &Polynomial<E::Fr>,
         w_poly: [&Polynomial<E::Fr>; 3],
-        public_input_poly: &Polynomial<E::Fr>,
         (alpha, beta, gamma): &(E::Fr, E::Fr, E::Fr),
-    ) -> (Polynomial<E::Fr>, Polynomial<E::Fr>, Polynomial<E::Fr>) {
+    ) -> (Polynomial<E::Fr>) {
         let n = domain.size();
         let k1 = E::Fr::multiplicative_generator();
         let k2 = E::Fr::from_repr(13.into());
@@ -59,7 +58,6 @@ impl<E: PairingEngine> QuotientToolkit<E> {
             w_l_poly,
             w_r_poly,
             w_o_poly,
-            &public_input_poly,
         );
         let t_2 = self.compute_quotient_second_component(
             domain,
@@ -72,7 +70,7 @@ impl<E: PairingEngine> QuotientToolkit<E> {
             &w_r_gamma_poly,
             &w_o_gamma_poly,
         );
-        let t_3 = self.compute_quotient_third_component(
+        let mut t_3 = self.compute_quotient_third_component(
             domain,
             &alpha_sq_poly,
             beta,
@@ -84,18 +82,13 @@ impl<E: PairingEngine> QuotientToolkit<E> {
             preprocessed_circuit.right_sigma_poly(),
             preprocessed_circuit.out_sigma_poly(),
         );
+        t_3 = &t_2 + &t_3;
+        let (t_2_3, _) = Polynomial::from_coefficients_vec(t_3.coeffs)
+            .divide_by_vanishing_poly(*domain)
+            .unwrap();
         let t_4 = self.compute_quotient_fourth_component(domain, z_poly, alpha_cu_poly);
 
-        let t_x_0 = &t_1 + &t_2;
-        assert_eq!(t_x_0.degree(), 3 * n + 5);
-        let t_x_1 = &t_3 + &t_4;
-        assert_eq!(t_x_1.degree(), 3 * n + 5);
-
-        // XXX: Adding all components in one variable using AddAsign produces a panic
-        let t_x = &t_x_0 + &t_x_1;
-
-        let (t_lo, t_mid, t_hi) = self.split_tx_poly(n, &t_x);
-        (t_lo, t_mid, t_hi)
+        &(&t_1 + &t_2_3) + &t_4
     }
 
     fn compute_quotient_first_component(
@@ -110,7 +103,6 @@ impl<E: PairingEngine> QuotientToolkit<E> {
         w_l_poly: &Polynomial<E::Fr>,
         w_r_poly: &Polynomial<E::Fr>,
         w_o_poly: &Polynomial<E::Fr>,
-        public_input_poly: &Polynomial<E::Fr>,
     ) -> Polynomial<E::Fr> {
         let n = domain.size();
 
@@ -129,16 +121,13 @@ impl<E: PairingEngine> QuotientToolkit<E> {
         //c(X)q_O(X)
         let a_4 = w_o_poly * q_o_poly;
         //
-        // PI(x) + Q_C(X)
-        let a_5 = public_input_poly + q_c_poly;
-
         let mut a = &a_1 + &a_2; // (a(x)b(x)q_M(x) + a(x)q_L(x)
         a += &a_3; // (a(x)b(x)q_M(x) + a(x)q_L(x) + b(X)q_R(x)
         a += &a_4; // (a(x)b(x)q_M(x) + a(x)q_L(x) + b(X)q_R(x) + c(X)q_O(X)
-        a += &a_5; // (a(x)b(x)q_M(x) + a(x)q_L(x) + b(X)q_R(x) + c(X)q_O(X) + PI(X) + Q_C(X))
+        a += q_c_poly; // (a(x)b(x)q_M(x) + a(x)q_L(x) + b(X)q_R(x) + c(X)q_O(X) +  Q_C(X))
 
         a = &a * &alpha_poly; // (a(x)b(x)q_M(x) + a(x)q_L(x) + b(X)q_R(x) + c(X)q_O(X) + PI(X) + Q_C(X)) * alpha
-        let (q, _) = a.divide_by_vanishing_poly(*domain).unwrap(); // ((a(x)b(x)q_M(x) + a(x)q_L(x) + b(X)q_R(x) + c(X)q_O(X) + PI(X) + Q_C(X)) * alpha) / Z_H
+        let (q, _) = a.divide_by_vanishing_poly(*domain).unwrap(); // ((a(x)b(x)q_M(x) + a(x)q_L(x) + b(X)q_R(x) + c(X)q_O(X) + Q_C(X)) * alpha) / Z_H
 
         assert_eq!(q.degree(), 2 * n + 1);
 
@@ -179,11 +168,7 @@ impl<E: PairingEngine> QuotientToolkit<E> {
         a = &a * &a_3; // (a(x) + beta * X + gamma) (b(X) + beta * k1 * X + gamma) (c(X) + beta * k2 * X + gamma)
         a = &a * z_poly; // (a(x) + beta * X + gamma) (b(X) + beta * k1 * X + gamma) (c(X) + beta * k2 * X + gamma)z(X)
         a = &a * alpha_sq_poly; // (a(x) + beta * X + gamma) (b(X) + beta * k1 * X + gamma) (c(X) + beta * k2 * X + gamma)z(X) * alpha^2
-        let (q, _) = a.divide_by_vanishing_poly(*domain).unwrap(); // (a(x) + beta * X + gamma) (b(X) + beta * k1 * X + gamma) (c(X) + beta * k2 * X + gamma)z(X) * alpha^2 / Z_H
-
-        assert_eq!(q.degree(), 3 * n + 5);
-
-        q
+        a // (a(x) + beta * X + gamma) (b(X) + beta * k1 * X + gamma) (c(X) + beta * k2 * X + gamma)z(X) * alpha^2
     }
 
     fn compute_quotient_third_component(
@@ -225,10 +210,7 @@ impl<E: PairingEngine> QuotientToolkit<E> {
         a = &a * shifted_z_poly; // (a(x) + beta * Sigma1(X) + gamma) (b(X) + beta * Sigma2(X) + gamma) (c(X) + beta * Sigma3(X) + gamma) Z(X.omega)
 
         a = &a * &alpha_sq_poly; // (a(x) + beta* Sigma1(X) + gamma) (b(X) + beta * Sigma2(X) + gamma) (c(X) + beta * Sigma3(X) + gamma) Z(X.omega) * alpha^2
-        let (q, _) = a.divide_by_vanishing_poly(*domain).unwrap(); // (a(x) + beta * Sigma1(X) + gamma) (b(X) + beta * Sigma2(X) + gamma) (c(X) + beta * Sigma3(X) + gamma) Z(X.omega) * alpha^2 / Z_H
-
-        assert_eq!(q.degree(), 3 * n + 5);
-        -q
+        -a // (a(x) + beta * Sigma1(X) + gamma) (b(X) + beta * Sigma2(X) + gamma) (c(X) + beta * Sigma3(X) + gamma) Z(X.omega) * alpha^2
     }
 
     fn compute_quotient_fourth_component(
@@ -242,8 +224,8 @@ impl<E: PairingEngine> QuotientToolkit<E> {
         let mut k = z_poly - &Polynomial::from_coefficients_slice(&[E::Fr::from(1)]);
         k = &k * &self.compute_first_lagrange_poly(n);
         k = &k * &alpha_cu_poly;
-        k.divide_by_vanishing_poly(*domain).unwrap();
-        k
+        let (q, _) = k.divide_by_vanishing_poly(*domain).unwrap();
+        q
     }
 
     /// Computes the Lagrange polynomial `L1(X)`.
@@ -267,60 +249,6 @@ impl<E: PairingEngine> QuotientToolkit<E> {
         assert_eq!(r, Polynomial::zero());
         q
     }
-
-    // Split `t(X)` poly into three degree-n polynomials.
-    pub fn split_tx_poly(
-        &self,
-        n: usize,
-        t_x: &Polynomial<E::Fr>,
-    ) -> (Polynomial<E::Fr>, Polynomial<E::Fr>, Polynomial<E::Fr>) {
-        (
-            Polynomial::from_coefficients_slice(&t_x[0..n]),
-            Polynomial::from_coefficients_slice(&t_x[n..2 * n]),
-            Polynomial::from_coefficients_slice(&t_x[2 * n..]),
-        )
-    }
-
-    // Evaluates the splited quotient polynomial at a certain point.
-    // NOTE that the splited parts are `t_lo`, `t_mid`, `t_hi`.
-    pub fn eval_splited_quotient_poly(
-        &self,
-        split_qp: &[Polynomial<E::Fr>; 3],
-        n: usize,
-        scalar: &E::Fr,
-    ) -> E::Fr {
-        let pows = vec![
-            E::Fr::one(),
-            scalar.pow(&[n as u64]),
-            scalar.pow(&[2 * n as u64]),
-        ];
-        let evaluations: Vec<E::Fr> = split_qp
-            .into_par_iter()
-            .zip(pows)
-            .map(|(poly, pow)| pow * &poly.evaluate(*scalar))
-            .collect();
-        // Since `Slice<E::Fr>` does not support `Sum()` we add it with
-        // a for loop.
-        let mut res = E::Fr::zero();
-        for eval in &evaluations {
-            res = res + eval;
-        }
-        res
-    }
-
-    // Evaluates the quotient polynomial at a certain point.
-    pub fn eval_quotient_poly(
-        &self,
-        quot_poly: &Polynomial<E::Fr>,
-        scalar: &E::Fr,
-        n: usize,
-    ) -> E::Fr {
-        let split_qp = {
-            let (t_lo, t_mid, t_hi) = self.split_tx_poly(n, &quot_poly);
-            [t_lo, t_mid, t_hi]
-        };
-        self.eval_splited_quotient_poly(&split_qp, n, scalar)
-    }
 }
 
 #[cfg(test)]
@@ -328,42 +256,6 @@ mod test {
     use super::*;
     use algebra::curves::bls12_381::Bls12_381 as E;
     use algebra::fields::bls12_381::Fr;
-
-    #[test]
-    fn test_split_poly() {
-        let n = 4;
-
-        // Compute random point
-        use algebra::UniformRand;
-        let rand_point = Fr::rand(&mut rand::thread_rng());
-        let rand_point_n = rand_point.pow(&[n as u64]);
-        let rand_point_2n = rand_point.pow(&[2 * n as u64]);
-
-        // Generate a random quotient polynomial
-        let t_x = Polynomial::rand(3 * n, &mut rand::thread_rng());
-        let t_x_eval = t_x.evaluate(rand_point);
-
-        // Split t(x) into 3 n-degree polynomials
-        let toolkit: QuotientToolkit<E> = QuotientToolkit::new();
-        let (t_lo, t_mid, t_hi) = toolkit.split_tx_poly(n, &t_x);
-
-        // Evaluate n-degree polynomials
-        let t_lo_eval = t_lo.evaluate(rand_point);
-
-        let mut t_mid_eval = t_mid.evaluate(rand_point);
-        t_mid_eval = t_mid_eval * &rand_point_n;
-
-        let mut t_hi_eval = t_hi.evaluate(rand_point);
-        t_hi_eval = t_hi_eval * &rand_point_2n;
-
-        let mut t_components_eval = t_lo_eval + &t_mid_eval;
-        t_components_eval += &t_hi_eval;
-
-        let eval_test = toolkit.eval_quotient_poly(&t_x, &rand_point, n);
-
-        assert_eq!(t_x_eval, t_components_eval);
-        assert_eq!(t_x_eval, eval_test);
-    }
 
     #[test]
     fn test_l1_x_poly() {

@@ -35,11 +35,12 @@ impl<E: PairingEngine> commitmentOpener<E> {
         let mut evaluations = evaluations.to_vec();
 
         // Compute 1,v, v^2, v^3,..v^7
-        let mut v_pow: Vec<E::Fr> = Vec::with_capacity(6);
+        let mut v_pow: Vec<E::Fr> = Vec::with_capacity(7);
         v_pow.push(E::Fr::one());
         for i in 1..=7 {
-            v_pow[i] = v_pow[i - 1] * &v;
+            v_pow.push(v_pow[i - 1] * &v);
         }
+        assert_eq!(8, v_pow.len());
 
         let v_7 = v_pow.pop().unwrap();
         let z_eval = evaluations.pop().unwrap(); // XXX: For better readability, we should probably have an evaluation struct. It is a vector so that we can iterate in compute_challenge_poly_eval
@@ -47,8 +48,6 @@ impl<E: PairingEngine> commitmentOpener<E> {
         // Compute z^n , z^2n
         let z_n = z_challenge.pow(&[n as u64]);
         let z_two_n = z_challenge.pow(&[2 * n as u64]);
-
-        let shifted_z = z_challenge * &root_of_unity;
 
         let quotient_open_poly =
             self.compute_quotient_opening_poly(t_lo, t_mid, t_hi, z_n, z_two_n);
@@ -69,7 +68,10 @@ impl<E: PairingEngine> commitmentOpener<E> {
         let W_z = self.compute_witness_polynomial(&k, z_challenge);
 
         // Compute shifted polynomial
-        let W_zw = self.compute_shifted_polynomial(v_7, z_poly, z_eval, shifted_z);
+        let shifted_z = z_challenge * &root_of_unity;
+
+        let mut W_zw = self.compute_witness_polynomial(z_poly, shifted_z);
+        W_zw = &W_zw * &Polynomial::from_coefficients_vec(vec![v_7]);
 
         (W_z, W_zw)
     }
@@ -85,32 +87,11 @@ impl<E: PairingEngine> commitmentOpener<E> {
         let poly_zn = Polynomial::from_coefficients_slice(&[z_n]);
         let poly_z_two_n = Polynomial::from_coefficients_slice(&[z_two_n]);
 
-        let zn_tmid_poly = t_mid * &poly_zn;
-        let z_two_n_thi_poly = t_hi * &poly_z_two_n;
+        let a = t_lo;
+        let b = t_mid * &poly_zn;
+        let c = t_hi * &poly_z_two_n;
 
-        &(&z_two_n_thi_poly + &zn_tmid_poly) + t_lo
-    }
-
-    fn compute_shifted_polynomial(
-        &self,
-        v_7: E::Fr,
-        z_poly: &Polynomial<E::Fr>,
-        z_eval: E::Fr,
-        shifted_z: E::Fr,
-    ) -> Polynomial<E::Fr> {
-        let poly_z_eval = Polynomial::from_coefficients_slice(&[z_eval]);
-        let poly_v_7 = Polynomial::from_coefficients_slice(&[v_7]);
-
-        // Z(X) - z_eval
-        let z_minus_z_eval = z_poly - &poly_z_eval;
-
-        // v^7(Z(X) - z_eval)
-        let t = &poly_v_7 * &z_minus_z_eval;
-
-        // X - zw
-        let divisor = Polynomial::from_coefficients_vec(vec![-shifted_z, E::Fr::one()]);
-
-        &t / &divisor
+        &(a + &b) + &c
     }
 
     // computes sum [ challenge[i] * (polynomial[i] - evaluations[i])]
@@ -120,23 +101,24 @@ impl<E: PairingEngine> commitmentOpener<E> {
         polynomials: Vec<&Polynomial<E::Fr>>,
         evaluations: Vec<E::Fr>,
     ) -> Polynomial<E::Fr> {
-        let sum = izip!(
-            challenges.into_iter(),
-            polynomials.into_iter(),
-            evaluations.into_iter()
-        )
-        .map(|(v, poly, eval)| {
-            let poly_eval = Polynomial::from_coefficients_slice(&[eval]);
-            let poly_v = Polynomial::from_coefficients_slice(&[v]);
+        let x: Vec<_> = challenges
+            .into_iter()
+            .zip(polynomials.into_iter())
+            .zip(evaluations.into_iter())
+            .map(|((v, poly), eval)| {
+                let poly_eval = Polynomial::from_coefficients_slice(&[eval]);
+                let poly_v = Polynomial::from_coefficients_slice(&[v]);
 
-            let poly_minus_eval = poly - &poly_eval;
+                let poly_minus_eval = poly - &poly_eval;
 
-            &poly_v * &poly_minus_eval
-        })
-        .fold(Polynomial::zero(), |mut acc, val| {
-            acc += &val;
-            acc
-        });
+                &poly_v * &poly_minus_eval
+            })
+            .collect();
+
+        let mut sum = Polynomial::zero();
+        for poly in x.iter() {
+            sum = &sum + poly;
+        }
 
         sum
     }
