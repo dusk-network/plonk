@@ -16,17 +16,16 @@ impl<E: PairingEngine> lineariser<E> {
     }
     pub fn evaluate_linearisation_polynomial(
         &self,
-        transcript: &mut TranscriptProtocol<E>,
+        transcript: &mut dyn TranscriptProtocol<E>,
         domain: &EvaluationDomain<E::Fr>,
         preprocessed_circuit: &PreProcessedCircuit<E>,
         (alpha, beta, gamma, z_challenge): &(E::Fr, E::Fr, E::Fr, E::Fr),
         w_l_poly: &Polynomial<E::Fr>,
         w_r_poly: &Polynomial<E::Fr>,
         w_o_poly: &Polynomial<E::Fr>,
-        t_lo: &Polynomial<E::Fr>,
-        t_mid: &Polynomial<E::Fr>,
-        t_hi: &Polynomial<E::Fr>,
+        t_x: &Polynomial<E::Fr>,
         z_poly: &Polynomial<E::Fr>,
+        shifted_z_poly: &Polynomial<E::Fr>,
     ) -> (Polynomial<E::Fr>, Vec<E::Fr>) {
         let alpha_sq = alpha.square();
         let alpha_cu = *alpha * &alpha_sq;
@@ -45,22 +44,13 @@ impl<E: PairingEngine> lineariser<E> {
             .evaluate(*z_challenge);
 
         // Evaluate quotient poly
-        // Evaluate t_lo
-        let t_lo_eval = t_lo.evaluate(*z_challenge);
-        // Evaluate t_mid
-        let z_n = z_challenge.pow(&[domain.size() as u64]);
-        let t_mid_eval = t_mid.evaluate(*z_challenge);
-        let quot_mid = z_n * &t_mid_eval;
-        // Evaluate t_hi
-        let z_two_n = z_challenge.pow(&[2 * domain.size() as u64]);
-        let t_hi_eval = t_hi.evaluate(*z_challenge);
-        let quot_hi = z_two_n * &t_hi_eval;
-        //
-        let mut quot_eval = t_lo_eval + &quot_mid;
-        quot_eval += &quot_hi;
+        let t_x_1 = Polynomial::from_coefficients_slice(t_x);
+
+        let quot_eval = t_x_1.evaluate(*z_challenge);
 
         // Evaluate permutation poly_commit
         let perm_eval = z_poly.evaluate(*z_challenge * &domain.group_gen);
+        assert_eq!(shifted_z_poly.evaluate(*z_challenge), perm_eval);
 
         let f_1 = self.compute_first_component(
             *alpha,
@@ -86,22 +76,18 @@ impl<E: PairingEngine> lineariser<E> {
         );
 
         let f_3 = self.compute_third_component(
-            a_eval,
-            b_eval,
-            c_eval,
+            (a_eval, b_eval),
             perm_eval,
             sig_1_eval,
             sig_2_eval,
-            alpha_sq,
-            *beta,
-            *gamma,
+            (alpha_sq, *beta, *gamma),
             preprocessed_circuit.out_sigma_poly(),
         );
 
         let f_4 = self.compute_fourth_component(domain, *z_challenge, alpha_cu, z_poly);
 
         let mut lin_poly = &f_1 + &f_2;
-        lin_poly -= &f_3;
+        lin_poly += &f_3;
         lin_poly += &f_4;
 
         // Evaluate linearisation polynomial at z_challenge
@@ -140,7 +126,6 @@ impl<E: PairingEngine> lineariser<E> {
         let poly_alpha = Polynomial::from_coefficients_vec(vec![alpha]);
 
         // a_eval * b_eval * q_m_poly
-        let ab = a_eval * &b_eval;
         let poly_ab = &poly_a * &poly_b;
         let a_0 = &poly_ab * q_m_poly;
 
@@ -157,7 +142,7 @@ impl<E: PairingEngine> lineariser<E> {
         a += &a_2;
         a += &a_3;
         a += q_c_poly;
-        a = &a * &poly_alpha; // (a_eval * b_eval * q_m_poly + a_eval * q_l + b_eval * q_r + c_eval * q_o) * alpha
+        a = &a * &poly_alpha; // (a_eval * b_eval * q_m_poly + a_eval * q_l + b_eval * q_r + c_eval * q_o + q_c) * alpha
 
         a
     }
@@ -202,15 +187,11 @@ impl<E: PairingEngine> lineariser<E> {
     }
     fn compute_third_component(
         &self,
-        a_eval: E::Fr,
-        b_eval: E::Fr,
-        c_eval: E::Fr,
+        (a_eval, b_eval): (E::Fr, E::Fr),
         z_eval: E::Fr,
         sigma_1_eval: E::Fr,
         sigma_2_eval: E::Fr,
-        alpha_sq: E::Fr,
-        beta: E::Fr,
-        gamma: E::Fr,
+        (alpha_sq, beta, gamma): (E::Fr, E::Fr, E::Fr),
         out_sigma_poly: &Polynomial<E::Fr>,
     ) -> Polynomial<E::Fr> {
         // a_eval + beta * sigma_1 + gamma
@@ -231,7 +212,7 @@ impl<E: PairingEngine> lineariser<E> {
 
         let poly_a = Polynomial::from_coefficients_vec(vec![a]);
 
-        &poly_a * out_sigma_poly
+        -(&poly_a * out_sigma_poly)
     }
     fn compute_fourth_component(
         &self,
@@ -332,7 +313,6 @@ mod test {
 
         let a_eval = Fr::one();
         let b_eval = Fr::one();
-        let c_eval = Fr::one();
         let sig1_eval = Fr::one();
         let sig2_eval = Fr::one();
         let z_eval = Fr::one();
@@ -340,7 +320,12 @@ mod test {
         let sig3_poly = Polynomial::rand(10, &mut rand::thread_rng());
 
         let got_poly = lin.compute_third_component(
-            a_eval, b_eval, c_eval, z_eval, sig1_eval, sig2_eval, alpha, beta, gamma, &sig3_poly,
+            (a_eval, b_eval),
+            z_eval,
+            sig1_eval,
+            sig2_eval,
+            (alpha, beta, gamma),
+            &sig3_poly,
         );
 
         let first_bracket = Polynomial::from_coefficients_vec(vec![Fr::from(3 as u8)]);
@@ -351,7 +336,7 @@ mod test {
         expected_poly = &expected_poly * &third_bracket;
         expected_poly = &expected_poly * &sig3_poly;
 
-        assert_eq!(got_poly, expected_poly);
+        assert_eq!(got_poly, -expected_poly);
     }
     #[test]
     fn test_fourth_component() {
