@@ -176,15 +176,17 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
 
         // Compute Quotient polynomial.
         let qt_toolkit = QuotientToolkit::new();
-        let (t_hi_poly, t_mid_poly, t_low_poly) = qt_toolkit.compute_quotient_poly(
+        let (t_x) = qt_toolkit.compute_quotient_poly(
             &domain,
             &preprocessed_circuit,
             &z_poly,
             &z_poly_shifted,
             [&w_l_poly, &w_r_poly, &w_o_poly],
-            &Polynomial::zero(),
             &(alpha, beta, gamma),
         );
+
+        let (t_low_poly, t_mid_poly, t_hi_poly) = self.split_tx_poly(domain.size(), &t_x);
+
         // Commit polynomials.
         let t_low_commit = srs::commit(commit_key, &t_low_poly);
         let t_mid_commit = srs::commit(commit_key, &t_mid_poly);
@@ -207,11 +209,29 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
             &w_l_poly,
             &w_r_poly,
             &w_o_poly,
-            &t_low_poly,
-            &t_mid_poly,
-            &t_hi_poly,
+            &t_x,
             &z_poly,
+            &z_poly_shifted,
         );
+
+        let a_eval = evaluations[0];
+        let b_eval = evaluations[1];
+        let c_eval = evaluations[2];
+        let left_sigma_eval = evaluations[3];
+        let right_sigma_eval = evaluations[4];
+        let quot_eval = evaluations[5];
+        let lin_poly_eval = evaluations[6];
+        let z_hat_eval = evaluations[7];
+
+        // Add evaluations to transcript
+        transcript.append_scalar(b"a_eval", &a_eval);
+        transcript.append_scalar(b"b_eval", &b_eval);
+        transcript.append_scalar(b"c_eval", &c_eval);
+        transcript.append_scalar(b"left_sig_eval", &left_sigma_eval);
+        transcript.append_scalar(b"right_sig_eval", &right_sigma_eval);
+        transcript.append_scalar(b"z_hat_eval", &z_hat_eval);
+        transcript.append_scalar(b"t_eval", &quot_eval);
+        transcript.append_scalar(b"r_eval", &lin_poly_eval);
 
         // Compute opening challenge `v`
         let v = transcript.challenge_scalar(b"v");
@@ -250,20 +270,13 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
             t_hi_comm: t_hi_commit,
             w_z_comm: w_z_comm,
             w_zw_comm: w_z_x_comm,
-            a_eval: evaluations[0],
-            b_eval: evaluations[1],
-            c_eval: evaluations[2],
-            left_sigma_eval: evaluations[3],
-            right_sigma_eval: evaluations[4],
-            lin_poly_eval: evaluations[6],
-            z_hat_eval: evaluations[7],
-
-            // DEBUG VALUES, DELETE ONCE TEST PASSES
-            debug_t_eval: evaluations[5],
-            debug_z: z_challenge,
-            debug_alpha: alpha,
-            debug_beta: beta,
-            debug_gamma: gamma,
+            a_eval: a_eval,
+            b_eval: b_eval,
+            c_eval: c_eval,
+            left_sigma_eval: left_sigma_eval,
+            right_sigma_eval: right_sigma_eval,
+            lin_poly_eval: lin_poly_eval,
+            z_hat_eval: z_hat_eval,
         }
     }
 
@@ -275,6 +288,19 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
 impl<E: PairingEngine> StandardComposer<E> {
     pub fn new() -> Self {
         StandardComposer::with_expected_size(0)
+    }
+
+    // Split `t(X)` poly into three degree-n polynomials.
+    pub fn split_tx_poly(
+        &self,
+        n: usize,
+        t_x: &Polynomial<E::Fr>,
+    ) -> (Polynomial<E::Fr>, Polynomial<E::Fr>, Polynomial<E::Fr>) {
+        (
+            Polynomial::from_coefficients_slice(&t_x[0..n]),
+            Polynomial::from_coefficients_slice(&t_x[n..2 * n]),
+            Polynomial::from_coefficients_slice(&t_x[2 * n..]),
+        )
     }
 
     // Creates a new circuit with an expected circuit size
@@ -508,13 +534,12 @@ mod tests {
     fn test_prove_verify() {
         // Common View
         //
-        let mut composer: StandardComposer<Bls12_381> = add_dummy_composer(2);
+        let mut composer: StandardComposer<Bls12_381> = add_dummy_composer(7);
         // setup srs
         // XXX: We have 2 *n here because the blinding polynomials add a few extra terms to the degree, so it's more than n, we can adjust this later on to be less conservative
         let public_parameters = srs::setup(2 * composer.n.next_power_of_two());
         let (ck, vk) = srs::trim(&public_parameters, 2 * composer.n.next_power_of_two()).unwrap();
         let domain = EvaluationDomain::new(composer.n).unwrap();
-
         // Provers View
         //
         let proof = {
