@@ -1,7 +1,6 @@
 /target
 **/*.rs.bk
 notes.md
-Cargo.lock
 scrap.rs
 kzg10.rs
 design.md

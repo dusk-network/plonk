@@ -247,7 +247,6 @@ impl<E: PairingEngine> QuotientToolkit<E> {
             .divide_with_q_and_r(&denominator_poly)
             .unwrap();
         assert_eq!(r, Polynomial::zero());
-
         q
     }
 }
@@ -274,5 +273,11 @@ mod test {
 
         assert_eq!(expected_l1_eval, got_l1_eval);
         assert_eq!(Fr::one(), q.evaluate(Fr::one()))
+    }
+    #[test]
+    fn test_lagrange_poly_comp() {
+        let toolkit: QuotientToolkit<E> = QuotientToolkit::new();
+        let lag_pol = toolkit.compute_first_lagrange_poly(1);
+        println!("{:?}", lag_pol);
     }
 }

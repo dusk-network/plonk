@@ -78,11 +78,11 @@ impl<E: PairingEngine> Permutation<E> {
         let right: WireData = WireData::new(n, WireType::Right);
         let output: WireData = WireData::new(n, WireType::Output);
 
-        // Map each variable to the wires it is assosciated with
-        // This essentially tells use that:
+        // Map each variable to the wires it iscomp assosciated with
+        // This essentially tells us that:
         // Variable `a` is being used in the n'th gate as a left wire
         // Variable `b` is being used in the n'th gate as a right wire
-        // Variable `c` is being used in the n'th gate as a output wire
+        // Variable `c` is being used in the n'th gate as an output wire
         self.variable_map[a.0].push(left);
         self.variable_map[b.0].push(right);
         self.variable_map[c.0].push(output);
