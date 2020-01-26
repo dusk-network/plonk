@@ -59,27 +59,27 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
         self.pad(domain.size as usize - self.n);
 
         // 2. Convert selector vectors to selector polynomials
-        let q_m_poly = Polynomial::from_coefficients_vec(domain.ifft(&self.q_m));
-        let q_l_poly = Polynomial::from_coefficients_vec(domain.ifft(&self.q_l));
-        let q_r_poly = Polynomial::from_coefficients_vec(domain.ifft(&self.q_r));
-        let q_o_poly = Polynomial::from_coefficients_vec(domain.ifft(&self.q_o));
-        let q_c_poly = Polynomial::from_coefficients_vec(domain.ifft(&self.q_c));
+        let q_m_coeffs = domain.ifft(&self.q_m);
+        let q_l_coeffs = domain.ifft(&self.q_l);
+        let q_r_coeffs = domain.ifft(&self.q_r);
+        let q_o_coeffs = domain.ifft(&self.q_o);
+        let q_c_coeffs = domain.ifft(&self.q_c);
 
         // 3. Compute the sigma polynomials
-        let (left_sigma_poly, right_sigma_poly, out_sigma_poly) =
+        let (left_sigma_coeffs, right_sigma_coeffs, out_sigma_coeffs) =
             self.perm.compute_sigma_polynomials(self.n, domain);
 
         // 4. Commit to polynomials
         //
-        let q_m_poly_commit = srs::commit(commit_key, &q_m_poly.coeffs);
-        let q_l_poly_commit = srs::commit(commit_key, &q_l_poly.coeffs);
-        let q_r_poly_commit = srs::commit(commit_key, &q_r_poly.coeffs);
-        let q_o_poly_commit = srs::commit(commit_key, &q_o_poly.coeffs);
-        let q_c_poly_commit = srs::commit(commit_key, &q_c_poly.coeffs);
+        let q_m_poly_commit = srs::commit(commit_key, &q_m_coeffs);
+        let q_l_poly_commit = srs::commit(commit_key, &q_l_coeffs);
+        let q_r_poly_commit = srs::commit(commit_key, &q_r_coeffs);
+        let q_o_poly_commit = srs::commit(commit_key, &q_o_coeffs);
+        let q_c_poly_commit = srs::commit(commit_key, &q_c_coeffs);
 
-        let left_sigma_poly_commit = srs::commit(commit_key, &left_sigma_poly.coeffs);
-        let right_sigma_poly_commit = srs::commit(commit_key, &right_sigma_poly.coeffs);
-        let out_sigma_poly_commit = srs::commit(commit_key, &out_sigma_poly.coeffs);
+        let left_sigma_poly_commit = srs::commit(commit_key, &left_sigma_coeffs);
+        let right_sigma_poly_commit = srs::commit(commit_key, &right_sigma_coeffs);
+        let out_sigma_poly_commit = srs::commit(commit_key, &out_sigma_coeffs);
 
         //5. Add polynomial commitments to transcript
         //
@@ -99,15 +99,15 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
         PreProcessedCircuit {
             n: self.n,
             selectors: vec![
-                (q_m_poly, q_m_poly_commit),
-                (q_l_poly, q_l_poly_commit),
-                (q_r_poly, q_r_poly_commit),
-                (q_o_poly, q_o_poly_commit),
-                (q_c_poly, q_c_poly_commit),
+                (q_m_coeffs, q_m_poly_commit),
+                (q_l_coeffs, q_l_poly_commit),
+                (q_r_coeffs, q_r_poly_commit),
+                (q_o_coeffs, q_o_poly_commit),
+                (q_c_coeffs, q_c_poly_commit),
             ],
-            left_sigma: (left_sigma_poly, left_sigma_poly_commit),
-            right_sigma: (right_sigma_poly, right_sigma_poly_commit),
-            out_sigma: (out_sigma_poly, out_sigma_poly_commit),
+            left_sigma: (left_sigma_coeffs, left_sigma_poly_commit),
+            right_sigma: (right_sigma_coeffs, right_sigma_poly_commit),
+            out_sigma: (out_sigma_coeffs, out_sigma_poly_commit),
         }
     }
 
@@ -250,8 +250,8 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
             &w_l_poly,
             &w_r_poly,
             &w_o_poly,
-            &preprocessed_circuit.left_sigma_poly(),
-            &preprocessed_circuit.right_sigma_poly(),
+            &Polynomial::from_coefficients_slice(preprocessed_circuit.left_sigma_poly()),
+            &Polynomial::from_coefficients_slice(preprocessed_circuit.right_sigma_poly()),
             &z_poly,
             &v,
         );

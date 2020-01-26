@@ -36,12 +36,12 @@ impl<E: PairingEngine> lineariser<E> {
         let c_eval = w_o_poly.evaluate(*z_challenge);
 
         // Evaluate sigma1 and sigma2
-        let sig_1_eval = preprocessed_circuit
-            .left_sigma_poly()
-            .evaluate(*z_challenge);
-        let sig_2_eval = preprocessed_circuit
-            .right_sigma_poly()
-            .evaluate(*z_challenge);
+        let sig_1_eval =
+            Polynomial::from_coefficients_slice(preprocessed_circuit.left_sigma_poly())
+                .evaluate(*z_challenge);
+        let sig_2_eval =
+            Polynomial::from_coefficients_slice(preprocessed_circuit.right_sigma_poly())
+                .evaluate(*z_challenge);
 
         // Evaluate quotient poly
         let t_x_1 = Polynomial::from_coefficients_slice(t_x);
@@ -57,11 +57,11 @@ impl<E: PairingEngine> lineariser<E> {
             a_eval,
             b_eval,
             c_eval,
-            preprocessed_circuit.qm_poly(),
-            preprocessed_circuit.ql_poly(),
-            preprocessed_circuit.qr_poly(),
-            preprocessed_circuit.qo_poly(),
-            preprocessed_circuit.qc_poly(),
+            &Polynomial::from_coefficients_slice(preprocessed_circuit.qm_poly()),
+            &Polynomial::from_coefficients_slice(preprocessed_circuit.ql_poly()),
+            &Polynomial::from_coefficients_slice(preprocessed_circuit.qr_poly()),
+            &Polynomial::from_coefficients_slice(preprocessed_circuit.qo_poly()),
+            &Polynomial::from_coefficients_slice(preprocessed_circuit.qc_poly()),
         );
 
         let f_2 = self.compute_second_component(
@@ -81,7 +81,7 @@ impl<E: PairingEngine> lineariser<E> {
             sig_1_eval,
             sig_2_eval,
             (alpha_sq, *beta, *gamma),
-            preprocessed_circuit.out_sigma_poly(),
+            &Polynomial::from_coefficients_slice(preprocessed_circuit.out_sigma_poly()),
         );
 
         let f_4 = self.compute_fourth_component(domain, *z_challenge, alpha_cu, z_poly);

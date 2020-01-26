@@ -175,7 +175,7 @@ impl<E: PairingEngine> Permutation<E> {
         &mut self,
         n: usize,
         domain: &EvaluationDomain<E::Fr>,
-    ) -> (Polynomial<E::Fr>, Polynomial<E::Fr>, Polynomial<E::Fr>) {
+    ) -> (Vec<E::Fr>, Vec<E::Fr>, Vec<E::Fr>) {
         // Compute sigma mappings
         let sigmas = self.compute_sigma_permutations(n);
 
@@ -188,15 +188,15 @@ impl<E: PairingEngine> Permutation<E> {
         let right_sigma = self.compute_permutation_lagrange(&sigmas[1], domain);
         let out_sigma = self.compute_permutation_lagrange(&sigmas[2], domain);
 
-        let left_sigma_poly = Polynomial::from_coefficients_vec(domain.ifft(&left_sigma));
-        let right_sigma_poly = Polynomial::from_coefficients_vec(domain.ifft(&right_sigma));
-        let out_sigma_poly = Polynomial::from_coefficients_vec(domain.ifft(&out_sigma));
+        let left_sigma_coeffs = domain.ifft(&left_sigma);
+        let right_sigma_coeffs = domain.ifft(&right_sigma);
+        let out_sigma_coeffs = domain.ifft(&out_sigma);
 
         self.left_sigma_mapping = Some(left_sigma);
         self.right_sigma_mapping = Some(right_sigma);
         self.out_sigma_mapping = Some(out_sigma);
 
-        (left_sigma_poly, right_sigma_poly, out_sigma_poly)
+        (left_sigma_coeffs, right_sigma_coeffs, out_sigma_coeffs)
     }
 
     pub(crate) fn compute_permutation_poly<R>(

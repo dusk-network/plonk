@@ -19,41 +19,41 @@ use ff_fft::EvaluationDomain;
 use poly_commit::kzg10::Powers;
 use rand_core::{CryptoRng, RngCore};
 
-// Preprocessed circuit includes the commitment to the selector polynomials and the sigma polynomials
+// Preprocessed cirucit includes the commitment to the selector polynomials and the sigma polynomials
 pub struct PreProcessedCircuit<E: PairingEngine> {
     // The number of gates in the circuit
     n: usize,
-    // Selector polynomials q_m, q_l, q_r, q_o, q_c and their commitments
-    selectors: Vec<(Polynomial<E::Fr>, Commitment<E>)>,
+    // Selector polynomial coefficients q_m, q_l, q_r, q_o, q_c and their commitments
+    selectors: Vec<(Vec<E::Fr>, Commitment<E>)>,
 
     // Sigma polynomials and their commitments
-    left_sigma: (Polynomial<E::Fr>, Commitment<E>),
-    right_sigma: (Polynomial<E::Fr>, Commitment<E>),
-    out_sigma: (Polynomial<E::Fr>, Commitment<E>),
+    left_sigma: (Vec<E::Fr>, Commitment<E>),
+    right_sigma: (Vec<E::Fr>, Commitment<E>),
+    out_sigma: (Vec<E::Fr>, Commitment<E>),
 }
 impl<E: PairingEngine> PreProcessedCircuit<E> {
-    pub fn qm_poly(&self) -> &Polynomial<E::Fr> {
+    pub fn qm_poly(&self) -> &[E::Fr] {
         &self.selectors[0].0
     }
-    pub fn ql_poly(&self) -> &Polynomial<E::Fr> {
+    pub fn ql_poly(&self) -> &[E::Fr] {
         &self.selectors[1].0
     }
-    pub fn qr_poly(&self) -> &Polynomial<E::Fr> {
+    pub fn qr_poly(&self) -> &[E::Fr] {
         &self.selectors[2].0
     }
-    pub fn qo_poly(&self) -> &Polynomial<E::Fr> {
+    pub fn qo_poly(&self) -> &[E::Fr] {
         &self.selectors[3].0
     }
-    pub fn qc_poly(&self) -> &Polynomial<E::Fr> {
+    pub fn qc_poly(&self) -> &[E::Fr] {
         &self.selectors[4].0
     }
-    pub fn left_sigma_poly(&self) -> &Polynomial<E::Fr> {
+    pub fn left_sigma_poly(&self) -> &[E::Fr] {
         &self.left_sigma.0
     }
-    pub fn right_sigma_poly(&self) -> &Polynomial<E::Fr> {
+    pub fn right_sigma_poly(&self) -> &[E::Fr] {
         &self.right_sigma.0
     }
-    pub fn out_sigma_poly(&self) -> &Polynomial<E::Fr> {
+    pub fn out_sigma_poly(&self) -> &[E::Fr] {
         &self.out_sigma.0
     }
     pub fn qm_comm(&self) -> &Commitment<E> {
@@ -91,7 +91,7 @@ pub trait Composer<E: PairingEngine> {
         commit_key: &Powers<E>,
         transcript: &mut dyn TranscriptProtocol<E>,
         domain: &EvaluationDomain<E::Fr>,
-    ) -> (PreProcessedCircuit<E>);
+    ) -> PreProcessedCircuit<E>;
     fn prove<R: RngCore + CryptoRng>(
         &mut self,
         commit_key: &Powers<E>,

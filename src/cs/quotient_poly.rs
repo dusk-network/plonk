@@ -49,11 +49,11 @@ impl<E: PairingEngine> QuotientToolkit<E> {
         // Compute components for t(X)
         let t_1 = self.compute_quotient_first_component(
             domain,
-            preprocessed_circuit.qm_poly(),
-            preprocessed_circuit.ql_poly(),
-            preprocessed_circuit.qr_poly(),
-            preprocessed_circuit.qo_poly(),
-            preprocessed_circuit.qc_poly(),
+            &Polynomial::from_coefficients_slice(preprocessed_circuit.qm_poly()),
+            &Polynomial::from_coefficients_slice(preprocessed_circuit.ql_poly()),
+            &Polynomial::from_coefficients_slice(preprocessed_circuit.qr_poly()),
+            &Polynomial::from_coefficients_slice(preprocessed_circuit.qo_poly()),
+            &Polynomial::from_coefficients_slice(preprocessed_circuit.qc_poly()),
             alpha_poly,
             w_l_poly,
             w_r_poly,
@@ -78,9 +78,9 @@ impl<E: PairingEngine> QuotientToolkit<E> {
             &w_l_gamma_poly,
             &w_r_gamma_poly,
             &w_o_gamma_poly,
-            preprocessed_circuit.left_sigma_poly(),
-            preprocessed_circuit.right_sigma_poly(),
-            preprocessed_circuit.out_sigma_poly(),
+            &Polynomial::from_coefficients_slice(preprocessed_circuit.left_sigma_poly()),
+            &Polynomial::from_coefficients_slice(preprocessed_circuit.right_sigma_poly()),
+            &Polynomial::from_coefficients_slice(preprocessed_circuit.out_sigma_poly()),
         );
         t_3 = &t_2 + &t_3;
         let (t_2_3, _) = Polynomial::from_coefficients_vec(t_3.coeffs)
