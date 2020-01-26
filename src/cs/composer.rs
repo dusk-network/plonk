@@ -244,7 +244,7 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
             z_challenge,
             &lin_poly,
             &evaluations,
-            &t_lo_poly,
+            &t_low_poly,
             &t_mid_poly,
             &t_hi_poly,
             &w_l_poly,
