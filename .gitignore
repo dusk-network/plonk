@@ -5,3 +5,4 @@ Cargo.lock
 scrap.rs
 kzg10.rs
 design.md
+refactor_notes
