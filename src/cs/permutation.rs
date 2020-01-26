@@ -207,22 +207,23 @@ impl<E: PairingEngine> Permutation<E> {
         w_r: &[E::Fr],
         w_o: &[E::Fr],
         (beta, gamma): &(E::Fr, E::Fr),
-    ) -> (Polynomial<E::Fr>, Polynomial<E::Fr>)
+    ) -> (Vec<E::Fr>, Vec<E::Fr>)
     where
         R: RngCore + CryptoRng,
     {
         //
-        let z_coefficients = self.compute_fast_permutation_poly(domain, w_l, w_r, w_o, beta, gamma);
+        let z_evaluations = self.compute_fast_permutation_poly(domain, w_l, w_r, w_o, beta, gamma);
 
         // Compute permutation polynomial, the shifted version and blind it
-        let mut z_poly = Polynomial::from_coefficients_vec(domain.ifft(&z_coefficients));
+        let z_coeffs = domain.ifft(&z_evaluations);
+        let mut z_poly = Polynomial::from_coefficients_slice(&z_coeffs);
 
-        // Shift permutation coefficients by one and compute the shifted polynomial
-        let mut shifted_z_coefficients = self.shift_poly_by_one(z_coefficients);
-        let mut shifted_z_poly =
-            Polynomial::from_coefficients_vec(domain.ifft(&shifted_z_coefficients));
+        // Shift permutation evaluations by one and compute the shifted polynomial
+        let mut shifted_z_evaluations = self.shift_poly_by_one(z_evaluations);
+        let shifted_z_coeffs = domain.ifft(&shifted_z_evaluations);
+        let mut shifted_z_poly = Polynomial::from_coefficients_slice(&shifted_z_coeffs);
 
-        (z_poly, shifted_z_poly)
+        (z_coeffs, shifted_z_coeffs)
     }
     // shifts the polynomials by one root of unity
     fn shift_poly_by_one(&self, z_coefficients: Vec<E::Fr>) -> Vec<E::Fr> {
@@ -994,18 +995,21 @@ mod test {
             &w_o,
             &(beta, gamma),
         );
+        let z_x_poly = Polynomial::from_coefficients_vec(z_x);
+        let z_xw_poly = Polynomial::from_coefficients_vec(z_xw);
+
         for element in domain.elements() {
-            let z_eval = z_x.evaluate(element * &domain.group_gen);
-            let shifted_z_eval = z_xw.evaluate(element);
+            let z_eval = z_x_poly.evaluate(element * &domain.group_gen);
+            let shifted_z_eval = z_xw_poly.evaluate(element);
 
             assert_eq!(z_eval, shifted_z_eval)
         }
 
-        for _ in (0..100) {
+        for _ in 0..100 {
             let element = Fr::rand(&mut rand::thread_rng());
 
-            let z_eval = z_x.evaluate(element * &domain.group_gen);
-            let shifted_z_eval = z_xw.evaluate(element);
+            let z_eval = z_x_poly.evaluate(element * &domain.group_gen);
+            let shifted_z_eval = z_xw_poly.evaluate(element);
 
             assert_eq!(z_eval, shifted_z_eval)
         }
