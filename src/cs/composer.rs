@@ -159,7 +159,7 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
         let gamma = transcript.challenge_scalar(b"gamma");
 
         // compute Permutation polynomial
-        let (z_poly, z_poly_shifted) = self.perm.compute_permutation_poly(
+        let (z_coeffs, z_shifted_coeffs) = self.perm.compute_permutation_poly(
             &domain,
             rng,
             &w_l_scalar,
@@ -167,8 +167,10 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
             &w_o_scalar,
             &(beta, gamma),
         );
+        let z_poly = Polynomial::from_coefficients_slice(&z_coeffs);
+        let z_poly_shifted = Polynomial::from_coefficients_slice(&z_shifted_coeffs);
 
-        let z_poly_commit = srs::commit(commit_key, &z_poly.coeffs);
+        let z_poly_commit = srs::commit(commit_key, &z_coeffs);
         transcript.append_commitment(b"z", &z_poly_commit);
 
         // Compute Quotient challenge `alpha`
