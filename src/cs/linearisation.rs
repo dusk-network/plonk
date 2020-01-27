@@ -5,12 +5,12 @@ use algebra::{curves::PairingEngine, fields::Field};
 use ff_fft::{DensePolynomial as Polynomial, EvaluationDomain};
 use std::marker::PhantomData;
 
-pub struct lineariser<E: PairingEngine> {
+pub struct Lineariser<E: PairingEngine> {
     _engine: PhantomData<E>,
 }
-impl<E: PairingEngine> lineariser<E> {
+impl<E: PairingEngine> Lineariser<E> {
     pub fn new() -> Self {
-        lineariser {
+        Lineariser {
             _engine: PhantomData,
         }
     }
@@ -240,7 +240,7 @@ mod test {
     use std::str::FromStr;
     #[test]
     fn test_first_component() {
-        let lin: lineariser<E> = lineariser::new();
+        let lin: Lineariser<E> = Lineariser::new();
 
         let alpha = Fr::one();
         let a_eval = Fr::one();
@@ -266,7 +266,7 @@ mod test {
 
     #[test]
     fn test_second_component() {
-        let lin: lineariser<E> = lineariser::new();
+        let lin: Lineariser<E> = Lineariser::new();
 
         let k1 = Fr::multiplicative_generator();
         let k2 = Fr::from_str("13").unwrap();
@@ -305,7 +305,7 @@ mod test {
     }
     #[test]
     fn test_third_component() {
-        let lin: lineariser<E> = lineariser::new();
+        let lin: Lineariser<E> = Lineariser::new();
 
         let alpha = Fr::one();
         let beta = Fr::one();
@@ -340,7 +340,7 @@ mod test {
     }
     #[test]
     fn test_fourth_component() {
-        let lin: lineariser<E> = lineariser::new();
+        let lin: Lineariser<E> = Lineariser::new();
 
         let alpha = Fr::one();
         let z_challenge = Fr::rand(&mut rand::thread_rng());
