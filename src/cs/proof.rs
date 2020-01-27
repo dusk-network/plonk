@@ -1,5 +1,5 @@
 use super::PreProcessedCircuit;
-use crate::transcript::TranscriptProtocol;
+use crate::{cs::public_inputs::PInputsToolkit, transcript::TranscriptProtocol};
 use algebra::curves::PairingEngine;
 use algebra::{
     curves::{AffineCurve, ProjectiveCurve},
@@ -86,6 +86,7 @@ impl<E: PairingEngine> Proof<E> {
         preprocessed_circuit: &PreProcessedCircuit<E>,
         transcript: &mut dyn TranscriptProtocol<E>,
         verifier_key: &VerifierKey<E>,
+        pub_inputs: &Vec<E::Fr>,
     ) -> bool {
         let domain = EvaluationDomain::new(preprocessed_circuit.n).unwrap();
 
@@ -117,8 +118,10 @@ impl<E: PairingEngine> Proof<E> {
         let l1_eval = domain.evaluate_all_lagrange_coefficients(z_challenge)[0];
 
         // XXX: Compute the public input polynomial evaluated at `z_challenge`
-        // Currently no API to accept public input
-        let pi_eval = E::Fr::zero();
+        // PENDING TO ACCEPT THIS API MODEL FOR PI
+        let pi_toolkit: PInputsToolkit<E> = PInputsToolkit::new();
+        let pi_poly = pi_toolkit.compute_pi_poly(pub_inputs);
+        let pi_eval = pi_toolkit.evaluate_pi_poly(&pi_poly, &z_challenge);
 
         // Compute quotient polynomial evaluated at `z_challenge`
         let t_eval = self.compute_quotient_evaluation(

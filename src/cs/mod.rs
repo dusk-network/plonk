@@ -97,6 +97,7 @@ pub trait Composer<E: PairingEngine> {
         commit_key: &Powers<E>,
         preprocessed_circuit: &PreProcessedCircuit<E>,
         transcript: &mut dyn TranscriptProtocol<E>,
+        pub_inputs: &Vec<E::Fr>,
         rng: &mut R,
     ) -> proof::Proof<E>;
 }
