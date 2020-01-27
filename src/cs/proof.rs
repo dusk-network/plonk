@@ -7,6 +7,7 @@ use algebra::{
     groups::Group,
     msm::VariableBaseMSM,
 };
+use ff_fft::DensePolynomial as Polynomial;
 use ff_fft::EvaluationDomain;
 use poly_commit::data_structures::PCCommitment;
 use poly_commit::kzg10::{Commitment, VerifierKey};
@@ -86,6 +87,7 @@ impl<E: PairingEngine> Proof<E> {
         preprocessed_circuit: &PreProcessedCircuit<E>,
         transcript: &mut dyn TranscriptProtocol<E>,
         verifier_key: &VerifierKey<E>,
+        pub_inputs: &Vec<E::Fr>,
     ) -> bool {
         let domain = EvaluationDomain::new(preprocessed_circuit.n).unwrap();
 
@@ -116,10 +118,9 @@ impl<E: PairingEngine> Proof<E> {
         // Compute first lagrange polynomial evaluated at `z_challenge`
         let l1_eval = domain.evaluate_all_lagrange_coefficients(z_challenge)[0];
 
-        // XXX: Compute the public input polynomial evaluated at `z_challenge`
-        // Currently no API to accept public input
-        let pi_eval = E::Fr::zero();
-
+        // Compute the public input polynomial evaluated at `z_challenge`
+        let pi_poly = Polynomial::from_coefficients_vec(domain.ifft(&pub_inputs));
+        let pi_eval = pi_poly.evaluate(z_challenge);
         // Compute quotient polynomial evaluated at `z_challenge`
         let t_eval = self.compute_quotient_evaluation(
             pi_eval,

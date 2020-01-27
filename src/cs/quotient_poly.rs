@@ -27,6 +27,7 @@ impl<E: PairingEngine> QuotientToolkit<E> {
         z_poly: &Polynomial<E::Fr>,
         shifted_z_poly: &Polynomial<E::Fr>,
         w_poly: [&Polynomial<E::Fr>; 3],
+        pi_poly: &Polynomial<E::Fr>,
         (alpha, beta, gamma): &(E::Fr, E::Fr, E::Fr),
     ) -> (Polynomial<E::Fr>) {
         let n = domain.size();
@@ -58,6 +59,7 @@ impl<E: PairingEngine> QuotientToolkit<E> {
             w_l_poly,
             w_r_poly,
             w_o_poly,
+            pi_poly,
         );
         let t_2 = self.compute_quotient_second_component(
             domain,
@@ -103,6 +105,7 @@ impl<E: PairingEngine> QuotientToolkit<E> {
         w_l_poly: &Polynomial<E::Fr>,
         w_r_poly: &Polynomial<E::Fr>,
         w_o_poly: &Polynomial<E::Fr>,
+        pi_poly: &Polynomial<E::Fr>,
     ) -> Polynomial<E::Fr> {
         let n = domain.size();
 
@@ -124,7 +127,7 @@ impl<E: PairingEngine> QuotientToolkit<E> {
         let mut a = &a_1 + &a_2; // (a(x)b(x)q_M(x) + a(x)q_L(x)
         a += &a_3; // (a(x)b(x)q_M(x) + a(x)q_L(x) + b(X)q_R(x)
         a += &a_4; // (a(x)b(x)q_M(x) + a(x)q_L(x) + b(X)q_R(x) + c(X)q_O(X)
-        a += q_c_poly; // (a(x)b(x)q_M(x) + a(x)q_L(x) + b(X)q_R(x) + c(X)q_O(X) +  Q_C(X))
+        a += &(q_c_poly + pi_poly); // (a(x)b(x)q_M(x) + a(x)q_L(x) + b(X)q_R(x) + c(X)q_O(X) + PI(X) + Q_C(X))
 
         a = &a * &alpha_poly; // (a(x)b(x)q_M(x) + a(x)q_L(x) + b(X)q_R(x) + c(X)q_O(X) + PI(X) + Q_C(X)) * alpha
         let (q, _) = a.divide_by_vanishing_poly(*domain).unwrap(); // ((a(x)b(x)q_M(x) + a(x)q_L(x) + b(X)q_R(x) + c(X)q_O(X) + Q_C(X)) * alpha) / Z_H
