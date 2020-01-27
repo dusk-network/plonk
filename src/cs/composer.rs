@@ -4,16 +4,13 @@ use super::{
     constraint_system::Variable, permutation::Permutation, proof::Proof, Composer,
     PreProcessedCircuit,
 };
-use crate::{
-    cs::public_inputs::PInputsToolkit, cs::quotient_poly::QuotientToolkit, srs,
-    transcript::TranscriptProtocol,
-};
+use crate::{cs::quotient_poly::QuotientToolkit, srs, transcript::TranscriptProtocol};
 use algebra::{curves::PairingEngine, fields::Field};
 use ff_fft::{DensePolynomial as Polynomial, EvaluationDomain};
 use poly_commit::kzg10::Powers;
 use rand_core::{CryptoRng, RngCore};
 /// A composer is a circuit builder
-/// and will dictate how a cirucit is built
+/// and will dictate how a circuit is built
 /// We will have a default Composer called `StandardComposer`
 pub struct StandardComposer<E: PairingEngine> {
     // n represents the number of arithmetic gates in the circuit
@@ -31,6 +28,8 @@ pub struct StandardComposer<E: PairingEngine> {
     q_o: Vec<E::Fr>,
     // constant wire selector
     q_c: Vec<E::Fr>,
+
+    public_inputs: Vec<E::Fr>,
 
     // witness vectors
     w_l: Vec<Variable>,
@@ -121,7 +120,6 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
         commit_key: &Powers<E>,
         preprocessed_circuit: &PreProcessedCircuit<E>,
         transcript: &mut dyn TranscriptProtocol<E>,
-        pub_inputs: &Vec<E::Fr>,
         mut rng: &mut R,
     ) -> Proof<E> {
         let domain = EvaluationDomain::new(self.n).unwrap();
@@ -181,8 +179,7 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
         let alpha = transcript.challenge_scalar(b"alpha");
 
         // Compute Public Inputs Polynomial
-        let pi_toolkit: PInputsToolkit<E> = PInputsToolkit::new();
-        let pi_poly = pi_toolkit.compute_pi_poly(pub_inputs);
+        let pi_poly = Polynomial::from_coefficients_vec(domain.ifft(&self.public_inputs));
 
         // Compute Quotient polynomial.
         let qt_toolkit = QuotientToolkit::new();
@@ -325,6 +322,7 @@ impl<E: PairingEngine> StandardComposer<E> {
             q_r: Vec::with_capacity(expected_size),
             q_o: Vec::with_capacity(expected_size),
             q_c: Vec::with_capacity(expected_size),
+            public_inputs: Vec::with_capacity(expected_size),
 
             w_l: Vec::with_capacity(expected_size),
             w_r: Vec::with_capacity(expected_size),
@@ -373,6 +371,7 @@ impl<E: PairingEngine> StandardComposer<E> {
         q_r: E::Fr,
         q_o: E::Fr,
         q_c: E::Fr,
+        pi: E::Fr,
     ) {
         self.w_l.push(a);
         self.w_r.push(b);
@@ -387,6 +386,8 @@ impl<E: PairingEngine> StandardComposer<E> {
         self.q_o.push(q_o);
         self.q_c.push(q_c);
 
+        self.public_inputs.push(pi);
+
         self.perm.add_variable_to_map(a, b, c, self.n);
 
         self.n = self.n + 1;
@@ -400,6 +401,7 @@ impl<E: PairingEngine> StandardComposer<E> {
         q_m: E::Fr,
         q_o: E::Fr,
         q_c: E::Fr,
+        pi: E::Fr,
     ) {
         self.w_l.push(a);
         self.w_r.push(b);
@@ -413,6 +415,8 @@ impl<E: PairingEngine> StandardComposer<E> {
         self.q_m.push(q_m);
         self.q_o.push(q_o);
         self.q_c.push(q_c);
+
+        self.public_inputs.push(pi);
 
         self.perm.add_variable_to_map(a, b, c, self.n);
 
@@ -429,6 +433,8 @@ impl<E: PairingEngine> StandardComposer<E> {
         self.q_r.push(E::Fr::zero());
         self.q_o.push(-E::Fr::one());
         self.q_c.push(E::Fr::zero());
+
+        self.public_inputs.push(E::Fr::zero());
 
         self.perm.add_variable_to_map(a, a, a, self.n);
 
@@ -451,13 +457,14 @@ mod tests {
         a: Variable,
         b: Variable,
         c: Variable,
+        pi: E::Fr,
     ) {
         let q_l = E::Fr::one();
         let q_r = E::Fr::one();
         let q_o = -E::Fr::one();
         let q_c = E::Fr::zero();
 
-        composer.add_gate(a, b, c, q_l, q_r, q_o, q_c);
+        composer.add_gate(a, b, c, q_l, q_r, q_o, q_c, pi);
     }
 
     // Returns a composer with `n` constraints
@@ -471,15 +478,21 @@ mod tests {
         let var_two = composer.add_input(two);
 
         for _ in 0..n {
-            simple_add_gadget(&mut composer, var_one, var_one, var_two);
+            simple_add_gadget(&mut composer, var_one, var_one, var_two, E::Fr::zero());
         }
+        add_dummy_constraints(&mut composer);
 
+        composer
+    }
+
+    fn add_dummy_constraints<E: PairingEngine>(composer: &mut StandardComposer<E>) {
         // Add a dummy constraint so that we do not have zero polynomials
         composer.q_m.push(E::Fr::from(1));
         composer.q_l.push(E::Fr::from(2));
         composer.q_r.push(E::Fr::from(3));
         composer.q_o.push(E::Fr::from(4));
         composer.q_c.push(E::Fr::from(5));
+        composer.public_inputs.push(E::Fr::zero());
 
         let var_six = composer.add_input(E::Fr::from(6.into()));
         let var_seven = composer.add_input(E::Fr::from(7.into()));
@@ -490,8 +503,6 @@ mod tests {
         composer.w_o.push(var_min_twenty);
 
         composer.n = composer.n + 1;
-
-        composer
     }
     #[test]
     fn test_pad() {
@@ -514,35 +525,8 @@ mod tests {
         assert!(composer.w_o.len() == size);
     }
 
-    //XXX: Move this test into permutation module and make `compute_sigma_permutation` private
     #[test]
-    fn test_compute_permutation() {
-        let num_constraints = 70;
-        let mut composer: StandardComposer<Bls12_381> = add_dummy_composer(num_constraints);
-
-        // Setup srs
-        let max_degree = num_constraints.next_power_of_two() + 1;
-        let public_parameters = srs::setup(max_degree);
-        let (ck, _) = srs::trim(&public_parameters, num_constraints.next_power_of_two()).unwrap();
-
-        // Pad the circuit to next power of two
-        let next_pow_2 = composer.n.next_power_of_two() as u64;
-        composer.pad(next_pow_2 as usize - composer.n);
-
-        // Compute permutation mappings
-        composer.perm.compute_sigma_permutations(composer.n);
-
-        let domain = EvaluationDomain::new(composer.n).unwrap();
-
-        // Create transcript
-        let mut transcript = Transcript::new(b"plonk");
-
-        // Pre-process circuit
-        let preprocessed_circuit = composer.preprocess(&ck, &mut transcript, &domain);
-    }
-
-    #[test]
-    fn test_prove_verify_without_pi() {
+    fn test_prove_verify() {
         // Common View
         //
         let mut composer: StandardComposer<Bls12_381> = add_dummy_composer(7);
@@ -551,8 +535,6 @@ mod tests {
         let public_parameters = srs::setup(2 * composer.n.next_power_of_two());
         let (ck, vk) = srs::trim(&public_parameters, 2 * composer.n.next_power_of_two()).unwrap();
         let domain = EvaluationDomain::new(composer.n).unwrap();
-        // Public inputs factors
-        let pub_inp = vec![Fr::zero()];
         // Provers View
         //
         let proof = {
@@ -565,7 +547,6 @@ mod tests {
                 &ck,
                 &preprocessed_circuit,
                 &mut transcript,
-                &pub_inp,
                 &mut rand::thread_rng(),
             )
         };
@@ -580,23 +561,39 @@ mod tests {
         let preprocessed_circuit = composer.preprocess(&ck, &mut transcript, &domain);
 
         // Verify proof
-        let ok = proof.verify(&preprocessed_circuit, &mut transcript, &vk, &pub_inp);
+        let ok = proof.verify(
+            &preprocessed_circuit,
+            &mut transcript,
+            &vk,
+            &vec![Fr::zero()],
+        );
         assert!(ok);
     }
 
-    #[ignore]
     #[test]
-    fn test_prove_verify_with_pi() {
+    fn test_pi() {
         // Common View
         //
-        let mut composer: StandardComposer<Bls12_381> = add_dummy_composer(7);
+        let mut composer: StandardComposer<Bls12_381> = StandardComposer::new();
+
+        let one = Fr::one();
+        let three = Fr::one() + &Fr::one() + &Fr::one();
+
+        let var_one = composer.add_input(one);
+        let var_three = composer.add_input(three);
+
+        simple_add_gadget(&mut composer, var_one, var_one, var_three, Fr::one());
+        simple_add_gadget(&mut composer, var_one, var_one, var_three, Fr::one());
+        simple_add_gadget(&mut composer, var_one, var_one, var_three, Fr::one());
+        simple_add_gadget(&mut composer, var_one, var_one, var_three, Fr::one());
+        add_dummy_constraints(&mut composer);
+
         // setup srs
         // XXX: We have 2 *n here because the blinding polynomials add a few extra terms to the degree, so it's more than n, we can adjust this later on to be less conservative
         let public_parameters = srs::setup(2 * composer.n.next_power_of_two());
         let (ck, vk) = srs::trim(&public_parameters, 2 * composer.n.next_power_of_two()).unwrap();
         let domain = EvaluationDomain::new(composer.n).unwrap();
-        // Public inputs factors
-        let pub_inp = vec![Fr::one()];
+
         // Provers View
         //
         let proof = {
@@ -609,7 +606,6 @@ mod tests {
                 &ck,
                 &preprocessed_circuit,
                 &mut transcript,
-                &pub_inp,
                 &mut rand::thread_rng(),
             )
         };
@@ -624,7 +620,12 @@ mod tests {
         let preprocessed_circuit = composer.preprocess(&ck, &mut transcript, &domain);
 
         // Verify proof
-        let ok = proof.verify(&preprocessed_circuit, &mut transcript, &vk, &pub_inp);
+        let ok = proof.verify(
+            &preprocessed_circuit,
+            &mut transcript,
+            &vk,
+            &composer.public_inputs,
+        );
         assert!(ok);
     }
 
@@ -641,7 +642,7 @@ mod tests {
         let n = 20;
 
         for _ in 0..n {
-            simple_add_gadget(&mut composer, var_one, var_one, var_two);
+            simple_add_gadget(&mut composer, var_one, var_one, var_two, Fr::zero());
         }
 
         assert_eq!(n, composer.circuit_size())

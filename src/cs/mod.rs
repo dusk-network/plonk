@@ -4,7 +4,6 @@ mod linearisation;
 mod opening;
 mod permutation;
 mod proof;
-mod public_inputs;
 mod quotient_poly;
 
 use algebra::{
@@ -97,7 +96,6 @@ pub trait Composer<E: PairingEngine> {
         commit_key: &Powers<E>,
         preprocessed_circuit: &PreProcessedCircuit<E>,
         transcript: &mut dyn TranscriptProtocol<E>,
-        pub_inputs: &Vec<E::Fr>,
         rng: &mut R,
     ) -> proof::Proof<E>;
 }
