@@ -4,7 +4,6 @@ mod linearisation;
 mod opening;
 mod permutation;
 mod proof;
-mod public_inputs;
 mod quotient_poly;
 
 use algebra::{
