@@ -4,7 +4,10 @@ use super::{
     constraint_system::Variable, permutation::Permutation, proof::Proof, Composer,
     PreProcessedCircuit,
 };
-use crate::{cs::quotient_poly::QuotientToolkit, srs, transcript::TranscriptProtocol};
+use crate::{
+    cs::public_inputs::PInputsToolkit, cs::quotient_poly::QuotientToolkit, srs,
+    transcript::TranscriptProtocol,
+};
 use algebra::{curves::PairingEngine, fields::Field};
 use ff_fft::{DensePolynomial as Polynomial, EvaluationDomain};
 use poly_commit::kzg10::Powers;
@@ -118,6 +121,7 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
         commit_key: &Powers<E>,
         preprocessed_circuit: &PreProcessedCircuit<E>,
         transcript: &mut dyn TranscriptProtocol<E>,
+        pub_inputs: &Vec<E::Fr>,
         mut rng: &mut R,
     ) -> Proof<E> {
         let domain = EvaluationDomain::new(self.n).unwrap();
@@ -176,14 +180,19 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
         // Compute Quotient challenge `alpha`
         let alpha = transcript.challenge_scalar(b"alpha");
 
+        // Compute Public Inputs Polynomial
+        let pi_toolkit: PInputsToolkit<E> = PInputsToolkit::new();
+        let pi_poly = pi_toolkit.compute_pi_poly(pub_inputs);
+
         // Compute Quotient polynomial.
         let qt_toolkit = QuotientToolkit::new();
-        let (t_x) = qt_toolkit.compute_quotient_poly(
+        let t_x = qt_toolkit.compute_quotient_poly(
             &domain,
             &preprocessed_circuit,
             &z_poly,
             &z_poly_shifted,
             [&w_l_poly, &w_r_poly, &w_o_poly],
+            &pi_poly,
             &(alpha, beta, gamma),
         );
 
@@ -533,7 +542,7 @@ mod tests {
     }
 
     #[test]
-    fn test_prove_verify() {
+    fn test_prove_verify_without_pi() {
         // Common View
         //
         let mut composer: StandardComposer<Bls12_381> = add_dummy_composer(7);
@@ -542,6 +551,8 @@ mod tests {
         let public_parameters = srs::setup(2 * composer.n.next_power_of_two());
         let (ck, vk) = srs::trim(&public_parameters, 2 * composer.n.next_power_of_two()).unwrap();
         let domain = EvaluationDomain::new(composer.n).unwrap();
+        // Public inputs factors
+        let pub_inp = vec![Fr::zero()];
         // Provers View
         //
         let proof = {
@@ -554,6 +565,7 @@ mod tests {
                 &ck,
                 &preprocessed_circuit,
                 &mut transcript,
+                &pub_inp,
                 &mut rand::thread_rng(),
             )
         };
@@ -568,7 +580,51 @@ mod tests {
         let preprocessed_circuit = composer.preprocess(&ck, &mut transcript, &domain);
 
         // Verify proof
-        let ok = proof.verify(&preprocessed_circuit, &mut transcript, &vk);
+        let ok = proof.verify(&preprocessed_circuit, &mut transcript, &vk, &pub_inp);
+        assert!(ok);
+    }
+
+    #[ignore]
+    #[test]
+    fn test_prove_verify_with_pi() {
+        // Common View
+        //
+        let mut composer: StandardComposer<Bls12_381> = add_dummy_composer(7);
+        // setup srs
+        // XXX: We have 2 *n here because the blinding polynomials add a few extra terms to the degree, so it's more than n, we can adjust this later on to be less conservative
+        let public_parameters = srs::setup(2 * composer.n.next_power_of_two());
+        let (ck, vk) = srs::trim(&public_parameters, 2 * composer.n.next_power_of_two()).unwrap();
+        let domain = EvaluationDomain::new(composer.n).unwrap();
+        // Public inputs factors
+        let pub_inp = vec![Fr::one()];
+        // Provers View
+        //
+        let proof = {
+            // setup transcript
+            let mut transcript = Transcript::new(b"");
+            // Preprocess circuit
+            let preprocessed_circuit = composer.preprocess(&ck, &mut transcript, &domain);
+
+            composer.prove(
+                &ck,
+                &preprocessed_circuit,
+                &mut transcript,
+                &pub_inp,
+                &mut rand::thread_rng(),
+            )
+        };
+
+        // Verifiers view
+        //
+
+        // setup transcript
+        let mut transcript = Transcript::new(b"");
+
+        // Preprocess circuit
+        let preprocessed_circuit = composer.preprocess(&ck, &mut transcript, &domain);
+
+        // Verify proof
+        let ok = proof.verify(&preprocessed_circuit, &mut transcript, &vk, &pub_inp);
         assert!(ok);
     }
 
