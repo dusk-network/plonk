@@ -213,7 +213,6 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
             transcript,
             &domain,
             &preprocessed_circuit,
-            &(alpha, beta, gamma, z_challenge),
             &w_l_poly,
             &w_r_poly,
             &w_o_poly,
