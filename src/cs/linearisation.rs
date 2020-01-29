@@ -6,10 +6,11 @@ use ff_fft::{DensePolynomial as Polynomial, EvaluationDomain};
 use std::marker::PhantomData;
 
 ///The lineariser will be the fourth SNARK
-h///output in the process will no always alllows 
+///output in the process. This where
+/// will no always alllows
 
 pub struct Lineariser<E: PairingEngine> {
-    ///
+    ///Alpha here is a
     alpha: E::Fr,
 
     beta: E::Fr,
@@ -236,7 +237,6 @@ mod test {
     use algebra::fields::bls12_381::Fr;
     use algebra::UniformRand;
     use std::str::FromStr;
-    #[ignore]
     #[test]
     fn test_first_component() {
         let alpha = Fr::one();
@@ -260,7 +260,7 @@ mod test {
 
         assert_eq!(got_poly, expected_poly);
     }
-    #[ignore]
+
     #[test]
     fn test_second_component() {
         let k1 = Fr::multiplicative_generator();
@@ -290,7 +290,6 @@ mod test {
 
         assert_eq!(got_poly, expected_poly);
     }
-    #[ignore]
     #[test]
     fn test_third_component() {
         let alpha = Fr::one();
@@ -320,7 +319,7 @@ mod test {
 
         assert_eq!(got_poly, -expected_poly);
     }
-    #[ignore]
+
     #[test]
     fn test_fourth_component() {
         let alpha = Fr::one();
