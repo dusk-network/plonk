@@ -25,7 +25,6 @@ impl<E: PairingEngine> lineariser<E> {
         w_o_poly: &Polynomial<E::Fr>,
         t_x: &Polynomial<E::Fr>,
         z_poly: &Polynomial<E::Fr>,
-        shifted_z_poly: &Polynomial<E::Fr>,
     ) -> (Polynomial<E::Fr>, Vec<E::Fr>) {
         let alpha_sq = alpha.square();
         let alpha_cu = *alpha * &alpha_sq;
@@ -50,7 +49,6 @@ impl<E: PairingEngine> lineariser<E> {
 
         // Evaluate permutation poly_commit
         let perm_eval = z_poly.evaluate(*z_challenge * &domain.group_gen);
-        assert_eq!(shifted_z_poly.evaluate(*z_challenge), perm_eval);
 
         let f_1 = self.compute_first_component(
             *alpha,
@@ -269,7 +267,7 @@ mod test {
         let lin: lineariser<E> = lineariser::new();
 
         let k1 = Fr::multiplicative_generator();
-        let k2 = Fr::from_str("13").unwrap();
+        let k2 = Fr::from(13u8);
 
         let alpha = Fr::one();
         let beta = Fr::one();
