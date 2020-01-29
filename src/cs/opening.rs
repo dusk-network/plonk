@@ -1,9 +1,10 @@
+use crate::cs::poly_utils::Poly_utils;
 use crate::transcript::TranscriptProtocol;
 use algebra::{curves::PairingEngine, fields::Field};
 use ff_fft::DensePolynomial as Polynomial;
 use itertools::izip;
+use rayon::prelude::*;
 use std::marker::PhantomData;
-
 pub struct commitmentOpener<E: PairingEngine> {
     _engine: PhantomData<E>,
 }
@@ -19,28 +20,24 @@ impl<E: PairingEngine> commitmentOpener<E> {
         root_of_unity: E::Fr,
         n: usize,
         z_challenge: E::Fr,
-        lin_poly: &Polynomial<E::Fr>,
-        evaluations: &[E::Fr],
-        t_lo: &Polynomial<E::Fr>,
-        t_mid: &Polynomial<E::Fr>,
-        t_hi: &Polynomial<E::Fr>,
-        w_l_poly: &Polynomial<E::Fr>,
-        w_r_poly: &Polynomial<E::Fr>,
-        w_o_poly: &Polynomial<E::Fr>,
-        sigma_1_poly: &Polynomial<E::Fr>,
-        sigma_2_poly: &Polynomial<E::Fr>,
+        lin_coeffs: &Vec<E::Fr>,
+        evaluations: &Vec<E::Fr>,
+        t_lo_coeffs: &Vec<E::Fr>,
+        t_mid_coeffs: &Vec<E::Fr>,
+        t_hi_coeffs: &Vec<E::Fr>,
+        w_l_coeffs: &Vec<E::Fr>,
+        w_r_coeffs: &Vec<E::Fr>,
+        w_o_coeffs: &Vec<E::Fr>,
+        sigma_1_coeffs: &Vec<E::Fr>,
+        sigma_2_coeffs: &Vec<E::Fr>,
         z_poly: &Polynomial<E::Fr>,
         v: &E::Fr,
     ) -> (Polynomial<E::Fr>, Polynomial<E::Fr>) {
         let mut evaluations = evaluations.to_vec();
+        let poly_utils: Poly_utils<E> = Poly_utils::new();
 
         // Compute 1,v, v^2, v^3,..v^7
-        let mut v_pow: Vec<E::Fr> = Vec::with_capacity(7);
-        v_pow.push(E::Fr::one());
-        for i in 1..=7 {
-            v_pow.push(v_pow[i - 1] * &v);
-        }
-        assert_eq!(8, v_pow.len());
+        let mut v_pow: Vec<E::Fr> = poly_utils.powers_of(v, 7);
 
         let v_7 = v_pow.pop().unwrap();
         let z_eval = evaluations.pop().unwrap(); // XXX: For better readability, we should probably have an evaluation struct. It is a vector so that we can iterate in compute_challenge_poly_eval
@@ -49,16 +46,21 @@ impl<E: PairingEngine> commitmentOpener<E> {
         let z_n = z_challenge.pow(&[n as u64]);
         let z_two_n = z_challenge.pow(&[2 * n as u64]);
 
-        let quotient_open_poly =
-            self.compute_quotient_opening_poly(t_lo, t_mid, t_hi, z_n, z_two_n);
+        let quotient_coeffs = self.compute_quotient_opening_poly(
+            &t_lo_coeffs,
+            &t_mid_coeffs,
+            &t_hi_coeffs,
+            z_n,
+            z_two_n,
+        );
         let polynomials = vec![
-            &quotient_open_poly,
-            lin_poly,
-            w_l_poly,
-            w_r_poly,
-            w_o_poly,
-            sigma_1_poly,
-            sigma_2_poly,
+            &quotient_coeffs,
+            lin_coeffs,
+            w_l_coeffs,
+            w_r_coeffs,
+            w_o_coeffs,
+            sigma_1_coeffs,
+            sigma_2_coeffs,
         ];
 
         // Compute opening polynomial
@@ -78,49 +80,49 @@ impl<E: PairingEngine> commitmentOpener<E> {
 
     fn compute_quotient_opening_poly(
         &self,
-        t_lo: &Polynomial<E::Fr>,
-        t_mid: &Polynomial<E::Fr>,
-        t_hi: &Polynomial<E::Fr>,
+        t_lo_coeffs: &[E::Fr],
+        t_mid_coeffs: &[E::Fr],
+        t_hi_coeffs: &[E::Fr],
         z_n: E::Fr,
         z_two_n: E::Fr,
-    ) -> Polynomial<E::Fr> {
-        let poly_zn = Polynomial::from_coefficients_slice(&[z_n]);
-        let poly_z_two_n = Polynomial::from_coefficients_slice(&[z_two_n]);
+    ) -> Vec<E::Fr> {
+        let poly_utils: Poly_utils<E> = Poly_utils::new();
 
-        let a = t_lo;
-        let b = t_mid * &poly_zn;
-        let c = t_hi * &poly_z_two_n;
+        let a = t_lo_coeffs;
+        let b: Vec<_> = t_mid_coeffs.par_iter().map(|mid| z_n * mid).collect();
+        let c: Vec<_> = t_hi_coeffs.par_iter().map(|hi| z_two_n * hi).collect();
 
-        &(a + &b) + &c
+        let ab = poly_utils.add_poly_vectors(&a, &b);
+        let res = poly_utils.add_poly_vectors(&ab, &c);
+
+        res
     }
 
-    // computes sum [ challenge[i] * (polynomial[i] - evaluations[i])]
+    // computes sum [ challenge[i] * (polynomials[i] - evaluations[i])]
     fn compute_challenge_poly_eval(
         &self,
         challenges: Vec<E::Fr>,
-        polynomials: Vec<&Polynomial<E::Fr>>,
+        polynomials: Vec<&Vec<E::Fr>>,
         evaluations: Vec<E::Fr>,
     ) -> Polynomial<E::Fr> {
+        let poly_utils: Poly_utils<E> = Poly_utils::new();
         let x: Vec<_> = challenges
-            .into_iter()
-            .zip(polynomials.into_iter())
-            .zip(evaluations.into_iter())
+            .into_par_iter()
+            .zip(polynomials.into_par_iter())
+            .zip(evaluations.into_par_iter())
             .map(|((v, poly), eval)| {
-                let poly_eval = Polynomial::from_coefficients_slice(&[eval]);
-                let poly_v = Polynomial::from_coefficients_slice(&[v]);
-
-                let poly_minus_eval = poly - &poly_eval;
-
-                &poly_v * &poly_minus_eval
+                let mut p: Vec<_> = poly.iter().map(|p| v * p).collect();
+                p[0] = p[0] - &(v * &eval);
+                p
             })
             .collect();
 
-        let mut sum = Polynomial::zero();
+        let mut sum = Vec::new();
         for poly in x.iter() {
-            sum = &sum + poly;
+            sum = poly_utils.add_poly_vectors(&poly, &sum);
         }
 
-        sum
+        Polynomial::from_coefficients_vec(sum)
     }
 
     // Given P(X) and `z`. compute P(X) - P(z) / X - z
