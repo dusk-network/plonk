@@ -208,7 +208,15 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
         let z_challenge = transcript.challenge_scalar(b"z");
 
         // Compute Linearisation polynomial
-        let lineariser = Lineariser::new(&alpha, &beta, &gamma, &z_challenge);
+        let lineariser = Lineariser::new(
+            &alpha,
+            &beta,
+            &gamma,
+            &z_challenge,
+            E::Fr::one(),
+            E::Fr::one(),
+            E::Fr::one(),
+        );
         let (lin_poly, evaluations) = lineariser.evaluate_linearisation_polynomial(
             transcript,
             &domain,

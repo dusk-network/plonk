@@ -11,32 +11,40 @@ use std::marker::PhantomData;
 
 pub struct Lineariser<E: PairingEngine> {
     ///Alpha here is a
-    alpha: E::Fr,
+    pub alpha: E::Fr,
 
-    beta: E::Fr,
+    pub beta: E::Fr,
 
-    gamma: E::Fr,
+    pub gamma: E::Fr,
 
-    z_challenge: E::Fr,
+    pub z_challenge: E::Fr,
 
-    a_eval: E::Fr,
+    pub a_eval: E::Fr,
 
-    b_eval: E::Fr,
+    pub b_eval: E::Fr,
 
-    c_eval: E::Fr,
+    pub c_eval: E::Fr,
 
     _engine: PhantomData<E>,
 }
 impl<E: PairingEngine> Lineariser<E> {
-    pub fn new(alpha: &E::Fr, beta: &E::Fr, gamma: &E::Fr, z_challenge: &E::Fr) -> Self {
+    pub fn new(
+        alpha: &E::Fr,
+        beta: &E::Fr,
+        gamma: &E::Fr,
+        z_challenge: &E::Fr,
+        a_eval: E::Fr,
+        b_eval: E::Fr,
+        c_eval: E::Fr,
+    ) -> Self {
         Lineariser {
             alpha: *alpha,
             beta: *beta,
             gamma: *gamma,
             z_challenge: *z_challenge,
-            a_eval: E::Fr::zero(),
-            b_eval: E::Fr::zero(),
-            c_eval: E::Fr::zero(),
+            a_eval,
+            b_eval,
+            c_eval,
             _engine: PhantomData,
         }
     }
@@ -243,8 +251,15 @@ mod test {
         let a_eval = Fr::one();
         let b_eval = Fr::one();
         let c_eval = Fr::one();
-        let lin: Lineariser<E> = Lineariser::new(&alpha, &Fr::zero(), &Fr::zero(), &Fr::zero());
-
+        let lin: Lineariser<E> = Lineariser::new(
+            &alpha,
+            &Fr::zero(),
+            &Fr::zero(),
+            &Fr::zero(),
+            a_eval,
+            b_eval,
+            c_eval,
+        );
         let qm = Polynomial::rand(10, &mut rand::thread_rng());
         let ql = Polynomial::rand(10, &mut rand::thread_rng());
         let qr = Polynomial::rand(10, &mut rand::thread_rng());
@@ -275,7 +290,9 @@ mod test {
         let c_eval = Fr::one();
         let z_challenge = Fr::one();
         let alpha_sq = Fr::one();
-        let lin: Lineariser<E> = Lineariser::new(&alpha, &beta, &gamma, &z_challenge);
+        let lin: Lineariser<E> =
+            Lineariser::new(&alpha, &beta, &gamma, &z_challenge, a_eval, b_eval, c_eval);
+
         let z_poly = Polynomial::rand(10, &mut rand::thread_rng());
 
         let got_poly = lin.compute_second_component(alpha_sq, &z_poly);
@@ -295,7 +312,15 @@ mod test {
         let alpha = Fr::one();
         let beta = Fr::one();
         let gamma = Fr::one();
-        let lin: Lineariser<E> = Lineariser::new(&alpha, &beta, &gamma, &Fr::one());
+        let lin: Lineariser<E> = Lineariser::new(
+            &alpha,
+            &beta,
+            &gamma,
+            &Fr::one(),
+            Fr::one(),
+            Fr::one(),
+            Fr::one(),
+        );
 
         let a_eval = Fr::one();
         let b_eval = Fr::one();
@@ -324,11 +349,19 @@ mod test {
     fn test_fourth_component() {
         let alpha = Fr::one();
         let z_challenge = Fr::rand(&mut rand::thread_rng());
-        let lin: Lineariser<E> = Lineariser::new(&alpha, &Fr::one(), &Fr::one(), &z_challenge);
+        let lin: Lineariser<E> = Lineariser::new(
+            &alpha,
+            &Fr::one(),
+            &Fr::one(),
+            &z_challenge,
+            Fr::one(),
+            Fr::one(),
+            Fr::one(),
+        );
         let domain = EvaluationDomain::new(10).unwrap();
         let z_poly = Polynomial::rand(10, &mut rand::thread_rng());
 
-        let got_poly = lin.compute_fourth_component(&domain, z_challenge, &z_poly);
+        let got_poly = lin.compute_fourth_component(&domain, alpha, &z_poly);
 
         let l1_eval = domain.evaluate_all_lagrange_coefficients(z_challenge)[0];
         let l1_eval_poly = Polynomial::from_coefficients_vec(vec![l1_eval]);
