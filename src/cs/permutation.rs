@@ -10,6 +10,7 @@ use ff_fft::{DensePolynomial as Polynomial, EvaluationDomain};
 use itertools::izip;
 use rand_core::{CryptoRng, RngCore};
 use rayon::prelude::*;
+use std::collections::HashMap;
 use std::marker::PhantomData;
 
 pub struct Permutation<E: PairingEngine> {
@@ -17,12 +18,15 @@ pub struct Permutation<E: PairingEngine> {
 
     // These are the actual variable values
     // N.B. They should not be exposed to the end user once added into the composer
-    variables: Vec<E::Fr>,
+    variables: HashMap<Variable, E::Fr>,
+
+    // Actual number of variables included on the permutation.
+    variable_num: usize,
 
     // maps variables to the wire data that they are assosciated with
     // To then later create the necessary permutations
     // XXX: the index will be the Variable reference, so it may be better to use a map to be more explicit here
-    pub(crate) variable_map: Vec<Vec<WireData>>,
+    pub(crate) variable_map: HashMap<Variable, Vec<WireData>>,
 
     left_sigma_mapping: Option<Vec<E::Fr>>,
     right_sigma_mapping: Option<Vec<E::Fr>>,
