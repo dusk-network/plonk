@@ -159,7 +159,7 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
         let gamma = transcript.challenge_scalar(b"gamma");
 
         // compute Permutation polynomial
-        let (z_coeffs, z_shifted_coeffs) = self.perm.compute_permutation_poly(
+        let z_coeffs = self.perm.compute_permutation_poly(
             &domain,
             rng,
             &w_l_scalar,
@@ -168,7 +168,6 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
             &(beta, gamma),
         );
         let z_poly = Polynomial::from_coefficients_slice(&z_coeffs);
-        let z_poly_shifted = Polynomial::from_coefficients_slice(&z_shifted_coeffs);
 
         let z_poly_commit = srs::commit(commit_key, &z_coeffs);
         transcript.append_commitment(b"z", &z_poly_commit);
@@ -178,21 +177,21 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
 
         // Compute Quotient polynomial.
         let qt_toolkit = QuotientToolkit::new();
-        let (t_x) = qt_toolkit.compute_quotient_poly(
+        let t_x = qt_toolkit.compute_quotient_poly(
             &domain,
             &preprocessed_circuit,
             &z_poly,
-            &z_poly_shifted,
             [&w_l_poly, &w_r_poly, &w_o_poly],
             &(alpha, beta, gamma),
         );
 
-        let (t_low_poly, t_mid_poly, t_hi_poly) = self.split_tx_poly(domain.size(), &t_x);
+        let (t_low_coeffs, t_mid_coeffs, t_hi_coeffs) =
+            self.split_tx_poly(domain.size(), &t_x.coeffs);
 
         // Commit polynomials.
-        let t_low_commit = srs::commit(commit_key, &t_low_poly.coeffs);
-        let t_mid_commit = srs::commit(commit_key, &t_mid_poly.coeffs);
-        let t_hi_commit = srs::commit(commit_key, &t_hi_poly.coeffs);
+        let t_low_commit = srs::commit(commit_key, &t_low_coeffs);
+        let t_mid_commit = srs::commit(commit_key, &t_mid_coeffs);
+        let t_hi_commit = srs::commit(commit_key, &t_hi_coeffs);
 
         transcript.append_commitment(b"t_lo", &t_low_commit);
         transcript.append_commitment(b"t_mid", &t_mid_commit);
@@ -213,7 +212,6 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
             &w_o_poly,
             &t_x,
             &z_poly,
-            &z_poly_shifted,
         );
 
         let a_eval = evaluations[0];
@@ -244,16 +242,16 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
             domain.group_gen,
             domain.size(),
             z_challenge,
-            &lin_poly,
+            &lin_poly.coeffs,
             &evaluations,
-            &t_low_poly,
-            &t_mid_poly,
-            &t_hi_poly,
-            &w_l_poly,
-            &w_r_poly,
-            &w_o_poly,
-            &Polynomial::from_coefficients_slice(preprocessed_circuit.left_sigma_poly()),
-            &Polynomial::from_coefficients_slice(preprocessed_circuit.right_sigma_poly()),
+            &t_low_coeffs,
+            &t_mid_coeffs,
+            &t_hi_coeffs,
+            &w_l_poly.coeffs,
+            &w_r_poly.coeffs,
+            &w_o_poly.coeffs,
+            preprocessed_circuit.left_sigma_poly(),
+            preprocessed_circuit.right_sigma_poly(),
             &z_poly,
             &v,
         );
@@ -293,15 +291,15 @@ impl<E: PairingEngine> StandardComposer<E> {
     }
 
     // Split `t(X)` poly into three degree-n polynomials.
-    pub fn split_tx_poly(
+    pub fn split_tx_poly<'a>(
         &self,
         n: usize,
-        t_x: &Polynomial<E::Fr>,
-    ) -> (Polynomial<E::Fr>, Polynomial<E::Fr>, Polynomial<E::Fr>) {
+        t_x: &Vec<E::Fr>,
+    ) -> (Vec<E::Fr>, Vec<E::Fr>, Vec<E::Fr>) {
         (
-            Polynomial::from_coefficients_slice(&t_x[0..n]),
-            Polynomial::from_coefficients_slice(&t_x[n..2 * n]),
-            Polynomial::from_coefficients_slice(&t_x[2 * n..]),
+            t_x[0..n].to_vec(),
+            t_x[n..2 * n].to_vec(),
+            t_x[2 * n..].to_vec(),
         )
     }
 
@@ -434,8 +432,6 @@ mod tests {
     use algebra::fields::bls12_381::Fr;
     use merlin::Transcript;
 
-    use rand::thread_rng;
-
     // Ensures a + b - c = 0
     fn simple_add_gadget<E: PairingEngine>(
         composer: &mut StandardComposer<E>,
@@ -536,11 +532,11 @@ mod tests {
     fn test_prove_verify() {
         // Common View
         //
-        let mut composer: StandardComposer<Bls12_381> = add_dummy_composer(7);
+        let mut composer: StandardComposer<Bls12_381> = add_dummy_composer(16);
         // setup srs
         // XXX: We have 2 *n here because the blinding polynomials add a few extra terms to the degree, so it's more than n, we can adjust this later on to be less conservative
-        let public_parameters = srs::setup(2 * composer.n.next_power_of_two());
-        let (ck, vk) = srs::trim(&public_parameters, 2 * composer.n.next_power_of_two()).unwrap();
+        let public_parameters = srs::setup(20 * composer.n.next_power_of_two());
+        let (ck, vk) = srs::trim(&public_parameters, 20 * composer.n.next_power_of_two()).unwrap();
         let domain = EvaluationDomain::new(composer.n).unwrap();
         // Provers View
         //
