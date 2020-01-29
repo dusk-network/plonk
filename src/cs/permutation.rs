@@ -1,4 +1,4 @@
-use super::constraint_system::{Variable, WireData, WireType};
+use super::constraint_system::{Variable, WireData};
 use crate::transcript::TranscriptProtocol;
 use merlin::Transcript;
 
@@ -74,9 +74,9 @@ impl<E: PairingEngine> Permutation<E> {
     pub fn add_variable_to_map(&mut self, a: Variable, b: Variable, c: Variable, n: usize) {
         assert!(self.valid_variables(&[a, b, c]));
 
-        let left: WireData = WireData::new(n, WireType::Left);
-        let right: WireData = WireData::new(n, WireType::Right);
-        let output: WireData = WireData::new(n, WireType::Output);
+        let left: WireData = WireData::Left(n);
+        let right: WireData = WireData::Right(n);
+        let output: WireData = WireData::Output(n);
 
         // Map each variable to the wires it iscomp assosciated with
         // This essentially tells us that:
@@ -107,12 +107,10 @@ impl<E: PairingEngine> Permutation<E> {
     }
 
     // Performs shift by one permutation and computes sigma_1, sigma_2 and sigma_3 permutations from the variable maps
-    pub(super) fn compute_sigma_permutations(&mut self, n: usize) -> [Vec<usize>; 3] {
-        let sigma_1: Vec<_> = (0 + WireType::Left as usize..n + WireType::Left as usize).collect();
-        let sigma_2: Vec<_> =
-            (0 + WireType::Right as usize..n + WireType::Right as usize).collect();
-        let sigma_3: Vec<_> =
-            (0 + WireType::Output as usize..n + WireType::Output as usize).collect();
+    pub(super) fn compute_sigma_permutations(&mut self, n: usize) -> [Vec<WireData>; 3] {
+        let sigma_1: Vec<_> = (0..n).map(|x| WireData::Left(x)).collect();
+        let sigma_2: Vec<_> = (0..n).map(|x| WireData::Right(x)).collect();
+        let sigma_3: Vec<_> = (0..n).map(|x| WireData::Output(x)).collect();
 
         assert_eq!(sigma_1.len(), n);
         assert_eq!(sigma_2.len(), n);
@@ -133,11 +131,12 @@ impl<E: PairingEngine> Permutation<E> {
                 // Fetch the next wire
                 let next_wire = &variable[next_index];
 
-                // Map current wire to the next wire
-                // XXX: We could probably split up sigmas and do a match statement here
-                // Or even better, to avoid the allocations when defining sigma_1,sigma_2 and sigma_3 we can use a better more explicit encoding
-                sigmas[current_wire.wire_type as usize >> 30][current_wire.gate_index] =
-                    next_wire.gate_index + next_wire.wire_type as usize;
+                // Map current wire to next wire
+                match current_wire {
+                    WireData::Left(index) => sigmas[0][*index] = *next_wire,
+                    WireData::Right(index) => sigmas[1][*index] = *next_wire,
+                    WireData::Output(index) => sigmas[2][*index] = *next_wire,
+                };
             }
         }
 
@@ -146,7 +145,7 @@ impl<E: PairingEngine> Permutation<E> {
 
     fn compute_permutation_lagrange(
         &self,
-        sigma_mapping: &[usize],
+        sigma_mapping: &[WireData],
         domain: &EvaluationDomain<E::Fr>,
     ) -> Vec<E::Fr> {
         let k1 = E::Fr::multiplicative_generator();
@@ -156,14 +155,18 @@ impl<E: PairingEngine> Permutation<E> {
 
         let lagrange_poly: Vec<E::Fr> = sigma_mapping
             .iter()
-            .map(|x| {
-                // XXX: We can probably just pass around WireData and then we no longer need to do the conversion here
-                let wire_data: WireData = x.into();
-                let root = &roots[wire_data.gate_index];
-                match wire_data.wire_type {
-                    WireType::Left => *root,
-                    WireType::Right => k1 * root,
-                    WireType::Output => k2 * root,
+            .map(|x| match x {
+                WireData::Left(index) => {
+                    let root = &roots[*index];
+                    *root
+                }
+                WireData::Right(index) => {
+                    let root = &roots[*index];
+                    k1 * root
+                }
+                WireData::Output(index) => {
+                    let root = &roots[*index];
+                    k2 * root
                 }
             })
             .collect();
@@ -579,25 +582,15 @@ mod test {
         // Check all gate_indices are valid
         for var in perm.variable_map.iter() {
             for wire in var.iter() {
-                assert!(wire.gate_index < gate_size);
+                match wire {
+                    WireData::Left(index) | WireData::Right(index) | WireData::Output(index) => {
+                        assert!(*index < gate_size)
+                    }
+                };
             }
         }
     }
-    fn compute_identity_sigmas(n: usize) -> [Vec<Fr>; 3] {
-        let domain = EvaluationDomain::new(n).unwrap();
-        let sigma_1: Vec<_> = (0 + WireType::Left as usize..n + WireType::Left as usize).collect();
-        let sigma_2: Vec<_> =
-            (0 + WireType::Right as usize..n + WireType::Right as usize).collect();
-        let sigma_3: Vec<_> =
-            (0 + WireType::Output as usize..n + WireType::Output as usize).collect();
 
-        let perm: Permutation<E> = Permutation::new();
-        let sig_1 = perm.compute_permutation_lagrange(&sigma_1, &domain);
-        let sig_2 = perm.compute_permutation_lagrange(&sigma_2, &domain);
-        let sig_3 = perm.compute_permutation_lagrange(&sigma_3, &domain);
-
-        [sig_1, sig_2, sig_3]
-    }
     #[test]
     fn test_permutation_compute_sigmas_only_left_wires() {
         let mut perm: Permutation<E> = Permutation::new();
@@ -643,22 +636,22 @@ mod test {
         let out_sigma = &sigmas[2];
 
         // Check the left sigma polynomial
-        assert_eq!(left_sigma[0] - (WireType::Right as usize), 0);
-        assert_eq!(left_sigma[1] - (WireType::Left as usize), 2);
-        assert_eq!(left_sigma[2] - (WireType::Left as usize), 3);
-        assert_eq!(left_sigma[3] - (WireType::Left as usize), 0);
+        assert_eq!(left_sigma[0], WireData::Right(0));
+        assert_eq!(left_sigma[1], WireData::Left(2));
+        assert_eq!(left_sigma[2], WireData::Left(3));
+        assert_eq!(left_sigma[3], WireData::Left(0));
 
         // Check the right sigma polynomial
-        assert_eq!(right_sigma[0] - (WireType::Left as usize), 1);
-        assert_eq!(right_sigma[1] - (WireType::Right as usize), 1);
-        assert_eq!(right_sigma[2] - (WireType::Right as usize), 2);
-        assert_eq!(right_sigma[3] - (WireType::Right as usize), 3);
+        assert_eq!(right_sigma[0], WireData::Left(1));
+        assert_eq!(right_sigma[1], WireData::Right(1));
+        assert_eq!(right_sigma[2], WireData::Right(2));
+        assert_eq!(right_sigma[3], WireData::Right(3));
 
         // Check the output sigma polynomial
-        assert_eq!(out_sigma[0] - (WireType::Output as usize), 0);
-        assert_eq!(out_sigma[1] - (WireType::Output as usize), 1);
-        assert_eq!(out_sigma[2] - (WireType::Output as usize), 2);
-        assert_eq!(out_sigma[3] - (WireType::Output as usize), 3);
+        assert_eq!(out_sigma[0], WireData::Output(0));
+        assert_eq!(out_sigma[1], WireData::Output(1));
+        assert_eq!(out_sigma[2], WireData::Output(2));
+        assert_eq!(out_sigma[3], WireData::Output(3));
 
         let domain = EvaluationDomain::new(num_wire_mappings).unwrap();
         let k1 = Fr::multiplicative_generator();
@@ -747,22 +740,22 @@ mod test {
         let out_sigma = &sigmas[2];
 
         // Check the left sigma polynomial
-        assert_eq!(left_sigma[0] - (WireType::Right as usize), 0);
-        assert_eq!(left_sigma[1] - (WireType::Output as usize), 1);
-        assert_eq!(left_sigma[2] - (WireType::Right as usize), 2);
-        assert_eq!(left_sigma[3] - (WireType::Output as usize), 0);
+        assert_eq!(left_sigma[0], WireData::Right(0));
+        assert_eq!(left_sigma[1], WireData::Output(1));
+        assert_eq!(left_sigma[2], WireData::Right(2));
+        assert_eq!(left_sigma[3], WireData::Output(0));
 
         // Check the right sigma polynomial
-        assert_eq!(right_sigma[0] - (WireType::Right as usize), 1);
-        assert_eq!(right_sigma[1] - (WireType::Output as usize), 2);
-        assert_eq!(right_sigma[2] - (WireType::Output as usize), 3);
-        assert_eq!(right_sigma[3] - (WireType::Left as usize), 0);
+        assert_eq!(right_sigma[0], WireData::Right(1));
+        assert_eq!(right_sigma[1], WireData::Output(2));
+        assert_eq!(right_sigma[2], WireData::Output(3));
+        assert_eq!(right_sigma[3], WireData::Left(0));
 
         // Check the output sigma polynomial
-        assert_eq!(out_sigma[0] - (WireType::Left as usize), 1);
-        assert_eq!(out_sigma[1] - (WireType::Left as usize), 3);
-        assert_eq!(out_sigma[2] - (WireType::Right as usize), 3);
-        assert_eq!(out_sigma[3] - (WireType::Left as usize), 2);
+        assert_eq!(out_sigma[0], WireData::Left(1));
+        assert_eq!(out_sigma[1], WireData::Left(3));
+        assert_eq!(out_sigma[2], WireData::Right(3));
+        assert_eq!(out_sigma[3], WireData::Left(2));
 
         /*
 
