@@ -1,6 +1,4 @@
-use super::constraint_system::{Variable, WireData, WireType};
-use crate::transcript::TranscriptProtocol;
-use merlin::Transcript;
+use super::constraint_system::{Variable, WireData};
 
 use algebra::{
     curves::PairingEngine,
@@ -8,8 +6,9 @@ use algebra::{
 };
 use ff_fft::{DensePolynomial as Polynomial, EvaluationDomain};
 use itertools::izip;
-use rand_core::{CryptoRng, RngCore};
+use rayon::iter::*;
 use rayon::prelude::*;
+use std::collections::HashMap;
 use std::marker::PhantomData;
 
 pub struct Permutation<E: PairingEngine> {
@@ -17,12 +16,13 @@ pub struct Permutation<E: PairingEngine> {
 
     // These are the actual variable values
     // N.B. They should not be exposed to the end user once added into the composer
-    variables: Vec<E::Fr>,
+    variables: HashMap<Variable, E::Fr>,
 
-    // maps variables to the wire data that they are assosciated with
-    // To then later create the necessary permutations
-    // XXX: the index will be the Variable reference, so it may be better to use a map to be more explicit here
-    pub(crate) variable_map: Vec<Vec<WireData>>,
+    // Actual number of variables included on the permutation.
+    variable_num: usize,
+
+    // Maps a variable to the wires that it is assosciated to
+    pub(crate) variable_map: HashMap<Variable, Vec<WireData>>,
 
     left_sigma_mapping: Option<Vec<E::Fr>>,
     right_sigma_mapping: Option<Vec<E::Fr>>,
@@ -37,8 +37,9 @@ impl<E: PairingEngine> Permutation<E> {
     pub fn with_capacity(expected_size: usize) -> Permutation<E> {
         Permutation {
             _engine: PhantomData,
-            variables: Vec::with_capacity(expected_size),
-            variable_map: Vec::with_capacity(expected_size),
+            variables: HashMap::with_capacity(expected_size),
+            variable_num: 0usize,
+            variable_map: HashMap::with_capacity(expected_size),
 
             left_sigma_mapping: None,
             right_sigma_mapping: None,
@@ -47,45 +48,57 @@ impl<E: PairingEngine> Permutation<E> {
     }
     /// Adds a Scalar into the system and creates a new variable for it
     pub fn new_variable(&mut self, s: E::Fr) -> Variable {
+        // Generate the Variable
+        let var = Variable(self.variable_num);
         // Push scalar into the system
-        self.variables.push(s);
+        self.variables.insert(var, s);
 
-        // Add an empty space for it in the variable map
-        self.variable_map.push(Vec::new());
+        // Allocate space for the Variable on the variable_map
+        // Each vector is initialised with a capacity of 16.
+        // This number is a best guess estimate.
+        self.variable_map.insert(var, Vec::with_capacity(16usize));
 
-        assert_eq!(self.variables.len(), self.variable_map.len());
-
-        // Return reference to scalar
-        let index = self.variables.len() - 1;
-        Variable(index)
+        // Update the variable_num counter
+        self.variable_num += 1;
+        // Return the generated Variable
+        var
     }
     /// Checks that the variables are valid by determining if they have been added to the system
     fn valid_variables(&self, variables: &[Variable]) -> bool {
-        let num_variables = self.variable_map.len();
-        for variable in variables.iter() {
-            let index = variable.0;
-            if index >= num_variables {
-                return false;
-            }
-        }
-        return true;
+        let results: Vec<bool> = variables
+            .into_par_iter()
+            .map(|var| self.variables.contains_key(&var))
+            .filter(|boolean| boolean == &false)
+            .collect();
+
+        results.is_empty()
     }
-    /// Maps a set of variables (a,b,c) to a set of Wires (left, right, out) where `n` is the gate index
-    pub fn add_variable_to_map(&mut self, a: Variable, b: Variable, c: Variable, n: usize) {
+    /// Maps a set of variables (a,b,c) to a set of Wires (left, right, out) with
+    /// the corresponding gate index
+    pub fn add_variable_to_map(
+        &mut self,
+        a: Variable,
+        b: Variable,
+        c: Variable,
+        gate_index: usize,
+    ) {
         assert!(self.valid_variables(&[a, b, c]));
 
-        let left: WireData = WireData::new(n, WireType::Left);
-        let right: WireData = WireData::new(n, WireType::Right);
-        let output: WireData = WireData::new(n, WireType::Output);
+        let left: WireData = WireData::Left(gate_index);
+        let right: WireData = WireData::Right(gate_index);
+        let output: WireData = WireData::Output(gate_index);
 
-        // Map each variable to the wires it iscomp assosciated with
+        // Map each variable to the wire it is assosciated with
         // This essentially tells us that:
         // Variable `a` is being used in the n'th gate as a left wire
         // Variable `b` is being used in the n'th gate as a right wire
         // Variable `c` is being used in the n'th gate as an output wire
-        self.variable_map[a.0].push(left);
-        self.variable_map[b.0].push(right);
-        self.variable_map[c.0].push(output);
+        for (var, wire_data) in [a, b, c].into_iter().zip([left, right, output].into_iter()) {
+            // Since we always allocate space for the Vec of WireData when a
+            // Variable is added to the variable_map, this should never fail
+            let vec_wire_data = self.variable_map.get_mut(var).unwrap();
+            vec_wire_data.push(*wire_data);
+        }
     }
     /// Convert variables to their actual Scalars
     pub(super) fn witness_vars_to_scalars(
@@ -94,50 +107,40 @@ impl<E: PairingEngine> Permutation<E> {
         w_r: &[Variable],
         w_o: &[Variable],
     ) -> (Vec<E::Fr>, Vec<E::Fr>, Vec<E::Fr>) {
-        // XXX: We could probably chuck this check, as it will fail if variables are not valid
-        assert!(
-            self.valid_variables(w_l) && self.valid_variables(w_r) && self.valid_variables(w_o)
-        );
-
         (
-            w_l.par_iter().map(|var| self.variables[var.0]).collect(),
-            w_r.par_iter().map(|var| self.variables[var.0]).collect(),
-            w_o.par_iter().map(|var| self.variables[var.0]).collect(),
+            w_l.par_iter().map(|var| self.variables[var]).collect(),
+            w_r.par_iter().map(|var| self.variables[var]).collect(),
+            w_o.par_iter().map(|var| self.variables[var]).collect(),
         )
     }
 
     // Performs shift by one permutation and computes sigma_1, sigma_2 and sigma_3 permutations from the variable maps
-    pub(super) fn compute_sigma_permutations(&mut self, n: usize) -> [Vec<usize>; 3] {
-        let sigma_1: Vec<_> = (0 + WireType::Left as usize..n + WireType::Left as usize).collect();
-        let sigma_2: Vec<_> =
-            (0 + WireType::Right as usize..n + WireType::Right as usize).collect();
-        let sigma_3: Vec<_> =
-            (0 + WireType::Output as usize..n + WireType::Output as usize).collect();
-
-        assert_eq!(sigma_1.len(), n);
-        assert_eq!(sigma_2.len(), n);
-        assert_eq!(sigma_3.len(), n);
+    pub(super) fn compute_sigma_permutations(&mut self, n: usize) -> [Vec<WireData>; 3] {
+        let sigma_1: Vec<_> = (0..n).map(|x| WireData::Left(x)).collect();
+        let sigma_2: Vec<_> = (0..n).map(|x| WireData::Right(x)).collect();
+        let sigma_3: Vec<_> = (0..n).map(|x| WireData::Output(x)).collect();
 
         let mut sigmas = [sigma_1, sigma_2, sigma_3];
 
-        for variable in self.variable_map.iter() {
+        for (_, wire_data) in self.variable_map.iter() {
             // Gets the data for each wire assosciated with this variable
-            for (wire_index, current_wire) in variable.iter().enumerate() {
+            for (wire_index, current_wire) in wire_data.iter().enumerate() {
                 // Fetch index of the next wire, if it is the last element
                 // We loop back around to the beginning
-                let next_index = match wire_index == variable.len() - 1 {
+                let next_index = match wire_index == wire_data.len() - 1 {
                     true => 0,
                     false => wire_index + 1,
                 };
 
                 // Fetch the next wire
-                let next_wire = &variable[next_index];
+                let next_wire = &wire_data[next_index];
 
-                // Map current wire to the next wire
-                // XXX: We could probably split up sigmas and do a match statement here
-                // Or even better, to avoid the allocations when defining sigma_1,sigma_2 and sigma_3 we can use a better more explicit encoding
-                sigmas[current_wire.wire_type as usize >> 30][current_wire.gate_index] =
-                    next_wire.gate_index + next_wire.wire_type as usize;
+                // Map current wire to next wire
+                match current_wire {
+                    WireData::Left(index) => sigmas[0][*index] = *next_wire,
+                    WireData::Right(index) => sigmas[1][*index] = *next_wire,
+                    WireData::Output(index) => sigmas[2][*index] = *next_wire,
+                };
             }
         }
 
@@ -146,7 +149,7 @@ impl<E: PairingEngine> Permutation<E> {
 
     fn compute_permutation_lagrange(
         &self,
-        sigma_mapping: &[usize],
+        sigma_mapping: &[WireData],
         domain: &EvaluationDomain<E::Fr>,
     ) -> Vec<E::Fr> {
         let k1 = E::Fr::multiplicative_generator();
@@ -156,14 +159,18 @@ impl<E: PairingEngine> Permutation<E> {
 
         let lagrange_poly: Vec<E::Fr> = sigma_mapping
             .iter()
-            .map(|x| {
-                // XXX: We can probably just pass around WireData and then we no longer need to do the conversion here
-                let wire_data: WireData = x.into();
-                let root = &roots[wire_data.gate_index];
-                match wire_data.wire_type {
-                    WireType::Left => *root,
-                    WireType::Right => k1 * root,
-                    WireType::Output => k2 * root,
+            .map(|x| match x {
+                WireData::Left(index) => {
+                    let root = &roots[*index];
+                    *root
+                }
+                WireData::Right(index) => {
+                    let root = &roots[*index];
+                    k1 * root
+                }
+                WireData::Output(index) => {
+                    let root = &roots[*index];
+                    k2 * root
                 }
             })
             .collect();
@@ -199,20 +206,31 @@ impl<E: PairingEngine> Permutation<E> {
         (left_sigma_coeffs, right_sigma_coeffs, out_sigma_coeffs)
     }
 
-    pub(crate) fn compute_permutation_poly<R>(
+    pub(crate) fn compute_permutation_poly(
         &self,
         domain: &EvaluationDomain<E::Fr>,
-        mut rng: &mut R,
         w_l: &[E::Fr],
         w_r: &[E::Fr],
         w_o: &[E::Fr],
         (beta, gamma): &(E::Fr, E::Fr),
-    ) -> Vec<E::Fr>
-    where
-        R: RngCore + CryptoRng,
-    {
+    ) -> (Vec<E::Fr>, Vec<E::Fr>) {
         let z_evaluations = self.compute_fast_permutation_poly(domain, w_l, w_r, w_o, beta, gamma);
-        domain.ifft(&z_evaluations)
+
+        // Compute permutation polynomial, the shifted version and blind it
+        let z_coeffs = domain.ifft(&z_evaluations);
+
+        // Shift permutation evaluations by one and compute the shifted polynomial
+        let shifted_z_evaluations = self.shift_poly_by_one(z_evaluations);
+        let shifted_z_coeffs = domain.ifft(&shifted_z_evaluations);
+
+        (z_coeffs, shifted_z_coeffs)
+    }
+    // shifts the polynomials by one root of unity
+    fn shift_poly_by_one(&self, z_coefficients: Vec<E::Fr>) -> Vec<E::Fr> {
+        let mut shifted_z_coefficients = z_coefficients;
+        shifted_z_coefficients.push(shifted_z_coefficients[0]);
+        shifted_z_coefficients.remove(0);
+        shifted_z_coefficients
     }
 
     fn compute_slow_permutation_poly<I>(
@@ -409,7 +427,7 @@ impl<E: PairingEngine> Permutation<E> {
         // Compute out_wire + gamma
         let wO_gamma: Vec<_> = w_o.par_iter().map(|w_O| *w_O + gamma).collect();
 
-        // Compute 6 acumulator components
+        // Compute 6 accumulator components
         // Parallisable
         let mut acumulator_components_without_l1: Vec<_> = (
             wL_gamma,
@@ -472,8 +490,6 @@ impl<E: PairingEngine> Permutation<E> {
         ))
         .chain(acumulator_components_without_l1);
 
-        // XXX: We could put this in with the previous iter method, but it will not be clear
-        // Actually, we should not because the first part is parallelisable, while this section is not
         // Multiply each component of the accumulators
         // A simplified example is the following:
         // A1 = [1,2,3,4]
@@ -559,27 +575,17 @@ mod test {
         }
 
         // Check all gate_indices are valid
-        for var in perm.variable_map.iter() {
-            for wire in var.iter() {
-                assert!(wire.gate_index < gate_size);
+        for (_, wire_data) in perm.variable_map.iter() {
+            for wire in wire_data.iter() {
+                match wire {
+                    WireData::Left(index) | WireData::Right(index) | WireData::Output(index) => {
+                        assert!(*index < gate_size)
+                    }
+                };
             }
         }
     }
-    fn compute_identity_sigmas(n: usize) -> [Vec<Fr>; 3] {
-        let domain = EvaluationDomain::new(n).unwrap();
-        let sigma_1: Vec<_> = (0 + WireType::Left as usize..n + WireType::Left as usize).collect();
-        let sigma_2: Vec<_> =
-            (0 + WireType::Right as usize..n + WireType::Right as usize).collect();
-        let sigma_3: Vec<_> =
-            (0 + WireType::Output as usize..n + WireType::Output as usize).collect();
 
-        let perm: Permutation<E> = Permutation::new();
-        let sig_1 = perm.compute_permutation_lagrange(&sigma_1, &domain);
-        let sig_2 = perm.compute_permutation_lagrange(&sigma_2, &domain);
-        let sig_3 = perm.compute_permutation_lagrange(&sigma_3, &domain);
-
-        [sig_1, sig_2, sig_3]
-    }
     #[test]
     fn test_permutation_compute_sigmas_only_left_wires() {
         let mut perm: Permutation<E> = Permutation::new();
@@ -625,22 +631,22 @@ mod test {
         let out_sigma = &sigmas[2];
 
         // Check the left sigma polynomial
-        assert_eq!(left_sigma[0] - (WireType::Right as usize), 0);
-        assert_eq!(left_sigma[1] - (WireType::Left as usize), 2);
-        assert_eq!(left_sigma[2] - (WireType::Left as usize), 3);
-        assert_eq!(left_sigma[3] - (WireType::Left as usize), 0);
+        assert_eq!(left_sigma[0], WireData::Right(0));
+        assert_eq!(left_sigma[1], WireData::Left(2));
+        assert_eq!(left_sigma[2], WireData::Left(3));
+        assert_eq!(left_sigma[3], WireData::Left(0));
 
         // Check the right sigma polynomial
-        assert_eq!(right_sigma[0] - (WireType::Left as usize), 1);
-        assert_eq!(right_sigma[1] - (WireType::Right as usize), 1);
-        assert_eq!(right_sigma[2] - (WireType::Right as usize), 2);
-        assert_eq!(right_sigma[3] - (WireType::Right as usize), 3);
+        assert_eq!(right_sigma[0], WireData::Left(1));
+        assert_eq!(right_sigma[1], WireData::Right(1));
+        assert_eq!(right_sigma[2], WireData::Right(2));
+        assert_eq!(right_sigma[3], WireData::Right(3));
 
         // Check the output sigma polynomial
-        assert_eq!(out_sigma[0] - (WireType::Output as usize), 0);
-        assert_eq!(out_sigma[1] - (WireType::Output as usize), 1);
-        assert_eq!(out_sigma[2] - (WireType::Output as usize), 2);
-        assert_eq!(out_sigma[3] - (WireType::Output as usize), 3);
+        assert_eq!(out_sigma[0], WireData::Output(0));
+        assert_eq!(out_sigma[1], WireData::Output(1));
+        assert_eq!(out_sigma[2], WireData::Output(2));
+        assert_eq!(out_sigma[3], WireData::Output(3));
 
         let domain = EvaluationDomain::new(num_wire_mappings).unwrap();
         let k1 = Fr::multiplicative_generator();
@@ -729,22 +735,22 @@ mod test {
         let out_sigma = &sigmas[2];
 
         // Check the left sigma polynomial
-        assert_eq!(left_sigma[0] - (WireType::Right as usize), 0);
-        assert_eq!(left_sigma[1] - (WireType::Output as usize), 1);
-        assert_eq!(left_sigma[2] - (WireType::Right as usize), 2);
-        assert_eq!(left_sigma[3] - (WireType::Output as usize), 0);
+        assert_eq!(left_sigma[0], WireData::Right(0));
+        assert_eq!(left_sigma[1], WireData::Output(1));
+        assert_eq!(left_sigma[2], WireData::Right(2));
+        assert_eq!(left_sigma[3], WireData::Output(0));
 
         // Check the right sigma polynomial
-        assert_eq!(right_sigma[0] - (WireType::Right as usize), 1);
-        assert_eq!(right_sigma[1] - (WireType::Output as usize), 2);
-        assert_eq!(right_sigma[2] - (WireType::Output as usize), 3);
-        assert_eq!(right_sigma[3] - (WireType::Left as usize), 0);
+        assert_eq!(right_sigma[0], WireData::Right(1));
+        assert_eq!(right_sigma[1], WireData::Output(2));
+        assert_eq!(right_sigma[2], WireData::Output(3));
+        assert_eq!(right_sigma[3], WireData::Left(0));
 
         // Check the output sigma polynomial
-        assert_eq!(out_sigma[0] - (WireType::Left as usize), 1);
-        assert_eq!(out_sigma[1] - (WireType::Left as usize), 3);
-        assert_eq!(out_sigma[2] - (WireType::Right as usize), 3);
-        assert_eq!(out_sigma[3] - (WireType::Left as usize), 2);
+        assert_eq!(out_sigma[0], WireData::Left(1));
+        assert_eq!(out_sigma[1], WireData::Left(3));
+        assert_eq!(out_sigma[2], WireData::Right(3));
+        assert_eq!(out_sigma[3], WireData::Left(2));
 
         /*
 
@@ -886,7 +892,6 @@ mod test {
         assert_ne!(gamma, beta); // This will make the z(gW) =
 
         //1. Compute the permutation polynomial using both methods
-        // XXX: We should run benchmarks for these two methods
         //
         perm.compute_sigma_polynomials(n, &domain);
         let (z_vec, numerator_components, denominator_components) = perm

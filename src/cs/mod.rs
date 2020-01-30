@@ -5,7 +5,6 @@ mod opening;
 mod permutation;
 pub mod poly_utils;
 mod proof;
-mod public_inputs;
 mod quotient_poly;
 
 use algebra::{

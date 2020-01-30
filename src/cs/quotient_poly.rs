@@ -1,6 +1,5 @@
 use crate::cs::poly_utils::Poly_utils;
 use crate::cs::PreProcessedCircuit;
-use crate::transcript::TranscriptProtocol;
 use algebra::{
     curves::PairingEngine,
     fields::{Field, PrimeField},
