@@ -123,6 +123,8 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
         mut rng: &mut R,
     ) -> Proof<E> {
         let domain = EvaluationDomain::new(self.n).unwrap();
+        // Create an empty Proof
+        let mut proof = Proof::empty();
 
         //1. Witness Polynomials
         //
@@ -154,6 +156,8 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
         transcript.append_commitment(b"w_l", &w_l_poly_commit);
         transcript.append_commitment(b"w_r", &w_r_poly_commit);
         transcript.append_commitment(b"w_o", &w_o_poly_commit);
+        // Add witness poly commitments to the proof
+        proof.set_witness_poly_commitments(&w_l_poly_commit, &w_r_poly_commit, &w_o_poly_commit);
 
         // Compute Permutation challenges to the transcript `beta` and `gamma`
         let beta = transcript.challenge_scalar(b"beta");
@@ -173,7 +177,10 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
         let z_poly_shifted = Polynomial::from_coefficients_slice(&z_shifted_coeffs);
 
         let z_poly_commit = srs::commit(commit_key, &z_coeffs);
+        // Add permutation poly commitment to the transcript
         transcript.append_commitment(b"z", &z_poly_commit);
+        // Add permutation poly commitment to the proof
+        proof.set_perm_poly_commitment(&z_poly_commit);
 
         // Compute Quotient challenge `alpha`
         let alpha = transcript.challenge_scalar(b"alpha");
@@ -199,6 +206,8 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
         let t_low_commit = srs::commit(commit_key, &t_low_poly.coeffs);
         let t_mid_commit = srs::commit(commit_key, &t_mid_poly.coeffs);
         let t_hi_commit = srs::commit(commit_key, &t_hi_poly.coeffs);
+        // Include quotient polynomial commitments to the proof
+        proof.set_quotient_poly_commitments(&t_low_commit, &t_mid_commit, &t_hi_commit);
 
         transcript.append_commitment(b"t_lo", &t_low_commit);
         transcript.append_commitment(b"t_mid", &t_mid_commit);
@@ -241,6 +250,16 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
         transcript.append_scalar(b"t_eval", &quot_eval);
         transcript.append_scalar(b"r_eval", &lin_poly_eval);
 
+        // Include evaluations of witness polynomials on the proof
+        proof.set_witness_poly_evals(&a_eval, &b_eval, &c_eval);
+        // Include sigma polynomial evaluations on the proof
+        proof.set_sigma_poly_evals(&left_sigma_eval, &right_sigma_eval);
+        // Include evaluation of the permutation polynomial at `z * root of unity`
+        // on the proof
+        proof.set_shifted_perm_poly_eval(&z_hat_eval);
+        // Include evaluation of the linearisation sigma polynomial on the proof
+        proof.set_linearisation_poly_eval(&lin_poly_eval);
+
         // Compute opening challenge `v`
         let v = transcript.challenge_scalar(b"v");
 
@@ -267,25 +286,10 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
         let w_z_comm = srs::commit(commit_key, &W_z.coeffs);
         let w_z_x_comm = srs::commit(commit_key, &W_zx.coeffs);
 
-        Proof {
-            a_comm: w_l_poly_commit,
-            b_comm: w_r_poly_commit,
-            c_comm: w_o_poly_commit,
+        // Include opening polynomial commitments on the proof
+        proof.set_opening_poly_commitments(&w_z_comm, &w_z_x_comm);
 
-            z_comm: z_poly_commit,
-            t_lo_comm: t_low_commit,
-            t_mid_comm: t_mid_commit,
-            t_hi_comm: t_hi_commit,
-            w_z_comm: w_z_comm,
-            w_zw_comm: w_z_x_comm,
-            a_eval: a_eval,
-            b_eval: b_eval,
-            c_eval: c_eval,
-            left_sigma_eval: left_sigma_eval,
-            right_sigma_eval: right_sigma_eval,
-            lin_poly_eval: lin_poly_eval,
-            z_hat_eval: z_hat_eval,
-        }
+        proof
     }
 
     fn circuit_size(&self) -> usize {
