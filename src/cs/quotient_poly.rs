@@ -23,7 +23,8 @@ impl<E: PairingEngine> QuotientToolkit<E> {
         domain: &EvaluationDomain<E::Fr>,
         preprocessed_circuit: &PreProcessedCircuit<E>,
         z_coeffs: &[E::Fr],
-        witness_polynomials: [&Polynomial<E::Fr>; 3],
+        witness_polynomials: [&Vec<E::Fr>; 3],
+        public_inputs_poly: &Vec<E::Fr>,
         (alpha, beta, gamma): &(E::Fr, E::Fr, E::Fr),
     ) -> (Polynomial<E::Fr>) {
         let k1 = E::Fr::multiplicative_generator();
@@ -58,6 +59,7 @@ impl<E: PairingEngine> QuotientToolkit<E> {
             .par_iter()
             .map(|x| *alpha * x)
             .collect();
+        let alpha_pi_coeffs: Vec<_> = public_inputs_poly.par_iter().map(|x| *alpha * x).collect();
 
         // Compute components for t(X)
         let t_1 = self.compute_quotient_first_component(
@@ -67,6 +69,7 @@ impl<E: PairingEngine> QuotientToolkit<E> {
             &alpha_qr_coeffs,
             &alpha_qo_coeffs,
             &alpha_qc_coeffs,
+            &alpha_pi_coeffs,
             wl_coeffs,
             wr_coeffs,
             wo_coeffs,
@@ -114,6 +117,7 @@ impl<E: PairingEngine> QuotientToolkit<E> {
         alpha_qr_coeffs: &[E::Fr],
         alpha_qo_coeffs: &[E::Fr],
         alpha_qc_coeffs: &[E::Fr],
+        alpha_pi_coeffs: &[E::Fr],
         wl_coeffs: &[E::Fr],
         wr_coeffs: &[E::Fr],
         wo_coeffs: &[E::Fr],
@@ -126,6 +130,7 @@ impl<E: PairingEngine> QuotientToolkit<E> {
         let alpha_qr_eval_4n = domain_4n.fft(alpha_qr_coeffs);
         let alpha_qo_eval_4n = domain_4n.fft(alpha_qo_coeffs);
         let alpha_qc_eval_4n = domain_4n.fft(alpha_qc_coeffs);
+        let alpha_pi_eval_4n = domain_4n.fft(alpha_pi_coeffs);
 
         let wl_eval_4n = domain_4n.fft(&wl_coeffs);
         let wr_eval_4n = domain_4n.fft(&wr_coeffs);
@@ -143,6 +148,7 @@ impl<E: PairingEngine> QuotientToolkit<E> {
                 let qr_alpha = &alpha_qr_eval_4n[i];
                 let qo_alpha = &alpha_qo_eval_4n[i];
                 let qc_alpha = &alpha_qc_eval_4n[i];
+                let pi_alpha = &alpha_pi_eval_4n[i];
 
                 // (a(x)b(x)q_M(x) + a(x)q_L(x) + b(X)q_R(x) + c(X)q_O(X) + PI(X) + Q_C(X))
                 //
@@ -155,8 +161,8 @@ impl<E: PairingEngine> QuotientToolkit<E> {
                 let a_3 = *wr * qr_alpha;
                 //c(X)q_O(X)
                 let a_4 = *wo * qo_alpha;
-                // q_C(x) // XXX: removed public input polynomial
-                let a_5 = qc_alpha;
+                // q_C(x) + PI(X)
+                let a_5 = *qc_alpha + pi_alpha;
 
                 // (a(x)b(x)q_M(x) + a(x)q_L(x) + b(X)q_R(x) + c(X)q_O(X) + PI(X) + Q_C(X)) * alpha
                 let mut a = a_1 + &a_2;
