@@ -213,24 +213,9 @@ impl<E: PairingEngine> Permutation<E> {
         w_r: &[E::Fr],
         w_o: &[E::Fr],
         (beta, gamma): &(E::Fr, E::Fr),
-    ) -> (Vec<E::Fr>, Vec<E::Fr>) {
+    ) -> Vec<E::Fr> {
         let z_evaluations = self.compute_fast_permutation_poly(domain, w_l, w_r, w_o, beta, gamma);
-
-        // Compute permutation polynomial, the shifted version and blind it
-        let z_coeffs = domain.ifft(&z_evaluations);
-
-        // Shift permutation evaluations by one and compute the shifted polynomial
-        let shifted_z_evaluations = self.shift_poly_by_one(z_evaluations);
-        let shifted_z_coeffs = domain.ifft(&shifted_z_evaluations);
-
-        (z_coeffs, shifted_z_coeffs)
-    }
-    // shifts the polynomials by one root of unity
-    fn shift_poly_by_one(&self, z_coefficients: Vec<E::Fr>) -> Vec<E::Fr> {
-        let mut shifted_z_coefficients = z_coefficients;
-        shifted_z_coefficients.push(shifted_z_coefficients[0]);
-        shifted_z_coefficients.remove(0);
-        shifted_z_coefficients
+        domain.ifft(&z_evaluations)
     }
 
     fn compute_slow_permutation_poly<I>(
