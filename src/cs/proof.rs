@@ -82,6 +82,74 @@ impl<E: PairingEngine> Proof<E> {
         }
     }
 
+    // Includes the commitments to the witness polynomials for left
+    // right and output wires in the proof
+    pub fn set_witness_poly_commitments(
+        &mut self,
+        a_comm: &Commitment<E>,
+        b_comm: &Commitment<E>,
+        c_comm: &Commitment<E>,
+    ) -> () {
+        self.a_comm = *a_comm;
+        self.b_comm = *b_comm;
+        self.c_comm = *c_comm;
+    }
+
+    // Includes the commitment to the permutation polynomial in the proof
+    pub fn set_perm_poly_commitment(&mut self, z_comm: &Commitment<E>) -> () {
+        self.z_comm = *z_comm;
+    }
+
+    // Includes the commitments to the quotient polynomials in the proof
+    pub fn set_quotient_poly_commitments(
+        &mut self,
+        t_lo_comm: &Commitment<E>,
+        t_mid_comm: &Commitment<E>,
+        t_hi_comm: &Commitment<E>,
+    ) -> () {
+        self.t_lo_comm = *t_lo_comm;
+        self.t_mid_comm = *t_mid_comm;
+        self.t_hi_comm = *t_hi_comm;
+    }
+
+    // Includes the commitments to the opening polynomial and the shifted
+    // opening polynomial in the proof
+    pub fn set_opening_poly_commitments(
+        &mut self,
+        opening_poly_comm: &Commitment<E>,
+        shifted_opening_poly_comm: &Commitment<E>,
+    ) -> () {
+        self.w_z_comm = *opening_poly_comm;
+        self.w_zw_comm = *shifted_opening_poly_comm;
+    }
+
+    // Includes the evaluations of the witness polynomials at `z`
+    // for left right and output wires in the proof
+    pub fn set_witness_poly_evals(&mut self, a_eval: &E::Fr, b_eval: &E::Fr, c_eval: &E::Fr) -> () {
+        self.a_eval = *a_eval;
+        self.b_eval = *b_eval;
+        self.c_eval = *c_eval;
+    }
+
+    // Includes the evaluation of the left and right sigma permutation
+    // polynomials at `z` in the proof
+    pub fn set_sigma_poly_evals(&mut self, left_sigm_eval: &E::Fr, right_sigm_eval: &E::Fr) -> () {
+        self.left_sigma_eval = *left_sigm_eval;
+        self.right_sigma_eval = *right_sigm_eval;
+    }
+
+    // Includes the evaluation of the linearisation sigma polynomial at `z`
+    // in the proof
+    pub fn set_linearisation_poly_eval(&mut self, lin_poly_eval: &E::Fr) -> () {
+        self.lin_poly_eval = *lin_poly_eval;
+    }
+
+    // Includes the (Shifted) Evaluation of the permutation polynomial at
+    // `z * root of unity` in the proof
+    pub fn set_shifted_perm_poly_eval(&mut self, shft_perm_poly_eval: &E::Fr) -> () {
+        self.z_hat_eval = *shft_perm_poly_eval;
+    }
+
     pub fn verify(
         &self,
         preprocessed_circuit: &PreProcessedCircuit<E>,
