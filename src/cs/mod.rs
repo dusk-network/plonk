@@ -3,6 +3,7 @@ mod constraint_system;
 mod linearisation;
 mod opening;
 mod permutation;
+pub mod poly_utils;
 mod proof;
 mod quotient_poly;
 
@@ -10,7 +11,6 @@ use algebra::{
     curves::PairingEngine,
     fields::{Field, PrimeField},
 };
-use ff_fft::DensePolynomial as Polynomial;
 use poly_commit::kzg10::Commitment;
 
 use crate::transcript::TranscriptProtocol;
@@ -31,28 +31,28 @@ pub struct PreProcessedCircuit<E: PairingEngine> {
     out_sigma: (Vec<E::Fr>, Commitment<E>),
 }
 impl<E: PairingEngine> PreProcessedCircuit<E> {
-    pub fn qm_poly(&self) -> &[E::Fr] {
+    pub fn qm_poly(&self) -> &Vec<E::Fr> {
         &self.selectors[0].0
     }
-    pub fn ql_poly(&self) -> &[E::Fr] {
+    pub fn ql_poly(&self) -> &Vec<E::Fr> {
         &self.selectors[1].0
     }
-    pub fn qr_poly(&self) -> &[E::Fr] {
+    pub fn qr_poly(&self) -> &Vec<E::Fr> {
         &self.selectors[2].0
     }
-    pub fn qo_poly(&self) -> &[E::Fr] {
+    pub fn qo_poly(&self) -> &Vec<E::Fr> {
         &self.selectors[3].0
     }
-    pub fn qc_poly(&self) -> &[E::Fr] {
+    pub fn qc_poly(&self) -> &Vec<E::Fr> {
         &self.selectors[4].0
     }
-    pub fn left_sigma_poly(&self) -> &[E::Fr] {
+    pub fn left_sigma_poly(&self) -> &Vec<E::Fr> {
         &self.left_sigma.0
     }
-    pub fn right_sigma_poly(&self) -> &[E::Fr] {
+    pub fn right_sigma_poly(&self) -> &Vec<E::Fr> {
         &self.right_sigma.0
     }
-    pub fn out_sigma_poly(&self) -> &[E::Fr] {
+    pub fn out_sigma_poly(&self) -> &Vec<E::Fr> {
         &self.out_sigma.0
     }
     pub fn qm_comm(&self) -> &Commitment<E> {
