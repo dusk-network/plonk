@@ -185,8 +185,8 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
             &domain,
             &preprocessed_circuit,
             &z_poly,
-            [&w_l_poly, &w_r_poly, &w_o_poly],
-            &pi_poly,
+            [&w_l_poly.coeffs, &w_r_poly.coeffs, &w_o_poly.coeffs],
+            &pi_poly.coeffs,
             &(alpha, beta, gamma),
         );
 
