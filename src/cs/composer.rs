@@ -201,9 +201,9 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
             self.split_tx_poly(domain.size(), &t_x.coeffs);
 
         // Commit polynomials.
-        let t_low_commit = srs::commit(commit_key, &t_low_poly.coeffs);
-        let t_mid_commit = srs::commit(commit_key, &t_mid_poly.coeffs);
-        let t_hi_commit = srs::commit(commit_key, &t_hi_poly.coeffs);
+        let t_low_commit = srs::commit(commit_key, &t_low_coeffs);
+        let t_mid_commit = srs::commit(commit_key, &t_mid_coeffs);
+        let t_hi_commit = srs::commit(commit_key, &t_hi_coeffs);
         // Include quotient polynomial commitments to the proof
         proof.set_quotient_poly_commitments(&t_low_commit, &t_mid_commit, &t_hi_commit);
 
