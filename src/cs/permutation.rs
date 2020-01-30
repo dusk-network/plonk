@@ -18,9 +18,6 @@ pub struct Permutation<E: PairingEngine> {
     // N.B. They should not be exposed to the end user once added into the composer
     variables: HashMap<Variable, E::Fr>,
 
-    // Actual number of variables included on the permutation.
-    variable_num: usize,
-
     // Maps a variable to the wires that it is assosciated to
     pub(crate) variable_map: HashMap<Variable, Vec<WireData>>,
 
@@ -38,7 +35,6 @@ impl<E: PairingEngine> Permutation<E> {
         Permutation {
             _engine: PhantomData,
             variables: HashMap::with_capacity(expected_size),
-            variable_num: 0usize,
             variable_map: HashMap::with_capacity(expected_size),
 
             left_sigma_mapping: None,
@@ -49,7 +45,7 @@ impl<E: PairingEngine> Permutation<E> {
     /// Adds a Scalar into the system and creates a new variable for it
     pub fn new_variable(&mut self, s: E::Fr) -> Variable {
         // Generate the Variable
-        let var = Variable(self.variable_num);
+        let var = Variable(self.variables.keys().len());
         // Push scalar into the system
         self.variables.insert(var, s);
 
@@ -58,9 +54,6 @@ impl<E: PairingEngine> Permutation<E> {
         // This number is a best guess estimate.
         self.variable_map.insert(var, Vec::with_capacity(16usize));
 
-        // Update the variable_num counter
-        self.variable_num += 1;
-        // Return the generated Variable
         var
     }
     /// Checks that the variables are valid by determining if they have been added to the system
