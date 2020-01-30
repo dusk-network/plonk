@@ -163,7 +163,6 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
         // compute Permutation polynomial
         let (z_coeffs, z_shifted_coeffs) = self.perm.compute_permutation_poly(
             &domain,
-            rng,
             &w_l_scalar,
             &w_r_scalar,
             &w_o_scalar,
