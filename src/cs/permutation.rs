@@ -24,9 +24,7 @@ pub struct Permutation<E: PairingEngine> {
     // Actual number of variables included on the permutation.
     variable_num: usize,
 
-    // maps variables to the wire data that they are assosciated with
-    // To then later create the necessary permutations
-    // XXX: the index will be the Variable reference, so it may be better to use a map to be more explicit here
+    // Maps a variable to the wires that it is assosciated to
     pub(crate) variable_map: HashMap<Variable, Vec<WireData>>,
 
     left_sigma_mapping: Option<Vec<E::Fr>>,
@@ -59,8 +57,9 @@ impl<E: PairingEngine> Permutation<E> {
         self.variables.insert(var, s);
 
         // Allocate space for the Variable on the variable_map
-        // XXX: Proper capacity on the creation???
-        self.variable_map.insert(var, Vec::with_capacity(32usize));
+        // Each vector is initialised with a capacity of 16.
+        // This number is a best guess estimate.
+        self.variable_map.insert(var, Vec::with_capacity(16usize));
 
         // Update the variable_num counter
         self.variable_num += 1;
@@ -77,8 +76,8 @@ impl<E: PairingEngine> Permutation<E> {
 
         results.is_empty()
     }
-    /// Maps a set of variables (a,b,c) to a set of Wires (left, right, out) as a gate with
-    /// it's corresponding gate index
+    /// Maps a set of variables (a,b,c) to a set of Wires (left, right, out) with
+    /// the corresponding gate index
     pub fn add_variable_to_map(
         &mut self,
         a: Variable,
@@ -92,7 +91,7 @@ impl<E: PairingEngine> Permutation<E> {
         let right: WireData = WireData::Right(gate_index);
         let output: WireData = WireData::Output(gate_index);
 
-        // Map each variable to the wires it iscomp assosciated with
+        // Map each variable to the wire it is assosciated with
         // This essentially tells us that:
         // Variable `a` is being used in the n'th gate as a left wire
         // Variable `b` is being used in the n'th gate as a right wire
@@ -101,8 +100,6 @@ impl<E: PairingEngine> Permutation<E> {
             // Since we always allocate space for the Vec of WireData when a
             // Variable is added to the variable_map, this should never fail
             let vec_wire_data = self.variable_map.get_mut(var).unwrap();
-            // Get a mutable reference to de wire_data_vec and push the new
-            // wire data to it.
             vec_wire_data.push(*wire_data);
         }
     }
@@ -113,8 +110,6 @@ impl<E: PairingEngine> Permutation<E> {
         w_r: &[Variable],
         w_o: &[Variable],
     ) -> (Vec<E::Fr>, Vec<E::Fr>, Vec<E::Fr>) {
-        // Take all of the Scalar values from the variables mapping
-        // which links the Variables to it's corresponding Scalars
         (
             w_l.par_iter().map(|var| self.variables[var]).collect(),
             w_r.par_iter().map(|var| self.variables[var]).collect(),
@@ -127,11 +122,6 @@ impl<E: PairingEngine> Permutation<E> {
         let sigma_1: Vec<_> = (0..n).map(|x| WireData::Left(x)).collect();
         let sigma_2: Vec<_> = (0..n).map(|x| WireData::Right(x)).collect();
         let sigma_3: Vec<_> = (0..n).map(|x| WireData::Output(x)).collect();
-
-        // XXX: This can be probably removed since it's specified avobe on the Vec creation
-        assert_eq!(sigma_1.len(), n);
-        assert_eq!(sigma_2.len(), n);
-        assert_eq!(sigma_3.len(), n);
 
         let mut sigmas = [sigma_1, sigma_2, sigma_3];
 
@@ -219,29 +209,22 @@ impl<E: PairingEngine> Permutation<E> {
         (left_sigma_coeffs, right_sigma_coeffs, out_sigma_coeffs)
     }
 
-    pub(crate) fn compute_permutation_poly<R>(
+    pub(crate) fn compute_permutation_poly(
         &self,
         domain: &EvaluationDomain<E::Fr>,
-        mut rng: &mut R,
         w_l: &[E::Fr],
         w_r: &[E::Fr],
         w_o: &[E::Fr],
         (beta, gamma): &(E::Fr, E::Fr),
-    ) -> (Vec<E::Fr>, Vec<E::Fr>)
-    where
-        R: RngCore + CryptoRng,
-    {
-        //
+    ) -> (Vec<E::Fr>, Vec<E::Fr>) {
         let z_evaluations = self.compute_fast_permutation_poly(domain, w_l, w_r, w_o, beta, gamma);
 
         // Compute permutation polynomial, the shifted version and blind it
         let z_coeffs = domain.ifft(&z_evaluations);
-        let mut z_poly = Polynomial::from_coefficients_slice(&z_coeffs);
 
         // Shift permutation evaluations by one and compute the shifted polynomial
-        let mut shifted_z_evaluations = self.shift_poly_by_one(z_evaluations);
+        let shifted_z_evaluations = self.shift_poly_by_one(z_evaluations);
         let shifted_z_coeffs = domain.ifft(&shifted_z_evaluations);
-        let mut shifted_z_poly = Polynomial::from_coefficients_slice(&shifted_z_coeffs);
 
         (z_coeffs, shifted_z_coeffs)
     }
@@ -447,7 +430,7 @@ impl<E: PairingEngine> Permutation<E> {
         // Compute out_wire + gamma
         let wO_gamma: Vec<_> = w_o.par_iter().map(|w_O| *w_O + gamma).collect();
 
-        // Compute 6 acumulator components
+        // Compute 6 accumulator components
         // Parallisable
         let mut acumulator_components_without_l1: Vec<_> = (
             wL_gamma,
@@ -510,8 +493,6 @@ impl<E: PairingEngine> Permutation<E> {
         ))
         .chain(acumulator_components_without_l1);
 
-        // XXX: We could put this in with the previous iter method, but it will not be clear
-        // Actually, we should not because the first part is parallelisable, while this section is not
         // Multiply each component of the accumulators
         // A simplified example is the following:
         // A1 = [1,2,3,4]
@@ -906,7 +887,6 @@ mod test {
         assert_ne!(gamma, beta); // This will make the z(gW) =
 
         //1. Compute the permutation polynomial using both methods
-        // XXX: We should run benchmarks for these two methods
         //
         perm.compute_sigma_polynomials(n, &domain);
         let (z_vec, numerator_components, denominator_components) = perm
@@ -997,14 +977,7 @@ mod test {
 
         // Test that the public API version is also correct
         // We avoid the `Transcript` creation here since it will not do anything on the test
-        let (z_x, z_xw) = perm.compute_permutation_poly(
-            &domain,
-            &mut rand::thread_rng(),
-            &w_l,
-            &w_r,
-            &w_o,
-            &(beta, gamma),
-        );
+        let (z_x, z_xw) = perm.compute_permutation_poly(&domain, &w_l, &w_r, &w_o, &(beta, gamma));
         let z_x_poly = Polynomial::from_coefficients_vec(z_x);
         let z_xw_poly = Polynomial::from_coefficients_vec(z_xw);
 
