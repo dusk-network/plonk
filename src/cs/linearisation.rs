@@ -1,10 +1,10 @@
 use super::PreProcessedCircuit;
 use crate::cs::poly_utils::Poly_utils;
-use crate::transcript::TranscriptProtocol;
 use algebra::fields::PrimeField;
 use algebra::{curves::PairingEngine, fields::Field};
-use ff_fft::{DensePolynomial as Polynomial, EvaluationDomain};
+use ff_fft::EvaluationDomain;
 use std::marker::PhantomData;
+
 pub struct lineariser<E: PairingEngine> {
     _engine: PhantomData<E>,
 }
@@ -24,10 +24,10 @@ impl<E: PairingEngine> lineariser<E> {
         w_o_coeffs: &Vec<E::Fr>,
         t_x_coeffs: &Vec<E::Fr>,
         z_coeffs: &Vec<E::Fr>,
-    ) -> (Polynomial<E::Fr>, Vec<E::Fr>) {
+    ) -> (Vec<E::Fr>, Vec<E::Fr>) {
+        let poly_utils: Poly_utils<E> = Poly_utils::new();
         let alpha_sq = alpha.square();
         let alpha_cu = *alpha * &alpha_sq;
-        let poly_utils: Poly_utils<E> = Poly_utils::new();
 
         // Compute batch evaluations
         let evaluations = poly_utils.multi_point_eval(
@@ -51,17 +51,16 @@ impl<E: PairingEngine> lineariser<E> {
         // Compute permutation evaluation point
         let perm_eval = poly_utils.single_point_eval(z_coeffs, &(*z_challenge * &domain.group_gen));
 
-        let z_poly = Polynomial::from_coefficients_slice(z_coeffs);
         let f_1 = self.compute_first_component(
             *alpha,
             a_eval,
             b_eval,
             c_eval,
-            &Polynomial::from_coefficients_slice(preprocessed_circuit.qm_poly()),
-            &Polynomial::from_coefficients_slice(preprocessed_circuit.ql_poly()),
-            &Polynomial::from_coefficients_slice(preprocessed_circuit.qr_poly()),
-            &Polynomial::from_coefficients_slice(preprocessed_circuit.qo_poly()),
-            &Polynomial::from_coefficients_slice(preprocessed_circuit.qc_poly()),
+            preprocessed_circuit.qm_poly(),
+            preprocessed_circuit.ql_poly(),
+            preprocessed_circuit.qr_poly(),
+            preprocessed_circuit.qo_poly(),
+            preprocessed_circuit.qc_poly(),
         );
 
         let f_2 = self.compute_second_component(
@@ -72,7 +71,7 @@ impl<E: PairingEngine> lineariser<E> {
             alpha_sq,
             *beta,
             *gamma,
-            &z_poly,
+            &z_coeffs,
         );
 
         let f_3 = self.compute_third_component(
@@ -81,20 +80,20 @@ impl<E: PairingEngine> lineariser<E> {
             sig_1_eval,
             sig_2_eval,
             (alpha_sq, *beta, *gamma),
-            &Polynomial::from_coefficients_slice(preprocessed_circuit.out_sigma_poly()),
+            preprocessed_circuit.out_sigma_poly(),
         );
 
-        let f_4 = self.compute_fourth_component(domain, *z_challenge, alpha_cu, &z_poly);
+        let f_4 = self.compute_fourth_component(domain, *z_challenge, alpha_cu, &z_coeffs);
 
-        let mut lin_poly = &f_1 + &f_2;
-        lin_poly += &f_3;
-        lin_poly += &f_4;
+        let mut lin_coeffs = poly_utils.add_poly_vectors(&f_1, &f_2);
+        lin_coeffs = poly_utils.add_poly_vectors(&lin_coeffs, &f_3);
+        lin_coeffs = poly_utils.add_poly_vectors(&lin_coeffs, &f_4);
 
         // Evaluate linearisation polynomial at z_challenge
-        let lin_poly_eval = poly_utils.single_point_eval(&lin_poly.coeffs, z_challenge);
+        let lin_poly_eval = poly_utils.single_point_eval(&lin_coeffs, z_challenge);
 
         (
-            lin_poly,
+            lin_coeffs,
             vec![
                 a_eval,
                 b_eval,
@@ -114,37 +113,32 @@ impl<E: PairingEngine> lineariser<E> {
         a_eval: E::Fr,
         b_eval: E::Fr,
         c_eval: E::Fr,
-        q_m_poly: &Polynomial<E::Fr>,
-        q_l_poly: &Polynomial<E::Fr>,
-        q_r_poly: &Polynomial<E::Fr>,
-        q_o_poly: &Polynomial<E::Fr>,
-        q_c_poly: &Polynomial<E::Fr>,
-    ) -> Polynomial<E::Fr> {
-        let poly_a = Polynomial::from_coefficients_vec(vec![a_eval]);
-        let poly_b = Polynomial::from_coefficients_vec(vec![b_eval]);
-        let poly_c = Polynomial::from_coefficients_vec(vec![c_eval]);
-        let poly_alpha = Polynomial::from_coefficients_vec(vec![alpha]);
+        q_m_poly: &Vec<E::Fr>,
+        q_l_poly: &Vec<E::Fr>,
+        q_r_poly: &Vec<E::Fr>,
+        q_o_poly: &Vec<E::Fr>,
+        q_c_poly: &Vec<E::Fr>,
+    ) -> Vec<E::Fr> {
+        let poly_utils: Poly_utils<E> = Poly_utils::new();
 
         // a_eval * b_eval * q_m_poly
-        let poly_ab = &poly_a * &poly_b;
-        let a_0 = &poly_ab * q_m_poly;
+        let ab = a_eval * &b_eval;
+        let a_0 = poly_utils.mul_scalar_poly(ab, q_m_poly);
 
         // a_eval * q_l
-        let a_1 = &poly_a * q_l_poly;
+        let a_1 = poly_utils.mul_scalar_poly(a_eval, q_l_poly);
 
         // b_eval * q_r
-        let a_2 = &poly_b * q_r_poly;
+        let a_2 = poly_utils.mul_scalar_poly(b_eval, q_r_poly);
 
         //c_eval * q_o
-        let a_3 = &poly_c * q_o_poly;
+        let a_3 = poly_utils.mul_scalar_poly(c_eval, q_o_poly);
 
-        let mut a = &a_0 + &a_1;
-        a += &a_2;
-        a += &a_3;
-        a += q_c_poly;
-        a = &a * &poly_alpha; // (a_eval * b_eval * q_m_poly + a_eval * q_l + b_eval * q_r + c_eval * q_o + q_c) * alpha
-
-        a
+        let mut a = poly_utils.add_poly_vectors(&a_0, &a_1);
+        a = poly_utils.add_poly_vectors(&a, &a_2);
+        a = poly_utils.add_poly_vectors(&a, &a_3);
+        a = poly_utils.add_poly_vectors(&a, &q_c_poly);
+        poly_utils.mul_scalar_poly(alpha, &a) // (a_eval * b_eval * q_m_poly + a_eval * q_l + b_eval * q_r + c_eval * q_o + q_c) * alpha
     }
 
     fn compute_second_component(
@@ -156,8 +150,10 @@ impl<E: PairingEngine> lineariser<E> {
         alpha_sq: E::Fr,
         beta: E::Fr,
         gamma: E::Fr,
-        z_poly: &Polynomial<E::Fr>,
-    ) -> Polynomial<E::Fr> {
+        z_coeffs: &Vec<E::Fr>,
+    ) -> Vec<E::Fr> {
+        let poly_utils: Poly_utils<E> = Poly_utils::new();
+
         let k1 = E::Fr::multiplicative_generator();
         let k2 = E::Fr::from(13.into());
 
@@ -181,9 +177,7 @@ impl<E: PairingEngine> lineariser<E> {
         a = a * &a_2;
         a = a * &alpha_sq; // (a_eval + beta * z_challenge + gamma)(b_eval + beta * k_1 * z_challenge + gamma)(c_eval + beta * k_2 * z_challenge + gamma) * alpha^2
 
-        let poly_a = Polynomial::from_coefficients_vec(vec![a]);
-
-        &poly_a * z_poly
+        poly_utils.mul_scalar_poly(a, &z_coeffs) // (a_eval + beta * z_challenge + gamma)(b_eval + beta * k_1 * z_challenge + gamma)(c_eval + beta * k_2 * z_challenge + gamma) * alpha^2 z(X)
     }
     fn compute_third_component(
         &self,
@@ -192,8 +186,10 @@ impl<E: PairingEngine> lineariser<E> {
         sigma_1_eval: E::Fr,
         sigma_2_eval: E::Fr,
         (alpha_sq, beta, gamma): (E::Fr, E::Fr, E::Fr),
-        out_sigma_poly: &Polynomial<E::Fr>,
-    ) -> Polynomial<E::Fr> {
+        out_sigma_coeffs: &Vec<E::Fr>,
+    ) -> Vec<E::Fr> {
+        let poly_utils: Poly_utils<E> = Poly_utils::new();
+
         // a_eval + beta * sigma_1 + gamma
         let beta_sigma_1 = beta * &sigma_1_eval;
         let mut a_0 = a_eval + &beta_sigma_1;
@@ -210,25 +206,21 @@ impl<E: PairingEngine> lineariser<E> {
         a = a * &beta_z_eval;
         a = a * &alpha_sq; // (a_eval + beta * sigma_1 + gamma)(b_eval + beta * sigma_2 + gamma) * beta *z_eval * alpha^2
 
-        let poly_a = Polynomial::from_coefficients_vec(vec![a]);
-
-        -(&poly_a * out_sigma_poly)
+        poly_utils.mul_scalar_poly(-a, out_sigma_coeffs) // -(a_eval + beta * sigma_1 + gamma)(b_eval + beta * sigma_2 + gamma) * beta *z_eval * alpha^2 * Sigma_3(X)
     }
     fn compute_fourth_component(
         &self,
         domain: &EvaluationDomain<E::Fr>,
         z_challenge: E::Fr,
         alpha_cu: E::Fr,
-        z_poly: &Polynomial<E::Fr>,
-    ) -> Polynomial<E::Fr> {
+        z_coeffs: &Vec<E::Fr>,
+    ) -> Vec<E::Fr> {
+        let poly_utils: Poly_utils<E> = Poly_utils::new();
+
         // Evaluate l_1(z)
         let l_1_z = domain.evaluate_all_lagrange_coefficients(z_challenge)[0];
 
-        let a = l_1_z * &alpha_cu;
-
-        let poly_a = Polynomial::from_coefficients_vec(vec![a]);
-
-        &poly_a * z_poly
+        poly_utils.mul_scalar_poly(l_1_z * &alpha_cu, &z_coeffs)
     }
 }
 #[cfg(test)]
@@ -237,7 +229,7 @@ mod test {
     use algebra::curves::bls12_381::Bls12_381 as E;
     use algebra::fields::bls12_381::Fr;
     use algebra::UniformRand;
-    use std::str::FromStr;
+    use ff_fft::DensePolynomial as Polynomial;
     #[test]
     fn test_first_component() {
         let lin: lineariser<E> = lineariser::new();
@@ -253,15 +245,17 @@ mod test {
         let qo = Polynomial::rand(10, &mut rand::thread_rng());
         let qc = Polynomial::rand(10, &mut rand::thread_rng());
 
-        let got_poly =
-            lin.compute_first_component(alpha, a_eval, b_eval, c_eval, &qm, &ql, &qr, &qo, &qc);
+        let got_poly = lin.compute_first_component(
+            alpha, a_eval, b_eval, c_eval, &qm.coeffs, &ql.coeffs, &qr.coeffs, &qo.coeffs,
+            &qc.coeffs,
+        );
 
         let mut expected_poly = &qm + &ql;
         expected_poly += &qr;
         expected_poly += &qo;
         expected_poly += &qc;
 
-        assert_eq!(got_poly, expected_poly);
+        assert_eq!(Polynomial::from_coefficients_vec(got_poly), expected_poly);
     }
 
     #[test]
@@ -290,7 +284,7 @@ mod test {
             alpha,
             beta,
             gamma,
-            &z_poly,
+            &z_poly.coeffs,
         );
 
         let first_bracket = Polynomial::from_coefficients_vec(vec![Fr::from(3 as u8)]);
@@ -301,7 +295,7 @@ mod test {
         expected_poly = &expected_poly * &third_bracket;
         expected_poly = &expected_poly * &z_poly;
 
-        assert_eq!(got_poly, expected_poly);
+        assert_eq!(Polynomial::from_coefficients_vec(got_poly), expected_poly);
     }
     #[test]
     fn test_third_component() {
@@ -325,7 +319,7 @@ mod test {
             sig1_eval,
             sig2_eval,
             (alpha, beta, gamma),
-            &sig3_poly,
+            &sig3_poly.coeffs,
         );
 
         let first_bracket = Polynomial::from_coefficients_vec(vec![Fr::from(3 as u8)]);
@@ -336,7 +330,7 @@ mod test {
         expected_poly = &expected_poly * &third_bracket;
         expected_poly = &expected_poly * &sig3_poly;
 
-        assert_eq!(got_poly, -expected_poly);
+        assert_eq!(Polynomial::from_coefficients_vec(got_poly), -expected_poly);
     }
     #[test]
     fn test_fourth_component() {
@@ -347,13 +341,13 @@ mod test {
         let domain = EvaluationDomain::new(10).unwrap();
         let z_poly = Polynomial::rand(10, &mut rand::thread_rng());
 
-        let got_poly = lin.compute_fourth_component(&domain, z_challenge, alpha, &z_poly);
+        let got_poly = lin.compute_fourth_component(&domain, z_challenge, alpha, &z_poly.coeffs);
 
         let l1_eval = domain.evaluate_all_lagrange_coefficients(z_challenge)[0];
         let l1_eval_poly = Polynomial::from_coefficients_vec(vec![l1_eval]);
 
         let expected_poly = &z_poly * &l1_eval_poly;
 
-        assert_eq!(got_poly, expected_poly);
+        assert_eq!(Polynomial::from_coefficients_vec(got_poly), expected_poly);
     }
 }
