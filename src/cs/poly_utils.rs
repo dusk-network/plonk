@@ -100,6 +100,10 @@ impl<E: PairingEngine> Poly_utils<E> {
         }
         sum
     }
+    // Multiplies a polynomial by a scalar
+    pub fn mul_scalar_poly(&self, scalar: E::Fr, poly: &[E::Fr]) -> Vec<E::Fr> {
+        poly.par_iter().map(|coeff| scalar * coeff).collect()
+    }
     // Computes 1,v, v^2, v^3,..v^max_degree
     pub fn powers_of(&self, scalar: &E::Fr, max_degree: usize) -> Vec<E::Fr> {
         let mut powers = Vec::with_capacity(max_degree + 1);
