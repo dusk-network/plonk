@@ -26,7 +26,7 @@ impl<E: PairingEngine> QuotientToolkit<E> {
         witness_polynomials: [&Vec<E::Fr>; 3],
         public_inputs_poly: &Vec<E::Fr>,
         (alpha, beta, gamma): &(E::Fr, E::Fr, E::Fr),
-    ) -> (Polynomial<E::Fr>) {
+    ) -> Vec<E::Fr> {
         let k1 = E::Fr::multiplicative_generator();
         let k2 = E::Fr::from_repr(13.into());
 
@@ -106,7 +106,8 @@ impl<E: PairingEngine> QuotientToolkit<E> {
         let t_4 =
             self.compute_quotient_fourth_component(domain, &z_coeffs, alpha.square() * &alpha);
 
-        &(&t_1 + &t_2_3) + &t_4
+        let result = &(&t_1 + &t_2_3) + &t_4;
+        result.coeffs
     }
 
     fn compute_quotient_first_component(
