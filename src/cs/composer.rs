@@ -154,7 +154,7 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
         let w_l_poly_commit = srs::commit(commit_key, &w_l_poly.coeffs);
         let w_r_poly_commit = srs::commit(commit_key, &w_r_poly.coeffs);
         let w_o_poly_commit = srs::commit(commit_key, &w_o_poly.coeffs);
-        // Add witnesses to transcript and proof
+        //
         transcript.append_commitment(b"w_l", &w_l_poly_commit);
         transcript.append_commitment(b"w_r", &w_r_poly_commit);
         transcript.append_commitment(b"w_o", &w_o_poly_commit);
