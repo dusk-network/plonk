@@ -60,7 +60,7 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
         //1. Pad circuit to a power of two
         self.pad(domain.size as usize - self.n);
 
-        // 2a. Convert selector evaluation to selector coefficients
+        // 2a. Convert selector evaluations to selector coefficients
         let q_m_coeffs = domain.ifft(&self.q_m);
         let q_l_coeffs = domain.ifft(&self.q_l);
         let q_r_coeffs = domain.ifft(&self.q_r);
