@@ -210,7 +210,7 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
 
         // Compute Linearisation polynomial
         let lineariser = lineariser::new();
-        let (lin_poly, evaluations) = lineariser.evaluate_linearisation_polynomial(
+        let (lin_coeffs, evaluations) = lineariser.evaluate_linearisation_polynomial(
             &domain,
             &preprocessed_circuit,
             &(alpha, beta, gamma, z_challenge),
@@ -255,7 +255,7 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
             domain.group_gen,
             domain.size(),
             z_challenge,
-            &lin_poly.coeffs,
+            &lin_coeffs,
             &evaluations,
             &t_low_coeffs,
             &t_mid_coeffs,
