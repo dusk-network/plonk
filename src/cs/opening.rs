@@ -32,7 +32,7 @@ impl<E: PairingEngine> commitmentOpener<E> {
         sigma_2_coeffs: &Vec<E::Fr>,
         z_poly: &Polynomial<E::Fr>,
         v: &E::Fr,
-    ) -> (Polynomial<E::Fr>, Polynomial<E::Fr>) {
+    ) -> (Vec<E::Fr>, Vec<E::Fr>) {
         let mut evaluations = evaluations.to_vec();
         let poly_utils: Poly_utils<E> = Poly_utils::new();
 
@@ -75,7 +75,7 @@ impl<E: PairingEngine> commitmentOpener<E> {
         let mut W_zw = self.compute_witness_polynomial(z_poly, shifted_z);
         W_zw = &W_zw * &Polynomial::from_coefficients_vec(vec![v_7]);
 
-        (W_z, W_zw)
+        (W_z.coeffs, W_zw.coeffs)
     }
 
     fn compute_quotient_opening_poly(
