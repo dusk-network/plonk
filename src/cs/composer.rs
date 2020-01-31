@@ -6,7 +6,7 @@ use super::{
 };
 use crate::{cs::quotient_poly::QuotientToolkit, srs, transcript::TranscriptProtocol};
 use algebra::{curves::PairingEngine, fields::Field};
-use ff_fft::{DensePolynomial as Polynomial, EvaluationDomain};
+use ff_fft::EvaluationDomain;
 use poly_commit::kzg10::Powers;
 use rand_core::{CryptoRng, RngCore};
 /// A composer is a circuit builder
@@ -163,7 +163,6 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
             &w_o_scalar,
             &(beta, gamma),
         );
-        let z_poly = Polynomial::from_coefficients_slice(&z_coeffs);
         // 1) Commit to permutation polynomial
         // 2) Add them to transcript
         // 3) Place commitments into proof
@@ -184,7 +183,7 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
         let t_coeffs = qt_toolkit.compute_quotient_poly(
             &domain,
             &preprocessed_circuit,
-            &z_poly,
+            &z_coeffs,
             [&w_l_coeffs, &w_r_coeffs, &w_o_coeffs],
             &pi_coeffs,
             &(alpha, beta, gamma),
@@ -216,11 +215,11 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
             &domain,
             &preprocessed_circuit,
             &(alpha, beta, gamma, z_challenge),
-            &Polynomial::from_coefficients_slice(&w_l_coeffs),
-            &Polynomial::from_coefficients_slice(&w_r_coeffs),
-            &Polynomial::from_coefficients_slice(&w_o_coeffs),
-            &Polynomial::from_coefficients_slice(&t_coeffs),
-            &z_poly,
+            &w_l_coeffs,
+            &w_r_coeffs,
+            &w_o_coeffs,
+            &t_coeffs,
+            &z_coeffs,
         );
 
         let a_eval = evaluations[0];
@@ -267,7 +266,7 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
             &w_o_coeffs,
             preprocessed_circuit.left_sigma_poly(),
             preprocessed_circuit.right_sigma_poly(),
-            &z_poly,
+            &z_coeffs,
             &v,
         );
 
