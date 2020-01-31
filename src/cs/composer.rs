@@ -133,16 +133,16 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
             .witness_vars_to_scalars(&self.w_l, &self.w_r, &self.w_o);
 
         // IFFT to get lagrange polynomials on witnesses
-        let mut w_l_poly = Polynomial::from_coefficients_vec(domain.ifft(&w_l_scalar));
-        let mut w_r_poly = Polynomial::from_coefficients_vec(domain.ifft(&w_r_scalar));
-        let mut w_o_poly = Polynomial::from_coefficients_vec(domain.ifft(&w_o_scalar));
+        let mut w_l_coeffs = domain.ifft(&w_l_scalar);
+        let mut w_r_coeffs = domain.ifft(&w_r_scalar);
+        let mut w_o_coeffs = domain.ifft(&w_o_scalar);
 
         // 1) Commit to witness polynomials
         // 2) Add them to transcript
         // 3) Place commitments into proof
-        let w_l_poly_commit = srs::commit(commit_key, &w_l_poly.coeffs);
-        let w_r_poly_commit = srs::commit(commit_key, &w_r_poly.coeffs);
-        let w_o_poly_commit = srs::commit(commit_key, &w_o_poly.coeffs);
+        let w_l_poly_commit = srs::commit(commit_key, &w_l_coeffs);
+        let w_r_poly_commit = srs::commit(commit_key, &w_r_coeffs);
+        let w_o_poly_commit = srs::commit(commit_key, &w_o_coeffs);
         //
         transcript.append_commitment(b"w_l", &w_l_poly_commit);
         transcript.append_commitment(b"w_r", &w_r_poly_commit);
@@ -177,21 +177,21 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
         let alpha = transcript.challenge_scalar(b"alpha");
 
         // Compute Public Inputs Polynomial
-        let pi_poly = Polynomial::from_coefficients_vec(domain.ifft(&self.public_inputs));
+        let pi_coeffs = domain.ifft(&self.public_inputs);
 
         // Compute Quotient polynomial.
         let qt_toolkit = QuotientToolkit::new();
-        let t_x = qt_toolkit.compute_quotient_poly(
+        let t_coeffs = qt_toolkit.compute_quotient_poly(
             &domain,
             &preprocessed_circuit,
             &z_poly,
-            [&w_l_poly.coeffs, &w_r_poly.coeffs, &w_o_poly.coeffs],
-            &pi_poly.coeffs,
+            [&w_l_coeffs, &w_r_coeffs, &w_o_coeffs],
+            &pi_coeffs,
             &(alpha, beta, gamma),
         );
 
         let (t_low_coeffs, t_mid_coeffs, t_hi_coeffs) =
-            self.split_tx_poly(domain.size(), &t_x.coeffs);
+            self.split_tx_poly(domain.size(), &t_coeffs);
 
         // 1) Commit to quotient polynomials
         // 2) Add them to transcript
@@ -216,10 +216,10 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
             &domain,
             &preprocessed_circuit,
             &(alpha, beta, gamma, z_challenge),
-            &w_l_poly,
-            &w_r_poly,
-            &w_o_poly,
-            &t_x,
+            &Polynomial::from_coefficients_slice(&w_l_coeffs),
+            &Polynomial::from_coefficients_slice(&w_r_coeffs),
+            &Polynomial::from_coefficients_slice(&w_o_coeffs),
+            &Polynomial::from_coefficients_slice(&t_coeffs),
             &z_poly,
         );
 
@@ -253,7 +253,7 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
 
         // Compute opening polynomial
         let comm_opener: commitmentOpener<E> = commitmentOpener::new();
-        let (W_z, W_zx) = comm_opener.compute_opening_polynomials(
+        let (w_z_coeffs, w_zx_coeffs) = comm_opener.compute_opening_polynomials(
             domain.group_gen,
             domain.size(),
             z_challenge,
@@ -262,9 +262,9 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
             &t_low_coeffs,
             &t_mid_coeffs,
             &t_hi_coeffs,
-            &w_l_poly.coeffs,
-            &w_r_poly.coeffs,
-            &w_o_poly.coeffs,
+            &w_l_coeffs,
+            &w_r_coeffs,
+            &w_o_coeffs,
             preprocessed_circuit.left_sigma_poly(),
             preprocessed_circuit.right_sigma_poly(),
             &z_poly,
@@ -273,8 +273,8 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
 
         // 1) Commit to opening polynomials
         // 2) Place commitments into proof
-        let w_z_comm = srs::commit(commit_key, &W_z.coeffs);
-        let w_z_x_comm = srs::commit(commit_key, &W_zx.coeffs);
+        let w_z_comm = srs::commit(commit_key, &w_z_coeffs);
+        let w_z_x_comm = srs::commit(commit_key, &w_zx_coeffs);
         //
         proof.set_opening_poly_commitments(&w_z_comm, &w_z_x_comm);
 
