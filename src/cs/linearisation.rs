@@ -16,7 +16,6 @@ impl<E: PairingEngine> lineariser<E> {
     }
     pub fn evaluate_linearisation_polynomial(
         &self,
-        transcript: &mut dyn TranscriptProtocol<E>,
         domain: &EvaluationDomain<E::Fr>,
         preprocessed_circuit: &PreProcessedCircuit<E>,
         (alpha, beta, gamma, z_challenge): &(E::Fr, E::Fr, E::Fr, E::Fr),
