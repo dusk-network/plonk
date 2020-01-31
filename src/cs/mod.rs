@@ -91,11 +91,10 @@ pub trait Composer<E: PairingEngine> {
         transcript: &mut dyn TranscriptProtocol<E>,
         domain: &EvaluationDomain<E::Fr>,
     ) -> PreProcessedCircuit<E>;
-    fn prove<R: RngCore + CryptoRng>(
+    fn prove(
         &mut self,
         commit_key: &Powers<E>,
         preprocessed_circuit: &PreProcessedCircuit<E>,
         transcript: &mut dyn TranscriptProtocol<E>,
-        rng: &mut R,
     ) -> proof::Proof<E>;
 }
