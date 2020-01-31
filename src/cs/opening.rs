@@ -30,9 +30,9 @@ impl<E: PairingEngine> commitmentOpener<E> {
         w_o_coeffs: &Vec<E::Fr>,
         sigma_1_coeffs: &Vec<E::Fr>,
         sigma_2_coeffs: &Vec<E::Fr>,
-        z_poly: &Polynomial<E::Fr>,
+        z_coeffs: &Vec<E::Fr>,
         v: &E::Fr,
-    ) -> (Polynomial<E::Fr>, Polynomial<E::Fr>) {
+    ) -> (Vec<E::Fr>, Vec<E::Fr>) {
         let mut evaluations = evaluations.to_vec();
         let poly_utils: Poly_utils<E> = Poly_utils::new();
 
@@ -72,10 +72,10 @@ impl<E: PairingEngine> commitmentOpener<E> {
         // Compute shifted polynomial
         let shifted_z = z_challenge * &root_of_unity;
 
-        let mut W_zw = self.compute_witness_polynomial(z_poly, shifted_z);
+        let mut W_zw = self.compute_witness_polynomial(z_coeffs, shifted_z);
         W_zw = &W_zw * &Polynomial::from_coefficients_vec(vec![v_7]);
 
-        (W_z, W_zw)
+        (W_z.coeffs, W_zw.coeffs)
     }
 
     fn compute_quotient_opening_poly(
@@ -104,7 +104,7 @@ impl<E: PairingEngine> commitmentOpener<E> {
         challenges: Vec<E::Fr>,
         polynomials: Vec<&Vec<E::Fr>>,
         evaluations: Vec<E::Fr>,
-    ) -> Polynomial<E::Fr> {
+    ) -> Vec<E::Fr> {
         let poly_utils: Poly_utils<E> = Poly_utils::new();
         let x: Vec<_> = challenges
             .into_par_iter()
@@ -122,11 +122,12 @@ impl<E: PairingEngine> commitmentOpener<E> {
             sum = poly_utils.add_poly_vectors(&poly, &sum);
         }
 
-        Polynomial::from_coefficients_vec(sum)
+        sum
     }
 
     // Given P(X) and `z`. compute P(X) - P(z) / X - z
-    fn compute_witness_polynomial(&self, p: &Polynomial<E::Fr>, z: E::Fr) -> Polynomial<E::Fr> {
+    fn compute_witness_polynomial(&self, p_coeffs: &Vec<E::Fr>, z: E::Fr) -> Polynomial<E::Fr> {
+        let p = &Polynomial::from_coefficients_slice(p_coeffs);
         // evaluate polynomial at z
         let p_eval = p.evaluate(z);
         // convert value to a polynomial

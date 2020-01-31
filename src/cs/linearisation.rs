@@ -1,10 +1,10 @@
 use super::PreProcessedCircuit;
+use crate::cs::poly_utils::Poly_utils;
 use crate::transcript::TranscriptProtocol;
 use algebra::fields::PrimeField;
 use algebra::{curves::PairingEngine, fields::Field};
 use ff_fft::{DensePolynomial as Polynomial, EvaluationDomain};
 use std::marker::PhantomData;
-
 pub struct lineariser<E: PairingEngine> {
     _engine: PhantomData<E>,
 }
@@ -20,36 +20,39 @@ impl<E: PairingEngine> lineariser<E> {
         domain: &EvaluationDomain<E::Fr>,
         preprocessed_circuit: &PreProcessedCircuit<E>,
         (alpha, beta, gamma, z_challenge): &(E::Fr, E::Fr, E::Fr, E::Fr),
-        w_l_poly: &Polynomial<E::Fr>,
-        w_r_poly: &Polynomial<E::Fr>,
-        w_o_poly: &Polynomial<E::Fr>,
-        t_x: &Polynomial<E::Fr>,
-        z_poly: &Polynomial<E::Fr>,
+        w_l_coeffs: &Vec<E::Fr>,
+        w_r_coeffs: &Vec<E::Fr>,
+        w_o_coeffs: &Vec<E::Fr>,
+        t_x_coeffs: &Vec<E::Fr>,
+        z_coeffs: &Vec<E::Fr>,
     ) -> (Polynomial<E::Fr>, Vec<E::Fr>) {
         let alpha_sq = alpha.square();
         let alpha_cu = *alpha * &alpha_sq;
+        let poly_utils: Poly_utils<E> = Poly_utils::new();
 
-        // Evaluate a(x), b(x) and c(x)
-        let a_eval = w_l_poly.evaluate(*z_challenge);
-        let b_eval = w_r_poly.evaluate(*z_challenge);
-        let c_eval = w_o_poly.evaluate(*z_challenge);
+        // Compute batch evaluations
+        let evaluations = poly_utils.multi_point_eval(
+            vec![
+                t_x_coeffs,
+                w_l_coeffs,
+                w_r_coeffs,
+                w_o_coeffs,
+                preprocessed_circuit.left_sigma_poly(),
+                preprocessed_circuit.right_sigma_poly(),
+            ],
+            z_challenge,
+        );
+        let quot_eval = evaluations[0];
+        let a_eval = evaluations[1];
+        let b_eval = evaluations[2];
+        let c_eval = evaluations[3];
+        let sig_1_eval = evaluations[4];
+        let sig_2_eval = evaluations[5];
 
-        // Evaluate sigma1 and sigma2
-        let sig_1_eval =
-            Polynomial::from_coefficients_slice(preprocessed_circuit.left_sigma_poly())
-                .evaluate(*z_challenge);
-        let sig_2_eval =
-            Polynomial::from_coefficients_slice(preprocessed_circuit.right_sigma_poly())
-                .evaluate(*z_challenge);
+        // Compute permutation evaluation point
+        let perm_eval = poly_utils.single_point_eval(z_coeffs, &(*z_challenge * &domain.group_gen));
 
-        // Evaluate quotient poly
-        let t_x_1 = Polynomial::from_coefficients_slice(t_x);
-
-        let quot_eval = t_x_1.evaluate(*z_challenge);
-
-        // Evaluate permutation poly_commit
-        let perm_eval = z_poly.evaluate(*z_challenge * &domain.group_gen);
-
+        let z_poly = Polynomial::from_coefficients_slice(z_coeffs);
         let f_1 = self.compute_first_component(
             *alpha,
             a_eval,
@@ -70,7 +73,7 @@ impl<E: PairingEngine> lineariser<E> {
             alpha_sq,
             *beta,
             *gamma,
-            z_poly,
+            &z_poly,
         );
 
         let f_3 = self.compute_third_component(
@@ -82,14 +85,14 @@ impl<E: PairingEngine> lineariser<E> {
             &Polynomial::from_coefficients_slice(preprocessed_circuit.out_sigma_poly()),
         );
 
-        let f_4 = self.compute_fourth_component(domain, *z_challenge, alpha_cu, z_poly);
+        let f_4 = self.compute_fourth_component(domain, *z_challenge, alpha_cu, &z_poly);
 
         let mut lin_poly = &f_1 + &f_2;
         lin_poly += &f_3;
         lin_poly += &f_4;
 
         // Evaluate linearisation polynomial at z_challenge
-        let lin_poly_eval = lin_poly.evaluate(*z_challenge);
+        let lin_poly_eval = poly_utils.single_point_eval(&lin_poly.coeffs, z_challenge);
 
         (
             lin_poly,
