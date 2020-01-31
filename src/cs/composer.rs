@@ -124,6 +124,8 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
     ) -> Proof<E> {
         let domain = EvaluationDomain::new(self.n).unwrap();
 
+        let mut proof = Proof::empty();
+
         //1. Witness Polynomials
         //
         // Convert Variables to Scalars
@@ -146,14 +148,18 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
         w_r_poly = &w_r_poly + &w_r_blinder;
         w_o_poly = &w_o_poly + &w_o_blinder;
 
-        // Commit to witness polynomials
+        // 1) Commit to witness polynomials
+        // 2) Add them to transcript
+        // 3) Place commitments into proof
         let w_l_poly_commit = srs::commit(commit_key, &w_l_poly.coeffs);
         let w_r_poly_commit = srs::commit(commit_key, &w_r_poly.coeffs);
         let w_o_poly_commit = srs::commit(commit_key, &w_o_poly.coeffs);
-        // Add witnesses to transcript
+        //
         transcript.append_commitment(b"w_l", &w_l_poly_commit);
         transcript.append_commitment(b"w_r", &w_r_poly_commit);
         transcript.append_commitment(b"w_o", &w_o_poly_commit);
+        //
+        proof.set_witness_poly_commitments(&w_l_poly_commit, &w_r_poly_commit, &w_o_poly_commit);
 
         // Compute Permutation challenges to the transcript `beta` and `gamma`
         let beta = transcript.challenge_scalar(b"beta");
@@ -169,9 +175,14 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
             &(beta, gamma),
         );
         let z_poly = Polynomial::from_coefficients_slice(&z_coeffs);
-
+        // 1) Commit to permutation polynomial
+        // 2) Add them to transcript
+        // 3) Place commitments into proof
         let z_poly_commit = srs::commit(commit_key, &z_coeffs);
+        //
         transcript.append_commitment(b"z", &z_poly_commit);
+        //
+        proof.set_perm_poly_commitment(&z_poly_commit);
 
         // Compute Quotient challenge `alpha`
         let alpha = transcript.challenge_scalar(b"alpha");
@@ -193,14 +204,18 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
         let (t_low_coeffs, t_mid_coeffs, t_hi_coeffs) =
             self.split_tx_poly(domain.size(), &t_x.coeffs);
 
-        // Commit polynomials.
+        // 1) Commit to quotient polynomials
+        // 2) Add them to transcript
+        // 3) Place commitments into proof
         let t_low_commit = srs::commit(commit_key, &t_low_coeffs);
         let t_mid_commit = srs::commit(commit_key, &t_mid_coeffs);
         let t_hi_commit = srs::commit(commit_key, &t_hi_coeffs);
-
+        //
         transcript.append_commitment(b"t_lo", &t_low_commit);
         transcript.append_commitment(b"t_mid", &t_mid_commit);
         transcript.append_commitment(b"t_hi", &t_hi_commit);
+        //
+        proof.set_quotient_poly_commitments(&t_low_commit, &t_mid_commit, &t_hi_commit);
 
         // Compute evaluation challenge `z`
         let z_challenge = transcript.challenge_scalar(b"z");
@@ -228,7 +243,8 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
         let lin_poly_eval = evaluations[6];
         let z_hat_eval = evaluations[7];
 
-        // Add evaluations to transcript
+        // 2) Add evaluations to transcript
+        // 3) Place commitments into proof
         transcript.append_scalar(b"a_eval", &a_eval);
         transcript.append_scalar(b"b_eval", &b_eval);
         transcript.append_scalar(b"c_eval", &c_eval);
@@ -237,6 +253,11 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
         transcript.append_scalar(b"z_hat_eval", &z_hat_eval);
         transcript.append_scalar(b"t_eval", &quot_eval);
         transcript.append_scalar(b"r_eval", &lin_poly_eval);
+        //
+        proof.set_witness_poly_evals(&a_eval, &b_eval, &c_eval);
+        proof.set_sigma_poly_evals(&left_sigma_eval, &right_sigma_eval);
+        proof.set_shifted_perm_poly_eval(&z_hat_eval);
+        proof.set_linearisation_poly_eval(&lin_poly_eval);
 
         // Compute opening challenge `v`
         let v = transcript.challenge_scalar(b"v");
@@ -261,28 +282,14 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
             &v,
         );
 
+        // 1) Commit to opening polynomials
+        // 2) Place commitments into proof
         let w_z_comm = srs::commit(commit_key, &W_z.coeffs);
         let w_z_x_comm = srs::commit(commit_key, &W_zx.coeffs);
+        //
+        proof.set_opening_poly_commitments(&w_z_comm, &w_z_x_comm);
 
-        Proof {
-            a_comm: w_l_poly_commit,
-            b_comm: w_r_poly_commit,
-            c_comm: w_o_poly_commit,
-
-            z_comm: z_poly_commit,
-            t_lo_comm: t_low_commit,
-            t_mid_comm: t_mid_commit,
-            t_hi_comm: t_hi_commit,
-            w_z_comm: w_z_comm,
-            w_zw_comm: w_z_x_comm,
-            a_eval: a_eval,
-            b_eval: b_eval,
-            c_eval: c_eval,
-            left_sigma_eval: left_sigma_eval,
-            right_sigma_eval: right_sigma_eval,
-            lin_poly_eval: lin_poly_eval,
-            z_hat_eval: z_hat_eval,
-        }
+        proof
     }
 
     fn circuit_size(&self) -> usize {
