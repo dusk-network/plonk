@@ -178,7 +178,6 @@ impl<E: PairingEngine> QuotientToolkit<E> {
 
         let (q, r) = a.divide_by_vanishing_poly(*domain).unwrap();
         assert!(r.is_zero());
-        assert_eq!(q.degree(), 2 * n + 1);
         q
     }
 
@@ -196,7 +195,7 @@ impl<E: PairingEngine> QuotientToolkit<E> {
         wo_coeffs: &[E::Fr],
     ) -> Polynomial<E::Fr> {
         let n = domain.size();
-        let domain_8n = EvaluationDomain::new(8 * n).unwrap();
+        let domain_4n = EvaluationDomain::new(4 * n).unwrap();
 
         // (a(x) + beta * X + gamma) (b(X) + beta * k1 * X + gamma) (c(X) + beta * k2 * X + gamma)
         let mut a = wl_coeffs.to_vec();
@@ -213,17 +212,17 @@ impl<E: PairingEngine> QuotientToolkit<E> {
         let beta_k2 = *beta * k2;
         c[1] = c[1] + &beta_k2;
 
-        domain_8n.fft_in_place(&mut a);
-        domain_8n.fft_in_place(&mut b);
-        domain_8n.fft_in_place(&mut c);
+        domain_4n.fft_in_place(&mut a);
+        domain_4n.fft_in_place(&mut b);
+        domain_4n.fft_in_place(&mut c);
 
         let alpha_z_coeffs: Vec<_> = z_coeffs.par_iter().map(|z| *alpha_sq * z).collect();
-        let z_alpha_eval_8n = domain_8n.fft(&alpha_z_coeffs);
+        let z_alpha_eval_4n = domain_4n.fft(&alpha_z_coeffs);
 
-        let t_2: Vec<_> = (0..domain_8n.size())
+        let t_2: Vec<_> = (0..domain_4n.size())
             .into_par_iter()
             .map(|i| {
-                let z_alpha = &z_alpha_eval_8n[i];
+                let z_alpha = &z_alpha_eval_4n[i];
 
                 let mut product = a[i] * &b[i] * &c[i]; // (a(x) + beta * X + gamma) (b(X) + beta * k1 * X + gamma) (c(X) + beta * k2 * X + gamma)
                 product = product * z_alpha; // (a(x) + beta * X + gamma) (b(X) + beta * k1 * X + gamma) (c(X) + beta * k2 * X + gamma)z(X) * alpha^2
@@ -231,7 +230,7 @@ impl<E: PairingEngine> QuotientToolkit<E> {
                 product
             })
             .collect();
-        Polynomial::from_coefficients_vec(domain_8n.ifft(&t_2))
+        Polynomial::from_coefficients_vec(domain_4n.ifft(&t_2))
     }
 
     fn compute_quotient_third_component(
@@ -250,7 +249,7 @@ impl<E: PairingEngine> QuotientToolkit<E> {
     ) -> Polynomial<E::Fr> {
         let n = domain.size();
         let poly_utils: Poly_utils<E> = Poly_utils::new();
-        let domain_8n = EvaluationDomain::new(8 * n).unwrap();
+        let domain_4n = EvaluationDomain::new(4 * n).unwrap();
 
         // (a(x) + beta * Sigma1(X) + gamma) (b(X) + beta * Sigma2(X) + gamma) (c(X) + beta * Sigma3(X) + gamma)
         //
@@ -270,25 +269,21 @@ impl<E: PairingEngine> QuotientToolkit<E> {
         let mut c = poly_utils.add_poly_vectors(&beta_out_sigma, wo_coeffs);
         c[0] = c[0] + gamma;
 
-        domain_8n.fft_in_place(&mut a);
-        domain_8n.fft_in_place(&mut b);
-        domain_8n.fft_in_place(&mut c);
+        domain_4n.fft_in_place(&mut a);
+        domain_4n.fft_in_place(&mut b);
+        domain_4n.fft_in_place(&mut c);
 
         let alpha_z_coeffs: Vec<_> = z_coeffs.par_iter().map(|z| *alpha_sq * z).collect();
-        let mut z_alpha_eval_8n = domain_8n.fft(&alpha_z_coeffs);
-        z_alpha_eval_8n.push(z_alpha_eval_8n[0]);
-        z_alpha_eval_8n.push(z_alpha_eval_8n[1]);
-        z_alpha_eval_8n.push(z_alpha_eval_8n[2]);
-        z_alpha_eval_8n.push(z_alpha_eval_8n[3]);
-        z_alpha_eval_8n.push(z_alpha_eval_8n[4]);
-        z_alpha_eval_8n.push(z_alpha_eval_8n[5]);
-        z_alpha_eval_8n.push(z_alpha_eval_8n[6]);
-        z_alpha_eval_8n.push(z_alpha_eval_8n[7]);
+        let mut z_alpha_eval_4n = domain_4n.fft(&alpha_z_coeffs);
+        z_alpha_eval_4n.push(z_alpha_eval_4n[0]);
+        z_alpha_eval_4n.push(z_alpha_eval_4n[1]);
+        z_alpha_eval_4n.push(z_alpha_eval_4n[2]);
+        z_alpha_eval_4n.push(z_alpha_eval_4n[3]);
 
-        let t_3: Vec<_> = (0..domain_8n.size())
+        let t_3: Vec<_> = (0..domain_4n.size())
             .into_par_iter()
             .map(|i| {
-                let z_alpha_shifted = &z_alpha_eval_8n[i + 8];
+                let z_alpha_shifted = &z_alpha_eval_4n[i + 4];
 
                 let mut product = a[i] * &b[i] * &c[i]; // (a(x) + beta * Sigma1(X) + gamma) (b(X) + beta * Sigma2(X) + gamma) (c(X) + beta * Sigma3(X) + gamma)
                 product = product * z_alpha_shifted; // (a(x) + beta* Sigma1(X) + gamma) (b(X) + beta * Sigma2(X) + gamma) (c(X) + beta * Sigma3(X) + gamma) Z(X.omega) * alpha^2
@@ -297,7 +292,7 @@ impl<E: PairingEngine> QuotientToolkit<E> {
             })
             .collect();
 
-        -Polynomial::from_coefficients_vec(domain_8n.ifft(&t_3))
+        -Polynomial::from_coefficients_vec(domain_4n.ifft(&t_3))
     }
 
     fn compute_quotient_fourth_component(
