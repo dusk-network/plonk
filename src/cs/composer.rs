@@ -115,12 +115,11 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
 
     // Prove will compute the pre-processed polynomials and
     // produce a proof
-    fn prove<R: RngCore + CryptoRng>(
+    fn prove(
         &mut self,
         commit_key: &Powers<E>,
         preprocessed_circuit: &PreProcessedCircuit<E>,
         transcript: &mut dyn TranscriptProtocol<E>,
-        mut rng: &mut R,
     ) -> Proof<E> {
         let domain = EvaluationDomain::new(self.n).unwrap();
 
@@ -135,16 +134,6 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
         let mut w_l_poly = Polynomial::from_coefficients_vec(domain.ifft(&w_l_scalar));
         let mut w_r_poly = Polynomial::from_coefficients_vec(domain.ifft(&w_r_scalar));
         let mut w_o_poly = Polynomial::from_coefficients_vec(domain.ifft(&w_o_scalar));
-
-        // Generate blinding polynomials
-        let w_l_blinder = Polynomial::rand(1, &mut rng).mul_by_vanishing_poly(domain);
-        let w_r_blinder = Polynomial::rand(1, &mut rng).mul_by_vanishing_poly(domain);
-        let w_o_blinder = Polynomial::rand(1, &mut rng).mul_by_vanishing_poly(domain);
-
-        // Blind witness polynomials
-        w_l_poly = &w_l_poly + &w_l_blinder;
-        w_r_poly = &w_r_poly + &w_r_blinder;
-        w_o_poly = &w_o_poly + &w_o_blinder;
 
         // Commit to witness polynomials
         let w_l_poly_commit = srs::commit(commit_key, &w_l_poly.coeffs);
@@ -538,12 +527,7 @@ mod tests {
             // Preprocess circuit
             let preprocessed_circuit = composer.preprocess(&ck, &mut transcript, &domain);
 
-            composer.prove(
-                &ck,
-                &preprocessed_circuit,
-                &mut transcript,
-                &mut rand::thread_rng(),
-            )
+            composer.prove(&ck, &preprocessed_circuit, &mut transcript)
         };
 
         // Verifiers view
@@ -597,12 +581,7 @@ mod tests {
             // Preprocess circuit
             let preprocessed_circuit = composer.preprocess(&ck, &mut transcript, &domain);
 
-            composer.prove(
-                &ck,
-                &preprocessed_circuit,
-                &mut transcript,
-                &mut rand::thread_rng(),
-            )
+            composer.prove(&ck, &preprocessed_circuit, &mut transcript)
         };
 
         // Verifiers view
