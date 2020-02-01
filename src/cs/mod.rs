@@ -22,8 +22,8 @@ use rand_core::{CryptoRng, RngCore};
 pub struct PreProcessedCircuit<E: PairingEngine> {
     // The number of gates in the circuit
     n: usize,
-    // Selector polynomial coefficients q_m, q_l, q_r, q_o, q_c and their commitments
-    selectors: Vec<(Vec<E::Fr>, Commitment<E>)>,
+    // Selector polynomial coefficients q_m, q_l, q_r, q_o, q_c,their commitments and their 4n evaluation points
+    selectors: Vec<(Vec<E::Fr>, Commitment<E>, Vec<E::Fr>)>,
 
     // Sigma polynomials and their commitments
     left_sigma: (Vec<E::Fr>, Commitment<E>),
@@ -78,6 +78,21 @@ impl<E: PairingEngine> PreProcessedCircuit<E> {
     }
     pub fn out_sigma_comm(&self) -> &Commitment<E> {
         &self.out_sigma.1
+    }
+    pub fn qm_eval_4n(&self) -> &Vec<E::Fr> {
+        &self.selectors[0].2
+    }
+    pub fn ql_eval_4n(&self) -> &Vec<E::Fr> {
+        &self.selectors[1].2
+    }
+    pub fn qr_eval_4n(&self) -> &Vec<E::Fr> {
+        &self.selectors[2].2
+    }
+    pub fn qo_eval_4n(&self) -> &Vec<E::Fr> {
+        &self.selectors[3].2
+    }
+    pub fn qc_eval_4n(&self) -> &Vec<E::Fr> {
+        &self.selectors[4].2
     }
 }
 

@@ -60,12 +60,20 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
         //1. Pad circuit to a power of two
         self.pad(domain.size as usize - self.n);
 
-        // 2. Convert selector vectors to selector polynomials
+        // 2a. Convert selector evaluations to selector coefficients
         let q_m_coeffs = domain.ifft(&self.q_m);
         let q_l_coeffs = domain.ifft(&self.q_l);
         let q_r_coeffs = domain.ifft(&self.q_r);
         let q_o_coeffs = domain.ifft(&self.q_o);
         let q_c_coeffs = domain.ifft(&self.q_c);
+
+        // 2b. Compute 4n evaluations of selector polynomial
+        let domain_4n = EvaluationDomain::new(4 * domain.size()).unwrap();
+        let q_m_eval_4n = domain_4n.fft(&q_m_coeffs);
+        let q_l_eval_4n = domain_4n.fft(&q_l_coeffs);
+        let q_r_eval_4n = domain_4n.fft(&q_r_coeffs);
+        let q_o_eval_4n = domain_4n.fft(&q_o_coeffs);
+        let q_c_eval_4n = domain_4n.fft(&q_c_coeffs);
 
         // 3. Compute the sigma polynomials
         let (left_sigma_coeffs, right_sigma_coeffs, out_sigma_coeffs) =
@@ -101,11 +109,11 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
         PreProcessedCircuit {
             n: self.n,
             selectors: vec![
-                (q_m_coeffs, q_m_poly_commit),
-                (q_l_coeffs, q_l_poly_commit),
-                (q_r_coeffs, q_r_poly_commit),
-                (q_o_coeffs, q_o_poly_commit),
-                (q_c_coeffs, q_c_poly_commit),
+                (q_m_coeffs, q_m_poly_commit, q_m_eval_4n),
+                (q_l_coeffs, q_l_poly_commit, q_l_eval_4n),
+                (q_r_coeffs, q_r_poly_commit, q_r_eval_4n),
+                (q_o_coeffs, q_o_poly_commit, q_o_eval_4n),
+                (q_c_coeffs, q_c_poly_commit, q_c_eval_4n),
             ],
             left_sigma: (left_sigma_coeffs, left_sigma_poly_commit),
             right_sigma: (right_sigma_coeffs, right_sigma_poly_commit),
