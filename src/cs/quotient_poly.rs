@@ -49,6 +49,15 @@ impl<E: PairingEngine> QuotientToolkit<E> {
             wr_coeffs,
             wo_coeffs,
         );
+
+        // Compute 4n eval of z(X)
+        let domain_4n = EvaluationDomain::new(4 * domain.size()).unwrap();
+        let mut z_eval_4n = domain_4n.fft(&z_coeffs);
+        z_eval_4n.push(z_eval_4n[0]);
+        z_eval_4n.push(z_eval_4n[1]);
+        z_eval_4n.push(z_eval_4n[2]);
+        z_eval_4n.push(z_eval_4n[3]);
+
         let t_2 = self.compute_quotient_second_component(
             domain,
             &alpha.square(),
@@ -56,7 +65,7 @@ impl<E: PairingEngine> QuotientToolkit<E> {
             &k2,
             beta,
             gamma,
-            &z_coeffs,
+            &z_eval_4n,
             &wl_coeffs,
             &wr_coeffs,
             &wo_coeffs,
@@ -66,7 +75,7 @@ impl<E: PairingEngine> QuotientToolkit<E> {
             &alpha.square(),
             beta,
             gamma,
-            &z_coeffs,
+            &z_eval_4n,
             &wl_coeffs,
             &wr_coeffs,
             &wo_coeffs,
@@ -76,7 +85,6 @@ impl<E: PairingEngine> QuotientToolkit<E> {
         );
         t_3 = poly_utils.add_poly_vectors(&t_2, &t_3);
         t_3 = poly_utils.add_poly_vectors(&t_1, &t_3);
-        let domain_4n = EvaluationDomain::new(4 * domain.size()).unwrap();
         domain_4n.ifft_in_place(&mut t_3);
 
         let grand_product_poly = Polynomial::from_coefficients_vec(t_3);
@@ -162,7 +170,7 @@ impl<E: PairingEngine> QuotientToolkit<E> {
         k2: &E::Fr,
         beta: &E::Fr,
         gamma: &E::Fr,
-        z_coeffs: &[E::Fr],
+        z_eval_4n: &[E::Fr],
         wl_coeffs: &[E::Fr],
         wr_coeffs: &[E::Fr],
         wo_coeffs: &[E::Fr],
@@ -189,8 +197,6 @@ impl<E: PairingEngine> QuotientToolkit<E> {
         domain_4n.fft_in_place(&mut b);
         domain_4n.fft_in_place(&mut c);
 
-        let z_eval_4n = domain_4n.fft(&z_coeffs);
-
         let t_2: Vec<_> = (0..domain_4n.size())
             .into_par_iter()
             .map(|i| {
@@ -211,7 +217,7 @@ impl<E: PairingEngine> QuotientToolkit<E> {
         alpha_sq: &E::Fr,
         beta: &E::Fr,
         gamma: &E::Fr,
-        z_coeffs: &[E::Fr],
+        z_eval_4n: &[E::Fr],
         wl_coeffs: &[E::Fr],
         wr_coeffs: &[E::Fr],
         wo_coeffs: &[E::Fr],
@@ -244,12 +250,6 @@ impl<E: PairingEngine> QuotientToolkit<E> {
         domain_4n.fft_in_place(&mut a);
         domain_4n.fft_in_place(&mut b);
         domain_4n.fft_in_place(&mut c);
-
-        let mut z_eval_4n = domain_4n.fft(&z_coeffs);
-        z_eval_4n.push(z_eval_4n[0]);
-        z_eval_4n.push(z_eval_4n[1]);
-        z_eval_4n.push(z_eval_4n[2]);
-        z_eval_4n.push(z_eval_4n[3]);
 
         let t_3: Vec<_> = (0..domain_4n.size())
             .into_par_iter()
