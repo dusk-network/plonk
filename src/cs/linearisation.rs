@@ -5,12 +5,25 @@ use algebra::{curves::PairingEngine, fields::Field};
 use ff_fft::EvaluationDomain;
 use std::marker::PhantomData;
 
-pub struct lineariser<E: PairingEngine> {
+pub struct Lineariser<E: PairingEngine> {
     _engine: PhantomData<E>,
 }
-impl<E: PairingEngine> lineariser<E> {
+
+pub struct LinEval<E: PairingEngine> {
+    a_eval: E::Fr,
+    b_eval: E::Fr,
+    c_eval: E::Fr,
+    sig_1_eval: E::Fr,
+    sig_2_eval: E::Fr,
+    quot_eval: Vec<E::Fr>,
+    lin_poly_eval: Vec<E::Fr>,
+    perm_eval: E::Fr,
+
+}
+
+impl<E: PairingEngine> Lineariser<E> {
     pub fn new() -> Self {
-        lineariser {
+        Lineariser {
             _engine: PhantomData,
         }
     }
@@ -24,7 +37,7 @@ impl<E: PairingEngine> lineariser<E> {
         w_o_coeffs: &Vec<E::Fr>,
         t_x_coeffs: &Vec<E::Fr>,
         z_coeffs: &Vec<E::Fr>,
-    ) -> (Vec<E::Fr>, Vec<E::Fr>) {
+    ) -> (Vec<E::Fr>, LinEval) {
         let poly_utils: Poly_utils<E> = Poly_utils::new();
         let alpha_sq = alpha.square();
         let alpha_cu = *alpha * &alpha_sq;
@@ -93,8 +106,7 @@ impl<E: PairingEngine> lineariser<E> {
         let lin_poly_eval = poly_utils.single_point_eval(&lin_coeffs, z_challenge);
 
         (
-            lin_coeffs,
-            vec![
+            lin_coeffs, LinEval {
                 a_eval,
                 b_eval,
                 c_eval,
@@ -103,7 +115,7 @@ impl<E: PairingEngine> lineariser<E> {
                 quot_eval,
                 lin_poly_eval,
                 perm_eval,
-            ],
+            }
         )
     }
 
@@ -232,7 +244,7 @@ mod test {
     use ff_fft::DensePolynomial as Polynomial;
     #[test]
     fn test_first_component() {
-        let lin: lineariser<E> = lineariser::new();
+        let lin: Lineariser<E> = Lineariser::new();
 
         let alpha = Fr::one();
         let a_eval = Fr::one();
@@ -260,7 +272,7 @@ mod test {
 
     #[test]
     fn test_second_component() {
-        let lin: lineariser<E> = lineariser::new();
+        let lin: Lineariser<E> = Lineariser::new();
 
         let k1 = Fr::multiplicative_generator();
         let k2 = Fr::from(13u8);
@@ -299,7 +311,7 @@ mod test {
     }
     #[test]
     fn test_third_component() {
-        let lin: lineariser<E> = lineariser::new();
+        let lin: Lineariser<E> = Lineariser::new();
 
         let alpha = Fr::one();
         let beta = Fr::one();
@@ -334,7 +346,7 @@ mod test {
     }
     #[test]
     fn test_fourth_component() {
-        let lin: lineariser<E> = lineariser::new();
+        let lin: Lineariser<E> = Lineariser::new();
 
         let alpha = Fr::one();
         let z_challenge = Fr::rand(&mut rand::thread_rng());

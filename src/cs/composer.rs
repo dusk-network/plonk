@@ -1,4 +1,4 @@
-use super::linearisation::lineariser;
+use super::linearisation::Lineariser;
 use super::opening::commitmentOpener;
 use super::{
     constraint_system::Variable, permutation::Permutation, proof::Proof, Composer,
@@ -217,7 +217,7 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
         let z_challenge = transcript.challenge_scalar(b"z");
 
         // Compute Linearisation polynomial
-        let lineariser = lineariser::new();
+        let lineariser = Lineariser::new();
         let (lin_coeffs, evaluations) = lineariser.evaluate_linearisation_polynomial(
             &domain,
             &preprocessed_circuit,
