@@ -32,10 +32,10 @@ Roadmap
 - [x] Derive test vectors for arguments
 - [x] Build polynomials from all wire values and derive coefficients 
 - [x] Generate randomness from Fiat Shamir using Merlin inputs
-- [] Generate public inputs 
+- [x] Generate public inputs 
 - [x] Evaluate the z polynomial at the root of unity 
-- [] Add prover logic
-- [] Add verifier logic
+- [x] Add prover logic
+- [x] Add verifier logic
 - [] Implement travis auto document 
 
 ## Acknowledgements
