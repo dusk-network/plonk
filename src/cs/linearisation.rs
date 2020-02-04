@@ -10,14 +10,14 @@ pub struct Lineariser<E: PairingEngine> {
 }
 
 pub struct LinEval<E: PairingEngine> {
-    a_eval: E::Fr,
-    b_eval: E::Fr,
-    c_eval: E::Fr,
-    sig_1_eval: E::Fr,
-    sig_2_eval: E::Fr,
-    quot_eval: Vec<E::Fr>,
-    lin_poly_eval: Vec<E::Fr>,
-    perm_eval: E::Fr,
+    pub a_eval: E::Fr,
+    pub b_eval: E::Fr,
+    pub c_eval: E::Fr,
+    pub sig_1_eval: E::Fr,
+    pub sig_2_eval: E::Fr,
+    pub quot_eval: E::Fr,
+    pub lin_poly_eval: E::Fr,
+    pub perm_eval: E::Fr,
 
 }
 
@@ -37,7 +37,7 @@ impl<E: PairingEngine> Lineariser<E> {
         w_o_coeffs: &Vec<E::Fr>,
         t_x_coeffs: &Vec<E::Fr>,
         z_coeffs: &Vec<E::Fr>,
-    ) -> (Vec<E::Fr>, LinEval) {
+    ) -> (Vec<E::Fr>, LinEval<E>) {
         let poly_utils: Poly_utils<E> = Poly_utils::new();
         let alpha_sq = alpha.square();
         let alpha_cu = *alpha * &alpha_sq;
