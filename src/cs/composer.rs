@@ -8,7 +8,6 @@ use crate::{cs::quotient_poly::QuotientToolkit, srs, transcript::TranscriptProto
 use algebra::{curves::PairingEngine, fields::Field};
 use ff_fft::EvaluationDomain;
 use poly_commit::kzg10::Powers;
-use rand_core::{CryptoRng, RngCore};
 /// A composer is a circuit builder
 /// and will dictate how a circuit is built
 /// We will have a default Composer called `StandardComposer`
