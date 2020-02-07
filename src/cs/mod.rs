@@ -18,7 +18,7 @@ use ff_fft::EvaluationDomain;
 use poly_commit::kzg10::Powers;
 use rand_core::{CryptoRng, RngCore};
 
-// Preprocessed cirucit includes the commitment to the selector polynomials and the sigma polynomials
+// Preprocessed circuit includes the commitment to the selector polynomials and the sigma polynomials
 pub struct PreProcessedCircuit<E: PairingEngine> {
     // The number of gates in the circuit
     n: usize,
