@@ -5,12 +5,45 @@ use algebra::{curves::PairingEngine, fields::Field};
 use ff_fft::EvaluationDomain;
 use std::marker::PhantomData;
 
-pub struct lineariser<E: PairingEngine> {
+pub struct Lineariser<E: PairingEngine> {
     _engine: PhantomData<E>,
 }
-impl<E: PairingEngine> lineariser<E> {
+
+pub struct LinEval<E: PairingEngine> {
+    pub a_eval: E::Fr,
+    pub b_eval: E::Fr,
+    pub c_eval: E::Fr,
+    pub left_sigma_eval: E::Fr,
+    pub right_sigma_eval: E::Fr,
+    pub quot_eval: E::Fr,
+    pub lin_poly_eval: E::Fr,
+    pub perm_eval: E::Fr,
+}
+
+impl<E: PairingEngine> Into<Vec<E::Fr>> for LinEval<E> {
+    fn into(self) -> Vec<E::Fr> {
+        vec![
+            self.a_eval,
+            self.b_eval,
+            self.c_eval,
+            self.left_sigma_eval,
+            self.right_sigma_eval,
+            self.quot_eval,
+            self.lin_poly_eval,
+            self.perm_eval,
+        ]
+    }
+}
+
+impl<E: PairingEngine> LinEval<E> {
+    pub fn to_vec(self) -> Vec<E::Fr> {
+        self.into()
+    }
+}
+
+impl<E: PairingEngine> Lineariser<E> {
     pub fn new() -> Self {
-        lineariser {
+        Lineariser {
             _engine: PhantomData,
         }
     }
@@ -24,7 +57,7 @@ impl<E: PairingEngine> lineariser<E> {
         w_o_coeffs: &Vec<E::Fr>,
         t_x_coeffs: &Vec<E::Fr>,
         z_coeffs: &Vec<E::Fr>,
-    ) -> (Vec<E::Fr>, Vec<E::Fr>) {
+    ) -> (Vec<E::Fr>, LinEval<E>) {
         let poly_utils: Poly_utils<E> = Poly_utils::new();
         let alpha_sq = alpha.square();
         let alpha_cu = *alpha * &alpha_sq;
@@ -45,8 +78,8 @@ impl<E: PairingEngine> lineariser<E> {
         let a_eval = evaluations[1];
         let b_eval = evaluations[2];
         let c_eval = evaluations[3];
-        let sig_1_eval = evaluations[4];
-        let sig_2_eval = evaluations[5];
+        let left_sigma_eval = evaluations[4];
+        let right_sigma_eval = evaluations[5];
 
         // Compute permutation evaluation point
         let perm_eval = poly_utils.single_point_eval(z_coeffs, &(*z_challenge * &domain.group_gen));
@@ -77,8 +110,8 @@ impl<E: PairingEngine> lineariser<E> {
         let f_3 = self.compute_third_component(
             (a_eval, b_eval),
             perm_eval,
-            sig_1_eval,
-            sig_2_eval,
+            left_sigma_eval,
+            right_sigma_eval,
             (alpha_sq, *beta, *gamma),
             preprocessed_circuit.out_sigma_poly(),
         );
@@ -94,16 +127,16 @@ impl<E: PairingEngine> lineariser<E> {
 
         (
             lin_coeffs,
-            vec![
+            LinEval {
                 a_eval,
                 b_eval,
                 c_eval,
-                sig_1_eval,
-                sig_2_eval,
+                left_sigma_eval,
+                right_sigma_eval,
                 quot_eval,
                 lin_poly_eval,
                 perm_eval,
-            ],
+            },
         )
     }
 
@@ -232,7 +265,7 @@ mod test {
     use ff_fft::DensePolynomial as Polynomial;
     #[test]
     fn test_first_component() {
-        let lin: lineariser<E> = lineariser::new();
+        let lin: Lineariser<E> = Lineariser::new();
 
         let alpha = Fr::one();
         let a_eval = Fr::one();
@@ -260,7 +293,7 @@ mod test {
 
     #[test]
     fn test_second_component() {
-        let lin: lineariser<E> = lineariser::new();
+        let lin: Lineariser<E> = Lineariser::new();
 
         let k1 = Fr::multiplicative_generator();
         let k2 = Fr::from(13u8);
@@ -299,7 +332,7 @@ mod test {
     }
     #[test]
     fn test_third_component() {
-        let lin: lineariser<E> = lineariser::new();
+        let lin: Lineariser<E> = Lineariser::new();
 
         let alpha = Fr::one();
         let beta = Fr::one();
@@ -334,7 +367,7 @@ mod test {
     }
     #[test]
     fn test_fourth_component() {
-        let lin: lineariser<E> = lineariser::new();
+        let lin: Lineariser<E> = Lineariser::new();
 
         let alpha = Fr::one();
         let z_challenge = Fr::rand(&mut rand::thread_rng());
