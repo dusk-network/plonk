@@ -1,7 +1,9 @@
+use super::linearisation::LinEval;
 use crate::cs::poly_utils::Poly_utils;
 use crate::transcript::TranscriptProtocol;
 use algebra::{curves::PairingEngine, fields::Field};
 use ff_fft::DensePolynomial as Polynomial;
+use itertools::izip;
 use rayon::prelude::*;
 use std::marker::PhantomData;
 pub struct commitmentOpener<E: PairingEngine> {
@@ -20,7 +22,7 @@ impl<E: PairingEngine> commitmentOpener<E> {
         n: usize,
         z_challenge: E::Fr,
         lin_coeffs: &Vec<E::Fr>,
-        evaluations: &Vec<E::Fr>,
+        evaluations: LinEval<E>,
         t_lo_coeffs: &Vec<E::Fr>,
         t_mid_coeffs: &Vec<E::Fr>,
         t_hi_coeffs: &Vec<E::Fr>,
@@ -32,14 +34,13 @@ impl<E: PairingEngine> commitmentOpener<E> {
         z_coeffs: &Vec<E::Fr>,
         v: &E::Fr,
     ) -> (Vec<E::Fr>, Vec<E::Fr>) {
-        let mut evaluations = evaluations.to_vec();
         let poly_utils: Poly_utils<E> = Poly_utils::new();
 
         // Compute 1,v, v^2, v^3,..v^7
         let mut v_pow: Vec<E::Fr> = poly_utils.powers_of(v, 7);
 
         let v_7 = v_pow.pop().unwrap();
-        let z_eval = evaluations.pop().unwrap(); // XXX: For better readability, we should probably have an evaluation struct. It is a vector so that we can iterate in compute_challenge_poly_eval
+        let z_hat_eval = evaluations.perm_eval; // XXX: For better readability, we should probably have an evaluation struct. It is a vector so that we can iterate in compute_challenge_poly_eval
 
         // Compute z^n , z^2n
         let z_n = z_challenge.pow(&[n as u64]);
@@ -102,13 +103,13 @@ impl<E: PairingEngine> commitmentOpener<E> {
         &self,
         challenges: Vec<E::Fr>,
         polynomials: Vec<&Vec<E::Fr>>,
-        evaluations: Vec<E::Fr>,
+        evaluations: LinEval<E>,
     ) -> Vec<E::Fr> {
         let poly_utils: Poly_utils<E> = Poly_utils::new();
         let x: Vec<_> = challenges
             .into_par_iter()
             .zip(polynomials.into_par_iter())
-            .zip(evaluations.into_par_iter())
+            .zip(evaluations.to_vec().into_par_iter())
             .map(|((v, poly), eval)| {
                 let mut p: Vec<_> = poly.iter().map(|p| v * p).collect();
                 p[0] = p[0] - &(v * &eval);
