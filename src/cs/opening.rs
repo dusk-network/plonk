@@ -4,6 +4,7 @@ use crate::transcript::TranscriptProtocol;
 use algebra::{curves::PairingEngine, fields::Field};
 use ff_fft::DensePolynomial as Polynomial;
 use itertools::izip;
+use num_traits::{One, Zero};
 use rayon::prelude::*;
 use std::marker::PhantomData;
 pub struct commitmentOpener<E: PairingEngine> {

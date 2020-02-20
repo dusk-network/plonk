@@ -6,6 +6,7 @@ use algebra::{
 };
 use ff_fft::{DensePolynomial as Polynomial, EvaluationDomain};
 use itertools::izip;
+use num_traits::{One, Zero};
 use rayon::iter::*;
 use rayon::prelude::*;
 use std::collections::HashMap;
@@ -797,24 +798,24 @@ mod test {
 
         let mut prod_left_sigma = Fr::one();
         for element in perm.left_sigma_mapping.unwrap().iter() {
-            prod_left_sigma = prod_left_sigma * &element;
+            prod_left_sigma = prod_left_sigma * *element;
         }
         let mut prod_right_sigma = Fr::one();
         for element in perm.right_sigma_mapping.unwrap().iter() {
-            prod_right_sigma = prod_right_sigma * &element;
+            prod_right_sigma = prod_right_sigma * *element;
         }
         let mut prod_out_sigma = Fr::one();
         for element in perm.out_sigma_mapping.unwrap().iter() {
-            prod_out_sigma = prod_out_sigma * &element;
+            prod_out_sigma = prod_out_sigma * *element;
         }
 
-        let copy_grand_prod = (prod_left_sigma * &prod_right_sigma) * &prod_out_sigma;
+        let copy_grand_prod = (prod_left_sigma * prod_right_sigma) * prod_out_sigma;
 
         let mut identity_grand_prod = Fr::one();
         for element in domain.elements() {
             let root_cubed = element.pow(&[3 as u64]);
             let prod = (root_cubed * &k1) * &k2;
-            identity_grand_prod = identity_grand_prod * &prod;
+            identity_grand_prod = identity_grand_prod * prod;
         }
 
         assert_eq!(identity_grand_prod / &copy_grand_prod, Fr::one());
@@ -896,10 +897,10 @@ mod test {
         // Where f_i and g_i are the numerator and denominator components in the permutation polynomial
         let (mut a_0, mut b_0) = (Fr::one(), Fr::one());
         for n in numerator_components.iter() {
-            a_0 = a_0 * &n;
+            a_0 = a_0 * n;
         }
         for n in denominator_components.iter() {
-            b_0 = b_0 * &n;
+            b_0 = b_0 * n;
         }
         assert_eq!(a_0 / &b_0, Fr::one());
 
@@ -938,9 +939,9 @@ mod test {
             assert_ne!(z_eval_shifted, Fr::zero());
 
             // Z(Xw) * copy_perm
-            let lhs = z_eval_shifted * &current_copy_perm_product;
+            let lhs = z_eval_shifted * current_copy_perm_product;
             // Z(X) * iden_perm
-            let rhs = z_eval * &current_identity_perm_product;
+            let rhs = z_eval * current_identity_perm_product;
             assert_eq!(
                 lhs, rhs,
                 "check failed at index: {}\'n lhs is : {:?} \n rhs is :{:?}",

@@ -5,6 +5,7 @@ use algebra::{
     fields::{Field, PrimeField},
 };
 use ff_fft::{DensePolynomial as Polynomial, EvaluationDomain};
+use num_traits::{One, Zero};
 use rayon::prelude::*;
 use std::marker::PhantomData;
 

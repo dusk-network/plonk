@@ -3,6 +3,7 @@ use crate::cs::poly_utils::Poly_utils;
 use algebra::fields::PrimeField;
 use algebra::{curves::PairingEngine, fields::Field};
 use ff_fft::EvaluationDomain;
+use num_traits::{One, Zero};
 use std::marker::PhantomData;
 
 pub struct Lineariser<E: PairingEngine> {
