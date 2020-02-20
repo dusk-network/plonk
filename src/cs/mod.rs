@@ -1,5 +1,5 @@
 pub mod composer;
-mod constraint_system;
+pub mod constraint_system;
 mod doubly_linked_hashmap;
 mod linearisation;
 mod opening;
