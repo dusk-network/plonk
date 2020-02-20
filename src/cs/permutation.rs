@@ -7,6 +7,7 @@ use algebra::{
 };
 use ff_fft::{DensePolynomial as Polynomial, EvaluationDomain};
 use itertools::izip;
+use num_traits::{One, Zero};
 use rayon::iter::*;
 use rayon::prelude::*;
 use std::collections::HashMap;
@@ -795,24 +796,24 @@ mod test {
 
         let mut prod_left_sigma = Fr::one();
         for element in perm.left_sigma_mapping.unwrap().iter() {
-            prod_left_sigma = prod_left_sigma * element;
+            prod_left_sigma = prod_left_sigma * *element;
         }
         let mut prod_right_sigma = Fr::one();
         for element in perm.right_sigma_mapping.unwrap().iter() {
-            prod_right_sigma = prod_right_sigma * element;
+            prod_right_sigma = prod_right_sigma * *element;
         }
         let mut prod_out_sigma = Fr::one();
         for element in perm.out_sigma_mapping.unwrap().iter() {
-            prod_out_sigma = prod_out_sigma * element;
+            prod_out_sigma = prod_out_sigma * *element;
         }
 
-        let copy_grand_prod = (prod_left_sigma * &prod_right_sigma) * &prod_out_sigma;
+        let copy_grand_prod = (prod_left_sigma * prod_right_sigma) * prod_out_sigma;
 
         let mut identity_grand_prod = Fr::one();
         for element in domain.elements() {
             let root_cubed = element.pow(&[3 as u64]);
             let prod = (root_cubed * &k1) * &k2;
-            identity_grand_prod = identity_grand_prod * &prod;
+            identity_grand_prod = identity_grand_prod * prod;
         }
 
         assert_eq!(identity_grand_prod / &copy_grand_prod, Fr::one());

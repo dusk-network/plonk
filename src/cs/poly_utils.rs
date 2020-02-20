@@ -1,5 +1,6 @@
 use algebra::curves::PairingEngine;
 use algebra::fields::Field;
+use num_traits::{One, Zero};
 use rayon::prelude::*;
 use std::marker::PhantomData;
 
