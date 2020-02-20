@@ -14,7 +14,7 @@ use rand_core::{CryptoRng, RngCore};
 /// We will have a default Composer called `StandardComposer`
 pub struct StandardComposer<E: PairingEngine> {
     // n represents the number of arithmetic gates in the circuit
-    n: usize,
+    n: u64,
 
     // Selector vectors
     //
