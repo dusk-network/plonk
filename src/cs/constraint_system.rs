@@ -1,5 +1,5 @@
 use algebra::fields::PrimeField;
-// Design taken from bulletproofs
+// Design taken from bulletproofs; although we should modify it to use iterators instead of vectors (zero-cost)
 /// Represents a variable in a constraint system.
 /// The value is a reference to the actual value that was added to the constraint system
 #[derive(Debug, Eq, PartialEq, Clone, Copy, Hash)]
@@ -24,6 +24,18 @@ impl<F: PrimeField> From<Variable> for LinearCombination<F> {
         }
     }
 }
+
+use std::ops::Add;
+
+impl<F: PrimeField, L: Into<LinearCombination<F>>> Add<L> for LinearCombination<F> {
+    type Output = Self;
+
+    fn add(mut self, rhs: L) -> Self::Output {
+        self.terms.extend(rhs.into().terms.iter().cloned());
+        LinearCombination { terms: self.terms }
+    }
+}
+
 /// Stores the data for a specific wire in an arithmetic circuit
 /// This data is the gate index and the type of wire
 /// Left(1) signifies that this wire belongs to the first gate and is the left wire
