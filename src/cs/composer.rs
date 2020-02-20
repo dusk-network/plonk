@@ -1,4 +1,4 @@
-use super::linearisation::lineariser;
+use super::linearisation::Lineariser;
 use super::opening::commitmentOpener;
 use super::{
     constraint_system::Variable, permutation::Permutation, proof::Proof, Composer,
@@ -8,6 +8,7 @@ use crate::{cs::quotient_poly::QuotientToolkit, srs, transcript::TranscriptProto
 use algebra::{curves::PairingEngine, fields::Field};
 use ff_fft::EvaluationDomain;
 use poly_commit::kzg10::Powers;
+use rand_core::{CryptoRng, RngCore};
 /// A composer is a circuit builder
 /// and will dictate how a circuit is built
 /// We will have a default Composer called `StandardComposer`
@@ -216,8 +217,8 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
         let z_challenge = transcript.challenge_scalar(b"z");
 
         // Compute Linearisation polynomial
-        let lineariser = lineariser::new();
-        let (lin_coeffs, evaluations) = lineariser.evaluate_linearisation_polynomial(
+        let Lineariser = Lineariser::new();
+        let (lin_coeffs, evaluations) = Lineariser.evaluate_linearisation_polynomial(
             &domain,
             &preprocessed_circuit,
             &(alpha, beta, gamma, z_challenge),
@@ -228,30 +229,29 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
             &z_coeffs,
         );
 
-        let a_eval = evaluations[0];
-        let b_eval = evaluations[1];
-        let c_eval = evaluations[2];
-        let left_sigma_eval = evaluations[3];
-        let right_sigma_eval = evaluations[4];
-        let quot_eval = evaluations[5];
-        let lin_poly_eval = evaluations[6];
-        let z_hat_eval = evaluations[7];
+        let left_sigma_eval = evaluations.left_sigma_eval;
+        let right_sigma_eval = evaluations.right_sigma_eval;
+        let perm_eval = evaluations.perm_eval;
 
         // 2) Add evaluations to transcript
         // 3) Place commitments into proof
-        transcript.append_scalar(b"a_eval", &a_eval);
-        transcript.append_scalar(b"b_eval", &b_eval);
-        transcript.append_scalar(b"c_eval", &c_eval);
-        transcript.append_scalar(b"left_sig_eval", &left_sigma_eval);
-        transcript.append_scalar(b"right_sig_eval", &right_sigma_eval);
-        transcript.append_scalar(b"z_hat_eval", &z_hat_eval);
-        transcript.append_scalar(b"t_eval", &quot_eval);
-        transcript.append_scalar(b"r_eval", &lin_poly_eval);
+        transcript.append_scalar(b"a_eval", &evaluations.a_eval);
+        transcript.append_scalar(b"b_eval", &evaluations.b_eval);
+        transcript.append_scalar(b"c_eval", &evaluations.c_eval);
+        transcript.append_scalar(b"left_sig_eval", &evaluations.left_sigma_eval);
+        transcript.append_scalar(b"right_sig_eval", &evaluations.right_sigma_eval);
+        transcript.append_scalar(b"perm_eval", &evaluations.perm_eval);
+        transcript.append_scalar(b"t_eval", &evaluations.quot_eval);
+        transcript.append_scalar(b"r_eval", &evaluations.lin_poly_eval);
         //
-        proof.set_witness_poly_evals(&a_eval, &b_eval, &c_eval);
+        proof.set_witness_poly_evals(
+            &evaluations.a_eval,
+            &evaluations.b_eval,
+            &evaluations.c_eval,
+        );
         proof.set_sigma_poly_evals(&left_sigma_eval, &right_sigma_eval);
-        proof.set_shifted_perm_poly_eval(&z_hat_eval);
-        proof.set_linearisation_poly_eval(&lin_poly_eval);
+        proof.set_shifted_perm_poly_eval(&perm_eval);
+        proof.set_linearisation_poly_eval(&evaluations.lin_poly_eval);
 
         // Compute opening challenge `v`
         let v = transcript.challenge_scalar(b"v");
@@ -263,7 +263,7 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
             domain.size(),
             z_challenge,
             &lin_coeffs,
-            &evaluations,
+            evaluations,
             &t_low_coeffs,
             &t_mid_coeffs,
             &t_hi_coeffs,

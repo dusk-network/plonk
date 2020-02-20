@@ -206,7 +206,7 @@ impl<E: PairingEngine> Proof<E> {
         transcript.append_scalar(b"c_eval", &self.c_eval);
         transcript.append_scalar(b"left_sig_eval", &self.left_sigma_eval);
         transcript.append_scalar(b"right_sig_eval", &self.right_sigma_eval);
-        transcript.append_scalar(b"z_hat_eval", &self.z_hat_eval);
+        transcript.append_scalar(b"perm_eval", &self.z_hat_eval);
         transcript.append_scalar(b"t_eval", &t_eval);
         transcript.append_scalar(b"r_eval", &self.lin_poly_eval);
 
