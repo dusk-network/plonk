@@ -1,4 +1,4 @@
-mod composer;
+pub mod composer;
 mod constraint_system;
 mod doubly_linked_hashmap;
 mod linearisation;
