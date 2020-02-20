@@ -358,7 +358,7 @@ impl<E: PairingEngine> StandardComposer<E> {
 
     // Adds a Scalar to the circuit and returns its
     // reference in the constraint system
-    fn add_input(&mut self, s: E::Fr) -> Variable {
+    pub fn add_input(&mut self, s: E::Fr) -> Variable {
         self.perm.new_variable(s)
     }
     // evaluates a linear combination
