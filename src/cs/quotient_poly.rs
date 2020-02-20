@@ -275,7 +275,7 @@ impl<E: PairingEngine> QuotientToolkit<E> {
         let n = domain.size();
         let domain_2n = EvaluationDomain::new(2 * n).unwrap();
 
-        let l1_coeffs = self.compute_first_lagrange_poly(n).coeffs;
+        let l1_coeffs = self.compute_first_lagrange_poly(domain).coeffs;
         let alpha_cu_l1_coeffs: Vec<_> = l1_coeffs.par_iter().map(|x| alpha_cu * x).collect();
 
         // (Z(x) - 1)
@@ -294,26 +294,12 @@ impl<E: PairingEngine> QuotientToolkit<E> {
         q
     }
 
-    /// Computes the Lagrange polynomial `L1(X)`.
-    /// x^n - 1 / n(x-1)
-    pub fn compute_first_lagrange_poly(&self, size: usize) -> Polynomial<E::Fr> {
-        let n = E::Fr::from_repr((size as u64).into());
-
-        use ff_fft::{DenseOrSparsePolynomial, SparsePolynomial};
-
-        let numerator_coeffs = vec![(0, -E::Fr::one()), (size, E::Fr::one())];
-        let numerator_poly: DenseOrSparsePolynomial<E::Fr> =
-            SparsePolynomial::from_coefficients_vec(numerator_coeffs).into();
-
-        let denominator_coeffs = vec![(0, -n), (1, n)];
-        let denominator_poly: DenseOrSparsePolynomial<E::Fr> =
-            SparsePolynomial::from_coefficients_vec(denominator_coeffs).into();
-
-        let (q, r) = numerator_poly
-            .divide_with_q_and_r(&denominator_poly)
-            .unwrap();
-        assert_eq!(r, Polynomial::zero());
-        q
+    /// Computes the first Lagrange polynomial `L1(X)`.
+    fn compute_first_lagrange_poly(&self, domain: &EvaluationDomain<E::Fr>) -> Polynomial<E::Fr> {
+        let mut x_evals = vec![E::Fr::zero(); domain.size()];
+        x_evals[0] = E::Fr::one();
+        domain.ifft_in_place(&mut x_evals);
+        Polynomial::from_coefficients_vec(x_evals)
     }
 }
 
@@ -322,7 +308,6 @@ mod test {
     use super::*;
     use algebra::curves::bls12_381::Bls12_381 as E;
     use algebra::fields::bls12_381::Fr;
-
     #[test]
     fn test_l1_x_poly() {
         let toolkit: QuotientToolkit<E> = QuotientToolkit::new();
@@ -332,12 +317,43 @@ mod test {
 
         use algebra::UniformRand;
         let rand_point = Fr::rand(&mut rand::thread_rng());
+        assert_ne!(rand_point, Fr::zero());
 
-        let expected_l1_eval = domain.evaluate_all_lagrange_coefficients(rand_point)[0];
-        let q = toolkit.compute_first_lagrange_poly(domain.size());
-        let got_l1_eval = q.evaluate(rand_point);
+        // Compute l1_eval according to the Domain
+        let l1_a = domain.evaluate_all_lagrange_coefficients(rand_point)[0];
+        // Compute l1 eval using IFFT
+        let b = toolkit.compute_first_lagrange_poly(&domain);
+        let l1_b = b.evaluate(rand_point);
+        // Compute l1 eval using Polynomial division (regression test)
+        let c = slow_compute_first_lagrange_poly(domain.size());
+        let l1_c = c.evaluate(rand_point);
 
-        assert_eq!(expected_l1_eval, got_l1_eval);
-        assert_eq!(Fr::one(), q.evaluate(Fr::one()))
+        assert_eq!(l1_a, l1_b);
+        assert_eq!(l1_a, l1_c);
+
+        assert_eq!(b.evaluate(Fr::one()), Fr::one());
+        assert_eq!(c.evaluate(Fr::one()), Fr::one());
+    }
+
+    /// Computes the Lagrange polynomial `L1(X)`.
+    /// x^n - 1 / n(x-1)
+    fn slow_compute_first_lagrange_poly(size: usize) -> Polynomial<Fr> {
+        let n = Fr::from_repr((size as u64).into());
+
+        use ff_fft::{DenseOrSparsePolynomial, SparsePolynomial};
+
+        let numerator_coeffs = vec![(0, -Fr::one()), (size, Fr::one())];
+        let numerator_poly: DenseOrSparsePolynomial<Fr> =
+            SparsePolynomial::from_coefficients_vec(numerator_coeffs).into();
+
+        let denominator_coeffs = vec![(0, -n), (1, n)];
+        let denominator_poly: DenseOrSparsePolynomial<Fr> =
+            SparsePolynomial::from_coefficients_vec(denominator_coeffs).into();
+
+        let (q, r) = numerator_poly
+            .divide_with_q_and_r(&denominator_poly)
+            .unwrap();
+        assert_eq!(r, Polynomial::zero());
+        q
     }
 }
