@@ -7,6 +7,7 @@ use super::{
 use crate::{cs::quotient_poly::QuotientToolkit, srs, transcript::TranscriptProtocol};
 use algebra::{curves::PairingEngine, fields::Field};
 use ff_fft::EvaluationDomain;
+use num_traits::{One, Zero};
 use poly_commit::kzg10::Powers;
 use rand_core::{CryptoRng, RngCore};
 /// A composer is a circuit builder

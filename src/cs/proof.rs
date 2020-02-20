@@ -9,6 +9,7 @@ use algebra::{
 };
 use ff_fft::DensePolynomial as Polynomial;
 use ff_fft::EvaluationDomain;
+use num_traits::{One, Zero};
 use poly_commit::data_structures::PCCommitment;
 use poly_commit::kzg10::{Commitment, VerifierKey};
 pub struct Proof<E: PairingEngine> {
