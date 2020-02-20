@@ -25,7 +25,7 @@ impl<F: PrimeField> From<Variable> for LinearCombination<F> {
     }
 }
 
-use std::ops::Add;
+use std::ops::{Add, Neg, Sub};
 
 impl<F: PrimeField, L: Into<LinearCombination<F>>> Add<L> for LinearCombination<F> {
     type Output = Self;
@@ -33,6 +33,24 @@ impl<F: PrimeField, L: Into<LinearCombination<F>>> Add<L> for LinearCombination<
     fn add(mut self, rhs: L) -> Self::Output {
         self.terms.extend(rhs.into().terms.iter().cloned());
         LinearCombination { terms: self.terms }
+    }
+}
+impl<F: PrimeField> Neg for LinearCombination<F> {
+    type Output = Self;
+
+    fn neg(mut self) -> Self::Output {
+        for (_, s) in self.terms.iter_mut() {
+            *s = -*s
+        }
+        self
+    }
+}
+
+impl<F: PrimeField, L: Into<LinearCombination<F>>> Sub<L> for LinearCombination<F> {
+    type Output = Self;
+
+    fn sub(self, rhs: L) -> Self::Output {
+        self + rhs.into().neg()
     }
 }
 
