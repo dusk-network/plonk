@@ -381,16 +381,19 @@ impl<E: PairingEngine> StandardComposer<E> {
         &mut self,
         a: LinearCombination<E::Fr>,
         b: LinearCombination<E::Fr>,
-        c: LinearCombination<E::Fr>,
         q_l: E::Fr,
         q_r: E::Fr,
         q_o: E::Fr,
         q_c: E::Fr,
         pi: E::Fr,
     ) -> (Variable, Variable, Variable) {
-        let l = self.add_lc(a);
-        let r = self.add_lc(b);
-        let o = self.add_lc(c);
+        let l = self.add_lc(a.clone());
+        let r = self.add_lc(b.clone());
+        // Add pi as input
+        let pi_var = self.add_input(pi.clone());
+        // Compute w_o
+        let a_b_pi = a + b + pi_var;
+        let o = self.add_lc(a_b_pi);
 
         self.w_l.push(l);
         self.w_r.push(r);
@@ -414,19 +417,21 @@ impl<E: PairingEngine> StandardComposer<E> {
         (l, r, o)
     }
 
+    // XXX: Notice that q_o has to be always negative to satisfy the constraint.
     pub fn mul_gate(
         &mut self,
         a: LinearCombination<E::Fr>,
         b: LinearCombination<E::Fr>,
-        c: LinearCombination<E::Fr>,
         q_m: E::Fr,
         q_o: E::Fr,
         q_c: E::Fr,
         pi: E::Fr,
     ) -> (Variable, Variable, Variable) {
-        let l = self.add_lc(a);
-        let r = self.add_lc(b);
-        let o = self.add_lc(c);
+        let l = self.add_lc(a.clone());
+        let r = self.add_lc(b.clone());
+        // Compute w_o
+        let o_scalar = self.eval(a) * &self.eval(b);
+        let o = self.add_input(o_scalar);
 
         self.w_l.push(l);
         self.w_r.push(r);
@@ -491,18 +496,21 @@ impl<E: PairingEngine> StandardComposer<E> {
         a: LinearCombination<E::Fr>,
         constant: E::Fr,
         pi: E::Fr,
-    ) -> Variable {
-        let (a, _, _) = self.add_gate(
-            a.clone(),
-            a.clone(),
+    ) {
+        let zero = E::Fr::zero();
+        let zero_var = self.add_input(zero);
+        let constant_var = self.add_input(constant);
+        self.poly_gate(
             a,
+            constant_var.into(),
+            zero_var.into(),
+            zero,
             E::Fr::one(),
-            E::Fr::zero(),
-            E::Fr::zero(),
-            -constant,
+            -E::Fr::one(),
+            zero,
+            zero,
             pi,
         );
-        a
     }
 
     pub fn bool_gate(&mut self, a: LinearCombination<E::Fr>) -> Variable {
@@ -572,7 +580,6 @@ mod tests {
         composer: &mut StandardComposer<E>,
         a: LinearCombination<E::Fr>,
         b: LinearCombination<E::Fr>,
-        c: LinearCombination<E::Fr>,
         pi: E::Fr,
     ) {
         let q_l = E::Fr::one();
@@ -580,7 +587,7 @@ mod tests {
         let q_o = -E::Fr::one();
         let q_c = E::Fr::zero();
 
-        composer.add_gate(a.into(), b.into(), c.into(), q_l, q_r, q_o, q_c, pi);
+        composer.add_gate(a.into(), b.into(), q_l, q_r, q_o, q_c, pi);
     }
 
     // Returns a composer with `n` constraints
@@ -594,13 +601,7 @@ mod tests {
             LinearCombination::from(var_one) + LinearCombination::from(var_one);
 
         for _ in 0..n {
-            simple_add_gadget(
-                &mut composer,
-                var_one.into(),
-                var_one.into(),
-                var_two.clone(),
-                E::Fr::zero(),
-            );
+            simple_add_gadget(&mut composer, var_one.into(), var_one.into(), E::Fr::zero());
         }
         composer.add_dummy_constraints();
 
@@ -681,13 +682,7 @@ mod tests {
         let var_three = composer.add_input(three);
 
         for _ in 1..=4 {
-            simple_add_gadget(
-                &mut composer,
-                var_one.into(),
-                var_one.into(),
-                var_three.into(),
-                Fr::one(),
-            );
+            simple_add_gadget(&mut composer, var_one.into(), var_one.into(), Fr::one());
         }
         composer.add_dummy_constraints();
 
@@ -740,13 +735,7 @@ mod tests {
         let n = 20;
 
         for _ in 0..n {
-            simple_add_gadget(
-                &mut composer,
-                var_one.into(),
-                var_one.into(),
-                var_two.into(),
-                Fr::zero(),
-            );
+            simple_add_gadget(&mut composer, var_one.into(), var_one.into(), Fr::zero());
         }
 
         assert_eq!(n, composer.circuit_size())
