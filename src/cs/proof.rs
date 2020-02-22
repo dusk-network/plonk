@@ -156,7 +156,7 @@ impl<E: PairingEngine> Proof<E> {
         preprocessed_circuit: &PreProcessedCircuit<E>,
         transcript: &mut dyn TranscriptProtocol<E>,
         verifier_key: &VerifierKey<E>,
-        pub_inputs: &Vec<E::Fr>,
+        pub_inputs: &[E::Fr],
     ) -> bool {
         let domain = EvaluationDomain::new(preprocessed_circuit.n).unwrap();
 

@@ -292,6 +292,10 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
     fn circuit_size(&self) -> usize {
         self.n
     }
+
+    fn public_inputs(&self) -> &[E::Fr] {
+        self.public_inputs.as_slice()
+    }
 }
 
 impl<E: PairingEngine> StandardComposer<E> {

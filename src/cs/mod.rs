@@ -5,7 +5,7 @@ mod linearisation;
 mod opening;
 mod permutation;
 pub mod poly_utils;
-mod proof;
+pub mod proof;
 mod quotient_poly;
 
 use algebra::{
@@ -100,6 +100,8 @@ impl<E: PairingEngine> PreProcessedCircuit<E> {
 pub trait Composer<E: PairingEngine> {
     // Circuit size is the amount of gates in the circuit
     fn circuit_size(&self) -> usize;
+    // Circuit size is the amount of gates in the circuit
+    fn public_inputs(&self) -> &[E::Fr];
     // Preprocessing produces a preprocessed circuit
     fn preprocess(
         &mut self,
