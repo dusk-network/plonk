@@ -173,7 +173,7 @@ impl<E: PairingEngine> Permutation<E> {
 
     pub fn compute_sigma_polynomials(
         &mut self,
-        n: usize,
+        n: u64,
         domain: &EvaluationDomain<E::Fr>,
     ) -> (Vec<E::Fr>, Vec<E::Fr>, Vec<E::Fr>) {
         // Compute sigma mappings

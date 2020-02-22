@@ -58,7 +58,7 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
         assert!(self.w_o.len() == k);
 
         //1. Pad circuit to a power of two
-        self.pad(domain.size as usize - self.n);
+        self.pad(domain.size as u64 - self.n);
 
         // 2a. Convert selector evaluations to selector coefficients
         let q_m_coeffs = domain.ifft(&self.q_m);
@@ -332,7 +332,7 @@ impl<E: PairingEngine> StandardComposer<E> {
 
     // Pads the circuit to the next power of two
     // diff is the difference between circuit size and next power of two
-    fn pad(&mut self, diff: usize) {
+    fn pad(&mut self, diff: u64) {
         // Add a zero variable to circuit
         let zero_scalar = E::Fr::zero();
         let zero_var = self.add_input(zero_scalar);
