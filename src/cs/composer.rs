@@ -155,7 +155,7 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
         commit_key: &Powers<E>,
         preprocessed_circuit: &PreProcessedCircuit<E>,
         transcript: &mut dyn TranscriptProtocol<E>,
-    ) -> (Proof<E>, Vec<E::Fr>) {
+    ) -> Proof<E> {
         let domain = EvaluationDomain::new(self.n).unwrap();
 
         let mut proof = Proof::empty();
@@ -310,8 +310,7 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
         //
         proof.set_opening_poly_commitments(&w_z_comm, &w_z_x_comm);
 
-        let public_inputs = self.public_inputs.clone();
-        (proof, public_inputs)
+        proof
     }
 
     fn circuit_size(&self) -> usize {
@@ -693,7 +692,7 @@ mod tests {
         // Preprocess circuit
         let preprocessed_circuit = composer.preprocess(&ck.clone(), &mut transcript, &domain);
         // Build the proff
-        let (proof, _) = composer.prove(&ck.clone(), &preprocessed_circuit, &mut transcript);
+        let proof = composer.prove(&ck.clone(), &preprocessed_circuit, &mut transcript);
 
         // Verifiers view
         //
@@ -739,7 +738,7 @@ mod tests {
 
         // Generate the proof
         //
-        let (proof, _) = {
+        let proof = {
             // setup transcript
             let mut transcript = Transcript::new(b"");
             // Preprocess circuit
