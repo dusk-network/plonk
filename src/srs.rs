@@ -11,10 +11,10 @@ pub fn setup(max_deg: usize) -> UniversalParams<Bls12_381> {
     KZG_Bls12_381::setup(max_deg, false, &mut thread_rng()).unwrap()
 }
 
-pub fn trim<E: PairingEngine>(
+pub fn trim<'a, E: PairingEngine>(
     pp: &UniversalParams<E>,
     mut supported_degree: usize,
-) -> Result<(Powers<E>, VerifierKey<E>), Error> {
+) -> Result<(Powers<'a, E>, VerifierKey<E>), Error> {
     if supported_degree == 1 {
         supported_degree += 1;
     }
