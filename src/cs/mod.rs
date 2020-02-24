@@ -8,16 +8,13 @@ pub mod poly_utils;
 mod proof;
 mod quotient_poly;
 
-use algebra::{
-    curves::PairingEngine,
-    fields::{Field, PrimeField},
-};
-use poly_commit::kzg10::Commitment;
+use algebra::curves::{bls12_381::Bls12_381, PairingEngine};
+use algebra::fields::{bls12_381::Fr, PrimeField};
+use poly_commit::kzg10::{Commitment, Powers, UniversalParams, VerifierKey};
 
+use crate::srs;
 use crate::transcript::TranscriptProtocol;
 use ff_fft::EvaluationDomain;
-use poly_commit::kzg10::Powers;
-use rand_core::{CryptoRng, RngCore};
 
 // Preprocessed circuit includes the commitment to the selector polynomials and the sigma polynomials
 pub struct PreProcessedCircuit<E: PairingEngine> {
@@ -100,6 +97,16 @@ impl<E: PairingEngine> PreProcessedCircuit<E> {
 pub trait Composer<E: PairingEngine> {
     // Circuit size is the amount of gates in the circuit
     fn circuit_size(&self) -> usize;
+    // Sets up the srs.
+    fn ready<'a, P: PrimeField>(
+        &self,
+        pub_params: Option<UniversalParams<Bls12_381>>,
+    ) -> (
+        UniversalParams<Bls12_381>,
+        Powers<'a, Bls12_381>,
+        VerifierKey<Bls12_381>,
+        EvaluationDomain<P>,
+    );
     // Preprocessing produces a preprocessed circuit
     fn preprocess(
         &mut self,
