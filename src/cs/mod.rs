@@ -5,7 +5,7 @@ mod linearisation;
 mod opening;
 mod permutation;
 pub mod poly_utils;
-mod proof;
+pub mod proof;
 mod quotient_poly;
 
 use algebra::curves::{bls12_381::Bls12_381, PairingEngine};
