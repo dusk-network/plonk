@@ -7,11 +7,15 @@ use super::{
     Composer, PreProcessedCircuit,
 };
 use crate::{cs::quotient_poly::QuotientToolkit, srs, transcript::TranscriptProtocol};
-use algebra::{curves::PairingEngine, fields::Field};
+use algebra::curves::bls12_381::Bls12_381;
+use algebra::curves::PairingEngine;
+use algebra::fields::bls12_381::Fr;
+use algebra::fields::PrimeField;
 use ff_fft::EvaluationDomain;
 use num_traits::{One, Zero};
-use poly_commit::kzg10::Powers;
+use poly_commit::kzg10::{Powers, UniversalParams, VerifierKey};
 use rand_core::{CryptoRng, RngCore};
+use std::str::FromStr;
 /// A composer is a circuit builder
 /// and will dictate how a circuit is built
 /// We will have a default Composer called `StandardComposer`
@@ -122,6 +126,26 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
             right_sigma: (right_sigma_coeffs, right_sigma_poly_commit),
             out_sigma: (out_sigma_coeffs, out_sigma_poly_commit),
         }
+    }
+
+    // Ready will setup the srs in the case of the prover and
+    // regenerate the keys in the case of the verifier returning
+    // the EvalDomain, UniversalParams, VerifierKey and Powers
+    fn ready<'a, P: PrimeField>(
+        &self,
+        pub_params: Option<UniversalParams<Bls12_381>>,
+    ) -> (
+        UniversalParams<Bls12_381>,
+        Powers<'a, Bls12_381>,
+        VerifierKey<Bls12_381>,
+        EvaluationDomain<P>,
+    ) {
+        let public_params =
+            pub_params.unwrap_or_else(|| srs::setup(2 * self.circuit_size().next_power_of_two()));
+        let (ck, vk) =
+            srs::trim(&public_params, 2 * self.circuit_size().next_power_of_two()).unwrap();
+        let domain = EvaluationDomain::new(self.circuit_size()).unwrap();
+        (public_params, ck, vk, domain)
     }
 
     // Prove will compute the pre-processed polynomials and
@@ -361,6 +385,19 @@ impl<E: PairingEngine> StandardComposer<E> {
     pub fn add_input(&mut self, s: E::Fr) -> Variable {
         self.perm.new_variable(s)
     }
+
+    // Generates a Variable that references a value which is
+    // for sure different than the other ones previously generated
+    // XXX: This is so ugly, but from::<u64> or from() does not work for u64
+    pub fn get_verifier_input(&mut self) -> Variable {
+        let new_val = (self.perm.variables.len() as u64 + 1u64).to_string();
+        let val_fr = match E::Fr::from_str(&new_val) {
+            Ok(val) => val,
+            Err(_) => E::Fr::one(),
+        };
+        self.perm.new_variable(val_fr)
+    }
+
     // evaluates a linear combination
     fn eval(&self, lc: LinearCombination<E::Fr>) -> E::Fr {
         let mut sum = E::Fr::zero();
@@ -387,13 +424,13 @@ impl<E: PairingEngine> StandardComposer<E> {
         q_c: E::Fr,
         pi: E::Fr,
     ) -> (Variable, Variable, Variable) {
-        let l = self.add_lc(a.clone());
-        let r = self.add_lc(b.clone());
-        // Add pi as input
-        let pi_var = self.add_input(pi.clone());
+        let a_eval = self.eval(a);
+        let l = self.add_input(a_eval);
+        let b_eval = self.eval(b);
+        let r = self.add_input(b_eval);
         // Compute w_o
-        let a_b_pi = a + b + pi_var;
-        let o = self.add_lc(a_b_pi);
+        let o_eval = a_eval + &b_eval + &pi;
+        let o = self.add_input(o_eval);
 
         self.w_l.push(l);
         self.w_r.push(r);
@@ -427,11 +464,13 @@ impl<E: PairingEngine> StandardComposer<E> {
         q_c: E::Fr,
         pi: E::Fr,
     ) -> (Variable, Variable, Variable) {
-        let l = self.add_lc(a.clone());
-        let r = self.add_lc(b.clone());
+        let a_eval = self.eval(a);
+        let l = self.add_input(a_eval);
+        let b_eval = self.eval(b);
+        let r = self.add_input(b_eval);
         // Compute w_o
-        let o_scalar = self.eval(a) * &self.eval(b);
-        let o = self.add_input(o_scalar);
+        let o_eval = a_eval * &b_eval + &pi;
+        let o = self.add_input(o_eval);
 
         self.w_l.push(l);
         self.w_r.push(r);
@@ -568,7 +607,6 @@ impl<E: PairingEngine> StandardComposer<E> {
     }
 }
 
-#[cfg(test)]
 mod tests {
     use super::*;
     use algebra::curves::bls12_381::Bls12_381;
@@ -608,6 +646,19 @@ mod tests {
         composer
     }
 
+    fn add_verifier_dummy_composer<E: PairingEngine>(n: usize) -> StandardComposer<E> {
+        let mut composer = StandardComposer::new();
+
+        let a = composer.get_verifier_input();
+
+        for _ in 0..n {
+            simple_add_gadget(&mut composer, a.into(), a.into(), E::Fr::zero());
+        }
+        composer.add_dummy_constraints();
+
+        composer
+    }
+
     #[test]
     fn test_pad() {
         let num_constraints = 100;
@@ -628,31 +679,26 @@ mod tests {
         assert!(composer.w_r.len() == size);
         assert!(composer.w_o.len() == size);
     }
-
     #[test]
     fn test_prove_verify() {
-        // Common View
-        //
-        let mut composer: StandardComposer<Bls12_381> = add_dummy_composer(7);
-        // setup srs
-        // XXX: We have 2 *n here because the blinding polynomials add a few extra terms to the degree, so it's more than n, we can adjust this later on to be less conservative
-        let public_parameters = srs::setup(2 * composer.n.next_power_of_two());
-        let (ck, vk) = srs::trim(&public_parameters, 2 * composer.n.next_power_of_two()).unwrap();
-        let domain = EvaluationDomain::new(composer.n).unwrap();
         // Provers View
         //
-        let proof = {
-            // setup transcript
-            let mut transcript = Transcript::new(b"");
-            // Preprocess circuit
-            let preprocessed_circuit = composer.preprocess(&ck, &mut transcript, &domain);
-
-            composer.prove(&ck, &preprocessed_circuit, &mut transcript)
-        };
+        // Generate the Composer and build the circuit
+        let mut composer: StandardComposer<Bls12_381> = add_dummy_composer(100000);
+        // setup srs
+        let (pub_params, ck, _, domain) = composer.ready(None);
+        // setup transcript
+        let mut transcript = Transcript::new(b"");
+        // Preprocess circuit
+        let preprocessed_circuit = composer.preprocess(&ck.clone(), &mut transcript, &domain);
+        // Build the proff
+        let proof = composer.prove(&ck.clone(), &preprocessed_circuit, &mut transcript);
 
         // Verifiers view
         //
-
+        // Generate the Composer and build the circuit
+        let mut composer: StandardComposer<Bls12_381> = add_dummy_composer(100000);
+        let (_, ck, vk, domain) = composer.ready(Some(pub_params));
         // setup transcript
         let mut transcript = Transcript::new(b"");
 
@@ -671,15 +717,13 @@ mod tests {
 
     #[test]
     fn test_pi() {
-        // Common View
+        // Provers View
         //
         let mut composer: StandardComposer<Bls12_381> = StandardComposer::new();
 
         let one = Fr::one();
-        let three = Fr::one() + &Fr::one() + &Fr::one();
 
         let var_one = composer.add_input(one);
-        let var_three = composer.add_input(three);
 
         for _ in 1..=4 {
             simple_add_gadget(&mut composer, var_one.into(), var_one.into(), Fr::one());
@@ -692,7 +736,7 @@ mod tests {
         let (ck, vk) = srs::trim(&public_parameters, 20 * composer.n.next_power_of_two()).unwrap();
         let domain = EvaluationDomain::new(composer.n).unwrap();
 
-        // Provers View
+        // Generate the proof
         //
         let proof = {
             // setup transcript
@@ -705,6 +749,14 @@ mod tests {
 
         // Verifiers view
         //
+        let mut composer: StandardComposer<Bls12_381> = StandardComposer::new();
+
+        let var_one = composer.get_verifier_input();
+
+        for _ in 1..=4 {
+            simple_add_gadget(&mut composer, var_one.into(), var_one.into(), Fr::zero());
+        }
+        composer.add_dummy_constraints();
 
         // setup transcript
         let mut transcript = Transcript::new(b"");
@@ -717,7 +769,7 @@ mod tests {
             &preprocessed_circuit,
             &mut transcript,
             &vk,
-            &composer.public_inputs,
+            &vec![one, one, one, one],
         );
         assert!(ok);
     }
