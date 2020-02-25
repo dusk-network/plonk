@@ -429,7 +429,7 @@ impl<E: PairingEngine> StandardComposer<E> {
         let b_eval = self.eval(b);
         let r = self.add_input(b_eval);
         // Compute w_o
-        let o_eval = a_eval + &b_eval + &pi;
+        let o_eval = (a_eval * &q_l) + &(b_eval * &q_r) + &pi;
         let o = self.add_input(o_eval);
 
         self.w_l.push(l);
@@ -469,7 +469,7 @@ impl<E: PairingEngine> StandardComposer<E> {
         let b_eval = self.eval(b);
         let r = self.add_input(b_eval);
         // Compute w_o
-        let o_eval = a_eval * &b_eval + &pi;
+        let o_eval = (a_eval * &b_eval) * &q_m + &pi;
         let o = self.add_input(o_eval);
 
         self.w_l.push(l);
@@ -552,6 +552,7 @@ impl<E: PairingEngine> StandardComposer<E> {
         );
     }
 
+    // XXX: Seems not correct!
     pub fn bool_gate(&mut self, a: LinearCombination<E::Fr>) -> Variable {
         let lro = self.add_lc(a);
 
