@@ -95,6 +95,8 @@ impl<E: PairingEngine> PreProcessedCircuit<E> {
 }
 
 pub trait Composer<E: PairingEngine> {
+    // Public inputs used on the composer computation
+    fn public_inputs(&self) -> &[E::Fr];
     // Circuit size is the amount of gates in the circuit
     fn circuit_size(&self) -> usize;
     // Sets up the srs.
