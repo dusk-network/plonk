@@ -169,8 +169,11 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
 
         // IFFT to get lagrange polynomials on witnesses
         let mut w_l_coeffs = domain.ifft(&w_l_scalar);
+        println!("w_l_ifft -> {:?}", w_l_coeffs.len());
         let mut w_r_coeffs = domain.ifft(&w_r_scalar);
+        println!("w_r_ifft -> {:?}", w_r_coeffs.len());
         let mut w_o_coeffs = domain.ifft(&w_o_scalar);
+        println!("w_o_ifft -> {:?}", w_o_coeffs.len());
 
         // 1) Commit to witness polynomials
         // 2) Add them to transcript
@@ -425,14 +428,14 @@ impl<E: PairingEngine> StandardComposer<E> {
         pi: E::Fr,
     ) -> (Variable, Variable, Variable) {
         let a_eval = self.eval(a);
-        //println!("a: {}", a_eval);
+        println!("a: {}", a_eval);
         let l = self.add_input(a_eval);
         let b_eval = self.eval(b);
-        //println!("b: {}", b_eval);
+        println!("b: {}", b_eval);
         let r = self.add_input(b_eval);
         // Compute w_o
         let o_eval = ((a_eval * &q_l) + &(b_eval * &q_r) + &pi + &q_c) * &-q_o;
-        //println!("{}", o_eval);
+        println!("{:?}", o_eval);
         let o = self.add_input(o_eval);
 
         self.w_l.push(l);
@@ -613,6 +616,39 @@ impl<E: PairingEngine> StandardComposer<E> {
             .add_variable_to_map(var_min_twenty, var_six, var_seven, self.n);
         self.n = self.n + 1;
     }
+
+    pub fn add_verif_dummy_constraints(&mut self) {
+        // Add a dummy constraint so that we do not have zero polynomials
+        self.q_m.push(E::Fr::from(1));
+        self.q_l.push(E::Fr::from(2));
+        self.q_r.push(E::Fr::from(3));
+        self.q_o.push(E::Fr::from(4));
+        self.q_c.push(E::Fr::from(5));
+        self.public_inputs.push(E::Fr::zero());
+        let var_x = self.add_input(E::Fr::from(12.into()));
+        let var_y = self.add_input(E::Fr::from(14.into()));
+        let var_z = self.add_input(-E::Fr::from(40.into()));
+        //let var_x = self.get_verifier_input();
+        //let var_y = self.get_verifier_input();
+        //let var_z = self.get_verifier_input();
+        self.w_l.push(var_x);
+        self.w_r.push(var_y);
+        self.w_o.push(var_z);
+        self.perm.add_variable_to_map(var_x, var_y, var_z, self.n);
+        self.n = self.n + 1;
+        //Add another dummy constraint so that we do not get the identity permutation
+        self.q_m.push(E::Fr::from(1));
+        self.q_l.push(E::Fr::from(1));
+        self.q_r.push(E::Fr::from(1));
+        self.q_o.push(E::Fr::from(1));
+        self.q_c.push(E::Fr::from(127));
+        self.public_inputs.push(E::Fr::zero());
+        self.w_l.push(var_z);
+        self.w_r.push(var_x);
+        self.w_o.push(var_y);
+        self.perm.add_variable_to_map(var_z, var_x, var_y, self.n);
+        self.n = self.n + 1;
+    }
 }
 
 mod tests {
@@ -662,7 +698,7 @@ mod tests {
         for _ in 0..n {
             simple_add_gadget(&mut composer, a.into(), a.into(), E::Fr::zero());
         }
-        composer.add_dummy_constraints();
+        composer.add_verif_dummy_constraints();
 
         composer
     }
@@ -722,29 +758,21 @@ mod tests {
         );
         assert!(ok);
     }
+
     #[test]
-    fn carlos() {
+    fn test_prove_verify_add_to_zero() {
+        // Provers View
+        //
+        // Generate the Composer and build the circuit
         let mut composer: StandardComposer<Bls12_381> = StandardComposer::new();
-        let one = composer.add_input(Fr::one());
-        // 1 - bit
-        let (_, bit, one_min_bit) = composer.add_gate(
-            one.clone().into(),
-            one.into(),
-            Fr::zero(),
-            -Fr::one(),
-            -Fr::one(),
+        let input = composer.add_input(Fr::zero());
+        let min_input = composer.add_input(-Fr::one());
+        composer.add_gate(
+            input.into(),
+            min_input.into(),
             Fr::one(),
-            Fr::zero(),
-        );
-        // (1 - bit) * bit == 0
-        composer.poly_gate(
-            one_min_bit.into(),
-            bit.into(),
-            bit.into(),
             Fr::one(),
-            Fr::zero(),
-            Fr::zero(),
-            Fr::zero(),
+            -Fr::one(),
             Fr::zero(),
             Fr::zero(),
         );
@@ -764,29 +792,59 @@ mod tests {
         //
         // Generate the Composer and build the circuit
         let mut composer: StandardComposer<Bls12_381> = StandardComposer::new();
-        let one = composer.add_input(Fr::one());
-        // 1 - bit
-        let (_, bit, one_min_bit) = composer.add_gate(
-            one.clone().into(),
-            one.into(),
-            Fr::zero(),
-            -Fr::one(),
-            -Fr::one(),
+        let input = composer.add_input(Fr::one() + Fr::one());
+        let min_input = composer.add_input(-Fr::one() - Fr::one());
+        composer.add_gate(
+            input.into(),
+            min_input.into(),
             Fr::one(),
-            Fr::zero(),
-        );
-        // (1 - bit) * bit == 0
-        composer.poly_gate(
-            one_min_bit.into(),
-            bit.into(),
-            bit.into(),
             Fr::one(),
-            Fr::zero(),
-            Fr::zero(),
-            Fr::zero(),
+            -Fr::one(),
             Fr::zero(),
             Fr::zero(),
         );
+        composer.add_verif_dummy_constraints();
+        composer.add_verif_dummy_constraints();
+        composer.add_verif_dummy_constraints();
+        let (_, ck, vk, domain) = composer.ready(Some(pub_params));
+        // setup transcript
+        let mut transcript = Transcript::new(b"");
+
+        // Preprocess circuit
+        let preprocessed_circuit = composer.preprocess(&ck, &mut transcript, &domain);
+
+        // Verify proof
+        let ok = proof.verify(
+            &preprocessed_circuit,
+            &mut transcript,
+            &vk,
+            &vec![Fr::zero()],
+        );
+        assert!(ok);
+    }
+    #[test]
+    fn carlos() {
+        let mut composer: StandardComposer<Bls12_381> = StandardComposer::new();
+        // XXX: Zero makes this crash while one doesn't
+        let one = composer.add_input(Fr::zero());
+        composer.bool_gate(one.into());
+        composer.add_dummy_constraints();
+        composer.add_dummy_constraints();
+        composer.add_dummy_constraints();
+        // setup srs
+        let (pub_params, ck, _, domain) = composer.ready(None);
+        // setup transcript
+        let mut transcript = Transcript::new(b"");
+        // Preprocess circuit
+        let preprocessed_circuit_1 = composer.preprocess(&ck.clone(), &mut transcript, &domain);
+        // Build the proff
+        let proof = composer.prove(&ck.clone(), &preprocessed_circuit_1, &mut transcript);
+        // Verifiers view
+        //
+        // Generate the Composer and build the circuit
+        let mut composer: StandardComposer<Bls12_381> = StandardComposer::new();
+        let whatever = composer.add_input(Fr::from_str("67").unwrap());
+        composer.bool_gate(whatever.into());
         composer.add_dummy_constraints();
         composer.add_dummy_constraints();
         composer.add_dummy_constraints();
@@ -796,6 +854,8 @@ mod tests {
 
         // Preprocess circuit
         let preprocessed_circuit = composer.preprocess(&ck, &mut transcript, &domain);
+
+        assert_eq!(preprocessed_circuit_1, preprocessed_circuit);
 
         // Verify proof
         let ok = proof.verify(
@@ -849,7 +909,6 @@ mod tests {
             simple_add_gadget(&mut composer, var_one.into(), var_one.into(), Fr::zero());
         }
         composer.add_dummy_constraints();
-
         // setup transcript
         let mut transcript = Transcript::new(b"");
 
