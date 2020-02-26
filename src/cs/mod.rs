@@ -17,6 +17,7 @@ use crate::transcript::TranscriptProtocol;
 use ff_fft::EvaluationDomain;
 
 // Preprocessed circuit includes the commitment to the selector polynomials and the sigma polynomials
+#[derive(Debug, PartialEq, Eq)]
 pub struct PreProcessedCircuit<E: PairingEngine> {
     // The number of gates in the circuit
     n: usize,
