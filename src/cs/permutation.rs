@@ -17,7 +17,7 @@ pub struct Permutation<E: PairingEngine> {
 
     // These are the actual variable values
     // N.B. They should not be exposed to the end user once added into the composer
-    variables: HashMap<Variable, E::Fr>,
+    pub(crate) variables: HashMap<Variable, E::Fr>,
 
     // Maps a variable to the wires that it is assosciated to
     pub(crate) variable_map: HashMap<Variable, Vec<WireData>>,
