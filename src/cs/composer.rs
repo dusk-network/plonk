@@ -425,11 +425,14 @@ impl<E: PairingEngine> StandardComposer<E> {
         pi: E::Fr,
     ) -> (Variable, Variable, Variable) {
         let a_eval = self.eval(a);
+        //println!("a: {}", a_eval);
         let l = self.add_input(a_eval);
         let b_eval = self.eval(b);
+        //println!("b: {}", b_eval);
         let r = self.add_input(b_eval);
         // Compute w_o
-        let o_eval = ((a_eval * &q_l) + &(b_eval * &q_r) + &pi + &q_c) * &q_o;
+        let o_eval = ((a_eval * &q_l) + &(b_eval * &q_r) + &pi + &q_c) * &-q_o;
+        //println!("{}", o_eval);
         let o = self.add_input(o_eval);
 
         self.w_l.push(l);
@@ -465,11 +468,14 @@ impl<E: PairingEngine> StandardComposer<E> {
         pi: E::Fr,
     ) -> (Variable, Variable, Variable) {
         let a_eval = self.eval(a);
+        //println!("{}", a_eval);
         let l = self.add_input(a_eval);
         let b_eval = self.eval(b);
+        //println!("{}", b_eval);
         let r = self.add_input(b_eval);
         // Compute w_o
-        let o_eval = ((a_eval * &b_eval) * &q_m + &q_c + &pi) * &q_o;
+        let o_eval = (((a_eval * &b_eval) * &q_m) + &q_c + &pi) * &-q_o;
+        //println!("{}", o_eval);
         let o = self.add_input(o_eval);
 
         self.w_l.push(l);
@@ -506,6 +512,7 @@ impl<E: PairingEngine> StandardComposer<E> {
         q_c: E::Fr,
         pi: E::Fr,
     ) -> (Variable, Variable, Variable) {
+        //println!("{:?}", a);
         let l = self.add_lc(a);
         let r = self.add_lc(b);
         let o = self.add_lc(c);
@@ -699,6 +706,90 @@ mod tests {
         //
         // Generate the Composer and build the circuit
         let mut composer: StandardComposer<Bls12_381> = add_dummy_composer(100000);
+        let (_, ck, vk, domain) = composer.ready(Some(pub_params));
+        // setup transcript
+        let mut transcript = Transcript::new(b"");
+
+        // Preprocess circuit
+        let preprocessed_circuit = composer.preprocess(&ck, &mut transcript, &domain);
+
+        // Verify proof
+        let ok = proof.verify(
+            &preprocessed_circuit,
+            &mut transcript,
+            &vk,
+            &vec![Fr::zero()],
+        );
+        assert!(ok);
+    }
+    #[test]
+    fn carlos() {
+        let mut composer: StandardComposer<Bls12_381> = StandardComposer::new();
+        let one = composer.add_input(Fr::one());
+        // 1 - bit
+        let (_, bit, one_min_bit) = composer.add_gate(
+            one.clone().into(),
+            one.into(),
+            Fr::zero(),
+            -Fr::one(),
+            -Fr::one(),
+            Fr::one(),
+            Fr::zero(),
+        );
+        // (1 - bit) * bit == 0
+        composer.poly_gate(
+            one_min_bit.into(),
+            bit.into(),
+            bit.into(),
+            Fr::one(),
+            Fr::zero(),
+            Fr::zero(),
+            Fr::zero(),
+            Fr::zero(),
+            Fr::zero(),
+        );
+        composer.add_dummy_constraints();
+        composer.add_dummy_constraints();
+        composer.add_dummy_constraints();
+        // setup srs
+        let (pub_params, ck, _, domain) = composer.ready(None);
+        // setup transcript
+        let mut transcript = Transcript::new(b"");
+        // Preprocess circuit
+        let preprocessed_circuit = composer.preprocess(&ck.clone(), &mut transcript, &domain);
+        // Build the proff
+        let proof = composer.prove(&ck.clone(), &preprocessed_circuit, &mut transcript);
+
+        // Verifiers view
+        //
+        // Generate the Composer and build the circuit
+        let mut composer: StandardComposer<Bls12_381> = StandardComposer::new();
+        let one = composer.add_input(Fr::one());
+        // 1 - bit
+        let (_, bit, one_min_bit) = composer.add_gate(
+            one.clone().into(),
+            one.into(),
+            Fr::zero(),
+            -Fr::one(),
+            -Fr::one(),
+            Fr::one(),
+            Fr::zero(),
+        );
+        // (1 - bit) * bit == 0
+        composer.poly_gate(
+            one_min_bit.into(),
+            bit.into(),
+            bit.into(),
+            Fr::one(),
+            Fr::zero(),
+            Fr::zero(),
+            Fr::zero(),
+            Fr::zero(),
+            Fr::zero(),
+        );
+        composer.add_dummy_constraints();
+        composer.add_dummy_constraints();
+        composer.add_dummy_constraints();
         let (_, ck, vk, domain) = composer.ready(Some(pub_params));
         // setup transcript
         let mut transcript = Transcript::new(b"");
