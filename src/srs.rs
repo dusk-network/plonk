@@ -9,14 +9,12 @@ use rand::{RngCore, SeedableRng};
 type KZG_Bls12_381 = KZG10<Bls12_381>;
 
 pub fn setup(max_deg: usize) -> UniversalParams<Bls12_381> {
-    // TODO - Validate the crypto security of this approach - Need to deterministically generate a
-    // srs
-    let buf = max_deg.to_le_bytes();
-    let mut seed = [0x00u8; 32];
-
-    (&mut seed[0..buf.len()]).copy_from_slice(&buf[..]);
+    // TODO - Revalidate the seed strategy for the srs setup
+    let seed = [
+        0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0,
+        0, 0,
+    ];
     let mut rng = StdRng::from_seed(seed);
-
     KZG_Bls12_381::setup(max_deg, false, &mut rng).unwrap()
 }
 
