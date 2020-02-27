@@ -14,9 +14,27 @@ pub struct LinearCombination<F: PrimeField> {
 }
 
 impl<F: PrimeField> LinearCombination<F> {
-    // Simplifies a linear combination expression
-    fn simplify(&mut self) {
-        todo!()
+    /// Taken from lovesh's fork of bulletproof
+    /// Simplify linear combination by taking Variables common across terms and adding their corresponding scalars.
+    /// Useful when linear combinations become large. Takes ownership of linear combination as this function is useful
+    /// when memory is limited and the obvious action after this function call will be to free the memory held by the old linear combination
+    pub fn simplify(self) -> Self {
+        use std::collections::HashMap;
+        // Build hashmap to hold unique variables with their values.
+        let mut vars: HashMap<Variable, F> = HashMap::new();
+
+        let terms = self.terms;
+        for (var, val) in terms {
+            *vars.entry(var).or_insert(F::zero()) += val;
+        }
+
+        let mut new_lc_terms = vec![];
+        for (var, val) in vars {
+            new_lc_terms.push((var, val));
+        }
+        Self {
+            terms: new_lc_terms.into_iter().collect(),
+        }
     }
 }
 
