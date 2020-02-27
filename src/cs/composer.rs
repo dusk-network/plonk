@@ -565,6 +565,7 @@ mod tests {
     use algebra::curves::bls12_381::Bls12_381;
     use algebra::fields::bls12_381::Fr;
     use merlin::Transcript;
+    use poly_commit::kzg10::{Powers, UniversalParams, VerifierKey};
 
     // Ensures a + b - c = 0
     fn simple_add_gadget<E: PairingEngine>(
@@ -756,7 +757,8 @@ mod tests {
 
     fn test_gadget(gadget: fn(composer: &mut StandardComposer<Bls12_381>), n: usize) -> bool {
         // Common View
-        let public_parameters = srs::setup(2 * n, &mut rand::thread_rng());
+        //
+        let public_parameters = srs::setup(2 * n + 1, &mut rand::thread_rng());
         // Provers View
         //
         let (proof, public_inputs) = {
