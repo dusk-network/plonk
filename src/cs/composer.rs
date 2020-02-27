@@ -72,11 +72,11 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
 
         // 2b. Compute 4n evaluations of selector polynomial
         let domain_4n = EvaluationDomain::new(4 * domain.size()).unwrap();
-        let q_m_eval_4n = domain_4n.fft(&q_m_coeffs);
-        let q_l_eval_4n = domain_4n.fft(&q_l_coeffs);
-        let q_r_eval_4n = domain_4n.fft(&q_r_coeffs);
-        let q_o_eval_4n = domain_4n.fft(&q_o_coeffs);
-        let q_c_eval_4n = domain_4n.fft(&q_c_coeffs);
+        let q_m_eval_4n = domain_4n.coset_fft(&q_m_coeffs);
+        let q_l_eval_4n = domain_4n.coset_fft(&q_l_coeffs);
+        let q_r_eval_4n = domain_4n.coset_fft(&q_r_coeffs);
+        let q_o_eval_4n = domain_4n.coset_fft(&q_o_coeffs);
+        let q_c_eval_4n = domain_4n.coset_fft(&q_c_coeffs);
 
         // 3. Compute the sigma polynomials
         let (left_sigma_coeffs, right_sigma_coeffs, out_sigma_coeffs) =
@@ -757,7 +757,8 @@ mod tests {
 
     fn test_gadget(gadget: fn(composer: &mut StandardComposer<Bls12_381>), n: usize) -> bool {
         // Common View
-        let public_parameters = srs::setup(n, &mut rand::thread_rng());
+        //
+        let public_parameters = srs::setup(2 * n + 1, &mut rand::thread_rng());
         // Provers View
         //
         let (proof, public_inputs) = {
@@ -766,7 +767,7 @@ mod tests {
 
             let (ck, _) = srs::trim(
                 &public_parameters,
-                composer.circuit_size().next_power_of_two(),
+                2 * composer.circuit_size().next_power_of_two(),
             )
             .unwrap();
             let domain = EvaluationDomain::new(composer.circuit_size()).unwrap();
