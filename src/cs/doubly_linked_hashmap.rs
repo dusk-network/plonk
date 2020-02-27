@@ -1,5 +1,6 @@
 use super::constraint_system::Variable;
 use algebra::fields::PrimeField;
+use num_traits::{One, Zero};
 use std::collections::HashMap;
 // DoublyHashMap ensures that if the user inserts the same scalar `F`
 // He is returned the same variable. ie DoublyHashMap ensures that there is a one-to-one mapping
