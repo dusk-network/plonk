@@ -39,7 +39,7 @@ pub struct StandardComposer<E: PairingEngine> {
     w_r: Vec<Variable>,
     w_o: Vec<Variable>,
 
-    perm: Permutation<E>,
+    pub(crate) perm: Permutation<E>,
 }
 
 impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
@@ -358,11 +358,11 @@ impl<E: PairingEngine> StandardComposer<E> {
 
     // Adds a Scalar to the circuit and returns its
     // reference in the constraint system
-    fn add_input(&mut self, s: E::Fr) -> Variable {
+    pub fn add_input(&mut self, s: E::Fr) -> Variable {
         self.perm.new_variable(s)
     }
     // evaluates a linear combination
-    fn eval(&self, lc: LinearCombination<E::Fr>) -> E::Fr {
+    pub(crate) fn eval(&self, lc: LinearCombination<E::Fr>) -> E::Fr {
         let mut sum = E::Fr::zero();
         for (variable, scalar) in lc.terms.iter() {
             let value = self.perm.variables[variable];
@@ -375,7 +375,6 @@ impl<E: PairingEngine> StandardComposer<E> {
         let eval = self.eval(lc);
         self.add_input(eval)
     }
-
     // Adds an add gate to the circuit
     pub fn add_gate(
         &mut self,
@@ -566,6 +565,7 @@ mod tests {
     use algebra::curves::bls12_381::Bls12_381;
     use algebra::fields::bls12_381::Fr;
     use merlin::Transcript;
+    use poly_commit::kzg10::{Powers, UniversalParams, VerifierKey};
 
     // Ensures a + b - c = 0
     fn simple_add_gadget<E: PairingEngine>(
@@ -581,6 +581,23 @@ mod tests {
         let q_c = E::Fr::zero();
 
         composer.add_gate(a.into(), b.into(), c.into(), q_l, q_r, q_o, q_c, pi);
+    }
+
+    fn example_gadget<E: PairingEngine>(
+        composer: &mut StandardComposer<E>,
+        a: LinearCombination<E::Fr>,
+        b: LinearCombination<E::Fr>,
+        c: LinearCombination<E::Fr>,
+    ) {
+        composer.mul_gate(
+            a,
+            b,
+            c,
+            E::Fr::one(),
+            -E::Fr::one(),
+            E::Fr::zero(),
+            E::Fr::zero(),
+        );
     }
 
     // Returns a composer with `n` constraints
@@ -630,101 +647,157 @@ mod tests {
 
     #[test]
     fn test_prove_verify() {
-        // Common View
-        //
-        let mut composer: StandardComposer<Bls12_381> = add_dummy_composer(7);
-        // setup srs
-        // XXX: We have 2 *n here because the blinding polynomials add a few extra terms to the degree, so it's more than n, we can adjust this later on to be less conservative
-        let public_parameters = srs::setup(2 * composer.n.next_power_of_two());
-        let (ck, vk) = srs::trim(&public_parameters, 2 * composer.n.next_power_of_two()).unwrap();
-        let domain = EvaluationDomain::new(composer.n).unwrap();
-        // Provers View
-        //
-        let proof = {
-            // setup transcript
-            let mut transcript = Transcript::new(b"");
-            // Preprocess circuit
-            let preprocessed_circuit = composer.preprocess(&ck, &mut transcript, &domain);
-
-            composer.prove(&ck, &preprocessed_circuit, &mut transcript)
-        };
-
-        // Verifiers view
-        //
-
-        // setup transcript
-        let mut transcript = Transcript::new(b"");
-
-        // Preprocess circuit
-        let preprocessed_circuit = composer.preprocess(&ck, &mut transcript, &domain);
-
-        // Verify proof
-        let ok = proof.verify(
-            &preprocessed_circuit,
-            &mut transcript,
-            &vk,
-            &vec![Fr::zero()],
+        let ok = test_gadget(
+            |_| {
+                // do nothing except add the dummy constraints
+            },
+            200,
         );
         assert!(ok);
     }
 
     #[test]
     fn test_pi() {
+        let ok = test_gadget(
+            |mut composer| {
+                let var_one = composer.add_input(Fr::one());
+                let var_three = composer.add_input(Fr::from(3u8));
+                let var_four = composer.add_input(Fr::from(4u8));
+                simple_add_gadget(
+                    &mut composer,
+                    var_one.into(),
+                    var_one.into(),
+                    var_three.into(),
+                    Fr::one(),
+                );
+                simple_add_gadget(
+                    &mut composer,
+                    var_one.into(),
+                    var_one.into(),
+                    var_four.into(),
+                    Fr::from(2u8),
+                );
+            },
+            200,
+        );
+        assert!(ok);
+    }
+
+    #[test]
+    fn test_correct_add_mul_gate() {
+        let ok = test_gadget(
+            |mut composer| {
+                // Verify that (4+5) * (6+7) = 117
+                let four: LinearCombination<Fr> = composer.add_input(Fr::from(4u8)).into();
+                let five: LinearCombination<Fr> = composer.add_input(Fr::from(5u8)).into();
+                let six: LinearCombination<Fr> = composer.add_input(Fr::from(6u8)).into();
+                let seven: LinearCombination<Fr> = composer.add_input(Fr::from(7u8)).into();
+                let one_seventeen = composer.add_input(Fr::from(117u16));
+                example_gadget(
+                    &mut composer,
+                    four + five,
+                    six + seven,
+                    one_seventeen.into(),
+                );
+            },
+            200,
+        );
+        assert!(ok);
+    }
+    #[test]
+    fn test_incorrect_add_mul_gate() {
+        let ok = test_gadget(
+            |mut composer| {
+                // Verify that (5+5) * (6+7) != 117
+                let four: LinearCombination<Fr> = composer.add_input(Fr::from(5u8)).into();
+                let five: LinearCombination<Fr> = composer.add_input(Fr::from(5u8)).into();
+                let six: LinearCombination<Fr> = composer.add_input(Fr::from(6u8)).into();
+                let seven: LinearCombination<Fr> = composer.add_input(Fr::from(7u8)).into();
+                let one_seventeen = composer.add_input(Fr::from(117u16));
+                example_gadget(
+                    &mut composer,
+                    four + five,
+                    six + seven,
+                    one_seventeen.into(),
+                );
+            },
+            200,
+        );
+        assert!(!ok);
+    }
+
+    #[test]
+    fn test_correct_bool_gate() {
+        let ok = test_gadget(
+            |composer| {
+                let zero = composer.add_input(Fr::zero());
+                let one = composer.add_input(Fr::one());
+
+                composer.bool_gate(zero.into());
+                composer.bool_gate(one.into());
+            },
+            32,
+        );
+        assert!(ok)
+    }
+    #[test]
+    fn test_incorrect_bool_gate() {
+        let ok = test_gadget(
+            |composer| {
+                let zero = composer.add_input(Fr::from(5u8));
+                let one = composer.add_input(Fr::one());
+
+                composer.bool_gate(zero.into());
+                composer.bool_gate(one.into());
+            },
+            32,
+        );
+        assert!(!ok)
+    }
+
+    fn test_gadget(gadget: fn(composer: &mut StandardComposer<Bls12_381>), n: usize) -> bool {
         // Common View
-        //
-        let mut composer: StandardComposer<Bls12_381> = StandardComposer::new();
-
-        let one = Fr::one();
-        let three = Fr::one() + &Fr::one() + &Fr::one();
-
-        let var_one = composer.add_input(one);
-        let var_three = composer.add_input(three);
-
-        for _ in 1..=4 {
-            simple_add_gadget(
-                &mut composer,
-                var_one.into(),
-                var_one.into(),
-                var_three.into(),
-                Fr::one(),
-            );
-        }
-        composer.add_dummy_constraints();
-
-        // setup srs
-        // XXX: We have 2 *n here because the blinding polynomials add a few extra terms to the degree, so it's more than n, we can adjust this later on to be less conservative
-        let public_parameters = srs::setup(20 * composer.n.next_power_of_two());
-        let (ck, vk) = srs::trim(&public_parameters, 20 * composer.n.next_power_of_two()).unwrap();
-        let domain = EvaluationDomain::new(composer.n).unwrap();
-
+        let public_parameters = srs::setup(n, &mut rand::thread_rng());
         // Provers View
         //
-        let proof = {
+        let (proof, public_inputs) = {
+            let mut composer: StandardComposer<Bls12_381> = add_dummy_composer(7);
+            gadget(&mut composer);
+
+            let (ck, _) = srs::trim(
+                &public_parameters,
+                composer.circuit_size().next_power_of_two(),
+            )
+            .unwrap();
+            let domain = EvaluationDomain::new(composer.circuit_size()).unwrap();
+            let mut transcript = Transcript::new(b"");
+            // Preprocess circuit
+            let preprocessed_circuit = composer.preprocess(&ck, &mut transcript, &domain);
+            (
+                composer.prove(&ck, &preprocessed_circuit, &mut transcript),
+                composer.public_inputs,
+            )
+        };
+        // Verifiers view
+        //
+        let ok = {
+            let mut composer: StandardComposer<Bls12_381> = add_dummy_composer(7);
+            gadget(&mut composer);
+
+            let (ck, vk) = srs::trim(
+                &public_parameters,
+                composer.circuit_size().next_power_of_two(),
+            )
+            .unwrap();
+            let domain = EvaluationDomain::new(composer.circuit_size()).unwrap();
             // setup transcript
             let mut transcript = Transcript::new(b"");
             // Preprocess circuit
             let preprocessed_circuit = composer.preprocess(&ck, &mut transcript, &domain);
-
-            composer.prove(&ck, &preprocessed_circuit, &mut transcript)
+            // Verify proof
+            proof.verify(&preprocessed_circuit, &mut transcript, &vk, &public_inputs)
         };
-
-        // Verifiers view
-        //
-
-        // setup transcript
-        let mut transcript = Transcript::new(b"");
-
-        // Preprocess circuit
-        let preprocessed_circuit = composer.preprocess(&ck, &mut transcript, &domain);
-
-        // Verify proof
-        let ok = proof.verify(
-            &preprocessed_circuit,
-            &mut transcript,
-            &vk,
-            &composer.public_inputs,
-        );
-        assert!(ok);
+        ok
     }
 
     #[test]

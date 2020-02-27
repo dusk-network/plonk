@@ -1,11 +1,10 @@
-mod composer;
-mod constraint_system;
-mod doubly_linked_hashmap;
+pub mod composer;
+pub mod constraint_system;
 mod linearisation;
 mod opening;
 mod permutation;
 pub mod poly_utils;
-mod proof;
+pub mod proof;
 mod quotient_poly;
 
 use algebra::{

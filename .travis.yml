@@ -15,8 +15,8 @@ before_install:
 # Main build
 script:
   - cargo check
-  - cargo build --verbose --all
-  - cargo test --verbose --all
+  - cargo build --release --verbose --all
+  - cargo test --release --verbose --all
 
 
 # Send a notification to the Dusk build Status Telegram channel once the CI build completes
