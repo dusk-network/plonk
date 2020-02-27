@@ -1,8 +1,10 @@
 use super::linearisation::Lineariser;
 use super::opening::commitmentOpener;
 use super::{
-    constraint_system::Variable, permutation::Permutation, proof::Proof, Composer,
-    PreProcessedCircuit,
+    constraint_system::{LinearCombination, Variable},
+    permutation::Permutation,
+    proof::Proof,
+    Composer, PreProcessedCircuit,
 };
 use crate::{cs::quotient_poly::QuotientToolkit, srs, transcript::TranscriptProtocol};
 use algebra::{curves::PairingEngine, fields::Field};
@@ -359,22 +361,40 @@ impl<E: PairingEngine> StandardComposer<E> {
     fn add_input(&mut self, s: E::Fr) -> Variable {
         self.perm.new_variable(s)
     }
+    // evaluates a linear combination
+    fn eval(&self, lc: LinearCombination<E::Fr>) -> E::Fr {
+        let mut sum = E::Fr::zero();
+        for (variable, scalar) in lc.terms.iter() {
+            let value = self.perm.variables[variable];
+            sum += &(value * scalar);
+        }
+        sum
+    }
+    // Evaluates a linear combination and adds it's value to the constraint system
+    fn add_lc(&mut self, lc: LinearCombination<E::Fr>) -> Variable {
+        let eval = self.eval(lc);
+        self.add_input(eval)
+    }
 
     // Adds an add gate to the circuit
     pub fn add_gate(
         &mut self,
-        a: Variable,
-        b: Variable,
-        c: Variable,
+        a: LinearCombination<E::Fr>,
+        b: LinearCombination<E::Fr>,
+        c: LinearCombination<E::Fr>,
         q_l: E::Fr,
         q_r: E::Fr,
         q_o: E::Fr,
         q_c: E::Fr,
         pi: E::Fr,
-    ) {
-        self.w_l.push(a);
-        self.w_r.push(b);
-        self.w_o.push(c);
+    ) -> (Variable, Variable, Variable) {
+        let l = self.add_lc(a);
+        let r = self.add_lc(b);
+        let o = self.add_lc(c);
+
+        self.w_l.push(l);
+        self.w_r.push(r);
+        self.w_o.push(o);
 
         // For an add gate, q_m is zero
         self.q_m.push(E::Fr::zero());
@@ -387,24 +407,30 @@ impl<E: PairingEngine> StandardComposer<E> {
 
         self.public_inputs.push(pi);
 
-        self.perm.add_variable_to_map(a, b, c, self.n);
+        self.perm.add_variable_to_map(l, r, o, self.n);
 
         self.n = self.n + 1;
+
+        (l, r, o)
     }
 
     pub fn mul_gate(
         &mut self,
-        a: Variable,
-        b: Variable,
-        c: Variable,
+        a: LinearCombination<E::Fr>,
+        b: LinearCombination<E::Fr>,
+        c: LinearCombination<E::Fr>,
         q_m: E::Fr,
         q_o: E::Fr,
         q_c: E::Fr,
         pi: E::Fr,
-    ) {
-        self.w_l.push(a);
-        self.w_r.push(b);
-        self.w_o.push(c);
+    ) -> (Variable, Variable, Variable) {
+        let l = self.add_lc(a);
+        let r = self.add_lc(b);
+        let o = self.add_lc(c);
+
+        self.w_l.push(l);
+        self.w_r.push(r);
+        self.w_o.push(o);
 
         // For a mul gate q_L and q_R is zero
         self.q_l.push(E::Fr::zero());
@@ -417,15 +443,74 @@ impl<E: PairingEngine> StandardComposer<E> {
 
         self.public_inputs.push(pi);
 
-        self.perm.add_variable_to_map(a, b, c, self.n);
+        self.perm.add_variable_to_map(l, r, o, self.n);
 
         self.n = self.n + 1;
+
+        (l, r, o)
     }
 
-    pub fn bool_gate(&mut self, a: Variable) {
-        self.w_l.push(a);
-        self.w_r.push(a);
-        self.w_o.push(a);
+    pub fn poly_gate(
+        &mut self,
+        a: LinearCombination<E::Fr>,
+        b: LinearCombination<E::Fr>,
+        c: LinearCombination<E::Fr>,
+        q_m: E::Fr,
+        q_l: E::Fr,
+        q_r: E::Fr,
+        q_o: E::Fr,
+        q_c: E::Fr,
+        pi: E::Fr,
+    ) -> (Variable, Variable, Variable) {
+        let l = self.add_lc(a);
+        let r = self.add_lc(b);
+        let o = self.add_lc(c);
+
+        self.w_l.push(l);
+        self.w_r.push(r);
+        self.w_o.push(o);
+        self.q_l.push(q_l);
+        self.q_r.push(q_r);
+
+        // Add selector vectors
+        self.q_m.push(q_m);
+        self.q_o.push(q_o);
+        self.q_c.push(q_c);
+
+        self.public_inputs.push(pi);
+
+        self.perm.add_variable_to_map(l, r, o, self.n);
+
+        self.n = self.n + 1;
+
+        (l, r, o)
+    }
+
+    pub fn constrain_to_constant(
+        &mut self,
+        a: LinearCombination<E::Fr>,
+        constant: E::Fr,
+        pi: E::Fr,
+    ) -> Variable {
+        let (a, _, _) = self.add_gate(
+            a.clone(),
+            a.clone(),
+            a,
+            E::Fr::one(),
+            E::Fr::zero(),
+            E::Fr::zero(),
+            -constant,
+            pi,
+        );
+        a
+    }
+
+    pub fn bool_gate(&mut self, a: LinearCombination<E::Fr>) -> Variable {
+        let lro = self.add_lc(a);
+
+        self.w_l.push(lro);
+        self.w_r.push(lro);
+        self.w_o.push(lro);
 
         self.q_m.push(E::Fr::one());
         self.q_l.push(E::Fr::zero());
@@ -435,8 +520,42 @@ impl<E: PairingEngine> StandardComposer<E> {
 
         self.public_inputs.push(E::Fr::zero());
 
-        self.perm.add_variable_to_map(a, a, a, self.n);
+        self.perm.add_variable_to_map(lro, lro, lro, self.n);
 
+        self.n = self.n + 1;
+
+        lro
+    }
+
+    pub fn add_dummy_constraints(&mut self) {
+        // Add a dummy constraint so that we do not have zero polynomials
+        self.q_m.push(E::Fr::from(1));
+        self.q_l.push(E::Fr::from(2));
+        self.q_r.push(E::Fr::from(3));
+        self.q_o.push(E::Fr::from(4));
+        self.q_c.push(E::Fr::from(5));
+        self.public_inputs.push(E::Fr::zero());
+        let var_six = self.add_input(E::Fr::from(6.into()));
+        let var_seven = self.add_input(E::Fr::from(7.into()));
+        let var_min_twenty = self.add_input(-E::Fr::from(20.into()));
+        self.w_l.push(var_six);
+        self.w_r.push(var_seven);
+        self.w_o.push(var_min_twenty);
+        self.perm
+            .add_variable_to_map(var_six, var_seven, var_min_twenty, self.n);
+        self.n = self.n + 1;
+        //Add another dummy constraint so that we do not get the identity permutation
+        self.q_m.push(E::Fr::from(1));
+        self.q_l.push(E::Fr::from(1));
+        self.q_r.push(E::Fr::from(1));
+        self.q_o.push(E::Fr::from(1));
+        self.q_c.push(E::Fr::from(127));
+        self.public_inputs.push(E::Fr::zero());
+        self.w_l.push(var_min_twenty);
+        self.w_r.push(var_six);
+        self.w_o.push(var_seven);
+        self.perm
+            .add_variable_to_map(var_min_twenty, var_six, var_seven, self.n);
         self.n = self.n + 1;
     }
 }
@@ -451,9 +570,9 @@ mod tests {
     // Ensures a + b - c = 0
     fn simple_add_gadget<E: PairingEngine>(
         composer: &mut StandardComposer<E>,
-        a: Variable,
-        b: Variable,
-        c: Variable,
+        a: LinearCombination<E::Fr>,
+        b: LinearCombination<E::Fr>,
+        c: LinearCombination<E::Fr>,
         pi: E::Fr,
     ) {
         let q_l = E::Fr::one();
@@ -461,7 +580,7 @@ mod tests {
         let q_o = -E::Fr::one();
         let q_c = E::Fr::zero();
 
-        composer.add_gate(a, b, c, q_l, q_r, q_o, q_c, pi);
+        composer.add_gate(a.into(), b.into(), c.into(), q_l, q_r, q_o, q_c, pi);
     }
 
     // Returns a composer with `n` constraints
@@ -469,38 +588,25 @@ mod tests {
         let mut composer = StandardComposer::new();
 
         let one = E::Fr::one();
-        let two = E::Fr::one() + &E::Fr::one();
 
         let var_one = composer.add_input(one);
-        let var_two = composer.add_input(two);
+        let var_two: LinearCombination<E::Fr> =
+            LinearCombination::from(var_one) + LinearCombination::from(var_one);
 
         for _ in 0..n {
-            simple_add_gadget(&mut composer, var_one, var_one, var_two, E::Fr::zero());
+            simple_add_gadget(
+                &mut composer,
+                var_one.into(),
+                var_one.into(),
+                var_two.clone(),
+                E::Fr::zero(),
+            );
         }
-        add_dummy_constraints(&mut composer);
+        composer.add_dummy_constraints();
 
         composer
     }
 
-    fn add_dummy_constraints<E: PairingEngine>(composer: &mut StandardComposer<E>) {
-        // Add a dummy constraint so that we do not have zero polynomials
-        composer.q_m.push(E::Fr::from(1));
-        composer.q_l.push(E::Fr::from(2));
-        composer.q_r.push(E::Fr::from(3));
-        composer.q_o.push(E::Fr::from(4));
-        composer.q_c.push(E::Fr::from(5));
-        composer.public_inputs.push(E::Fr::zero());
-
-        let var_six = composer.add_input(E::Fr::from(6.into()));
-        let var_seven = composer.add_input(E::Fr::from(7.into()));
-        let var_min_twenty = composer.add_input(-E::Fr::from(20.into()));
-
-        composer.w_l.push(var_six);
-        composer.w_r.push(var_seven);
-        composer.w_o.push(var_min_twenty);
-
-        composer.n = composer.n + 1;
-    }
     #[test]
     fn test_pad() {
         let num_constraints = 100;
@@ -574,11 +680,16 @@ mod tests {
         let var_one = composer.add_input(one);
         let var_three = composer.add_input(three);
 
-        simple_add_gadget(&mut composer, var_one, var_one, var_three, Fr::one());
-        simple_add_gadget(&mut composer, var_one, var_one, var_three, Fr::one());
-        simple_add_gadget(&mut composer, var_one, var_one, var_three, Fr::one());
-        simple_add_gadget(&mut composer, var_one, var_one, var_three, Fr::one());
-        add_dummy_constraints(&mut composer);
+        for _ in 1..=4 {
+            simple_add_gadget(
+                &mut composer,
+                var_one.into(),
+                var_one.into(),
+                var_three.into(),
+                Fr::one(),
+            );
+        }
+        composer.add_dummy_constraints();
 
         // setup srs
         // XXX: We have 2 *n here because the blinding polynomials add a few extra terms to the degree, so it's more than n, we can adjust this later on to be less conservative
@@ -629,7 +740,13 @@ mod tests {
         let n = 20;
 
         for _ in 0..n {
-            simple_add_gadget(&mut composer, var_one, var_one, var_two, Fr::zero());
+            simple_add_gadget(
+                &mut composer,
+                var_one.into(),
+                var_one.into(),
+                var_two.into(),
+                Fr::zero(),
+            );
         }
 
         assert_eq!(n, composer.circuit_size())
