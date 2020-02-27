@@ -557,38 +557,6 @@ impl<E: PairingEngine> StandardComposer<E> {
             .add_variable_to_map(var_min_twenty, var_six, var_seven, self.n);
         self.n = self.n + 1;
     }
-
-    pub fn add_dummy_constraints(&mut self) {
-        // Add a dummy constraint so that we do not have zero polynomials
-        self.q_m.push(E::Fr::from(1));
-        self.q_l.push(E::Fr::from(2));
-        self.q_r.push(E::Fr::from(3));
-        self.q_o.push(E::Fr::from(4));
-        self.q_c.push(E::Fr::from(5));
-        self.public_inputs.push(E::Fr::zero());
-        let var_six = self.add_input(E::Fr::from(6.into()));
-        let var_seven = self.add_input(E::Fr::from(7.into()));
-        let var_min_twenty = self.add_input(-E::Fr::from(20.into()));
-        self.w_l.push(var_six);
-        self.w_r.push(var_seven);
-        self.w_o.push(var_min_twenty);
-        self.perm
-            .add_variable_to_map(var_six, var_seven, var_min_twenty, self.n);
-        self.n = self.n + 1;
-        //Add another dummy constraint so that we do not get the identity permutation
-        self.q_m.push(E::Fr::from(1));
-        self.q_l.push(E::Fr::from(1));
-        self.q_r.push(E::Fr::from(1));
-        self.q_o.push(E::Fr::from(1));
-        self.q_c.push(E::Fr::from(127));
-        self.public_inputs.push(E::Fr::zero());
-        self.w_l.push(var_min_twenty);
-        self.w_r.push(var_six);
-        self.w_o.push(var_seven);
-        self.perm
-            .add_variable_to_map(var_min_twenty, var_six, var_seven, self.n);
-        self.n = self.n + 1;
-    }
 }
 
 #[cfg(test)]
