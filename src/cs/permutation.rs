@@ -1,6 +1,5 @@
 use super::constraint_system::{Variable, WireData};
 
-use super::doubly_linked_hashmap::DoublyHashMap;
 use algebra::{
     curves::PairingEngine,
     fields::{Field, PrimeField},
@@ -17,7 +16,7 @@ pub struct Permutation<E: PairingEngine> {
 
     // These are the actual variable values
     // N.B. They should not be exposed to the end user once added into the composer
-    pub(crate) variables: DoublyHashMap<E::Fr>,
+    pub(crate) variables: HashMap<Variable, E::Fr>,
 
     // Maps a variable to the wires that it is assosciated to
     pub(crate) variable_map: HashMap<Variable, Vec<WireData>>,
@@ -35,7 +34,7 @@ impl<E: PairingEngine> Permutation<E> {
     pub fn with_capacity(expected_size: usize) -> Permutation<E> {
         Permutation {
             _engine: PhantomData,
-            variables: DoublyHashMap::with_capacity(expected_size),
+            variables: HashMap::with_capacity(expected_size),
             variable_map: HashMap::with_capacity(expected_size),
 
             left_sigma_mapping: None,
@@ -46,7 +45,10 @@ impl<E: PairingEngine> Permutation<E> {
     /// Adds a Scalar into the system and creates a new variable for it
     /// If the Scalar has not been previously added to the system
     pub fn new_variable(&mut self, s: E::Fr) -> Variable {
-        let var = self.variables.insert(s);
+        // Generate the Variable
+        let var = Variable(self.variables.keys().len());
+        // Push scalar into the system
+        self.variables.insert(var, s);
 
         // Allocate space for the Variable on the variable_map
         // Each vector is initialised with a capacity of 16.
