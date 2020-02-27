@@ -84,19 +84,20 @@ impl<E: PairingEngine> QuotientToolkit<E> {
             preprocessed_circuit.right_sigma_poly(),
             preprocessed_circuit.out_sigma_poly(),
         );
-        t_3 = poly_utils.add_poly_vectors(&t_2, &t_3);
+        let t_4 =
+            self.compute_quotient_fourth_component(domain, &z_coeffs, alpha.square() * &alpha);
         t_3 = poly_utils.add_poly_vectors(&t_1, &t_3);
+        t_3 = poly_utils.add_poly_vectors(&t_2, &t_3);
+        t_3 = poly_utils.add_poly_vectors(&t_4, &t_3);
         domain_4n.ifft_in_place(&mut t_3);
+        // let v_h = self.compute_vanishing_poly_over_coset();
 
         let grand_product_poly = Polynomial::from_coefficients_vec(t_3);
         let (t_2_3, _) = grand_product_poly
             .divide_by_vanishing_poly(*domain)
             .unwrap();
-        let t_4 =
-            self.compute_quotient_fourth_component(domain, &z_coeffs, alpha.square() * &alpha);
 
-        let result = &t_2_3 + &t_4;
-        result.coeffs
+        t_2_3.coeffs
     }
 
     fn compute_quotient_first_component(
@@ -272,9 +273,9 @@ impl<E: PairingEngine> QuotientToolkit<E> {
         domain: &EvaluationDomain<E::Fr>,
         z_coeffs: &[E::Fr],
         alpha_cu: E::Fr,
-    ) -> Polynomial<E::Fr> {
+    ) -> Vec<E::Fr> {
         let n = domain.size();
-        let domain_2n = EvaluationDomain::new(2 * n).unwrap();
+        let domain_4n = EvaluationDomain::new(4 * n).unwrap();
 
         let l1_coeffs = self.compute_first_lagrange_poly(domain).coeffs;
         let alpha_cu_l1_coeffs: Vec<_> = l1_coeffs.par_iter().map(|x| alpha_cu * x).collect();
@@ -283,16 +284,14 @@ impl<E: PairingEngine> QuotientToolkit<E> {
         let mut z_coeffs = z_coeffs.to_vec();
         z_coeffs[0] = z_coeffs[0] - &E::Fr::one();
 
-        let z_evals = domain_2n.fft(&z_coeffs);
-        let alpha_cu_l1_evals = domain_2n.fft(&alpha_cu_l1_coeffs);
+        let z_evals = domain_4n.fft(&z_coeffs);
+        let alpha_cu_l1_evals = domain_4n.fft(&alpha_cu_l1_coeffs);
 
-        let t_4: Vec<_> = (0..domain_2n.size())
+        let t_4: Vec<_> = (0..domain_4n.size())
             .into_par_iter()
             .map(|i| alpha_cu_l1_evals[i] * &z_evals[i])
             .collect();
-        let t_4_poly = Polynomial::from_coefficients_vec(domain_2n.ifft(&t_4));
-        let (q, _) = t_4_poly.divide_by_vanishing_poly(*domain).unwrap();
-        q
+        t_4
     }
 
     /// Computes the first Lagrange polynomial `L1(X)`.
@@ -301,6 +300,23 @@ impl<E: PairingEngine> QuotientToolkit<E> {
         x_evals[0] = E::Fr::one();
         domain.ifft_in_place(&mut x_evals);
         Polynomial::from_coefficients_vec(x_evals)
+    }
+
+    // computes the vanishing polynomial for that domain over a coset
+    // Z(x_i) = (x_i)^n -1  where x_i is the i'th root of unity
+    // Over coset Z(x_i *h) = (x_i *h)^n -1 = h^n * (x_i)^n -1
+    fn compute_vanishing_poly_over_coset(
+        &self,
+        domain: &EvaluationDomain<E::Fr>, // domain to evaluate over
+        poly_degree: u64,                 // degree of the vanishing polynomial
+    ) -> Vec<E::Fr> {
+        let coset_gen = E::Fr::multiplicative_generator().pow(&[poly_degree]);
+        let v_h: Vec<_> = (0..domain.size())
+            .into_iter()
+            .map(|i| (coset_gen * &domain.group_gen.pow(&[poly_degree * i as u64])) - &E::Fr::one())
+            .collect();
+
+        v_h
     }
 }
 
@@ -356,5 +372,106 @@ mod test {
             .unwrap();
         assert_eq!(r, Polynomial::zero());
         q
+    }
+
+    #[test]
+    fn test_vanishing_poly() {
+        use ff_fft::DensePolynomial as Polynomial;
+        let toolkit: QuotientToolkit<E> = QuotientToolkit::new();
+
+        let n = 4;
+        // Using the native zexe function
+        let domain = EvaluationDomain::new(n).unwrap();
+        let domain_2n = EvaluationDomain::new(2 * n).unwrap();
+        let vec = vec![Fr::one(); n];
+
+        let rand_poly: Polynomial<Fr> = Polynomial::from_coefficients_vec(vec);
+        let blinded_rand_poly = rand_poly.mul_by_vanishing_poly(domain);
+        let (q, r) = blinded_rand_poly.divide_by_vanishing_poly(domain).unwrap();
+
+        //Using the new function manually
+        // compute the evaluation points for the vanishing polynomial over a coset
+        let mut v_evals = domain_2n.coset_fft(&compute_vanishing_poly_coefficients(n));
+        for element in v_evals.iter() {
+            assert_ne!(element, &Fr::zero());
+        }
+        // compute evaluation points for polynomial
+        // not 2n because mul_by_vanish increases the domain
+        let rand_poly_evals = domain_2n.coset_fft(&blinded_rand_poly);
+
+        assert_eq!(rand_poly_evals.len(), v_evals.len());
+
+        // Do division manually
+        let mut res: Vec<_> = v_evals
+            .into_iter()
+            .zip(rand_poly_evals.into_iter())
+            .map(|(v, r)| r / &v)
+            .collect();
+
+        // IFFT on results
+        domain_2n.coset_ifft_in_place(&mut res);
+        assert_eq!(Polynomial::from_coefficients_vec(res), q)
+    }
+    #[test]
+    fn test_coset_roots_of_unity() {
+        use ff_fft::DensePolynomial as Polynomial;
+        let toolkit: QuotientToolkit<E> = QuotientToolkit::new();
+
+        let n = 4;
+        let domain = EvaluationDomain::new(n).unwrap();
+        let v_h = toolkit.compute_vanishing_poly_over_coset(&domain, n as u64);
+
+        for i in 0..v_h.len() {
+            let expected_coset_root = domain.evaluate_vanishing_polynomial(
+                Fr::multiplicative_generator() * &domain.group_gen.pow(&[i as u64]),
+            );
+            assert_eq!(expected_coset_root, v_h[i]);
+        }
+        let v_h_poly =
+            Polynomial::from_coefficients_vec(compute_vanishing_poly_coefficients(domain.size()));
+        assert_eq!(
+            domain.evaluate_vanishing_polynomial(Fr::from(5u8)),
+            v_h_poly.evaluate(Fr::from(5u8))
+        )
+    }
+    #[test]
+    fn test_vanishing_poly_over_higher_domain() {
+        let toolkit: QuotientToolkit<E> = QuotientToolkit::new();
+
+        // We will be calculating the 4n'th roots of unity for the vanishing polynomial x^n -1
+        use ff_fft::DensePolynomial as Polynomial;
+        let n = 4;
+        let domain_4n = EvaluationDomain::new(4 * n).unwrap();
+        // This should be the vanishing polynomial with degree `n` evaluated over the 4n'th roots of unity
+        let v_h_evals = toolkit.compute_vanishing_poly_over_coset(&domain_4n, n as u64);
+
+        // First compute the coefficients form of x^n -1
+        let v_h_poly = Polynomial::from_coefficients_vec(compute_vanishing_poly_coefficients(n));
+        let v_h_evals_4n = domain_4n.coset_fft(&v_h_poly);
+
+        assert_eq!(v_h_evals.len(), v_h_evals_4n.len());
+
+        for (a, b) in v_h_evals_4n.iter().zip(v_h_evals.iter()) {
+            assert_eq!(a, b)
+        }
+    }
+
+    fn compute_vanishing_poly_coefficients(degree: usize) -> Vec<Fr> {
+        // number of elements = degree +1
+        let num_of_elements = degree + 1;
+
+        // first and last elements are non-zero
+        let num_zeroes = num_of_elements - 2;
+
+        let one = vec![Fr::one()];
+        let zeroes = vec![Fr::zero(); num_zeroes];
+        let minus_one = vec![-Fr::one()];
+
+        let mut v_h = Vec::new();
+        v_h.extend(minus_one);
+        v_h.extend(zeroes);
+        v_h.extend(one);
+
+        v_h
     }
 }
