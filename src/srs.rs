@@ -1,14 +1,13 @@
 use algebra::{curves::bls12_381::Bls12_381, PairingEngine};
 use ff_fft::DensePolynomial as Polynomial;
 use poly_commit::kzg10::{Commitment, Error, Powers, UniversalParams, VerifierKey, KZG10};
-use rand::thread_rng;
-
+use rand_core::RngCore;
 // modification of https://github.com/scipr-lab/poly-commit/blob/master/src/kzg10/mod.rs
 
 type KZG_Bls12_381 = KZG10<Bls12_381>;
 
-pub fn setup(max_deg: usize) -> UniversalParams<Bls12_381> {
-    KZG_Bls12_381::setup(max_deg, false, &mut thread_rng()).unwrap()
+pub fn setup<R: RngCore>(max_deg: usize, rng: &mut R) -> UniversalParams<Bls12_381> {
+    KZG_Bls12_381::setup(max_deg, false, rng).unwrap()
 }
 
 pub fn trim<'a, E: PairingEngine>(
