@@ -19,9 +19,9 @@ PLONK relies upon one single polynomial commitment and these are 'kate commitmen
 Additionally, PLONK uses permutation arguments where the subgroup is evaluated. 
 
 **This branch contains an implementation using [zexe](https://github.com/scipr-lab/zexe/tree/master/algebra) as backend for the elliptic curve 
-operations as well as KZG10 as a backend for the polynomial commitment scheme.
+operations as well as KZG10 as a backend for the polynomial commitment scheme.**
 
-If you're looking for fast prove times, you should use this branch atm since it has
+**If you're looking for fast prove times, you should use this branch atm since it has
 multiscalar multiplication implemented for `BLS12_381` which allows faster polynomial
 commitment operations.** 
 
