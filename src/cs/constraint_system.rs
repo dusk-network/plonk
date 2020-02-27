@@ -5,10 +5,10 @@ use algebra::fields::PrimeField;
 /// Represents a variable in a constraint system.
 
 /// The value is a reference to the actual value that was added to the constraint system
-#[derive(Eq, PartialEq, Clone, Copy, Hash)]
+#[derive(Debug, Eq, PartialEq, Clone, Copy, Hash)]
 pub struct Variable(pub(super) usize);
 
-#[derive(Eq, PartialEq, Clone, Hash)]
+#[derive(Debug, Eq, PartialEq, Clone, Hash)]
 pub struct LinearCombination<F: PrimeField> {
     pub(crate) terms: Vec<(Variable, F)>,
 }

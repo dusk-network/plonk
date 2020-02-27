@@ -1,5 +1,6 @@
 use super::constraint_system::{Variable, WireData};
 
+use super::doubly_linked_hashmap::DoublyHashMap;
 use algebra::{
     curves::PairingEngine,
     fields::{Field, PrimeField},
@@ -11,13 +12,12 @@ use rayon::iter::*;
 use rayon::prelude::*;
 use std::collections::HashMap;
 use std::marker::PhantomData;
-
 pub struct Permutation<E: PairingEngine> {
     _engine: PhantomData<E>,
 
     // These are the actual variable values
     // N.B. They should not be exposed to the end user once added into the composer
-    pub(crate) variables: HashMap<Variable, E::Fr>,
+    pub(crate) variables: DoublyHashMap<E::Fr>,
 
     // Maps a variable to the wires that it is assosciated to
     pub(crate) variable_map: HashMap<Variable, Vec<WireData>>,
@@ -35,7 +35,7 @@ impl<E: PairingEngine> Permutation<E> {
     pub fn with_capacity(expected_size: usize) -> Permutation<E> {
         Permutation {
             _engine: PhantomData,
-            variables: HashMap::with_capacity(expected_size),
+            variables: DoublyHashMap::with_capacity(expected_size),
             variable_map: HashMap::with_capacity(expected_size),
 
             left_sigma_mapping: None,
@@ -44,11 +44,9 @@ impl<E: PairingEngine> Permutation<E> {
         }
     }
     /// Adds a Scalar into the system and creates a new variable for it
+    /// If the Scalar has not been previously added to the system
     pub fn new_variable(&mut self, s: E::Fr) -> Variable {
-        // Generate the Variable
-        let var = Variable(self.variables.keys().len());
-        // Push scalar into the system
-        self.variables.insert(var, s);
+        let var = self.variables.insert(s);
 
         // Allocate space for the Variable on the variable_map
         // Each vector is initialised with a capacity of 16.
@@ -537,12 +535,12 @@ mod test {
     fn test_permutation_format() {
         let mut perm: Permutation<E> = Permutation::new();
 
-        let num_variables = 10;
+        let num_variables = 10u8;
         for i in 0..num_variables {
-            let var = perm.new_variable(Fr::one());
-            assert_eq!(var.0, i);
-            assert_eq!(perm.variable_map.len(), i + 1);
-            assert_eq!(perm.variables.len(), i + 1);
+            let var = perm.new_variable(Fr::from(i));
+            assert_eq!(var.0, i as usize);
+            assert_eq!(perm.variable_map.len(), (i as usize) + 1);
+            assert_eq!(perm.variables.len(), (i as usize) + 1);
         }
 
         let var_one = perm.new_variable(Fr::one());
@@ -798,15 +796,15 @@ mod test {
 
         let mut prod_left_sigma = Fr::one();
         for element in perm.left_sigma_mapping.unwrap().iter() {
-            prod_left_sigma = prod_left_sigma * *element;
+            prod_left_sigma = prod_left_sigma * element;
         }
         let mut prod_right_sigma = Fr::one();
         for element in perm.right_sigma_mapping.unwrap().iter() {
-            prod_right_sigma = prod_right_sigma * *element;
+            prod_right_sigma = prod_right_sigma * element;
         }
         let mut prod_out_sigma = Fr::one();
         for element in perm.out_sigma_mapping.unwrap().iter() {
-            prod_out_sigma = prod_out_sigma * *element;
+            prod_out_sigma = prod_out_sigma * element;
         }
 
         let copy_grand_prod = (prod_left_sigma * prod_right_sigma) * prod_out_sigma;
