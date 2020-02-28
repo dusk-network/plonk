@@ -1,6 +1,7 @@
 use super::errors::Error;
 use super::BlindingPolynomial;
 use super::Commitment;
+use crate::fft::Polynomial;
 use new_bls12_381::{G1Affine, G1Projective, G2Affine, G2Prepared, Scalar};
 use rand_core::RngCore;
 // Verifer Key
@@ -76,16 +77,15 @@ impl ProverKey {
     /// hiding_degree is the degree of the polynomial that will be used to hide the original polynomial
     pub fn commit(
         &self,
-        polynomial: Vec<Scalar>,
+        polynomial: Polynomial,
         hiding_parameters: Option<(usize, &mut dyn RngCore)>,
     ) -> Result<(Commitment, Option<BlindingPolynomial>), Error> {
         // Check whether we can safely commit to this polynomial
-        let poly_degree = polynomial.len() - 1;
-        self.check_commit_degree_is_within_bounds(poly_degree)?;
+        self.check_commit_degree_is_within_bounds(polynomial.degree())?;
 
         // Compute commitment
         use crate::multiscalar_mul;
-        let points: Vec<G1Projective> = multiscalar_mul(&polynomial, &self.powers_of_g);
+        let points: Vec<G1Projective> = multiscalar_mul(&polynomial.coeffs, &self.powers_of_g);
         let mut commitment = G1Projective::identity();
         for point in points {
             commitment = commitment + point;
