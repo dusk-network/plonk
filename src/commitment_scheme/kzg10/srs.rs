@@ -1,5 +1,6 @@
-use super::errors::SRSError;
+use super::errors::Error;
 use super::key::{ProverKey, VerifierKey};
+use crate::multiscalar_mul_single_base;
 use new_bls12_381::{G1Affine, G1Projective, G2Affine, G2Prepared, G2Projective, Scalar};
 use rand_core::RngCore;
 /// Structured Reference String (SRS) is the main component in KZG10
@@ -14,10 +15,10 @@ impl SRS {
     /// Setup generates an SRS using a `RNG`
     /// This method will in most cases be used for testing and exploration
     /// In reality, a `trusted` party or an `MPC` is used to generate an SRS
-    pub fn setup<R: RngCore>(max_degree: usize, mut rng: &mut R) -> Result<SRS, SRSError> {
+    pub fn setup<R: RngCore>(max_degree: usize, mut rng: &mut R) -> Result<SRS, Error> {
         // Cannot commit to constants
         if max_degree < 1 {
-            return Err(SRSError::DegreeIsZero);
+            return Err(Error::DegreeIsZero);
         }
 
         // Generate the secret scalar beta
@@ -28,7 +29,7 @@ impl SRS {
 
         // powers of g will be used to commit to the polynomial
         let g = random_g1_point(&mut rng);
-        let powers_of_g: Vec<G1Projective> = powers_of_beta.iter().map(|a| g * a).collect();
+        let powers_of_g: Vec<G1Projective> = multiscalar_mul_single_base(&powers_of_beta, g);
         assert_eq!(powers_of_g.len(), max_degree);
 
         // powers of gamma will be used to blind the polynomial
@@ -68,7 +69,7 @@ impl SRS {
 
     /// Trim truncates the prover key to allow the prover to commit to polynomials up to the
     /// and including the truncated degree
-    pub fn trim(&self, truncated_degree: usize) -> Result<(ProverKey, VerifierKey), SRSError> {
+    pub fn trim(&self, truncated_degree: usize) -> Result<(ProverKey, VerifierKey), Error> {
         let truncated_prover_key = self.commit_key.truncate(truncated_degree)?;
         let verifier_key = self.verifier_key.clone();
         Ok((truncated_prover_key, verifier_key))
