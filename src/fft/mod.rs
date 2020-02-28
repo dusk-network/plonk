@@ -1,2 +1,3 @@
 pub(crate) mod domain;
-mod evaluations;
+pub(crate) mod evaluations;
+pub(crate) mod polynomial;
