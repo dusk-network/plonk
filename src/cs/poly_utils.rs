@@ -1,21 +1,13 @@
-use algebra::curves::PairingEngine;
-use algebra::fields::Field;
-use num_traits::{One, Zero};
+use new_bls12_381::Scalar;
 use rayon::prelude::*;
-use std::marker::PhantomData;
+pub struct Poly_utils {}
 
-pub struct Poly_utils<E: PairingEngine> {
-    _engine: PhantomData<E>,
-}
-
-impl<E: PairingEngine> Poly_utils<E> {
+impl Poly_utils {
     pub fn new() -> Self {
-        Poly_utils {
-            _engine: PhantomData,
-        }
+        Poly_utils {}
     }
 
-    pub fn add_poly_vectors(&self, poly_a: &[E::Fr], poly_b: &[E::Fr]) -> Vec<E::Fr> {
+    pub fn add_poly_vectors(&self, poly_a: &[Scalar], poly_b: &[Scalar]) -> Vec<Scalar> {
         if poly_a.len() == 0 {
             return poly_b.to_vec();
         }
@@ -44,7 +36,7 @@ impl<E: PairingEngine> Poly_utils<E> {
     }
 
     // Evaluates multiple polynomials at the same point
-    pub fn multi_point_eval(&self, polynomials: Vec<&[E::Fr]>, point: &E::Fr) -> Vec<E::Fr> {
+    pub fn multi_point_eval(&self, polynomials: Vec<&[Scalar]>, point: &Scalar) -> Vec<Scalar> {
         // Find the highest degree polynomial
         let mut max_coefficients = 0;
         for poly in polynomials.iter() {
@@ -59,11 +51,11 @@ impl<E: PairingEngine> Poly_utils<E> {
         let mut powers = self.powers_of(point, max_coefficients);
 
         // Compute evaluation of each polynomial at `point`
-        let evaluations: Vec<E::Fr> = polynomials
+        let evaluations: Vec<Scalar> = polynomials
             .par_iter()
             .map(|poly| {
                 if poly.len() == 0 {
-                    return E::Fr::zero();
+                    return Scalar::zero();
                 }
 
                 let mut p_evals: Vec<_> = poly
@@ -71,7 +63,7 @@ impl<E: PairingEngine> Poly_utils<E> {
                     .zip(powers.iter())
                     .map(|(c, p)| *p * c)
                     .collect();
-                let mut sum = E::Fr::zero();
+                let mut sum = Scalar::zero();
                 for eval in p_evals.into_iter() {
                     sum += &eval;
                 }
@@ -82,9 +74,9 @@ impl<E: PairingEngine> Poly_utils<E> {
         evaluations
     }
 
-    pub fn single_point_eval(&self, polynomial: &[E::Fr], point: &E::Fr) -> E::Fr {
+    pub fn single_point_eval(&self, polynomial: &[Scalar], point: &Scalar) -> Scalar {
         if polynomial.len() == 0 {
-            return E::Fr::zero();
+            return Scalar::zero();
         }
 
         // Compute powers of points
@@ -95,20 +87,20 @@ impl<E: PairingEngine> Poly_utils<E> {
             .zip(powers.into_par_iter())
             .map(|(c, p)| p * c)
             .collect();
-        let mut sum = E::Fr::zero();
+        let mut sum = Scalar::zero();
         for eval in p_evals.into_iter() {
             sum += &eval;
         }
         sum
     }
     // Multiplies a polynomial by a scalar
-    pub fn mul_scalar_poly(&self, scalar: E::Fr, poly: &[E::Fr]) -> Vec<E::Fr> {
+    pub fn mul_scalar_poly(&self, scalar: Scalar, poly: &[Scalar]) -> Vec<Scalar> {
         poly.par_iter().map(|coeff| scalar * coeff).collect()
     }
     // Computes 1,v, v^2, v^3,..v^max_degree
-    pub fn powers_of(&self, scalar: &E::Fr, max_degree: usize) -> Vec<E::Fr> {
+    pub fn powers_of(&self, scalar: &Scalar, max_degree: usize) -> Vec<Scalar> {
         let mut powers = Vec::with_capacity(max_degree + 1);
-        powers.push(E::Fr::one());
+        powers.push(Scalar::one());
         for i in 1..=max_degree {
             powers.push(powers[i - 1] * scalar);
         }
