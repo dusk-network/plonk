@@ -1,28 +1,24 @@
 use super::PreProcessedCircuit;
 use crate::cs::poly_utils::Poly_utils;
-use algebra::fields::PrimeField;
-use algebra::{curves::PairingEngine, fields::Field};
-use ff_fft::EvaluationDomain;
-use num_traits::{One, Zero};
+use crate::fft::EvaluationDomain;
+use new_bls12_381::Scalar;
 use std::marker::PhantomData;
 
-pub struct Lineariser<E: PairingEngine> {
-    _engine: PhantomData<E>,
+pub struct Lineariser {}
+
+pub struct LinEval {
+    pub a_eval: Scalar,
+    pub b_eval: Scalar,
+    pub c_eval: Scalar,
+    pub left_sigma_eval: Scalar,
+    pub right_sigma_eval: Scalar,
+    pub quot_eval: Scalar,
+    pub lin_poly_eval: Scalar,
+    pub perm_eval: Scalar,
 }
 
-pub struct LinEval<E: PairingEngine> {
-    pub a_eval: E::Fr,
-    pub b_eval: E::Fr,
-    pub c_eval: E::Fr,
-    pub left_sigma_eval: E::Fr,
-    pub right_sigma_eval: E::Fr,
-    pub quot_eval: E::Fr,
-    pub lin_poly_eval: E::Fr,
-    pub perm_eval: E::Fr,
-}
-
-impl<E: PairingEngine> Into<Vec<E::Fr>> for LinEval<E> {
-    fn into(self) -> Vec<E::Fr> {
+impl Into<Vec<Scalar>> for LinEval {
+    fn into(self) -> Vec<Scalar> {
         vec![
             self.a_eval,
             self.b_eval,
@@ -36,32 +32,30 @@ impl<E: PairingEngine> Into<Vec<E::Fr>> for LinEval<E> {
     }
 }
 
-impl<E: PairingEngine> LinEval<E> {
-    pub fn to_vec(self) -> Vec<E::Fr> {
+impl LinEval {
+    pub fn to_vec(self) -> Vec<Scalar> {
         self.into()
     }
 }
 
-impl<E: PairingEngine> Lineariser<E> {
+impl Lineariser {
     pub fn new() -> Self {
-        Lineariser {
-            _engine: PhantomData,
-        }
+        Lineariser {}
     }
     pub fn evaluate_linearisation_polynomial(
         &self,
-        domain: &EvaluationDomain<E::Fr>,
-        preprocessed_circuit: &PreProcessedCircuit<E>,
-        (alpha, beta, gamma, z_challenge): &(E::Fr, E::Fr, E::Fr, E::Fr),
-        w_l_coeffs: &Vec<E::Fr>,
-        w_r_coeffs: &Vec<E::Fr>,
-        w_o_coeffs: &Vec<E::Fr>,
-        t_x_coeffs: &Vec<E::Fr>,
-        z_coeffs: &Vec<E::Fr>,
-    ) -> (Vec<E::Fr>, LinEval<E>) {
-        let poly_utils: Poly_utils<E> = Poly_utils::new();
+        domain: &EvaluationDomain,
+        preprocessed_circuit: &PreProcessedCircuit,
+        (alpha, beta, gamma, z_challenge): &(Scalar, Scalar, Scalar, Scalar),
+        w_l_coeffs: &Vec<Scalar>,
+        w_r_coeffs: &Vec<Scalar>,
+        w_o_coeffs: &Vec<Scalar>,
+        t_x_coeffs: &Vec<Scalar>,
+        z_coeffs: &Vec<Scalar>,
+    ) -> (Vec<Scalar>, LinEval) {
+        let poly_utils: Poly_utils = Poly_utils::new();
         let alpha_sq = alpha.square();
-        let alpha_cu = *alpha * &alpha_sq;
+        let alpha_cu = alpha * alpha_sq;
 
         // Compute batch evaluations
         let evaluations = poly_utils.multi_point_eval(
@@ -143,17 +137,17 @@ impl<E: PairingEngine> Lineariser<E> {
 
     fn compute_first_component(
         &self,
-        alpha: E::Fr,
-        a_eval: E::Fr,
-        b_eval: E::Fr,
-        c_eval: E::Fr,
-        q_m_poly: &Vec<E::Fr>,
-        q_l_poly: &Vec<E::Fr>,
-        q_r_poly: &Vec<E::Fr>,
-        q_o_poly: &Vec<E::Fr>,
-        q_c_poly: &Vec<E::Fr>,
-    ) -> Vec<E::Fr> {
-        let poly_utils: Poly_utils<E> = Poly_utils::new();
+        alpha: Scalar,
+        a_eval: Scalar,
+        b_eval: Scalar,
+        c_eval: Scalar,
+        q_m_poly: &Vec<Scalar>,
+        q_l_poly: &Vec<Scalar>,
+        q_r_poly: &Vec<Scalar>,
+        q_o_poly: &Vec<Scalar>,
+        q_c_poly: &Vec<Scalar>,
+    ) -> Vec<Scalar> {
+        let poly_utils: Poly_utils = Poly_utils::new();
 
         // a_eval * b_eval * q_m_poly
         let ab = a_eval * &b_eval;
@@ -177,19 +171,19 @@ impl<E: PairingEngine> Lineariser<E> {
 
     fn compute_second_component(
         &self,
-        a_eval: E::Fr,
-        b_eval: E::Fr,
-        c_eval: E::Fr,
-        z_challenge: E::Fr,
-        alpha_sq: E::Fr,
-        beta: E::Fr,
-        gamma: E::Fr,
-        z_coeffs: &Vec<E::Fr>,
-    ) -> Vec<E::Fr> {
-        let poly_utils: Poly_utils<E> = Poly_utils::new();
+        a_eval: Scalar,
+        b_eval: Scalar,
+        c_eval: Scalar,
+        z_challenge: Scalar,
+        alpha_sq: Scalar,
+        beta: Scalar,
+        gamma: Scalar,
+        z_coeffs: &Vec<Scalar>,
+    ) -> Vec<Scalar> {
+        let poly_utils: Poly_utils = Poly_utils::new();
 
-        let k1 = E::Fr::multiplicative_generator();
-        let k2 = E::Fr::from(13.into());
+        let k1 = Scalar::from(7);
+        let k2 = Scalar::from(13);
 
         let beta_z = beta * &z_challenge;
 
@@ -215,14 +209,14 @@ impl<E: PairingEngine> Lineariser<E> {
     }
     fn compute_third_component(
         &self,
-        (a_eval, b_eval): (E::Fr, E::Fr),
-        z_eval: E::Fr,
-        sigma_1_eval: E::Fr,
-        sigma_2_eval: E::Fr,
-        (alpha_sq, beta, gamma): (E::Fr, E::Fr, E::Fr),
-        out_sigma_coeffs: &Vec<E::Fr>,
-    ) -> Vec<E::Fr> {
-        let poly_utils: Poly_utils<E> = Poly_utils::new();
+        (a_eval, b_eval): (Scalar, Scalar),
+        z_eval: Scalar,
+        sigma_1_eval: Scalar,
+        sigma_2_eval: Scalar,
+        (alpha_sq, beta, gamma): (Scalar, Scalar, Scalar),
+        out_sigma_coeffs: &Vec<Scalar>,
+    ) -> Vec<Scalar> {
+        let poly_utils = Poly_utils::new();
 
         // a_eval + beta * sigma_1 + gamma
         let beta_sigma_1 = beta * &sigma_1_eval;
@@ -244,12 +238,12 @@ impl<E: PairingEngine> Lineariser<E> {
     }
     fn compute_fourth_component(
         &self,
-        domain: &EvaluationDomain<E::Fr>,
-        z_challenge: E::Fr,
-        alpha_cu: E::Fr,
-        z_coeffs: &Vec<E::Fr>,
-    ) -> Vec<E::Fr> {
-        let poly_utils: Poly_utils<E> = Poly_utils::new();
+        domain: &EvaluationDomain,
+        z_challenge: Scalar,
+        alpha_cu: Scalar,
+        z_coeffs: &Vec<Scalar>,
+    ) -> Vec<Scalar> {
+        let poly_utils = Poly_utils::new();
 
         // Evaluate l_1(z)
         let l_1_z = domain.evaluate_all_lagrange_coefficients(z_challenge)[0];
@@ -260,13 +254,11 @@ impl<E: PairingEngine> Lineariser<E> {
 #[cfg(test)]
 mod test {
     use super::*;
-    use algebra::curves::bls12_381::Bls12_381 as E;
-    use algebra::fields::bls12_381::Fr;
-    use algebra::UniformRand;
-    use ff_fft::DensePolynomial as Polynomial;
+    use crate::fft::Polynomial;
+    use new_bls12_381::Scalar as Fr;
     #[test]
     fn test_first_component() {
-        let lin: Lineariser<E> = Lineariser::new();
+        let lin: Lineariser = Lineariser::new();
 
         let alpha = Fr::one();
         let a_eval = Fr::one();
@@ -294,10 +286,10 @@ mod test {
 
     #[test]
     fn test_second_component() {
-        let lin: Lineariser<E> = Lineariser::new();
+        let lin: Lineariser = Lineariser::new();
 
-        let k1 = Fr::multiplicative_generator();
-        let k2 = Fr::from(13u8);
+        let k1 = Fr::from(7);
+        let k2 = Fr::from(13);
 
         let alpha = Fr::one();
         let beta = Fr::one();
@@ -321,9 +313,9 @@ mod test {
             &z_poly.coeffs,
         );
 
-        let first_bracket = Polynomial::from_coefficients_vec(vec![Fr::from(3 as u8)]);
-        let second_bracket = Polynomial::from_coefficients_vec(vec![Fr::from(2 as u8) + &k1]);
-        let third_bracket = Polynomial::from_coefficients_vec(vec![Fr::from(2 as u8) + &k2]);
+        let first_bracket = Polynomial::from_coefficients_vec(vec![Fr::from(3)]);
+        let second_bracket = Polynomial::from_coefficients_vec(vec![Fr::from(2) + &k1]);
+        let third_bracket = Polynomial::from_coefficients_vec(vec![Fr::from(2) + &k2]);
 
         let mut expected_poly = &first_bracket * &second_bracket;
         expected_poly = &expected_poly * &third_bracket;
@@ -333,7 +325,7 @@ mod test {
     }
     #[test]
     fn test_third_component() {
-        let lin: Lineariser<E> = Lineariser::new();
+        let lin: Lineariser = Lineariser::new();
 
         let alpha = Fr::one();
         let beta = Fr::one();
@@ -356,8 +348,8 @@ mod test {
             &sig3_poly.coeffs,
         );
 
-        let first_bracket = Polynomial::from_coefficients_vec(vec![Fr::from(3 as u8)]);
-        let second_bracket = Polynomial::from_coefficients_vec(vec![Fr::from(3 as u8)]);
+        let first_bracket = Polynomial::from_coefficients_vec(vec![Fr::from(3)]);
+        let second_bracket = Polynomial::from_coefficients_vec(vec![Fr::from(3)]);
         let third_bracket = Polynomial::from_coefficients_vec(vec![z_eval]);
 
         let mut expected_poly = &first_bracket * &second_bracket;
@@ -368,10 +360,10 @@ mod test {
     }
     #[test]
     fn test_fourth_component() {
-        let lin: Lineariser<E> = Lineariser::new();
+        let lin: Lineariser = Lineariser::new();
 
         let alpha = Fr::one();
-        let z_challenge = Fr::rand(&mut rand::thread_rng());
+        let z_challenge = Scalar::from(123);
         let domain = EvaluationDomain::new(10).unwrap();
         let z_poly = Polynomial::rand(10, &mut rand::thread_rng());
 
