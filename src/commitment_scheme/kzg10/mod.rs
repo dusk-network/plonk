@@ -2,8 +2,10 @@ use new_bls12_381::{G1Affine, G1Projective, Scalar};
 use rand_core::RngCore;
 // Code was taken and modified from Pratyush: https://github.com/scipr-lab/poly-commit/blob/master/src/kzg10/mod.rs
 pub mod errors;
-mod key;
-mod srs;
+pub mod key;
+pub mod srs;
+
+pub use key::{ProverKey, VerifierKey};
 
 pub struct Proof {
     /// This is a commitment to the witness polynomial; see [KZG10] for more details.
