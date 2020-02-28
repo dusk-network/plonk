@@ -106,17 +106,6 @@ impl<'a> SubAssign<&'a Evaluations> for Evaluations {
     }
 }
 
-impl<'a, 'b> Div<&'a Evaluations> for &'b Evaluations {
-    type Output = Evaluations;
-
-    #[inline]
-    fn div(self, other: &'a Evaluations) -> Evaluations {
-        let mut result = self.clone();
-        result /= other;
-        result
-    }
-}
-
 impl<'a> DivAssign<&'a Evaluations> for Evaluations {
     #[inline]
     fn div_assign(&mut self, other: &'a Evaluations) {
