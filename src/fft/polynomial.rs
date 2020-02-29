@@ -93,7 +93,7 @@ impl Polynomial {
 
         let mut sum = Scalar::zero();
         for summand in partial_sum {
-            sum += summand
+            sum = sum + summand
         }
         sum
     }
@@ -101,7 +101,7 @@ impl Polynomial {
     /// Outputs a polynomial of degree `d` where each coefficient is sampled
     /// uniformly at random from the field `F`.
     pub fn rand<R: Rng>(d: usize, mut rng: &mut R) -> Self {
-        let mut random_coeffs = Vec::new();
+        let mut random_coeffs = Vec::with_capacity(d + 1);
         for _ in 0..=d {
             random_coeffs.push(random_scalar(&mut rng));
         }
@@ -267,18 +267,49 @@ impl<'a, 'b> Div<&'a Polynomial> for &'b Polynomial {
         if self.is_zero() || other.is_zero() {
             Polynomial::zero()
         } else {
-            let domain = EvaluationDomain::new(self.coeffs.len() + other.coeffs.len())
-                .expect("field is not smooth enough to construct domain");
-            let mut self_evals = Evaluations::from_vec_and_domain(domain.fft(&self.coeffs), domain);
-            let mut other_evals =
-                Evaluations::from_vec_and_domain(domain.fft(&other.coeffs), domain);
-            let res: Vec<_> = self_evals
-                .evals
-                .iter()
-                .zip(other_evals.evals.iter())
-                .map(|(a, b)| a * b.invert().unwrap())
-                .collect();
-            Polynomial::from_coefficients_vec(domain.ifft(&res))
+            self.divide_with_q_and_r(other).expect("division failed").0
+        }
+    }
+}
+// XXX: We should refactor this polynomial division impl
+impl Polynomial {
+    #[inline]
+    fn leading_coefficient(&self) -> Option<&Scalar> {
+        self.last()
+    }
+
+    #[inline]
+    fn iter_with_index(&self) -> Vec<(usize, Scalar)> {
+        self.iter().cloned().enumerate().collect()
+    }
+    /// Divide self by another (sparse or dense) polynomial, and returns the
+    /// quotient and remainder.
+    pub(crate) fn divide_with_q_and_r(&self, divisor: &Self) -> Option<(Polynomial, Polynomial)> {
+        if self.is_zero() {
+            Some((Polynomial::zero(), Polynomial::zero()))
+        } else if divisor.is_zero() {
+            panic!("Dividing by zero polynomial")
+        } else if self.degree() < divisor.degree() {
+            Some((Polynomial::zero(), self.clone().into()))
+        } else {
+            // Now we know that self.degree() >= divisor.degree();
+            let mut quotient = vec![Scalar::zero(); self.degree() - divisor.degree() + 1];
+            let mut remainder: Polynomial = self.clone().into();
+            // Can unwrap here because we know self is not zero.
+            let divisor_leading_inv = divisor.leading_coefficient().unwrap().invert().unwrap();
+            while !remainder.is_zero() && remainder.degree() >= divisor.degree() {
+                let cur_q_coeff = *remainder.coeffs.last().unwrap() * &divisor_leading_inv;
+                let cur_q_degree = remainder.degree() - divisor.degree();
+                quotient[cur_q_degree] = cur_q_coeff;
+
+                for (i, div_coeff) in divisor.iter_with_index() {
+                    remainder[cur_q_degree + i] -= &(cur_q_coeff * &div_coeff);
+                }
+                while let Some(true) = remainder.coeffs.last().map(|c| (c == &Scalar::zero())) {
+                    remainder.coeffs.pop();
+                }
+            }
+            Some((Polynomial::from_coefficients_vec(quotient), remainder))
         }
     }
 }
@@ -295,10 +326,22 @@ impl<'a, 'b> Mul<&'a Polynomial> for &'b Polynomial {
             let domain = EvaluationDomain::new(self.coeffs.len() + other.coeffs.len())
                 .expect("field is not smooth enough to construct domain");
             let mut self_evals = Evaluations::from_vec_and_domain(domain.fft(&self.coeffs), domain);
-            let mut other_evals =
-                Evaluations::from_vec_and_domain(domain.fft(&other.coeffs), domain);
+            let other_evals = Evaluations::from_vec_and_domain(domain.fft(&other.coeffs), domain);
             self_evals *= &other_evals;
             self_evals.interpolate()
         }
     }
+}
+
+#[test]
+fn test_div() {
+    // X^2 + 4x + 4
+    let quadratic =
+        Polynomial::from_coefficients_vec(vec![Scalar::from(4), Scalar::from(4), Scalar::one()]);
+    // X+2
+    let factor = Polynomial::from_coefficients_vec(vec![Scalar::from(2), Scalar::one()]);
+
+    let quotient = &quadratic / &factor;
+    dbg!(quotient.degree(), quadratic.degree());
+    assert_eq!(quotient, factor);
 }
