@@ -1,15 +1,13 @@
-use super::linearisation::Lineariser;
-use super::opening::commitmentOpener;
 use super::{
     constraint_system::{LinearCombination, Variable},
     permutation::Permutation,
     proof::Proof,
     Composer, PreProcessedCircuit,
 };
+use super::{linearisation_poly, opening_poly, quotient_poly};
 use crate::commitment_scheme::kzg10::ProverKey;
 use crate::fft::{EvaluationDomain, Polynomial};
-
-use crate::{cs::quotient_poly::QuotientToolkit, transcript::TranscriptProtocol};
+use crate::transcript::TranscriptProtocol;
 use bls12_381::Scalar;
 /// A composer is a circuit builder
 /// and will dictate how a circuit is built
@@ -231,8 +229,7 @@ impl Composer for StandardComposer {
         let pi_coeffs = domain.ifft(&self.public_inputs);
 
         // Compute Quotient polynomial.
-        let qt_toolkit = QuotientToolkit::new();
-        let t_coeffs = qt_toolkit.compute_quotient_poly(
+        let t_coeffs = quotient_poly::compute(
             &domain,
             &preprocessed_circuit,
             &z_coeffs,
@@ -270,8 +267,7 @@ impl Composer for StandardComposer {
         let z_challenge = transcript.challenge_scalar(b"z");
 
         // Compute Linearisation polynomial
-        let Lineariser = Lineariser::new();
-        let (lin_coeffs, evaluations) = Lineariser.evaluate_linearisation_polynomial(
+        let (lin_coeffs, evaluations) = linearisation_poly::compute(
             &domain,
             &preprocessed_circuit,
             &(alpha, beta, gamma, z_challenge),
@@ -310,8 +306,7 @@ impl Composer for StandardComposer {
         let v = transcript.challenge_scalar(b"v");
 
         // Compute opening polynomial
-        let comm_opener: commitmentOpener = commitmentOpener::new();
-        let (w_z_coeffs, w_zx_coeffs) = comm_opener.compute_opening_polynomials(
+        let (w_z_coeffs, w_zx_coeffs) = opening_poly::compute(
             domain.group_gen,
             domain.size(),
             z_challenge,
