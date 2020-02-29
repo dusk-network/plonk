@@ -77,7 +77,7 @@ impl ProverKey {
     /// hiding_degree is the degree of the polynomial that will be used to hide the original polynomial
     pub fn commit(
         &self,
-        polynomial: Polynomial,
+        polynomial: &Polynomial,
         hiding_parameters: Option<(usize, &mut dyn RngCore)>,
     ) -> Result<(Commitment, Option<BlindingPolynomial>), Error> {
         // Check whether we can safely commit to this polynomial

@@ -1,5 +1,5 @@
 use crate::constraint_system::standard::PreProcessedCircuit;
-use crate::fft::{poly_utils, EvaluationDomain};
+use crate::fft::{poly_utils, EvaluationDomain, Polynomial};
 use bls12_381::Scalar;
 
 /// Evaluations at points `z` or and `z * root of unity`
@@ -48,22 +48,22 @@ pub fn compute(
     domain: &EvaluationDomain,
     preprocessed_circuit: &PreProcessedCircuit,
     (alpha, beta, gamma, z_challenge): &(Scalar, Scalar, Scalar, Scalar),
-    w_l_coeffs: &Vec<Scalar>,
-    w_r_coeffs: &Vec<Scalar>,
-    w_o_coeffs: &Vec<Scalar>,
-    t_x_coeffs: &Vec<Scalar>,
-    z_coeffs: &Vec<Scalar>,
-) -> (Vec<Scalar>, Evaluations) {
+    w_l_poly: &Polynomial,
+    w_r_poly: &Polynomial,
+    w_o_poly: &Polynomial,
+    t_x_poly: &Polynomial,
+    z_poly: &Polynomial,
+) -> (Polynomial, Evaluations) {
     let alpha_sq = alpha.square();
     let alpha_cu = alpha * alpha_sq;
 
     // Compute batch evaluations
     let evaluations = poly_utils::multi_point_eval(
         vec![
-            t_x_coeffs,
-            w_l_coeffs,
-            w_r_coeffs,
-            w_o_coeffs,
+            t_x_poly,
+            w_l_poly,
+            w_r_poly,
+            w_o_poly,
             preprocessed_circuit.left_sigma_poly(),
             preprocessed_circuit.right_sigma_poly(),
         ],
@@ -77,7 +77,7 @@ pub fn compute(
     let right_sigma_eval = evaluations[5];
 
     // Compute permutation evaluation point
-    let perm_eval = poly_utils::single_point_eval(z_coeffs, &(*z_challenge * &domain.group_gen));
+    let perm_eval = poly_utils::single_point_eval(z_poly, &(*z_challenge * &domain.group_gen));
 
     let f_1 = compute_first_component(
         *alpha,
@@ -99,7 +99,7 @@ pub fn compute(
         alpha_sq,
         *beta,
         *gamma,
-        &z_coeffs,
+        &z_poly,
     );
 
     let f_3 = compute_third_component(
@@ -111,17 +111,18 @@ pub fn compute(
         preprocessed_circuit.out_sigma_poly(),
     );
 
-    let f_4 = compute_fourth_component(domain, *z_challenge, alpha_cu, &z_coeffs);
+    let f_4 = compute_fourth_component(domain, *z_challenge, alpha_cu, z_poly);
 
     let mut lin_coeffs = poly_utils::add_poly_vectors(&f_1, &f_2);
     lin_coeffs = poly_utils::add_poly_vectors(&lin_coeffs, &f_3);
     lin_coeffs = poly_utils::add_poly_vectors(&lin_coeffs, &f_4);
+    let lin_poly = Polynomial::from_coefficients_vec(lin_coeffs);
 
     // Evaluate linearisation polynomial at z_challenge
-    let lin_poly_eval = poly_utils::single_point_eval(&lin_coeffs, z_challenge);
+    let lin_poly_eval = poly_utils::single_point_eval(&lin_poly, z_challenge);
 
     (
-        lin_coeffs,
+        lin_poly,
         Evaluations {
             proof: ProofEvaluations {
                 a_eval,
@@ -142,11 +143,11 @@ fn compute_first_component(
     a_eval: Scalar,
     b_eval: Scalar,
     c_eval: Scalar,
-    q_m_poly: &Vec<Scalar>,
-    q_l_poly: &Vec<Scalar>,
-    q_r_poly: &Vec<Scalar>,
-    q_o_poly: &Vec<Scalar>,
-    q_c_poly: &Vec<Scalar>,
+    q_m_poly: &Polynomial,
+    q_l_poly: &Polynomial,
+    q_r_poly: &Polynomial,
+    q_o_poly: &Polynomial,
+    q_c_poly: &Polynomial,
 ) -> Vec<Scalar> {
     // a_eval * b_eval * q_m_poly
     let ab = a_eval * &b_eval;
@@ -176,7 +177,7 @@ fn compute_second_component(
     alpha_sq: Scalar,
     beta: Scalar,
     gamma: Scalar,
-    z_coeffs: &Vec<Scalar>,
+    z_poly: &Polynomial,
 ) -> Vec<Scalar> {
     let k1 = Scalar::from(7);
     let k2 = Scalar::from(13);
@@ -201,7 +202,7 @@ fn compute_second_component(
     a = a * &a_2;
     a = a * &alpha_sq; // (a_eval + beta * z_challenge + gamma)(b_eval + beta * k_1 * z_challenge + gamma)(c_eval + beta * k_2 * z_challenge + gamma) * alpha^2
 
-    poly_utils::mul_scalar_poly(a, &z_coeffs) // (a_eval + beta * z_challenge + gamma)(b_eval + beta * k_1 * z_challenge + gamma)(c_eval + beta * k_2 * z_challenge + gamma) * alpha^2 z(X)
+    poly_utils::mul_scalar_poly(a, &z_poly) // (a_eval + beta * z_challenge + gamma)(b_eval + beta * k_1 * z_challenge + gamma)(c_eval + beta * k_2 * z_challenge + gamma) * alpha^2 z(X)
 }
 fn compute_third_component(
     (a_eval, b_eval): (Scalar, Scalar),
@@ -209,7 +210,7 @@ fn compute_third_component(
     sigma_1_eval: Scalar,
     sigma_2_eval: Scalar,
     (alpha_sq, beta, gamma): (Scalar, Scalar, Scalar),
-    out_sigma_coeffs: &Vec<Scalar>,
+    out_sigma_poly: &Polynomial,
 ) -> Vec<Scalar> {
     // a_eval + beta * sigma_1 + gamma
     let beta_sigma_1 = beta * &sigma_1_eval;
@@ -227,13 +228,13 @@ fn compute_third_component(
     a = a * &beta_z_eval;
     a = a * &alpha_sq; // (a_eval + beta * sigma_1 + gamma)(b_eval + beta * sigma_2 + gamma) * beta *z_eval * alpha^2
 
-    poly_utils::mul_scalar_poly(-a, out_sigma_coeffs) // -(a_eval + beta * sigma_1 + gamma)(b_eval + beta * sigma_2 + gamma) * beta *z_eval * alpha^2 * Sigma_3(X)
+    poly_utils::mul_scalar_poly(-a, out_sigma_poly) // -(a_eval + beta * sigma_1 + gamma)(b_eval + beta * sigma_2 + gamma) * beta *z_eval * alpha^2 * Sigma_3(X)
 }
 fn compute_fourth_component(
     domain: &EvaluationDomain,
     z_challenge: Scalar,
     alpha_cu: Scalar,
-    z_coeffs: &Vec<Scalar>,
+    z_coeffs: &Polynomial,
 ) -> Vec<Scalar> {
     // Evaluate l_1(z)
     let l_1_z = domain.evaluate_all_lagrange_coefficients(z_challenge)[0];
@@ -259,10 +260,8 @@ mod test {
         let qo = Polynomial::rand(10, &mut rand::thread_rng());
         let qc = Polynomial::rand(10, &mut rand::thread_rng());
 
-        let got_poly = compute_first_component(
-            alpha, a_eval, b_eval, c_eval, &qm.coeffs, &ql.coeffs, &qr.coeffs, &qo.coeffs,
-            &qc.coeffs,
-        );
+        let got_poly =
+            compute_first_component(alpha, a_eval, b_eval, c_eval, &qm, &ql, &qr, &qo, &qc);
 
         let mut expected_poly = &qm + &ql;
         expected_poly += &qr;
@@ -296,7 +295,7 @@ mod test {
             alpha,
             beta,
             gamma,
-            &z_poly.coeffs,
+            &z_poly,
         );
 
         let first_bracket = Polynomial::from_coefficients_vec(vec![Fr::from(3)]);
@@ -329,7 +328,7 @@ mod test {
             sig1_eval,
             sig2_eval,
             (alpha, beta, gamma),
-            &sig3_poly.coeffs,
+            &sig3_poly,
         );
 
         let first_bracket = Polynomial::from_coefficients_vec(vec![Fr::from(3)]);
@@ -349,7 +348,7 @@ mod test {
         let domain = EvaluationDomain::new(10).unwrap();
         let z_poly = Polynomial::rand(10, &mut rand::thread_rng());
 
-        let got_poly = compute_fourth_component(&domain, z_challenge, alpha, &z_poly.coeffs);
+        let got_poly = compute_fourth_component(&domain, z_challenge, alpha, &z_poly);
 
         let l1_eval = domain.evaluate_all_lagrange_coefficients(z_challenge)[0];
         let l1_eval_poly = Polynomial::from_coefficients_vec(vec![l1_eval]);

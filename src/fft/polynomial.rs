@@ -332,6 +332,19 @@ impl<'a, 'b> Mul<&'a Polynomial> for &'b Polynomial {
         }
     }
 }
+/// Performs O(nlogn) multiplication of polynomials if F is smooth.
+impl<'a, 'b> Mul<&'a Scalar> for &'b Polynomial {
+    type Output = Polynomial;
+
+    #[inline]
+    fn mul(self, constant: &'a Scalar) -> Polynomial {
+        if self.is_zero() || (constant == &Scalar::zero()) {
+            return Polynomial::zero();
+        }
+        let scaled_coeffs: Vec<_> = self.coeffs.iter().map(|coeff| coeff * constant).collect();
+        Polynomial::from_coefficients_vec(scaled_coeffs)
+    }
+}
 
 #[test]
 fn test_div() {

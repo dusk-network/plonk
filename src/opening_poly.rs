@@ -8,19 +8,19 @@ pub fn compute(
     root_of_unity: Scalar,
     n: usize,
     z_challenge: Scalar,
-    lin_coeffs: &Vec<Scalar>,
+    lin_poly: &Polynomial,
     evaluations: &Evaluations,
-    t_lo_coeffs: &Vec<Scalar>,
-    t_mid_coeffs: &Vec<Scalar>,
-    t_hi_coeffs: &Vec<Scalar>,
-    w_l_coeffs: &Vec<Scalar>,
-    w_r_coeffs: &Vec<Scalar>,
-    w_o_coeffs: &Vec<Scalar>,
-    sigma_1_coeffs: &Vec<Scalar>,
-    sigma_2_coeffs: &Vec<Scalar>,
-    z_coeffs: &Vec<Scalar>,
+    t_lo_poly: &Polynomial,
+    t_mid_poly: &Polynomial,
+    t_hi_poly: &Polynomial,
+    w_l_poly: &Polynomial,
+    w_r_poly: &Polynomial,
+    w_o_poly: &Polynomial,
+    sigma_1_poly: &Polynomial,
+    sigma_2_poly: &Polynomial,
+    z_poly: &Polynomial,
     v: &Scalar,
-) -> (Vec<Scalar>, Vec<Scalar>) {
+) -> (Polynomial, Polynomial) {
     // Compute 1,v, v^2, v^3,..v^7
     let mut v_pow: Vec<Scalar> = poly_utils::powers_of(v, 7);
 
@@ -31,16 +31,16 @@ pub fn compute(
     let z_n = z_challenge.pow(&[n as u64, 0, 0, 0]);
     let z_two_n = z_challenge.pow(&[2 * n as u64, 0, 0, 0]);
 
-    let quotient_coeffs =
-        compute_quotient_opening_poly(&t_lo_coeffs, &t_mid_coeffs, &t_hi_coeffs, z_n, z_two_n);
+    let quotient_poly =
+        compute_quotient_opening_poly(&t_lo_poly, &t_mid_poly, &t_hi_poly, z_n, z_two_n);
     let polynomials = vec![
-        &quotient_coeffs,
-        lin_coeffs,
-        w_l_coeffs,
-        w_r_coeffs,
-        w_o_coeffs,
-        sigma_1_coeffs,
-        sigma_2_coeffs,
+        &quotient_poly,
+        lin_poly,
+        w_l_poly,
+        w_r_poly,
+        w_o_poly,
+        sigma_1_poly,
+        sigma_2_poly,
     ];
 
     // Compute opening polynomial
@@ -52,35 +52,35 @@ pub fn compute(
     // Compute shifted polynomial
     let shifted_z = z_challenge * &root_of_unity;
 
-    let mut W_zw = compute_witness_polynomial(z_coeffs, shifted_z);
+    let mut W_zw = compute_witness_polynomial(z_poly, shifted_z);
     W_zw = &W_zw * &Polynomial::from_coefficients_vec(vec![v_7]);
 
-    (W_z.coeffs, W_zw.coeffs)
+    (W_z, W_zw)
 }
 
 fn compute_quotient_opening_poly(
-    t_lo_coeffs: &[Scalar],
-    t_mid_coeffs: &[Scalar],
-    t_hi_coeffs: &[Scalar],
+    t_lo_poly: &Polynomial,
+    t_mid_poly: &Polynomial,
+    t_hi_poly: &Polynomial,
     z_n: Scalar,
     z_two_n: Scalar,
-) -> Vec<Scalar> {
-    let a = t_lo_coeffs;
-    let b: Vec<_> = t_mid_coeffs.par_iter().map(|mid| z_n * mid).collect();
-    let c: Vec<_> = t_hi_coeffs.par_iter().map(|hi| z_two_n * hi).collect();
+) -> Polynomial {
+    let a = t_lo_poly;
+    let b: Vec<_> = t_mid_poly.par_iter().map(|mid| z_n * mid).collect();
+    let c: Vec<_> = t_hi_poly.par_iter().map(|hi| z_two_n * hi).collect();
 
     let ab = poly_utils::add_poly_vectors(&a, &b);
     let res = poly_utils::add_poly_vectors(&ab, &c);
 
-    res
+    Polynomial::from_coefficients_vec(res)
 }
 
 // computes sum [ challenge[i] * (polynomials[i] - evaluations[i])]
 fn compute_challenge_poly_eval(
     challenges: Vec<Scalar>,
-    polynomials: Vec<&Vec<Scalar>>,
+    polynomials: Vec<&Polynomial>,
     evaluations: &Evaluations,
-) -> Vec<Scalar> {
+) -> Polynomial {
     let x: Vec<_> = challenges
         .into_par_iter()
         .zip(polynomials.into_par_iter())
@@ -97,14 +97,13 @@ fn compute_challenge_poly_eval(
         sum = poly_utils::add_poly_vectors(&poly, &sum);
     }
 
-    sum
+    Polynomial::from_coefficients_vec(sum)
 }
 
 // Given P(X) and `z`. compute P(X) - P(z) / X - z
-fn compute_witness_polynomial(p_coeffs: &Vec<Scalar>, z: Scalar) -> Polynomial {
-    let p = &Polynomial::from_coefficients_slice(p_coeffs);
+fn compute_witness_polynomial(p_poly: &Polynomial, z: Scalar) -> Polynomial {
     // evaluate polynomial at z
-    let p_eval = p.evaluate(z);
+    let p_eval = p_poly.evaluate(z);
     // convert value to a polynomial
     let poly_eval = Polynomial::from_coefficients_vec(vec![p_eval]);
 
@@ -112,7 +111,7 @@ fn compute_witness_polynomial(p_coeffs: &Vec<Scalar>, z: Scalar) -> Polynomial {
     let divisor = Polynomial::from_coefficients_vec(vec![-z, Scalar::one()]);
 
     // Compute witness polynomial
-    let witness_polynomial = &(p - &poly_eval) / &divisor;
+    let witness_polynomial = &(p_poly - &poly_eval) / &divisor;
 
     witness_polynomial
 }

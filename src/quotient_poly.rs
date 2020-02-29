@@ -6,17 +6,17 @@ use rayon::prelude::*;
 pub fn compute(
     domain: &EvaluationDomain,
     preprocessed_circuit: &PreProcessedCircuit,
-    z_coeffs: &[Scalar],
-    witness_polynomials: [&Vec<Scalar>; 3],
-    public_inputs_coeffs: &Vec<Scalar>,
+    z_poly: &Polynomial,
+    witness_polynomials: [&Polynomial; 3],
+    public_inputs_poly: &Polynomial,
     (alpha, beta, gamma): &(Scalar, Scalar, Scalar),
-) -> Vec<Scalar> {
+) -> Polynomial {
     let k1 = Scalar::from(7);
     let k2 = Scalar::from(13);
 
-    let wl_coeffs = witness_polynomials[0];
-    let wr_coeffs = witness_polynomials[1];
-    let wo_coeffs = witness_polynomials[2];
+    let w_l_poly = witness_polynomials[0];
+    let w_r_poly = witness_polynomials[1];
+    let w_o_poly = witness_polynomials[2];
 
     // Compute components for t(X)
     let t_1 = compute_quotient_first_component(
@@ -27,15 +27,15 @@ pub fn compute(
         preprocessed_circuit.qr_eval_4n(),
         preprocessed_circuit.qo_eval_4n(),
         preprocessed_circuit.qc_eval_4n(),
-        public_inputs_coeffs,
-        wl_coeffs,
-        wr_coeffs,
-        wo_coeffs,
+        public_inputs_poly,
+        w_l_poly,
+        w_r_poly,
+        w_o_poly,
     );
 
     // Compute 4n eval of z(X)
     let domain_4n = EvaluationDomain::new(4 * domain.size()).unwrap();
-    let mut z_eval_4n = domain_4n.coset_fft(&z_coeffs);
+    let mut z_eval_4n = domain_4n.coset_fft(&z_poly);
     z_eval_4n.push(z_eval_4n[0]);
     z_eval_4n.push(z_eval_4n[1]);
     z_eval_4n.push(z_eval_4n[2]);
@@ -49,9 +49,9 @@ pub fn compute(
         beta,
         gamma,
         &z_eval_4n,
-        &wl_coeffs,
-        &wr_coeffs,
-        &wo_coeffs,
+        &w_l_poly,
+        &w_r_poly,
+        &w_o_poly,
     );
     let t_3 = compute_quotient_third_component(
         domain,
@@ -59,14 +59,14 @@ pub fn compute(
         beta,
         gamma,
         &z_eval_4n,
-        &wl_coeffs,
-        &wr_coeffs,
-        &wo_coeffs,
+        &w_l_poly,
+        &w_r_poly,
+        &w_o_poly,
         preprocessed_circuit.left_sigma_poly(),
         preprocessed_circuit.right_sigma_poly(),
         preprocessed_circuit.out_sigma_poly(),
     );
-    let t_4 = compute_quotient_fourth_component(domain, &z_coeffs, alpha.square() * alpha);
+    let t_4 = compute_quotient_fourth_component(domain, z_poly, alpha.square() * alpha);
     let mut quotient_evals = poly_utils::add_poly_vectors(&t_1, &t_2);
     quotient_evals = poly_utils::add_poly_vectors(&t_3, &quotient_evals);
     quotient_evals = poly_utils::add_poly_vectors(&t_4, &quotient_evals);
@@ -80,21 +80,21 @@ pub fn compute(
         .map(|(q, v_h)| q * v_h.invert().unwrap())
         .collect();
 
-    domain_4n.coset_ifft(&quotient_evals_div_v_h)
+    Polynomial::from_coefficients_vec(domain_4n.coset_ifft(&quotient_evals_div_v_h))
 }
 
 fn compute_quotient_first_component(
     domain: &EvaluationDomain,
     alpha: &Scalar,
-    qm_eval_4n: &[Scalar],
-    ql_eval_4n: &[Scalar],
-    qr_eval_4n: &[Scalar],
-    qo_eval_4n: &[Scalar],
-    qc_eval_4n: &[Scalar],
-    pi_coeffs: &[Scalar],
-    wl_coeffs: &[Scalar],
-    wr_coeffs: &[Scalar],
-    wo_coeffs: &[Scalar],
+    qm_eval_4n: &Vec<Scalar>,
+    ql_eval_4n: &Vec<Scalar>,
+    qr_eval_4n: &Vec<Scalar>,
+    qo_eval_4n: &Vec<Scalar>,
+    qc_eval_4n: &Vec<Scalar>,
+    pi_coeffs: &Polynomial,
+    wl_coeffs: &Polynomial,
+    wr_coeffs: &Polynomial,
+    wo_coeffs: &Polynomial,
 ) -> Vec<Scalar> {
     let n = domain.size();
     let domain_4n = EvaluationDomain::new(4 * n).unwrap();
@@ -153,10 +153,10 @@ fn compute_quotient_second_component(
     k2: &Scalar,
     beta: &Scalar,
     gamma: &Scalar,
-    z_eval_4n: &[Scalar],
-    wl_coeffs: &[Scalar],
-    wr_coeffs: &[Scalar],
-    wo_coeffs: &[Scalar],
+    z_eval_4n: &Vec<Scalar>,
+    wl_coeffs: &Polynomial,
+    wr_coeffs: &Polynomial,
+    wo_coeffs: &Polynomial,
 ) -> Vec<Scalar> {
     let n = domain.size();
     let domain_4n = EvaluationDomain::new(4 * n).unwrap();
@@ -199,13 +199,13 @@ fn compute_quotient_third_component(
     alpha_sq: &Scalar,
     beta: &Scalar,
     gamma: &Scalar,
-    z_eval_4n: &[Scalar],
-    wl_coeffs: &[Scalar],
-    wr_coeffs: &[Scalar],
-    wo_coeffs: &[Scalar],
-    left_sigma_coeffs: &[Scalar],
-    right_sigma_coeffs: &[Scalar],
-    out_sigma_coeffs: &[Scalar],
+    z_eval_4n: &Vec<Scalar>,
+    wl_coeffs: &Polynomial,
+    wr_coeffs: &Polynomial,
+    wo_coeffs: &Polynomial,
+    left_sigma_coeffs: &Polynomial,
+    right_sigma_coeffs: &Polynomial,
+    out_sigma_coeffs: &Polynomial,
 ) -> Vec<Scalar> {
     let n = domain.size();
     let domain_4n = EvaluationDomain::new(4 * n).unwrap();
@@ -249,7 +249,7 @@ fn compute_quotient_third_component(
 
 fn compute_quotient_fourth_component(
     domain: &EvaluationDomain,
-    z_coeffs: &[Scalar],
+    z_poly: &Polynomial,
     alpha_cu: Scalar,
 ) -> Vec<Scalar> {
     let n = domain.size();
@@ -259,7 +259,7 @@ fn compute_quotient_fourth_component(
     let alpha_cu_l1_coeffs: Vec<_> = l1_coeffs.par_iter().map(|x| alpha_cu * x).collect();
 
     // (Z(x) - 1)
-    let mut z_coeffs = z_coeffs.to_vec();
+    let mut z_coeffs = z_poly.to_vec();
     z_coeffs[0] = z_coeffs[0] - &Scalar::one();
 
     let z_evals = domain_4n.coset_fft(&z_coeffs);
