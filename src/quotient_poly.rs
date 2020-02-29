@@ -1,8 +1,9 @@
 use crate::constraint_system::standard::PreProcessedCircuit;
+
 use crate::fft::{EvaluationDomain, Polynomial};
+use crate::permutation::constants::{K1, K2};
 use bls12_381::Scalar;
 use rayon::prelude::*;
-
 pub fn compute(
     domain: &EvaluationDomain,
     preprocessed_circuit: &PreProcessedCircuit,
@@ -11,9 +12,6 @@ pub fn compute(
     public_inputs_poly: &Polynomial,
     (alpha, beta, gamma): &(Scalar, Scalar, Scalar),
 ) -> Polynomial {
-    let k1 = Scalar::from(7);
-    let k2 = Scalar::from(13);
-
     let w_l_poly = witness_polynomials[0];
     let w_r_poly = witness_polynomials[1];
     let w_o_poly = witness_polynomials[2];
@@ -44,8 +42,6 @@ pub fn compute(
     let t_2 = compute_quotient_second_component(
         domain,
         &alpha.square(),
-        &k1,
-        &k2,
         beta,
         gamma,
         &z_eval_4n,
@@ -149,8 +145,6 @@ fn compute_quotient_first_component(
 fn compute_quotient_second_component(
     domain: &EvaluationDomain,
     alpha_sq: &Scalar,
-    k1: &Scalar,
-    k2: &Scalar,
     beta: &Scalar,
     gamma: &Scalar,
     z_eval_4n: &Vec<Scalar>,
@@ -168,12 +162,12 @@ fn compute_quotient_second_component(
 
     let mut b = wr_coeffs.to_vec();
     b[0] = b[0] + gamma;
-    let beta_k1 = *beta * k1;
+    let beta_k1 = *beta * K1;
     b[1] = b[1] + &beta_k1;
 
     let mut c = wo_coeffs.to_vec();
     c[0] = c[0] + gamma;
-    let beta_k2 = *beta * k2;
+    let beta_k2 = *beta * K2;
     c[1] = c[1] + &beta_k2;
 
     domain_4n.coset_fft_in_place(&mut a);
@@ -287,14 +281,16 @@ fn compute_vanishing_poly_over_coset(
     domain: &EvaluationDomain, // domain to evaluate over
     poly_degree: u64,          // degree of the vanishing polynomial
 ) -> Vec<Scalar> {
-    let coset_gen = Scalar::from(7).pow(&[poly_degree, 0, 0, 0]);
+    use crate::fft::constants::GENERATOR;
+    let multiplicative_gen = GENERATOR;
+
+    let coset_gen = multiplicative_gen.pow(&[poly_degree, 0, 0, 0]);
     let v_h: Vec<_> = (0..domain.size())
         .into_iter()
         .map(|i| {
             (coset_gen * &domain.group_gen.pow(&[poly_degree * i as u64, 0, 0, 0])) - &Scalar::one()
         })
         .collect();
-
     v_h
 }
 
