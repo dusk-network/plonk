@@ -6,6 +6,7 @@ use crate::fft::{EvaluationDomain, Evaluations, Polynomial};
 use crate::transcript::TranscriptProtocol;
 use crate::{linearisation_poly, opening_poly, permutation::Permutation};
 use bls12_381::Scalar;
+use rayon::iter::IntoParallelIterator;
 /// A composer is a circuit builder
 /// and will dictate how a circuit is built
 /// We will have a default Composer called `StandardComposer`
