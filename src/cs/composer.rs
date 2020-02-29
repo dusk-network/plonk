@@ -1,4 +1,3 @@
-use super::linearisation::Lineariser;
 use super::opening::commitmentOpener;
 use super::{
     constraint_system::{LinearCombination, Variable},
@@ -6,10 +5,10 @@ use super::{
     proof::Proof,
     Composer, PreProcessedCircuit,
 };
+use super::{linearisation_poly, quotient_poly};
 use crate::commitment_scheme::kzg10::ProverKey;
 use crate::fft::{EvaluationDomain, Polynomial};
-
-use crate::{cs::quotient_poly, transcript::TranscriptProtocol};
+use crate::transcript::TranscriptProtocol;
 use bls12_381::Scalar;
 /// A composer is a circuit builder
 /// and will dictate how a circuit is built
@@ -269,8 +268,7 @@ impl Composer for StandardComposer {
         let z_challenge = transcript.challenge_scalar(b"z");
 
         // Compute Linearisation polynomial
-        let Lineariser = Lineariser::new();
-        let (lin_coeffs, evaluations) = Lineariser.evaluate_linearisation_polynomial(
+        let (lin_coeffs, evaluations) = linearisation_poly::compute(
             &domain,
             &preprocessed_circuit,
             &(alpha, beta, gamma, z_challenge),

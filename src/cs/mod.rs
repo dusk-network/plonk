@@ -1,6 +1,6 @@
 pub mod composer;
 pub mod constraint_system;
-mod linearisation;
+mod linearisation_poly;
 mod opening;
 mod permutation;
 pub mod poly_utils;

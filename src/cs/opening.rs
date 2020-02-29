@@ -1,4 +1,4 @@
-use super::linearisation::LinEval;
+use super::linearisation_poly::LinEval;
 use crate::cs::poly_utils::Poly_utils;
 use crate::fft::Polynomial;
 use bls12_381::Scalar;
