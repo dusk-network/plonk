@@ -1,51 +1,44 @@
 use super::linearisation::LinEval;
 use crate::cs::poly_utils::Poly_utils;
-use crate::transcript::TranscriptProtocol;
-use algebra::{curves::PairingEngine, fields::Field};
-use ff_fft::DensePolynomial as Polynomial;
+use crate::fft::Polynomial;
 use itertools::izip;
-use num_traits::{One, Zero};
+use new_bls12_381::Scalar;
 use rayon::prelude::*;
-use std::marker::PhantomData;
-pub struct commitmentOpener<E: PairingEngine> {
-    _engine: PhantomData<E>,
-}
-impl<E: PairingEngine> commitmentOpener<E> {
+pub struct commitmentOpener {}
+impl commitmentOpener {
     pub fn new() -> Self {
-        commitmentOpener {
-            _engine: PhantomData,
-        }
+        commitmentOpener {}
     }
 
     pub fn compute_opening_polynomials(
         &self,
-        root_of_unity: E::Fr,
+        root_of_unity: Scalar,
         n: usize,
-        z_challenge: E::Fr,
-        lin_coeffs: &Vec<E::Fr>,
-        evaluations: LinEval<E>,
-        t_lo_coeffs: &Vec<E::Fr>,
-        t_mid_coeffs: &Vec<E::Fr>,
-        t_hi_coeffs: &Vec<E::Fr>,
-        w_l_coeffs: &Vec<E::Fr>,
-        w_r_coeffs: &Vec<E::Fr>,
-        w_o_coeffs: &Vec<E::Fr>,
-        sigma_1_coeffs: &Vec<E::Fr>,
-        sigma_2_coeffs: &Vec<E::Fr>,
-        z_coeffs: &Vec<E::Fr>,
-        v: &E::Fr,
-    ) -> (Vec<E::Fr>, Vec<E::Fr>) {
-        let poly_utils: Poly_utils<E> = Poly_utils::new();
+        z_challenge: Scalar,
+        lin_coeffs: &Vec<Scalar>,
+        evaluations: LinEval,
+        t_lo_coeffs: &Vec<Scalar>,
+        t_mid_coeffs: &Vec<Scalar>,
+        t_hi_coeffs: &Vec<Scalar>,
+        w_l_coeffs: &Vec<Scalar>,
+        w_r_coeffs: &Vec<Scalar>,
+        w_o_coeffs: &Vec<Scalar>,
+        sigma_1_coeffs: &Vec<Scalar>,
+        sigma_2_coeffs: &Vec<Scalar>,
+        z_coeffs: &Vec<Scalar>,
+        v: &Scalar,
+    ) -> (Vec<Scalar>, Vec<Scalar>) {
+        let poly_utils: Poly_utils = Poly_utils::new();
 
         // Compute 1,v, v^2, v^3,..v^7
-        let mut v_pow: Vec<E::Fr> = poly_utils.powers_of(v, 7);
+        let mut v_pow: Vec<Scalar> = poly_utils.powers_of(v, 7);
 
         let v_7 = v_pow.pop().unwrap();
-        let z_hat_eval = evaluations.perm_eval; // XXX: For better readability, we should probably have an evaluation struct. It is a vector so that we can iterate in compute_challenge_poly_eval
+        let z_hat_eval = evaluations.perm_eval;
 
         // Compute z^n , z^2n
-        let z_n = z_challenge.pow(&[n as u64]);
-        let z_two_n = z_challenge.pow(&[2 * n as u64]);
+        let z_n = z_challenge.pow(&[n as u64, 0, 0, 0]);
+        let z_two_n = z_challenge.pow(&[2 * n as u64, 0, 0, 0]);
 
         let quotient_coeffs = self.compute_quotient_opening_poly(
             &t_lo_coeffs,
@@ -81,13 +74,13 @@ impl<E: PairingEngine> commitmentOpener<E> {
 
     fn compute_quotient_opening_poly(
         &self,
-        t_lo_coeffs: &[E::Fr],
-        t_mid_coeffs: &[E::Fr],
-        t_hi_coeffs: &[E::Fr],
-        z_n: E::Fr,
-        z_two_n: E::Fr,
-    ) -> Vec<E::Fr> {
-        let poly_utils: Poly_utils<E> = Poly_utils::new();
+        t_lo_coeffs: &[Scalar],
+        t_mid_coeffs: &[Scalar],
+        t_hi_coeffs: &[Scalar],
+        z_n: Scalar,
+        z_two_n: Scalar,
+    ) -> Vec<Scalar> {
+        let poly_utils: Poly_utils = Poly_utils::new();
 
         let a = t_lo_coeffs;
         let b: Vec<_> = t_mid_coeffs.par_iter().map(|mid| z_n * mid).collect();
@@ -102,11 +95,11 @@ impl<E: PairingEngine> commitmentOpener<E> {
     // computes sum [ challenge[i] * (polynomials[i] - evaluations[i])]
     fn compute_challenge_poly_eval(
         &self,
-        challenges: Vec<E::Fr>,
-        polynomials: Vec<&Vec<E::Fr>>,
-        evaluations: LinEval<E>,
-    ) -> Vec<E::Fr> {
-        let poly_utils: Poly_utils<E> = Poly_utils::new();
+        challenges: Vec<Scalar>,
+        polynomials: Vec<&Vec<Scalar>>,
+        evaluations: LinEval,
+    ) -> Vec<Scalar> {
+        let poly_utils: Poly_utils = Poly_utils::new();
         let x: Vec<_> = challenges
             .into_par_iter()
             .zip(polynomials.into_par_iter())
@@ -127,7 +120,7 @@ impl<E: PairingEngine> commitmentOpener<E> {
     }
 
     // Given P(X) and `z`. compute P(X) - P(z) / X - z
-    fn compute_witness_polynomial(&self, p_coeffs: &Vec<E::Fr>, z: E::Fr) -> Polynomial<E::Fr> {
+    fn compute_witness_polynomial(&self, p_coeffs: &Vec<Scalar>, z: Scalar) -> Polynomial {
         let p = &Polynomial::from_coefficients_slice(p_coeffs);
         // evaluate polynomial at z
         let p_eval = p.evaluate(z);
@@ -135,7 +128,7 @@ impl<E: PairingEngine> commitmentOpener<E> {
         let poly_eval = Polynomial::from_coefficients_vec(vec![p_eval]);
 
         // Construct divisor for kate witness
-        let divisor = Polynomial::from_coefficients_vec(vec![-z, E::Fr::one()]);
+        let divisor = Polynomial::from_coefficients_vec(vec![-z, Scalar::one()]);
 
         // Compute witness polynomial
         let witness_polynomial = &(p - &poly_eval) / &divisor;
