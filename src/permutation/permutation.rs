@@ -87,7 +87,7 @@ impl Permutation {
         }
     }
     /// Convert variables to their actual Scalars
-    pub(super) fn witness_vars_to_scalars(
+    pub(crate) fn witness_vars_to_scalars(
         &self,
         w_l: &[Variable],
         w_r: &[Variable],
