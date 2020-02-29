@@ -1,4 +1,4 @@
-use crate::cs::poly_utils::Poly_utils;
+use crate::cs::poly_utils;
 use crate::cs::PreProcessedCircuit;
 use crate::fft::{EvaluationDomain, Polynomial};
 use bls12_381::Scalar;
@@ -12,7 +12,6 @@ pub fn compute(
     public_inputs_coeffs: &Vec<Scalar>,
     (alpha, beta, gamma): &(Scalar, Scalar, Scalar),
 ) -> Vec<Scalar> {
-    let poly_utils: Poly_utils = Poly_utils::new();
     let k1 = Scalar::from(7);
     let k2 = Scalar::from(13);
 
@@ -69,9 +68,9 @@ pub fn compute(
         preprocessed_circuit.out_sigma_poly(),
     );
     let t_4 = compute_quotient_fourth_component(domain, &z_coeffs, alpha.square() * alpha);
-    let mut quotient_evals = poly_utils.add_poly_vectors(&t_1, &t_2);
-    quotient_evals = poly_utils.add_poly_vectors(&t_3, &quotient_evals);
-    quotient_evals = poly_utils.add_poly_vectors(&t_4, &quotient_evals);
+    let mut quotient_evals = poly_utils::add_poly_vectors(&t_1, &t_2);
+    quotient_evals = poly_utils::add_poly_vectors(&t_3, &quotient_evals);
+    quotient_evals = poly_utils::add_poly_vectors(&t_4, &quotient_evals);
     let v_h_coset_4n = compute_vanishing_poly_over_coset(&domain_4n, domain.size() as u64);
 
     // Divide the quotient polynomial by the vanishing polynomial over a coset
@@ -210,7 +209,6 @@ fn compute_quotient_third_component(
     out_sigma_coeffs: &[Scalar],
 ) -> Vec<Scalar> {
     let n = domain.size();
-    let poly_utils: Poly_utils = Poly_utils::new();
     let domain_4n = EvaluationDomain::new(4 * n).unwrap();
 
     // (a(x) + beta * Sigma1(X) + gamma) (b(X) + beta * Sigma2(X) + gamma) (c(X) + beta * Sigma3(X) + gamma)
@@ -220,15 +218,15 @@ fn compute_quotient_third_component(
     let beta_out_sigma: Vec<_> = out_sigma_coeffs.par_iter().map(|x| *beta * x).collect();
     // (a(x) + beta * Sigma1(X) + gamma)
     //
-    let mut a = poly_utils.add_poly_vectors(&beta_left_sigma, wl_coeffs);
+    let mut a = poly_utils::add_poly_vectors(&beta_left_sigma, wl_coeffs);
     a[0] = a[0] + gamma;
     // (b(X) + beta * Sigma2(X) + gamma)
     //
-    let mut b = poly_utils.add_poly_vectors(&beta_right_sigma, wr_coeffs);
+    let mut b = poly_utils::add_poly_vectors(&beta_right_sigma, wr_coeffs);
     b[0] = b[0] + gamma;
     //(c(X) + beta * Sigma3(X) + gamma)
     //
-    let mut c = poly_utils.add_poly_vectors(&beta_out_sigma, wo_coeffs);
+    let mut c = poly_utils::add_poly_vectors(&beta_out_sigma, wo_coeffs);
     c[0] = c[0] + gamma;
 
     domain_4n.coset_fft_in_place(&mut a);

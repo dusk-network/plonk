@@ -1,4 +1,4 @@
-use super::constraint_system::{Variable, WireData};
+use crate::cs::{Variable, WireData};
 
 use crate::fft::EvaluationDomain;
 

@@ -1,17 +1,14 @@
 pub mod composer;
-pub mod constraint_system;
-mod linearisation_poly;
-mod opening_poly;
-mod permutation;
+pub mod linear_combination;
 pub mod poly_utils;
 pub mod proof;
-mod quotient_poly;
 
 use crate::commitment_scheme::kzg10::{Commitment, ProverKey};
 use crate::fft::EvaluationDomain;
 use crate::transcript::TranscriptProtocol;
 use bls12_381::Scalar;
 
+pub use linear_combination::{LinearCombination, Variable, WireData};
 // Preprocessed circuit includes the commitment to the selector polynomials and the sigma polynomials
 pub struct PreProcessedCircuit {
     // The number of gates in the circuit

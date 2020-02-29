@@ -1,5 +1,5 @@
 use super::linearisation_poly::Evaluations;
-use crate::cs::poly_utils::Poly_utils;
+use crate::cs::poly_utils;
 use crate::fft::Polynomial;
 use bls12_381::Scalar;
 use itertools::izip;
@@ -22,10 +22,8 @@ pub fn compute(
     z_coeffs: &Vec<Scalar>,
     v: &Scalar,
 ) -> (Vec<Scalar>, Vec<Scalar>) {
-    let poly_utils: Poly_utils = Poly_utils::new();
-
     // Compute 1,v, v^2, v^3,..v^7
-    let mut v_pow: Vec<Scalar> = poly_utils.powers_of(v, 7);
+    let mut v_pow: Vec<Scalar> = poly_utils::powers_of(v, 7);
 
     let v_7 = v_pow.pop().unwrap();
     let z_hat_eval = evaluations.proof.perm_eval;
@@ -68,14 +66,12 @@ fn compute_quotient_opening_poly(
     z_n: Scalar,
     z_two_n: Scalar,
 ) -> Vec<Scalar> {
-    let poly_utils: Poly_utils = Poly_utils::new();
-
     let a = t_lo_coeffs;
     let b: Vec<_> = t_mid_coeffs.par_iter().map(|mid| z_n * mid).collect();
     let c: Vec<_> = t_hi_coeffs.par_iter().map(|hi| z_two_n * hi).collect();
 
-    let ab = poly_utils.add_poly_vectors(&a, &b);
-    let res = poly_utils.add_poly_vectors(&ab, &c);
+    let ab = poly_utils::add_poly_vectors(&a, &b);
+    let res = poly_utils::add_poly_vectors(&ab, &c);
 
     res
 }
@@ -86,7 +82,6 @@ fn compute_challenge_poly_eval(
     polynomials: Vec<&Vec<Scalar>>,
     evaluations: &Evaluations,
 ) -> Vec<Scalar> {
-    let poly_utils: Poly_utils = Poly_utils::new();
     let x: Vec<_> = challenges
         .into_par_iter()
         .zip(polynomials.into_par_iter())
@@ -100,7 +95,7 @@ fn compute_challenge_poly_eval(
 
     let mut sum = Vec::new();
     for poly in x.iter() {
-        sum = poly_utils.add_poly_vectors(&poly, &sum);
+        sum = poly_utils::add_poly_vectors(&poly, &sum);
     }
 
     sum

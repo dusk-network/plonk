@@ -5,7 +5,7 @@ use bls12_381::Scalar;
 
 /// The value is a reference to the actual value that was added to the constraint system
 #[derive(Debug, Eq, PartialEq, Clone, Copy, Hash)]
-pub struct Variable(pub(super) usize);
+pub struct Variable(pub(crate) usize);
 
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub struct LinearCombination {
