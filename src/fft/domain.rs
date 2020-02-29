@@ -184,7 +184,7 @@ impl EvaluationDomain {
             }
             u
         } else {
-            use crate::batch_inversion;
+            use crate::util::batch_inversion;
 
             let mut l = (t_size - &one) * &self.size_inv;
             let mut r = one;
