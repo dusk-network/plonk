@@ -1,5 +1,5 @@
+use super::constants::{K1, K2};
 use crate::constraint_system::{Variable, WireData};
-
 use crate::fft::{EvaluationDomain, Polynomial};
 use bls12_381::Scalar;
 use itertools::izip;
@@ -137,9 +137,6 @@ impl Permutation {
         sigma_mapping: &[WireData],
         domain: &EvaluationDomain,
     ) -> Vec<Scalar> {
-        let k1 = Scalar::from(7);
-        let k2 = Scalar::from(13);
-
         let roots: Vec<_> = domain.elements().collect();
 
         let lagrange_poly: Vec<Scalar> = sigma_mapping
@@ -151,11 +148,11 @@ impl Permutation {
                 }
                 WireData::Right(index) => {
                     let root = &roots[*index];
-                    k1 * root
+                    K1 * root
                 }
                 WireData::Output(index) => {
                     let root = &roots[*index];
-                    k2 * root
+                    K2 * root
                 }
             })
             .collect();
@@ -217,9 +214,6 @@ impl Permutation {
     {
         let n = domain.size();
 
-        let k1 = Scalar::from(7);
-        let k2 = Scalar::from(13);
-
         let left_sigma_mapping = self.left_sigma_mapping.as_ref().unwrap();
         let right_sigma_mapping = self.right_sigma_mapping.as_ref().unwrap();
         let out_sigma_mapping = self.out_sigma_mapping.as_ref().unwrap();
@@ -232,11 +226,11 @@ impl Permutation {
         // Compute beta * roots
         let beta_roots_iter = domain.elements().map(|root| root * beta);
 
-        // Compute beta * roots * k1
-        let beta_roots_k1_iter = domain.elements().map(|root| (k1 * beta) * &root);
+        // Compute beta * roots * K1
+        let beta_roots_K1_iter = domain.elements().map(|root| (K1 * beta) * &root);
 
-        // Compute beta * roots * k2
-        let beta_roots_k2_iter = domain.elements().map(|root| (k2 * beta) * &root);
+        // Compute beta * roots * K2
+        let beta_roots_K2_iter = domain.elements().map(|root| (K2 * beta) * &root);
 
         // Compute left_wire + gamma
         let wL_gamma: Vec<_> = w_l.map(|w| w + gamma).collect();
@@ -258,22 +252,22 @@ impl Permutation {
         denominator_coefficients.push(Scalar::one());
 
         // Compute numerator coefficients
-        for (w_l_gamma, w_r_gamma, w_o_gamma, beta_root, beta_root_k1, beta_root_k2) in izip!(
+        for (w_l_gamma, w_r_gamma, w_o_gamma, beta_root, beta_root_K1, beta_root_K2) in izip!(
             wL_gamma.iter(),
             wR_gamma.iter(),
             wO_gamma.iter(),
             beta_roots_iter,
-            beta_roots_k1_iter,
-            beta_roots_k2_iter,
+            beta_roots_K1_iter,
+            beta_roots_K2_iter,
         ) {
             // (w_L + beta * root + gamma)
             let prod_a = beta_root + w_l_gamma;
 
             // (w_R + beta * root * k_1 + gamma)
-            let prod_b = beta_root_k1 + w_r_gamma;
+            let prod_b = beta_root_K1 + w_r_gamma;
 
             // (w_O + beta * root * k_2 + gamma)
-            let prod_c = beta_root_k2 + w_o_gamma;
+            let prod_c = beta_root_K2 + w_o_gamma;
 
             let mut prod = prod_a * &prod_b;
             prod = prod * &prod_c;
@@ -358,8 +352,6 @@ impl Permutation {
     ) -> Vec<Scalar> {
         let n = domain.size();
 
-        let k1 = Scalar::from(7);
-        let k2 = Scalar::from(13);
         // Compute beta * roots
         let common_roots: Vec<Scalar> = domain.elements().map(|root| root * beta).collect();
 
@@ -382,11 +374,11 @@ impl Permutation {
             .map(|sigma| sigma * beta)
             .collect();
 
-        // Compute beta * roots * k1
-        let beta_roots_k1: Vec<_> = common_roots.par_iter().map(|x| x * k1).collect();
+        // Compute beta * roots * K1
+        let beta_roots_K1: Vec<_> = common_roots.par_iter().map(|x| x * K1).collect();
 
-        // Compute beta * roots * k2
-        let beta_roots_k2: Vec<_> = common_roots.par_iter().map(|x| x * k2).collect();
+        // Compute beta * roots * K2
+        let beta_roots_K2: Vec<_> = common_roots.par_iter().map(|x| x * K2).collect();
 
         // Compute left_wire + gamma
         let wL_gamma: Vec<_> = w_l.par_iter().map(|w_L| w_L + gamma).collect();
@@ -404,8 +396,8 @@ impl Permutation {
             wR_gamma,
             wO_gamma,
             common_roots,
-            beta_roots_k1,
-            beta_roots_k2,
+            beta_roots_K1,
+            beta_roots_K2,
             beta_left_sigmas,
             beta_right_sigmas,
             beta_out_sigmas,
@@ -417,8 +409,8 @@ impl Permutation {
                     w_r_gamma,
                     w_o_gamma,
                     beta_root,
-                    beta_root_k1,
-                    beta_root_k2,
+                    beta_root_K1,
+                    beta_root_K2,
                     beta_left_sigma,
                     beta_right_sigma,
                     beta_out_sigma,
@@ -426,11 +418,11 @@ impl Permutation {
                     // w_j + beta * root^j-1 + gamma
                     let ac1 = w_l_gamma + &beta_root;
 
-                    // w_{n+j} + beta * k1 * root^j-1 + gamma
-                    let ac2 = w_r_gamma + &beta_root_k1;
+                    // w_{n+j} + beta * K1 * root^j-1 + gamma
+                    let ac2 = w_r_gamma + &beta_root_K1;
 
-                    // w_{2n+j} + beta * k2 * root^j-1 + gamma
-                    let ac3 = w_o_gamma + &beta_root_k2;
+                    // w_{2n+j} + beta * K2 * root^j-1 + gamma
+                    let ac3 = w_o_gamma + &beta_root_K2;
 
                     // 1 / w_j + beta * sigma(j) + gamma
                     let ac4 = (w_l_gamma + &beta_left_sigma).invert().unwrap();
@@ -614,38 +606,36 @@ mod test {
         assert_eq!(out_sigma[3], WireData::Output(3));
 
         let domain = EvaluationDomain::new(num_wire_mappings).unwrap();
-        let k1 = Fr::from(7);
-        let k2 = Fr::from(13);
         let w: Fr = domain.group_gen;
         let w_squared = w.pow(&[2, 0, 0, 0]);
         let w_cubed = w.pow(&[3, 0, 0, 0]);
 
         // check the left sigmas have been encoded properly
         // Left_sigma = {R0, L2,L3, L0}
-        // Should turn into {1 * k1, w^2, w^3, 1}
+        // Should turn into {1 * K1, w^2, w^3, 1}
         let encoded_left_sigma = perm.compute_permutation_lagrange(left_sigma, &domain);
-        assert_eq!(encoded_left_sigma[0], Fr::one() * &k1);
+        assert_eq!(encoded_left_sigma[0], Fr::one() * &K1);
         assert_eq!(encoded_left_sigma[1], w_squared);
         assert_eq!(encoded_left_sigma[2], w_cubed);
         assert_eq!(encoded_left_sigma[3], Fr::one());
 
         // check the right sigmas have been encoded properly
         // Right_sigma = {L1, R1, R2, R3}
-        // Should turn into {w, w * k1, w^2 * k1, w^3 * k1}
+        // Should turn into {w, w * K1, w^2 * K1, w^3 * K1}
         let encoded_right_sigma = perm.compute_permutation_lagrange(right_sigma, &domain);
         assert_eq!(encoded_right_sigma[0], w);
-        assert_eq!(encoded_right_sigma[1], w * &k1);
-        assert_eq!(encoded_right_sigma[2], w_squared * &k1);
-        assert_eq!(encoded_right_sigma[3], w_cubed * &k1);
+        assert_eq!(encoded_right_sigma[1], w * &K1);
+        assert_eq!(encoded_right_sigma[2], w_squared * &K1);
+        assert_eq!(encoded_right_sigma[3], w_cubed * &K1);
 
         // check the output sigmas have been encoded properly
         // Out_sigma = {O0, O1, O2, O3, O4}
-        // Should turn into {1 * k2, w * k2, w^2 * k2, w^3 * k2}
+        // Should turn into {1 * K2, w * K2, w^2 * K2, w^3 * K2}
         let encoded_output_sigma = perm.compute_permutation_lagrange(out_sigma, &domain);
-        assert_eq!(encoded_output_sigma[0], Fr::one() * &k2);
-        assert_eq!(encoded_output_sigma[1], w * &k2);
-        assert_eq!(encoded_output_sigma[2], w_squared * &k2);
-        assert_eq!(encoded_output_sigma[3], w_cubed * &k2);
+        assert_eq!(encoded_output_sigma[0], Fr::one() * &K2);
+        assert_eq!(encoded_output_sigma[1], w * &K2);
+        assert_eq!(encoded_output_sigma[2], w_squared * &K2);
+        assert_eq!(encoded_output_sigma[3], w_cubed * &K2);
 
         let w_l = vec![Fr::from(2), Fr::from(2), Fr::from(2), Fr::from(2)];
         let w_r = vec![Fr::from(2), Fr::one(), Fr::one(), Fr::one()];
@@ -715,39 +705,37 @@ mod test {
 
         Check that the unique encodings of the sigma polynomials have been computed properly
         Left_Sigma : {R0,O1,R2,O0}
-            When encoded using w, k1,k2 we have {1 * k1, w * k2, w^2 *k1, w^3 * k2}
+            When encoded using w, K1,K2 we have {1 * K1, w * K2, w^2 *K1, w^3 * K2}
 
         Right_Sigma : {R1, O2, O3, L0}
-            When encoded using w, k1,k2 we have {1 * k1, w * k2, w^2 * k2, w^3}
+            When encoded using w, K1,K2 we have {1 * K1, w * K2, w^2 * K2, w^3}
 
         Out_Sigma : {L1, L3, R3, L2}
-            When encoded using w, k1, k2 we have {1, w , w^2 * k1, w^3}
+            When encoded using w, K1, K2 we have {1, w , w^2 * K1, w^3}
         */
         let domain = EvaluationDomain::new(num_wire_mappings).unwrap();
-        let k1 = Fr::from(7);
-        let k2 = Fr::from(13);
         let w: Fr = domain.group_gen;
         let w_squared = w.pow(&[2, 0, 0, 0]);
         let w_cubed = w.pow(&[3, 0, 0, 0]);
         // check the left sigmas have been encoded properly
         let encoded_left_sigma = perm.compute_permutation_lagrange(left_sigma, &domain);
-        assert_eq!(encoded_left_sigma[0], k1);
-        assert_eq!(encoded_left_sigma[1], w * &k2);
-        assert_eq!(encoded_left_sigma[2], w_squared * &k1);
-        assert_eq!(encoded_left_sigma[3], Fr::one() * &k2);
+        assert_eq!(encoded_left_sigma[0], K1);
+        assert_eq!(encoded_left_sigma[1], w * &K2);
+        assert_eq!(encoded_left_sigma[2], w_squared * &K1);
+        assert_eq!(encoded_left_sigma[3], Fr::one() * &K2);
 
         // check the right sigmas have been encoded properly
         let encoded_right_sigma = perm.compute_permutation_lagrange(right_sigma, &domain);
-        assert_eq!(encoded_right_sigma[0], w * &k1);
-        assert_eq!(encoded_right_sigma[1], w_squared * &k2);
-        assert_eq!(encoded_right_sigma[2], w_cubed * &k2);
+        assert_eq!(encoded_right_sigma[0], w * &K1);
+        assert_eq!(encoded_right_sigma[1], w_squared * &K2);
+        assert_eq!(encoded_right_sigma[2], w_cubed * &K2);
         assert_eq!(encoded_right_sigma[3], Fr::one());
 
         // check the output sigmas have been encoded properly
         let encoded_output_sigma = perm.compute_permutation_lagrange(out_sigma, &domain);
         assert_eq!(encoded_output_sigma[0], w);
         assert_eq!(encoded_output_sigma[1], w_cubed);
-        assert_eq!(encoded_output_sigma[2], w_cubed * &k1);
+        assert_eq!(encoded_output_sigma[2], w_cubed * &K1);
         assert_eq!(encoded_output_sigma[3], w_squared);
     }
 
@@ -757,8 +745,6 @@ mod test {
     // If the encoding for the permutation does not have unique values then this test would fail
     fn test_permutation_encoding_has_unique_values() {
         let mut perm: Permutation = Permutation::new();
-        let k1 = Fr::from(7);
-        let k2 = Fr::from(13);
 
         let num_wire_mappings = 4;
 
@@ -794,7 +780,7 @@ mod test {
         let mut identity_grand_prod = Fr::one();
         for element in domain.elements() {
             let root_cubed = element.pow(&[3, 0, 0, 0]);
-            let prod = (root_cubed * &k1) * &k2;
+            let prod = (root_cubed * &K1) * &K2;
             identity_grand_prod = identity_grand_prod * prod;
         }
 

@@ -1,7 +1,7 @@
 use crate::constraint_system::standard::PreProcessedCircuit;
 use crate::fft::{EvaluationDomain, Polynomial};
+use crate::permutation::constants::{K1, K2};
 use bls12_381::Scalar;
-
 /// Evaluations at points `z` or and `z * root of unity`
 pub struct Evaluations {
     pub proof: ProofEvaluations,
@@ -167,30 +167,27 @@ fn compute_second_component(
     gamma: Scalar,
     z_poly: &Polynomial,
 ) -> Polynomial {
-    let k1 = Scalar::from(7);
-    let k2 = Scalar::from(13);
-
     let beta_z = beta * &z_challenge;
 
     // a_eval + beta * z_challenge + gamma
     let mut a_0 = a_eval + &beta_z;
     a_0 += &gamma;
 
-    // b_eval + beta * k_1 * z_challenge + gamma
-    let beta_z_k1 = k1 * &beta_z;
-    let mut a_1 = b_eval + &beta_z_k1;
+    // b_eval + beta * K1 * z_challenge + gamma
+    let beta_z_K1 = K1 * &beta_z;
+    let mut a_1 = b_eval + &beta_z_K1;
     a_1 += &gamma;
 
-    // c_eval + beta * k_2 * z_challenge + gamma
-    let beta_z_k2 = k2 * &beta_z;
-    let mut a_2 = c_eval + &beta_z_k2;
+    // c_eval + beta * K2 * z_challenge + gamma
+    let beta_z_K2 = K2 * &beta_z;
+    let mut a_2 = c_eval + &beta_z_K2;
     a_2 += &gamma;
 
     let mut a = a_0 * &a_1;
     a = a * &a_2;
-    a = a * &alpha_sq; // (a_eval + beta * z_challenge + gamma)(b_eval + beta * k_1 * z_challenge + gamma)(c_eval + beta * k_2 * z_challenge + gamma) * alpha^2
+    a = a * &alpha_sq; // (a_eval + beta * z_challenge + gamma)(b_eval + beta * K1 * z_challenge + gamma)(c_eval + beta * K2 * z_challenge + gamma) * alpha^2
 
-    z_poly * &a // (a_eval + beta * z_challenge + gamma)(b_eval + beta * k_1 * z_challenge + gamma)(c_eval + beta * k_2 * z_challenge + gamma) * alpha^2 z(X)
+    z_poly * &a // (a_eval + beta * z_challenge + gamma)(b_eval + beta * K1 * z_challenge + gamma)(c_eval + beta * K2 * z_challenge + gamma) * alpha^2 z(X)
 }
 fn compute_third_component(
     (a_eval, b_eval): (Scalar, Scalar),
@@ -261,9 +258,6 @@ mod test {
 
     #[test]
     fn test_second_component() {
-        let k1 = Fr::from(7);
-        let k2 = Fr::from(13);
-
         let alpha = Fr::one();
         let beta = Fr::one();
         let gamma = Fr::one();
@@ -287,8 +281,8 @@ mod test {
         );
 
         let first_bracket = Polynomial::from_coefficients_vec(vec![Fr::from(3)]);
-        let second_bracket = Polynomial::from_coefficients_vec(vec![Fr::from(2) + &k1]);
-        let third_bracket = Polynomial::from_coefficients_vec(vec![Fr::from(2) + &k2]);
+        let second_bracket = Polynomial::from_coefficients_vec(vec![Fr::from(2) + &K1]);
+        let third_bracket = Polynomial::from_coefficients_vec(vec![Fr::from(2) + &K2]);
 
         let mut expected_poly = &first_bracket * &second_bracket;
         expected_poly = &expected_poly * &third_bracket;

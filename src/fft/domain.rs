@@ -10,6 +10,7 @@
 //! This allows us to perform polynomial operations in O(n)
 //! by performing an O(n log n) FFT over such a domain.
 
+use super::constants::{GENERATOR, ROOT_OF_UNITY, TWO_ADICITY};
 use bls12_381::Scalar;
 use core::fmt;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefMutIterator, ParallelIterator};
@@ -41,16 +42,6 @@ impl fmt::Debug for EvaluationDomain {
         write!(f, "Multiplicative subgroup of size {}", self.size)
     }
 }
-// Constants for BLS
-// XXX: These are defined in scalar.rs, but do not seem to be reachable
-const TWO_ADICITY: u32 = 32;
-const GENERATOR: Scalar = Scalar::from_raw([7, 0, 0, 0]);
-const ROOT_OF_UNITY: Scalar = Scalar::from_raw([
-    0x3829971F439F0D2B,
-    0xB63683508C2280B9,
-    0xD09B681922C813B4,
-    0x16A2A19EDFE81F20,
-]);
 
 impl EvaluationDomain {
     /// Construct a domain that is large enough for evaluations of a polynomial

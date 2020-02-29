@@ -2,6 +2,7 @@ use super::PreProcessedCircuit;
 use crate::commitment_scheme::kzg10::{Commitment, VerifierKey};
 use crate::fft::{EvaluationDomain, Polynomial};
 use crate::linearisation_poly::ProofEvaluations;
+use crate::permutation::constants::{K1, K2};
 use crate::transcript::TranscriptProtocol;
 use crate::util::{multiscalar_mul, sum_points};
 use bls12_381::{pairing, G1Affine, G1Projective, Scalar};
@@ -233,9 +234,6 @@ impl Proof {
         l1_eval: Scalar,
         preprocessed_circuit: &PreProcessedCircuit,
     ) -> G1Projective {
-        let k1 = Scalar::from(7);
-        let k2 = Scalar::from(13);
-
         let mut scalars: Vec<_> = Vec::with_capacity(6);
         let mut points: Vec<G1Affine> = Vec::with_capacity(6);
 
@@ -259,10 +257,10 @@ impl Proof {
             let beta_z = beta * &z_challenge;
             let q_0 = self.evaluations.a_eval + &beta_z + &gamma;
 
-            let beta_k1_z = beta * &k1 * &z_challenge;
+            let beta_k1_z = beta * &K1 * &z_challenge;
             let q_1 = self.evaluations.b_eval + &beta_k1_z + &gamma;
 
-            let beta_k2_z = beta * &k2 * &z_challenge;
+            let beta_k2_z = beta * &K2 * &z_challenge;
             let q_2 = (self.evaluations.c_eval + &beta_k2_z + &gamma) * &alpha * &alpha * &v;
 
             q_0 * &q_1 * &q_2
