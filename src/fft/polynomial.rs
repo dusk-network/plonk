@@ -1,5 +1,5 @@
 use super::{EvaluationDomain, Evaluations};
-use new_bls12_381::Scalar;
+use bls12_381::Scalar;
 use rand::Rng;
 use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 use std::ops::{Add, AddAssign, Deref, DerefMut, Div, Mul, Neg, Sub, SubAssign};

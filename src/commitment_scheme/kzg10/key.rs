@@ -2,7 +2,7 @@ use super::errors::Error;
 use super::BlindingPolynomial;
 use super::Commitment;
 use crate::fft::Polynomial;
-use new_bls12_381::{G1Affine, G1Projective, G2Affine, G2Prepared, Scalar};
+use bls12_381::{G1Affine, G1Projective, G2Affine, G2Prepared, Scalar};
 use rand_core::RngCore;
 // Verifer Key
 // XXX:Add docs on what it does

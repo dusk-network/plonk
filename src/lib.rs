@@ -5,7 +5,7 @@ pub mod transcript;
 #[macro_use]
 extern crate failure;
 
-use new_bls12_381::Scalar;
+use bls12_381::Scalar;
 use std::ops::{Add, Mul};
 // While we do not have multiscalar mul in bls12-381; this function will be used as a stub
 pub(crate) fn multiscalar_mul<K, T: Mul<Scalar, Output = K> + Copy>(

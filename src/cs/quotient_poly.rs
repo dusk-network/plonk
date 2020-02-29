@@ -1,9 +1,8 @@
 use crate::cs::poly_utils::Poly_utils;
 use crate::cs::PreProcessedCircuit;
 use crate::fft::{EvaluationDomain, Polynomial};
-use new_bls12_381::Scalar;
+use bls12_381::Scalar;
 use rayon::prelude::*;
-use std::marker::PhantomData;
 
 pub struct QuotientToolkit {}
 impl QuotientToolkit {
@@ -318,7 +317,7 @@ impl QuotientToolkit {
 #[cfg(test)]
 mod test {
     use super::*;
-    use new_bls12_381::Scalar as Fr;
+    use bls12_381::Scalar as Fr;
     #[test]
     fn test_l1_x_poly() {
         let toolkit: QuotientToolkit = QuotientToolkit::new();

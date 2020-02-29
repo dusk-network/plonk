@@ -1,4 +1,4 @@
-use new_bls12_381::Scalar;
+use bls12_381::Scalar;
 use rayon::prelude::*;
 pub struct Poly_utils {}
 

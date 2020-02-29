@@ -10,7 +10,7 @@ use crate::commitment_scheme::kzg10::ProverKey;
 use crate::fft::{EvaluationDomain, Polynomial};
 
 use crate::{cs::quotient_poly::QuotientToolkit, transcript::TranscriptProtocol};
-use new_bls12_381::Scalar;
+use bls12_381::Scalar;
 /// A composer is a circuit builder
 /// and will dictate how a circuit is built
 /// We will have a default Composer called `StandardComposer`
@@ -619,8 +619,8 @@ impl StandardComposer {
 mod tests {
     use super::*;
     use crate::commitment_scheme::kzg10::SRS;
+    use bls12_381::Scalar as Fr;
     use merlin::Transcript;
-    use new_bls12_381::Scalar as Fr;
     // Ensures a + b - c = 0
     fn simple_add_gadget(
         composer: &mut StandardComposer,

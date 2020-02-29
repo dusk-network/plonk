@@ -2,10 +2,9 @@ use super::constraint_system::{Variable, WireData};
 
 use crate::fft::EvaluationDomain;
 
+use bls12_381::Scalar;
 use itertools::izip;
-use new_bls12_381::Scalar;
 use rayon::iter::*;
-use rayon::prelude::*;
 use std::collections::HashMap;
 pub struct Permutation {
     // These are the actual variable values
@@ -520,7 +519,7 @@ impl Permutation {
 mod test {
     use super::*;
     use crate::fft::Polynomial;
-    use new_bls12_381::Scalar as Fr;
+    use bls12_381::Scalar as Fr;
 
     #[test]
     fn test_permutation_format() {

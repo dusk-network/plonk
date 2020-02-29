@@ -10,8 +10,8 @@
 //! This allows us to perform polynomial operations in O(n)
 //! by performing an O(n log n) FFT over such a domain.
 
+use bls12_381::Scalar;
 use core::fmt;
-use new_bls12_381::Scalar;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefMutIterator, ParallelIterator};
 use std::ops::MulAssign;
 

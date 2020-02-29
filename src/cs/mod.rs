@@ -10,7 +10,7 @@ mod quotient_poly;
 use crate::commitment_scheme::kzg10::{Commitment, ProverKey};
 use crate::fft::EvaluationDomain;
 use crate::transcript::TranscriptProtocol;
-use new_bls12_381::Scalar;
+use bls12_381::Scalar;
 
 // Preprocessed circuit includes the commitment to the selector polynomials and the sigma polynomials
 pub struct PreProcessedCircuit {

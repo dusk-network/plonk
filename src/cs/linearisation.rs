@@ -1,7 +1,7 @@
 use super::PreProcessedCircuit;
 use crate::cs::poly_utils::Poly_utils;
 use crate::fft::EvaluationDomain;
-use new_bls12_381::Scalar;
+use bls12_381::Scalar;
 
 pub struct Lineariser {}
 
@@ -254,7 +254,7 @@ impl Lineariser {
 mod test {
     use super::*;
     use crate::fft::Polynomial;
-    use new_bls12_381::Scalar as Fr;
+    use bls12_381::Scalar as Fr;
     #[test]
     fn test_first_component() {
         let lin: Lineariser = Lineariser::new();

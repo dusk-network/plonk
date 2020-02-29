@@ -1,7 +1,7 @@
 use super::errors::Error;
 use super::key::{ProverKey, VerifierKey};
 use crate::multiscalar_mul_single_base;
-use new_bls12_381::{G1Affine, G1Projective, G2Affine, G2Prepared, G2Projective, Scalar};
+use bls12_381::{G1Affine, G1Projective, G2Affine, G2Prepared, G2Projective, Scalar};
 use rand_core::RngCore;
 /// Structured Reference String (SRS) is the main component in KZG10
 /// It is available to both the prover and verifier

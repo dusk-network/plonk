@@ -1,6 +1,6 @@
 use crate::commitment_scheme::kzg10::Commitment;
+use bls12_381::Scalar;
 use merlin::Transcript;
-use new_bls12_381::Scalar;
 
 pub trait TranscriptProtocol {
     /// Append a `commitment` with the given `label`.

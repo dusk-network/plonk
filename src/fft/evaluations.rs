@@ -2,8 +2,8 @@
 
 use super::domain::EvaluationDomain;
 use super::polynomial::Polynomial;
-use core::ops::{Add, AddAssign, Div, DivAssign, Index, Mul, MulAssign, Sub, SubAssign};
-use new_bls12_381::Scalar;
+use bls12_381::Scalar;
+use core::ops::{Add, AddAssign, DivAssign, Index, Mul, MulAssign, Sub, SubAssign};
 /// Stores a polynomial in evaluation form.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Evaluations {

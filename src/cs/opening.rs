@@ -1,8 +1,8 @@
 use super::linearisation::LinEval;
 use crate::cs::poly_utils::Poly_utils;
 use crate::fft::Polynomial;
+use bls12_381::Scalar;
 use itertools::izip;
-use new_bls12_381::Scalar;
 use rayon::prelude::*;
 pub struct commitmentOpener {}
 impl commitmentOpener {

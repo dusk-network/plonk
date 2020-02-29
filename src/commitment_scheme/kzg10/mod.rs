@@ -1,4 +1,4 @@
-use new_bls12_381::{G1Affine, G1Projective, Scalar};
+use bls12_381::{G1Affine, G1Projective, Scalar};
 use rand_core::RngCore;
 // Code was taken and modified from Pratyush: https://github.com/scipr-lab/poly-commit/blob/master/src/kzg10/mod.rs
 pub mod errors;
