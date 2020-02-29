@@ -1,4 +1,4 @@
-use crate::cs::composer::StandardComposer;
+use crate::cs::standard::composer::StandardComposer;
 use bls12_381::Scalar;
 // Design taken from bulletproofs; although we should modify it to use iterators instead of vectors (zero-cost)
 /// Represents a variable in a constraint system.

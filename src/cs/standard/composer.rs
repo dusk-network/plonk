@@ -1,8 +1,6 @@
-use super::{
-    proof::Proof,
-    Composer, PreProcessedCircuit, {LinearCombination, Variable},
-};
+use super::{proof::Proof, Composer, PreProcessedCircuit};
 use crate::commitment_scheme::kzg10::ProverKey;
+use crate::cs::{LinearCombination, Variable};
 use crate::fft::{EvaluationDomain, Polynomial};
 use crate::transcript::TranscriptProtocol;
 use crate::{linearisation_poly, opening_poly, permutation::Permutation, quotient_poly};

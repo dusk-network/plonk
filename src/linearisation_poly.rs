@@ -1,4 +1,4 @@
-use crate::cs::PreProcessedCircuit;
+use crate::cs::standard::PreProcessedCircuit;
 use crate::fft::{poly_utils, EvaluationDomain};
 use bls12_381::Scalar;
 
