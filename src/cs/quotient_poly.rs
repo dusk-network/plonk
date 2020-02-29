@@ -283,7 +283,7 @@ fn compute_first_lagrange_poly(domain: &EvaluationDomain) -> Polynomial {
     Polynomial::from_coefficients_vec(x_evals)
 }
 
-// computes the vanishing polynomial for that domain over a coset
+// Computes the vanishing polynomial for that domain over a coset
 // Z(x_i) = (x_i)^n -1  where x_i is the i'th root of unity
 // Over coset Z(x_i *h) = (x_i *h)^n -1 = h^n * (x_i)^n -1
 fn compute_vanishing_poly_over_coset(
