@@ -2,7 +2,6 @@ use super::PreProcessedCircuit;
 use crate::cs::poly_utils::Poly_utils;
 use crate::fft::EvaluationDomain;
 use new_bls12_381::Scalar;
-use std::marker::PhantomData;
 
 pub struct Lineariser {}
 

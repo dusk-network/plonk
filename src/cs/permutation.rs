@@ -7,7 +7,6 @@ use new_bls12_381::Scalar;
 use rayon::iter::*;
 use rayon::prelude::*;
 use std::collections::HashMap;
-use std::marker::PhantomData;
 pub struct Permutation {
     // These are the actual variable values
     // N.B. They should not be exposed to the end user once added into the composer
@@ -596,7 +595,6 @@ mod test {
         Out_sigma = {O0, O1, O2, O3, O4}
 
         */
-
         let sigmas = perm.compute_sigma_permutations(num_wire_mappings);
         let left_sigma = &sigmas[0];
         let right_sigma = &sigmas[1];
@@ -695,7 +693,6 @@ mod test {
         Out_Sigma : {0,1,2,3} -> {L1, L3, R3, L2}
 
         */
-
         let sigmas = perm.compute_sigma_permutations(num_wire_mappings);
         let left_sigma = &sigmas[0];
         let right_sigma = &sigmas[1];
