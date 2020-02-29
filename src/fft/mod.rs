@@ -1,6 +1,5 @@
 pub(crate) mod domain;
 pub(crate) mod evaluations;
-pub mod poly_utils;
 pub(crate) mod polynomial;
 
 pub use domain::EvaluationDomain;

@@ -1,5 +1,5 @@
 use super::linearisation_poly::Evaluations;
-use crate::fft::{poly_utils, Polynomial};
+use crate::fft::Polynomial;
 use crate::util::powers_of;
 use bls12_381::Scalar;
 use itertools::izip;
@@ -67,13 +67,13 @@ fn compute_quotient_opening_poly(
     z_two_n: Scalar,
 ) -> Polynomial {
     let a = t_lo_poly;
-    let b: Vec<_> = t_mid_poly.par_iter().map(|mid| z_n * mid).collect();
-    let c: Vec<_> = t_hi_poly.par_iter().map(|hi| z_two_n * hi).collect();
+    let b = t_mid_poly * &z_n;
+    let c = t_hi_poly * &z_two_n;
 
-    let ab = poly_utils::add_poly_vectors(&a, &b);
-    let res = poly_utils::add_poly_vectors(&ab, &c);
+    let ab = a + &b;
+    let res = &ab + &c;
 
-    Polynomial::from_coefficients_vec(res)
+    res
 }
 
 // computes sum [ challenge[i] * (polynomials[i] - evaluations[i])]

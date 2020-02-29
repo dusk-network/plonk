@@ -1,5 +1,5 @@
 use crate::constraint_system::standard::PreProcessedCircuit;
-use crate::fft::{poly_utils, EvaluationDomain, Polynomial};
+use crate::fft::{EvaluationDomain, Polynomial};
 use bls12_381::Scalar;
 
 /// Evaluations at points `z` or and `z * root of unity`
@@ -102,10 +102,9 @@ pub fn compute(
 
     let f_4 = compute_fourth_component(domain, *z_challenge, alpha_cu, z_poly);
 
-    let mut lin_coeffs = poly_utils::add_poly_vectors(&f_1, &f_2);
-    lin_coeffs = poly_utils::add_poly_vectors(&lin_coeffs, &f_3);
-    lin_coeffs = poly_utils::add_poly_vectors(&lin_coeffs, &f_4);
-    let lin_poly = Polynomial::from_coefficients_vec(lin_coeffs);
+    let mut lin_poly = &f_1 + &f_2;
+    lin_poly = &lin_poly + &f_3;
+    lin_poly = &lin_poly + &f_4;
 
     // Evaluate linearisation polynomial at z_challenge
     let lin_poly_eval = lin_poly.evaluate(z_challenge);
@@ -137,25 +136,25 @@ fn compute_first_component(
     q_r_poly: &Polynomial,
     q_o_poly: &Polynomial,
     q_c_poly: &Polynomial,
-) -> Vec<Scalar> {
+) -> Polynomial {
     // a_eval * b_eval * q_m_poly
     let ab = a_eval * &b_eval;
-    let a_0 = poly_utils::mul_scalar_poly(ab, q_m_poly);
+    let a_0 = q_m_poly * &ab;
 
     // a_eval * q_l
-    let a_1 = poly_utils::mul_scalar_poly(a_eval, q_l_poly);
+    let a_1 = q_l_poly * &a_eval;
 
     // b_eval * q_r
-    let a_2 = poly_utils::mul_scalar_poly(b_eval, q_r_poly);
+    let a_2 = q_r_poly * &b_eval;
 
     //c_eval * q_o
-    let a_3 = poly_utils::mul_scalar_poly(c_eval, q_o_poly);
+    let a_3 = q_o_poly * &c_eval;
 
-    let mut a = poly_utils::add_poly_vectors(&a_0, &a_1);
-    a = poly_utils::add_poly_vectors(&a, &a_2);
-    a = poly_utils::add_poly_vectors(&a, &a_3);
-    a = poly_utils::add_poly_vectors(&a, &q_c_poly);
-    poly_utils::mul_scalar_poly(alpha, &a) // (a_eval * b_eval * q_m_poly + a_eval * q_l + b_eval * q_r + c_eval * q_o + q_c) * alpha
+    let mut a = &a_0 + &a_1;
+    a = &a + &a_2;
+    a = &a + &a_3;
+    a = &a + q_c_poly;
+    &a * &alpha // (a_eval * b_eval * q_m_poly + a_eval * q_l + b_eval * q_r + c_eval * q_o + q_c) * alpha
 }
 
 fn compute_second_component(
@@ -167,7 +166,7 @@ fn compute_second_component(
     beta: Scalar,
     gamma: Scalar,
     z_poly: &Polynomial,
-) -> Vec<Scalar> {
+) -> Polynomial {
     let k1 = Scalar::from(7);
     let k2 = Scalar::from(13);
 
@@ -191,7 +190,7 @@ fn compute_second_component(
     a = a * &a_2;
     a = a * &alpha_sq; // (a_eval + beta * z_challenge + gamma)(b_eval + beta * k_1 * z_challenge + gamma)(c_eval + beta * k_2 * z_challenge + gamma) * alpha^2
 
-    poly_utils::mul_scalar_poly(a, &z_poly) // (a_eval + beta * z_challenge + gamma)(b_eval + beta * k_1 * z_challenge + gamma)(c_eval + beta * k_2 * z_challenge + gamma) * alpha^2 z(X)
+    z_poly * &a // (a_eval + beta * z_challenge + gamma)(b_eval + beta * k_1 * z_challenge + gamma)(c_eval + beta * k_2 * z_challenge + gamma) * alpha^2 z(X)
 }
 fn compute_third_component(
     (a_eval, b_eval): (Scalar, Scalar),
@@ -200,7 +199,7 @@ fn compute_third_component(
     sigma_2_eval: Scalar,
     (alpha_sq, beta, gamma): (Scalar, Scalar, Scalar),
     out_sigma_poly: &Polynomial,
-) -> Vec<Scalar> {
+) -> Polynomial {
     // a_eval + beta * sigma_1 + gamma
     let beta_sigma_1 = beta * &sigma_1_eval;
     let mut a_0 = a_eval + &beta_sigma_1;
@@ -217,18 +216,18 @@ fn compute_third_component(
     a = a * &beta_z_eval;
     a = a * &alpha_sq; // (a_eval + beta * sigma_1 + gamma)(b_eval + beta * sigma_2 + gamma) * beta *z_eval * alpha^2
 
-    poly_utils::mul_scalar_poly(-a, out_sigma_poly) // -(a_eval + beta * sigma_1 + gamma)(b_eval + beta * sigma_2 + gamma) * beta *z_eval * alpha^2 * Sigma_3(X)
+    out_sigma_poly * &-a // -(a_eval + beta * sigma_1 + gamma)(b_eval + beta * sigma_2 + gamma) * beta *z_eval * alpha^2 * Sigma_3(X)
 }
 fn compute_fourth_component(
     domain: &EvaluationDomain,
     z_challenge: Scalar,
     alpha_cu: Scalar,
     z_coeffs: &Polynomial,
-) -> Vec<Scalar> {
+) -> Polynomial {
     // Evaluate l_1(z)
     let l_1_z = domain.evaluate_all_lagrange_coefficients(z_challenge)[0];
 
-    poly_utils::mul_scalar_poly(l_1_z * &alpha_cu, &z_coeffs)
+    z_coeffs * &(l_1_z * alpha_cu)
 }
 
 #[cfg(test)]
@@ -257,7 +256,7 @@ mod test {
         expected_poly += &qo;
         expected_poly += &qc;
 
-        assert_eq!(Polynomial::from_coefficients_vec(got_poly), expected_poly);
+        assert_eq!(got_poly, expected_poly);
     }
 
     #[test]
@@ -295,7 +294,7 @@ mod test {
         expected_poly = &expected_poly * &third_bracket;
         expected_poly = &expected_poly * &z_poly;
 
-        assert_eq!(Polynomial::from_coefficients_vec(got_poly), expected_poly);
+        assert_eq!(got_poly, expected_poly);
     }
     #[test]
     fn test_third_component() {
@@ -328,7 +327,7 @@ mod test {
         expected_poly = &expected_poly * &third_bracket;
         expected_poly = &expected_poly * &sig3_poly;
 
-        assert_eq!(Polynomial::from_coefficients_vec(got_poly), -expected_poly);
+        assert_eq!(got_poly, -expected_poly);
     }
     #[test]
     fn test_fourth_component() {
@@ -344,6 +343,6 @@ mod test {
 
         let expected_poly = &z_poly * &l1_eval_poly;
 
-        assert_eq!(Polynomial::from_coefficients_vec(got_poly), expected_poly);
+        assert_eq!(got_poly, expected_poly);
     }
 }

@@ -1,5 +1,5 @@
 use crate::constraint_system::standard::PreProcessedCircuit;
-use crate::fft::{poly_utils, EvaluationDomain, Polynomial};
+use crate::fft::{EvaluationDomain, Polynomial};
 use bls12_381::Scalar;
 use rayon::prelude::*;
 
@@ -67,9 +67,9 @@ pub fn compute(
         preprocessed_circuit.out_sigma_poly(),
     );
     let t_4 = compute_quotient_fourth_component(domain, z_poly, alpha.square() * alpha);
-    let mut quotient_evals = poly_utils::add_poly_vectors(&t_1, &t_2);
-    quotient_evals = poly_utils::add_poly_vectors(&t_3, &quotient_evals);
-    quotient_evals = poly_utils::add_poly_vectors(&t_4, &quotient_evals);
+    let mut quotient_evals = &t_1 + &t_2;
+    quotient_evals = &t_3 + &quotient_evals;
+    quotient_evals = &t_4 + &quotient_evals;
     let v_h_coset_4n = compute_vanishing_poly_over_coset(&domain_4n, domain.size() as u64);
 
     // Divide the quotient polynomial by the vanishing polynomial over a coset
@@ -95,7 +95,7 @@ fn compute_quotient_first_component(
     wl_coeffs: &Polynomial,
     wr_coeffs: &Polynomial,
     wo_coeffs: &Polynomial,
-) -> Vec<Scalar> {
+) -> Polynomial {
     let n = domain.size();
     let domain_4n = EvaluationDomain::new(4 * n).unwrap();
 
@@ -143,7 +143,7 @@ fn compute_quotient_first_component(
         })
         .collect();
 
-    t_1
+    Polynomial::from_coefficients_vec(t_1)
 }
 
 fn compute_quotient_second_component(
@@ -157,7 +157,7 @@ fn compute_quotient_second_component(
     wl_coeffs: &Polynomial,
     wr_coeffs: &Polynomial,
     wo_coeffs: &Polynomial,
-) -> Vec<Scalar> {
+) -> Polynomial {
     let n = domain.size();
     let domain_4n = EvaluationDomain::new(4 * n).unwrap();
 
@@ -191,7 +191,7 @@ fn compute_quotient_second_component(
             product * alpha_sq
         })
         .collect();
-    t_2
+    Polynomial::from_coefficients_vec(t_2)
 }
 
 fn compute_quotient_third_component(
@@ -200,76 +200,76 @@ fn compute_quotient_third_component(
     beta: &Scalar,
     gamma: &Scalar,
     z_eval_4n: &Vec<Scalar>,
-    wl_coeffs: &Polynomial,
-    wr_coeffs: &Polynomial,
-    wo_coeffs: &Polynomial,
-    left_sigma_coeffs: &Polynomial,
-    right_sigma_coeffs: &Polynomial,
-    out_sigma_coeffs: &Polynomial,
-) -> Vec<Scalar> {
+    wl_poly: &Polynomial,
+    wr_poly: &Polynomial,
+    wo_poly: &Polynomial,
+    left_sigma_poly: &Polynomial,
+    right_sigma_poly: &Polynomial,
+    out_sigma_poly: &Polynomial,
+) -> Polynomial {
     let n = domain.size();
     let domain_4n = EvaluationDomain::new(4 * n).unwrap();
 
     // (a(x) + beta * Sigma1(X) + gamma) (b(X) + beta * Sigma2(X) + gamma) (c(X) + beta * Sigma3(X) + gamma)
     //
-    let beta_left_sigma: Vec<_> = left_sigma_coeffs.par_iter().map(|x| *beta * x).collect();
-    let beta_right_sigma: Vec<_> = right_sigma_coeffs.par_iter().map(|x| *beta * x).collect();
-    let beta_out_sigma: Vec<_> = out_sigma_coeffs.par_iter().map(|x| *beta * x).collect();
+    let beta_left_sigma = left_sigma_poly * beta;
+    let beta_right_sigma = right_sigma_poly * beta;
+    let beta_out_sigma = out_sigma_poly * beta;
     // (a(x) + beta * Sigma1(X) + gamma)
     //
-    let mut a = poly_utils::add_poly_vectors(&beta_left_sigma, wl_coeffs);
+    let mut a = &beta_left_sigma + wl_poly;
     a[0] = a[0] + gamma;
     // (b(X) + beta * Sigma2(X) + gamma)
     //
-    let mut b = poly_utils::add_poly_vectors(&beta_right_sigma, wr_coeffs);
+    let mut b = &beta_right_sigma + wr_poly;
     b[0] = b[0] + gamma;
     //(c(X) + beta * Sigma3(X) + gamma)
     //
-    let mut c = poly_utils::add_poly_vectors(&beta_out_sigma, wo_coeffs);
+    let mut c = &beta_out_sigma + wo_poly;
     c[0] = c[0] + gamma;
 
-    domain_4n.coset_fft_in_place(&mut a);
-    domain_4n.coset_fft_in_place(&mut b);
-    domain_4n.coset_fft_in_place(&mut c);
+    let a_fft = domain_4n.coset_fft(&a);
+    let b_fft = domain_4n.coset_fft(&b);
+    let c_fft = domain_4n.coset_fft(&c);
 
     let t_3: Vec<_> = (0..domain_4n.size())
         .into_par_iter()
         .map(|i| {
             let z_shifted = &z_eval_4n[i + 4];
 
-            let mut product = a[i] * &b[i] * &c[i]; // (a(x) + beta * Sigma1(X) + gamma) (b(X) + beta * Sigma2(X) + gamma) (c(X) + beta * Sigma3(X) + gamma)
+            let mut product = a_fft[i] * &b_fft[i] * &c_fft[i]; // (a(x) + beta * Sigma1(X) + gamma) (b(X) + beta * Sigma2(X) + gamma) (c(X) + beta * Sigma3(X) + gamma)
             product = product * z_shifted;
 
             -product * alpha_sq // (a(x) + beta* Sigma1(X) + gamma) (b(X) + beta * Sigma2(X) + gamma) (c(X) + beta * Sigma3(X) + gamma) Z(X.omega) * alpha^2
         })
         .collect();
 
-    t_3
+    Polynomial::from_coefficients_vec(t_3)
 }
 
 fn compute_quotient_fourth_component(
     domain: &EvaluationDomain,
     z_poly: &Polynomial,
     alpha_cu: Scalar,
-) -> Vec<Scalar> {
+) -> Polynomial {
     let n = domain.size();
     let domain_4n = EvaluationDomain::new(4 * n).unwrap();
 
-    let l1_coeffs = compute_first_lagrange_poly(domain).coeffs;
-    let alpha_cu_l1_coeffs: Vec<_> = l1_coeffs.par_iter().map(|x| alpha_cu * x).collect();
+    let l1_poly = compute_first_lagrange_poly(domain);
+    let alpha_cu_l1_poly = &l1_poly * &alpha_cu;
 
     // (Z(x) - 1)
     let mut z_coeffs = z_poly.to_vec();
     z_coeffs[0] = z_coeffs[0] - &Scalar::one();
 
     let z_evals = domain_4n.coset_fft(&z_coeffs);
-    let alpha_cu_l1_evals = domain_4n.coset_fft(&alpha_cu_l1_coeffs);
+    let alpha_cu_l1_evals = domain_4n.coset_fft(&alpha_cu_l1_poly.coeffs);
 
     let t_4: Vec<_> = (0..domain_4n.size())
         .into_par_iter()
         .map(|i| alpha_cu_l1_evals[i] * &z_evals[i])
         .collect();
-    t_4
+    Polynomial::from_coefficients_vec(t_4)
 }
 
 /// Computes the first Lagrange polynomial `L1(X)`.
