@@ -1,7 +1,6 @@
 mod commitment_scheme;
 pub mod cs;
 mod fft;
-pub mod srs;
 pub mod transcript;
 #[macro_use]
 extern crate failure;
