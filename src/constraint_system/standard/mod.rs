@@ -1,6 +1,7 @@
 pub mod composer;
 mod preprocessed_circuit;
 mod proof;
+mod quotient_poly;
 
 use crate::commitment_scheme::kzg10::ProverKey;
 use crate::fft::EvaluationDomain;
