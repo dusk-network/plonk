@@ -44,13 +44,13 @@ impl fmt::Debug for EvaluationDomain {
 // Constants for BLS
 // XXX: These are defined in scalar.rs, but do not seem to be reachable
 const TWO_ADICITY: u32 = 32;
-const ROOT_OF_UNITY: Scalar = Scalar::from_raw([
-    0xb9b58d8c5f0e466a,
-    0x5b1b4c801819d7ec,
-    0x0af53ae352a31e64,
-    0x5bf3adda19e9b27b,
-]);
 const GENERATOR: Scalar = Scalar::from_raw([7, 0, 0, 0]);
+const ROOT_OF_UNITY: Scalar = Scalar::from_raw([
+    0x3829971F439F0D2B,
+    0xB63683508C2280B9,
+    0xD09B681922C813B4,
+    0x16A2A19EDFE81F20,
+]);
 
 impl EvaluationDomain {
     /// Construct a domain that is large enough for evaluations of a polynomial
@@ -66,6 +66,7 @@ impl EvaluationDomain {
 
         // Compute the generator for the multiplicative subgroup.
         // It should be 2^(log_size_of_group) root of unity.
+
         let mut group_gen = ROOT_OF_UNITY;
         for _ in log_size_of_group..TWO_ADICITY {
             group_gen = group_gen.square();
