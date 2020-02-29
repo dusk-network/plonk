@@ -1,36 +1,27 @@
 use crate::cs::poly_utils::Poly_utils;
 use crate::cs::PreProcessedCircuit;
-use algebra::{
-    curves::PairingEngine,
-    fields::{Field, PrimeField},
-};
-use ff_fft::{DensePolynomial as Polynomial, EvaluationDomain};
-use num_traits::{One, Zero};
+use crate::fft::{EvaluationDomain, Polynomial};
+use new_bls12_381::Scalar;
 use rayon::prelude::*;
 use std::marker::PhantomData;
 
-pub struct QuotientToolkit<E: PairingEngine> {
-    _engine: PhantomData<E>,
-}
-impl<E: PairingEngine> QuotientToolkit<E> {
+pub struct QuotientToolkit {}
+impl QuotientToolkit {
     pub fn new() -> Self {
-        QuotientToolkit {
-            _engine: PhantomData,
-        }
+        QuotientToolkit {}
     }
-    #[allow(dead_code)]
     pub fn compute_quotient_poly(
         &self,
-        domain: &EvaluationDomain<E::Fr>,
-        preprocessed_circuit: &PreProcessedCircuit<E>,
-        z_coeffs: &[E::Fr],
-        witness_polynomials: [&Vec<E::Fr>; 3],
-        public_inputs_coeffs: &Vec<E::Fr>,
-        (alpha, beta, gamma): &(E::Fr, E::Fr, E::Fr),
-    ) -> Vec<E::Fr> {
-        let poly_utils: Poly_utils<E> = Poly_utils::new();
-        let k1 = E::Fr::multiplicative_generator();
-        let k2 = E::Fr::from_repr(13.into());
+        domain: &EvaluationDomain,
+        preprocessed_circuit: &PreProcessedCircuit,
+        z_coeffs: &[Scalar],
+        witness_polynomials: [&Vec<Scalar>; 3],
+        public_inputs_coeffs: &Vec<Scalar>,
+        (alpha, beta, gamma): &(Scalar, Scalar, Scalar),
+    ) -> Vec<Scalar> {
+        let poly_utils: Poly_utils = Poly_utils::new();
+        let k1 = Scalar::from(7);
+        let k2 = Scalar::from(13);
 
         let wl_coeffs = witness_polynomials[0];
         let wr_coeffs = witness_polynomials[1];
@@ -84,8 +75,7 @@ impl<E: PairingEngine> QuotientToolkit<E> {
             preprocessed_circuit.right_sigma_poly(),
             preprocessed_circuit.out_sigma_poly(),
         );
-        let t_4 =
-            self.compute_quotient_fourth_component(domain, &z_coeffs, alpha.square() * &alpha);
+        let t_4 = self.compute_quotient_fourth_component(domain, &z_coeffs, alpha.square() * alpha);
         let mut quotient_evals = poly_utils.add_poly_vectors(&t_1, &t_2);
         quotient_evals = poly_utils.add_poly_vectors(&t_3, &quotient_evals);
         quotient_evals = poly_utils.add_poly_vectors(&t_4, &quotient_evals);
@@ -96,7 +86,7 @@ impl<E: PairingEngine> QuotientToolkit<E> {
         let quotient_evals_div_v_h: Vec<_> = quotient_evals
             .into_iter()
             .zip(v_h_coset_4n.iter())
-            .map(|(q, v_h)| q / v_h)
+            .map(|(q, v_h)| q * v_h.invert().unwrap())
             .collect();
 
         domain_4n.coset_ifft(&quotient_evals_div_v_h)
@@ -104,18 +94,18 @@ impl<E: PairingEngine> QuotientToolkit<E> {
 
     fn compute_quotient_first_component(
         &self,
-        domain: &EvaluationDomain<E::Fr>,
-        alpha: &E::Fr,
-        qm_eval_4n: &[E::Fr],
-        ql_eval_4n: &[E::Fr],
-        qr_eval_4n: &[E::Fr],
-        qo_eval_4n: &[E::Fr],
-        qc_eval_4n: &[E::Fr],
-        pi_coeffs: &[E::Fr],
-        wl_coeffs: &[E::Fr],
-        wr_coeffs: &[E::Fr],
-        wo_coeffs: &[E::Fr],
-    ) -> Vec<E::Fr> {
+        domain: &EvaluationDomain,
+        alpha: &Scalar,
+        qm_eval_4n: &[Scalar],
+        ql_eval_4n: &[Scalar],
+        qr_eval_4n: &[Scalar],
+        qo_eval_4n: &[Scalar],
+        qc_eval_4n: &[Scalar],
+        pi_coeffs: &[Scalar],
+        wl_coeffs: &[Scalar],
+        wr_coeffs: &[Scalar],
+        wo_coeffs: &[Scalar],
+    ) -> Vec<Scalar> {
         let n = domain.size();
         let domain_4n = EvaluationDomain::new(4 * n).unwrap();
 
@@ -142,8 +132,8 @@ impl<E: PairingEngine> QuotientToolkit<E> {
                 // (a(x)b(x)q_M(x) + a(x)q_L(x) + b(X)q_R(x) + c(X)q_O(X) + PI(X) + Q_C(X))
                 //
                 //(a(x)b(x)q_M(x)
-                let mut a_1 = *wl * wr;
-                a_1 = a_1 * &qm_alpha;
+                let mut a_1 = wl * wr;
+                a_1 = a_1 * qm_alpha;
                 //a(x)q_L(x)
                 let a_2 = *wl * ql_alpha;
                 //b(X)q_R(x)
@@ -168,17 +158,17 @@ impl<E: PairingEngine> QuotientToolkit<E> {
 
     fn compute_quotient_second_component(
         &self,
-        domain: &EvaluationDomain<E::Fr>,
-        alpha_sq: &E::Fr,
-        k1: &E::Fr,
-        k2: &E::Fr,
-        beta: &E::Fr,
-        gamma: &E::Fr,
-        z_eval_4n: &[E::Fr],
-        wl_coeffs: &[E::Fr],
-        wr_coeffs: &[E::Fr],
-        wo_coeffs: &[E::Fr],
-    ) -> Vec<E::Fr> {
+        domain: &EvaluationDomain,
+        alpha_sq: &Scalar,
+        k1: &Scalar,
+        k2: &Scalar,
+        beta: &Scalar,
+        gamma: &Scalar,
+        z_eval_4n: &[Scalar],
+        wl_coeffs: &[Scalar],
+        wr_coeffs: &[Scalar],
+        wo_coeffs: &[Scalar],
+    ) -> Vec<Scalar> {
         let n = domain.size();
         let domain_4n = EvaluationDomain::new(4 * n).unwrap();
 
@@ -217,20 +207,20 @@ impl<E: PairingEngine> QuotientToolkit<E> {
 
     fn compute_quotient_third_component(
         &self,
-        domain: &EvaluationDomain<E::Fr>,
-        alpha_sq: &E::Fr,
-        beta: &E::Fr,
-        gamma: &E::Fr,
-        z_eval_4n: &[E::Fr],
-        wl_coeffs: &[E::Fr],
-        wr_coeffs: &[E::Fr],
-        wo_coeffs: &[E::Fr],
-        left_sigma_coeffs: &[E::Fr],
-        right_sigma_coeffs: &[E::Fr],
-        out_sigma_coeffs: &[E::Fr],
-    ) -> Vec<E::Fr> {
+        domain: &EvaluationDomain,
+        alpha_sq: &Scalar,
+        beta: &Scalar,
+        gamma: &Scalar,
+        z_eval_4n: &[Scalar],
+        wl_coeffs: &[Scalar],
+        wr_coeffs: &[Scalar],
+        wo_coeffs: &[Scalar],
+        left_sigma_coeffs: &[Scalar],
+        right_sigma_coeffs: &[Scalar],
+        out_sigma_coeffs: &[Scalar],
+    ) -> Vec<Scalar> {
         let n = domain.size();
-        let poly_utils: Poly_utils<E> = Poly_utils::new();
+        let poly_utils: Poly_utils = Poly_utils::new();
         let domain_4n = EvaluationDomain::new(4 * n).unwrap();
 
         // (a(x) + beta * Sigma1(X) + gamma) (b(X) + beta * Sigma2(X) + gamma) (c(X) + beta * Sigma3(X) + gamma)
@@ -272,10 +262,10 @@ impl<E: PairingEngine> QuotientToolkit<E> {
 
     fn compute_quotient_fourth_component(
         &self,
-        domain: &EvaluationDomain<E::Fr>,
-        z_coeffs: &[E::Fr],
-        alpha_cu: E::Fr,
-    ) -> Vec<E::Fr> {
+        domain: &EvaluationDomain,
+        z_coeffs: &[Scalar],
+        alpha_cu: Scalar,
+    ) -> Vec<Scalar> {
         let n = domain.size();
         let domain_4n = EvaluationDomain::new(4 * n).unwrap();
 
@@ -284,7 +274,7 @@ impl<E: PairingEngine> QuotientToolkit<E> {
 
         // (Z(x) - 1)
         let mut z_coeffs = z_coeffs.to_vec();
-        z_coeffs[0] = z_coeffs[0] - &E::Fr::one();
+        z_coeffs[0] = z_coeffs[0] - &Scalar::one();
 
         let z_evals = domain_4n.coset_fft(&z_coeffs);
         let alpha_cu_l1_evals = domain_4n.coset_fft(&alpha_cu_l1_coeffs);
@@ -297,9 +287,9 @@ impl<E: PairingEngine> QuotientToolkit<E> {
     }
 
     /// Computes the first Lagrange polynomial `L1(X)`.
-    fn compute_first_lagrange_poly(&self, domain: &EvaluationDomain<E::Fr>) -> Polynomial<E::Fr> {
-        let mut x_evals = vec![E::Fr::zero(); domain.size()];
-        x_evals[0] = E::Fr::one();
+    fn compute_first_lagrange_poly(&self, domain: &EvaluationDomain) -> Polynomial {
+        let mut x_evals = vec![Scalar::zero(); domain.size()];
+        x_evals[0] = Scalar::one();
         domain.ifft_in_place(&mut x_evals);
         Polynomial::from_coefficients_vec(x_evals)
     }
@@ -309,13 +299,16 @@ impl<E: PairingEngine> QuotientToolkit<E> {
     // Over coset Z(x_i *h) = (x_i *h)^n -1 = h^n * (x_i)^n -1
     fn compute_vanishing_poly_over_coset(
         &self,
-        domain: &EvaluationDomain<E::Fr>, // domain to evaluate over
-        poly_degree: u64,                 // degree of the vanishing polynomial
-    ) -> Vec<E::Fr> {
-        let coset_gen = E::Fr::multiplicative_generator().pow(&[poly_degree]);
+        domain: &EvaluationDomain, // domain to evaluate over
+        poly_degree: u64,          // degree of the vanishing polynomial
+    ) -> Vec<Scalar> {
+        let coset_gen = Scalar::from(7).pow(&[poly_degree, 0, 0, 0]);
         let v_h: Vec<_> = (0..domain.size())
             .into_iter()
-            .map(|i| (coset_gen * &domain.group_gen.pow(&[poly_degree * i as u64])) - &E::Fr::one())
+            .map(|i| {
+                (coset_gen * &domain.group_gen.pow(&[poly_degree * i as u64, 0, 0, 0]))
+                    - &Scalar::one()
+            })
             .collect();
 
         v_h
@@ -325,17 +318,15 @@ impl<E: PairingEngine> QuotientToolkit<E> {
 #[cfg(test)]
 mod test {
     use super::*;
-    use algebra::curves::bls12_381::Bls12_381 as E;
-    use algebra::fields::bls12_381::Fr;
+    use new_bls12_381::Scalar as Fr;
     #[test]
     fn test_l1_x_poly() {
-        let toolkit: QuotientToolkit<E> = QuotientToolkit::new();
+        let toolkit: QuotientToolkit = QuotientToolkit::new();
 
         let n = 4;
         let domain = EvaluationDomain::new(n).unwrap();
 
-        use algebra::UniformRand;
-        let rand_point = Fr::rand(&mut rand::thread_rng());
+        let rand_point = Fr::from_raw([1, 2, 3, 4]);
         assert_ne!(rand_point, Fr::zero());
 
         // Compute l1_eval according to the Domain
@@ -343,137 +334,9 @@ mod test {
         // Compute l1 eval using IFFT
         let b = toolkit.compute_first_lagrange_poly(&domain);
         let l1_b = b.evaluate(rand_point);
-        // Compute l1 eval using Polynomial division (regression test)
-        let c = slow_compute_first_lagrange_poly(domain.size());
-        let l1_c = c.evaluate(rand_point);
 
         assert_eq!(l1_a, l1_b);
-        assert_eq!(l1_a, l1_c);
 
         assert_eq!(b.evaluate(Fr::one()), Fr::one());
-        assert_eq!(c.evaluate(Fr::one()), Fr::one());
-    }
-
-    /// Computes the Lagrange polynomial `L1(X)`.
-    /// x^n - 1 / n(x-1)
-    fn slow_compute_first_lagrange_poly(size: usize) -> Polynomial<Fr> {
-        let n = Fr::from_repr((size as u64).into());
-
-        use ff_fft::{DenseOrSparsePolynomial, SparsePolynomial};
-
-        let numerator_coeffs = vec![(0, -Fr::one()), (size, Fr::one())];
-        let numerator_poly: DenseOrSparsePolynomial<Fr> =
-            SparsePolynomial::from_coefficients_vec(numerator_coeffs).into();
-
-        let denominator_coeffs = vec![(0, -n), (1, n)];
-        let denominator_poly: DenseOrSparsePolynomial<Fr> =
-            SparsePolynomial::from_coefficients_vec(denominator_coeffs).into();
-
-        let (q, r) = numerator_poly
-            .divide_with_q_and_r(&denominator_poly)
-            .unwrap();
-        assert_eq!(r, Polynomial::zero());
-        q
-    }
-
-    #[test]
-    fn test_vanishing_poly() {
-        use ff_fft::DensePolynomial as Polynomial;
-        let toolkit: QuotientToolkit<E> = QuotientToolkit::new();
-
-        let n = 4;
-        // Using the native zexe function
-        let domain = EvaluationDomain::new(n).unwrap();
-        let domain_2n = EvaluationDomain::new(2 * n).unwrap();
-        let vec = vec![Fr::one(); n];
-
-        let rand_poly: Polynomial<Fr> = Polynomial::from_coefficients_vec(vec);
-        let blinded_rand_poly = rand_poly.mul_by_vanishing_poly(domain);
-        let (q, r) = blinded_rand_poly.divide_by_vanishing_poly(domain).unwrap();
-        assert!(r.is_zero());
-        //Using the new function manually
-        // compute the evaluation points for the vanishing polynomial over a coset
-        let v_evals = domain_2n.coset_fft(&compute_vanishing_poly_coefficients(n));
-        for element in v_evals.iter() {
-            assert_ne!(element, &Fr::zero());
-        }
-        // compute evaluation points for polynomial
-        // not 2n because mul_by_vanish increases the domain
-        let rand_poly_evals = domain_2n.coset_fft(&blinded_rand_poly);
-
-        assert_eq!(rand_poly_evals.len(), v_evals.len());
-
-        // Do division manually
-        let mut res: Vec<_> = v_evals
-            .into_iter()
-            .zip(rand_poly_evals.into_iter())
-            .map(|(v, r)| r / &v)
-            .collect();
-
-        // IFFT on results
-        domain_2n.coset_ifft_in_place(&mut res);
-        assert_eq!(Polynomial::from_coefficients_vec(res), q)
-    }
-    #[test]
-    fn test_coset_roots_of_unity() {
-        use ff_fft::DensePolynomial as Polynomial;
-        let toolkit: QuotientToolkit<E> = QuotientToolkit::new();
-
-        let n = 4;
-        let domain = EvaluationDomain::new(n).unwrap();
-        let v_h = toolkit.compute_vanishing_poly_over_coset(&domain, n as u64);
-
-        for i in 0..v_h.len() {
-            let expected_coset_root = domain.evaluate_vanishing_polynomial(
-                Fr::multiplicative_generator() * &domain.group_gen.pow(&[i as u64]),
-            );
-            assert_eq!(expected_coset_root, v_h[i]);
-        }
-        let v_h_poly =
-            Polynomial::from_coefficients_vec(compute_vanishing_poly_coefficients(domain.size()));
-        assert_eq!(
-            domain.evaluate_vanishing_polynomial(Fr::from(5u8)),
-            v_h_poly.evaluate(Fr::from(5u8))
-        )
-    }
-    #[test]
-    fn test_vanishing_poly_over_higher_domain() {
-        let toolkit: QuotientToolkit<E> = QuotientToolkit::new();
-
-        // We will be calculating the 4n'th roots of unity for the vanishing polynomial x^n -1
-        use ff_fft::DensePolynomial as Polynomial;
-        let n = 4;
-        let domain_4n = EvaluationDomain::new(4 * n).unwrap();
-        // This should be the vanishing polynomial with degree `n` evaluated over the 4n'th roots of unity
-        let v_h_evals = toolkit.compute_vanishing_poly_over_coset(&domain_4n, n as u64);
-
-        // First compute the coefficients form of x^n -1
-        let v_h_poly = Polynomial::from_coefficients_vec(compute_vanishing_poly_coefficients(n));
-        let v_h_evals_4n = domain_4n.coset_fft(&v_h_poly);
-
-        assert_eq!(v_h_evals.len(), v_h_evals_4n.len());
-
-        for (a, b) in v_h_evals_4n.iter().zip(v_h_evals.iter()) {
-            assert_eq!(a, b)
-        }
-    }
-
-    fn compute_vanishing_poly_coefficients(degree: usize) -> Vec<Fr> {
-        // number of elements = degree +1
-        let num_of_elements = degree + 1;
-
-        // first and last elements are non-zero
-        let num_zeroes = num_of_elements - 2;
-
-        let one = vec![Fr::one()];
-        let zeroes = vec![Fr::zero(); num_zeroes];
-        let minus_one = vec![-Fr::one()];
-
-        let mut v_h = Vec::new();
-        v_h.extend(minus_one);
-        v_h.extend(zeroes);
-        v_h.extend(one);
-
-        v_h
     }
 }
