@@ -1,6 +1,5 @@
 use super::linearisation_poly::Evaluations;
-use crate::cs::poly_utils;
-use crate::fft::Polynomial;
+use crate::fft::{poly_utils, Polynomial};
 use bls12_381::Scalar;
 use itertools::izip;
 use rayon::prelude::*;

@@ -1,6 +1,5 @@
 pub mod composer;
 pub mod linear_combination;
-pub mod poly_utils;
 pub mod proof;
 
 use crate::commitment_scheme::kzg10::{Commitment, ProverKey};

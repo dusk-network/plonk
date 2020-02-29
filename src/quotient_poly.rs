@@ -1,6 +1,5 @@
-use crate::cs::poly_utils;
 use crate::cs::PreProcessedCircuit;
-use crate::fft::{EvaluationDomain, Polynomial};
+use crate::fft::{poly_utils, EvaluationDomain, Polynomial};
 use bls12_381::Scalar;
 use rayon::prelude::*;
 

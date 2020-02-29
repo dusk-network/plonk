@@ -1,6 +1,5 @@
-use crate::cs::poly_utils;
 use crate::cs::PreProcessedCircuit;
-use crate::fft::EvaluationDomain;
+use crate::fft::{poly_utils, EvaluationDomain};
 use bls12_381::Scalar;
 
 /// Evaluations at points `z` or and `z * root of unity`
