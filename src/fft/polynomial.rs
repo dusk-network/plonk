@@ -58,14 +58,13 @@ impl Polynomial {
     /// Returns the degree of the polynomial.
     pub fn degree(&self) -> usize {
         if self.is_zero() {
-            0
-        } else {
-            assert!(self
-                .coeffs
-                .last()
-                .map_or(false, |coeff| !(coeff == &Scalar::zero())));
-            self.coeffs.len() - 1
+            return 0;
         }
+        assert!(self
+            .coeffs
+            .last()
+            .map_or(false, |coeff| !(coeff == &Scalar::zero())));
+        self.coeffs.len() - 1
     }
 
     fn truncate_leading_zeros(&mut self) {
@@ -106,6 +105,21 @@ impl Polynomial {
             random_coeffs.push(random_scalar(&mut rng));
         }
         Self::from_coefficients_vec(random_coeffs)
+    }
+}
+
+use std::iter::Sum;
+
+impl Sum for Polynomial {
+    fn sum<I>(iter: I) -> Self
+    where
+        I: Iterator<Item = Self>,
+    {
+        let sum: Polynomial = iter.fold(Polynomial::zero(), |mut res, val| {
+            res = &res + &val;
+            res
+        });
+        sum
     }
 }
 
