@@ -6,51 +6,50 @@ use super::{
     proof::Proof,
     Composer, PreProcessedCircuit,
 };
-use crate::{cs::quotient_poly::QuotientToolkit, srs, transcript::TranscriptProtocol};
-use algebra::{curves::PairingEngine, fields::Field};
-use ff_fft::EvaluationDomain;
-use num_traits::{One, Zero};
-use poly_commit::kzg10::Powers;
-use rand_core::{CryptoRng, RngCore};
+use crate::commitment_scheme::kzg10::ProverKey;
+use crate::fft::{EvaluationDomain, Polynomial};
+
+use crate::{cs::quotient_poly::QuotientToolkit, transcript::TranscriptProtocol};
+use bls12_381::Scalar;
 /// A composer is a circuit builder
 /// and will dictate how a circuit is built
 /// We will have a default Composer called `StandardComposer`
-pub struct StandardComposer<E: PairingEngine> {
+pub struct StandardComposer {
     // n represents the number of arithmetic gates in the circuit
     n: usize,
 
     // Selector vectors
     //
     // Multiplier selector
-    q_m: Vec<E::Fr>,
+    q_m: Vec<Scalar>,
     // Left wire selector
-    q_l: Vec<E::Fr>,
+    q_l: Vec<Scalar>,
     // Right wire selector
-    q_r: Vec<E::Fr>,
+    q_r: Vec<Scalar>,
     // output wire selector
-    q_o: Vec<E::Fr>,
+    q_o: Vec<Scalar>,
     // constant wire selector
-    q_c: Vec<E::Fr>,
+    q_c: Vec<Scalar>,
 
-    public_inputs: Vec<E::Fr>,
+    public_inputs: Vec<Scalar>,
 
     // witness vectors
     w_l: Vec<Variable>,
     w_r: Vec<Variable>,
     w_o: Vec<Variable>,
 
-    pub(crate) perm: Permutation<E>,
+    pub(crate) perm: Permutation,
 }
 
-impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
+impl Composer for StandardComposer {
     // Computes the pre-processed polynomials
     // So the verifier can verify a proof made using this circuit
     fn preprocess(
         &mut self,
-        commit_key: &Powers<E>,
-        transcript: &mut dyn TranscriptProtocol<E>,
-        domain: &EvaluationDomain<E::Fr>,
-    ) -> PreProcessedCircuit<E> {
+        commit_key: &ProverKey,
+        transcript: &mut dyn TranscriptProtocol,
+        domain: &EvaluationDomain,
+    ) -> PreProcessedCircuit {
         let k = self.q_m.len();
         assert!(self.q_o.len() == k);
         assert!(self.q_l.len() == k);
@@ -84,15 +83,45 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
 
         // 4. Commit to polynomials
         //
-        let q_m_poly_commit = srs::commit(commit_key, &q_m_coeffs);
-        let q_l_poly_commit = srs::commit(commit_key, &q_l_coeffs);
-        let q_r_poly_commit = srs::commit(commit_key, &q_r_coeffs);
-        let q_o_poly_commit = srs::commit(commit_key, &q_o_coeffs);
-        let q_c_poly_commit = srs::commit(commit_key, &q_c_coeffs);
+        let q_m_poly_commit = commit_key
+            .commit(Polynomial::from_coefficients_slice(&q_m_coeffs), None)
+            .unwrap()
+            .0;
+        let q_l_poly_commit = commit_key
+            .commit(Polynomial::from_coefficients_slice(&q_l_coeffs), None)
+            .unwrap()
+            .0;
+        let q_r_poly_commit = commit_key
+            .commit(Polynomial::from_coefficients_slice(&q_r_coeffs), None)
+            .unwrap()
+            .0;
+        let q_o_poly_commit = commit_key
+            .commit(Polynomial::from_coefficients_slice(&q_o_coeffs), None)
+            .unwrap()
+            .0;
+        let q_c_poly_commit = commit_key
+            .commit(Polynomial::from_coefficients_slice(&q_c_coeffs), None)
+            .unwrap()
+            .0;
 
-        let left_sigma_poly_commit = srs::commit(commit_key, &left_sigma_coeffs);
-        let right_sigma_poly_commit = srs::commit(commit_key, &right_sigma_coeffs);
-        let out_sigma_poly_commit = srs::commit(commit_key, &out_sigma_coeffs);
+        let left_sigma_poly_commit = commit_key
+            .commit(
+                Polynomial::from_coefficients_slice(&left_sigma_coeffs),
+                None,
+            )
+            .unwrap()
+            .0;
+        let right_sigma_poly_commit = commit_key
+            .commit(
+                Polynomial::from_coefficients_slice(&right_sigma_coeffs),
+                None,
+            )
+            .unwrap()
+            .0;
+        let out_sigma_poly_commit = commit_key
+            .commit(Polynomial::from_coefficients_slice(&out_sigma_coeffs), None)
+            .unwrap()
+            .0;
 
         //5. Add polynomial commitments to transcript
         //
@@ -128,10 +157,10 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
     // produce a proof
     fn prove(
         &mut self,
-        commit_key: &Powers<E>,
-        preprocessed_circuit: &PreProcessedCircuit<E>,
-        transcript: &mut dyn TranscriptProtocol<E>,
-    ) -> Proof<E> {
+        commit_key: &ProverKey,
+        preprocessed_circuit: &PreProcessedCircuit,
+        transcript: &mut dyn TranscriptProtocol,
+    ) -> Proof {
         let domain = EvaluationDomain::new(self.n).unwrap();
 
         let mut proof = Proof::empty();
@@ -151,9 +180,18 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
         // 1) Commit to witness polynomials
         // 2) Add them to transcript
         // 3) Place commitments into proof
-        let w_l_poly_commit = srs::commit(commit_key, &w_l_coeffs);
-        let w_r_poly_commit = srs::commit(commit_key, &w_r_coeffs);
-        let w_o_poly_commit = srs::commit(commit_key, &w_o_coeffs);
+        let w_l_poly_commit = commit_key
+            .commit(Polynomial::from_coefficients_slice(&w_l_coeffs), None)
+            .unwrap()
+            .0;
+        let w_r_poly_commit = commit_key
+            .commit(Polynomial::from_coefficients_slice(&w_r_coeffs), None)
+            .unwrap()
+            .0;
+        let w_o_poly_commit = commit_key
+            .commit(Polynomial::from_coefficients_slice(&w_o_coeffs), None)
+            .unwrap()
+            .0;
         //
         transcript.append_commitment(b"w_l", &w_l_poly_commit);
         transcript.append_commitment(b"w_r", &w_r_poly_commit);
@@ -177,7 +215,10 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
         // 1) Commit to permutation polynomial
         // 2) Add them to transcript
         // 3) Place commitments into proof
-        let z_poly_commit = srs::commit(commit_key, &z_coeffs);
+        let z_poly_commit = commit_key
+            .commit(Polynomial::from_coefficients_slice(&z_coeffs), None)
+            .unwrap()
+            .0;
         //
         transcript.append_commitment(b"z", &z_poly_commit);
         //
@@ -206,9 +247,18 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
         // 1) Commit to quotient polynomials
         // 2) Add them to transcript
         // 3) Place commitments into proof
-        let t_low_commit = srs::commit(commit_key, &t_low_coeffs);
-        let t_mid_commit = srs::commit(commit_key, &t_mid_coeffs);
-        let t_hi_commit = srs::commit(commit_key, &t_hi_coeffs);
+        let t_low_commit = commit_key
+            .commit(Polynomial::from_coefficients_slice(&t_low_coeffs), None)
+            .unwrap()
+            .0;
+        let t_mid_commit = commit_key
+            .commit(Polynomial::from_coefficients_slice(&t_mid_coeffs), None)
+            .unwrap()
+            .0;
+        let t_hi_commit = commit_key
+            .commit(Polynomial::from_coefficients_slice(&t_hi_coeffs), None)
+            .unwrap()
+            .0;
         //
         transcript.append_commitment(b"t_lo", &t_low_commit);
         transcript.append_commitment(b"t_mid", &t_mid_commit);
@@ -260,7 +310,7 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
         let v = transcript.challenge_scalar(b"v");
 
         // Compute opening polynomial
-        let comm_opener: commitmentOpener<E> = commitmentOpener::new();
+        let comm_opener: commitmentOpener = commitmentOpener::new();
         let (w_z_coeffs, w_zx_coeffs) = comm_opener.compute_opening_polynomials(
             domain.group_gen,
             domain.size(),
@@ -281,8 +331,14 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
 
         // 1) Commit to opening polynomials
         // 2) Place commitments into proof
-        let w_z_comm = srs::commit(commit_key, &w_z_coeffs);
-        let w_z_x_comm = srs::commit(commit_key, &w_zx_coeffs);
+        let w_z_comm = commit_key
+            .commit(Polynomial::from_coefficients_slice(&w_z_coeffs), None)
+            .unwrap()
+            .0;
+        let w_z_x_comm = commit_key
+            .commit(Polynomial::from_coefficients_slice(&w_zx_coeffs), None)
+            .unwrap()
+            .0;
         //
         proof.set_opening_poly_commitments(&w_z_comm, &w_z_x_comm);
 
@@ -294,7 +350,7 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
     }
 }
 
-impl<E: PairingEngine> StandardComposer<E> {
+impl StandardComposer {
     pub fn new() -> Self {
         StandardComposer::with_expected_size(0)
     }
@@ -303,8 +359,8 @@ impl<E: PairingEngine> StandardComposer<E> {
     pub fn split_tx_poly<'a>(
         &self,
         n: usize,
-        t_x: &Vec<E::Fr>,
-    ) -> (Vec<E::Fr>, Vec<E::Fr>, Vec<E::Fr>) {
+        t_x: &Vec<Scalar>,
+    ) -> (Vec<Scalar>, Vec<Scalar>, Vec<Scalar>) {
         (
             t_x[0..n].to_vec(),
             t_x[n..2 * n].to_vec(),
@@ -337,7 +393,7 @@ impl<E: PairingEngine> StandardComposer<E> {
     // diff is the difference between circuit size and next power of two
     fn pad(&mut self, diff: usize) {
         // Add a zero variable to circuit
-        let zero_scalar = E::Fr::zero();
+        let zero_scalar = Scalar::zero();
         let zero_var = self.add_input(zero_scalar);
 
         let zeroes_scalar = vec![zero_scalar; diff];
@@ -358,12 +414,12 @@ impl<E: PairingEngine> StandardComposer<E> {
 
     // Adds a Scalar to the circuit and returns its
     // reference in the constraint system
-    pub fn add_input(&mut self, s: E::Fr) -> Variable {
+    pub fn add_input(&mut self, s: Scalar) -> Variable {
         self.perm.new_variable(s)
     }
     // evaluates a linear combination
-    pub(crate) fn eval(&self, lc: LinearCombination<E::Fr>) -> E::Fr {
-        let mut sum = E::Fr::zero();
+    pub(crate) fn eval(&self, lc: LinearCombination) -> Scalar {
+        let mut sum = Scalar::zero();
         for (variable, scalar) in lc.terms.iter() {
             let value = self.perm.variables[variable];
             sum += &(value * scalar);
@@ -371,21 +427,21 @@ impl<E: PairingEngine> StandardComposer<E> {
         sum
     }
     // Evaluates a linear combination and adds it's value to the constraint system
-    fn add_lc(&mut self, lc: LinearCombination<E::Fr>) -> Variable {
+    fn add_lc(&mut self, lc: LinearCombination) -> Variable {
         let eval = self.eval(lc);
         self.add_input(eval)
     }
     // Adds an add gate to the circuit
     pub fn add_gate(
         &mut self,
-        a: LinearCombination<E::Fr>,
-        b: LinearCombination<E::Fr>,
-        c: LinearCombination<E::Fr>,
-        q_l: E::Fr,
-        q_r: E::Fr,
-        q_o: E::Fr,
-        q_c: E::Fr,
-        pi: E::Fr,
+        a: LinearCombination,
+        b: LinearCombination,
+        c: LinearCombination,
+        q_l: Scalar,
+        q_r: Scalar,
+        q_o: Scalar,
+        q_c: Scalar,
+        pi: Scalar,
     ) -> (Variable, Variable, Variable) {
         let l = self.add_lc(a);
         let r = self.add_lc(b);
@@ -396,7 +452,7 @@ impl<E: PairingEngine> StandardComposer<E> {
         self.w_o.push(o);
 
         // For an add gate, q_m is zero
-        self.q_m.push(E::Fr::zero());
+        self.q_m.push(Scalar::zero());
 
         // Add selector vectors
         self.q_l.push(q_l);
@@ -415,13 +471,13 @@ impl<E: PairingEngine> StandardComposer<E> {
 
     pub fn mul_gate(
         &mut self,
-        a: LinearCombination<E::Fr>,
-        b: LinearCombination<E::Fr>,
-        c: LinearCombination<E::Fr>,
-        q_m: E::Fr,
-        q_o: E::Fr,
-        q_c: E::Fr,
-        pi: E::Fr,
+        a: LinearCombination,
+        b: LinearCombination,
+        c: LinearCombination,
+        q_m: Scalar,
+        q_o: Scalar,
+        q_c: Scalar,
+        pi: Scalar,
     ) -> (Variable, Variable, Variable) {
         let l = self.add_lc(a);
         let r = self.add_lc(b);
@@ -432,8 +488,8 @@ impl<E: PairingEngine> StandardComposer<E> {
         self.w_o.push(o);
 
         // For a mul gate q_L and q_R is zero
-        self.q_l.push(E::Fr::zero());
-        self.q_r.push(E::Fr::zero());
+        self.q_l.push(Scalar::zero());
+        self.q_r.push(Scalar::zero());
 
         // Add selector vectors
         self.q_m.push(q_m);
@@ -451,15 +507,15 @@ impl<E: PairingEngine> StandardComposer<E> {
 
     pub fn poly_gate(
         &mut self,
-        a: LinearCombination<E::Fr>,
-        b: LinearCombination<E::Fr>,
-        c: LinearCombination<E::Fr>,
-        q_m: E::Fr,
-        q_l: E::Fr,
-        q_r: E::Fr,
-        q_o: E::Fr,
-        q_c: E::Fr,
-        pi: E::Fr,
+        a: LinearCombination,
+        b: LinearCombination,
+        c: LinearCombination,
+        q_m: Scalar,
+        q_l: Scalar,
+        q_r: Scalar,
+        q_o: Scalar,
+        q_c: Scalar,
+        pi: Scalar,
     ) -> (Variable, Variable, Variable) {
         let l = self.add_lc(a);
         let r = self.add_lc(b);
@@ -487,37 +543,37 @@ impl<E: PairingEngine> StandardComposer<E> {
 
     pub fn constrain_to_constant(
         &mut self,
-        a: LinearCombination<E::Fr>,
-        constant: E::Fr,
-        pi: E::Fr,
+        a: LinearCombination,
+        constant: Scalar,
+        pi: Scalar,
     ) -> Variable {
         let (a, _, _) = self.add_gate(
             a.clone(),
             a.clone(),
             a,
-            E::Fr::one(),
-            E::Fr::zero(),
-            E::Fr::zero(),
+            Scalar::one(),
+            Scalar::zero(),
+            Scalar::zero(),
             -constant,
             pi,
         );
         a
     }
 
-    pub fn bool_gate(&mut self, a: LinearCombination<E::Fr>) -> Variable {
+    pub fn bool_gate(&mut self, a: LinearCombination) -> Variable {
         let lro = self.add_lc(a);
 
         self.w_l.push(lro);
         self.w_r.push(lro);
         self.w_o.push(lro);
 
-        self.q_m.push(E::Fr::one());
-        self.q_l.push(E::Fr::zero());
-        self.q_r.push(E::Fr::zero());
-        self.q_o.push(-E::Fr::one());
-        self.q_c.push(E::Fr::zero());
+        self.q_m.push(Scalar::one());
+        self.q_l.push(Scalar::zero());
+        self.q_r.push(Scalar::zero());
+        self.q_o.push(-Scalar::one());
+        self.q_c.push(Scalar::zero());
 
-        self.public_inputs.push(E::Fr::zero());
+        self.public_inputs.push(Scalar::zero());
 
         self.perm.add_variable_to_map(lro, lro, lro, self.n);
 
@@ -528,15 +584,15 @@ impl<E: PairingEngine> StandardComposer<E> {
 
     pub fn add_dummy_constraints(&mut self) {
         // Add a dummy constraint so that we do not have zero polynomials
-        self.q_m.push(E::Fr::from(1));
-        self.q_l.push(E::Fr::from(2));
-        self.q_r.push(E::Fr::from(3));
-        self.q_o.push(E::Fr::from(4));
-        self.q_c.push(E::Fr::from(5));
-        self.public_inputs.push(E::Fr::zero());
-        let var_six = self.add_input(E::Fr::from(6.into()));
-        let var_seven = self.add_input(E::Fr::from(7.into()));
-        let var_min_twenty = self.add_input(-E::Fr::from(20.into()));
+        self.q_m.push(Scalar::from(1));
+        self.q_l.push(Scalar::from(2));
+        self.q_r.push(Scalar::from(3));
+        self.q_o.push(Scalar::from(4));
+        self.q_c.push(Scalar::from(5));
+        self.public_inputs.push(Scalar::zero());
+        let var_six = self.add_input(Scalar::from(6));
+        let var_seven = self.add_input(Scalar::from(7));
+        let var_min_twenty = self.add_input(-Scalar::from(20));
         self.w_l.push(var_six);
         self.w_r.push(var_seven);
         self.w_o.push(var_min_twenty);
@@ -544,12 +600,12 @@ impl<E: PairingEngine> StandardComposer<E> {
             .add_variable_to_map(var_six, var_seven, var_min_twenty, self.n);
         self.n = self.n + 1;
         //Add another dummy constraint so that we do not get the identity permutation
-        self.q_m.push(E::Fr::from(1));
-        self.q_l.push(E::Fr::from(1));
-        self.q_r.push(E::Fr::from(1));
-        self.q_o.push(E::Fr::from(1));
-        self.q_c.push(E::Fr::from(127));
-        self.public_inputs.push(E::Fr::zero());
+        self.q_m.push(Scalar::from(1));
+        self.q_l.push(Scalar::from(1));
+        self.q_r.push(Scalar::from(1));
+        self.q_o.push(Scalar::from(1));
+        self.q_c.push(Scalar::from(127));
+        self.public_inputs.push(Scalar::zero());
         self.w_l.push(var_min_twenty);
         self.w_r.push(var_six);
         self.w_o.push(var_seven);
@@ -562,52 +618,50 @@ impl<E: PairingEngine> StandardComposer<E> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use algebra::curves::bls12_381::Bls12_381;
-    use algebra::fields::bls12_381::Fr;
+    use crate::commitment_scheme::kzg10::SRS;
+    use bls12_381::Scalar as Fr;
     use merlin::Transcript;
-    use poly_commit::kzg10::{Powers, UniversalParams, VerifierKey};
-
     // Ensures a + b - c = 0
-    fn simple_add_gadget<E: PairingEngine>(
-        composer: &mut StandardComposer<E>,
-        a: LinearCombination<E::Fr>,
-        b: LinearCombination<E::Fr>,
-        c: LinearCombination<E::Fr>,
-        pi: E::Fr,
+    fn simple_add_gadget(
+        composer: &mut StandardComposer,
+        a: LinearCombination,
+        b: LinearCombination,
+        c: LinearCombination,
+        pi: Scalar,
     ) {
-        let q_l = E::Fr::one();
-        let q_r = E::Fr::one();
-        let q_o = -E::Fr::one();
-        let q_c = E::Fr::zero();
+        let q_l = Scalar::one();
+        let q_r = Scalar::one();
+        let q_o = -Scalar::one();
+        let q_c = Scalar::zero();
 
         composer.add_gate(a.into(), b.into(), c.into(), q_l, q_r, q_o, q_c, pi);
     }
 
-    fn example_gadget<E: PairingEngine>(
-        composer: &mut StandardComposer<E>,
-        a: LinearCombination<E::Fr>,
-        b: LinearCombination<E::Fr>,
-        c: LinearCombination<E::Fr>,
+    fn example_gadget(
+        composer: &mut StandardComposer,
+        a: LinearCombination,
+        b: LinearCombination,
+        c: LinearCombination,
     ) {
         composer.mul_gate(
             a,
             b,
             c,
-            E::Fr::one(),
-            -E::Fr::one(),
-            E::Fr::zero(),
-            E::Fr::zero(),
+            Scalar::one(),
+            -Scalar::one(),
+            Scalar::zero(),
+            Scalar::zero(),
         );
     }
 
     // Returns a composer with `n` constraints
-    fn add_dummy_composer<E: PairingEngine>(n: usize) -> StandardComposer<E> {
+    fn add_dummy_composer(n: usize) -> StandardComposer {
         let mut composer = StandardComposer::new();
 
-        let one = E::Fr::one();
+        let one = Scalar::one();
 
         let var_one = composer.add_input(one);
-        let var_two: LinearCombination<E::Fr> =
+        let var_two: LinearCombination =
             LinearCombination::from(var_one) + LinearCombination::from(var_one);
 
         for _ in 0..n {
@@ -616,7 +670,7 @@ mod tests {
                 var_one.into(),
                 var_one.into(),
                 var_two.clone(),
-                E::Fr::zero(),
+                Scalar::zero(),
             );
         }
         composer.add_dummy_constraints();
@@ -627,7 +681,7 @@ mod tests {
     #[test]
     fn test_pad() {
         let num_constraints = 100;
-        let mut composer: StandardComposer<Bls12_381> = add_dummy_composer(num_constraints);
+        let mut composer: StandardComposer = add_dummy_composer(num_constraints);
 
         // Pad the circuit to next power of two
         let next_pow_2 = composer.n.next_power_of_two() as u64;
@@ -661,8 +715,8 @@ mod tests {
         let ok = test_gadget(
             |mut composer| {
                 let var_one = composer.add_input(Fr::one());
-                let var_three = composer.add_input(Fr::from(3u8));
-                let var_four = composer.add_input(Fr::from(4u8));
+                let var_three = composer.add_input(Fr::from(3));
+                let var_four = composer.add_input(Fr::from(4));
                 simple_add_gadget(
                     &mut composer,
                     var_one.into(),
@@ -675,7 +729,7 @@ mod tests {
                     var_one.into(),
                     var_one.into(),
                     var_four.into(),
-                    Fr::from(2u8),
+                    Fr::from(2),
                 );
             },
             200,
@@ -688,11 +742,11 @@ mod tests {
         let ok = test_gadget(
             |mut composer| {
                 // Verify that (4+5) * (6+7) = 117
-                let four: LinearCombination<Fr> = composer.add_input(Fr::from(4u8)).into();
-                let five: LinearCombination<Fr> = composer.add_input(Fr::from(5u8)).into();
-                let six: LinearCombination<Fr> = composer.add_input(Fr::from(6u8)).into();
-                let seven: LinearCombination<Fr> = composer.add_input(Fr::from(7u8)).into();
-                let one_seventeen = composer.add_input(Fr::from(117u16));
+                let four: LinearCombination = composer.add_input(Fr::from(4)).into();
+                let five: LinearCombination = composer.add_input(Fr::from(5)).into();
+                let six: LinearCombination = composer.add_input(Fr::from(6)).into();
+                let seven: LinearCombination = composer.add_input(Fr::from(7)).into();
+                let one_seventeen = composer.add_input(Fr::from(117));
                 example_gadget(
                     &mut composer,
                     four + five,
@@ -709,11 +763,11 @@ mod tests {
         let ok = test_gadget(
             |mut composer| {
                 // Verify that (5+5) * (6+7) != 117
-                let four: LinearCombination<Fr> = composer.add_input(Fr::from(5u8)).into();
-                let five: LinearCombination<Fr> = composer.add_input(Fr::from(5u8)).into();
-                let six: LinearCombination<Fr> = composer.add_input(Fr::from(6u8)).into();
-                let seven: LinearCombination<Fr> = composer.add_input(Fr::from(7u8)).into();
-                let one_seventeen = composer.add_input(Fr::from(117u16));
+                let four: LinearCombination = composer.add_input(Fr::from(5)).into();
+                let five: LinearCombination = composer.add_input(Fr::from(5)).into();
+                let six: LinearCombination = composer.add_input(Fr::from(6)).into();
+                let seven: LinearCombination = composer.add_input(Fr::from(7)).into();
+                let one_seventeen = composer.add_input(Fr::from(117));
                 example_gadget(
                     &mut composer,
                     four + five,
@@ -744,7 +798,7 @@ mod tests {
     fn test_incorrect_bool_gate() {
         let ok = test_gadget(
             |composer| {
-                let zero = composer.add_input(Fr::from(5u8));
+                let zero = composer.add_input(Fr::from(5));
                 let one = composer.add_input(Fr::one());
 
                 composer.bool_gate(zero.into());
@@ -755,21 +809,17 @@ mod tests {
         assert!(!ok)
     }
 
-    fn test_gadget(gadget: fn(composer: &mut StandardComposer<Bls12_381>), n: usize) -> bool {
+    fn test_gadget(gadget: fn(composer: &mut StandardComposer), n: usize) -> bool {
         // Common View
-        //
-        let public_parameters = srs::setup(2 * n + 1, &mut rand::thread_rng());
-        // Provers View
-        //
+        let public_parameters = SRS::setup(2 * n, &mut rand::thread_rng()).unwrap();
+        // Provers View                                                                             //
         let (proof, public_inputs) = {
-            let mut composer: StandardComposer<Bls12_381> = add_dummy_composer(7);
+            let mut composer: StandardComposer = add_dummy_composer(7);
             gadget(&mut composer);
 
-            let (ck, _) = srs::trim(
-                &public_parameters,
-                2 * composer.circuit_size().next_power_of_two(),
-            )
-            .unwrap();
+            let (ck, _) = public_parameters
+                .trim(2 * composer.circuit_size().next_power_of_two())
+                .unwrap();
             let domain = EvaluationDomain::new(composer.circuit_size()).unwrap();
             let mut transcript = Transcript::new(b"");
             // Preprocess circuit
@@ -782,14 +832,12 @@ mod tests {
         // Verifiers view
         //
         let ok = {
-            let mut composer: StandardComposer<Bls12_381> = add_dummy_composer(7);
+            let mut composer: StandardComposer = add_dummy_composer(7);
             gadget(&mut composer);
 
-            let (ck, vk) = srs::trim(
-                &public_parameters,
-                composer.circuit_size().next_power_of_two(),
-            )
-            .unwrap();
+            let (ck, vk) = public_parameters
+                .trim(composer.circuit_size().next_power_of_two())
+                .unwrap();
             let domain = EvaluationDomain::new(composer.circuit_size()).unwrap();
             // setup transcript
             let mut transcript = Transcript::new(b"");
@@ -803,7 +851,7 @@ mod tests {
 
     #[test]
     fn test_circuit_size() {
-        let mut composer: StandardComposer<Bls12_381> = StandardComposer::new();
+        let mut composer: StandardComposer = StandardComposer::new();
 
         let one = Fr::one();
         let two = one + &one;

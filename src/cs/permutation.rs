@@ -1,39 +1,31 @@
 use super::constraint_system::{Variable, WireData};
 
-use algebra::{
-    curves::PairingEngine,
-    fields::{Field, PrimeField},
-};
-use ff_fft::{DensePolynomial as Polynomial, EvaluationDomain};
-use itertools::izip;
-use num_traits::{One, Zero};
-use rayon::iter::*;
-use rayon::prelude::*;
-use std::collections::HashMap;
-use std::marker::PhantomData;
-pub struct Permutation<E: PairingEngine> {
-    _engine: PhantomData<E>,
+use crate::fft::EvaluationDomain;
 
+use bls12_381::Scalar;
+use itertools::izip;
+use rayon::iter::*;
+use std::collections::HashMap;
+pub struct Permutation {
     // These are the actual variable values
     // N.B. They should not be exposed to the end user once added into the composer
-    pub(crate) variables: HashMap<Variable, E::Fr>,
+    pub(crate) variables: HashMap<Variable, Scalar>,
 
     // Maps a variable to the wires that it is assosciated to
     pub(crate) variable_map: HashMap<Variable, Vec<WireData>>,
 
-    left_sigma_mapping: Option<Vec<E::Fr>>,
-    right_sigma_mapping: Option<Vec<E::Fr>>,
-    out_sigma_mapping: Option<Vec<E::Fr>>,
+    left_sigma_mapping: Option<Vec<Scalar>>,
+    right_sigma_mapping: Option<Vec<Scalar>>,
+    out_sigma_mapping: Option<Vec<Scalar>>,
 }
 
-impl<E: PairingEngine> Permutation<E> {
+impl Permutation {
     /// Creates a permutation struct which will ultimately create the permutation polynomial
-    pub fn new() -> Permutation<E> {
+    pub fn new() -> Permutation {
         Permutation::with_capacity(0)
     }
-    pub fn with_capacity(expected_size: usize) -> Permutation<E> {
+    pub fn with_capacity(expected_size: usize) -> Permutation {
         Permutation {
-            _engine: PhantomData,
             variables: HashMap::with_capacity(expected_size),
             variable_map: HashMap::with_capacity(expected_size),
 
@@ -44,7 +36,7 @@ impl<E: PairingEngine> Permutation<E> {
     }
     /// Adds a Scalar into the system and creates a new variable for it
     /// If the Scalar has not been previously added to the system
-    pub fn new_variable(&mut self, s: E::Fr) -> Variable {
+    pub fn new_variable(&mut self, s: Scalar) -> Variable {
         // Generate the Variable
         let var = Variable(self.variables.keys().len());
         // Push scalar into the system
@@ -87,7 +79,7 @@ impl<E: PairingEngine> Permutation<E> {
         // Variable `a` is being used in the n'th gate as a left wire
         // Variable `b` is being used in the n'th gate as a right wire
         // Variable `c` is being used in the n'th gate as an output wire
-        for (var, wire_data) in [a, b, c].into_iter().zip([left, right, output].into_iter()) {
+        for (var, wire_data) in [a, b, c].iter().zip([left, right, output].iter()) {
             // Since we always allocate space for the Vec of WireData when a
             // Variable is added to the variable_map, this should never fail
             let vec_wire_data = self.variable_map.get_mut(var).unwrap();
@@ -100,7 +92,7 @@ impl<E: PairingEngine> Permutation<E> {
         w_l: &[Variable],
         w_r: &[Variable],
         w_o: &[Variable],
-    ) -> (Vec<E::Fr>, Vec<E::Fr>, Vec<E::Fr>) {
+    ) -> (Vec<Scalar>, Vec<Scalar>, Vec<Scalar>) {
         (
             w_l.par_iter().map(|var| self.variables[var]).collect(),
             w_r.par_iter().map(|var| self.variables[var]).collect(),
@@ -144,14 +136,14 @@ impl<E: PairingEngine> Permutation<E> {
     fn compute_permutation_lagrange(
         &self,
         sigma_mapping: &[WireData],
-        domain: &EvaluationDomain<E::Fr>,
-    ) -> Vec<E::Fr> {
-        let k1 = E::Fr::multiplicative_generator();
-        let k2 = E::Fr::from(13.into());
+        domain: &EvaluationDomain,
+    ) -> Vec<Scalar> {
+        let k1 = Scalar::from(7);
+        let k2 = Scalar::from(13);
 
         let roots: Vec<_> = domain.elements().collect();
 
-        let lagrange_poly: Vec<E::Fr> = sigma_mapping
+        let lagrange_poly: Vec<Scalar> = sigma_mapping
             .iter()
             .map(|x| match x {
                 WireData::Left(index) => {
@@ -175,8 +167,8 @@ impl<E: PairingEngine> Permutation<E> {
     pub fn compute_sigma_polynomials(
         &mut self,
         n: usize,
-        domain: &EvaluationDomain<E::Fr>,
-    ) -> (Vec<E::Fr>, Vec<E::Fr>, Vec<E::Fr>) {
+        domain: &EvaluationDomain,
+    ) -> (Vec<Scalar>, Vec<Scalar>, Vec<Scalar>) {
         // Compute sigma mappings
         let sigmas = self.compute_sigma_permutations(n);
 
@@ -202,32 +194,32 @@ impl<E: PairingEngine> Permutation<E> {
 
     pub(crate) fn compute_permutation_poly(
         &self,
-        domain: &EvaluationDomain<E::Fr>,
-        w_l: &[E::Fr],
-        w_r: &[E::Fr],
-        w_o: &[E::Fr],
-        (beta, gamma): &(E::Fr, E::Fr),
-    ) -> Vec<E::Fr> {
+        domain: &EvaluationDomain,
+        w_l: &[Scalar],
+        w_r: &[Scalar],
+        w_o: &[Scalar],
+        (beta, gamma): &(Scalar, Scalar),
+    ) -> Vec<Scalar> {
         let z_evaluations = self.compute_fast_permutation_poly(domain, w_l, w_r, w_o, beta, gamma);
         domain.ifft(&z_evaluations)
     }
 
     fn compute_slow_permutation_poly<I>(
         &self,
-        domain: &EvaluationDomain<E::Fr>,
+        domain: &EvaluationDomain,
         w_l: I,
         w_r: I,
         w_o: I,
-        beta: &E::Fr,
-        gamma: &E::Fr,
-    ) -> (Vec<E::Fr>, Vec<E::Fr>, Vec<E::Fr>)
+        beta: &Scalar,
+        gamma: &Scalar,
+    ) -> (Vec<Scalar>, Vec<Scalar>, Vec<Scalar>)
     where
-        I: Iterator<Item = E::Fr>,
+        I: Iterator<Item = Scalar>,
     {
         let n = domain.size();
 
-        let k1 = E::Fr::multiplicative_generator();
-        let k2 = E::Fr::from(13.into());
+        let k1 = Scalar::from(7);
+        let k2 = Scalar::from(13);
 
         let left_sigma_mapping = self.left_sigma_mapping.as_ref().unwrap();
         let right_sigma_mapping = self.right_sigma_mapping.as_ref().unwrap();
@@ -256,15 +248,15 @@ impl<E: PairingEngine> Permutation<E> {
         // Compute out_wire + gamma
         let wO_gamma: Vec<_> = w_o.map(|w| w + gamma).collect();
 
-        let mut numerator_partial_components: Vec<E::Fr> = Vec::with_capacity(n);
-        let mut denominator_partial_components: Vec<E::Fr> = Vec::with_capacity(n);
+        let mut numerator_partial_components: Vec<Scalar> = Vec::with_capacity(n);
+        let mut denominator_partial_components: Vec<Scalar> = Vec::with_capacity(n);
 
-        let mut numerator_coefficients: Vec<E::Fr> = Vec::with_capacity(n);
-        let mut denominator_coefficients: Vec<E::Fr> = Vec::with_capacity(n);
+        let mut numerator_coefficients: Vec<Scalar> = Vec::with_capacity(n);
+        let mut denominator_coefficients: Vec<Scalar> = Vec::with_capacity(n);
 
         // First element in both of them is one
-        numerator_coefficients.push(E::Fr::one());
-        denominator_coefficients.push(E::Fr::one());
+        numerator_coefficients.push(Scalar::one());
+        denominator_coefficients.push(Scalar::one());
 
         // Compute numerator coefficients
         for (w_l_gamma, w_r_gamma, w_o_gamma, beta_root, beta_root_k1, beta_root_k2) in izip!(
@@ -329,10 +321,10 @@ impl<E: PairingEngine> Permutation<E> {
 
         // Check that n+1'th elements are equal (taken from proof)
         let a = numerator_coefficients.last().unwrap();
-        assert_ne!(a, &E::Fr::zero());
+        assert_ne!(a, &Scalar::zero());
         let b = denominator_coefficients.last().unwrap();
-        assert_ne!(b, &E::Fr::zero());
-        assert_eq!(*a / b, E::Fr::one());
+        assert_ne!(b, &Scalar::zero());
+        assert_eq!(*a * b.invert().unwrap(), Scalar::one());
 
         // Remove those extra elements
         numerator_coefficients.remove(n);
@@ -340,12 +332,12 @@ impl<E: PairingEngine> Permutation<E> {
 
         // Combine numerator and denominator
 
-        let mut z_coefficients: Vec<E::Fr> = Vec::with_capacity(n);
+        let mut z_coefficients: Vec<Scalar> = Vec::with_capacity(n);
         for (numerator, denominator) in numerator_coefficients
             .iter()
             .zip(denominator_coefficients.iter())
         {
-            z_coefficients.push(*numerator / &denominator);
+            z_coefficients.push(*numerator * denominator.invert().unwrap());
         }
         assert_eq!(z_coefficients.len(), n);
 
@@ -358,19 +350,19 @@ impl<E: PairingEngine> Permutation<E> {
 
     fn compute_fast_permutation_poly(
         &self,
-        domain: &EvaluationDomain<E::Fr>,
-        w_l: &[E::Fr],
-        w_r: &[E::Fr],
-        w_o: &[E::Fr],
-        beta: &E::Fr,
-        gamma: &E::Fr,
-    ) -> Vec<E::Fr> {
+        domain: &EvaluationDomain,
+        w_l: &[Scalar],
+        w_r: &[Scalar],
+        w_o: &[Scalar],
+        beta: &Scalar,
+        gamma: &Scalar,
+    ) -> Vec<Scalar> {
         let n = domain.size();
 
-        let k1 = E::Fr::multiplicative_generator();
-        let k2 = E::Fr::from(13.into());
+        let k1 = Scalar::from(7);
+        let k2 = Scalar::from(13);
         // Compute beta * roots
-        let common_roots: Vec<_> = domain.elements().map(|root| root * beta).collect();
+        let common_roots: Vec<Scalar> = domain.elements().map(|root| root * beta).collect();
 
         use rayon::iter::ParallelIterator;
         let left_sigma_mapping = self.left_sigma_mapping.as_ref().unwrap();
@@ -380,35 +372,35 @@ impl<E: PairingEngine> Permutation<E> {
         // Compute beta * sigma polynomials
         let beta_left_sigmas: Vec<_> = left_sigma_mapping
             .par_iter()
-            .map(|sigma| *sigma * beta)
+            .map(|sigma| sigma * beta)
             .collect();
         let beta_right_sigmas: Vec<_> = right_sigma_mapping
             .par_iter()
-            .map(|sigma| *sigma * beta)
+            .map(|sigma| sigma * beta)
             .collect();
         let beta_out_sigmas: Vec<_> = out_sigma_mapping
             .par_iter()
-            .map(|sigma| *sigma * beta)
+            .map(|sigma| sigma * beta)
             .collect();
 
         // Compute beta * roots * k1
-        let beta_roots_k1: Vec<_> = common_roots.par_iter().map(|x| *x * &k1).collect();
+        let beta_roots_k1: Vec<_> = common_roots.par_iter().map(|x| x * k1).collect();
 
         // Compute beta * roots * k2
-        let beta_roots_k2: Vec<_> = common_roots.par_iter().map(|x| *x * &k2).collect();
+        let beta_roots_k2: Vec<_> = common_roots.par_iter().map(|x| x * k2).collect();
 
         // Compute left_wire + gamma
-        let wL_gamma: Vec<_> = w_l.par_iter().map(|w_L| *w_L + gamma).collect();
+        let wL_gamma: Vec<_> = w_l.par_iter().map(|w_L| w_L + gamma).collect();
 
         // Compute right_wire + gamma
-        let wR_gamma: Vec<_> = w_r.par_iter().map(|w_R| *w_R + gamma).collect();
+        let wR_gamma: Vec<_> = w_r.par_iter().map(|w_R| w_R + gamma).collect();
 
         // Compute out_wire + gamma
-        let wO_gamma: Vec<_> = w_o.par_iter().map(|w_O| *w_O + gamma).collect();
+        let wO_gamma: Vec<_> = w_o.par_iter().map(|w_O| w_O + gamma).collect();
 
         // Compute 6 accumulator components
         // Parallisable
-        let mut acumulator_components_without_l1: Vec<_> = (
+        let accumulator_components_without_l1: Vec<_> = (
             wL_gamma,
             wR_gamma,
             wO_gamma,
@@ -433,41 +425,38 @@ impl<E: PairingEngine> Permutation<E> {
                     beta_out_sigma,
                 )| {
                     // w_j + beta * root^j-1 + gamma
-                    let AC1 = w_l_gamma + &beta_root;
+                    let ac1 = w_l_gamma + &beta_root;
 
                     // w_{n+j} + beta * k1 * root^j-1 + gamma
-                    let AC2 = w_r_gamma + &beta_root_k1;
+                    let ac2 = w_r_gamma + &beta_root_k1;
 
                     // w_{2n+j} + beta * k2 * root^j-1 + gamma
-                    let AC3 = w_o_gamma + &beta_root_k2;
+                    let ac3 = w_o_gamma + &beta_root_k2;
 
                     // 1 / w_j + beta * sigma(j) + gamma
-                    let mut AC4 = w_l_gamma + &beta_left_sigma;
-                    AC4.inverse_in_place().unwrap();
+                    let ac4 = (w_l_gamma + &beta_left_sigma).invert().unwrap();
 
                     // 1 / w_{n+j} + beta * sigma(n+j) + gamma
-                    let mut AC5 = w_r_gamma + &beta_right_sigma;
-                    AC5.inverse_in_place().unwrap();
+                    let ac5 = (w_r_gamma + &beta_right_sigma).invert().unwrap();
 
                     // 1 / w_{2n+j} + beta * sigma(2n+j) + gamma
-                    let mut AC6 = w_o_gamma + &beta_out_sigma;
-                    AC6.inverse_in_place().unwrap();
+                    let ac6 = (w_o_gamma + &beta_out_sigma).invert().unwrap();
 
-                    (AC1, AC2, AC3, AC4, AC5, AC6)
+                    (ac1, ac2, ac3, ac4, ac5, ac6)
                 },
             )
             .collect();
 
-        // Prepend ones to the beginning of each acumulator to signify L_1(x)
-        let acumulator_components = std::iter::once((
-            E::Fr::one(),
-            E::Fr::one(),
-            E::Fr::one(),
-            E::Fr::one(),
-            E::Fr::one(),
-            E::Fr::one(),
+        // Prepend ones to the beginning of each accumulator to signify L_1(x)
+        let accumulator_components = std::iter::once((
+            Scalar::one(),
+            Scalar::one(),
+            Scalar::one(),
+            Scalar::one(),
+            Scalar::one(),
+            Scalar::one(),
         ))
-        .chain(acumulator_components_without_l1);
+        .chain(accumulator_components_without_l1);
 
         // Multiply each component of the accumulators
         // A simplified example is the following:
@@ -475,14 +464,14 @@ impl<E: PairingEngine> Permutation<E> {
         // result = [1, 1*2, 1*2*3, 1*2*3*4]
         // Non Parallisable
         let mut prev = (
-            E::Fr::one(),
-            E::Fr::one(),
-            E::Fr::one(),
-            E::Fr::one(),
-            E::Fr::one(),
-            E::Fr::one(),
+            Scalar::one(),
+            Scalar::one(),
+            Scalar::one(),
+            Scalar::one(),
+            Scalar::one(),
+            Scalar::one(),
         );
-        let product_acumulated_components: Vec<_> = acumulator_components
+        let product_acumulated_components: Vec<_> = accumulator_components
             .map(move |current_component| {
                 prev.0 *= &current_component.0;
                 prev.1 *= &current_component.1;
@@ -506,7 +495,7 @@ impl<E: PairingEngine> Permutation<E> {
         let mut z: Vec<_> = product_acumulated_components
             .par_iter()
             .map(move |current_component| {
-                let mut prev = E::Fr::one();
+                let mut prev = Scalar::one();
                 prev *= &current_component.0;
                 prev *= &current_component.1;
                 prev *= &current_component.2;
@@ -529,17 +518,16 @@ impl<E: PairingEngine> Permutation<E> {
 #[cfg(test)]
 mod test {
     use super::*;
-    use algebra::curves::bls12_381::Bls12_381 as E;
-    use algebra::fields::bls12_381::Fr;
-    use algebra::UniformRand;
-    use std::str::FromStr;
+    use crate::fft::Polynomial;
+    use bls12_381::Scalar as Fr;
+
     #[test]
     fn test_permutation_format() {
-        let mut perm: Permutation<E> = Permutation::new();
+        let mut perm: Permutation = Permutation::new();
 
         let num_variables = 10u8;
         for i in 0..num_variables {
-            let var = perm.new_variable(Fr::from(i));
+            let var = perm.new_variable(Fr::from(i as u64));
             assert_eq!(var.0, i as usize);
             assert_eq!(perm.variable_map.len(), (i as usize) + 1);
             assert_eq!(perm.variables.len(), (i as usize) + 1);
@@ -567,17 +555,17 @@ mod test {
 
     #[test]
     fn test_permutation_compute_sigmas_only_left_wires() {
-        let mut perm: Permutation<E> = Permutation::new();
+        let mut perm = Permutation::new();
 
         let var_zero = perm.new_variable(Fr::zero());
         let var_one = perm.new_variable(Fr::one());
-        let var_two = perm.new_variable(Fr::one() + &Fr::one());
-        let var_three = perm.new_variable(Fr::one() + &Fr::one() + &Fr::one());
-        let var_four = perm.new_variable(Fr::from(4 as u8));
-        let var_five = perm.new_variable(Fr::from(5 as u8));
-        let var_six = perm.new_variable(Fr::from(6 as u8));
-        let var_seven = perm.new_variable(Fr::from(7 as u8));
-        let var_eight = perm.new_variable(Fr::from(8 as u8));
+        let var_two = perm.new_variable(Fr::from(2));
+        let var_three = perm.new_variable(Fr::from(3));
+        let var_four = perm.new_variable(Fr::from(4));
+        let var_five = perm.new_variable(Fr::from(5));
+        let var_six = perm.new_variable(Fr::from(6));
+        let var_seven = perm.new_variable(Fr::from(7));
+        let var_eight = perm.new_variable(Fr::from(8));
 
         let num_wire_mappings = 4;
 
@@ -603,7 +591,6 @@ mod test {
         Out_sigma = {O0, O1, O2, O3, O4}
 
         */
-
         let sigmas = perm.compute_sigma_permutations(num_wire_mappings);
         let left_sigma = &sigmas[0];
         let right_sigma = &sigmas[1];
@@ -628,11 +615,11 @@ mod test {
         assert_eq!(out_sigma[3], WireData::Output(3));
 
         let domain = EvaluationDomain::new(num_wire_mappings).unwrap();
-        let k1 = Fr::multiplicative_generator();
-        let k2 = Fr::from(13u8);
+        let k1 = Fr::from(7);
+        let k2 = Fr::from(13);
         let w: Fr = domain.group_gen;
-        let w_squared = w.pow(&[2 as u64]);
-        let w_cubed = w.pow(&[3 as u64]);
+        let w_squared = w.pow(&[2, 0, 0, 0]);
+        let w_cubed = w.pow(&[3, 0, 0, 0]);
 
         // check the left sigmas have been encoded properly
         // Left_sigma = {R0, L2,L3, L0}
@@ -661,13 +648,8 @@ mod test {
         assert_eq!(encoded_output_sigma[2], w_squared * &k2);
         assert_eq!(encoded_output_sigma[3], w_cubed * &k2);
 
-        let w_l = vec![
-            Fr::from(2 as u8),
-            Fr::from(2 as u8),
-            Fr::from(2 as u8),
-            Fr::from(2 as u8),
-        ];
-        let w_r = vec![Fr::from(2 as u8), Fr::one(), Fr::one(), Fr::one()];
+        let w_l = vec![Fr::from(2), Fr::from(2), Fr::from(2), Fr::from(2)];
+        let w_r = vec![Fr::from(2), Fr::one(), Fr::one(), Fr::one()];
         let w_o = vec![Fr::one(), Fr::one(), Fr::one(), Fr::one()];
 
         test_correct_permutation_poly(
@@ -681,7 +663,7 @@ mod test {
     }
     #[test]
     fn test_permutation_compute_sigmas() {
-        let mut perm: Permutation<E> = Permutation::new();
+        let mut perm: Permutation = Permutation::new();
 
         let var_one = perm.new_variable(Fr::one());
         let var_two = perm.new_variable(Fr::one() + &Fr::one());
@@ -707,7 +689,6 @@ mod test {
         Out_Sigma : {0,1,2,3} -> {L1, L3, R3, L2}
 
         */
-
         let sigmas = perm.compute_sigma_permutations(num_wire_mappings);
         let left_sigma = &sigmas[0];
         let right_sigma = &sigmas[1];
@@ -744,11 +725,11 @@ mod test {
             When encoded using w, k1, k2 we have {1, w , w^2 * k1, w^3}
         */
         let domain = EvaluationDomain::new(num_wire_mappings).unwrap();
-        let k1 = Fr::multiplicative_generator();
-        let k2 = Fr::from(13u8);
+        let k1 = Fr::from(7);
+        let k2 = Fr::from(13);
         let w: Fr = domain.group_gen;
-        let w_squared = w.pow(&[2 as u64]);
-        let w_cubed = w.pow(&[3 as u64]);
+        let w_squared = w.pow(&[2, 0, 0, 0]);
+        let w_cubed = w.pow(&[3, 0, 0, 0]);
         // check the left sigmas have been encoded properly
         let encoded_left_sigma = perm.compute_permutation_lagrange(left_sigma, &domain);
         assert_eq!(encoded_left_sigma[0], k1);
@@ -776,9 +757,9 @@ mod test {
     // root^3 * k_1 * k_2 / (left_sigma * right_sigma * out_sigma) == 1
     // If the encoding for the permutation does not have unique values then this test would fail
     fn test_permutation_encoding_has_unique_values() {
-        let mut perm: Permutation<E> = Permutation::new();
-        let k1 = Fr::multiplicative_generator();
-        let k2 = Fr::from(13u8);
+        let mut perm: Permutation = Permutation::new();
+        let k1 = Fr::from(7);
+        let k2 = Fr::from(13);
 
         let num_wire_mappings = 4;
 
@@ -813,18 +794,21 @@ mod test {
 
         let mut identity_grand_prod = Fr::one();
         for element in domain.elements() {
-            let root_cubed = element.pow(&[3 as u64]);
+            let root_cubed = element.pow(&[3, 0, 0, 0]);
             let prod = (root_cubed * &k1) * &k2;
             identity_grand_prod = identity_grand_prod * prod;
         }
 
-        assert_eq!(identity_grand_prod / &copy_grand_prod, Fr::one());
+        assert_eq!(
+            identity_grand_prod * copy_grand_prod.invert().unwrap(),
+            Fr::one()
+        );
     }
 
     #[test]
     fn test_basic_slow_permutation_poly() {
         let num_wire_mappings = 2;
-        let mut perm: Permutation<E> = Permutation::new();
+        let mut perm = Permutation::new();
         let domain = EvaluationDomain::new(num_wire_mappings).unwrap();
 
         let var_one = perm.new_variable(Fr::one());
@@ -834,9 +818,9 @@ mod test {
         perm.add_variable_to_map(var_one, var_two, var_three, 0);
         perm.add_variable_to_map(var_three, var_two, var_one, 1);
 
-        let w_l: Vec<_> = vec![Fr::one(), Fr::from(3 as u8)];
-        let w_r: Vec<_> = vec![Fr::from(2 as u8), Fr::from(2 as u8)];
-        let w_o: Vec<_> = vec![Fr::from(3 as u8), Fr::one()];
+        let w_l: Vec<_> = vec![Fr::one(), Fr::from(3)];
+        let w_r: Vec<_> = vec![Fr::from(2), Fr::from(2)];
+        let w_o: Vec<_> = vec![Fr::from(3), Fr::one()];
 
         test_correct_permutation_poly(
             num_wire_mappings,
@@ -858,17 +842,17 @@ mod test {
 
     fn test_correct_permutation_poly(
         n: usize,
-        mut perm: Permutation<E>,
-        domain: &EvaluationDomain<Fr>,
+        mut perm: Permutation,
+        domain: &EvaluationDomain,
         w_l: Vec<Fr>,
         w_r: Vec<Fr>,
         w_o: Vec<Fr>,
     ) {
-        // 0. Generate beta and gammma challenges
+        // 0. Generate beta and gamma challenges
         //
-        let beta = Fr::rand(&mut rand::thread_rng());
-        let gamma = Fr::rand(&mut rand::thread_rng());
-        assert_ne!(gamma, beta); // This will make the z(gW) =
+        let beta = random_scalar(&mut rand::thread_rng());
+        let gamma = random_scalar(&mut rand::thread_rng());
+        assert_ne!(gamma, beta);
 
         //1. Compute the permutation polynomial using both methods
         //
@@ -902,7 +886,7 @@ mod test {
         for n in denominator_components.iter() {
             b_0 = b_0 * n;
         }
-        assert_eq!(a_0 / &b_0, Fr::one());
+        assert_eq!(a_0 * b_0.invert().unwrap(), Fr::one());
 
         //3. Now we perform the two checks that need to be done on the permutation polynomial (z)
         let z_poly = Polynomial::from_coefficients_vec(domain.ifft(&z_vec));
@@ -959,4 +943,16 @@ mod test {
             assert_eq!(z_eval, shifted_z_eval)
         }
     }
+}
+
+// bls_12-381 library does not provide a `random` method for Scalar
+// We wil use this helper function to compensate
+use rand_core::RngCore;
+pub(crate) fn random_scalar<R: RngCore>(rng: &mut R) -> Scalar {
+    Scalar::from_raw([
+        rng.next_u64(),
+        rng.next_u64(),
+        rng.next_u64(),
+        rng.next_u64(),
+    ])
 }

@@ -1,44 +1,35 @@
-use algebra::{fields::PrimeField, to_bytes, PairingEngine, ToBytes};
+use crate::commitment_scheme::kzg10::Commitment;
+use bls12_381::Scalar;
 use merlin::Transcript;
-use poly_commit::kzg10::Commitment;
 
-pub trait TranscriptProtocol<E: PairingEngine> {
+pub trait TranscriptProtocol {
     /// Append a `commitment` with the given `label`.
-    fn append_commitment(&mut self, label: &'static [u8], comm: &Commitment<E>);
+    fn append_commitment(&mut self, label: &'static [u8], comm: &Commitment);
 
     /// Append a `Scalar` with the given `label`.
-    fn append_scalar(&mut self, label: &'static [u8], s: &E::Fr);
+    fn append_scalar(&mut self, label: &'static [u8], s: &Scalar);
 
     /// Compute a `label`ed challenge variable.
-    fn challenge_scalar(&mut self, label: &'static [u8]) -> E::Fr;
+    fn challenge_scalar(&mut self, label: &'static [u8]) -> Scalar;
 
     /// Append domain separator for the circuit size.
     fn circuit_domain_sep(&mut self, n: u64);
 }
 
-impl<E: PairingEngine> TranscriptProtocol<E> for Transcript {
-    fn append_commitment(&mut self, label: &'static [u8], comm: &Commitment<E>) {
-        self.append_message(label, &to_bytes![comm].unwrap());
+impl TranscriptProtocol for Transcript {
+    fn append_commitment(&mut self, label: &'static [u8], comm: &Commitment) {
+        self.append_message(label, &comm.0.to_compressed());
     }
 
-    fn append_scalar(&mut self, label: &'static [u8], s: &E::Fr) {
-        self.append_message(label, &to_bytes![s].unwrap())
+    fn append_scalar(&mut self, label: &'static [u8], s: &Scalar) {
+        self.append_message(label, &s.to_bytes())
     }
 
-    fn challenge_scalar(&mut self, label: &'static [u8]) -> E::Fr {
-        use algebra::UniformRand;
-        use rand_chacha::ChaChaRng;
-        use rand_core::SeedableRng;
-
-        // XXX: This is not very fast as build_rng clones the transcript each time
-        // The problem is that the E::Fr::from_rand_bytes() stalls at spontaneous points
-        // If we switch to bls12_381 we can generate the challenge bytes then give it to the bls function for reducing bytes to a scalar
-
-        let mut buf = [0u8; 32];
+    fn challenge_scalar(&mut self, label: &'static [u8]) -> Scalar {
+        let mut buf = [0u8; 64];
         self.challenge_bytes(label, &mut buf);
 
-        let mut rng = &mut self.build_rng().finalize(&mut ChaChaRng::from_seed(buf));
-        E::Fr::rand(&mut rng)
+        Scalar::from_bytes_wide(&buf)
     }
 
     fn circuit_domain_sep(&mut self, n: u64) {

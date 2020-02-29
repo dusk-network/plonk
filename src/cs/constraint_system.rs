@@ -1,6 +1,5 @@
 use crate::cs::composer::StandardComposer;
-use algebra::curves::bls12_381::Bls12_381;
-use algebra::fields::PrimeField;
+use bls12_381::Scalar;
 // Design taken from bulletproofs; although we should modify it to use iterators instead of vectors (zero-cost)
 /// Represents a variable in a constraint system.
 
@@ -8,12 +7,12 @@ use algebra::fields::PrimeField;
 #[derive(Debug, Eq, PartialEq, Clone, Copy, Hash)]
 pub struct Variable(pub(super) usize);
 
-#[derive(Debug, Eq, PartialEq, Clone, Hash)]
-pub struct LinearCombination<F: PrimeField> {
-    pub(crate) terms: Vec<(Variable, F)>,
+#[derive(Debug, Eq, PartialEq, Clone)]
+pub struct LinearCombination {
+    pub(crate) terms: Vec<(Variable, Scalar)>,
 }
 
-impl<F: PrimeField> LinearCombination<F> {
+impl LinearCombination {
     /// Taken from lovesh's fork of bulletproof
     /// Simplify linear combination by taking Variables common across terms and adding their corresponding scalars.
     /// Useful when linear combinations become large. Takes ownership of linear combination as this function is useful
@@ -21,11 +20,11 @@ impl<F: PrimeField> LinearCombination<F> {
     pub fn simplify(self) -> Self {
         use std::collections::HashMap;
         // Build hashmap to hold unique variables with their values.
-        let mut vars: HashMap<Variable, F> = HashMap::new();
+        let mut vars: HashMap<Variable, Scalar> = HashMap::new();
 
         let terms = self.terms;
         for (var, val) in terms {
-            *vars.entry(var).or_insert(F::zero()) += val;
+            *vars.entry(var).or_insert(Scalar::zero()) += val;
         }
 
         let mut new_lc_terms = vec![];
@@ -38,17 +37,17 @@ impl<F: PrimeField> LinearCombination<F> {
     }
 }
 
-impl<F: PrimeField> From<Variable> for LinearCombination<F> {
+impl From<Variable> for LinearCombination {
     fn from(v: Variable) -> Self {
         LinearCombination {
-            terms: vec![(v, F::one())],
+            terms: vec![(v, Scalar::one())],
         }
     }
 }
 
 use std::ops::{Add, Neg, Sub};
 
-impl<F: PrimeField, L: Into<LinearCombination<F>>> Add<L> for LinearCombination<F> {
+impl<L: Into<LinearCombination>> Add<L> for LinearCombination {
     type Output = Self;
 
     fn add(mut self, rhs: L) -> Self::Output {
@@ -56,7 +55,7 @@ impl<F: PrimeField, L: Into<LinearCombination<F>>> Add<L> for LinearCombination<
         LinearCombination { terms: self.terms }
     }
 }
-impl<F: PrimeField> Neg for LinearCombination<F> {
+impl Neg for LinearCombination {
     type Output = Self;
 
     fn neg(mut self) -> Self::Output {
@@ -67,7 +66,7 @@ impl<F: PrimeField> Neg for LinearCombination<F> {
     }
 }
 
-impl<F: PrimeField, L: Into<LinearCombination<F>>> Sub<L> for LinearCombination<F> {
+impl<L: Into<LinearCombination>> Sub<L> for LinearCombination {
     type Output = Self;
 
     fn sub(self, rhs: L) -> Self::Output {
@@ -76,7 +75,7 @@ impl<F: PrimeField, L: Into<LinearCombination<F>>> Sub<L> for LinearCombination<
 }
 
 impl Variable {
-    pub fn mul(&self, composer: &mut StandardComposer<Bls12_381>, _rhs: Self) -> Self {
+    pub fn mul(&self, composer: &mut StandardComposer, _rhs: Self) -> Self {
         composer.add_input(
             *composer.perm.variables.get(self).unwrap()
                 * *composer.perm.variables.get(&_rhs).unwrap(),
