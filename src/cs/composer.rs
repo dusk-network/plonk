@@ -9,7 +9,7 @@ use super::{
 use crate::commitment_scheme::kzg10::ProverKey;
 use crate::fft::{EvaluationDomain, Polynomial};
 
-use crate::{cs::quotient_poly::QuotientToolkit, transcript::TranscriptProtocol};
+use crate::{cs::quotient_poly, transcript::TranscriptProtocol};
 use bls12_381::Scalar;
 /// A composer is a circuit builder
 /// and will dictate how a circuit is built
@@ -231,8 +231,7 @@ impl Composer for StandardComposer {
         let pi_coeffs = domain.ifft(&self.public_inputs);
 
         // Compute Quotient polynomial.
-        let qt_toolkit = QuotientToolkit::new();
-        let t_coeffs = qt_toolkit.compute_quotient_poly(
+        let t_coeffs = quotient_poly::compute(
             &domain,
             &preprocessed_circuit,
             &z_coeffs,
