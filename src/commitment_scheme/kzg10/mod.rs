@@ -6,7 +6,7 @@ pub mod key;
 pub mod srs;
 
 pub use key::{ProverKey, VerifierKey};
-
+pub use srs::SRS;
 pub struct Proof {
     /// This is a commitment to the witness polynomial; see [KZG10] for more details.
     pub w: G1Affine,
