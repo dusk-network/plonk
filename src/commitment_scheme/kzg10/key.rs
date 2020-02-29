@@ -2,10 +2,10 @@ use super::errors::Error;
 use super::BlindingPolynomial;
 use super::Commitment;
 use crate::fft::Polynomial;
-use bls12_381::{G1Affine, G1Projective, G2Affine, G2Prepared, Scalar};
+use bls12_381::{G1Affine, G1Projective, G2Affine, G2Prepared};
 use rand_core::RngCore;
-// Verifer Key
-// XXX:Add docs on what it does
+
+/// Verifier Key is used to verify claims made about a committed polynomial
 #[derive(Clone, Debug)]
 pub struct VerifierKey {
     /// The generator of G1.
@@ -22,8 +22,8 @@ pub struct VerifierKey {
     pub prepared_beta_h: G2Prepared,
 }
 
-// Prover key
-// XXX:Add docs on what it does
+/// Prover key is used to commit to a polynomial which is bounded by the max_degree parameter
+/// specified when building the SRS
 pub struct ProverKey {
     /// Group elements of the form `{ \beta^i G }`, where `i` ranges from 0 to `degree`.
     pub powers_of_g: Vec<G1Affine>,
@@ -71,7 +71,7 @@ impl ProverKey {
         check_degree_is_within_bounds(self.max_hiding_degree(), hiding_degree)
     }
 
-    ///  Commits to a polynomial bounded by the max degree of the Prover key
+    /// Commits to a polynomial bounded by the max degree of the Prover key
     /// Optionally, the user can unconditionally hide the commitment
     /// using the hiding_parameter (hiding_degree, rng)
     /// hiding_degree is the degree of the polynomial that will be used to hide the original polynomial
