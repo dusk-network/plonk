@@ -1,11 +1,10 @@
-use super::opening::commitmentOpener;
 use super::{
     constraint_system::{LinearCombination, Variable},
     permutation::Permutation,
     proof::Proof,
     Composer, PreProcessedCircuit,
 };
-use super::{linearisation_poly, quotient_poly};
+use super::{linearisation_poly, opening_poly, quotient_poly};
 use crate::commitment_scheme::kzg10::ProverKey;
 use crate::fft::{EvaluationDomain, Polynomial};
 use crate::transcript::TranscriptProtocol;
@@ -307,8 +306,7 @@ impl Composer for StandardComposer {
         let v = transcript.challenge_scalar(b"v");
 
         // Compute opening polynomial
-        let comm_opener: commitmentOpener = commitmentOpener::new();
-        let (w_z_coeffs, w_zx_coeffs) = comm_opener.compute_opening_polynomials(
+        let (w_z_coeffs, w_zx_coeffs) = opening_poly::compute(
             domain.group_gen,
             domain.size(),
             z_challenge,
