@@ -7,7 +7,7 @@ pub mod transcript;
 extern crate failure;
 
 use new_bls12_381::Scalar;
-use std::ops::Mul;
+use std::ops::{Add, Mul};
 // While we do not have multiscalar mul in bls12-381; this function will be used as a stub
 pub(crate) fn multiscalar_mul<K, T: Mul<Scalar, Output = K> + Copy>(
     scalars: &Vec<Scalar>,
@@ -25,6 +25,13 @@ pub(crate) fn multiscalar_mul_single_base<K, T: Mul<Scalar, Output = K> + Copy>(
     base: T,
 ) -> Vec<K> {
     scalars.iter().map(|s| base * *s).collect()
+}
+pub(crate) fn sum_points<T: Add<T, Output = T> + Copy>(points: &Vec<T>) -> T {
+    let mut sum = points[0];
+    for i in 1..points.len() {
+        sum = sum + points[i]
+    }
+    sum
 }
 // Taken from zexe library
 // while we do not have batch inversion for scalars
