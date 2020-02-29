@@ -892,9 +892,9 @@ mod test {
         //
         // Check that z(w^{n+1}) == z(1) == 1
         // This is the first check in the protocol
-        assert_eq!(z_poly.evaluate(Fr::one()), Fr::one());
+        assert_eq!(z_poly.evaluate(&Fr::one()), Fr::one());
         let n_plus_one = domain.elements().last().unwrap() * &domain.group_gen;
-        assert_eq!(z_poly.evaluate(n_plus_one), Fr::one());
+        assert_eq!(z_poly.evaluate(&n_plus_one), Fr::one());
         //
         // Check that when z is unblinded, it has the correct degree
         assert_eq!(z_poly.degree(), n - 1);
@@ -915,10 +915,10 @@ mod test {
 
             assert_ne!(current_copy_perm_product, current_identity_perm_product);
 
-            let z_eval = z_poly.evaluate(current_root);
+            let z_eval = z_poly.evaluate(&current_root);
             assert_ne!(z_eval, Fr::zero());
 
-            let z_eval_shifted = z_poly.evaluate(next_root);
+            let z_eval_shifted = z_poly.evaluate(&next_root);
             assert_ne!(z_eval_shifted, Fr::zero());
 
             // Z(Xw) * copy_perm
@@ -936,8 +936,8 @@ mod test {
         let shifted_z = shift_poly_by_one(fast_z_vec);
         let shifted_z_poly = Polynomial::from_coefficients_vec(domain.ifft(&shifted_z));
         for element in domain.elements() {
-            let z_eval = z_poly.evaluate(element * &domain.group_gen);
-            let shifted_z_eval = shifted_z_poly.evaluate(element);
+            let z_eval = z_poly.evaluate(&(element * domain.group_gen));
+            let shifted_z_eval = shifted_z_poly.evaluate(&element);
 
             assert_eq!(z_eval, shifted_z_eval)
         }

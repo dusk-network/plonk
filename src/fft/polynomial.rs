@@ -1,7 +1,10 @@
 use super::{EvaluationDomain, Evaluations};
+use crate::util::powers_of;
 use bls12_381::Scalar;
 use rand::Rng;
-use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
+use rayon::iter::{
+    IndexedParallelIterator, IntoParallelIterator, IntoParallelRefIterator, ParallelIterator,
+};
 use std::ops::{Add, AddAssign, Deref, DerefMut, Div, Mul, Neg, Sub, SubAssign};
 // This library will solely implement Dense Polynomials
 #[derive(Debug, Eq, PartialEq, Clone)]
@@ -73,26 +76,22 @@ impl Polynomial {
         }
     }
     /// Evaluates `self` at the given `point` in the field.
-    pub fn evaluate(&self, point: Scalar) -> Scalar {
+    pub fn evaluate(&self, point: &Scalar) -> Scalar {
         if self.is_zero() {
             return Scalar::zero();
         }
-        let mut powers_of_point = vec![Scalar::one()];
-        let mut cur = point;
-        for _ in 0..self.degree() {
-            powers_of_point.push(cur);
-            cur *= &point;
-        }
-        assert_eq!(powers_of_point.len(), self.coeffs.len());
-        let partial_sum: Vec<_> = powers_of_point
-            .into_par_iter()
-            .zip(&self.coeffs)
-            .map(|(power, coeff)| power * coeff)
-            .collect();
 
+        // Compute powers of points
+        let powers = powers_of(point, self.len());
+
+        let p_evals: Vec<_> = self
+            .par_iter()
+            .zip(powers.into_par_iter())
+            .map(|(c, p)| p * c)
+            .collect();
         let mut sum = Scalar::zero();
-        for summand in partial_sum {
-            sum = sum + summand
+        for eval in p_evals.into_iter() {
+            sum += &eval;
         }
         sum
     }
@@ -346,7 +345,7 @@ impl<'a, 'b> Mul<&'a Polynomial> for &'b Polynomial {
         }
     }
 }
-/// Performs O(nlogn) multiplication of polynomials if F is smooth.
+/// Convenience Trait to multiply a scalar and polynomial
 impl<'a, 'b> Mul<&'a Scalar> for &'b Polynomial {
     type Output = Polynomial;
 
@@ -357,6 +356,33 @@ impl<'a, 'b> Mul<&'a Scalar> for &'b Polynomial {
         }
         let scaled_coeffs: Vec<_> = self.coeffs.iter().map(|coeff| coeff * constant).collect();
         Polynomial::from_coefficients_vec(scaled_coeffs)
+    }
+}
+/// Convenience Trait to sub a scalar and polynomial
+impl<'a, 'b> Add<&'a Scalar> for &'b Polynomial {
+    type Output = Polynomial;
+
+    #[inline]
+    fn add(self, constant: &'a Scalar) -> Polynomial {
+        if self.is_zero() {
+            return Polynomial::from_coefficients_vec(vec![*constant]);
+        }
+        let mut result = self.clone();
+        if constant == &Scalar::zero() {
+            return result;
+        }
+
+        result[0] = result[0] + constant;
+        result
+    }
+}
+impl<'a, 'b> Sub<&'a Scalar> for &'b Polynomial {
+    type Output = Polynomial;
+
+    #[inline]
+    fn sub(self, constant: &'a Scalar) -> Polynomial {
+        let negated_constant = -constant;
+        self + &negated_constant
     }
 }
 

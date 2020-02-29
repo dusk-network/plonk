@@ -314,10 +314,10 @@ mod test {
         let l1_a = domain.evaluate_all_lagrange_coefficients(rand_point)[0];
         // Compute l1 eval using IFFT
         let b = compute_first_lagrange_poly(&domain);
-        let l1_b = b.evaluate(rand_point);
+        let l1_b = b.evaluate(&rand_point);
 
         assert_eq!(l1_a, l1_b);
 
-        assert_eq!(b.evaluate(Fr::one()), Fr::one());
+        assert_eq!(b.evaluate(&Fr::one()), Fr::one());
     }
 }

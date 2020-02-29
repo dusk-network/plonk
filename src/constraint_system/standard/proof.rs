@@ -110,7 +110,7 @@ impl Proof {
 
         // Compute the public input polynomial evaluated at `z_challenge`
         let pi_poly = Polynomial::from_coefficients_vec(domain.ifft(&pub_inputs));
-        let pi_eval = pi_poly.evaluate(z_challenge);
+        let pi_eval = pi_poly.evaluate(&z_challenge);
         // Compute quotient polynomial evaluated at `z_challenge`
         let t_eval = self.compute_quotient_evaluation(
             pi_eval,

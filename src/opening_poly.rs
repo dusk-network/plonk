@@ -1,5 +1,6 @@
 use super::linearisation_poly::Evaluations;
 use crate::fft::{poly_utils, Polynomial};
+use crate::util::powers_of;
 use bls12_381::Scalar;
 use itertools::izip;
 use rayon::prelude::*;
@@ -22,7 +23,7 @@ pub fn compute(
     v: &Scalar,
 ) -> (Polynomial, Polynomial) {
     // Compute 1,v, v^2, v^3,..v^7
-    let mut v_pow: Vec<Scalar> = poly_utils::powers_of(v, 7);
+    let mut v_pow: Vec<Scalar> = powers_of(v, 7);
 
     let v_7 = v_pow.pop().unwrap();
     let z_hat_eval = evaluations.proof.perm_eval;
@@ -81,29 +82,23 @@ fn compute_challenge_poly_eval(
     polynomials: Vec<&Polynomial>,
     evaluations: &Evaluations,
 ) -> Polynomial {
-    let x: Vec<_> = challenges
+    let x = challenges
         .into_par_iter()
         .zip(polynomials.into_par_iter())
         .zip(evaluations.as_vec().into_par_iter())
         .map(|((v, poly), eval)| {
-            let mut p: Vec<_> = poly.iter().map(|p| v * p).collect();
-            p[0] = p[0] - &(v * eval);
-            p
+            let poly_minus_eval = poly - eval;
+            &poly_minus_eval * &v
         })
-        .collect();
+        .sum();
 
-    let mut sum = Vec::new();
-    for poly in x.iter() {
-        sum = poly_utils::add_poly_vectors(&poly, &sum);
-    }
-
-    Polynomial::from_coefficients_vec(sum)
+    x
 }
 
 // Given P(X) and `z`. compute P(X) - P(z) / X - z
 fn compute_witness_polynomial(p_poly: &Polynomial, z: Scalar) -> Polynomial {
     // evaluate polynomial at z
-    let p_eval = p_poly.evaluate(z);
+    let p_eval = p_poly.evaluate(&z);
     // convert value to a polynomial
     let poly_eval = Polynomial::from_coefficients_vec(vec![p_eval]);
 

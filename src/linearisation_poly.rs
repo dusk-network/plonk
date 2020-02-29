@@ -57,27 +57,16 @@ pub fn compute(
     let alpha_sq = alpha.square();
     let alpha_cu = alpha * alpha_sq;
 
-    // Compute batch evaluations
-    let evaluations = poly_utils::multi_point_eval(
-        vec![
-            t_x_poly,
-            w_l_poly,
-            w_r_poly,
-            w_o_poly,
-            preprocessed_circuit.left_sigma_poly(),
-            preprocessed_circuit.right_sigma_poly(),
-        ],
-        z_challenge,
-    );
-    let quot_eval = evaluations[0];
-    let a_eval = evaluations[1];
-    let b_eval = evaluations[2];
-    let c_eval = evaluations[3];
-    let left_sigma_eval = evaluations[4];
-    let right_sigma_eval = evaluations[5];
-
-    // Compute permutation evaluation point
-    let perm_eval = poly_utils::single_point_eval(z_poly, &(*z_challenge * &domain.group_gen));
+    // Compute evaluations
+    let quot_eval = t_x_poly.evaluate(z_challenge);
+    let a_eval = w_l_poly.evaluate(z_challenge);
+    let b_eval = w_r_poly.evaluate(z_challenge);
+    let c_eval = w_o_poly.evaluate(z_challenge);
+    let left_sigma_eval = preprocessed_circuit.left_sigma_poly().evaluate(z_challenge);
+    let right_sigma_eval = preprocessed_circuit
+        .right_sigma_poly()
+        .evaluate(z_challenge);
+    let perm_eval = z_poly.evaluate(&(z_challenge * domain.group_gen));
 
     let f_1 = compute_first_component(
         *alpha,
@@ -119,7 +108,7 @@ pub fn compute(
     let lin_poly = Polynomial::from_coefficients_vec(lin_coeffs);
 
     // Evaluate linearisation polynomial at z_challenge
-    let lin_poly_eval = poly_utils::single_point_eval(&lin_poly, z_challenge);
+    let lin_poly_eval = lin_poly.evaluate(z_challenge);
 
     (
         lin_poly,
