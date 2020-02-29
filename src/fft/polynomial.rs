@@ -1,7 +1,10 @@
 use super::{EvaluationDomain, Evaluations};
+use crate::util::powers_of;
 use bls12_381::Scalar;
 use rand::Rng;
-use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
+use rayon::iter::{
+    IndexedParallelIterator, IntoParallelIterator, IntoParallelRefIterator, ParallelIterator,
+};
 use std::ops::{Add, AddAssign, Deref, DerefMut, Div, Mul, Neg, Sub, SubAssign};
 // This library will solely implement Dense Polynomials
 #[derive(Debug, Eq, PartialEq, Clone)]
@@ -58,14 +61,13 @@ impl Polynomial {
     /// Returns the degree of the polynomial.
     pub fn degree(&self) -> usize {
         if self.is_zero() {
-            0
-        } else {
-            assert!(self
-                .coeffs
-                .last()
-                .map_or(false, |coeff| !(coeff == &Scalar::zero())));
-            self.coeffs.len() - 1
+            return 0;
         }
+        assert!(self
+            .coeffs
+            .last()
+            .map_or(false, |coeff| !(coeff == &Scalar::zero())));
+        self.coeffs.len() - 1
     }
 
     fn truncate_leading_zeros(&mut self) {
@@ -74,26 +76,22 @@ impl Polynomial {
         }
     }
     /// Evaluates `self` at the given `point` in the field.
-    pub fn evaluate(&self, point: Scalar) -> Scalar {
+    pub fn evaluate(&self, point: &Scalar) -> Scalar {
         if self.is_zero() {
             return Scalar::zero();
         }
-        let mut powers_of_point = vec![Scalar::one()];
-        let mut cur = point;
-        for _ in 0..self.degree() {
-            powers_of_point.push(cur);
-            cur *= &point;
-        }
-        assert_eq!(powers_of_point.len(), self.coeffs.len());
-        let partial_sum: Vec<_> = powers_of_point
-            .into_par_iter()
-            .zip(&self.coeffs)
-            .map(|(power, coeff)| power * coeff)
-            .collect();
 
+        // Compute powers of points
+        let powers = powers_of(point, self.len());
+
+        let p_evals: Vec<_> = self
+            .par_iter()
+            .zip(powers.into_par_iter())
+            .map(|(c, p)| p * c)
+            .collect();
         let mut sum = Scalar::zero();
-        for summand in partial_sum {
-            sum = sum + summand
+        for eval in p_evals.into_iter() {
+            sum += &eval;
         }
         sum
     }
@@ -106,6 +104,21 @@ impl Polynomial {
             random_coeffs.push(random_scalar(&mut rng));
         }
         Self::from_coefficients_vec(random_coeffs)
+    }
+}
+
+use std::iter::Sum;
+
+impl Sum for Polynomial {
+    fn sum<I>(iter: I) -> Self
+    where
+        I: Iterator<Item = Self>,
+    {
+        let sum: Polynomial = iter.fold(Polynomial::zero(), |mut res, val| {
+            res = &res + &val;
+            res
+        });
+        sum
     }
 }
 
@@ -145,6 +158,38 @@ impl<'a, 'b> Add<&'a Polynomial> for &'b Polynomial {
         result.truncate_leading_zeros();
         result
     }
+}
+
+// Addition method tht uses iterators to add polynomials
+// Benchmark this against the original method
+fn iter_add(poly_a: &Polynomial, poly_b: &Polynomial) -> Polynomial {
+    if poly_a.len() == 0 {
+        return poly_b.clone();
+    }
+    if poly_b.len() == 0 {
+        return poly_a.clone();
+    }
+
+    let max_len = std::cmp::max(poly_a.len(), poly_b.len());
+    let min_len = std::cmp::min(poly_a.len(), poly_b.len());
+    let mut data = Vec::with_capacity(max_len);
+    let (mut poly_a_iter, mut poly_b_iter) = (poly_a.iter(), poly_b.iter());
+
+    let partial_addition = poly_a_iter
+        .by_ref()
+        .zip(poly_b_iter.by_ref())
+        .map(|(&a, &b)| a + &b)
+        .take(min_len);
+
+    data.extend(partial_addition);
+    data.extend(poly_a_iter);
+    data.extend(poly_b_iter);
+
+    assert_eq!(data.len(), std::cmp::max(poly_a.len(), poly_b.len()));
+
+    let mut result = Polynomial::from_coefficients_vec(data);
+    result.truncate_leading_zeros();
+    result
 }
 
 impl<'a, 'b> AddAssign<&'a Polynomial> for Polynomial {
@@ -330,6 +375,50 @@ impl<'a, 'b> Mul<&'a Polynomial> for &'b Polynomial {
             self_evals *= &other_evals;
             self_evals.interpolate()
         }
+    }
+}
+/// Convenience Trait to multiply a scalar and polynomial
+impl<'a, 'b> Mul<&'a Scalar> for &'b Polynomial {
+    type Output = Polynomial;
+
+    #[inline]
+    fn mul(self, constant: &'a Scalar) -> Polynomial {
+        if self.is_zero() || (constant == &Scalar::zero()) {
+            return Polynomial::zero();
+        }
+        let scaled_coeffs: Vec<_> = self
+            .coeffs
+            .par_iter()
+            .map(|coeff| coeff * constant)
+            .collect();
+        Polynomial::from_coefficients_vec(scaled_coeffs)
+    }
+}
+/// Convenience Trait to sub a scalar and polynomial
+impl<'a, 'b> Add<&'a Scalar> for &'b Polynomial {
+    type Output = Polynomial;
+
+    #[inline]
+    fn add(self, constant: &'a Scalar) -> Polynomial {
+        if self.is_zero() {
+            return Polynomial::from_coefficients_vec(vec![*constant]);
+        }
+        let mut result = self.clone();
+        if constant == &Scalar::zero() {
+            return result;
+        }
+
+        result[0] = result[0] + constant;
+        result
+    }
+}
+impl<'a, 'b> Sub<&'a Scalar> for &'b Polynomial {
+    type Output = Polynomial;
+
+    #[inline]
+    fn sub(self, constant: &'a Scalar) -> Polynomial {
+        let negated_constant = -constant;
+        self + &negated_constant
     }
 }
 

@@ -1,9 +1,9 @@
-use super::linearisation_poly::ProofEvaluations;
 use super::PreProcessedCircuit;
 use crate::commitment_scheme::kzg10::{Commitment, VerifierKey};
 use crate::fft::{EvaluationDomain, Polynomial};
+use crate::linearisation_poly::ProofEvaluations;
 use crate::transcript::TranscriptProtocol;
-use crate::{multiscalar_mul, sum_points};
+use crate::util::{multiscalar_mul, sum_points};
 use bls12_381::{pairing, G1Affine, G1Projective, Scalar};
 pub struct Proof {
     // Commitment to the witness polynomial for the left wires
@@ -110,7 +110,7 @@ impl Proof {
 
         // Compute the public input polynomial evaluated at `z_challenge`
         let pi_poly = Polynomial::from_coefficients_vec(domain.ifft(&pub_inputs));
-        let pi_eval = pi_poly.evaluate(z_challenge);
+        let pi_eval = pi_poly.evaluate(&z_challenge);
         // Compute quotient polynomial evaluated at `z_challenge`
         let t_eval = self.compute_quotient_evaluation(
             pi_eval,

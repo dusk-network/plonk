@@ -1,11 +1,11 @@
-use crate::cs::composer::StandardComposer;
+use crate::constraint_system::standard::StandardComposer;
 use bls12_381::Scalar;
 // Design taken from bulletproofs; although we should modify it to use iterators instead of vectors (zero-cost)
 /// Represents a variable in a constraint system.
 
 /// The value is a reference to the actual value that was added to the constraint system
 #[derive(Debug, Eq, PartialEq, Clone, Copy, Hash)]
-pub struct Variable(pub(super) usize);
+pub struct Variable(pub(crate) usize);
 
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub struct LinearCombination {

@@ -1,7 +1,6 @@
-use super::constraint_system::{Variable, WireData};
+use crate::constraint_system::{Variable, WireData};
 
-use crate::fft::EvaluationDomain;
-
+use crate::fft::{EvaluationDomain, Polynomial};
 use bls12_381::Scalar;
 use itertools::izip;
 use rayon::iter::*;
@@ -87,7 +86,7 @@ impl Permutation {
         }
     }
     /// Convert variables to their actual Scalars
-    pub(super) fn witness_vars_to_scalars(
+    pub(crate) fn witness_vars_to_scalars(
         &self,
         w_l: &[Variable],
         w_r: &[Variable],
@@ -168,7 +167,7 @@ impl Permutation {
         &mut self,
         n: usize,
         domain: &EvaluationDomain,
-    ) -> (Vec<Scalar>, Vec<Scalar>, Vec<Scalar>) {
+    ) -> (Polynomial, Polynomial, Polynomial) {
         // Compute sigma mappings
         let sigmas = self.compute_sigma_permutations(n);
 
@@ -181,15 +180,15 @@ impl Permutation {
         let right_sigma = self.compute_permutation_lagrange(&sigmas[1], domain);
         let out_sigma = self.compute_permutation_lagrange(&sigmas[2], domain);
 
-        let left_sigma_coeffs = domain.ifft(&left_sigma);
-        let right_sigma_coeffs = domain.ifft(&right_sigma);
-        let out_sigma_coeffs = domain.ifft(&out_sigma);
+        let left_sigma_poly = Polynomial::from_coefficients_vec(domain.ifft(&left_sigma));
+        let right_sigma_poly = Polynomial::from_coefficients_vec(domain.ifft(&right_sigma));
+        let out_sigma_poly = Polynomial::from_coefficients_vec(domain.ifft(&out_sigma));
 
         self.left_sigma_mapping = Some(left_sigma);
         self.right_sigma_mapping = Some(right_sigma);
         self.out_sigma_mapping = Some(out_sigma);
 
-        (left_sigma_coeffs, right_sigma_coeffs, out_sigma_coeffs)
+        (left_sigma_poly, right_sigma_poly, out_sigma_poly)
     }
 
     pub(crate) fn compute_permutation_poly(
@@ -199,9 +198,9 @@ impl Permutation {
         w_r: &[Scalar],
         w_o: &[Scalar],
         (beta, gamma): &(Scalar, Scalar),
-    ) -> Vec<Scalar> {
+    ) -> Polynomial {
         let z_evaluations = self.compute_fast_permutation_poly(domain, w_l, w_r, w_o, beta, gamma);
-        domain.ifft(&z_evaluations)
+        Polynomial::from_coefficients_vec(domain.ifft(&z_evaluations))
     }
 
     fn compute_slow_permutation_poly<I>(
@@ -893,9 +892,9 @@ mod test {
         //
         // Check that z(w^{n+1}) == z(1) == 1
         // This is the first check in the protocol
-        assert_eq!(z_poly.evaluate(Fr::one()), Fr::one());
+        assert_eq!(z_poly.evaluate(&Fr::one()), Fr::one());
         let n_plus_one = domain.elements().last().unwrap() * &domain.group_gen;
-        assert_eq!(z_poly.evaluate(n_plus_one), Fr::one());
+        assert_eq!(z_poly.evaluate(&n_plus_one), Fr::one());
         //
         // Check that when z is unblinded, it has the correct degree
         assert_eq!(z_poly.degree(), n - 1);
@@ -916,10 +915,10 @@ mod test {
 
             assert_ne!(current_copy_perm_product, current_identity_perm_product);
 
-            let z_eval = z_poly.evaluate(current_root);
+            let z_eval = z_poly.evaluate(&current_root);
             assert_ne!(z_eval, Fr::zero());
 
-            let z_eval_shifted = z_poly.evaluate(next_root);
+            let z_eval_shifted = z_poly.evaluate(&next_root);
             assert_ne!(z_eval_shifted, Fr::zero());
 
             // Z(Xw) * copy_perm
@@ -937,8 +936,8 @@ mod test {
         let shifted_z = shift_poly_by_one(fast_z_vec);
         let shifted_z_poly = Polynomial::from_coefficients_vec(domain.ifft(&shifted_z));
         for element in domain.elements() {
-            let z_eval = z_poly.evaluate(element * &domain.group_gen);
-            let shifted_z_eval = shifted_z_poly.evaluate(element);
+            let z_eval = z_poly.evaluate(&(element * domain.group_gen));
+            let shifted_z_eval = shifted_z_poly.evaluate(&element);
 
             assert_eq!(z_eval, shifted_z_eval)
         }

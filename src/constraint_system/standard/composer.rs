@@ -1,13 +1,9 @@
-use super::{
-    constraint_system::{LinearCombination, Variable},
-    permutation::Permutation,
-    proof::Proof,
-    Composer, PreProcessedCircuit,
-};
-use super::{linearisation_poly, opening_poly, quotient_poly};
+use super::{proof::Proof, Composer, PreProcessedCircuit};
 use crate::commitment_scheme::kzg10::ProverKey;
+use crate::constraint_system::{LinearCombination, Variable};
 use crate::fft::{EvaluationDomain, Polynomial};
 use crate::transcript::TranscriptProtocol;
+use crate::{linearisation_poly, opening_poly, permutation::Permutation, quotient_poly};
 use bls12_381::Scalar;
 /// A composer is a circuit builder
 /// and will dictate how a circuit is built
@@ -61,65 +57,35 @@ impl Composer for StandardComposer {
         self.pad(domain.size as usize - self.n);
 
         // 2a. Convert selector evaluations to selector coefficients
-        let q_m_coeffs = domain.ifft(&self.q_m);
-        let q_l_coeffs = domain.ifft(&self.q_l);
-        let q_r_coeffs = domain.ifft(&self.q_r);
-        let q_o_coeffs = domain.ifft(&self.q_o);
-        let q_c_coeffs = domain.ifft(&self.q_c);
+        let q_m_poly = Polynomial::from_coefficients_slice(&domain.ifft(&self.q_m));
+        let q_l_poly = Polynomial::from_coefficients_slice(&domain.ifft(&self.q_l));
+        let q_r_poly = Polynomial::from_coefficients_slice(&domain.ifft(&self.q_r));
+        let q_o_poly = Polynomial::from_coefficients_slice(&domain.ifft(&self.q_o));
+        let q_c_poly = Polynomial::from_coefficients_slice(&domain.ifft(&self.q_c));
 
         // 2b. Compute 4n evaluations of selector polynomial
         let domain_4n = EvaluationDomain::new(4 * domain.size()).unwrap();
-        let q_m_eval_4n = domain_4n.coset_fft(&q_m_coeffs);
-        let q_l_eval_4n = domain_4n.coset_fft(&q_l_coeffs);
-        let q_r_eval_4n = domain_4n.coset_fft(&q_r_coeffs);
-        let q_o_eval_4n = domain_4n.coset_fft(&q_o_coeffs);
-        let q_c_eval_4n = domain_4n.coset_fft(&q_c_coeffs);
+        let q_m_eval_4n = domain_4n.coset_fft(&q_m_poly.coeffs);
+        let q_l_eval_4n = domain_4n.coset_fft(&q_l_poly.coeffs);
+        let q_r_eval_4n = domain_4n.coset_fft(&q_r_poly.coeffs);
+        let q_o_eval_4n = domain_4n.coset_fft(&q_o_poly.coeffs);
+        let q_c_eval_4n = domain_4n.coset_fft(&q_c_poly.coeffs);
 
         // 3. Compute the sigma polynomials
-        let (left_sigma_coeffs, right_sigma_coeffs, out_sigma_coeffs) =
+        let (left_sigma_poly, right_sigma_poly, out_sigma_poly) =
             self.perm.compute_sigma_polynomials(self.n, domain);
 
         // 4. Commit to polynomials
         //
-        let q_m_poly_commit = commit_key
-            .commit(Polynomial::from_coefficients_slice(&q_m_coeffs), None)
-            .unwrap()
-            .0;
-        let q_l_poly_commit = commit_key
-            .commit(Polynomial::from_coefficients_slice(&q_l_coeffs), None)
-            .unwrap()
-            .0;
-        let q_r_poly_commit = commit_key
-            .commit(Polynomial::from_coefficients_slice(&q_r_coeffs), None)
-            .unwrap()
-            .0;
-        let q_o_poly_commit = commit_key
-            .commit(Polynomial::from_coefficients_slice(&q_o_coeffs), None)
-            .unwrap()
-            .0;
-        let q_c_poly_commit = commit_key
-            .commit(Polynomial::from_coefficients_slice(&q_c_coeffs), None)
-            .unwrap()
-            .0;
+        let q_m_poly_commit = commit_key.commit(&q_m_poly, None).unwrap().0;
+        let q_l_poly_commit = commit_key.commit(&q_l_poly, None).unwrap().0;
+        let q_r_poly_commit = commit_key.commit(&q_r_poly, None).unwrap().0;
+        let q_o_poly_commit = commit_key.commit(&q_o_poly, None).unwrap().0;
+        let q_c_poly_commit = commit_key.commit(&q_c_poly, None).unwrap().0;
 
-        let left_sigma_poly_commit = commit_key
-            .commit(
-                Polynomial::from_coefficients_slice(&left_sigma_coeffs),
-                None,
-            )
-            .unwrap()
-            .0;
-        let right_sigma_poly_commit = commit_key
-            .commit(
-                Polynomial::from_coefficients_slice(&right_sigma_coeffs),
-                None,
-            )
-            .unwrap()
-            .0;
-        let out_sigma_poly_commit = commit_key
-            .commit(Polynomial::from_coefficients_slice(&out_sigma_coeffs), None)
-            .unwrap()
-            .0;
+        let left_sigma_poly_commit = commit_key.commit(&left_sigma_poly, None).unwrap().0;
+        let right_sigma_poly_commit = commit_key.commit(&right_sigma_poly, None).unwrap().0;
+        let out_sigma_poly_commit = commit_key.commit(&out_sigma_poly, None).unwrap().0;
 
         //5. Add polynomial commitments to transcript
         //
@@ -139,15 +105,15 @@ impl Composer for StandardComposer {
         PreProcessedCircuit {
             n: self.n,
             selectors: vec![
-                (q_m_coeffs, q_m_poly_commit, q_m_eval_4n),
-                (q_l_coeffs, q_l_poly_commit, q_l_eval_4n),
-                (q_r_coeffs, q_r_poly_commit, q_r_eval_4n),
-                (q_o_coeffs, q_o_poly_commit, q_o_eval_4n),
-                (q_c_coeffs, q_c_poly_commit, q_c_eval_4n),
+                (q_m_poly, q_m_poly_commit, q_m_eval_4n),
+                (q_l_poly, q_l_poly_commit, q_l_eval_4n),
+                (q_r_poly, q_r_poly_commit, q_r_eval_4n),
+                (q_o_poly, q_o_poly_commit, q_o_eval_4n),
+                (q_c_poly, q_c_poly_commit, q_c_eval_4n),
             ],
-            left_sigma: (left_sigma_coeffs, left_sigma_poly_commit),
-            right_sigma: (right_sigma_coeffs, right_sigma_poly_commit),
-            out_sigma: (out_sigma_coeffs, out_sigma_poly_commit),
+            left_sigma: (left_sigma_poly, left_sigma_poly_commit),
+            right_sigma: (right_sigma_poly, right_sigma_poly_commit),
+            out_sigma: (out_sigma_poly, out_sigma_poly_commit),
         }
     }
 
@@ -170,23 +136,15 @@ impl Composer for StandardComposer {
 
         // Witnesses are now in evaluation form, convert them to coefficients
         // So that we may commit to them
-        let w_l_coeffs = domain.ifft(&w_l_scalar);
-        let w_r_coeffs = domain.ifft(&w_r_scalar);
-        let w_o_coeffs = domain.ifft(&w_o_scalar);
+        let w_l_poly = Polynomial::from_coefficients_vec(domain.ifft(&w_l_scalar));
+        let w_r_poly = Polynomial::from_coefficients_vec(domain.ifft(&w_r_scalar));
+        let w_o_poly = Polynomial::from_coefficients_vec(domain.ifft(&w_o_scalar));
 
         // Commit to witness polynomials
-        let w_l_poly_commit = commit_key
-            .commit(Polynomial::from_coefficients_slice(&w_l_coeffs), None)
-            .unwrap()
-            .0;
-        let w_r_poly_commit = commit_key
-            .commit(Polynomial::from_coefficients_slice(&w_r_coeffs), None)
-            .unwrap()
-            .0;
-        let w_o_poly_commit = commit_key
-            .commit(Polynomial::from_coefficients_slice(&w_o_coeffs), None)
-            .unwrap()
-            .0;
+        let w_l_poly_commit = commit_key.commit(&w_l_poly, None).unwrap().0;
+        let w_r_poly_commit = commit_key.commit(&w_r_poly, None).unwrap().0;
+        let w_o_poly_commit = commit_key.commit(&w_o_poly, None).unwrap().0;
+
         // Add commitment to witness polynomials to transcript
         transcript.append_commitment(b"w_l", &w_l_poly_commit);
         transcript.append_commitment(b"w_r", &w_r_poly_commit);
@@ -202,7 +160,7 @@ impl Composer for StandardComposer {
         let gamma = transcript.challenge_scalar(b"gamma");
         //
         //
-        let z_coeffs = self.perm.compute_permutation_poly(
+        let z_poly = self.perm.compute_permutation_poly(
             &domain,
             &w_l_scalar,
             &w_r_scalar,
@@ -211,15 +169,12 @@ impl Composer for StandardComposer {
         );
         // Commit to permutation polynomial
         //
-        let z_poly_commit = commit_key
-            .commit(Polynomial::from_coefficients_slice(&z_coeffs), None)
-            .unwrap()
-            .0;
+        let z_poly_commit = commit_key.commit(&z_poly, None).unwrap().0;
         // Add commitment to permutation polynomials to transcript
         transcript.append_commitment(b"z", &z_poly_commit);
         //
         // 2. Compute public inputs polynomial
-        let pi_coeffs = domain.ifft(&self.public_inputs);
+        let pi_poly = Polynomial::from_coefficients_vec(domain.ifft(&self.public_inputs));
         //
 
         // 3. Compute quotient polynomial
@@ -227,34 +182,24 @@ impl Composer for StandardComposer {
         // Compute quotient challenge; `alpha`
         let alpha = transcript.challenge_scalar(b"alpha");
         //
-        let t_coeffs = quotient_poly::compute(
+        let t_poly = quotient_poly::compute(
             &domain,
             &preprocessed_circuit,
-            &z_coeffs,
-            [&w_l_coeffs, &w_r_coeffs, &w_o_coeffs],
-            &pi_coeffs,
+            &z_poly,
+            [&w_l_poly, &w_r_poly, &w_o_poly],
+            &pi_poly,
             &(alpha, beta, gamma),
         );
         // Split quotient polynomial into 3 degree `n` polynomials
         // XXX: This implicitly assumes that the quotient polynomial will never go over
         // degree 3n. For custom gates, this may not hold true, unless the API restricts it
-        let (t_low_coeffs, t_mid_coeffs, t_hi_coeffs) =
-            self.split_tx_poly(domain.size(), &t_coeffs);
+        let (t_low_poly, t_mid_poly, t_hi_poly) = self.split_tx_poly(domain.size(), &t_poly);
 
         // Commit to permutation polynomial
         //
-        let t_low_commit = commit_key
-            .commit(Polynomial::from_coefficients_slice(&t_low_coeffs), None)
-            .unwrap()
-            .0;
-        let t_mid_commit = commit_key
-            .commit(Polynomial::from_coefficients_slice(&t_mid_coeffs), None)
-            .unwrap()
-            .0;
-        let t_hi_commit = commit_key
-            .commit(Polynomial::from_coefficients_slice(&t_hi_coeffs), None)
-            .unwrap()
-            .0;
+        let t_low_commit = commit_key.commit(&t_low_poly, None).unwrap().0;
+        let t_mid_commit = commit_key.commit(&t_mid_poly, None).unwrap().0;
+        let t_hi_commit = commit_key.commit(&t_hi_poly, None).unwrap().0;
         // Add commitment to quotient polynomials to transcript
         transcript.append_commitment(b"t_lo", &t_low_commit);
         transcript.append_commitment(b"t_mid", &t_mid_commit);
@@ -265,15 +210,15 @@ impl Composer for StandardComposer {
         // Compute evaluation challenge; `z`
         let z_challenge = transcript.challenge_scalar(b"z");
         //
-        let (lin_coeffs, evaluations) = linearisation_poly::compute(
+        let (lin_poly, evaluations) = linearisation_poly::compute(
             &domain,
             &preprocessed_circuit,
             &(alpha, beta, gamma, z_challenge),
-            &w_l_coeffs,
-            &w_r_coeffs,
-            &w_o_coeffs,
-            &t_coeffs,
-            &z_coeffs,
+            &w_l_poly,
+            &w_r_poly,
+            &w_o_poly,
+            &t_poly,
+            &z_poly,
         );
         // Add evaluations to transcript
         transcript.append_scalar(b"a_eval", &evaluations.proof.a_eval);
@@ -291,33 +236,27 @@ impl Composer for StandardComposer {
         // Compute opening challenge `v`
         let v = transcript.challenge_scalar(b"v");
 
-        let (w_z_coeffs, w_zx_coeffs) = opening_poly::compute(
+        let (w_z_poly, w_zx_poly) = opening_poly::compute(
             domain.group_gen,
             domain.size(),
             z_challenge,
-            &lin_coeffs,
+            &lin_poly,
             &evaluations,
-            &t_low_coeffs,
-            &t_mid_coeffs,
-            &t_hi_coeffs,
-            &w_l_coeffs,
-            &w_r_coeffs,
-            &w_o_coeffs,
+            &t_low_poly,
+            &t_mid_poly,
+            &t_hi_poly,
+            &w_l_poly,
+            &w_r_poly,
+            &w_o_poly,
             preprocessed_circuit.left_sigma_poly(),
             preprocessed_circuit.right_sigma_poly(),
-            &z_coeffs,
+            &z_poly,
             &v,
         );
 
         // Commit to opening polynomial
-        let w_z_comm = commit_key
-            .commit(Polynomial::from_coefficients_slice(&w_z_coeffs), None)
-            .unwrap()
-            .0;
-        let w_z_x_comm = commit_key
-            .commit(Polynomial::from_coefficients_slice(&w_zx_coeffs), None)
-            .unwrap()
-            .0;
+        let w_z_comm = commit_key.commit(&w_z_poly, None).unwrap().0;
+        let w_z_x_comm = commit_key.commit(&w_zx_poly, None).unwrap().0;
         //
         // Create Proof
         Proof {
@@ -348,15 +287,15 @@ impl StandardComposer {
     }
 
     // Split `t(X)` poly into three degree-n polynomials.
-    pub fn split_tx_poly<'a>(
+    pub fn split_tx_poly(
         &self,
         n: usize,
-        t_x: &Vec<Scalar>,
-    ) -> (Vec<Scalar>, Vec<Scalar>, Vec<Scalar>) {
+        t_x: &Polynomial,
+    ) -> (Polynomial, Polynomial, Polynomial) {
         (
-            t_x[0..n].to_vec(),
-            t_x[n..2 * n].to_vec(),
-            t_x[2 * n..].to_vec(),
+            Polynomial::from_coefficients_vec(t_x[0..n].to_vec()),
+            Polynomial::from_coefficients_vec(t_x[n..2 * n].to_vec()),
+            Polynomial::from_coefficients_vec(t_x[2 * n..].to_vec()),
         )
     }
 

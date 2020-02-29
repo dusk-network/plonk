@@ -77,14 +77,14 @@ impl ProverKey {
     /// hiding_degree is the degree of the polynomial that will be used to hide the original polynomial
     pub fn commit(
         &self,
-        polynomial: Polynomial,
+        polynomial: &Polynomial,
         hiding_parameters: Option<(usize, &mut dyn RngCore)>,
     ) -> Result<(Commitment, Option<BlindingPolynomial>), Error> {
         // Check whether we can safely commit to this polynomial
         self.check_commit_degree_is_within_bounds(polynomial.degree())?;
 
         // Compute commitment
-        use crate::{multiscalar_mul, sum_points};
+        use crate::util::{multiscalar_mul, sum_points};
         let points: Vec<G1Projective> = multiscalar_mul(&polynomial.coeffs, &self.powers_of_g);
         let mut commitment = sum_points(&points);
 
