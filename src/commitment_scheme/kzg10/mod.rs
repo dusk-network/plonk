@@ -14,7 +14,7 @@ pub struct Proof {
     /// the evaluation proof was produced.
     pub random_v: Scalar,
 }
-
+#[derive(Copy, Clone, Debug)]
 pub struct Commitment(
     /// The commitment is a group element.
     pub G1Affine,
@@ -26,6 +26,10 @@ impl Commitment {
     }
     pub fn from_affine(g: G1Affine) -> Self {
         Self(g)
+    }
+
+    pub fn empty() -> Self {
+        Commitment(G1Affine::identity())
     }
 }
 

@@ -84,12 +84,9 @@ impl ProverKey {
         self.check_commit_degree_is_within_bounds(polynomial.degree())?;
 
         // Compute commitment
-        use crate::multiscalar_mul;
+        use crate::{multiscalar_mul, sum_points};
         let points: Vec<G1Projective> = multiscalar_mul(&polynomial.coeffs, &self.powers_of_g);
-        let mut commitment = G1Projective::identity();
-        for point in points {
-            commitment = commitment + point;
-        }
+        let mut commitment = sum_points(&points);
 
         // Compute Blinding Polynomial if hiding parameters supplied
         if let None = hiding_parameters {
@@ -99,10 +96,7 @@ impl ProverKey {
         self.check_hiding_degree_is_within_bounds(hiding_degree)?;
         let blinding_poly = BlindingPolynomial::rand(hiding_degree, &mut rng);
         let points: Vec<G1Projective> = multiscalar_mul(&blinding_poly.0, &self.powers_of_gamma_g);
-        let mut random_commitment = G1Projective::identity();
-        for point in points {
-            random_commitment = random_commitment + point;
-        }
+        let mut random_commitment = sum_points(&points);
         commitment += random_commitment;
 
         Ok((Commitment::from_projective(commitment), Some(blinding_poly)))
