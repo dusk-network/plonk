@@ -1,11 +1,11 @@
+use super::quotient_poly;
 use super::{proof::Proof, Composer, PreProcessedCircuit};
 use crate::commitment_scheme::kzg10::ProverKey;
 use crate::constraint_system::{LinearCombination, Variable};
 use crate::fft::{EvaluationDomain, Evaluations, Polynomial};
 use crate::transcript::TranscriptProtocol;
-use crate::{linearisation_poly, opening_poly, permutation::Permutation, quotient_poly};
+use crate::{linearisation_poly, opening_poly, permutation::Permutation};
 use bls12_381::Scalar;
-use rayon::iter::IntoParallelIterator;
 /// A composer is a circuit builder
 /// and will dictate how a circuit is built
 /// We will have a default Composer called `StandardComposer`
