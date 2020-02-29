@@ -1,5 +1,5 @@
 mod commitment_scheme;
-pub mod cs;
+pub mod constraint_system;
 mod fft;
 mod linearisation_poly;
 mod opening_poly;

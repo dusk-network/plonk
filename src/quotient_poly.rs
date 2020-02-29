@@ -1,4 +1,4 @@
-use crate::cs::standard::PreProcessedCircuit;
+use crate::constraint_system::standard::PreProcessedCircuit;
 use crate::fft::{poly_utils, EvaluationDomain, Polynomial};
 use bls12_381::Scalar;
 use rayon::prelude::*;

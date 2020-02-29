@@ -6,6 +6,7 @@ use crate::commitment_scheme::kzg10::ProverKey;
 use crate::fft::EvaluationDomain;
 use crate::transcript::TranscriptProtocol;
 
+pub use composer::StandardComposer;
 pub use preprocessed_circuit::PreProcessedCircuit;
 
 /// Implementation of the standard PLONK proof system
