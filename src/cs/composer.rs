@@ -813,6 +813,10 @@ mod tests {
         // Common View
         let public_parameters = SRS::setup(2 * n, &mut rand::thread_rng()).unwrap();
 
+    fn test_gadget(gadget: fn(composer: &mut StandardComposer<Bls12_381>), n: usize) -> bool {
+        // Common View
+        //
+        let public_parameters = srs::setup(2 * n + 1, &mut rand::thread_rng());
         // Provers View
         //
         let (proof, public_inputs) = {
