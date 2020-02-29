@@ -96,7 +96,7 @@ impl ProverKey {
         self.check_hiding_degree_is_within_bounds(hiding_degree)?;
         let blinding_poly = BlindingPolynomial::rand(hiding_degree, &mut rng);
         let points: Vec<G1Projective> = multiscalar_mul(&blinding_poly.0, &self.powers_of_gamma_g);
-        let mut random_commitment = sum_points(&points);
+        let random_commitment = sum_points(&points);
         commitment += random_commitment;
 
         Ok((Commitment::from_projective(commitment), Some(blinding_poly)))
@@ -109,11 +109,11 @@ impl ProverKey {
 // Check whether the polynomial we are committing to:
 // - has zero degree
 // - has a degree which is more than the max supported degree
-fn check_degree_is_within_bounds(max_degree: usize, degree: usize) -> Result<(), Error> {
-    if degree == 0 {
+fn check_degree_is_within_bounds(max_degree: usize, poly_degree: usize) -> Result<(), Error> {
+    if poly_degree == 0 {
         return Err(Error::PolynomialDegreeIsZero);
     }
-    if degree > max_degree {
+    if poly_degree > max_degree {
         return Err(Error::PolynomialDegreeTooLarge);
     }
     Ok(())

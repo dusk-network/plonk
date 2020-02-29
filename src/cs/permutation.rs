@@ -853,7 +853,7 @@ mod test {
         //
         let beta = random_scalar(&mut rand::thread_rng());
         let gamma = random_scalar(&mut rand::thread_rng());
-        assert_ne!(gamma, beta); // This will make the z(gW) =
+        assert_ne!(gamma, beta);
 
         //1. Compute the permutation polynomial using both methods
         //
