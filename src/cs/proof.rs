@@ -1,3 +1,4 @@
+use super::linearisation_poly::ProofEvaluations;
 use super::PreProcessedCircuit;
 use crate::commitment_scheme::kzg10::{Commitment, VerifierKey};
 use crate::fft::{EvaluationDomain, Polynomial};
@@ -25,25 +26,7 @@ pub struct Proof {
     // Commitment to the shifted opening polynomial
     pub w_zw_comm: Commitment,
 
-    // Evaluation of the witness polynomial for the left wires at `z`
-    pub a_eval: Scalar,
-    // Evaluation of the witness polynomial for the right wires at `z`
-    pub b_eval: Scalar,
-    // Evaluation of the witness polynomial for the output wires at `z`
-    pub c_eval: Scalar,
-
-    // Evaluation of the left sigma polynomial at `z`
-    pub left_sigma_eval: Scalar,
-    // Evaluation of the right sigma polynomial at `z`
-    pub right_sigma_eval: Scalar,
-
-    // Evaluation of the linearisation sigma polynomial at `z`
-    pub lin_poly_eval: Scalar,
-
-    // (Shifted) Evaluation of the permutation polynomial at `z * root of unity`
-    pub z_hat_eval: Scalar,
-    // XXX: Need to confirm that for custom gates we do need more commitments for custom selector polynomial, as the selector polynomial is a part of the circuit description
-    // Furthermore, we may not need any extra commitments as the checks are baked into the quotient polynomial and the setup elements can be put into the witness polynomials
+    pub evaluations: ProofEvaluations,
 }
 
 impl Proof {
@@ -61,17 +44,18 @@ impl Proof {
 
             w_z_comm: Commitment::empty(),
             w_zw_comm: Commitment::empty(),
+            evaluations: ProofEvaluations {
+                a_eval: Scalar::zero(),
+                b_eval: Scalar::zero(),
+                c_eval: Scalar::zero(),
 
-            a_eval: Scalar::zero(),
-            b_eval: Scalar::zero(),
-            c_eval: Scalar::zero(),
+                left_sigma_eval: Scalar::zero(),
+                right_sigma_eval: Scalar::zero(),
 
-            left_sigma_eval: Scalar::zero(),
-            right_sigma_eval: Scalar::zero(),
+                lin_poly_eval: Scalar::zero(),
 
-            lin_poly_eval: Scalar::zero(),
-
-            z_hat_eval: Scalar::zero(),
+                perm_eval: Scalar::zero(),
+            },
         }
     }
 
@@ -86,70 +70,6 @@ impl Proof {
         self.a_comm = *a_comm;
         self.b_comm = *b_comm;
         self.c_comm = *c_comm;
-    }
-
-    // Includes the commitment to the permutation polynomial in the proof
-    pub fn set_perm_poly_commitment(&mut self, z_comm: &Commitment) -> () {
-        self.z_comm = *z_comm;
-    }
-
-    // Includes the commitments to the quotient polynomials in the proof
-    pub fn set_quotient_poly_commitments(
-        &mut self,
-        t_lo_comm: &Commitment,
-        t_mid_comm: &Commitment,
-        t_hi_comm: &Commitment,
-    ) -> () {
-        self.t_lo_comm = *t_lo_comm;
-        self.t_mid_comm = *t_mid_comm;
-        self.t_hi_comm = *t_hi_comm;
-    }
-
-    // Includes the commitments to the opening polynomial and the shifted
-    // opening polynomial in the proof
-    pub fn set_opening_poly_commitments(
-        &mut self,
-        opening_poly_comm: &Commitment,
-        shifted_opening_poly_comm: &Commitment,
-    ) -> () {
-        self.w_z_comm = *opening_poly_comm;
-        self.w_zw_comm = *shifted_opening_poly_comm;
-    }
-
-    // Includes the evaluations of the witness polynomials at `z`
-    // for left right and output wires in the proof
-    pub fn set_witness_poly_evals(
-        &mut self,
-        a_eval: &Scalar,
-        b_eval: &Scalar,
-        c_eval: &Scalar,
-    ) -> () {
-        self.a_eval = *a_eval;
-        self.b_eval = *b_eval;
-        self.c_eval = *c_eval;
-    }
-
-    // Includes the evaluation of the left and right sigma permutation
-    // polynomials at `z` in the proof
-    pub fn set_sigma_poly_evals(
-        &mut self,
-        left_sigm_eval: &Scalar,
-        right_sigm_eval: &Scalar,
-    ) -> () {
-        self.left_sigma_eval = *left_sigm_eval;
-        self.right_sigma_eval = *right_sigm_eval;
-    }
-
-    // Includes the evaluation of the linearisation sigma polynomial at `z`
-    // in the proof
-    pub fn set_linearisation_poly_eval(&mut self, lin_poly_eval: &Scalar) -> () {
-        self.lin_poly_eval = *lin_poly_eval;
-    }
-
-    // Includes the (Shifted) Evaluation of the permutation polynomial at
-    // `z * root of unity` in the proof
-    pub fn set_shifted_perm_poly_eval(&mut self, shft_perm_poly_eval: &Scalar) -> () {
-        self.z_hat_eval = *shft_perm_poly_eval;
     }
 
     pub fn verify(
@@ -199,18 +119,18 @@ impl Proof {
             gamma,
             l1_eval,
             z_h_eval,
-            self.z_hat_eval,
+            self.evaluations.perm_eval,
         );
 
         // Add evaluations to transcript
-        transcript.append_scalar(b"a_eval", &self.a_eval);
-        transcript.append_scalar(b"b_eval", &self.b_eval);
-        transcript.append_scalar(b"c_eval", &self.c_eval);
-        transcript.append_scalar(b"left_sig_eval", &self.left_sigma_eval);
-        transcript.append_scalar(b"right_sig_eval", &self.right_sigma_eval);
-        transcript.append_scalar(b"perm_eval", &self.z_hat_eval);
+        transcript.append_scalar(b"a_eval", &self.evaluations.a_eval);
+        transcript.append_scalar(b"b_eval", &self.evaluations.b_eval);
+        transcript.append_scalar(b"c_eval", &self.evaluations.c_eval);
+        transcript.append_scalar(b"left_sig_eval", &self.evaluations.left_sigma_eval);
+        transcript.append_scalar(b"right_sig_eval", &self.evaluations.right_sigma_eval);
+        transcript.append_scalar(b"perm_eval", &self.evaluations.perm_eval);
         transcript.append_scalar(b"t_eval", &t_eval);
-        transcript.append_scalar(b"r_eval", &self.lin_poly_eval);
+        transcript.append_scalar(b"r_eval", &self.evaluations.lin_poly_eval);
 
         // Compute opening challenge
         let v = transcript.challenge_scalar(b"v");
@@ -279,18 +199,18 @@ impl Proof {
         let alpha_cu = alpha_sq * &alpha;
 
         // r + PI(z) * alpha
-        let a = self.lin_poly_eval + &(pi_eval * &alpha);
+        let a = self.evaluations.lin_poly_eval + &(pi_eval * &alpha);
 
         // a + beta * sigma_1 + gamma
-        let beta_sig1 = beta * &self.left_sigma_eval;
-        let b_0 = self.a_eval + &beta_sig1 + &gamma;
+        let beta_sig1 = beta * &self.evaluations.left_sigma_eval;
+        let b_0 = self.evaluations.a_eval + &beta_sig1 + &gamma;
 
         // b+ beta * sigma_2 + gamma
-        let beta_sig2 = beta * &self.right_sigma_eval;
-        let b_1 = self.b_eval + &beta_sig2 + &gamma;
+        let beta_sig2 = beta * &self.evaluations.right_sigma_eval;
+        let b_1 = self.evaluations.b_eval + &beta_sig2 + &gamma;
 
         // ((c + gamma) * z_hat) * alpha^2
-        let b_2 = (self.c_eval + &gamma) * &z_hat_eval * &alpha_sq;
+        let b_2 = (self.evaluations.c_eval + &gamma) * &z_hat_eval * &alpha_sq;
 
         let b = b_0 * &b_1 * &b_2;
 
@@ -319,16 +239,16 @@ impl Proof {
         let mut scalars: Vec<_> = Vec::with_capacity(6);
         let mut points: Vec<G1Affine> = Vec::with_capacity(6);
 
-        scalars.push(self.a_eval * &self.b_eval * &alpha * &v);
+        scalars.push(self.evaluations.a_eval * &self.evaluations.b_eval * &alpha * &v);
         points.push(preprocessed_circuit.qm_comm().0);
 
-        scalars.push(self.a_eval * &alpha * &v);
+        scalars.push(self.evaluations.a_eval * &alpha * &v);
         points.push(preprocessed_circuit.ql_comm().0);
 
-        scalars.push(self.b_eval * &alpha * &v);
+        scalars.push(self.evaluations.b_eval * &alpha * &v);
         points.push(preprocessed_circuit.qr_comm().0);
 
-        scalars.push(self.c_eval * &alpha * &v);
+        scalars.push(self.evaluations.c_eval * &alpha * &v);
         points.push(preprocessed_circuit.qo_comm().0);
 
         scalars.push(alpha * &v);
@@ -337,13 +257,13 @@ impl Proof {
         // (a_eval + beta * z + gamma)(b_eval + beta * z * k1 + gamma)(c_eval + beta * k2* z + gamma) * alpha^2 * v
         let x = {
             let beta_z = beta * &z_challenge;
-            let q_0 = self.a_eval + &beta_z + &gamma;
+            let q_0 = self.evaluations.a_eval + &beta_z + &gamma;
 
             let beta_k1_z = beta * &k1 * &z_challenge;
-            let q_1 = self.b_eval + &beta_k1_z + &gamma;
+            let q_1 = self.evaluations.b_eval + &beta_k1_z + &gamma;
 
             let beta_k2_z = beta * &k2 * &z_challenge;
-            let q_2 = (self.c_eval + &beta_k2_z + &gamma) * &alpha * &alpha * &v;
+            let q_2 = (self.evaluations.c_eval + &beta_k2_z + &gamma) * &alpha * &alpha * &v;
 
             q_0 * &q_1 * &q_2
         };
@@ -358,13 +278,13 @@ impl Proof {
 
         // (a_eval + beta * sigma_1_eval + gamma)(b_eval + beta * sigma_2_eval + gamma)(c_eval + beta * sigma_3_eval + gamma) *alpha^2 * v
         let y = {
-            let beta_sigma_1 = beta * &self.left_sigma_eval;
-            let q_0 = self.a_eval + &beta_sigma_1 + &gamma;
+            let beta_sigma_1 = beta * &self.evaluations.left_sigma_eval;
+            let q_0 = self.evaluations.a_eval + &beta_sigma_1 + &gamma;
 
-            let beta_sigma_2 = beta * &self.right_sigma_eval;
-            let q_1 = self.b_eval + &beta_sigma_2 + &gamma;
+            let beta_sigma_2 = beta * &self.evaluations.right_sigma_eval;
+            let q_1 = self.evaluations.b_eval + &beta_sigma_2 + &gamma;
 
-            let q_2 = beta * &self.z_hat_eval * &alpha * &alpha * &v;
+            let q_2 = beta * &self.evaluations.perm_eval * &alpha * &alpha * &v;
 
             q_0 * &q_1 * &q_2
         };
@@ -427,13 +347,13 @@ impl Proof {
     ) -> G1Projective {
         let x = vec![
             (Scalar::one(), t_eval),
-            (v, self.lin_poly_eval),
-            (v.pow(&[2, 0, 0, 0]), self.a_eval),
-            (v.pow(&[3, 0, 0, 0]), self.b_eval),
-            (v.pow(&[4, 0, 0, 0]), self.c_eval),
-            (v.pow(&[5, 0, 0, 0]), self.left_sigma_eval),
-            (v.pow(&[6, 0, 0, 0]), self.right_sigma_eval),
-            (v.pow(&[7, 0, 0, 0]), u * &self.z_hat_eval),
+            (v, self.evaluations.lin_poly_eval),
+            (v.pow(&[2, 0, 0, 0]), self.evaluations.a_eval),
+            (v.pow(&[3, 0, 0, 0]), self.evaluations.b_eval),
+            (v.pow(&[4, 0, 0, 0]), self.evaluations.c_eval),
+            (v.pow(&[5, 0, 0, 0]), self.evaluations.left_sigma_eval),
+            (v.pow(&[6, 0, 0, 0]), self.evaluations.right_sigma_eval),
+            (v.pow(&[7, 0, 0, 0]), u * &self.evaluations.perm_eval),
         ];
 
         let mut result = Scalar::zero();

@@ -1,4 +1,4 @@
-use super::linearisation_poly::LinEval;
+use super::linearisation_poly::Evaluations;
 use crate::cs::poly_utils::Poly_utils;
 use crate::fft::Polynomial;
 use bls12_381::Scalar;
@@ -10,7 +10,7 @@ pub fn compute(
     n: usize,
     z_challenge: Scalar,
     lin_coeffs: &Vec<Scalar>,
-    evaluations: LinEval,
+    evaluations: &Evaluations,
     t_lo_coeffs: &Vec<Scalar>,
     t_mid_coeffs: &Vec<Scalar>,
     t_hi_coeffs: &Vec<Scalar>,
@@ -28,7 +28,7 @@ pub fn compute(
     let mut v_pow: Vec<Scalar> = poly_utils.powers_of(v, 7);
 
     let v_7 = v_pow.pop().unwrap();
-    let z_hat_eval = evaluations.perm_eval;
+    let z_hat_eval = evaluations.proof.perm_eval;
 
     // Compute z^n , z^2n
     let z_n = z_challenge.pow(&[n as u64, 0, 0, 0]);
@@ -84,16 +84,16 @@ fn compute_quotient_opening_poly(
 fn compute_challenge_poly_eval(
     challenges: Vec<Scalar>,
     polynomials: Vec<&Vec<Scalar>>,
-    evaluations: LinEval,
+    evaluations: &Evaluations,
 ) -> Vec<Scalar> {
     let poly_utils: Poly_utils = Poly_utils::new();
     let x: Vec<_> = challenges
         .into_par_iter()
         .zip(polynomials.into_par_iter())
-        .zip(evaluations.to_vec().into_par_iter())
+        .zip(evaluations.as_vec().into_par_iter())
         .map(|((v, poly), eval)| {
             let mut p: Vec<_> = poly.iter().map(|p| v * p).collect();
-            p[0] = p[0] - &(v * &eval);
+            p[0] = p[0] - &(v * eval);
             p
         })
         .collect();

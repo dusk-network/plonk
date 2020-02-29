@@ -3,35 +3,45 @@ use crate::cs::poly_utils::Poly_utils;
 use crate::fft::EvaluationDomain;
 use bls12_381::Scalar;
 
-pub struct LinEval {
-    pub a_eval: Scalar,
-    pub b_eval: Scalar,
-    pub c_eval: Scalar,
-    pub left_sigma_eval: Scalar,
-    pub right_sigma_eval: Scalar,
+/// Evaluations at points `z` or and `z * root of unity`
+pub struct Evaluations {
+    pub proof: ProofEvaluations,
+    // Evaluation of the linearisation sigma polynomial at `z`
     pub quot_eval: Scalar,
+}
+// Proof Evaluations is a subset of all of the evaluations. These evaluations will be added to the proof
+pub struct ProofEvaluations {
+    // Evaluation of the witness polynomial for the left wires at `z`
+    pub a_eval: Scalar,
+    // Evaluation of the witness polynomial for the right wires at `z`
+    pub b_eval: Scalar,
+    // Evaluation of the witness polynomial for the output wires at `z`
+    pub c_eval: Scalar,
+
+    // Evaluation of the left sigma polynomial at `z`
+    pub left_sigma_eval: Scalar,
+    // Evaluation of the right sigma polynomial at `z`
+    pub right_sigma_eval: Scalar,
+
+    // Evaluation of the linearisation sigma polynomial at `z`
     pub lin_poly_eval: Scalar,
+
+    // (Shifted) Evaluation of the permutation polynomial at `z * root of unity`
     pub perm_eval: Scalar,
 }
 
-impl Into<Vec<Scalar>> for LinEval {
-    fn into(self) -> Vec<Scalar> {
+impl Evaluations {
+    pub fn as_vec(&self) -> Vec<&Scalar> {
         vec![
-            self.a_eval,
-            self.b_eval,
-            self.c_eval,
-            self.left_sigma_eval,
-            self.right_sigma_eval,
-            self.quot_eval,
-            self.lin_poly_eval,
-            self.perm_eval,
+            &self.proof.a_eval,
+            &self.proof.b_eval,
+            &self.proof.c_eval,
+            &self.proof.left_sigma_eval,
+            &self.proof.right_sigma_eval,
+            &self.proof.lin_poly_eval,
+            &self.proof.perm_eval,
+            &self.quot_eval,
         ]
-    }
-}
-
-impl LinEval {
-    pub fn to_vec(self) -> Vec<Scalar> {
-        self.into()
     }
 }
 
@@ -44,7 +54,7 @@ pub fn compute(
     w_o_coeffs: &Vec<Scalar>,
     t_x_coeffs: &Vec<Scalar>,
     z_coeffs: &Vec<Scalar>,
-) -> (Vec<Scalar>, LinEval) {
+) -> (Vec<Scalar>, Evaluations) {
     let poly_utils: Poly_utils = Poly_utils::new();
     let alpha_sq = alpha.square();
     let alpha_cu = alpha * alpha_sq;
@@ -114,15 +124,17 @@ pub fn compute(
 
     (
         lin_coeffs,
-        LinEval {
-            a_eval,
-            b_eval,
-            c_eval,
-            left_sigma_eval,
-            right_sigma_eval,
+        Evaluations {
+            proof: ProofEvaluations {
+                a_eval,
+                b_eval,
+                c_eval,
+                left_sigma_eval,
+                right_sigma_eval,
+                lin_poly_eval,
+                perm_eval,
+            },
             quot_eval,
-            lin_poly_eval,
-            perm_eval,
         },
     )
 }

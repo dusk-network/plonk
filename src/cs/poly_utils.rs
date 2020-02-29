@@ -48,7 +48,7 @@ impl Poly_utils {
         assert_ne!(max_coefficients, 0);
 
         // Compute powers of points
-        let mut powers = self.powers_of(point, max_coefficients);
+        let powers = self.powers_of(point, max_coefficients);
 
         // Compute evaluation of each polynomial at `point`
         let evaluations: Vec<Scalar> = polynomials
