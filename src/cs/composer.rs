@@ -161,23 +161,20 @@ impl Composer for StandardComposer {
     ) -> Proof {
         let domain = EvaluationDomain::new(self.n).unwrap();
 
-        let mut proof = Proof::empty();
-
-        //1. Witness Polynomials
+        //1. Compute witness Polynomials
         //
         // Convert Variables to Scalars
         let (w_l_scalar, w_r_scalar, w_o_scalar) = self
             .perm
             .witness_vars_to_scalars(&self.w_l, &self.w_r, &self.w_o);
 
-        // IFFT to get lagrange polynomials on witnesses
-        let mut w_l_coeffs = domain.ifft(&w_l_scalar);
-        let mut w_r_coeffs = domain.ifft(&w_r_scalar);
-        let mut w_o_coeffs = domain.ifft(&w_o_scalar);
+        // Witnesses are now in evaluation form, convert them to coefficients
+        // So that we may commit to them
+        let w_l_coeffs = domain.ifft(&w_l_scalar);
+        let w_r_coeffs = domain.ifft(&w_r_scalar);
+        let w_o_coeffs = domain.ifft(&w_o_scalar);
 
-        // 1) Commit to witness polynomials
-        // 2) Add them to transcript
-        // 3) Place commitments into proof
+        // Commit to witness polynomials
         let w_l_poly_commit = commit_key
             .commit(Polynomial::from_coefficients_slice(&w_l_coeffs), None)
             .unwrap()
@@ -190,19 +187,21 @@ impl Composer for StandardComposer {
             .commit(Polynomial::from_coefficients_slice(&w_o_coeffs), None)
             .unwrap()
             .0;
-        //
+        // Add commitment to witness polynomials to transcript
         transcript.append_commitment(b"w_l", &w_l_poly_commit);
         transcript.append_commitment(b"w_r", &w_r_poly_commit);
         transcript.append_commitment(b"w_o", &w_o_poly_commit);
         //
-        proof.set_witness_poly_commitments(&w_l_poly_commit, &w_r_poly_commit, &w_o_poly_commit);
 
-        // Compute Permutation challenges to the transcript `beta` and `gamma`
+        // 2. Compute permutation polynomial
+        //
+        //
+        // Compute permutation challenges; `beta` and `gamma`
         let beta = transcript.challenge_scalar(b"beta");
         transcript.append_scalar(b"beta", &beta);
         let gamma = transcript.challenge_scalar(b"gamma");
-
-        // compute Permutation polynomial
+        //
+        //
         let z_coeffs = self.perm.compute_permutation_poly(
             &domain,
             &w_l_scalar,
@@ -210,25 +209,24 @@ impl Composer for StandardComposer {
             &w_o_scalar,
             &(beta, gamma),
         );
-        // 1) Commit to permutation polynomial
-        // 2) Add them to transcript
-        // 3) Place commitments into proof
+        // Commit to permutation polynomial
+        //
         let z_poly_commit = commit_key
             .commit(Polynomial::from_coefficients_slice(&z_coeffs), None)
             .unwrap()
             .0;
-        //
+        // Add commitment to permutation polynomials to transcript
         transcript.append_commitment(b"z", &z_poly_commit);
         //
-        proof.set_perm_poly_commitment(&z_poly_commit);
-
-        // Compute Quotient challenge `alpha`
-        let alpha = transcript.challenge_scalar(b"alpha");
-
-        // Compute Public Inputs Polynomial
+        // 2. Compute public inputs polynomial
         let pi_coeffs = domain.ifft(&self.public_inputs);
+        //
 
-        // Compute Quotient polynomial.
+        // 3. Compute quotient polynomial
+        //
+        // Compute quotient challenge; `alpha`
+        let alpha = transcript.challenge_scalar(b"alpha");
+        //
         let t_coeffs = quotient_poly::compute(
             &domain,
             &preprocessed_circuit,
@@ -237,13 +235,14 @@ impl Composer for StandardComposer {
             &pi_coeffs,
             &(alpha, beta, gamma),
         );
-
+        // Split quotient polynomial into 3 degree `n` polynomials
+        // XXX: This implicitly assumes that the quotient polynomial will never go over
+        // degree 3n. For custom gates, this may not hold true, unless the API restricts it
         let (t_low_coeffs, t_mid_coeffs, t_hi_coeffs) =
             self.split_tx_poly(domain.size(), &t_coeffs);
 
-        // 1) Commit to quotient polynomials
-        // 2) Add them to transcript
-        // 3) Place commitments into proof
+        // Commit to permutation polynomial
+        //
         let t_low_commit = commit_key
             .commit(Polynomial::from_coefficients_slice(&t_low_coeffs), None)
             .unwrap()
@@ -256,17 +255,16 @@ impl Composer for StandardComposer {
             .commit(Polynomial::from_coefficients_slice(&t_hi_coeffs), None)
             .unwrap()
             .0;
-        //
+        // Add commitment to quotient polynomials to transcript
         transcript.append_commitment(b"t_lo", &t_low_commit);
         transcript.append_commitment(b"t_mid", &t_mid_commit);
         transcript.append_commitment(b"t_hi", &t_hi_commit);
+
+        // 4. Compute linearisation polynomial
         //
-        proof.set_quotient_poly_commitments(&t_low_commit, &t_mid_commit, &t_hi_commit);
-
-        // Compute evaluation challenge `z`
+        // Compute evaluation challenge; `z`
         let z_challenge = transcript.challenge_scalar(b"z");
-
-        // Compute Linearisation polynomial
+        //
         let (lin_coeffs, evaluations) = linearisation_poly::compute(
             &domain,
             &preprocessed_circuit,
@@ -277,41 +275,28 @@ impl Composer for StandardComposer {
             &t_coeffs,
             &z_coeffs,
         );
-
-        let left_sigma_eval = evaluations.left_sigma_eval;
-        let right_sigma_eval = evaluations.right_sigma_eval;
-        let perm_eval = evaluations.perm_eval;
-
-        // 2) Add evaluations to transcript
-        // 3) Place commitments into proof
-        transcript.append_scalar(b"a_eval", &evaluations.a_eval);
-        transcript.append_scalar(b"b_eval", &evaluations.b_eval);
-        transcript.append_scalar(b"c_eval", &evaluations.c_eval);
-        transcript.append_scalar(b"left_sig_eval", &evaluations.left_sigma_eval);
-        transcript.append_scalar(b"right_sig_eval", &evaluations.right_sigma_eval);
-        transcript.append_scalar(b"perm_eval", &evaluations.perm_eval);
+        // Add evaluations to transcript
+        transcript.append_scalar(b"a_eval", &evaluations.proof.a_eval);
+        transcript.append_scalar(b"b_eval", &evaluations.proof.b_eval);
+        transcript.append_scalar(b"c_eval", &evaluations.proof.c_eval);
+        transcript.append_scalar(b"left_sig_eval", &evaluations.proof.left_sigma_eval);
+        transcript.append_scalar(b"right_sig_eval", &evaluations.proof.right_sigma_eval);
+        transcript.append_scalar(b"perm_eval", &evaluations.proof.perm_eval);
         transcript.append_scalar(b"t_eval", &evaluations.quot_eval);
-        transcript.append_scalar(b"r_eval", &evaluations.lin_poly_eval);
+        transcript.append_scalar(b"r_eval", &evaluations.proof.lin_poly_eval);
         //
-        proof.set_witness_poly_evals(
-            &evaluations.a_eval,
-            &evaluations.b_eval,
-            &evaluations.c_eval,
-        );
-        proof.set_sigma_poly_evals(&left_sigma_eval, &right_sigma_eval);
-        proof.set_shifted_perm_poly_eval(&perm_eval);
-        proof.set_linearisation_poly_eval(&evaluations.lin_poly_eval);
 
+        // 5. Compute opening polynomial
+        //
         // Compute opening challenge `v`
         let v = transcript.challenge_scalar(b"v");
 
-        // Compute opening polynomial
         let (w_z_coeffs, w_zx_coeffs) = opening_poly::compute(
             domain.group_gen,
             domain.size(),
             z_challenge,
             &lin_coeffs,
-            evaluations,
+            &evaluations,
             &t_low_coeffs,
             &t_mid_coeffs,
             &t_hi_coeffs,
@@ -324,8 +309,7 @@ impl Composer for StandardComposer {
             &v,
         );
 
-        // 1) Commit to opening polynomials
-        // 2) Place commitments into proof
+        // Commit to opening polynomial
         let w_z_comm = commit_key
             .commit(Polynomial::from_coefficients_slice(&w_z_coeffs), None)
             .unwrap()
@@ -335,9 +319,22 @@ impl Composer for StandardComposer {
             .unwrap()
             .0;
         //
-        proof.set_opening_poly_commitments(&w_z_comm, &w_z_x_comm);
+        // Create Proof
+        Proof {
+            a_comm: w_l_poly_commit,
+            b_comm: w_r_poly_commit,
+            c_comm: w_o_poly_commit,
+            z_comm: z_poly_commit,
+            t_lo_comm: t_low_commit,
+            t_mid_comm: t_mid_commit,
+            t_hi_comm: t_hi_commit,
+            // Commitment to the opening polynomial
+            w_z_comm: w_z_comm,
+            // Commitment to the shifted opening polynomial
+            w_zw_comm: w_z_x_comm,
 
-        proof
+            evaluations: evaluations.proof,
+        }
     }
 
     fn circuit_size(&self) -> usize {
