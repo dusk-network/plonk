@@ -11,6 +11,7 @@
 //! by performing an O(n log n) FFT over such a domain.
 
 use super::constants::{GENERATOR, ROOT_OF_UNITY, TWO_ADICITY};
+use super::Evaluations;
 use bls12_381::Scalar;
 use core::fmt;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefMutIterator, ParallelIterator};
@@ -203,6 +204,25 @@ impl EvaluationDomain {
     /// 1`.
     pub fn evaluate_vanishing_polynomial(&self, tau: Scalar) -> Scalar {
         tau.pow(&[self.size, 0, 0, 0]) - &Scalar::one()
+    }
+
+    /// Given that the domain size is `D`  
+    /// This function computes the `D` evaluation points for
+    /// the vanishing polynomial of degree `n` over a coset
+    pub fn compute_vanishing_poly_over_coset(
+        &self,            // domain to evaluate over
+        poly_degree: u64, // degree of the vanishing polynomial
+    ) -> Evaluations {
+        assert!((self.size() as u64) > poly_degree);
+        let coset_gen = GENERATOR.pow(&[poly_degree, 0, 0, 0]);
+        let v_h: Vec<_> = (0..self.size())
+            .into_iter()
+            .map(|i| {
+                (coset_gen * self.group_gen.pow(&[poly_degree * i as u64, 0, 0, 0]))
+                    - &Scalar::one()
+            })
+            .collect();
+        Evaluations::from_vec_and_domain(v_h, self.clone())
     }
 
     /// Return an iterator over the elements of the domain.
