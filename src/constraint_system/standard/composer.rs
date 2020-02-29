@@ -1,10 +1,11 @@
 use super::{proof::Proof, Composer, PreProcessedCircuit};
 use crate::commitment_scheme::kzg10::ProverKey;
 use crate::constraint_system::{LinearCombination, Variable};
-use crate::fft::{EvaluationDomain, Polynomial};
+use crate::fft::{EvaluationDomain, Evaluations, Polynomial};
 use crate::transcript::TranscriptProtocol;
 use crate::{linearisation_poly, opening_poly, permutation::Permutation, quotient_poly};
 use bls12_381::Scalar;
+use rayon::iter::IntoParallelIterator;
 /// A composer is a circuit builder
 /// and will dictate how a circuit is built
 /// We will have a default Composer called `StandardComposer`
@@ -65,11 +66,16 @@ impl Composer for StandardComposer {
 
         // 2b. Compute 4n evaluations of selector polynomial
         let domain_4n = EvaluationDomain::new(4 * domain.size()).unwrap();
-        let q_m_eval_4n = domain_4n.coset_fft(&q_m_poly.coeffs);
-        let q_l_eval_4n = domain_4n.coset_fft(&q_l_poly.coeffs);
-        let q_r_eval_4n = domain_4n.coset_fft(&q_r_poly.coeffs);
-        let q_o_eval_4n = domain_4n.coset_fft(&q_o_poly.coeffs);
-        let q_c_eval_4n = domain_4n.coset_fft(&q_c_poly.coeffs);
+        let q_m_eval_4n =
+            Evaluations::from_vec_and_domain(domain_4n.coset_fft(&q_m_poly.coeffs), domain_4n);
+        let q_l_eval_4n =
+            Evaluations::from_vec_and_domain(domain_4n.coset_fft(&q_l_poly.coeffs), domain_4n);
+        let q_r_eval_4n =
+            Evaluations::from_vec_and_domain(domain_4n.coset_fft(&q_r_poly.coeffs), domain_4n);
+        let q_o_eval_4n =
+            Evaluations::from_vec_and_domain(domain_4n.coset_fft(&q_o_poly.coeffs), domain_4n);
+        let q_c_eval_4n =
+            Evaluations::from_vec_and_domain(domain_4n.coset_fft(&q_c_poly.coeffs), domain_4n);
 
         // 3. Compute the sigma polynomials
         let (left_sigma_poly, right_sigma_poly, out_sigma_poly) =

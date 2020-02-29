@@ -1,5 +1,6 @@
 use crate::constraint_system::standard::PreProcessedCircuit;
 
+use crate::fft::Evaluations;
 use crate::fft::{EvaluationDomain, Polynomial};
 use crate::permutation::constants::{K1, K2};
 use bls12_381::Scalar;
@@ -63,43 +64,43 @@ pub fn compute(
         preprocessed_circuit.out_sigma_poly(),
     );
     let t_4 = compute_quotient_fourth_component(domain, z_poly, alpha.square() * alpha);
-    let mut quotient_evals = &t_1 + &t_2;
-    quotient_evals = &t_3 + &quotient_evals;
-    quotient_evals = &t_4 + &quotient_evals;
+    // Compute 4n evaluations for X^n -1
     let v_h_coset_4n = compute_vanishing_poly_over_coset(&domain_4n, domain.size() as u64);
 
-    // Divide the quotient polynomial by the vanishing polynomial over a coset
-    assert_eq!(v_h_coset_4n.len(), quotient_evals.len());
-    let quotient_evals_div_v_h: Vec<_> = quotient_evals
-        .into_iter()
-        .zip(v_h_coset_4n.iter())
-        .map(|(q, v_h)| q * v_h.invert().unwrap())
+    // XXX: We can compute the 4n evaluations for the vanishing polynomial in the preprocessing stage
+    let quotient: Vec<_> = (0..domain_4n.size())
+        .into_par_iter()
+        .map(|i| {
+            let numerator = t_1[i] + t_2[i] + t_3[i] + t_4[i];
+            let denominator = v_h_coset_4n[i];
+            numerator * denominator.invert().unwrap()
+        })
         .collect();
 
-    Polynomial::from_coefficients_vec(domain_4n.coset_ifft(&quotient_evals_div_v_h))
+    Polynomial::from_coefficients_vec(domain_4n.coset_ifft(&quotient))
 }
 
 fn compute_quotient_first_component(
     domain: &EvaluationDomain,
     alpha: &Scalar,
-    qm_eval_4n: &Vec<Scalar>,
-    ql_eval_4n: &Vec<Scalar>,
-    qr_eval_4n: &Vec<Scalar>,
-    qo_eval_4n: &Vec<Scalar>,
-    qc_eval_4n: &Vec<Scalar>,
-    pi_coeffs: &Polynomial,
-    wl_coeffs: &Polynomial,
-    wr_coeffs: &Polynomial,
-    wo_coeffs: &Polynomial,
-) -> Polynomial {
+    qm_eval_4n: &Evaluations,
+    ql_eval_4n: &Evaluations,
+    qr_eval_4n: &Evaluations,
+    qo_eval_4n: &Evaluations,
+    qc_eval_4n: &Evaluations,
+    pi_poly: &Polynomial,
+    wl_poly: &Polynomial,
+    wr_poly: &Polynomial,
+    wo_poly: &Polynomial,
+) -> Evaluations {
     let n = domain.size();
     let domain_4n = EvaluationDomain::new(4 * n).unwrap();
 
-    let pi_eval_4n = domain_4n.coset_fft(pi_coeffs);
+    let pi_eval_4n = domain_4n.coset_fft(pi_poly);
 
-    let wl_eval_4n = domain_4n.coset_fft(&wl_coeffs);
-    let wr_eval_4n = domain_4n.coset_fft(&wr_coeffs);
-    let wo_eval_4n = domain_4n.coset_fft(&wo_coeffs);
+    let wl_eval_4n = domain_4n.coset_fft(&wl_poly);
+    let wr_eval_4n = domain_4n.coset_fft(&wr_poly);
+    let wo_eval_4n = domain_4n.coset_fft(&wo_poly);
 
     let t_1: Vec<_> = (0..domain_4n.size())
         .into_par_iter()
@@ -139,7 +140,7 @@ fn compute_quotient_first_component(
         })
         .collect();
 
-    Polynomial::from_coefficients_vec(t_1)
+    Evaluations::from_vec_and_domain(t_1, domain_4n)
 }
 
 fn compute_quotient_second_component(
@@ -151,7 +152,7 @@ fn compute_quotient_second_component(
     wl_coeffs: &Polynomial,
     wr_coeffs: &Polynomial,
     wo_coeffs: &Polynomial,
-) -> Polynomial {
+) -> Evaluations {
     let n = domain.size();
     let domain_4n = EvaluationDomain::new(4 * n).unwrap();
 
@@ -185,7 +186,7 @@ fn compute_quotient_second_component(
             product * alpha_sq
         })
         .collect();
-    Polynomial::from_coefficients_vec(t_2)
+    Evaluations::from_vec_and_domain(t_2, domain_4n)
 }
 
 fn compute_quotient_third_component(
@@ -200,7 +201,7 @@ fn compute_quotient_third_component(
     left_sigma_poly: &Polynomial,
     right_sigma_poly: &Polynomial,
     out_sigma_poly: &Polynomial,
-) -> Polynomial {
+) -> Evaluations {
     let n = domain.size();
     let domain_4n = EvaluationDomain::new(4 * n).unwrap();
 
@@ -238,14 +239,14 @@ fn compute_quotient_third_component(
         })
         .collect();
 
-    Polynomial::from_coefficients_vec(t_3)
+    Evaluations::from_vec_and_domain(t_3, domain_4n)
 }
 
 fn compute_quotient_fourth_component(
     domain: &EvaluationDomain,
     z_poly: &Polynomial,
     alpha_cu: Scalar,
-) -> Polynomial {
+) -> Evaluations {
     let n = domain.size();
     let domain_4n = EvaluationDomain::new(4 * n).unwrap();
 
@@ -263,7 +264,7 @@ fn compute_quotient_fourth_component(
         .into_par_iter()
         .map(|i| alpha_cu_l1_evals[i] * &z_evals[i])
         .collect();
-    Polynomial::from_coefficients_vec(t_4)
+    Evaluations::from_vec_and_domain(t_4, domain_4n)
 }
 
 /// Computes the first Lagrange polynomial `L1(X)`.
