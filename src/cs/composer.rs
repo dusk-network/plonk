@@ -84,36 +84,42 @@ impl Composer for StandardComposer {
         // 4. Commit to polynomials
         //
         let q_m_poly_commit = commit_key
-            .commit(Polynomial::from_coefficients_vec(q_m_coeffs), None)
+            .commit(Polynomial::from_coefficients_slice(&q_m_coeffs), None)
             .unwrap()
             .0;
         let q_l_poly_commit = commit_key
-            .commit(Polynomial::from_coefficients_vec(q_l_coeffs), None)
+            .commit(Polynomial::from_coefficients_slice(&q_l_coeffs), None)
             .unwrap()
             .0;
         let q_r_poly_commit = commit_key
-            .commit(Polynomial::from_coefficients_vec(q_r_coeffs), None)
+            .commit(Polynomial::from_coefficients_slice(&q_r_coeffs), None)
             .unwrap()
             .0;
         let q_o_poly_commit = commit_key
-            .commit(Polynomial::from_coefficients_vec(q_o_coeffs), None)
+            .commit(Polynomial::from_coefficients_slice(&q_o_coeffs), None)
             .unwrap()
             .0;
         let q_c_poly_commit = commit_key
-            .commit(Polynomial::from_coefficients_vec(q_c_coeffs), None)
+            .commit(Polynomial::from_coefficients_slice(&q_c_coeffs), None)
             .unwrap()
             .0;
 
         let left_sigma_poly_commit = commit_key
-            .commit(Polynomial::from_coefficients_vec(left_sigma_coeffs), None)
+            .commit(
+                Polynomial::from_coefficients_slice(&left_sigma_coeffs),
+                None,
+            )
             .unwrap()
             .0;
         let right_sigma_poly_commit = commit_key
-            .commit(Polynomial::from_coefficients_vec(right_sigma_coeffs), None)
+            .commit(
+                Polynomial::from_coefficients_slice(&right_sigma_coeffs),
+                None,
+            )
             .unwrap()
             .0;
         let out_sigma_poly_commit = commit_key
-            .commit(Polynomial::from_coefficients_vec(out_sigma_coeffs), None)
+            .commit(Polynomial::from_coefficients_slice(&out_sigma_coeffs), None)
             .unwrap()
             .0;
 
@@ -175,15 +181,15 @@ impl Composer for StandardComposer {
         // 2) Add them to transcript
         // 3) Place commitments into proof
         let w_l_poly_commit = commit_key
-            .commit(Polynomial::from_coefficients_vec(w_l_coeffs), None)
+            .commit(Polynomial::from_coefficients_slice(&w_l_coeffs), None)
             .unwrap()
             .0;
         let w_r_poly_commit = commit_key
-            .commit(Polynomial::from_coefficients_vec(w_r_coeffs), None)
+            .commit(Polynomial::from_coefficients_slice(&w_r_coeffs), None)
             .unwrap()
             .0;
         let w_o_poly_commit = commit_key
-            .commit(Polynomial::from_coefficients_vec(w_o_coeffs), None)
+            .commit(Polynomial::from_coefficients_slice(&w_o_coeffs), None)
             .unwrap()
             .0;
         //
@@ -210,7 +216,7 @@ impl Composer for StandardComposer {
         // 2) Add them to transcript
         // 3) Place commitments into proof
         let z_poly_commit = commit_key
-            .commit(Polynomial::from_coefficients_vec(z_coeffs), None)
+            .commit(Polynomial::from_coefficients_slice(&z_coeffs), None)
             .unwrap()
             .0;
         //
@@ -242,15 +248,15 @@ impl Composer for StandardComposer {
         // 2) Add them to transcript
         // 3) Place commitments into proof
         let t_low_commit = commit_key
-            .commit(Polynomial::from_coefficients_vec(t_low_coeffs), None)
+            .commit(Polynomial::from_coefficients_slice(&t_low_coeffs), None)
             .unwrap()
             .0;
         let t_mid_commit = commit_key
-            .commit(Polynomial::from_coefficients_vec(t_mid_coeffs), None)
+            .commit(Polynomial::from_coefficients_slice(&t_mid_coeffs), None)
             .unwrap()
             .0;
         let t_hi_commit = commit_key
-            .commit(Polynomial::from_coefficients_vec(t_hi_coeffs), None)
+            .commit(Polynomial::from_coefficients_slice(&t_hi_coeffs), None)
             .unwrap()
             .0;
         //
@@ -326,11 +332,11 @@ impl Composer for StandardComposer {
         // 1) Commit to opening polynomials
         // 2) Place commitments into proof
         let w_z_comm = commit_key
-            .commit(Polynomial::from_coefficients_vec(w_z_coeffs), None)
+            .commit(Polynomial::from_coefficients_slice(&w_z_coeffs), None)
             .unwrap()
             .0;
         let w_z_x_comm = commit_key
-            .commit(Polynomial::from_coefficients_vec(w_zx_coeffs), None)
+            .commit(Polynomial::from_coefficients_slice(&w_zx_coeffs), None)
             .unwrap()
             .0;
         //
