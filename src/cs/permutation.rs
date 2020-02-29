@@ -1,6 +1,6 @@
 use super::constraint_system::{Variable, WireData};
 
-use crate::fft::{EvaluationDomain, Polynomial};
+use crate::fft::EvaluationDomain;
 
 use itertools::izip;
 use new_bls12_381::Scalar;
@@ -80,7 +80,7 @@ impl Permutation {
         // Variable `a` is being used in the n'th gate as a left wire
         // Variable `b` is being used in the n'th gate as a right wire
         // Variable `c` is being used in the n'th gate as an output wire
-        for (var, wire_data) in [a, b, c].into_iter().zip([left, right, output].into_iter()) {
+        for (var, wire_data) in [a, b, c].iter().zip([left, right, output].iter()) {
             // Since we always allocate space for the Vec of WireData when a
             // Variable is added to the variable_map, this should never fail
             let vec_wire_data = self.variable_map.get_mut(var).unwrap();
@@ -220,16 +220,16 @@ impl Permutation {
         let n = domain.size();
 
         let k1 = Scalar::from(7);
-        let k2 = Scalar::from(13.into());
+        let k2 = Scalar::from(13);
 
         let left_sigma_mapping = self.left_sigma_mapping.as_ref().unwrap();
         let right_sigma_mapping = self.right_sigma_mapping.as_ref().unwrap();
         let out_sigma_mapping = self.out_sigma_mapping.as_ref().unwrap();
 
         // Compute beta * sigma polynomials
-        let beta_left_sigma_iter = left_sigma_mapping.iter().map(|sigma| sigma * beta);
-        let beta_right_sigma_iter = right_sigma_mapping.iter().map(|sigma| sigma * beta);
-        let beta_out_sigma_iter = out_sigma_mapping.iter().map(|sigma| sigma * beta);
+        let beta_left_sigma_iter = left_sigma_mapping.iter().map(|sigma| *sigma * beta);
+        let beta_right_sigma_iter = right_sigma_mapping.iter().map(|sigma| *sigma * beta);
+        let beta_out_sigma_iter = out_sigma_mapping.iter().map(|sigma| *sigma * beta);
 
         // Compute beta * roots
         let beta_roots_iter = domain.elements().map(|root| root * beta);
@@ -361,7 +361,7 @@ impl Permutation {
         let n = domain.size();
 
         let k1 = Scalar::from(7);
-        let k2 = Scalar::from(13.into());
+        let k2 = Scalar::from(13);
         // Compute beta * roots
         let common_roots: Vec<Scalar> = domain.elements().map(|root| root * beta).collect();
 
@@ -373,35 +373,35 @@ impl Permutation {
         // Compute beta * sigma polynomials
         let beta_left_sigmas: Vec<_> = left_sigma_mapping
             .par_iter()
-            .map(|sigma| *sigma * beta)
+            .map(|sigma| sigma * beta)
             .collect();
         let beta_right_sigmas: Vec<_> = right_sigma_mapping
             .par_iter()
-            .map(|sigma| *sigma * beta)
+            .map(|sigma| sigma * beta)
             .collect();
         let beta_out_sigmas: Vec<_> = out_sigma_mapping
             .par_iter()
-            .map(|sigma| *sigma * beta)
+            .map(|sigma| sigma * beta)
             .collect();
 
         // Compute beta * roots * k1
-        let beta_roots_k1: Vec<_> = common_roots.par_iter().map(|x| *x * &k1).collect();
+        let beta_roots_k1: Vec<_> = common_roots.par_iter().map(|x| x * k1).collect();
 
         // Compute beta * roots * k2
-        let beta_roots_k2: Vec<_> = common_roots.par_iter().map(|x| *x * &k2).collect();
+        let beta_roots_k2: Vec<_> = common_roots.par_iter().map(|x| x * k2).collect();
 
         // Compute left_wire + gamma
-        let wL_gamma: Vec<_> = w_l.par_iter().map(|w_L| *w_L + gamma).collect();
+        let wL_gamma: Vec<_> = w_l.par_iter().map(|w_L| w_L + gamma).collect();
 
         // Compute right_wire + gamma
-        let wR_gamma: Vec<_> = w_r.par_iter().map(|w_R| *w_R + gamma).collect();
+        let wR_gamma: Vec<_> = w_r.par_iter().map(|w_R| w_R + gamma).collect();
 
         // Compute out_wire + gamma
-        let wO_gamma: Vec<_> = w_o.par_iter().map(|w_O| *w_O + gamma).collect();
+        let wO_gamma: Vec<_> = w_o.par_iter().map(|w_O| w_O + gamma).collect();
 
         // Compute 6 accumulator components
         // Parallisable
-        let mut acumulator_components_without_l1: Vec<_> = (
+        let accumulator_components_without_l1: Vec<_> = (
             wL_gamma,
             wR_gamma,
             wO_gamma,
@@ -426,33 +426,30 @@ impl Permutation {
                     beta_out_sigma,
                 )| {
                     // w_j + beta * root^j-1 + gamma
-                    let AC1 = w_l_gamma + &beta_root;
+                    let ac1 = w_l_gamma + &beta_root;
 
                     // w_{n+j} + beta * k1 * root^j-1 + gamma
-                    let AC2 = w_r_gamma + &beta_root_k1;
+                    let ac2 = w_r_gamma + &beta_root_k1;
 
                     // w_{2n+j} + beta * k2 * root^j-1 + gamma
-                    let AC3 = w_o_gamma + &beta_root_k2;
+                    let ac3 = w_o_gamma + &beta_root_k2;
 
                     // 1 / w_j + beta * sigma(j) + gamma
-                    let mut AC4 = w_l_gamma + &beta_left_sigma;
-                    AC4 = AC4.invert().unwrap();
+                    let ac4 = (w_l_gamma + &beta_left_sigma).invert().unwrap();
 
                     // 1 / w_{n+j} + beta * sigma(n+j) + gamma
-                    let mut AC5 = w_r_gamma + &beta_right_sigma;
-                    AC5 = AC5.invert().unwrap();
+                    let ac5 = (w_r_gamma + &beta_right_sigma).invert().unwrap();
 
                     // 1 / w_{2n+j} + beta * sigma(2n+j) + gamma
-                    let mut AC6 = w_o_gamma + &beta_out_sigma;
-                    AC6 = AC6.invert().unwrap();
+                    let ac6 = (w_o_gamma + &beta_out_sigma).invert().unwrap();
 
-                    (AC1, AC2, AC3, AC4, AC5, AC6)
+                    (ac1, ac2, ac3, ac4, ac5, ac6)
                 },
             )
             .collect();
 
-        // Prepend ones to the beginning of each acumulator to signify L_1(x)
-        let acumulator_components = std::iter::once((
+        // Prepend ones to the beginning of each accumulator to signify L_1(x)
+        let accumulator_components = std::iter::once((
             Scalar::one(),
             Scalar::one(),
             Scalar::one(),
@@ -460,7 +457,7 @@ impl Permutation {
             Scalar::one(),
             Scalar::one(),
         ))
-        .chain(acumulator_components_without_l1);
+        .chain(accumulator_components_without_l1);
 
         // Multiply each component of the accumulators
         // A simplified example is the following:
@@ -475,7 +472,7 @@ impl Permutation {
             Scalar::one(),
             Scalar::one(),
         );
-        let product_acumulated_components: Vec<_> = acumulator_components
+        let product_acumulated_components: Vec<_> = accumulator_components
             .map(move |current_component| {
                 prev.0 *= &current_component.0;
                 prev.1 *= &current_component.1;
@@ -522,9 +519,9 @@ impl Permutation {
 #[cfg(test)]
 mod test {
     use super::*;
-    use algebra::UniformRand;
+    use crate::fft::Polynomial;
     use new_bls12_381::Scalar as Fr;
-    use std::str::FromStr;
+
     #[test]
     fn test_permutation_format() {
         let mut perm: Permutation = Permutation::new();
@@ -852,7 +849,7 @@ mod test {
         w_r: Vec<Fr>,
         w_o: Vec<Fr>,
     ) {
-        // 0. Generate beta and gammma challenges
+        // 0. Generate beta and gamma challenges
         //
         let beta = random_scalar(&mut rand::thread_rng());
         let gamma = random_scalar(&mut rand::thread_rng());

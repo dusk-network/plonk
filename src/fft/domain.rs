@@ -415,8 +415,6 @@ impl Iterator for Elements {
 #[cfg(test)]
 mod tests {
     use super::EvaluationDomain;
-    use new_bls12_381::Scalar;
-    use rand::Rng;
 
     #[test]
     fn size_of_elements() {
