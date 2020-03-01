@@ -1,4 +1,4 @@
-use super::linearisation_poly::Evaluations;
+use crate::constraint_system::standard::linearisation_poly::Evaluations;
 use crate::fft::Polynomial;
 use crate::util::powers_of;
 use bls12_381::Scalar;

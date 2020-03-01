@@ -3,7 +3,7 @@ use crate::fft::{EvaluationDomain, Polynomial};
 use crate::permutation::constants::{K1, K2};
 use bls12_381::Scalar;
 use rayon::prelude::*;
-
+/// Computes the Identity permutation polynomial component of the grand product
 pub fn compute_identity_polynomial(
     domain: &EvaluationDomain,
     alpha_sq: &Scalar,
@@ -49,7 +49,7 @@ pub fn compute_identity_polynomial(
         .collect();
     Evaluations::from_vec_and_domain(t_2, domain_4n)
 }
-
+/// Computes the Copy permutation polynomial component of the grand product
 pub fn compute_copy_polynomial(
     domain: &EvaluationDomain,
     alpha_sq: &Scalar,

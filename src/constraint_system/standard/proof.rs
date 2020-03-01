@@ -1,7 +1,7 @@
+use super::linearisation_poly::ProofEvaluations;
 use super::PreProcessedCircuit;
 use crate::commitment_scheme::kzg10::{Commitment, VerifierKey};
 use crate::fft::{EvaluationDomain, Polynomial};
-use crate::linearisation_poly::ProofEvaluations;
 use crate::permutation::constants::{K1, K2};
 use crate::transcript::TranscriptProtocol;
 use crate::util::{multiscalar_mul, sum_points};

@@ -4,7 +4,7 @@ use crate::constraint_system::standard::PreProcessedCircuit;
 
 use crate::fft::Evaluations;
 use crate::fft::{EvaluationDomain, Polynomial};
-use crate::permutation::grand_product;
+use crate::permutation::grand_product_quotient;
 use bls12_381::Scalar;
 use rayon::prelude::*;
 
@@ -43,7 +43,7 @@ pub(crate) fn compute(
         w_o_poly,
     );
 
-    let t_2 = grand_product::compute_identity_polynomial(
+    let t_2 = grand_product_quotient::compute_identity_polynomial(
         domain,
         &alpha.square(),
         beta,
@@ -53,7 +53,7 @@ pub(crate) fn compute(
         &w_r_poly,
         &w_o_poly,
     );
-    let t_3 = grand_product::compute_copy_polynomial(
+    let t_3 = grand_product_quotient::compute_copy_polynomial(
         domain,
         &alpha.square(),
         beta,
@@ -67,7 +67,8 @@ pub(crate) fn compute(
         preprocessed_circuit.out_sigma_poly(),
     );
 
-    let t_4 = grand_product::compute_is_one_polynomial(domain, z_poly, alpha.square() * alpha);
+    let t_4 =
+        grand_product_quotient::compute_is_one_polynomial(domain, z_poly, alpha.square() * alpha);
     // Compute 4n evaluations for X^n -1
     let v_h_coset_4n = domain_4n.compute_vanishing_poly_over_coset(domain.size() as u64);
 
