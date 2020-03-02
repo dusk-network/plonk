@@ -1,4 +1,4 @@
-use bls12_381::{G1Affine, G1Projective, Scalar};
+use bls12_381::{G1Affine, G1Projective};
 // Code was taken and modified from Pratyush: https://github.com/scipr-lab/poly-commit/blob/master/src/kzg10/mod.rs
 pub mod errors;
 pub mod key;
@@ -8,10 +8,7 @@ pub use key::{ProverKey, VerifierKey};
 pub use srs::SRS;
 pub struct Proof {
     /// This is a commitment to the witness polynomial; see [KZG10] for more details.
-    pub w: G1Affine,
-    /// This is the evaluation of the random polynomial at the point for which
-    /// the evaluation proof was produced.
-    pub random_v: Scalar,
+    pub commitment_to_witness: Commitment,
 }
 #[derive(Copy, Clone, Debug)]
 pub struct Commitment(
