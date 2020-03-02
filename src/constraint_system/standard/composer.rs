@@ -356,7 +356,7 @@ impl StandardComposer {
         self.perm.new_variable(s)
     }
     // evaluates a linear combination
-    pub(crate) fn eval(&self, lc: LinearCombination) -> Scalar {
+    pub fn eval(&self, lc: LinearCombination) -> Scalar {
         let mut sum = Scalar::zero();
         for (variable, scalar) in lc.terms.iter() {
             let value = self.perm.variables[variable];
