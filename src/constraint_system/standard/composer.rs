@@ -108,7 +108,6 @@ impl Composer for StandardComposer {
 
         // Append circuit size to transcript
         transcript.circuit_domain_sep(self.circuit_size() as u64);
-
         PreProcessedCircuit {
             n: self.n,
             selectors: vec![
@@ -660,8 +659,8 @@ mod tests {
 
                 // There are quite a few ways to check the equation is correct, depending on your circumstance
                 // If we already have the output wire, we can constrain the output of the mul_gate to be equal to it
-                // If we do not, we can compute it using the mul_gate
-                // If the output is public, we can also constrain the output wire of the mul gate to it. This is what this tets does
+                // If we do not, we can compute it using the `mul`
+                // If the output is public, we can also constrain the output wire of the mul gate to it. This is what this test does
                 let output = composer.mul(
                     Scalar::one(),
                     four_plus_five,
