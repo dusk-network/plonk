@@ -32,18 +32,9 @@ impl SRS {
         let powers_of_g: Vec<G1Projective> = multiscalar_mul_single_base(&powers_of_beta, g);
         assert_eq!(powers_of_g.len(), max_degree + 1);
 
-        // powers of gamma will be used to blind the polynomial
-        let gamma_g = random_g1_point(&mut rng);
-        let powers_of_gamma_g: Vec<G1Projective> =
-            powers_of_beta.iter().map(|a| gamma_g * a).collect();
-        assert_eq!(powers_of_gamma_g.len(), max_degree + 1);
-
         // Normalise all projective points
         let mut normalised_g = vec![G1Affine::identity(); max_degree + 1];
         G1Projective::batch_normalize(&powers_of_g, &mut normalised_g);
-
-        let mut normalised_gamma_g = vec![G1Affine::identity(); max_degree + 1];
-        G1Projective::batch_normalize(&powers_of_gamma_g, &mut normalised_gamma_g);
 
         // Compute auxiliary elements to verify a proof
         let h: G2Affine = random_g2_point(&mut rng).into();
@@ -54,11 +45,9 @@ impl SRS {
         Ok(SRS {
             commit_key: ProverKey {
                 powers_of_g: normalised_g,
-                powers_of_gamma_g: normalised_gamma_g,
             },
             verifier_key: VerifierKey {
                 g: g.into(),
-                gamma_g: gamma_g.into(),
                 h: h,
                 beta_h: beta_h,
                 prepared_h: prepared_h,

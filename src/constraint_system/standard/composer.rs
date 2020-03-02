@@ -84,15 +84,15 @@ impl Composer for StandardComposer {
 
         // 4. Commit to polynomials
         //
-        let q_m_poly_commit = commit_key.commit(&q_m_poly, None).unwrap().0;
-        let q_l_poly_commit = commit_key.commit(&q_l_poly, None).unwrap().0;
-        let q_r_poly_commit = commit_key.commit(&q_r_poly, None).unwrap().0;
-        let q_o_poly_commit = commit_key.commit(&q_o_poly, None).unwrap().0;
-        let q_c_poly_commit = commit_key.commit(&q_c_poly, None).unwrap().0;
+        let q_m_poly_commit = commit_key.commit(&q_m_poly).unwrap();
+        let q_l_poly_commit = commit_key.commit(&q_l_poly).unwrap();
+        let q_r_poly_commit = commit_key.commit(&q_r_poly).unwrap();
+        let q_o_poly_commit = commit_key.commit(&q_o_poly).unwrap();
+        let q_c_poly_commit = commit_key.commit(&q_c_poly).unwrap();
 
-        let left_sigma_poly_commit = commit_key.commit(&left_sigma_poly, None).unwrap().0;
-        let right_sigma_poly_commit = commit_key.commit(&right_sigma_poly, None).unwrap().0;
-        let out_sigma_poly_commit = commit_key.commit(&out_sigma_poly, None).unwrap().0;
+        let left_sigma_poly_commit = commit_key.commit(&left_sigma_poly).unwrap();
+        let right_sigma_poly_commit = commit_key.commit(&right_sigma_poly).unwrap();
+        let out_sigma_poly_commit = commit_key.commit(&out_sigma_poly).unwrap();
 
         //5. Add polynomial commitments to transcript
         //
@@ -148,9 +148,9 @@ impl Composer for StandardComposer {
         let w_o_poly = Polynomial::from_coefficients_vec(domain.ifft(&w_o_scalar));
 
         // Commit to witness polynomials
-        let w_l_poly_commit = commit_key.commit(&w_l_poly, None).unwrap().0;
-        let w_r_poly_commit = commit_key.commit(&w_r_poly, None).unwrap().0;
-        let w_o_poly_commit = commit_key.commit(&w_o_poly, None).unwrap().0;
+        let w_l_poly_commit = commit_key.commit(&w_l_poly).unwrap();
+        let w_r_poly_commit = commit_key.commit(&w_r_poly).unwrap();
+        let w_o_poly_commit = commit_key.commit(&w_o_poly).unwrap();
 
         // Add commitment to witness polynomials to transcript
         transcript.append_commitment(b"w_l", &w_l_poly_commit);
@@ -176,7 +176,7 @@ impl Composer for StandardComposer {
         );
         // Commit to permutation polynomial
         //
-        let z_poly_commit = commit_key.commit(&z_poly, None).unwrap().0;
+        let z_poly_commit = commit_key.commit(&z_poly).unwrap();
         // Add commitment to permutation polynomials to transcript
         transcript.append_commitment(b"z", &z_poly_commit);
         //
@@ -204,9 +204,9 @@ impl Composer for StandardComposer {
 
         // Commit to permutation polynomial
         //
-        let t_low_commit = commit_key.commit(&t_low_poly, None).unwrap().0;
-        let t_mid_commit = commit_key.commit(&t_mid_poly, None).unwrap().0;
-        let t_hi_commit = commit_key.commit(&t_hi_poly, None).unwrap().0;
+        let t_low_commit = commit_key.commit(&t_low_poly).unwrap();
+        let t_mid_commit = commit_key.commit(&t_mid_poly).unwrap();
+        let t_hi_commit = commit_key.commit(&t_hi_poly).unwrap();
         // Add commitment to quotient polynomials to transcript
         transcript.append_commitment(b"t_lo", &t_low_commit);
         transcript.append_commitment(b"t_mid", &t_mid_commit);
@@ -262,8 +262,8 @@ impl Composer for StandardComposer {
         );
 
         // Commit to opening polynomial
-        let w_z_comm = commit_key.commit(&w_z_poly, None).unwrap().0;
-        let w_z_x_comm = commit_key.commit(&w_zx_poly, None).unwrap().0;
+        let w_z_comm = commit_key.commit(&w_z_poly).unwrap();
+        let w_z_x_comm = commit_key.commit(&w_zx_poly).unwrap();
         //
         // Create Proof
         Proof {
