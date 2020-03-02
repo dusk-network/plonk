@@ -1,6 +1,6 @@
 use super::errors::Error;
 use super::Commitment;
-use super::Proof;
+use super::{AggregateProof, Proof};
 use crate::fft::Polynomial;
 use crate::transcript::TranscriptProtocol;
 use bls12_381::Scalar;
@@ -77,26 +77,26 @@ impl ProverKey {
     /// Computes a witness that the polynomial was evaluated at the point `z`
     /// And its output was p(z)
     /// Witness is computed as f(x) - f(z) / x-z
-    fn compute_witness_single(polynomial: &Polynomial, point: &Scalar) -> Polynomial {
+    fn compute_single_witness(polynomial: &Polynomial, point: &Scalar) -> (Polynomial, Scalar) {
         // X - z
         let divisor = Polynomial::from_coefficients_vec(vec![-point, Scalar::one()]);
-
+        // Compute f(z)
+        let value = polynomial.evaluate(&point);
         // Compute witness for regular polynomial
         let witness_poly = {
-            let value = polynomial.evaluate(&point);
             let f_minus_z = polynomial - &value;
             &f_minus_z / &divisor
         };
-        witness_poly
+        (witness_poly, value)
     }
 
     /// Allows you to compute a witness for multiple polynomials at the same point
     /// XXX: refactor single case to use this method
-    fn compute_witness_multiple(
+    fn compute_aggregate_witness(
         polynomials: Vec<&Polynomial>,
         point: &Scalar,
         transcript: &mut dyn TranscriptProtocol,
-    ) -> Polynomial {
+    ) -> (Polynomial, Vec<Scalar>) {
         // X - z
         let divisor = Polynomial::from_coefficients_vec(vec![-point, Scalar::one()]);
 
@@ -114,44 +114,58 @@ impl ProverKey {
 
         let numerator: Polynomial = polynomials
             .into_iter()
-            .zip(values.into_iter())
+            .zip(values.iter())
             .zip(powers.iter())
-            .map(|((poly, value), challenge)| &(poly - &value) * challenge)
+            .map(|((poly, value), challenge)| &(poly - value) * challenge)
             .sum();
-
         let witness_poly = &numerator / &divisor;
-        witness_poly
+        (witness_poly, values)
     }
 
-    /// Given a witness, we create a proof that the opening for a polynomial
-    /// was evaluated correctly
-    /// XXX: This function essentially just commits the witness using multiexponentiation
-    /// Can we abstract it away?
-    fn open_with_witness(&self, witness_poly: &Polynomial) -> Result<Proof, Error> {
-        let commitment = self.commit(witness_poly)?;
-        Ok(Proof {
-            commitment_to_witness: commitment,
-        })
-    }
     ///XXX: Refactor this to use open_multiple
     pub fn open_single(&self, polynomial: &Polynomial, point: &Scalar) -> Result<Proof, Error> {
-        let witness_poly = Self::compute_witness_single(polynomial, point);
-        self.open_with_witness(&witness_poly)
+        let (witness_poly, evaluated_point) = Self::compute_single_witness(polynomial, point);
+        Ok(Proof {
+            commitment_to_witness: self.commit(&witness_poly)?,
+            evaluated_point: evaluated_point,
+            commitment_to_polynomial: self.commit(polynomial)?,
+        })
     }
-    // Creates a proof that multiple polynomials were evaluated at the correct point
+    // Creates a proof that multiple polynomials were evaluated at the same point
     pub fn open_multiple(
         &self,
         polynomials: Vec<&Polynomial>,
         point: &Scalar,
         transcript: &mut dyn TranscriptProtocol,
-    ) -> Result<Proof, Error> {
-        let witness_poly = Self::compute_witness_multiple(polynomials, point, transcript);
-        self.open_with_witness(&witness_poly)
+    ) -> Result<AggregateProof, Error> {
+        //
+        // Commit to polynomials
+        let mut polynomial_commitments = Vec::with_capacity(polynomials.len());
+        for poly in polynomials.iter() {
+            polynomial_commitments.push(self.commit(poly)?)
+        }
+
+        // Compute the aggregate Witness for polynomials
+        //
+        let (witness_poly, evaluations) =
+            Self::compute_aggregate_witness(polynomials, point, transcript);
+
+        // Commit to witness polynomial
+        //
+        let witness_commitment = self.commit(&witness_poly)?;
+
+        let aggregate_proof = AggregateProof {
+            commitment_to_witness: witness_commitment,
+            evaluated_points: evaluations,
+            commitments_to_polynomials: polynomial_commitments,
+        };
+        Ok(aggregate_proof)
     }
 }
 
 impl VerifierKey {
     // XXX: refactor this to use one pairing
+    // Checks that single polynomial was evaluated at a specified point and returns the value specified.
     fn check(
         &self,
         commitment_to_polynomial: Commitment,
