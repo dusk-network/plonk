@@ -361,36 +361,24 @@ impl<E: PairingEngine> StandardComposer<E> {
     pub fn add_input(&mut self, s: E::Fr) -> Variable {
         self.perm.new_variable(s)
     }
-    // evaluates a linear combination
-    pub(crate) fn eval(&self, lc: LinearCombination<E::Fr>) -> E::Fr {
-        let mut sum = E::Fr::zero();
-        for (variable, scalar) in lc.terms.iter() {
-            let value = self.perm.variables[variable];
-            sum += &(value * scalar);
-        }
-        sum
+
+    // evaluates a variable
+    pub fn eval(&self, a: &Variable) -> E::Fr {
+        self.perm.variables[a]
     }
-    // Evaluates a linear combination and adds it's value to the constraint system
-    fn add_lc(&mut self, lc: LinearCombination<E::Fr>) -> Variable {
-        let eval = self.eval(lc);
-        self.add_input(eval)
-    }
+
     // Adds an add gate to the circuit
     pub fn add_gate(
         &mut self,
-        a: LinearCombination<E::Fr>,
-        b: LinearCombination<E::Fr>,
-        c: LinearCombination<E::Fr>,
+        l: Variable,
+        r: Variable,
+        o: Variable,
         q_l: E::Fr,
         q_r: E::Fr,
         q_o: E::Fr,
         q_c: E::Fr,
         pi: E::Fr,
-    ) -> (Variable, Variable, Variable) {
-        let l = self.add_lc(a);
-        let r = self.add_lc(b);
-        let o = self.add_lc(c);
-
+    ) {
         self.w_l.push(l);
         self.w_r.push(r);
         self.w_o.push(o);
@@ -409,24 +397,18 @@ impl<E: PairingEngine> StandardComposer<E> {
         self.perm.add_variable_to_map(l, r, o, self.n);
 
         self.n = self.n + 1;
-
-        (l, r, o)
     }
 
     pub fn mul_gate(
         &mut self,
-        a: LinearCombination<E::Fr>,
-        b: LinearCombination<E::Fr>,
-        c: LinearCombination<E::Fr>,
+        l: Variable,
+        r: Variable,
+        o: Variable,
         q_m: E::Fr,
         q_o: E::Fr,
         q_c: E::Fr,
         pi: E::Fr,
-    ) -> (Variable, Variable, Variable) {
-        let l = self.add_lc(a);
-        let r = self.add_lc(b);
-        let o = self.add_lc(c);
-
+    ) {
         self.w_l.push(l);
         self.w_r.push(r);
         self.w_o.push(o);
@@ -445,26 +427,20 @@ impl<E: PairingEngine> StandardComposer<E> {
         self.perm.add_variable_to_map(l, r, o, self.n);
 
         self.n = self.n + 1;
-
-        (l, r, o)
     }
 
     pub fn poly_gate(
         &mut self,
-        a: LinearCombination<E::Fr>,
-        b: LinearCombination<E::Fr>,
-        c: LinearCombination<E::Fr>,
+        l: Variable,
+        r: Variable,
+        o: Variable,
         q_m: E::Fr,
         q_l: E::Fr,
         q_r: E::Fr,
         q_o: E::Fr,
         q_c: E::Fr,
         pi: E::Fr,
-    ) -> (Variable, Variable, Variable) {
-        let l = self.add_lc(a);
-        let r = self.add_lc(b);
-        let o = self.add_lc(c);
-
+    ) {
         self.w_l.push(l);
         self.w_r.push(r);
         self.w_o.push(o);
@@ -481,32 +457,22 @@ impl<E: PairingEngine> StandardComposer<E> {
         self.perm.add_variable_to_map(l, r, o, self.n);
 
         self.n = self.n + 1;
-
-        (l, r, o)
     }
 
-    pub fn constrain_to_constant(
-        &mut self,
-        a: LinearCombination<E::Fr>,
-        constant: E::Fr,
-        pi: E::Fr,
-    ) -> Variable {
-        let (a, _, _) = self.add_gate(
-            a.clone(),
-            a.clone(),
-            a,
+    pub fn constrain_to_constant(&mut self, l: Variable, constant: E::Fr, pi: E::Fr) {
+        self.add_gate(
+            l,
+            l,
+            l,
             E::Fr::one(),
             E::Fr::zero(),
             E::Fr::zero(),
             -constant,
             pi,
         );
-        a
     }
 
-    pub fn bool_gate(&mut self, a: LinearCombination<E::Fr>) -> Variable {
-        let lro = self.add_lc(a);
-
+    pub fn bool_gate(&mut self, lro: Variable) {
         self.w_l.push(lro);
         self.w_r.push(lro);
         self.w_o.push(lro);
@@ -522,8 +488,6 @@ impl<E: PairingEngine> StandardComposer<E> {
         self.perm.add_variable_to_map(lro, lro, lro, self.n);
 
         self.n = self.n + 1;
-
-        lro
     }
 
     pub fn add_dummy_constraints(&mut self) {
@@ -570,24 +534,28 @@ mod tests {
     // Ensures a + b - c = 0
     fn simple_add_gadget<E: PairingEngine>(
         composer: &mut StandardComposer<E>,
-        a: LinearCombination<E::Fr>,
-        b: LinearCombination<E::Fr>,
-        c: LinearCombination<E::Fr>,
+        a: Variable,
+        b: Variable,
+        c: Variable,
         pi: E::Fr,
     ) {
-        let q_l = E::Fr::one();
-        let q_r = E::Fr::one();
-        let q_o = -E::Fr::one();
-        let q_c = E::Fr::zero();
-
-        composer.add_gate(a.into(), b.into(), c.into(), q_l, q_r, q_o, q_c, pi);
+        composer.add_gate(
+            a,
+            b,
+            c,
+            E::Fr::one(),
+            E::Fr::one(),
+            -E::Fr::one(),
+            E::Fr::zero(),
+            pi,
+        );
     }
 
-    fn example_gadget<E: PairingEngine>(
+    fn simple_mul_gadget<E: PairingEngine>(
         composer: &mut StandardComposer<E>,
-        a: LinearCombination<E::Fr>,
-        b: LinearCombination<E::Fr>,
-        c: LinearCombination<E::Fr>,
+        a: Variable,
+        b: Variable,
+        c: Variable,
     ) {
         composer.mul_gate(
             a,
@@ -605,20 +573,15 @@ mod tests {
         let mut composer = StandardComposer::new();
 
         let one = E::Fr::one();
+        let two = E::Fr::from(2u8);
 
         let var_one = composer.add_input(one);
-        let var_two: LinearCombination<E::Fr> =
-            LinearCombination::from(var_one) + LinearCombination::from(var_one);
+        let var_two = composer.add_input(two);
 
         for _ in 0..n {
-            simple_add_gadget(
-                &mut composer,
-                var_one.into(),
-                var_one.into(),
-                var_two.clone(),
-                E::Fr::zero(),
-            );
+            simple_add_gadget(&mut composer, var_one, var_one, var_two, E::Fr::zero());
         }
+
         composer.add_dummy_constraints();
 
         composer
@@ -663,20 +626,9 @@ mod tests {
                 let var_one = composer.add_input(Fr::one());
                 let var_three = composer.add_input(Fr::from(3u8));
                 let var_four = composer.add_input(Fr::from(4u8));
-                simple_add_gadget(
-                    &mut composer,
-                    var_one.into(),
-                    var_one.into(),
-                    var_three.into(),
-                    Fr::one(),
-                );
-                simple_add_gadget(
-                    &mut composer,
-                    var_one.into(),
-                    var_one.into(),
-                    var_four.into(),
-                    Fr::from(2u8),
-                );
+
+                simple_add_gadget(&mut composer, var_one, var_one, var_three, Fr::one());
+                simple_add_gadget(&mut composer, var_one, var_one, var_four, Fr::from(2u8));
             },
             200,
         );
@@ -688,38 +640,40 @@ mod tests {
         let ok = test_gadget(
             |mut composer| {
                 // Verify that (4+5) * (6+7) = 117
-                let four: LinearCombination<Fr> = composer.add_input(Fr::from(4u8)).into();
-                let five: LinearCombination<Fr> = composer.add_input(Fr::from(5u8)).into();
-                let six: LinearCombination<Fr> = composer.add_input(Fr::from(6u8)).into();
-                let seven: LinearCombination<Fr> = composer.add_input(Fr::from(7u8)).into();
+                let four = composer.add_input(Fr::from(4u8));
+                let five = composer.add_input(Fr::from(5u8));
+                let nine = composer.add_input(Fr::from(9u8));
+                simple_add_gadget(&mut composer, four, five, nine, Fr::zero());
+
+                let six = composer.add_input(Fr::from(6u8));
+                let seven = composer.add_input(Fr::from(7u8));
+                let thirteen = composer.add_input(Fr::from(13u8));
+                simple_add_gadget(&mut composer, six, seven, thirteen, Fr::zero());
+
                 let one_seventeen = composer.add_input(Fr::from(117u16));
-                example_gadget(
-                    &mut composer,
-                    four + five,
-                    six + seven,
-                    one_seventeen.into(),
-                );
+                simple_mul_gadget(&mut composer, nine, thirteen, one_seventeen);
             },
             200,
         );
         assert!(ok);
     }
+
     #[test]
     fn test_incorrect_add_mul_gate() {
         let ok = test_gadget(
             |mut composer| {
                 // Verify that (5+5) * (6+7) != 117
-                let four: LinearCombination<Fr> = composer.add_input(Fr::from(5u8)).into();
-                let five: LinearCombination<Fr> = composer.add_input(Fr::from(5u8)).into();
-                let six: LinearCombination<Fr> = composer.add_input(Fr::from(6u8)).into();
-                let seven: LinearCombination<Fr> = composer.add_input(Fr::from(7u8)).into();
+                let five = composer.add_input(Fr::from(5u8));
+                let ten = composer.add_input(Fr::from(10u8));
+                simple_add_gadget(&mut composer, five, five, ten, Fr::zero());
+
+                let six = composer.add_input(Fr::from(6u8));
+                let seven = composer.add_input(Fr::from(7u8));
+                let thirteen = composer.add_input(Fr::from(13u8));
+                simple_add_gadget(&mut composer, six, seven, thirteen, Fr::zero());
+
                 let one_seventeen = composer.add_input(Fr::from(117u16));
-                example_gadget(
-                    &mut composer,
-                    four + five,
-                    six + seven,
-                    one_seventeen.into(),
-                );
+                simple_mul_gadget(&mut composer, ten, thirteen, one_seventeen);
             },
             200,
         );
@@ -733,8 +687,8 @@ mod tests {
                 let zero = composer.add_input(Fr::zero());
                 let one = composer.add_input(Fr::one());
 
-                composer.bool_gate(zero.into());
-                composer.bool_gate(one.into());
+                composer.bool_gate(zero);
+                composer.bool_gate(one);
             },
             32,
         );
@@ -744,11 +698,11 @@ mod tests {
     fn test_incorrect_bool_gate() {
         let ok = test_gadget(
             |composer| {
-                let zero = composer.add_input(Fr::from(5u8));
+                let five = composer.add_input(Fr::from(5u8));
                 let one = composer.add_input(Fr::one());
 
-                composer.bool_gate(zero.into());
-                composer.bool_gate(one.into());
+                composer.bool_gate(five);
+                composer.bool_gate(one);
             },
             32,
         );
@@ -813,13 +767,7 @@ mod tests {
         let n = 20;
 
         for _ in 0..n {
-            simple_add_gadget(
-                &mut composer,
-                var_one.into(),
-                var_one.into(),
-                var_two.into(),
-                Fr::zero(),
-            );
+            simple_add_gadget(&mut composer, var_one, var_one, var_two, Fr::zero());
         }
 
         assert_eq!(n, composer.circuit_size())
