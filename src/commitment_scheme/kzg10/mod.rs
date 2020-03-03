@@ -3,6 +3,7 @@ use bls12_381::{G1Affine, G1Projective, Scalar};
 pub mod errors;
 pub mod key;
 pub mod srs;
+use crate::transcript::TranscriptProtocol;
 
 use crate::util::powers_of;
 pub use key::{ProverKey, VerifierKey};
@@ -39,8 +40,9 @@ pub struct AggregateProof {
 impl AggregateProof {
     // Flattens an aggregate proof into a `Proof`
     // The challenge must be the same challenge that was used to aggregate the witness
-    pub fn flatten(&self, challenge: &Scalar) -> Proof {
-        let powers = powers_of(challenge, self.commitments_to_polynomials.len());
+    pub fn flatten(&self, transcript: &mut dyn TranscriptProtocol) -> Proof {
+        let challenge = transcript.challenge_scalar(b"");
+        let powers = powers_of(&challenge, self.commitments_to_polynomials.len());
 
         // Flattened polynomial commitments using challenge
         let flattened_poly_commitments: G1Projective = self
