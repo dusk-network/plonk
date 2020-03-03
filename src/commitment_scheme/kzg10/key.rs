@@ -3,9 +3,8 @@ use super::Commitment;
 use super::{AggregateProof, Proof};
 use crate::fft::Polynomial;
 use crate::transcript::TranscriptProtocol;
-use bls12_381::Scalar;
-use bls12_381::{G1Affine, G1Projective, G2Affine, G2Prepared};
-use rand_core::RngCore;
+use bls12_381::{G1Affine, G1Projective, G2Affine, G2Prepared, Scalar};
+
 /// Verifier Key is used to verify claims made about a committed polynomial
 #[derive(Clone, Debug)]
 pub struct VerifierKey {
@@ -107,7 +106,7 @@ impl ProverKey {
         }
         use crate::util::powers_of;
         let challenge = transcript.challenge_scalar(b"");
-        let powers = powers_of(&challenge, polynomials.len());
+        let powers = powers_of(&challenge, polynomials.len() - 1);
 
         assert_eq!(powers.len(), polynomials.len());
         assert_eq!(powers.len(), values.len());
@@ -166,15 +165,10 @@ impl ProverKey {
 impl VerifierKey {
     // XXX: refactor this to use one pairing
     // Checks that single polynomial was evaluated at a specified point and returns the value specified.
-    fn check(
-        &self,
-        commitment_to_polynomial: Commitment,
-        value: Scalar,
-        point: Scalar,
-        proof: Proof,
-    ) -> bool {
+    fn check(&self, point: Scalar, proof: Proof) -> bool {
         use bls12_381::pairing;
-        let inner: G1Affine = (commitment_to_polynomial.0 - (self.g * value)).into();
+        let inner: G1Affine =
+            (proof.commitment_to_polynomial.0 - (self.g * proof.evaluated_point)).into();
         let lhs = pairing(&inner, &self.h);
 
         let inner: G2Affine = (self.beta_h - (self.h * point)).into();
@@ -195,4 +189,56 @@ fn check_degree_is_within_bounds(max_degree: usize, poly_degree: usize) -> Resul
         return Err(Error::PolynomialDegreeTooLarge);
     }
     Ok(())
+}
+
+mod test {
+    use super::super::srs::*;
+    use super::*;
+    use merlin::Transcript;
+
+    #[test]
+    fn test_basic_commit() {
+        let degree = 25;
+        let srs = SRS::setup(degree, &mut rand::thread_rng()).unwrap();
+        let (proving_key, vk) = srs.trim(degree).unwrap();
+
+        let point = Scalar::from(10);
+
+        // Compute secret polynomial
+        let poly = Polynomial::rand(degree, &mut rand::thread_rng());
+
+        let proof = proving_key.open_single(&poly, &point).unwrap();
+
+        let ok = vk.check(point, proof);
+        assert!(ok);
+    }
+    #[test]
+    fn test_aggregate_witness() {
+        let max_degree = 100;
+        let srs = SRS::setup(max_degree, &mut rand::thread_rng()).unwrap();
+        let point = Scalar::from(10);
+        // Prover View
+        let aggregated_proof = {
+            let degree = 25;
+            let (ck, _) = srs.trim(degree + 2).unwrap();
+            let mut transcript = Transcript::new(b"");
+            // Compute secret polynomial
+            let poly_a = Polynomial::rand(degree, &mut rand::thread_rng());
+            let poly_b = Polynomial::rand(degree + 1, &mut rand::thread_rng());
+            let poly_c = Polynomial::rand(degree + 2, &mut rand::thread_rng());
+
+            ck.open_multiple(vec![&poly_a, &poly_b, &poly_c], &point, &mut transcript)
+                .unwrap()
+        };
+
+        //Verifiers view
+        let ok = {
+            let vk = srs.verifier_key;
+            let mut transcript = Transcript::new(b"");
+            let flattened_proof = aggregated_proof.flatten(&mut transcript);
+            vk.check(point, flattened_proof)
+        };
+
+        assert!(ok);
+    }
 }
