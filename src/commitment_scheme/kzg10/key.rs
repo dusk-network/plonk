@@ -3,6 +3,8 @@ use super::Commitment;
 use super::{AggregateProof, Proof};
 use crate::fft::Polynomial;
 use crate::transcript::TranscriptProtocol;
+use crate::util::powers_of;
+
 use bls12_381::{G1Affine, G1Projective, G2Affine, G2Prepared, Scalar};
 
 /// Verifier Key is used to verify claims made about a committed polynomial
@@ -104,7 +106,6 @@ impl ProverKey {
         for poly in polynomials.iter() {
             values.push(poly.evaluate(&point))
         }
-        use crate::util::powers_of;
         let challenge = transcript.challenge_scalar(b"");
         let powers = powers_of(&challenge, polynomials.len() - 1);
 
@@ -186,7 +187,6 @@ impl VerifierKey {
         let mut total_c = G1Projective::identity();
         let mut total_w = G1Projective::identity();
 
-        use crate::util::powers_of;
         let challenge = transcript.challenge_scalar(b"");
         let powers = powers_of(&challenge, proofs.len() - 1);
         // Instead of multiplying g and gamma_g in each turn, we simply accumulate
