@@ -303,4 +303,45 @@ mod test {
 
         assert!(ok);
     }
+
+    #[test]
+    fn test_batch_with_aggregation() {
+        let max_degree = 100;
+        let srs = SRS::setup(max_degree, &mut rand::thread_rng()).unwrap();
+        let point_a = Scalar::from(10);
+        let point_b = Scalar::from(11);
+        // Prover View
+        let (aggregated_proof, single_proof) = {
+            let local_max_degree = 28;
+            let (ck, _) = srs.trim(local_max_degree).unwrap();
+            let mut transcript = Transcript::new(b"");
+            // Compute secret polynomial
+            let poly_a = Polynomial::rand(25, &mut rand::thread_rng());
+            let poly_b = Polynomial::rand(26, &mut rand::thread_rng());
+            let poly_c = Polynomial::rand(27, &mut rand::thread_rng());
+            let poly_d = Polynomial::rand(28, &mut rand::thread_rng());
+
+            let aggregated_proof = ck
+                .open_multiple(vec![&poly_a, &poly_b, &poly_c], &point_a, &mut transcript)
+                .unwrap();
+
+            let single_proof = ck.open_single(&poly_d, &point_b).unwrap();
+
+            (aggregated_proof, single_proof)
+        };
+
+        //Verifiers view
+        let ok = {
+            let vk = srs.verifier_key;
+            let mut transcript = Transcript::new(b"");
+            let flattened_proof = aggregated_proof.flatten(&mut transcript);
+            vk.batch_check(
+                &[point_a, point_b],
+                &[flattened_proof, single_proof],
+                &mut transcript,
+            )
+        };
+
+        assert!(ok);
+    }
 }
