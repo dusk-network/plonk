@@ -176,6 +176,45 @@ impl VerifierKey {
 
         lhs == rhs
     }
+
+    pub fn batch_check(
+        &self,
+        points: &[Scalar],
+        proofs: &[Proof],
+        transcript: &mut dyn TranscriptProtocol,
+    ) -> bool {
+        let mut total_c = G1Projective::identity();
+        let mut total_w = G1Projective::identity();
+
+        use crate::util::powers_of;
+        let challenge = transcript.challenge_scalar(b"");
+        let powers = powers_of(&challenge, proofs.len() - 1);
+        // Instead of multiplying g and gamma_g in each turn, we simply accumulate
+        // their coefficients and perform a final multiplication at the end.
+        let mut g_multiplier = Scalar::zero();
+
+        for ((proof, challenge), point) in proofs.iter().zip(powers).zip(points) {
+            let mut c = G1Projective::from(proof.commitment_to_polynomial.0);
+            let w = proof.commitment_to_witness.0;
+            c = c + w * point;
+            g_multiplier += challenge * proof.evaluated_point;
+
+            total_c += c * challenge;
+            total_w += w * challenge;
+        }
+        total_c -= self.g * g_multiplier;
+
+        let affine_total_w = G1Affine::from(-total_w);
+        let affine_total_c = G1Affine::from(total_c);
+
+        let pairing = bls12_381::multi_miller_loop(&[
+            (&affine_total_w, &self.prepared_beta_h),
+            (&affine_total_c, &self.prepared_h),
+        ])
+        .final_exponentiation();
+
+        pairing == bls12_381::Gt::identity()
+    }
 }
 
 // Check whether the polynomial we are committing to:
@@ -210,6 +249,29 @@ mod test {
         let proof = proving_key.open_single(&poly, &point).unwrap();
 
         let ok = vk.check(point, proof);
+        assert!(ok);
+    }
+    #[test]
+    fn test_batch_verification() {
+        let degree = 25;
+        let srs = SRS::setup(degree, &mut rand::thread_rng()).unwrap();
+        let (proving_key, vk) = srs.trim(degree).unwrap();
+        let point_a = Scalar::from(10);
+        let point_b = Scalar::from(11);
+        // Compute secret polynomial a
+        let poly_a = Polynomial::rand(degree, &mut rand::thread_rng());
+        let proof_a = proving_key.open_single(&poly_a, &point_a).unwrap();
+        assert!(vk.check(point_a, proof_a));
+        // Compute secret polynomial b
+        let poly_b = Polynomial::rand(degree, &mut rand::thread_rng());
+        let proof_b = proving_key.open_single(&poly_b, &point_b).unwrap();
+        assert!(vk.check(point_b, proof_b));
+
+        let ok = vk.batch_check(
+            &[point_a, point_b],
+            &[proof_a, proof_b],
+            &mut Transcript::new(b""),
+        );
         assert!(ok);
     }
     #[test]

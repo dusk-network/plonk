@@ -8,7 +8,7 @@ use crate::transcript::TranscriptProtocol;
 use crate::util::powers_of;
 pub use key::{ProverKey, VerifierKey};
 pub use srs::SRS;
-
+#[derive(Copy, Clone, Debug)]
 pub struct Proof {
     /// This is a commitment to the witness polynomial `w`
     /// w = p(x) - p(z) / x - z
