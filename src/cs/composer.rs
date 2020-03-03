@@ -521,6 +521,10 @@ impl<E: PairingEngine> StandardComposer<E> {
             .add_variable_to_map(var_min_twenty, var_six, var_seven, self.n);
         self.n = self.n + 1;
     }
+
+    pub fn public_inputs(&self) -> &[E::Fr] {
+        self.public_inputs.as_slice()
+    }
 }
 
 #[cfg(test)]
