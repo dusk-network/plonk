@@ -194,7 +194,7 @@ impl VerifierKey {
         let mut total_c = G1Projective::identity();
         let mut total_w = G1Projective::identity();
 
-        let challenge = transcript.challenge_scalar(b"");
+        let challenge = transcript.challenge_scalar(b"batch"); // XXX: Verifier can add their own randomness at this point
         let powers = powers_of(&challenge, proofs.len() - 1);
         // Instead of multiplying g and gamma_g in each turn, we simply accumulate
         // their coefficients and perform a final multiplication at the end.

@@ -159,27 +159,22 @@ impl Proof {
         // and a `SingleProof` which is proof that the permutation polynomial evaluated at the shifted root of unity is correct
 
         // Compose the Aggregated Proof
-        let aggregate_proof = AggregateProof {
-            commitment_to_witness: self.w_z_comm,
-            evaluated_points: vec![
-                t_eval,
-                self.evaluations.lin_poly_eval,
-                self.evaluations.a_eval,
-                self.evaluations.b_eval,
-                self.evaluations.c_eval,
-                self.evaluations.left_sigma_eval,
-                self.evaluations.right_sigma_eval,
-            ],
-            commitments_to_polynomials: vec![
-                t_comm,
-                Commitment::from_projective(r_comm),
-                self.a_comm,
-                self.b_comm,
-                self.c_comm,
-                preprocessed_circuit.left_sigma_comm().clone(),
-                preprocessed_circuit.right_sigma_comm().clone(),
-            ],
-        };
+        //
+        let mut aggregate_proof = AggregateProof::with_witness(self.w_z_comm);
+        aggregate_proof.add_part((t_eval, t_comm));
+        aggregate_proof.add_part((self.evaluations.lin_poly_eval, r_comm));
+        aggregate_proof.add_part((self.evaluations.a_eval, self.a_comm));
+        aggregate_proof.add_part((self.evaluations.b_eval, self.b_comm));
+        aggregate_proof.add_part((self.evaluations.c_eval, self.c_comm));
+        aggregate_proof.add_part((
+            self.evaluations.left_sigma_eval,
+            *preprocessed_circuit.left_sigma_comm(),
+        ));
+        aggregate_proof.add_part((
+            self.evaluations.right_sigma_eval,
+            *preprocessed_circuit.right_sigma_comm(),
+        ));
+        // Flatten proof with opening challenge
         let flattened_proof = aggregate_proof.flatten(transcript);
 
         // Add commitment to openings to transcript
@@ -261,7 +256,7 @@ impl Proof {
         z_challenge: Scalar,
         l1_eval: Scalar,
         preprocessed_circuit: &PreProcessedCircuit,
-    ) -> G1Projective {
+    ) -> Commitment {
         let mut scalars: Vec<_> = Vec::with_capacity(6);
         let mut points: Vec<G1Affine> = Vec::with_capacity(6);
 
@@ -319,6 +314,7 @@ impl Proof {
         points.push(preprocessed_circuit.out_sigma_comm().0);
 
         let points = multiscalar_mul(&scalars, &points);
-        sum_points(&points)
+        let commitment = sum_points(&points);
+        Commitment::from_projective(commitment)
     }
 }
