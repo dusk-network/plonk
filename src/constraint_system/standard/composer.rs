@@ -4,8 +4,8 @@ use super::{proof::Proof, Composer, PreProcessedCircuit};
 use crate::commitment_scheme::kzg10::ProverKey;
 use crate::constraint_system::Variable;
 use crate::fft::{EvaluationDomain, Evaluations, Polynomial};
+use crate::permutation::Permutation;
 use crate::transcript::TranscriptProtocol;
-use crate::{opening_poly, permutation::Permutation};
 use bls12_381::Scalar;
 /// A composer is a circuit builder
 /// and will dictate how a circuit is built
@@ -108,7 +108,6 @@ impl Composer for StandardComposer {
 
         // Append circuit size to transcript
         transcript.circuit_domain_sep(self.circuit_size() as u64);
-
         PreProcessedCircuit {
             n: self.n,
             selectors: vec![
@@ -238,32 +237,49 @@ impl Composer for StandardComposer {
         transcript.append_scalar(b"r_eval", &evaluations.proof.lin_poly_eval);
         //
 
-        // 5. Compute opening polynomial
+        // 5. Compute openings
         //
-        // Compute opening challenge `v`
-        let v = transcript.challenge_scalar(b"v");
-
-        let (w_z_poly, w_zx_poly) = opening_poly::compute(
-            domain.group_gen,
+        // We merge the quotient polynomial using the `z_challenge` so the SRS is linear in the circuit size `n`
+        let quot = Self::compute_quotient_opening_poly(
             domain.size(),
-            z_challenge,
-            &lin_poly,
-            &evaluations,
             &t_low_poly,
             &t_mid_poly,
             &t_hi_poly,
-            &w_l_poly,
-            &w_r_poly,
-            &w_o_poly,
-            preprocessed_circuit.left_sigma_poly(),
-            preprocessed_circuit.right_sigma_poly(),
-            &z_poly,
-            &v,
+            &z_challenge,
         );
 
-        // Commit to opening polynomial
-        let w_z_comm = commit_key.commit(&w_z_poly).unwrap();
-        let w_z_x_comm = commit_key.commit(&w_zx_poly).unwrap();
+        // Compute W_z
+        let aggregate_witness = commit_key.compute_aggregate_witness(
+            &[
+                quot,
+                lin_poly.clone(),
+                w_l_poly.clone(),
+                w_r_poly.clone(),
+                w_o_poly.clone(),
+                preprocessed_circuit.left_sigma_poly().clone(),
+                preprocessed_circuit.right_sigma_poly().clone(),
+            ],
+            &[
+                evaluations.quot_eval,
+                evaluations.proof.lin_poly_eval,
+                evaluations.proof.a_eval,
+                evaluations.proof.b_eval,
+                evaluations.proof.c_eval,
+                evaluations.proof.left_sigma_eval,
+                evaluations.proof.right_sigma_eval,
+            ],
+            &z_challenge,
+            transcript,
+        );
+        let w_z_comm = commit_key.commit(&aggregate_witness).unwrap();
+
+        // Compute W_zx
+        let shifted_witness = commit_key.compute_single_witness(
+            &z_poly,
+            &evaluations.proof.perm_eval,
+            &(z_challenge * domain.group_gen),
+        );
+        let w_zx_comm = commit_key.commit(&shifted_witness).unwrap();
         //
         // Create Proof
         Proof {
@@ -274,10 +290,9 @@ impl Composer for StandardComposer {
             t_lo_comm: t_low_commit,
             t_mid_comm: t_mid_commit,
             t_hi_comm: t_hi_commit,
-            // Commitment to the opening polynomial
+
             w_z_comm: w_z_comm,
-            // Commitment to the shifted opening polynomial
-            w_zw_comm: w_z_x_comm,
+            w_zw_comm: w_zx_comm,
 
             evaluations: evaluations.proof,
         }
@@ -304,6 +319,25 @@ impl StandardComposer {
             Polynomial::from_coefficients_vec(t_x[n..2 * n].to_vec()),
             Polynomial::from_coefficients_vec(t_x[2 * n..].to_vec()),
         )
+    }
+
+    fn compute_quotient_opening_poly(
+        n: usize,
+        t_lo_poly: &Polynomial,
+        t_mid_poly: &Polynomial,
+        t_hi_poly: &Polynomial,
+        z_challenge: &Scalar,
+    ) -> Polynomial {
+        // Compute z^n , z^2n
+        let z_n = z_challenge.pow(&[n as u64, 0, 0, 0]);
+        let z_two_n = z_challenge.pow(&[2 * n as u64, 0, 0, 0]);
+
+        let a = t_lo_poly;
+        let b = t_mid_poly * &z_n;
+        let c = t_hi_poly * &z_two_n;
+        let ab = a + &b;
+        let res = &ab + &c;
+        res
     }
 
     // Creates a new circuit with an expected circuit size
@@ -575,11 +609,7 @@ mod tests {
         let var_one = composer.add_input(one);
 
         for _ in 0..n {
-            composer.add(
-                (Scalar::one(), var_one),
-                (Scalar::one(), var_one),
-                Scalar::zero(),
-            );
+            composer.add(var_one.into(), var_one.into(), Scalar::zero());
         }
         composer.add_dummy_constraints();
 
@@ -624,17 +654,9 @@ mod tests {
             |composer| {
                 let var_one = composer.add_input(Fr::one());
 
-                let should_be_three = composer.add(
-                    (Scalar::one(), var_one),
-                    (Scalar::one(), var_one),
-                    Scalar::one(),
-                );
+                let should_be_three = composer.add(var_one.into(), var_one.into(), Scalar::one());
                 composer.constrain_to_constant(should_be_three, Scalar::from(3), Scalar::zero());
-                let should_be_four = composer.add(
-                    (Scalar::one(), var_one),
-                    (Scalar::one(), var_one),
-                    Scalar::from(2),
-                );
+                let should_be_four = composer.add(var_one.into(), var_one.into(), Scalar::from(2));
                 composer.constrain_to_constant(should_be_four, Scalar::from(4), Scalar::zero());
             },
             200,
@@ -652,16 +674,14 @@ mod tests {
                 let six = composer.add_input(Fr::from(6));
                 let seven = composer.add_input(Fr::from(7));
 
-                let four_plus_five =
-                    composer.add((Scalar::one(), four), (Scalar::one(), five), Scalar::zero());
+                let four_plus_five = composer.add(four.into(), five.into(), Scalar::zero());
 
-                let six_plus_seven =
-                    composer.add((Scalar::one(), six), (Scalar::one(), seven), Scalar::zero());
+                let six_plus_seven = composer.add(six.into(), seven.into(), Scalar::zero());
 
                 // There are quite a few ways to check the equation is correct, depending on your circumstance
                 // If we already have the output wire, we can constrain the output of the mul_gate to be equal to it
-                // If we do not, we can compute it using the mul_gate
-                // If the output is public, we can also constrain the output wire of the mul gate to it. This is what this tets does
+                // If we do not, we can compute it using the `mul`
+                // If the output is public, we can also constrain the output wire of the mul gate to it. This is what this test does
                 let output = composer.mul(
                     Scalar::one(),
                     four_plus_five,
@@ -683,11 +703,9 @@ mod tests {
                 let six = composer.add_input(Fr::from(6));
                 let seven = composer.add_input(Fr::from(7));
 
-                let five_plus_five =
-                    composer.add((Scalar::one(), five), (Scalar::one(), five), Scalar::zero());
+                let five_plus_five = composer.add(five.into(), five.into(), Scalar::zero());
 
-                let six_plus_seven =
-                    composer.add((Scalar::one(), six), (Scalar::one(), seven), Scalar::zero());
+                let six_plus_seven = composer.add(six.into(), seven.into(), Scalar::zero());
 
                 let output = composer.mul(
                     Scalar::one(),
@@ -780,11 +798,7 @@ mod tests {
         let n = 20;
 
         for _ in 0..n {
-            composer.add(
-                (Scalar::one(), var_one),
-                (Scalar::one(), var_one),
-                Scalar::zero(),
-            );
+            composer.add(var_one.into(), var_one.into(), Scalar::zero());
         }
 
         assert_eq!(n, composer.circuit_size())
