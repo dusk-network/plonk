@@ -1,4 +1,4 @@
-# PLONK
+# PLONK, a zero knowledge proof scheme using the SNARK format
 
 WIP
 
@@ -22,11 +22,12 @@ subgroup is evaluated.
 Roadmap 
 - [x] Complete preselector polynomial calculation
 - [x] Create composer for users
-- [x] PSnark output 1 
-- [x] PSnark output 2 
-- [x] PSnark output 3 
-- [x] PSnark output 4 
-- [x] PSnark output 5 
+- [x] Build PSnark outputs
+   - [x] PSnark output 1 
+   - [x] PSnark output 2 
+   - [x] PSnark output 3 
+   - [x] PSnark output 4 
+   - [x] PSnark output 5 
 - [x] Build verification functions
 - [x] Implement test vectors for equation checks
 - [x] Derive test vectors for arguments
@@ -34,9 +35,9 @@ Roadmap
 - [x] Generate randomness from Fiat Shamir using Merlin inputs
 - [] Generate public inputs 
 - [x] Evaluate the z polynomial at the root of unity 
-- [] Add prover logic
-- [] Add verifier logic
-- [] Implement travis auto document 
+- [x] Add prover logic
+- [x] Add verifier logic
+- [x] Implement travis auto document 
 
 ## Acknowledgements
 Reference implementation AztecProtocol/Barretenberg
