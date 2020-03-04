@@ -1,3 +1,9 @@
+//! This module contains the encoding for the
+//! polynomial commitment scheme.
+//!
+//! This is used for the prover to make evaluations,
+//! which are checked by the verifier.
+
 /// Ideally we should cleanly abstract away the polynomial commitment scheme
 /// We note that PLONK makes use of the linearisation technique  
 /// conceived in SONIC [Mary Maller]. This technique implicitly requires the

@@ -1,3 +1,5 @@
+/// This module contains the backend implementation of a composer, which constructs a circuit,
+/// a user may build the circuit with the coded 'StandardComposer`.
 use super::linearisation_poly;
 use super::quotient_poly;
 use super::{proof::Proof, Composer, PreProcessedCircuit};
@@ -7,9 +9,9 @@ use crate::fft::{EvaluationDomain, Evaluations, Polynomial};
 use crate::transcript::TranscriptProtocol;
 use crate::{opening_poly, permutation::Permutation};
 use bls12_381::Scalar;
-/// A composer is a circuit builder
-/// and will dictate how a circuit is built
-/// We will have a default Composer called `StandardComposer`.
+/// A composer is a circuit builder which
+/// will dictate how a circuit is built.
+/// There is a default Composer called `StandardComposer`.
 pub struct StandardComposer {
     // n represents the number of arithmetic gates in the circuit
     n: usize,

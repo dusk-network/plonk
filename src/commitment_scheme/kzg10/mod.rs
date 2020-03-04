@@ -1,3 +1,5 @@
+//! The KZG10 commitment scheme is used to facilitate
+//! interations between the prover and verifier.
 use bls12_381::{G1Affine, G1Projective, Scalar};
 // Code was taken and modified from Pratyush: https://github.com/scipr-lab/poly-commit/blob/master/src/kzg10/mod.rs
 pub mod errors;
