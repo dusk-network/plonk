@@ -1,6 +1,6 @@
 use super::errors::Error;
 use super::key::{ProverKey, VerifierKey};
-use crate::util::multiscalar_mul_single_base;
+use crate::util::slow_multiscalar_mul_single_base;
 use bls12_381::{G1Affine, G1Projective, G2Affine, G2Prepared, G2Projective, Scalar};
 use rand_core::RngCore;
 /// Structured Reference String (SRS) is the main component in KZG10
@@ -29,7 +29,7 @@ impl SRS {
 
         // powers of g will be used to commit to the polynomial
         let g = random_g1_point(&mut rng);
-        let powers_of_g: Vec<G1Projective> = multiscalar_mul_single_base(&powers_of_beta, g);
+        let powers_of_g: Vec<G1Projective> = slow_multiscalar_mul_single_base(&powers_of_beta, g);
         assert_eq!(powers_of_g.len(), max_degree + 1);
 
         // Normalise all projective points

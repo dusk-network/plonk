@@ -5,8 +5,7 @@ use crate::commitment_scheme::kzg10::{Commitment, VerifierKey};
 use crate::fft::{EvaluationDomain, Polynomial};
 use crate::permutation::constants::{K1, K2};
 use crate::transcript::TranscriptProtocol;
-use crate::util::{multiscalar_mul, sum_points};
-use bls12_381::{G1Affine, G1Projective, Scalar};
+use bls12_381::{multiscalar_mul::pippenger, pairing, G1Affine, G1Projective, Scalar};
 pub struct Proof {
     // Commitment to the witness polynomial for the left wires
     pub a_comm: Commitment,
@@ -313,8 +312,9 @@ impl Proof {
         scalars.push(y);
         points.push(preprocessed_circuit.out_sigma_comm().0);
 
-        let points = multiscalar_mul(&scalars, &points);
-        let commitment = sum_points(&points);
-        Commitment::from_projective(commitment)
+        Commitment::from_projective(pippenger(
+            points.iter().map(|P| G1Projective::from(P)),
+            scalars.into_iter(),
+        ))
     }
 }

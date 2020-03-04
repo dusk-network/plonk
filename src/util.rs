@@ -11,30 +11,14 @@ pub fn powers_of(scalar: &Scalar, max_degree: usize) -> Vec<Scalar> {
     powers
 }
 
-// While we do not have multiscalar mul in bls12-381; this function will be used as a stub
-pub(crate) fn multiscalar_mul<K, T: Mul<Scalar, Output = K> + Copy>(
-    scalars: &Vec<Scalar>,
-    bases: &Vec<T>,
-) -> Vec<K> {
-    scalars
-        .iter()
-        .zip(bases.iter())
-        .map(|(s, b)| *b * *s)
-        .collect()
-}
-
-pub(crate) fn multiscalar_mul_single_base<K, T: Mul<Scalar, Output = K> + Copy>(
+/// This function is only used to generate the SRS.
+/// The intention is just to compute the resulting points
+/// of the operation `a*P, b*P, c*P ... (n-1)*P` into a `Vec`.
+pub(crate) fn slow_multiscalar_mul_single_base<K, T: Mul<Scalar, Output = K> + Copy>(
     scalars: &Vec<Scalar>,
     base: T,
 ) -> Vec<K> {
     scalars.iter().map(|s| base * *s).collect()
-}
-pub(crate) fn sum_points<T: Add<T, Output = T> + Copy>(points: &Vec<T>) -> T {
-    let mut sum = points[0];
-    for i in 1..points.len() {
-        sum = sum + points[i]
-    }
-    sum
 }
 
 // while we do not have batch inversion for scalars
