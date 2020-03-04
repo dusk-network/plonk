@@ -1,4 +1,4 @@
-# PLONK, a zero knowledge proof scheme using the SNARK format
+# PLONK, a ZK proof scheme using the SNARK format
 
 WIP
 
