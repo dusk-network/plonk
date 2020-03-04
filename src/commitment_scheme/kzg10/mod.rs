@@ -49,8 +49,8 @@ impl AggregateProof {
     // Flattens an aggregate proof into a `Proof`
     // The challenge must be the same challenge that was used to aggregate the witness
     pub fn flatten(&self, transcript: &mut dyn TranscriptProtocol) -> Proof {
-        let challenge = transcript.challenge_scalar(b"");
-        let powers = powers_of(&challenge, self.commitments_to_polynomials.len());
+        let challenge = transcript.challenge_scalar(b"aggregate_witness");
+        let powers = powers_of(&challenge, self.commitments_to_polynomials.len() - 1);
 
         // Flattened polynomial commitments using challenge
         let flattened_poly_commitments: G1Projective = self

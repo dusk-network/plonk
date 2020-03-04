@@ -107,7 +107,7 @@ impl ProverKey {
         // X - z
         let divisor = Polynomial::from_coefficients_vec(vec![-point, Scalar::one()]);
 
-        let challenge = transcript.challenge_scalar(b"");
+        let challenge = transcript.challenge_scalar(b"aggregate_witness");
         let powers = powers_of(&challenge, polynomials.len() - 1);
 
         assert_eq!(powers.len(), polynomials.len());
