@@ -21,7 +21,6 @@ pub(crate) fn slow_multiscalar_mul_single_base<K, T: Mul<Scalar, Output = K> + C
     scalars.iter().map(|s| base * *s).collect()
 }
 
-// Taken from zexe library
 // while we do not have batch inversion for scalars
 use std::ops::MulAssign;
 pub fn batch_inversion(v: &mut [Scalar]) {
