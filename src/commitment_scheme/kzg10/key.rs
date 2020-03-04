@@ -2,7 +2,7 @@ use super::errors::Error;
 use super::BlindingPolynomial;
 use super::Commitment;
 use crate::fft::Polynomial;
-use bls12_381::{G1Affine, G1Projective, G2Affine, G2Prepared};
+use bls12_381::{multiscalar_mul::pippenger, G1Affine, G1Projective, G2Affine, G2Prepared};
 use rand_core::RngCore;
 
 /// Verifier Key is used to verify claims made about a committed polynomial
@@ -84,9 +84,14 @@ impl ProverKey {
         self.check_commit_degree_is_within_bounds(polynomial.degree())?;
 
         // Compute commitment
-        use crate::util::{multiscalar_mul, sum_points};
-        let points: Vec<G1Projective> = multiscalar_mul(&polynomial.coeffs, &self.powers_of_g);
-        let mut commitment = sum_points(&points);
+        let mut commitment = pippenger(
+            &self
+                .powers_of_g
+                .iter()
+                .map(|P| G1Projective::from(P))
+                .collect::<Vec<G1Projective>>(),
+            &polynomial.coeffs,
+        );
 
         // Compute Blinding Polynomial if hiding parameters supplied
         if let None = hiding_parameters {
@@ -95,8 +100,14 @@ impl ProverKey {
         let (hiding_degree, mut rng) = hiding_parameters.unwrap();
         self.check_hiding_degree_is_within_bounds(hiding_degree)?;
         let blinding_poly = BlindingPolynomial::rand(hiding_degree, &mut rng);
-        let points: Vec<G1Projective> = multiscalar_mul(&blinding_poly.0, &self.powers_of_gamma_g);
-        let random_commitment = sum_points(&points);
+        let random_commitment = pippenger(
+            &self
+                .powers_of_gamma_g
+                .iter()
+                .map(|P| G1Projective::from(P))
+                .collect::<Vec<G1Projective>>(),
+            &blinding_poly.0,
+        );
         commitment += random_commitment;
 
         Ok((Commitment::from_projective(commitment), Some(blinding_poly)))
