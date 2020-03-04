@@ -36,7 +36,7 @@ pub(crate) fn sum_points<T: Add<T, Output = T> + Copy>(points: &Vec<T>) -> T {
     }
     sum
 }
-// Taken from zexe library
+
 // while we do not have batch inversion for scalars
 use std::ops::MulAssign;
 pub fn batch_inversion(v: &mut [Scalar]) {
