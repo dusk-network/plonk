@@ -1,5 +1,4 @@
 use super::errors::Error;
-use super::BlindingPolynomial;
 use super::Commitment;
 use crate::fft::Polynomial;
 use bls12_381::{multiscalar_mul::pippenger, G1Affine, G1Projective, G2Affine, G2Prepared};
@@ -10,8 +9,6 @@ use rand_core::RngCore;
 pub struct VerifierKey {
     /// The generator of G1.
     pub g: G1Affine,
-    /// The generator of G1 that is used for making a commitment hiding.
-    pub gamma_g: G1Affine,
     /// The generator of G2.
     pub h: G2Affine,
     /// \beta times the above generator of G2.
@@ -27,19 +24,12 @@ pub struct VerifierKey {
 pub struct ProverKey {
     /// Group elements of the form `{ \beta^i G }`, where `i` ranges from 0 to `degree`.
     pub powers_of_g: Vec<G1Affine>,
-    /// Group elements of the form `{ \beta^i \gamma G }`, where `i` ranges from 0 to `degree`.
-    pub powers_of_gamma_g: Vec<G1Affine>,
 }
 
 impl ProverKey {
     /// Returns the maximum degree polynomial that you can commit to
     pub(crate) fn max_degree(&self) -> usize {
         self.powers_of_g.len() - 1
-    }
-    /// Returns the maximum hiding degree polynomial that you can
-    /// blind your commitment with
-    pub(crate) fn max_hiding_degree(&self) -> usize {
-        self.powers_of_gamma_g.len() - 1
     }
 
     /// Truncates the prover key to a new max degree
@@ -56,30 +46,20 @@ impl ProverKey {
         if truncated_degree > self.max_degree() {
             return Err(Error::TruncatedDegreeTooLarge);
         }
-        let powers_of_g = self.powers_of_g[..=truncated_degree].to_vec();
-        let powers_of_gamma_g = self.powers_of_gamma_g[..=truncated_degree].to_vec();
-        Ok(Self {
-            powers_of_g: powers_of_g,
-            powers_of_gamma_g: powers_of_gamma_g,
-        })
+
+        let truncated_powers = Self {
+            powers_of_g: self.powers_of_g[..=truncated_degree].to_vec(),
+        };
+
+        Ok(truncated_powers)
     }
 
     fn check_commit_degree_is_within_bounds(&self, poly_degree: usize) -> Result<(), Error> {
         check_degree_is_within_bounds(self.max_degree(), poly_degree)
     }
-    fn check_hiding_degree_is_within_bounds(&self, hiding_degree: usize) -> Result<(), Error> {
-        check_degree_is_within_bounds(self.max_hiding_degree(), hiding_degree)
-    }
 
     /// Commits to a polynomial bounded by the max degree of the Prover key
-    /// Optionally, the user can unconditionally hide the commitment
-    /// using the hiding_parameter (hiding_degree, rng)
-    /// hiding_degree is the degree of the polynomial that will be used to hide the original polynomial
-    pub fn commit(
-        &self,
-        polynomial: &Polynomial,
-        hiding_parameters: Option<(usize, &mut dyn RngCore)>,
-    ) -> Result<(Commitment, Option<BlindingPolynomial>), Error> {
+    pub fn commit(&self, polynomial: &Polynomial) -> Result<Commitment, Error> {
         // Check whether we can safely commit to this polynomial
         self.check_commit_degree_is_within_bounds(polynomial.degree())?;
 
@@ -92,25 +72,7 @@ impl ProverKey {
                 .collect::<Vec<G1Projective>>(),
             &polynomial.coeffs,
         );
-
-        // Compute Blinding Polynomial if hiding parameters supplied
-        if let None = hiding_parameters {
-            return Ok((Commitment::from_projective(commitment), None));
-        };
-        let (hiding_degree, mut rng) = hiding_parameters.unwrap();
-        self.check_hiding_degree_is_within_bounds(hiding_degree)?;
-        let blinding_poly = BlindingPolynomial::rand(hiding_degree, &mut rng);
-        let random_commitment = pippenger(
-            &self
-                .powers_of_gamma_g
-                .iter()
-                .map(|P| G1Projective::from(P))
-                .collect::<Vec<G1Projective>>(),
-            &blinding_poly.0,
-        );
-        commitment += random_commitment;
-
-        Ok((Commitment::from_projective(commitment), Some(blinding_poly)))
+        Ok(Commitment::from_projective(commitment))
     }
 
     fn batch_check() {

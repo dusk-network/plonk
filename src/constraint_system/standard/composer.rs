@@ -2,7 +2,7 @@ use super::linearisation_poly;
 use super::quotient_poly;
 use super::{proof::Proof, Composer, PreProcessedCircuit};
 use crate::commitment_scheme::kzg10::ProverKey;
-use crate::constraint_system::{LinearCombination, Variable};
+use crate::constraint_system::Variable;
 use crate::fft::{EvaluationDomain, Evaluations, Polynomial};
 use crate::transcript::TranscriptProtocol;
 use crate::{opening_poly, permutation::Permutation};
@@ -84,15 +84,15 @@ impl Composer for StandardComposer {
 
         // 4. Commit to polynomials
         //
-        let q_m_poly_commit = commit_key.commit(&q_m_poly, None).unwrap().0;
-        let q_l_poly_commit = commit_key.commit(&q_l_poly, None).unwrap().0;
-        let q_r_poly_commit = commit_key.commit(&q_r_poly, None).unwrap().0;
-        let q_o_poly_commit = commit_key.commit(&q_o_poly, None).unwrap().0;
-        let q_c_poly_commit = commit_key.commit(&q_c_poly, None).unwrap().0;
+        let q_m_poly_commit = commit_key.commit(&q_m_poly).unwrap();
+        let q_l_poly_commit = commit_key.commit(&q_l_poly).unwrap();
+        let q_r_poly_commit = commit_key.commit(&q_r_poly).unwrap();
+        let q_o_poly_commit = commit_key.commit(&q_o_poly).unwrap();
+        let q_c_poly_commit = commit_key.commit(&q_c_poly).unwrap();
 
-        let left_sigma_poly_commit = commit_key.commit(&left_sigma_poly, None).unwrap().0;
-        let right_sigma_poly_commit = commit_key.commit(&right_sigma_poly, None).unwrap().0;
-        let out_sigma_poly_commit = commit_key.commit(&out_sigma_poly, None).unwrap().0;
+        let left_sigma_poly_commit = commit_key.commit(&left_sigma_poly).unwrap();
+        let right_sigma_poly_commit = commit_key.commit(&right_sigma_poly).unwrap();
+        let out_sigma_poly_commit = commit_key.commit(&out_sigma_poly).unwrap();
 
         //5. Add polynomial commitments to transcript
         //
@@ -148,9 +148,9 @@ impl Composer for StandardComposer {
         let w_o_poly = Polynomial::from_coefficients_vec(domain.ifft(&w_o_scalar));
 
         // Commit to witness polynomials
-        let w_l_poly_commit = commit_key.commit(&w_l_poly, None).unwrap().0;
-        let w_r_poly_commit = commit_key.commit(&w_r_poly, None).unwrap().0;
-        let w_o_poly_commit = commit_key.commit(&w_o_poly, None).unwrap().0;
+        let w_l_poly_commit = commit_key.commit(&w_l_poly).unwrap();
+        let w_r_poly_commit = commit_key.commit(&w_r_poly).unwrap();
+        let w_o_poly_commit = commit_key.commit(&w_o_poly).unwrap();
 
         // Add commitment to witness polynomials to transcript
         transcript.append_commitment(b"w_l", &w_l_poly_commit);
@@ -176,7 +176,7 @@ impl Composer for StandardComposer {
         );
         // Commit to permutation polynomial
         //
-        let z_poly_commit = commit_key.commit(&z_poly, None).unwrap().0;
+        let z_poly_commit = commit_key.commit(&z_poly).unwrap();
         // Add commitment to permutation polynomials to transcript
         transcript.append_commitment(b"z", &z_poly_commit);
         //
@@ -204,9 +204,9 @@ impl Composer for StandardComposer {
 
         // Commit to permutation polynomial
         //
-        let t_low_commit = commit_key.commit(&t_low_poly, None).unwrap().0;
-        let t_mid_commit = commit_key.commit(&t_mid_poly, None).unwrap().0;
-        let t_hi_commit = commit_key.commit(&t_hi_poly, None).unwrap().0;
+        let t_low_commit = commit_key.commit(&t_low_poly).unwrap();
+        let t_mid_commit = commit_key.commit(&t_mid_poly).unwrap();
+        let t_hi_commit = commit_key.commit(&t_hi_poly).unwrap();
         // Add commitment to quotient polynomials to transcript
         transcript.append_commitment(b"t_lo", &t_low_commit);
         transcript.append_commitment(b"t_mid", &t_mid_commit);
@@ -262,8 +262,8 @@ impl Composer for StandardComposer {
         );
 
         // Commit to opening polynomial
-        let w_z_comm = commit_key.commit(&w_z_poly, None).unwrap().0;
-        let w_z_x_comm = commit_key.commit(&w_zx_poly, None).unwrap().0;
+        let w_z_comm = commit_key.commit(&w_z_poly).unwrap();
+        let w_z_x_comm = commit_key.commit(&w_zx_poly).unwrap();
         //
         // Create Proof
         Proof {
@@ -355,39 +355,22 @@ impl StandardComposer {
     pub fn add_input(&mut self, s: Scalar) -> Variable {
         self.perm.new_variable(s)
     }
-    // evaluates a linear combination
-    pub(crate) fn eval(&self, lc: LinearCombination) -> Scalar {
-        let mut sum = Scalar::zero();
-        for (variable, scalar) in lc.terms.iter() {
-            let value = self.perm.variables[variable];
-            sum += &(value * scalar);
-        }
-        sum
-    }
-    // Evaluates a linear combination and adds it's value to the constraint system
-    fn add_lc(&mut self, lc: LinearCombination) -> Variable {
-        let eval = self.eval(lc);
-        self.add_input(eval)
-    }
+
     // Adds an add gate to the circuit
     pub fn add_gate(
         &mut self,
-        a: LinearCombination,
-        b: LinearCombination,
-        c: LinearCombination,
+        a: Variable,
+        b: Variable,
+        c: Variable,
         q_l: Scalar,
         q_r: Scalar,
         q_o: Scalar,
         q_c: Scalar,
         pi: Scalar,
-    ) -> (Variable, Variable, Variable) {
-        let l = self.add_lc(a);
-        let r = self.add_lc(b);
-        let o = self.add_lc(c);
-
-        self.w_l.push(l);
-        self.w_r.push(r);
-        self.w_o.push(o);
+    ) -> Variable {
+        self.w_l.push(a);
+        self.w_r.push(b);
+        self.w_o.push(c);
 
         // For an add gate, q_m is zero
         self.q_m.push(Scalar::zero());
@@ -400,30 +383,51 @@ impl StandardComposer {
 
         self.public_inputs.push(pi);
 
-        self.perm.add_variable_to_map(l, r, o, self.n);
+        self.perm.add_variable_to_map(a, b, c, self.n);
 
         self.n = self.n + 1;
 
-        (l, r, o)
+        c
+    }
+    // Ensures q_l * a + q_r * b - c = 0
+    // Returns c
+    pub fn add(
+        &mut self,
+        q_l_a: (Scalar, Variable),
+        q_r_b: (Scalar, Variable),
+        pi: Scalar,
+    ) -> Variable {
+        let q_l = q_l_a.0;
+        let a = q_l_a.1;
+
+        let q_r = q_r_b.0;
+        let b = q_r_b.1;
+
+        let q_o = -Scalar::one();
+        let q_c = Scalar::zero();
+
+        // Compute the output wire
+        let a_eval = self.perm.variables[&a];
+        let b_eval = self.perm.variables[&b];
+        let c_eval = (q_l * a_eval + q_r * b_eval) + pi;
+        let c = self.add_input(c_eval);
+
+        self.add_gate(a, b, c, q_l, q_r, q_o, q_c, pi)
     }
 
     pub fn mul_gate(
         &mut self,
-        a: LinearCombination,
-        b: LinearCombination,
-        c: LinearCombination,
+        a: Variable,
+        b: Variable,
+        c: Variable,
         q_m: Scalar,
         q_o: Scalar,
         q_c: Scalar,
         pi: Scalar,
-    ) -> (Variable, Variable, Variable) {
-        let l = self.add_lc(a);
-        let r = self.add_lc(b);
-        let o = self.add_lc(c);
-
-        self.w_l.push(l);
-        self.w_r.push(r);
-        self.w_o.push(o);
+    ) -> Variable {
+        self.w_l.push(a);
+        self.w_r.push(b);
+        self.w_o.push(c);
 
         // For a mul gate q_L and q_R is zero
         self.q_l.push(Scalar::zero());
@@ -436,18 +440,31 @@ impl StandardComposer {
 
         self.public_inputs.push(pi);
 
-        self.perm.add_variable_to_map(l, r, o, self.n);
+        self.perm.add_variable_to_map(a, b, c, self.n);
 
         self.n = self.n + 1;
 
-        (l, r, o)
+        c
+    }
+    // q_m * a * b - c = 0
+    fn mul(&mut self, q_m: Scalar, a: Variable, b: Variable, pi: Scalar) -> Variable {
+        let q_o = -Scalar::one();
+        let q_c = Scalar::zero();
+
+        // Compute output wire
+        let a_eval = self.perm.variables[&a];
+        let b_eval = self.perm.variables[&b];
+        let c_eval = (q_m * a_eval * b_eval) + pi;
+        let c = self.add_input(c_eval);
+
+        self.mul_gate(a, b, c, q_m, q_o, q_c, pi)
     }
 
     pub fn poly_gate(
         &mut self,
-        a: LinearCombination,
-        b: LinearCombination,
-        c: LinearCombination,
+        a: Variable,
+        b: Variable,
+        c: Variable,
         q_m: Scalar,
         q_l: Scalar,
         q_r: Scalar,
@@ -455,13 +472,9 @@ impl StandardComposer {
         q_c: Scalar,
         pi: Scalar,
     ) -> (Variable, Variable, Variable) {
-        let l = self.add_lc(a);
-        let r = self.add_lc(b);
-        let o = self.add_lc(c);
-
-        self.w_l.push(l);
-        self.w_r.push(r);
-        self.w_o.push(o);
+        self.w_l.push(a);
+        self.w_r.push(b);
+        self.w_o.push(c);
         self.q_l.push(q_l);
         self.q_r.push(q_r);
 
@@ -472,38 +485,31 @@ impl StandardComposer {
 
         self.public_inputs.push(pi);
 
-        self.perm.add_variable_to_map(l, r, o, self.n);
+        self.perm.add_variable_to_map(a, b, c, self.n);
 
         self.n = self.n + 1;
 
-        (l, r, o)
+        (a, b, c)
     }
 
-    pub fn constrain_to_constant(
-        &mut self,
-        a: LinearCombination,
-        constant: Scalar,
-        pi: Scalar,
-    ) -> Variable {
-        let (a, _, _) = self.add_gate(
-            a.clone(),
-            a.clone(),
+    pub fn constrain_to_constant(&mut self, a: Variable, constant: Scalar, pi: Scalar) {
+        self.poly_gate(
             a,
+            a,
+            a,
+            Scalar::zero(),
             Scalar::one(),
             Scalar::zero(),
             Scalar::zero(),
             -constant,
             pi,
         );
-        a
     }
 
-    pub fn bool_gate(&mut self, a: LinearCombination) -> Variable {
-        let lro = self.add_lc(a);
-
-        self.w_l.push(lro);
-        self.w_r.push(lro);
-        self.w_o.push(lro);
+    pub fn bool_gate(&mut self, a: Variable) -> Variable {
+        self.w_l.push(a);
+        self.w_r.push(a);
+        self.w_o.push(a);
 
         self.q_m.push(Scalar::one());
         self.q_l.push(Scalar::zero());
@@ -513,11 +519,11 @@ impl StandardComposer {
 
         self.public_inputs.push(Scalar::zero());
 
-        self.perm.add_variable_to_map(lro, lro, lro, self.n);
+        self.perm.add_variable_to_map(a, a, a, self.n);
 
         self.n = self.n + 1;
 
-        lro
+        a
     }
 
     pub fn add_dummy_constraints(&mut self) {
@@ -559,38 +565,6 @@ mod tests {
     use crate::commitment_scheme::kzg10::SRS;
     use bls12_381::Scalar as Fr;
     use merlin::Transcript;
-    // Ensures a + b - c = 0
-    fn simple_add_gadget(
-        composer: &mut StandardComposer,
-        a: LinearCombination,
-        b: LinearCombination,
-        c: LinearCombination,
-        pi: Scalar,
-    ) {
-        let q_l = Scalar::one();
-        let q_r = Scalar::one();
-        let q_o = -Scalar::one();
-        let q_c = Scalar::zero();
-
-        composer.add_gate(a.into(), b.into(), c.into(), q_l, q_r, q_o, q_c, pi);
-    }
-
-    fn example_gadget(
-        composer: &mut StandardComposer,
-        a: LinearCombination,
-        b: LinearCombination,
-        c: LinearCombination,
-    ) {
-        composer.mul_gate(
-            a,
-            b,
-            c,
-            Scalar::one(),
-            -Scalar::one(),
-            Scalar::zero(),
-            Scalar::zero(),
-        );
-    }
 
     // Returns a composer with `n` constraints
     fn add_dummy_composer(n: usize) -> StandardComposer {
@@ -599,15 +573,11 @@ mod tests {
         let one = Scalar::one();
 
         let var_one = composer.add_input(one);
-        let var_two: LinearCombination =
-            LinearCombination::from(var_one) + LinearCombination::from(var_one);
 
         for _ in 0..n {
-            simple_add_gadget(
-                &mut composer,
-                var_one.into(),
-                var_one.into(),
-                var_two.clone(),
+            composer.add(
+                (Scalar::one(), var_one),
+                (Scalar::one(), var_one),
                 Scalar::zero(),
             );
         }
@@ -651,24 +621,21 @@ mod tests {
     #[test]
     fn test_pi() {
         let ok = test_gadget(
-            |mut composer| {
+            |composer| {
                 let var_one = composer.add_input(Fr::one());
-                let var_three = composer.add_input(Fr::from(3));
-                let var_four = composer.add_input(Fr::from(4));
-                simple_add_gadget(
-                    &mut composer,
-                    var_one.into(),
-                    var_one.into(),
-                    var_three.into(),
-                    Fr::one(),
+
+                let should_be_three = composer.add(
+                    (Scalar::one(), var_one),
+                    (Scalar::one(), var_one),
+                    Scalar::one(),
                 );
-                simple_add_gadget(
-                    &mut composer,
-                    var_one.into(),
-                    var_one.into(),
-                    var_four.into(),
-                    Fr::from(2),
+                composer.constrain_to_constant(should_be_three, Scalar::from(3), Scalar::zero());
+                let should_be_four = composer.add(
+                    (Scalar::one(), var_one),
+                    (Scalar::one(), var_one),
+                    Scalar::from(2),
                 );
+                composer.constrain_to_constant(should_be_four, Scalar::from(4), Scalar::zero());
             },
             200,
         );
@@ -678,19 +645,30 @@ mod tests {
     #[test]
     fn test_correct_add_mul_gate() {
         let ok = test_gadget(
-            |mut composer| {
+            |composer| {
                 // Verify that (4+5) * (6+7) = 117
-                let four: LinearCombination = composer.add_input(Fr::from(4)).into();
-                let five: LinearCombination = composer.add_input(Fr::from(5)).into();
-                let six: LinearCombination = composer.add_input(Fr::from(6)).into();
-                let seven: LinearCombination = composer.add_input(Fr::from(7)).into();
-                let one_seventeen = composer.add_input(Fr::from(117));
-                example_gadget(
-                    &mut composer,
-                    four + five,
-                    six + seven,
-                    one_seventeen.into(),
+                let four = composer.add_input(Fr::from(4));
+                let five = composer.add_input(Fr::from(5));
+                let six = composer.add_input(Fr::from(6));
+                let seven = composer.add_input(Fr::from(7));
+
+                let four_plus_five =
+                    composer.add((Scalar::one(), four), (Scalar::one(), five), Scalar::zero());
+
+                let six_plus_seven =
+                    composer.add((Scalar::one(), six), (Scalar::one(), seven), Scalar::zero());
+
+                // There are quite a few ways to check the equation is correct, depending on your circumstance
+                // If we already have the output wire, we can constrain the output of the mul_gate to be equal to it
+                // If we do not, we can compute it using the mul_gate
+                // If the output is public, we can also constrain the output wire of the mul gate to it. This is what this tets does
+                let output = composer.mul(
+                    Scalar::one(),
+                    four_plus_five,
+                    six_plus_seven,
+                    Scalar::zero(),
                 );
+                composer.constrain_to_constant(output, Scalar::from(117), Scalar::zero());
             },
             200,
         );
@@ -699,19 +677,25 @@ mod tests {
     #[test]
     fn test_incorrect_add_mul_gate() {
         let ok = test_gadget(
-            |mut composer| {
+            |composer| {
                 // Verify that (5+5) * (6+7) != 117
-                let four: LinearCombination = composer.add_input(Fr::from(5)).into();
-                let five: LinearCombination = composer.add_input(Fr::from(5)).into();
-                let six: LinearCombination = composer.add_input(Fr::from(6)).into();
-                let seven: LinearCombination = composer.add_input(Fr::from(7)).into();
-                let one_seventeen = composer.add_input(Fr::from(117));
-                example_gadget(
-                    &mut composer,
-                    four + five,
-                    six + seven,
-                    one_seventeen.into(),
+                let five = composer.add_input(Fr::from(5));
+                let six = composer.add_input(Fr::from(6));
+                let seven = composer.add_input(Fr::from(7));
+
+                let five_plus_five =
+                    composer.add((Scalar::one(), five), (Scalar::one(), five), Scalar::zero());
+
+                let six_plus_seven =
+                    composer.add((Scalar::one(), six), (Scalar::one(), seven), Scalar::zero());
+
+                let output = composer.mul(
+                    Scalar::one(),
+                    five_plus_five,
+                    six_plus_seven,
+                    Scalar::zero(),
                 );
+                composer.constrain_to_constant(output, Scalar::from(117), Scalar::zero());
             },
             200,
         );
@@ -725,8 +709,8 @@ mod tests {
                 let zero = composer.add_input(Fr::zero());
                 let one = composer.add_input(Fr::one());
 
-                composer.bool_gate(zero.into());
-                composer.bool_gate(one.into());
+                composer.bool_gate(zero);
+                composer.bool_gate(one);
             },
             32,
         );
@@ -739,8 +723,8 @@ mod tests {
                 let zero = composer.add_input(Fr::from(5));
                 let one = composer.add_input(Fr::one());
 
-                composer.bool_gate(zero.into());
-                composer.bool_gate(one.into());
+                composer.bool_gate(zero);
+                composer.bool_gate(one);
             },
             32,
         );
@@ -750,7 +734,7 @@ mod tests {
     fn test_gadget(gadget: fn(composer: &mut StandardComposer), n: usize) -> bool {
         // Common View
         let public_parameters = SRS::setup(2 * n, &mut rand::thread_rng()).unwrap();
-        // Provers View                                                                             //
+        // Provers View
         let (proof, public_inputs) = {
             let mut composer: StandardComposer = add_dummy_composer(7);
             gadget(&mut composer);
@@ -791,21 +775,15 @@ mod tests {
     fn test_circuit_size() {
         let mut composer: StandardComposer = StandardComposer::new();
 
-        let one = Fr::one();
-        let two = one + &one;
-
-        let var_one = composer.add_input(one);
-        let var_two = composer.add_input(two);
+        let var_one = composer.add_input(Fr::one());
 
         let n = 20;
 
         for _ in 0..n {
-            simple_add_gadget(
-                &mut composer,
-                var_one.into(),
-                var_one.into(),
-                var_two.into(),
-                Fr::zero(),
+            composer.add(
+                (Scalar::one(), var_one),
+                (Scalar::one(), var_one),
+                Scalar::zero(),
             );
         }
 
