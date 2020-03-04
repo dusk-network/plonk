@@ -78,34 +78,35 @@ impl ProverKey {
     /// Computes a witness that the polynomial was evaluated at the point `z`
     /// And its output was p(z)
     /// Witness is computed as f(x) - f(z) / x-z
-    fn compute_single_witness(polynomial: &Polynomial, point: &Scalar) -> (Polynomial, Scalar) {
+    pub fn compute_single_witness(
+        &self,
+        polynomial: &Polynomial,
+        value: &Scalar,
+        point: &Scalar,
+    ) -> Polynomial {
         // X - z
         let divisor = Polynomial::from_coefficients_vec(vec![-point, Scalar::one()]);
-        // Compute f(z)
-        let value = polynomial.evaluate(&point);
+
         // Compute witness for regular polynomial
         let witness_poly = {
-            let f_minus_z = polynomial - &value;
+            let f_minus_z = polynomial - value;
             &f_minus_z / &divisor
         };
-        (witness_poly, value)
+        witness_poly
     }
 
     /// Allows you to compute a witness for multiple polynomials at the same point
     /// XXX: refactor single case to use this method
-    fn compute_aggregate_witness(
-        polynomials: Vec<&Polynomial>,
+    pub(crate) fn compute_aggregate_witness(
+        &self,
+        polynomials: &[Polynomial],
+        values: &[Scalar],
         point: &Scalar,
         transcript: &mut dyn TranscriptProtocol,
-    ) -> (Polynomial, Vec<Scalar>) {
+    ) -> Polynomial {
         // X - z
         let divisor = Polynomial::from_coefficients_vec(vec![-point, Scalar::one()]);
 
-        // Compute evaluations of polynomials
-        let mut values = Vec::with_capacity(polynomials.len());
-        for poly in polynomials.iter() {
-            values.push(poly.evaluate(&point))
-        }
         let challenge = transcript.challenge_scalar(b"");
         let powers = powers_of(&challenge, polynomials.len() - 1);
 
@@ -119,22 +120,28 @@ impl ProverKey {
             .map(|((poly, value), challenge)| &(poly - value) * challenge)
             .sum();
         let witness_poly = &numerator / &divisor;
-        (witness_poly, values)
+        witness_poly
     }
 
     ///XXX: Refactor this to use open_multiple
-    pub fn open_single(&self, polynomial: &Polynomial, point: &Scalar) -> Result<Proof, Error> {
-        let (witness_poly, evaluated_point) = Self::compute_single_witness(polynomial, point);
+    pub fn open_single(
+        &self,
+        polynomial: &Polynomial,
+        value: &Scalar,
+        point: &Scalar,
+    ) -> Result<Proof, Error> {
+        let witness_poly = self.compute_single_witness(polynomial, value, point);
         Ok(Proof {
             commitment_to_witness: self.commit(&witness_poly)?,
-            evaluated_point: evaluated_point,
+            evaluated_point: *value,
             commitment_to_polynomial: self.commit(polynomial)?,
         })
     }
     // Creates a proof that multiple polynomials were evaluated at the same point
     pub fn open_multiple(
         &self,
-        polynomials: Vec<&Polynomial>,
+        polynomials: &[Polynomial],
+        evaluations: Vec<Scalar>,
         point: &Scalar,
         transcript: &mut dyn TranscriptProtocol,
     ) -> Result<AggregateProof, Error> {
@@ -147,8 +154,8 @@ impl ProverKey {
 
         // Compute the aggregate Witness for polynomials
         //
-        let (witness_poly, evaluations) =
-            Self::compute_aggregate_witness(polynomials, point, transcript);
+        let witness_poly =
+            self.compute_aggregate_witness(polynomials, &evaluations, point, transcript);
 
         // Commit to witness polynomial
         //
@@ -166,7 +173,7 @@ impl ProverKey {
 impl VerifierKey {
     // XXX: refactor this to use one pairing
     // Checks that single polynomial was evaluated at a specified point and returns the value specified.
-    fn check(&self, point: Scalar, proof: Proof) -> bool {
+    pub fn check(&self, point: Scalar, proof: Proof) -> bool {
         use bls12_381::pairing;
         let inner: G1Affine =
             (proof.commitment_to_polynomial.0 - (self.g * proof.evaluated_point)).into();
@@ -245,8 +252,9 @@ mod test {
 
         // Compute secret polynomial
         let poly = Polynomial::rand(degree, &mut rand::thread_rng());
+        let value = poly.evaluate(&point);
 
-        let proof = proving_key.open_single(&poly, &point).unwrap();
+        let proof = proving_key.open_single(&poly, &value, &point).unwrap();
 
         let ok = vk.check(point, proof);
         assert!(ok);
@@ -260,11 +268,17 @@ mod test {
         let point_b = Scalar::from(11);
         // Compute secret polynomial a
         let poly_a = Polynomial::rand(degree, &mut rand::thread_rng());
-        let proof_a = proving_key.open_single(&poly_a, &point_a).unwrap();
+        let value_a = poly_a.evaluate(&point_a);
+        let proof_a = proving_key
+            .open_single(&poly_a, &value_a, &point_a)
+            .unwrap();
         assert!(vk.check(point_a, proof_a));
         // Compute secret polynomial b
         let poly_b = Polynomial::rand(degree, &mut rand::thread_rng());
-        let proof_b = proving_key.open_single(&poly_b, &point_b).unwrap();
+        let value_b = poly_b.evaluate(&point_b);
+        let proof_b = proving_key
+            .open_single(&poly_b, &value_b, &point_b)
+            .unwrap();
         assert!(vk.check(point_b, proof_b));
 
         let ok = vk.batch_check(
@@ -284,13 +298,21 @@ mod test {
             let degree = 25;
             let (ck, _) = srs.trim(degree + 2).unwrap();
             let mut transcript = Transcript::new(b"");
-            // Compute secret polynomial
+            // Compute secret polynomials and their evaluations
             let poly_a = Polynomial::rand(degree, &mut rand::thread_rng());
+            let poly_a_eval = poly_a.evaluate(&point);
             let poly_b = Polynomial::rand(degree + 1, &mut rand::thread_rng());
+            let poly_b_eval = poly_b.evaluate(&point);
             let poly_c = Polynomial::rand(degree + 2, &mut rand::thread_rng());
+            let poly_c_eval = poly_c.evaluate(&point);
 
-            ck.open_multiple(vec![&poly_a, &poly_b, &poly_c], &point, &mut transcript)
-                .unwrap()
+            ck.open_multiple(
+                &[poly_a, poly_b, poly_c],
+                vec![poly_a_eval, poly_b_eval, poly_c_eval],
+                &point,
+                &mut transcript,
+            )
+            .unwrap()
         };
 
         //Verifiers view
@@ -315,17 +337,29 @@ mod test {
             let local_max_degree = 28;
             let (ck, _) = srs.trim(local_max_degree).unwrap();
             let mut transcript = Transcript::new(b"");
-            // Compute secret polynomial
+            // Compute secret polynomial and their evaluations
             let poly_a = Polynomial::rand(25, &mut rand::thread_rng());
+            let poly_a_eval = poly_a.evaluate(&point_a);
+
             let poly_b = Polynomial::rand(26, &mut rand::thread_rng());
+            let poly_b_eval = poly_b.evaluate(&point_a);
+
             let poly_c = Polynomial::rand(27, &mut rand::thread_rng());
+            let poly_c_eval = poly_c.evaluate(&point_a);
+
             let poly_d = Polynomial::rand(28, &mut rand::thread_rng());
+            let poly_d_eval = poly_d.evaluate(&point_b);
 
             let aggregated_proof = ck
-                .open_multiple(vec![&poly_a, &poly_b, &poly_c], &point_a, &mut transcript)
+                .open_multiple(
+                    &[poly_a, poly_b, poly_c],
+                    vec![poly_a_eval, poly_b_eval, poly_c_eval],
+                    &point_a,
+                    &mut transcript,
+                )
                 .unwrap();
 
-            let single_proof = ck.open_single(&poly_d, &point_b).unwrap();
+            let single_proof = ck.open_single(&poly_d, &poly_d_eval, &point_b).unwrap();
 
             (aggregated_proof, single_proof)
         };
@@ -343,5 +377,40 @@ mod test {
         };
 
         assert!(ok);
+    }
+
+    #[test]
+    fn test_polynomial_shortening() {
+        let n = 3;
+        let three_n = 3 * n;
+        let full_poly = Polynomial::rand(three_n, &mut rand::thread_rng());
+        let (low, mid, high) = split_poly(n, &full_poly);
+
+        let degree = n;
+        let srs = SRS::setup(degree, &mut rand::thread_rng()).unwrap();
+        let (proving_key, vk) = srs.trim(degree).unwrap();
+
+        let point = Scalar::from(10);
+        let point_n = point.pow(&[n as u64, 0, 0, 0]);
+        let mid_poly = &mid * &point_n;
+        let point_2n = point.pow(&[2 * n as u64, 0, 0, 0]);
+        let high_poly = &high * &point_2n;
+
+        let splitted_poly = &(&low + &mid_poly) + &high_poly;
+        let full_poly_eval = full_poly.evaluate(&point);
+        let proof = proving_key
+            .open_single(&splitted_poly, &full_poly_eval, &point)
+            .unwrap();
+
+        let ok = vk.check(point, proof);
+        assert!(ok);
+    }
+
+    pub fn split_poly(n: usize, t_x: &Polynomial) -> (Polynomial, Polynomial, Polynomial) {
+        (
+            Polynomial::from_coefficients_vec(t_x[0..n].to_vec()),
+            Polynomial::from_coefficients_vec(t_x[n..2 * n].to_vec()),
+            Polynomial::from_coefficients_vec(t_x[2 * n..].to_vec()),
+        )
     }
 }
