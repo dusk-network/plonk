@@ -8,7 +8,7 @@ use rand_core::RngCore;
 /// Allowing the verifier to efficiently verify claims about polynomials up to a configured degree
 pub struct SRS {
     commit_key: ProverKey,
-    verifier_key: VerifierKey,
+    pub(crate) verifier_key: VerifierKey,
 }
 
 impl SRS {
