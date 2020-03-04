@@ -33,8 +33,8 @@ impl Permutation {
             out_sigma_mapping: None,
         }
     }
-    /// Adds a Scalar into the system and creates a new variable for it
-    /// If the Scalar has not been previously added to the system
+    /// Adds a Scalar into the system and also creates  new variable for .
+    /// If the Scalar has not been previously added to the system.
     pub fn new_variable(&mut self, s: Scalar) -> Variable {
         // Generate the Variable
         let var = Variable(self.variables.keys().len());
@@ -48,7 +48,7 @@ impl Permutation {
 
         var
     }
-    /// Checks that the variables are valid by determining if they have been added to the system
+    /// Checks that the variables are valid by determining if they have been added to the system.
     fn valid_variables(&self, variables: &[Variable]) -> bool {
         let results: Vec<bool> = variables
             .into_par_iter()
@@ -59,7 +59,7 @@ impl Permutation {
         results.is_empty()
     }
     /// Maps a set of variables (a,b,c) to a set of Wires (left, right, out) with
-    /// the corresponding gate index
+    /// the corresponding gate index.
     pub fn add_variable_to_map(
         &mut self,
         a: Variable,
@@ -73,7 +73,7 @@ impl Permutation {
         let right: WireData = WireData::Right(gate_index);
         let output: WireData = WireData::Output(gate_index);
 
-        // Map each variable to the wire it is assosciated with
+        // Map each variable to the wire it is assosciated with.
         // This essentially tells us that:
         // Variable `a` is being used in the n'th gate as a left wire
         // Variable `b` is being used in the n'th gate as a right wire
@@ -85,7 +85,7 @@ impl Permutation {
             vec_wire_data.push(*wire_data);
         }
     }
-    /// Convert variables to their actual Scalars
+    /// Convert variables to their actual Scalars.
     pub(crate) fn witness_vars_to_scalars(
         &self,
         w_l: &[Variable],
@@ -99,7 +99,7 @@ impl Permutation {
         )
     }
 
-    // Performs shift by one permutation and computes sigma_1, sigma_2 and sigma_3 permutations from the variable maps
+    // Performs shift by one permutation and computes sigma_1, sigma_2 and sigma_3 permutations from the variable maps.
     pub(super) fn compute_sigma_permutations(&mut self, n: usize) -> [Vec<WireData>; 3] {
         let sigma_1: Vec<_> = (0..n).map(|x| WireData::Left(x)).collect();
         let sigma_2: Vec<_> = (0..n).map(|x| WireData::Right(x)).collect();
@@ -172,7 +172,7 @@ impl Permutation {
         assert_eq!(sigmas[1].len(), n);
         assert_eq!(sigmas[2].len(), n);
 
-        // define the sigma permutations using two non quadratic residues
+        // Define the sigma permutations using two non quadratic residues
         let left_sigma = self.compute_permutation_lagrange(&sigmas[0], domain);
         let right_sigma = self.compute_permutation_lagrange(&sigmas[1], domain);
         let out_sigma = self.compute_permutation_lagrange(&sigmas[2], domain);
@@ -390,7 +390,7 @@ impl Permutation {
         let wO_gamma: Vec<_> = w_o.par_iter().map(|w_O| w_O + gamma).collect();
 
         // Compute 6 accumulator components
-        // Parallisable
+        // This is parallisable
         let accumulator_components_without_l1: Vec<_> = (
             wL_gamma,
             wR_gamma,
@@ -452,8 +452,8 @@ impl Permutation {
         // Multiply each component of the accumulators
         // A simplified example is the following:
         // A1 = [1,2,3,4]
-        // result = [1, 1*2, 1*2*3, 1*2*3*4]
-        // Non Parallisable
+        // Result = [1, 1*2, 1*2*3, 1*2*3*4]
+        // This is non-parallisable
         let mut prev = (
             Scalar::one(),
             Scalar::one(),
@@ -482,7 +482,7 @@ impl Permutation {
         // ... and so on
         // We want:
         // [a1*b1*c1, a1 * a2 *b1 * b2 * c1 * c2,...]
-        // Parallisable
+        // This is parallisable
         let mut z: Vec<_> = product_acumulated_components
             .par_iter()
             .map(move |current_component| {
@@ -610,7 +610,7 @@ mod test {
         let w_squared = w.pow(&[2, 0, 0, 0]);
         let w_cubed = w.pow(&[3, 0, 0, 0]);
 
-        // check the left sigmas have been encoded properly
+        // Check the left sigmas have been encoded properly
         // Left_sigma = {R0, L2,L3, L0}
         // Should turn into {1 * K1, w^2, w^3, 1}
         let encoded_left_sigma = perm.compute_permutation_lagrange(left_sigma, &domain);
@@ -619,7 +619,7 @@ mod test {
         assert_eq!(encoded_left_sigma[2], w_cubed);
         assert_eq!(encoded_left_sigma[3], Fr::one());
 
-        // check the right sigmas have been encoded properly
+        // Check the right sigmas have been encoded properly
         // Right_sigma = {L1, R1, R2, R3}
         // Should turn into {w, w * K1, w^2 * K1, w^3 * K1}
         let encoded_right_sigma = perm.compute_permutation_lagrange(right_sigma, &domain);
@@ -628,7 +628,7 @@ mod test {
         assert_eq!(encoded_right_sigma[2], w_squared * &K1);
         assert_eq!(encoded_right_sigma[3], w_cubed * &K1);
 
-        // check the output sigmas have been encoded properly
+        // Check the output sigmas have been encoded properly
         // Out_sigma = {O0, O1, O2, O3, O4}
         // Should turn into {1 * K2, w * K2, w^2 * K2, w^3 * K2}
         let encoded_output_sigma = perm.compute_permutation_lagrange(out_sigma, &domain);
@@ -717,21 +717,21 @@ mod test {
         let w: Fr = domain.group_gen;
         let w_squared = w.pow(&[2, 0, 0, 0]);
         let w_cubed = w.pow(&[3, 0, 0, 0]);
-        // check the left sigmas have been encoded properly
+        // Check the left sigmas have been encoded properly
         let encoded_left_sigma = perm.compute_permutation_lagrange(left_sigma, &domain);
         assert_eq!(encoded_left_sigma[0], K1);
         assert_eq!(encoded_left_sigma[1], w * &K2);
         assert_eq!(encoded_left_sigma[2], w_squared * &K1);
         assert_eq!(encoded_left_sigma[3], Fr::one() * &K2);
 
-        // check the right sigmas have been encoded properly
+        // Check the right sigmas have been encoded properly
         let encoded_right_sigma = perm.compute_permutation_lagrange(right_sigma, &domain);
         assert_eq!(encoded_right_sigma[0], w * &K1);
         assert_eq!(encoded_right_sigma[1], w_squared * &K2);
         assert_eq!(encoded_right_sigma[2], w_cubed * &K2);
         assert_eq!(encoded_right_sigma[3], Fr::one());
 
-        // check the output sigmas have been encoded properly
+        // Check the output sigmas have been encoded properly
         let encoded_output_sigma = perm.compute_permutation_lagrange(out_sigma, &domain);
         assert_eq!(encoded_output_sigma[0], w);
         assert_eq!(encoded_output_sigma[1], w_cubed);
@@ -742,7 +742,7 @@ mod test {
     #[test]
     // Checks that when gamma = zero and beta = 1
     // root^3 * k_1 * k_2 / (left_sigma * right_sigma * out_sigma) == 1
-    // If the encoding for the permutation does not have unique values then this test would fail
+    // If the encoding for the permutation does not have unique values then this test would fail.
     fn test_permutation_encoding_has_unique_values() {
         let mut perm: Permutation = Permutation::new();
 
@@ -817,7 +817,7 @@ mod test {
         );
     }
 
-    // shifts the polynomials by one root of unity
+    // Shifts the polynomials by one root of unity
     fn shift_poly_by_one(z_coefficients: Vec<Fr>) -> Vec<Fr> {
         let mut shifted_z_coefficients = z_coefficients;
         shifted_z_coefficients.push(shifted_z_coefficients[0]);
@@ -856,7 +856,7 @@ mod test {
             perm.compute_fast_permutation_poly(domain, &w_l, &w_r, &w_o, &beta, &gamma);
         assert_eq!(fast_z_vec, z_vec);
 
-        // 2. First we perform basic tests on the permutation vector
+        // 2. First the basic tests are performed on the permutation vector
         //
         // Check that the vector has length `n` and that the first element is `1`
         assert_eq!(z_vec.len(), n);
@@ -873,7 +873,7 @@ mod test {
         }
         assert_eq!(a_0 * b_0.invert().unwrap(), Fr::one());
 
-        //3. Now we perform the two checks that need to be done on the permutation polynomial (z)
+        //3. Now there are two checks are performed on the permutation polynomial (z)
         let z_poly = Polynomial::from_coefficients_vec(domain.ifft(&z_vec));
         //
         // Check that z(w^{n+1}) == z(1) == 1

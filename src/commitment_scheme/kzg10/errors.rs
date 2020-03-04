@@ -1,6 +1,6 @@
 //! Errors related to KZG10
 
-// Represents an error in SRS creation and or modification
+// Represents an error in SRS creation and/or modification
 #[derive(Fail, Debug)]
 pub enum Error {
     // This error occurs when the user tries to create an SRS and supplies the max degree as zero

@@ -76,7 +76,7 @@ fn compute_quotient_opening_poly(
     res
 }
 
-// computes sum [ challenge[i] * (polynomials[i] - evaluations[i])]
+// Computes sum [ challenge[i] * (polynomials[i] - evaluations[i])]
 fn compute_challenge_poly_eval(
     challenges: Vec<Scalar>,
     polynomials: Vec<&Polynomial>,

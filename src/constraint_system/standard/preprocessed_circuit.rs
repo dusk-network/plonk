@@ -1,8 +1,8 @@
 use crate::commitment_scheme::kzg10::Commitment;
 use crate::fft::{Evaluations, Polynomial};
 use bls12_381::Scalar;
-// Preprocessed circuit includes the commitment to the selector polynomials and the sigma polynomials
-// for the standard plonk composer
+// Preprocessed circuit includes the commitment to the selector polynomials,
+// as well as the sigma polynomials for the standard plonk composer.
 pub struct PreProcessedCircuit {
     // The number of gates in the circuit
     pub n: usize,

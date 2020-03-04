@@ -1,5 +1,5 @@
 /// This quotient polynomial can only be used for the standard composer
-/// Each composer will need to implement their own method for computing the quotient polynomial
+/// Each composer will need to implement their own method for computing the quotient polynomial.
 use crate::constraint_system::standard::PreProcessedCircuit;
 
 use crate::fft::Evaluations;
@@ -8,7 +8,7 @@ use crate::permutation::grand_product_quotient;
 use bls12_381::Scalar;
 use rayon::prelude::*;
 
-/// Computes the quotient polynomial
+/// Computes the quotient polynomial.
 pub(crate) fn compute(
     domain: &EvaluationDomain,
     preprocessed_circuit: &PreProcessedCircuit,

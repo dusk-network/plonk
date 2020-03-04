@@ -1,4 +1,4 @@
-//! A polynomial represented in evaluations form.
+//! This module is for a polynomial represented in evaluations form.
 
 use super::domain::EvaluationDomain;
 use super::polynomial::Polynomial;

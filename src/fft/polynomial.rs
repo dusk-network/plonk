@@ -81,7 +81,7 @@ impl Polynomial {
             return Scalar::zero();
         }
 
-        // Compute powers of points
+        // Compute the powers of points.
         let powers = powers_of(point, self.len());
 
         let p_evals: Vec<_> = self
@@ -122,8 +122,8 @@ impl Sum for Polynomial {
     }
 }
 
-// bls_12-381 library does not provide a `random` method for Scalar
-// We wil use this helper function to compensate
+// bls_12-381 library does not provide a `random` method for Scalar.
+// We wil use this helper function to compensate.
 pub(crate) fn random_scalar<R: Rng>(rng: &mut R) -> Scalar {
     Scalar::from_raw([
         rng.next_u64(),
@@ -133,7 +133,6 @@ pub(crate) fn random_scalar<R: Rng>(rng: &mut R) -> Scalar {
     ])
 }
 
-///////////
 impl<'a, 'b> Add<&'a Polynomial> for &'b Polynomial {
     type Output = Polynomial;
 
@@ -160,8 +159,8 @@ impl<'a, 'b> Add<&'a Polynomial> for &'b Polynomial {
     }
 }
 
-// Addition method tht uses iterators to add polynomials
-// Benchmark this against the original method
+// Addition method that uses iterators to add polynomials
+// This is to be benchmarked against the original method.
 fn iter_add(poly_a: &Polynomial, poly_b: &Polynomial) -> Polynomial {
     if poly_a.len() == 0 {
         return poly_b.clone();
@@ -377,7 +376,7 @@ impl<'a, 'b> Mul<&'a Polynomial> for &'b Polynomial {
         }
     }
 }
-/// Convenience Trait to multiply a scalar and polynomial
+/// Convenience Trait to multiply a scalar and polynomial.
 impl<'a, 'b> Mul<&'a Scalar> for &'b Polynomial {
     type Output = Polynomial;
 
@@ -394,7 +393,7 @@ impl<'a, 'b> Mul<&'a Scalar> for &'b Polynomial {
         Polynomial::from_coefficients_vec(scaled_coeffs)
     }
 }
-/// Convenience Trait to sub a scalar and polynomial
+/// Convenience Trait to sub a scalar and polynomial.
 impl<'a, 'b> Add<&'a Scalar> for &'b Polynomial {
     type Output = Polynomial;
 
@@ -424,7 +423,7 @@ impl<'a, 'b> Sub<&'a Scalar> for &'b Polynomial {
 
 #[test]
 fn test_div() {
-    // X^2 + 4x + 4
+    // X^2 + 4X + 4
     let quadratic =
         Polynomial::from_coefficients_vec(vec![Scalar::from(4), Scalar::from(4), Scalar::one()]);
     // X+2

@@ -14,7 +14,7 @@ pub use preprocessed_circuit::PreProcessedCircuit;
 /// Implementation of the standard PLONK proof system
 
 pub trait Composer {
-    // Circuit size is the amount of gates in the circuit
+    // `circuit_size` is the number of gates in the circuit
     fn circuit_size(&self) -> usize;
     // Preprocessing produces a preprocessed circuit
     fn preprocess(

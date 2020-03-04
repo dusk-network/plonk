@@ -9,7 +9,7 @@ use crate::{opening_poly, permutation::Permutation};
 use bls12_381::Scalar;
 /// A composer is a circuit builder
 /// and will dictate how a circuit is built
-/// We will have a default Composer called `StandardComposer`
+/// We will have a default Composer called `StandardComposer`.
 pub struct StandardComposer {
     // n represents the number of arithmetic gates in the circuit
     n: usize,
@@ -22,14 +22,14 @@ pub struct StandardComposer {
     q_l: Vec<Scalar>,
     // Right wire selector
     q_r: Vec<Scalar>,
-    // output wire selector
+    // Output wire selector
     q_o: Vec<Scalar>,
-    // constant wire selector
+    // Constant wire selector
     q_c: Vec<Scalar>,
 
     public_inputs: Vec<Scalar>,
 
-    // witness vectors
+    // Witness vectors
     w_l: Vec<Variable>,
     w_r: Vec<Variable>,
     w_o: Vec<Variable>,
@@ -38,8 +38,8 @@ pub struct StandardComposer {
 }
 
 impl Composer for StandardComposer {
-    // Computes the pre-processed polynomials
-    // So the verifier can verify a proof made using this circuit
+    // Computes the pre-processed polynomials so that
+    // the verifier can verify a proof made using this circuit.
     fn preprocess(
         &mut self,
         commit_key: &ProverKey,
@@ -125,7 +125,7 @@ impl Composer for StandardComposer {
     }
 
     // Prove will compute the pre-processed polynomials and
-    // produce a proof
+    // produce a proof.
     fn prove(
         &mut self,
         commit_key: &ProverKey,
@@ -134,7 +134,7 @@ impl Composer for StandardComposer {
     ) -> Proof {
         let domain = EvaluationDomain::new(self.n).unwrap();
 
-        //1. Compute witness Polynomials
+        // 1. Compute witness Polynomials
         //
         // Convert Variables to Scalars
         let (w_l_scalar, w_r_scalar, w_o_scalar) = self
@@ -197,9 +197,9 @@ impl Composer for StandardComposer {
             &pi_poly,
             &(alpha, beta, gamma),
         );
-        // Split quotient polynomial into 3 degree `n` polynomials
+        // Split quotient polynomial into 3 polynomials, eahc of degree `n`
         // XXX: This implicitly assumes that the quotient polynomial will never go over
-        // degree 3n. For custom gates, this may not hold true, unless the API restricts it
+        // degree 3n. For custom gates, this may not hold true, unless it is restricted by the API.
         let (t_low_poly, t_mid_poly, t_hi_poly) = self.split_tx_poly(domain.size(), &t_poly);
 
         // Commit to permutation polynomial
@@ -293,7 +293,7 @@ impl StandardComposer {
         StandardComposer::with_expected_size(0)
     }
 
-    // Split `t(X)` poly into three degree-n polynomials.
+    // Split `t(X)` poly into 3 polynomials of degree `n`
     pub fn split_tx_poly(
         &self,
         n: usize,
@@ -306,8 +306,8 @@ impl StandardComposer {
         )
     }
 
-    // Creates a new circuit with an expected circuit size
-    // This will allow for less reallocations when building the circuit
+    // Creates a new circuit with an expected circuit size.
+    // This will allow for less reallocations when building the circuit.
     pub fn with_expected_size(expected_size: usize) -> Self {
         StandardComposer {
             n: 0,
@@ -327,8 +327,8 @@ impl StandardComposer {
         }
     }
 
-    // Pads the circuit to the next power of two
-    // diff is the difference between circuit size and next power of two
+    // Pads the circuit to the next power of two;
+    // diff is the difference between circuit size and next power of two.
     fn pad(&mut self, diff: usize) {
         // Add a zero variable to circuit
         let zero_scalar = Scalar::zero();
@@ -351,12 +351,12 @@ impl StandardComposer {
     }
 
     // Adds a Scalar to the circuit and returns its
-    // reference in the constraint system
+    // reference inside the constraint system
     pub fn add_input(&mut self, s: Scalar) -> Variable {
         self.perm.new_variable(s)
     }
 
-    // Adds an add gate to the circuit
+    // Adds a add gate to the circuit
     pub fn add_gate(
         &mut self,
         a: Variable,
@@ -390,7 +390,7 @@ impl StandardComposer {
         c
     }
     // Ensures q_l * a + q_r * b - c = 0
-    // Returns c
+    // Returns c.
     pub fn add(
         &mut self,
         q_l_a: (Scalar, Variable),
@@ -446,7 +446,7 @@ impl StandardComposer {
 
         c
     }
-    // q_m * a * b - c = 0
+    // Ensures that q_m * a * b - c = 0.
     fn mul(&mut self, q_m: Scalar, a: Variable, b: Variable, pi: Scalar) -> Variable {
         let q_o = -Scalar::one();
         let q_c = Scalar::zero();
@@ -611,7 +611,7 @@ mod tests {
     fn test_prove_verify() {
         let ok = test_gadget(
             |_| {
-                // do nothing except add the dummy constraints
+                // Do nothing except add the dummy constraints
             },
             200,
         );

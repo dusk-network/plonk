@@ -7,7 +7,7 @@ pub mod srs;
 pub use key::{ProverKey, VerifierKey};
 pub use srs::SRS;
 pub struct Proof {
-    /// This is a commitment to the witness polynomial; see [KZG10] for more details.
+    /// This is a commitment to the witness polynomial see [KZG10] for more details.
     pub w: G1Affine,
     /// This is the evaluation of the random polynomial at the point for which
     /// the evaluation proof was produced.

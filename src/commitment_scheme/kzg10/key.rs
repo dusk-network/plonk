@@ -4,7 +4,7 @@ use crate::fft::Polynomial;
 use bls12_381::{G1Affine, G1Projective, G2Affine, G2Prepared};
 use rand_core::RngCore;
 
-/// Verifier Key is used to verify claims made about a committed polynomial
+/// Verifier Key is used to verify claims made about a committed polynomial.
 #[derive(Clone, Debug)]
 pub struct VerifierKey {
     /// The generator of G1.
@@ -19,15 +19,15 @@ pub struct VerifierKey {
     pub prepared_beta_h: G2Prepared,
 }
 
-/// Prover key is used to commit to a polynomial which is bounded by the max_degree parameter
-/// specified when building the SRS
+/// The `ProverKey` struct is used to commit to a polynomial
+/// which is bounded by the max_degree parameter specified when building the SRS.
 pub struct ProverKey {
     /// Group elements of the form `{ \beta^i G }`, where `i` ranges from 0 to `degree`.
     pub powers_of_g: Vec<G1Affine>,
 }
 
 impl ProverKey {
-    /// Returns the maximum degree polynomial that you can commit to
+    /// Returns the maximum degree polynomial that can be committed to
     pub(crate) fn max_degree(&self) -> usize {
         self.powers_of_g.len() - 1
     }
@@ -60,7 +60,7 @@ impl ProverKey {
 
     /// Commits to a polynomial bounded by the max degree of the Prover key
     pub fn commit(&self, polynomial: &Polynomial) -> Result<Commitment, Error> {
-        // Check whether we can safely commit to this polynomial
+        // Checks whether we can safely commit to this polynomial
         self.check_commit_degree_is_within_bounds(polynomial.degree())?;
 
         // Compute commitment
@@ -75,9 +75,9 @@ impl ProverKey {
         todo!()
     }
 }
-// Check whether the polynomial we are committing to:
+// Checks whether the polynomial we are committing to:
 // - has zero degree
-// - has a degree which is more than the max supported degree
+// - has a degree which is greater than the max supported degree
 fn check_degree_is_within_bounds(max_degree: usize, poly_degree: usize) -> Result<(), Error> {
     if poly_degree == 0 {
         return Err(Error::PolynomialDegreeIsZero);

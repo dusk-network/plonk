@@ -274,7 +274,7 @@ impl Proof {
         scalars.push(x + &r + &s);
         points.push(self.z_comm.0);
 
-        // (a_eval + beta * sigma_1_eval + gamma)(b_eval + beta * sigma_2_eval + gamma)(c_eval + beta * sigma_3_eval + gamma) *alpha^2 * v
+        // (a_eval + beta * sigma_1_eval + gamma)(b_eval + beta * sigma_2_eval + gamma)(c_eval + beta * sigma_3_eval + gamma) * alpha^2 * v
         let y = {
             let beta_sigma_1 = beta * &self.evaluations.left_sigma_eval;
             let q_0 = self.evaluations.a_eval + &beta_sigma_1 + &gamma;

@@ -3,13 +3,14 @@ use crate::fft::{EvaluationDomain, Polynomial};
 use crate::permutation::grand_product_lineariser;
 use bls12_381::Scalar;
 
-/// Evaluations at points `z` or and `z * root of unity`
+/// The `Evaluations` is a struct contaning the evaluations
+/// at points `z` or and `z * root of unity`.
 pub struct Evaluations {
     pub proof: ProofEvaluations,
     // Evaluation of the linearisation sigma polynomial at `z`
     pub quot_eval: Scalar,
 }
-// Proof Evaluations is a subset of all of the evaluations. These evaluations will be added to the proof
+// The `ProofEvaluations` struct is a subset of all of the evaluations. These evaluations will be added to the proof.
 pub struct ProofEvaluations {
     // Evaluation of the witness polynomial for the left wires at `z`
     pub a_eval: Scalar,
@@ -45,7 +46,7 @@ impl Evaluations {
     }
 }
 
-/// Compute the linearisation polynomial
+/// Compute the linearisation polynomial.
 pub fn compute(
     domain: &EvaluationDomain,
     preprocessed_circuit: &PreProcessedCircuit,

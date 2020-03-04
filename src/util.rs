@@ -1,7 +1,7 @@
 use bls12_381::Scalar;
 use std::ops::{Add, Mul};
 
-// Computes 1,v, v^2, v^3,..v^max_degree
+/// Computes 1,v, v^2, v^3,..v^max_degree
 pub fn powers_of(scalar: &Scalar, max_degree: usize) -> Vec<Scalar> {
     let mut powers = Vec::with_capacity(max_degree + 1);
     powers.push(Scalar::one());
@@ -11,7 +11,7 @@ pub fn powers_of(scalar: &Scalar, max_degree: usize) -> Vec<Scalar> {
     powers
 }
 
-// While we do not have multiscalar mul in bls12-381; this function will be used as a stub
+/// While we do not have multiscalar mul in bls12-381; this function will be used as a stub
 pub(crate) fn multiscalar_mul<K, T: Mul<Scalar, Output = K> + Copy>(
     scalars: &Vec<Scalar>,
     bases: &Vec<T>,
