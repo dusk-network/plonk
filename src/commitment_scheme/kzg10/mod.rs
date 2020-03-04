@@ -38,6 +38,14 @@ pub struct AggregateProof {
 }
 
 impl AggregateProof {
+    /// Creates an `AggregatedProof` with the commitment to the witness
+    pub fn with_witness(witness: Commitment) -> AggregateProof {
+        AggregateProof {
+            commitment_to_witness: witness,
+            evaluated_points: Vec::new(),
+            commitments_to_polynomials: Vec::new(),
+        }
+    }
     // Flattens an aggregate proof into a `Proof`
     // The challenge must be the same challenge that was used to aggregate the witness
     pub fn flatten(&self, transcript: &mut dyn TranscriptProtocol) -> Proof {
@@ -64,6 +72,11 @@ impl AggregateProof {
             evaluated_point: flattened_poly_evaluations,
             commitment_to_polynomial: Commitment::from_projective(flattened_poly_commitments),
         }
+    }
+    // Adds an evaluated point with the commitment to the polynomial which produced it
+    pub fn add_part(&mut self, part: (Scalar, Commitment)) {
+        self.evaluated_points.push(part.0);
+        self.commitments_to_polynomials.push(part.1);
     }
 }
 
