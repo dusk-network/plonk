@@ -11,7 +11,9 @@ pub fn powers_of(scalar: &Scalar, max_degree: usize) -> Vec<Scalar> {
     powers
 }
 
-// While we do not have multiscalar mul in bls12-381; this function will be used as a stub
+/// This function is only used to generate the SRS.
+/// The propper multiscalar_mul impl based on pippenger's algorithm
+/// is on the BLS12-381 fork.
 pub(crate) fn multiscalar_mul<K, T: Mul<Scalar, Output = K> + Copy>(
     scalars: &Vec<Scalar>,
     bases: &Vec<T>,
@@ -23,6 +25,9 @@ pub(crate) fn multiscalar_mul<K, T: Mul<Scalar, Output = K> + Copy>(
         .collect()
 }
 
+/// This function is only used to generate the SRS.
+/// The propper multiscalar_mul impl based on pippenger's algorithm
+/// is on the BLS12-381 fork.
 pub(crate) fn multiscalar_mul_single_base<K, T: Mul<Scalar, Output = K> + Copy>(
     scalars: &Vec<Scalar>,
     base: T,
