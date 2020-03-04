@@ -609,11 +609,7 @@ mod tests {
         let var_one = composer.add_input(one);
 
         for _ in 0..n {
-            composer.add(
-                (Scalar::one(), var_one),
-                (Scalar::one(), var_one),
-                Scalar::zero(),
-            );
+            composer.add(var_one.into(), var_one.into(), Scalar::zero());
         }
         composer.add_dummy_constraints();
 
@@ -658,17 +654,9 @@ mod tests {
             |composer| {
                 let var_one = composer.add_input(Fr::one());
 
-                let should_be_three = composer.add(
-                    (Scalar::one(), var_one),
-                    (Scalar::one(), var_one),
-                    Scalar::one(),
-                );
+                let should_be_three = composer.add(var_one.into(), var_one.into(), Scalar::one());
                 composer.constrain_to_constant(should_be_three, Scalar::from(3), Scalar::zero());
-                let should_be_four = composer.add(
-                    (Scalar::one(), var_one),
-                    (Scalar::one(), var_one),
-                    Scalar::from(2),
-                );
+                let should_be_four = composer.add(var_one.into(), var_one.into(), Scalar::from(2));
                 composer.constrain_to_constant(should_be_four, Scalar::from(4), Scalar::zero());
             },
             200,
@@ -686,11 +674,9 @@ mod tests {
                 let six = composer.add_input(Fr::from(6));
                 let seven = composer.add_input(Fr::from(7));
 
-                let four_plus_five =
-                    composer.add((Scalar::one(), four), (Scalar::one(), five), Scalar::zero());
+                let four_plus_five = composer.add(four.into(), five.into(), Scalar::zero());
 
-                let six_plus_seven =
-                    composer.add((Scalar::one(), six), (Scalar::one(), seven), Scalar::zero());
+                let six_plus_seven = composer.add(six.into(), seven.into(), Scalar::zero());
 
                 // There are quite a few ways to check the equation is correct, depending on your circumstance
                 // If we already have the output wire, we can constrain the output of the mul_gate to be equal to it
@@ -717,11 +703,9 @@ mod tests {
                 let six = composer.add_input(Fr::from(6));
                 let seven = composer.add_input(Fr::from(7));
 
-                let five_plus_five =
-                    composer.add((Scalar::one(), five), (Scalar::one(), five), Scalar::zero());
+                let five_plus_five = composer.add(five.into(), five.into(), Scalar::zero());
 
-                let six_plus_seven =
-                    composer.add((Scalar::one(), six), (Scalar::one(), seven), Scalar::zero());
+                let six_plus_seven = composer.add(six.into(), seven.into(), Scalar::zero());
 
                 let output = composer.mul(
                     Scalar::one(),
@@ -814,11 +798,7 @@ mod tests {
         let n = 20;
 
         for _ in 0..n {
-            composer.add(
-                (Scalar::one(), var_one),
-                (Scalar::one(), var_one),
-                Scalar::zero(),
-            );
+            composer.add(var_one.into(), var_one.into(), Scalar::zero());
         }
 
         assert_eq!(n, composer.circuit_size())
