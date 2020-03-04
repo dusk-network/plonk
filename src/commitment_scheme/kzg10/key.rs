@@ -65,12 +65,8 @@ impl ProverKey {
 
         // Compute commitment
         let mut commitment = pippenger(
-            &self
-                .powers_of_g
-                .iter()
-                .map(|P| G1Projective::from(P))
-                .collect::<Vec<G1Projective>>(),
-            &polynomial.coeffs,
+            self.powers_of_g.iter().map(|P| G1Projective::from(P)),
+            polynomial.coeffs.to_owned().into_iter(),
         );
         Ok(Commitment::from_projective(commitment))
     }

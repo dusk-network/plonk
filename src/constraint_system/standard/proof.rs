@@ -289,11 +289,8 @@ impl Proof {
         points.push(preprocessed_circuit.out_sigma_comm().0);
 
         pippenger(
-            &points
-                .iter()
-                .map(|P| G1Projective::from(P))
-                .collect::<Vec<G1Projective>>(),
-            &scalars,
+            points.iter().map(|P| G1Projective::from(P)),
+            scalars.into_iter(),
         )
     }
     fn compute_batch_opening_commitment(
@@ -338,11 +335,8 @@ impl Proof {
         points.push(preprocessed_circuit.right_sigma_comm().0);
 
         pippenger(
-            &points
-                .iter()
-                .map(|P| G1Projective::from(P))
-                .collect::<Vec<G1Projective>>(),
-            &scalars,
+            points.iter().map(|P| G1Projective::from(P)),
+            scalars.into_iter(),
         )
     }
     fn compute_batch_evaluation_commitment(
