@@ -430,6 +430,5 @@ fn test_div() {
     let factor = Polynomial::from_coefficients_vec(vec![Scalar::from(2), Scalar::one()]);
 
     let quotient = &quadratic / &factor;
-    dbg!(quotient.degree(), quadratic.degree());
     assert_eq!(quotient, factor);
 }
