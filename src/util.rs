@@ -1,5 +1,5 @@
-use bls12_381::Scalar;
-use std::ops::{Add, Mul};
+use bls12_381::{G1Projective, Scalar};
+use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
 // Computes 1,v, v^2, v^3,..v^max_degree
 pub fn powers_of(scalar: &Scalar, max_degree: usize) -> Vec<Scalar> {
@@ -14,11 +14,11 @@ pub fn powers_of(scalar: &Scalar, max_degree: usize) -> Vec<Scalar> {
 /// This function is only used to generate the SRS.
 /// The intention is just to compute the resulting points
 /// of the operation `a*P, b*P, c*P ... (n-1)*P` into a `Vec`.
-pub(crate) fn slow_multiscalar_mul_single_base<K, T: Mul<Scalar, Output = K> + Copy>(
+pub(crate) fn slow_multiscalar_mul_single_base(
     scalars: &Vec<Scalar>,
-    base: T,
-) -> Vec<K> {
-    scalars.iter().map(|s| base * *s).collect()
+    base: G1Projective,
+) -> Vec<G1Projective> {
+    scalars.par_iter().map(|s| base * *s).collect()
 }
 
 // while we do not have batch inversion for scalars
