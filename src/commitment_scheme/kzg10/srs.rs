@@ -4,7 +4,7 @@ use crate::util::multiscalar_mul_single_base;
 use bls12_381::{G1Affine, G1Projective, G2Affine, G2Prepared, G2Projective, Scalar};
 use rand_core::RngCore;
 /// Structured Reference String (SRS) is the main component in KZG10.
-/// It is available to both the prover and verifier; thus allowing the verifier
+/// It is available to both the prover and verifier; this allows the verifier
 /// to efficiently verify claims about polynomials up to a configured degree.
 pub struct SRS {
     commit_key: ProverKey,
@@ -103,7 +103,7 @@ fn test_powers_of() {
     let x = Scalar::from(10u64);
     let degree = 100u64;
     // Testing the powers of a scalar,
-    // as a degree of
+    // as a degree of the coefficient.
 
     let powers_of_x = powers_of(x, degree as usize);
 

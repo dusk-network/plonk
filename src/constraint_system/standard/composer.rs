@@ -1,9 +1,9 @@
 /// This module contains the backend implementation of a composer,
 /// which constructs an arithmetic circuit. The inputted programme
 /// will pass through the circuit via a series of gates, and return
-/// an numerical output.
+/// a numerical output.
 ///
-/// a user may build the circuit with the coded 'StandardComposer`.
+/// A user may build the circuit with the coded 'StandardComposer`.
 use super::linearisation_poly;
 use super::quotient_poly;
 use super::{proof::Proof, Composer, PreProcessedCircuit};
@@ -131,7 +131,7 @@ impl Composer for StandardComposer {
     }
 
     // Prove will compute the pre-processed polynomials and
-    // produce a proof.
+    // produce a proof
     fn prove(
         &mut self,
         commit_key: &ProverKey,
@@ -294,6 +294,7 @@ impl Composer for StandardComposer {
     }
 }
 
+/// This is the default composer.
 impl StandardComposer {
     pub fn new() -> Self {
         StandardComposer::with_expected_size(0)

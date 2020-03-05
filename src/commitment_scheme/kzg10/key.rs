@@ -19,7 +19,7 @@ pub struct VerifierKey {
     pub prepared_beta_h: G2Prepared,
 }
 
-/// The `ProverKey` struct is used to commit to a polynomial
+/// The `ProverKey` struct is used to commit to a polynomial,
 /// which is bounded by the max_degree parameter specified when building the SRS.
 pub struct ProverKey {
     /// Group elements of the form `{ \beta^i G }`, where `i` ranges from 0 to `degree`.

@@ -85,7 +85,7 @@ pub(crate) fn compute(
     Polynomial::from_coefficients_vec(domain_4n.coset_ifft(&quotient))
 }
 
-// Ensures that the circuit is satisfied
+// Ensures that the circuit is satisfied.
 fn compute_circuit_satisfiability_equation(
     domain: &EvaluationDomain,
     alpha: &Scalar,

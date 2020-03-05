@@ -1,8 +1,12 @@
+/// Circuit preprocessing allows the parties to have interaction,
+/// in an otherwise non interactive protocol, prior to the circuit
+/// being being known. Such that the parties can intially share bits
+/// of information.
 use crate::commitment_scheme::kzg10::Commitment;
 use crate::fft::{Evaluations, Polynomial};
 use bls12_381::Scalar;
 // Preprocessed circuit includes the commitment to the selector polynomials,
-// as well as the sigma polynomials for the standard plonk composer.
+// as well as the sigma polynomials for the standard PLONK composer.
 pub struct PreProcessedCircuit {
     // The number of gates in the circuit
     pub n: usize,

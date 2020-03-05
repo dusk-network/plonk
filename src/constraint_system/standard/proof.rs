@@ -1,3 +1,9 @@
+/// For the proof, there are values,
+/// chosen by the prover, which are committed
+/// to for the given polynomials.
+///
+/// Then the verifier computes the evaluations
+/// of the values for the given polynomials.
 use super::linearisation_poly::ProofEvaluations;
 use super::PreProcessedCircuit;
 use crate::commitment_scheme::kzg10::{Commitment, VerifierKey};
