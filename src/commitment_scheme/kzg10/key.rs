@@ -223,16 +223,9 @@ impl VerifierKey {
         pairing == bls12_381::Gt::identity()
     }
 }
-<<<<<<< HEAD
-// Checks whether the polynomial we are committing to satisfies both:
+// Check whether the polynomial we are committing to satisfies both:
 // - degree of zero
 // - degree which is greater than the max supported degree
-=======
-
-// Check whether the polynomial we are committing to:
-// - has zero degree
-// - has a degree which is more than the max supported degree
->>>>>>> master
 fn check_degree_is_within_bounds(max_degree: usize, poly_degree: usize) -> Result<(), Error> {
     if poly_degree == 0 {
         return Err(Error::PolynomialDegreeIsZero);
