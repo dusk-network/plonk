@@ -481,7 +481,7 @@ impl StandardComposer {
         c
     }
     // q_m * a * b - c = 0
-    fn mul(&mut self, q_m: Scalar, a: Variable, b: Variable, pi: Scalar) -> Variable {
+    pub fn mul(&mut self, q_m: Scalar, a: Variable, b: Variable, pi: Scalar) -> Variable {
         let q_o = -Scalar::one();
         let q_c = Scalar::zero();
 
