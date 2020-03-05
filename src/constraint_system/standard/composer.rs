@@ -1,4 +1,8 @@
-/// This module contains the backend implementation of a composer, which constructs a circuit,
+/// This module contains the backend implementation of a composer,
+/// which constructs an arithmetic circuit. The inputted programme
+/// will pass through the circuit via a series of gates, and return
+/// an numerical output.
+///
 /// a user may build the circuit with the coded 'StandardComposer`.
 use super::linearisation_poly;
 use super::quotient_poly;

@@ -13,8 +13,8 @@ pub struct SRS {
 
 impl SRS {
     /// Setup generates an SRS using a `RNG`
-    /// This method will in most cases be used for testing and exploration
-    /// In reality, a `trusted` party or an `MPC` is used to generate an SRS
+    /// This method will, in most cases, be used for testing and exploration
+    /// Typically, a `trusted` party or an `MPC` is used to generate an SRS
     pub fn setup<R: RngCore>(max_degree: usize, mut rng: &mut R) -> Result<SRS, Error> {
         // Cannot commit to constants
         if max_degree < 1 {
@@ -27,7 +27,7 @@ impl SRS {
         // Compute powers of beta upto and including beta^max_degree
         let powers_of_beta = powers_of(beta, max_degree);
 
-        // powers of g will be used to commit to the polynomial
+        // Powers of g will be used to commit to the polynomial
         let g = random_g1_point(&mut rng);
         let powers_of_g: Vec<G1Projective> = multiscalar_mul_single_base(&powers_of_beta, g);
         assert_eq!(powers_of_g.len(), max_degree + 1);
@@ -102,6 +102,8 @@ pub(crate) fn random_g2_point<R: RngCore>(rng: &mut R) -> G2Projective {
 fn test_powers_of() {
     let x = Scalar::from(10u64);
     let degree = 100u64;
+    // Testing the powers of a scalar,
+    // as a degree of
 
     let powers_of_x = powers_of(x, degree as usize);
 
