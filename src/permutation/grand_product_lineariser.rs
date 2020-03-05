@@ -2,9 +2,9 @@ use crate::constraint_system::standard::PreProcessedCircuit;
 use crate::fft::{EvaluationDomain, Polynomial};
 use crate::permutation::constants::{K1, K2};
 use bls12_381::Scalar;
-/// See Linearisation technique from Mary Maller for details
+/// See Linearisation technique from Mary Maller for details.
 // XXX: We need better names for these functions
-/// Computes the semi evaluted Identity permutation polynomial component of the grand product
+/// Computes the semi evaluted Identity permutation polynomial component of the grand product.
 pub fn compute_identity_polynomial(
     a_eval: Scalar,
     b_eval: Scalar,
