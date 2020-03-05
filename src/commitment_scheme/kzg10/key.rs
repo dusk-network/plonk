@@ -27,7 +27,7 @@ pub struct ProverKey {
 }
 
 impl ProverKey {
-    /// Returns the maximum degree polynomial that can be committed to
+    /// Returns the maximum degree polynomial, which can be committed to within the scheme.
     pub(crate) fn max_degree(&self) -> usize {
         self.powers_of_g.len() - 1
     }
@@ -75,9 +75,9 @@ impl ProverKey {
         todo!()
     }
 }
-// Checks whether the polynomial we are committing to:
-// - has zero degree
-// - has a degree which is greater than the max supported degree
+// Checks whether the polynomial we are committing to satisfies both:
+// - degree of zero
+// - degree which is greater than the max supported degree
 fn check_degree_is_within_bounds(max_degree: usize, poly_degree: usize) -> Result<(), Error> {
     if poly_degree == 0 {
         return Err(Error::PolynomialDegreeIsZero);

@@ -3,7 +3,7 @@ use crate::fft::{EvaluationDomain, Polynomial};
 use crate::permutation::grand_product_lineariser;
 use bls12_381::Scalar;
 
-/// The `Evaluations` is a struct contaning the evaluations
+/// The `Evaluations` struct contains the evaluations
 /// at points `z` or and `z * root of unity`.
 pub struct Evaluations {
     pub proof: ProofEvaluations,

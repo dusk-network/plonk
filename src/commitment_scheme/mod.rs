@@ -1,8 +1,14 @@
 //! This module contains the encoding for the
-//! polynomial commitment scheme.
+//! KZG10 polynomial commitment scheme.
 //!
-//! This is used for the prover to make evaluations,
-//! which are checked by the verifier.
+//! A polynomial commitment scheme allows the committer to commit to a polynomial
+//! with a short string. The commitment of a polynomial returns values, based on
+//! the input, in terms of evaluations of `some` input. This verifier, who recieves
+//! this evaluation, checks the claims made by the at these values.
+//!
+//! The KZG10 commitment scheme is a homomorphic commitment scheme introduced
+//! by Kate, Zaverucha and Goldberg.
+//!
 
 /// Ideally we should cleanly abstract away the polynomial commitment scheme
 /// We note that PLONK makes use of the linearisation technique  
