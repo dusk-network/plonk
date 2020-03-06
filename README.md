@@ -1,10 +1,14 @@
-# PLONK, a ZK proof scheme using the SNARK format
+# PLONK
 
 *This is a pure Rust implementation of the PLONK proving system over BLS12-381*
 
 _This code is highly experimental, use at your own risk_.
 
 This library contains a modularised implementation of KZG10 as the default polynomial commitment scheme.
+
+PLONK is a 
+This PLONK implementation provides, as a deafault, a standard composer which allows a user to build a
+circuit dependent upon an inputted
 
 
 ## Example
@@ -88,10 +92,10 @@ WIP
 
 ## Acknowledgements
 
-- Reference implementation Barretenberg/AztecProtocol
-- FFT Module and KZG10 Module were taken and modified from zexe/zcash and scipr-lab, respectively.
+- Reference implementation AztecProtocol/Barretenberg
+- FFT Module and KZG10 Module were taken and modified from zexe/zcash and scipr-lab respectively.
 
 
 ## About
 
-Implementation designed by the [dusk](https://dusk.network) team. The [PLONK](https://eprint.iacr.org/2019/953.pdf) proving scheme is a zero knowledge proof scheme, that incorportates an updateable structured reference string, which need
+Implementation designed by the [dusk](https://dusk.network) team
