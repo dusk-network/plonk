@@ -88,10 +88,10 @@ WIP
 
 ## Acknowledgements
 
-- Reference implementation AztecProtocol/Barretenberg
-- FFT Module and KZG10 Module were taken and modified from zexe/zcash and scipr-lab respectively.
+- Reference implementation Barretenberg/AztecProtocol
+- FFT Module and KZG10 Module were taken and modified from zexe/zcash and scipr-lab, respectively.
 
 
 ## About
 
-Implementation designed by the [dusk](https://dusk.network) team
+Implementation designed by the [dusk](https://dusk.network) team. The [PLONK](https://eprint.iacr.org/2019/953.pdf) proving scheme is a zero knowledge proof scheme, that incorportates an updateable structured reference string, which need
