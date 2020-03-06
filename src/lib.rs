@@ -1,6 +1,6 @@
-mod commitment_scheme;
+pub mod commitment_scheme;
 pub mod constraint_system;
-mod fft;
+pub mod fft;
 mod permutation;
 pub mod transcript;
 mod util;

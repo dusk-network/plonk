@@ -84,7 +84,7 @@ impl Proof {
         preprocessed_circuit: &PreProcessedCircuit,
         transcript: &mut dyn TranscriptProtocol,
         verifier_key: &VerifierKey,
-        pub_inputs: &Vec<Scalar>,
+        pub_inputs: &[Scalar],
     ) -> bool {
         let domain = EvaluationDomain::new(preprocessed_circuit.n).unwrap();
 
@@ -204,7 +204,7 @@ impl Proof {
     fn compute_quotient_evaluation(
         &self,
         domain: &EvaluationDomain,
-        pub_inputs: &Vec<Scalar>,
+        pub_inputs: &[Scalar],
         alpha: Scalar,
         beta: Scalar,
         gamma: Scalar,
