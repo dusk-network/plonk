@@ -4,11 +4,23 @@
 
 _This code is highly experimental, use at your own risk_.
 
-This library contains a modularised implementation of KZG10 as the default polynomial commitment scheme.
 
-PLONK is a 
-This PLONK implementation provides, as a deafault, a standard composer which allows a user to build a
-circuit dependent upon an inputted
+
+[`PLONK`][plonk] is a universal and updateable zk-SNARK proving scheme. 
+This proof scheme requires a trusted set but one which has an updateable 
+set up, which is proved only once for the entire scheme. As a result, 
+multiple parties can participate and there is a requirement that only 
+one is honest. Updateability means that more parties can be added after
+the inception of the proof, leading to consecutive participation. 
+
+This library implements:
+
+* A standard composer which allows a user to build a circuit;
+* FFT over the bls12-381 scalar field, targeted towards polynomials with specific roots; 
+* A modularised implementation of KZG10 as the default polynomial commitment scheme.
+* Permutation arguments for checking evaluations of rotated wire indices 
+
+[Merlin transcripts][merlin] are used implement the proofs. 
 
 
 ## Example
@@ -84,7 +96,7 @@ assert_eq!(ok, true);
 
 ## Documentation
 
-WIP
+Documentation for this library is 
 
 ## Performance
 
@@ -99,3 +111,7 @@ WIP
 ## About
 
 Implementation designed by the [dusk](https://dusk.network) team
+
+
+[plonk]: https://eprint.iacr.org/2019/953.pdf
+[merlin]: https://doc.dalek.rs/merlin/index.html
