@@ -5,7 +5,10 @@ Table of Contents
 =================
 
 The following section explains the workings of PLONK components:
-* 
+* Lagrangian polynomials and their bases
+* SNARK constructions
+* Permutation argument
+* Fast Fourier Transformations (maybe)
 
 
 This section explains how the aggregated PLONK work protocol works:

@@ -17,10 +17,10 @@ This library implements:
 
 * A standard composer which allows a user to build a circuit;
 * FFT over the bls12-381 scalar field, targeted towards polynomials with specific roots; 
-* A modularised implementation of KZG10 as the default polynomial commitment scheme.
-* Permutation arguments for checking evaluations of rotated wire indices 
+* A modularised implementation of KZG10 as the default polynomial commitment scheme;
+* Permutation arguments for checking evaluations of rotated wire indices. 
 
-[Merlin transcripts][merlin] are used implement the proofs. 
+[Merlin transcripts][merlin] are used implement the proofs. TH 
 
 
 ## Example
@@ -96,7 +96,9 @@ assert_eq!(ok, true);
 
 ## Documentation
 
-Documentation for this library is 
+Documentation found within this library contains an extensive explanation on how 
+the PLONK proving scheme works. The contents of the documentation are as follows:
+
 
 ## Performance
 
