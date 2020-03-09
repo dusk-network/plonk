@@ -314,7 +314,7 @@ impl StandardComposer {
         )
     }
 
-    /// Convert variables to their actual Scalars
+    /// Convert variables to their actual witness values
     pub(crate) fn witness_vars_to_scalars(
         &self,
         w_l: &[Variable],
@@ -393,8 +393,10 @@ impl StandardComposer {
         self.n = self.n + diff;
     }
 
-    // Adds a Scalar to the circuit and returns its
-    // reference in the constraint system
+    /// Add Input first calls the `Permutation` struct
+    /// to generate and allocate a new variable `var`
+    /// The composer then links the Variable to the Scalar
+    /// and returns the Variable for use in the system.
     pub fn add_input(&mut self, s: Scalar) -> Variable {
         // Get a new Variable from the permutation
         let var = self.perm.new_variable();
