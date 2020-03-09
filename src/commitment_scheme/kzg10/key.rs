@@ -81,11 +81,8 @@ impl ProverKey {
     /// it is invariant under f(z) . We can therefore compute the witness polynomial as
     /// f(x) / x - z
     pub fn compute_single_witness(&self, polynomial: &Polynomial, point: &Scalar) -> Polynomial {
-        // X - z
-        let divisor = Polynomial::from_coefficients_vec(vec![-point, Scalar::one()]);
-
         // Compute witness for regular polynomial
-        let witness_poly = polynomial / &divisor;
+        let witness_poly = polynomial.ruffini(*point);
         witness_poly
     }
 
@@ -98,9 +95,6 @@ impl ProverKey {
         point: &Scalar,
         transcript: &mut dyn TranscriptProtocol,
     ) -> Polynomial {
-        // X - z
-        let divisor = Polynomial::from_coefficients_vec(vec![-point, Scalar::one()]);
-
         let challenge = transcript.challenge_scalar(b"aggregate_witness");
         let powers = powers_of(&challenge, polynomials.len() - 1);
 
@@ -111,7 +105,7 @@ impl ProverKey {
             .zip(powers.iter())
             .map(|(poly, challenge)| poly * challenge)
             .sum();
-        let witness_poly = &numerator / &divisor;
+        let witness_poly = numerator.ruffini(*point);
         witness_poly
     }
 
