@@ -259,26 +259,14 @@ impl Composer for StandardComposer {
                 preprocessed_circuit.left_sigma_poly().clone(),
                 preprocessed_circuit.right_sigma_poly().clone(),
             ],
-            &[
-                evaluations.quot_eval,
-                evaluations.proof.lin_poly_eval,
-                evaluations.proof.a_eval,
-                evaluations.proof.b_eval,
-                evaluations.proof.c_eval,
-                evaluations.proof.left_sigma_eval,
-                evaluations.proof.right_sigma_eval,
-            ],
             &z_challenge,
             transcript,
         );
         let w_z_comm = commit_key.commit(&aggregate_witness).unwrap();
 
         // Compute W_zx
-        let shifted_witness = commit_key.compute_single_witness(
-            &z_poly,
-            &evaluations.proof.perm_eval,
-            &(z_challenge * domain.group_gen),
-        );
+        let shifted_witness =
+            commit_key.compute_single_witness(&z_poly, &(z_challenge * domain.group_gen));
         let w_zx_comm = commit_key.commit(&shifted_witness).unwrap();
         //
         // Create Proof
