@@ -67,7 +67,7 @@ impl ProverKey {
         self.check_commit_degree_is_within_bounds(polynomial.degree())?;
 
         // Compute commitment
-        let mut commitment = pippenger(
+        let commitment = pippenger(
             self.powers_of_g.iter().map(|P| G1Projective::from(P)),
             polynomial.coeffs.to_owned().into_iter(),
         );
