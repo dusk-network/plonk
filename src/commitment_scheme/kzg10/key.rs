@@ -77,30 +77,24 @@ impl ProverKey {
     /// For a given commitment to a polynomial
     /// Computes a witness that the polynomial was evaluated at the point `z`
     /// And its output was p(z)
-    /// Witness is computed as f(x) - f(z) / x-z
-    pub fn compute_single_witness(
-        &self,
-        polynomial: &Polynomial,
-        value: &Scalar,
-        point: &Scalar,
-    ) -> Polynomial {
+    /// Witness is computed as f(x) - f(z) / x-z however since the witness is the quotient polynomial
+    /// it is invariant under f(z) . We can therefore compute the witness polynomial as
+    /// f(x) / x - z
+    pub fn compute_single_witness(&self, polynomial: &Polynomial, point: &Scalar) -> Polynomial {
         // X - z
         let divisor = Polynomial::from_coefficients_vec(vec![-point, Scalar::one()]);
 
         // Compute witness for regular polynomial
-        let witness_poly = {
-            let f_minus_z = polynomial - value;
-            &f_minus_z / &divisor
-        };
+        let witness_poly = polynomial / &divisor;
         witness_poly
     }
 
     /// Allows you to compute a witness for multiple polynomials at the same point
-    /// XXX: refactor single case to use this method
+    /// We apply the same optimisation mentioned in `compute_single` by removing f(z) from
+    /// the computation of the witness
     pub(crate) fn compute_aggregate_witness(
         &self,
         polynomials: &[Polynomial],
-        values: &[Scalar],
         point: &Scalar,
         transcript: &mut dyn TranscriptProtocol,
     ) -> Polynomial {
@@ -111,26 +105,23 @@ impl ProverKey {
         let powers = powers_of(&challenge, polynomials.len() - 1);
 
         assert_eq!(powers.len(), polynomials.len());
-        assert_eq!(powers.len(), values.len());
 
         let numerator: Polynomial = polynomials
             .into_iter()
-            .zip(values.iter())
             .zip(powers.iter())
-            .map(|((poly, value), challenge)| &(poly - value) * challenge)
+            .map(|(poly, challenge)| poly * challenge)
             .sum();
         let witness_poly = &numerator / &divisor;
         witness_poly
     }
 
-    ///XXX: Refactor this to use open_multiple
     pub fn open_single(
         &self,
         polynomial: &Polynomial,
         value: &Scalar,
         point: &Scalar,
     ) -> Result<Proof, Error> {
-        let witness_poly = self.compute_single_witness(polynomial, value, point);
+        let witness_poly = self.compute_single_witness(polynomial, point);
         Ok(Proof {
             commitment_to_witness: self.commit(&witness_poly)?,
             evaluated_point: *value,
@@ -154,8 +145,7 @@ impl ProverKey {
 
         // Compute the aggregate Witness for polynomials
         //
-        let witness_poly =
-            self.compute_aggregate_witness(polynomials, &evaluations, point, transcript);
+        let witness_poly = self.compute_aggregate_witness(polynomials, point, transcript);
 
         // Commit to witness polynomial
         //
