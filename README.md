@@ -22,6 +22,7 @@ This library implements:
 
 [Merlin transcripts][merlin] are used implement the proofs. TH 
 
+**Ongoing : Currently the multi scalar multiplication algorithm is not working as expected, so the prover run time has been overflated**
 
 ## Example
 

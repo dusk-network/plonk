@@ -13,9 +13,11 @@ use crate::fft::{EvaluationDomain, Evaluations, Polynomial};
 use crate::permutation::Permutation;
 use crate::transcript::TranscriptProtocol;
 use bls12_381::Scalar;
-/// A composer is a circuit builder which
-/// will dictate how a circuit is built.
-/// There is a default Composer called `StandardComposer`.
+use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
+use std::collections::HashMap;
+/// A composer is a circuit builder
+/// and will dictate how a circuit is built
+/// We will have a default Composer called `StandardComposer`
 pub struct StandardComposer {
     // n represents the number of arithmetic gates in the circuit
     n: usize,
@@ -39,6 +41,10 @@ pub struct StandardComposer {
     w_l: Vec<Variable>,
     w_r: Vec<Variable>,
     w_o: Vec<Variable>,
+
+    // These are the actual variable values
+    // N.B. They should not be exposed to the end user once added into the composer
+    pub(crate) variables: HashMap<Variable, Scalar>,
 
     pub(crate) perm: Permutation,
 }
@@ -142,9 +148,8 @@ impl Composer for StandardComposer {
         // 1. Compute witness Polynomials
         //
         // Convert Variables to Scalars
-        let (w_l_scalar, w_r_scalar, w_o_scalar) = self
-            .perm
-            .witness_vars_to_scalars(&self.w_l, &self.w_r, &self.w_o);
+        let (w_l_scalar, w_r_scalar, w_o_scalar) =
+            self.witness_vars_to_scalars(&self.w_l, &self.w_r, &self.w_o);
 
         // Witnesses are now in evaluation form, convert them to coefficients
         // So that we may commit to them
@@ -258,21 +263,12 @@ impl Composer for StandardComposer {
         let aggregate_witness = commit_key.compute_aggregate_witness(
             &[
                 quot,
-                lin_poly.clone(),
-                w_l_poly.clone(),
-                w_r_poly.clone(),
-                w_o_poly.clone(),
+                lin_poly,
+                w_l_poly,
+                w_r_poly,
+                w_o_poly,
                 preprocessed_circuit.left_sigma_poly().clone(),
                 preprocessed_circuit.right_sigma_poly().clone(),
-            ],
-            &[
-                evaluations.quot_eval,
-                evaluations.proof.lin_poly_eval,
-                evaluations.proof.a_eval,
-                evaluations.proof.b_eval,
-                evaluations.proof.c_eval,
-                evaluations.proof.left_sigma_eval,
-                evaluations.proof.right_sigma_eval,
             ],
             &z_challenge,
             transcript,
@@ -280,11 +276,8 @@ impl Composer for StandardComposer {
         let w_z_comm = commit_key.commit(&aggregate_witness).unwrap();
 
         // Compute W_zx
-        let shifted_witness = commit_key.compute_single_witness(
-            &z_poly,
-            &evaluations.proof.perm_eval,
-            &(z_challenge * domain.group_gen),
-        );
+        let shifted_witness =
+            commit_key.compute_single_witness(&z_poly, &(z_challenge * domain.group_gen));
         let w_zx_comm = commit_key.commit(&shifted_witness).unwrap();
         //
         // Create Proof
@@ -328,6 +321,20 @@ impl StandardComposer {
         )
     }
 
+    /// Convert variables to their actual witness values
+    pub(crate) fn witness_vars_to_scalars(
+        &self,
+        w_l: &[Variable],
+        w_r: &[Variable],
+        w_o: &[Variable],
+    ) -> (Vec<Scalar>, Vec<Scalar>, Vec<Scalar>) {
+        (
+            w_l.par_iter().map(|var| self.variables[var]).collect(),
+            w_r.par_iter().map(|var| self.variables[var]).collect(),
+            w_o.par_iter().map(|var| self.variables[var]).collect(),
+        )
+    }
+
     fn compute_quotient_opening_poly(
         n: usize,
         t_lo_poly: &Polynomial,
@@ -364,6 +371,8 @@ impl StandardComposer {
             w_r: Vec::with_capacity(expected_size),
             w_o: Vec::with_capacity(expected_size),
 
+            variables: HashMap::with_capacity(expected_size),
+
             perm: Permutation::new(),
         }
     }
@@ -391,10 +400,17 @@ impl StandardComposer {
         self.n = self.n + diff;
     }
 
-    // Adds a Scalar to the circuit and returns its
-    // reference inside the constraint system
+    /// Add Input first calls the `Permutation` struct
+    /// to generate and allocate a new variable `var`
+    /// The composer then links the Variable to the Scalar
+    /// and returns the Variable for use in the system.
     pub fn add_input(&mut self, s: Scalar) -> Variable {
-        self.perm.new_variable(s)
+        // Get a new Variable from the permutation
+        let var = self.perm.new_variable();
+        // The composer now links the Scalar to the Variable returned from the Permutation
+        self.variables.insert(var, s);
+
+        var
     }
 
     // Adds a add gate to the circuit
@@ -448,8 +464,8 @@ impl StandardComposer {
         let q_c = Scalar::zero();
 
         // Compute the output wire
-        let a_eval = self.perm.variables[&a];
-        let b_eval = self.perm.variables[&b];
+        let a_eval = self.variables[&a];
+        let b_eval = self.variables[&b];
         let c_eval = (q_l * a_eval + q_r * b_eval) + pi;
         let c = self.add_input(c_eval);
 
@@ -493,8 +509,8 @@ impl StandardComposer {
         let q_c = Scalar::zero();
 
         // Compute output wire
-        let a_eval = self.perm.variables[&a];
-        let b_eval = self.perm.variables[&b];
+        let a_eval = self.variables[&a];
+        let b_eval = self.variables[&b];
         let c_eval = (q_m * a_eval * b_eval) + pi;
         let c = self.add_input(c_eval);
 
