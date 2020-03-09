@@ -304,19 +304,6 @@ impl<'a, 'b> SubAssign<&'a Polynomial> for Polynomial {
     }
 }
 
-impl<'a, 'b> Div<&'a Polynomial> for &'b Polynomial {
-    type Output = Polynomial;
-
-    #[inline]
-    fn div(self, other: &'a Polynomial) -> Polynomial {
-        if self.is_zero() || other.is_zero() {
-            Polynomial::zero()
-        } else {
-            self.divide_with_q_and_r(other).expect("division failed").0
-        }
-    }
-}
-// XXX: We should refactor this polynomial division impl
 impl Polynomial {
     #[inline]
     fn leading_coefficient(&self) -> Option<&Scalar> {
@@ -327,35 +314,29 @@ impl Polynomial {
     fn iter_with_index(&self) -> Vec<(usize, Scalar)> {
         self.iter().cloned().enumerate().collect()
     }
-    /// Divide self by another (sparse or dense) polynomial, and returns the
-    /// quotient and remainder.
-    pub(crate) fn divide_with_q_and_r(&self, divisor: &Self) -> Option<(Polynomial, Polynomial)> {
-        if self.is_zero() {
-            Some((Polynomial::zero(), Polynomial::zero()))
-        } else if divisor.is_zero() {
-            panic!("Dividing by zero polynomial")
-        } else if self.degree() < divisor.degree() {
-            Some((Polynomial::zero(), self.clone().into()))
-        } else {
-            // Now we know that self.degree() >= divisor.degree();
-            let mut quotient = vec![Scalar::zero(); self.degree() - divisor.degree() + 1];
-            let mut remainder: Polynomial = self.clone().into();
-            // Can unwrap here because we know self is not zero.
-            let divisor_leading_inv = divisor.leading_coefficient().unwrap().invert().unwrap();
-            while !remainder.is_zero() && remainder.degree() >= divisor.degree() {
-                let cur_q_coeff = *remainder.coeffs.last().unwrap() * &divisor_leading_inv;
-                let cur_q_degree = remainder.degree() - divisor.degree();
-                quotient[cur_q_degree] = cur_q_coeff;
 
-                for (i, div_coeff) in divisor.iter_with_index() {
-                    remainder[cur_q_degree + i] -= &(cur_q_coeff * &div_coeff);
-                }
-                while let Some(true) = remainder.coeffs.last().map(|c| (c == &Scalar::zero())) {
-                    remainder.coeffs.pop();
-                }
-            }
-            Some((Polynomial::from_coefficients_vec(quotient), remainder))
+    /// Divides `self` by x-z using Ruffinis method
+    pub fn ruffini(&self, z: Scalar) -> Polynomial {
+        let mut quotient: Vec<Scalar> = Vec::with_capacity(self.degree());
+        let mut k = Scalar::zero();
+
+        // Reverse the results and use Ruffini's method to compute the quotient
+        // The coefficients must be reversed as Ruffini's method
+        // starts with the leading coefficient, while Polynomials
+        // are stored in increasing order ie the leading coefficient is the last element
+        for coeff in self.coeffs.iter().rev() {
+            let t = coeff + k;
+            quotient.push(t);
+            k = z * t;
         }
+
+        // Pop off the last element, it is the remainder term
+        // For PLONK, we only care about perfect factors
+        quotient.pop();
+
+        // Reverse the results for storage in the Polynomial struct
+        quotient.reverse();
+        Polynomial::from_coefficients_vec(quotient)
     }
 }
 
@@ -423,13 +404,44 @@ impl<'a, 'b> Sub<&'a Scalar> for &'b Polynomial {
 }
 
 #[test]
-fn test_div() {
-    // X^2 + 4x + 4
+fn test_ruffini() {
+    // X^2 + 4X + 4
     let quadratic =
         Polynomial::from_coefficients_vec(vec![Scalar::from(4), Scalar::from(4), Scalar::one()]);
-    // X+2
-    let factor = Polynomial::from_coefficients_vec(vec![Scalar::from(2), Scalar::one()]);
 
-    let quotient = &quadratic / &factor;
-    assert_eq!(quotient, factor);
+    // Divides X^2 + 4X + 4 by X+2
+    let quotient = quadratic.ruffini(-Scalar::from(2));
+
+    // X+2
+    let expected_quotient = Polynomial::from_coefficients_vec(vec![Scalar::from(2), Scalar::one()]);
+
+    assert_eq!(quotient, expected_quotient);
+}
+#[test]
+fn test_ruffini_zero() {
+    // Tests the two situations where zero can be added to Ruffini :
+    // (1) Zero polynomial in the divided
+    // (2) Zero as the constant term for the polynomial you are dividing by
+    // In the first case, we should get zero as the quotient
+    // In the second case, this is the same as dividing by X
+
+    // (1)
+    //
+    // Zero polynomial
+    let zero = Polynomial::zero();
+    // Quotient is invariant under any argument we pass
+    let quotient = zero.ruffini(-Scalar::from(2));
+    assert_eq!(quotient, Polynomial::zero());
+
+    // (2)
+    //
+    // X^2 + X
+    let p = Polynomial::from_coefficients_vec(vec![Scalar::zero(), Scalar::one(), Scalar::one()]);
+
+    // Divides X^2 + X by X
+    let quotient = p.ruffini(Scalar::zero());
+
+    // X + 1
+    let expected_quotient = Polynomial::from_coefficients_vec(vec![Scalar::one(), Scalar::one()]);
+    assert_eq!(quotient, expected_quotient);
 }
