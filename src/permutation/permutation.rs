@@ -28,23 +28,21 @@ impl Permutation {
             out_sigma_mapping: None,
         }
     }
-    /// Adds a Scalar into the system and creates a new variable for it
-    /// If the Scalar has not been previously added to the system
+    /// Creates a new Variable by incrementing the index of the Variable Map
+    /// This is correct as whenever we add a new Variable into the system
+    /// It is always allocated in the Variable Map
     pub fn new_variable(&mut self) -> Variable {
         // Generate the Variable
         let var = Variable(self.variable_map.keys().len());
-        // Allocate space for the Variable in the map
-        self.allocate_variable_sapce(var);
-        //Return the variable
-        var
-    }
 
-    fn allocate_variable_sapce(&mut self, var: Variable) {
         // Allocate space for the Variable on the variable_map
         // Each vector is initialised with a capacity of 16.
         // This number is a best guess estimate.
         self.variable_map.insert(var, Vec::with_capacity(16usize));
+
+        var
     }
+
     /// Checks that the variables are valid by determining if they have been added to the system
     fn valid_variables(&self, variables: &[Variable]) -> bool {
         let results: Vec<bool> = variables
