@@ -6,10 +6,6 @@ use itertools::izip;
 use rayon::iter::*;
 use std::collections::HashMap;
 pub struct Permutation {
-    // These are the actual variable values
-    // N.B. They should not be exposed to the end user once added into the composer
-    pub(crate) variables: HashMap<Variable, Scalar>,
-
     // Maps a variable to the wires that it is assosciated to
     pub(crate) variable_map: HashMap<Variable, Vec<WireData>>,
 
@@ -25,7 +21,6 @@ impl Permutation {
     }
     pub fn with_capacity(expected_size: usize) -> Permutation {
         Permutation {
-            variables: HashMap::with_capacity(expected_size),
             variable_map: HashMap::with_capacity(expected_size),
 
             left_sigma_mapping: None,
@@ -33,13 +28,12 @@ impl Permutation {
             out_sigma_mapping: None,
         }
     }
-    /// Adds a Scalar into the system and creates a new variable for it
-    /// If the Scalar has not been previously added to the system
-    pub fn new_variable(&mut self, s: Scalar) -> Variable {
+    /// Creates a new Variable by incrementing the index of the Variable Map
+    /// This is correct as whenever we add a new Variable into the system
+    /// It is always allocated in the Variable Map
+    pub fn new_variable(&mut self) -> Variable {
         // Generate the Variable
-        let var = Variable(self.variables.keys().len());
-        // Push scalar into the system
-        self.variables.insert(var, s);
+        let var = Variable(self.variable_map.keys().len());
 
         // Allocate space for the Variable on the variable_map
         // Each vector is initialised with a capacity of 16.
@@ -48,11 +42,12 @@ impl Permutation {
 
         var
     }
+
     /// Checks that the variables are valid by determining if they have been added to the system
     fn valid_variables(&self, variables: &[Variable]) -> bool {
         let results: Vec<bool> = variables
             .into_par_iter()
-            .map(|var| self.variables.contains_key(&var))
+            .map(|var| self.variable_map.contains_key(&var))
             .filter(|boolean| boolean == &false)
             .collect();
 
@@ -84,19 +79,6 @@ impl Permutation {
             let vec_wire_data = self.variable_map.get_mut(var).unwrap();
             vec_wire_data.push(*wire_data);
         }
-    }
-    /// Convert variables to their actual Scalars
-    pub(crate) fn witness_vars_to_scalars(
-        &self,
-        w_l: &[Variable],
-        w_r: &[Variable],
-        w_o: &[Variable],
-    ) -> (Vec<Scalar>, Vec<Scalar>, Vec<Scalar>) {
-        (
-            w_l.par_iter().map(|var| self.variables[var]).collect(),
-            w_r.par_iter().map(|var| self.variables[var]).collect(),
-            w_o.par_iter().map(|var| self.variables[var]).collect(),
-        )
     }
 
     // Performs shift by one permutation and computes sigma_1, sigma_2 and sigma_3 permutations from the variable maps
@@ -518,14 +500,14 @@ mod test {
 
         let num_variables = 10u8;
         for i in 0..num_variables {
-            let var = perm.new_variable(Fr::from(i as u64));
+            let var = perm.new_variable();
             assert_eq!(var.0, i as usize);
             assert_eq!(perm.variable_map.len(), (i as usize) + 1);
-            assert_eq!(perm.variables.len(), (i as usize) + 1);
+            assert_eq!(perm.variable_map.len(), (i as usize) + 1);
         }
 
-        let var_one = perm.new_variable(Fr::one());
-        let var_two = perm.new_variable(Fr::one() + &Fr::one());
+        let var_one = perm.new_variable();
+        let var_two = perm.new_variable();
 
         let gate_size = 100;
         for i in 0..gate_size {
@@ -548,15 +530,15 @@ mod test {
     fn test_permutation_compute_sigmas_only_left_wires() {
         let mut perm = Permutation::new();
 
-        let var_zero = perm.new_variable(Fr::zero());
-        let var_one = perm.new_variable(Fr::one());
-        let var_two = perm.new_variable(Fr::from(2));
-        let var_three = perm.new_variable(Fr::from(3));
-        let var_four = perm.new_variable(Fr::from(4));
-        let var_five = perm.new_variable(Fr::from(5));
-        let var_six = perm.new_variable(Fr::from(6));
-        let var_seven = perm.new_variable(Fr::from(7));
-        let var_eight = perm.new_variable(Fr::from(8));
+        let var_zero = perm.new_variable();
+        let var_one = perm.new_variable();
+        let var_two = perm.new_variable();
+        let var_three = perm.new_variable();
+        let var_four = perm.new_variable();
+        let var_five = perm.new_variable();
+        let var_six = perm.new_variable();
+        let var_seven = perm.new_variable();
+        let var_eight = perm.new_variable();
 
         let num_wire_mappings = 4;
 
@@ -654,9 +636,9 @@ mod test {
     fn test_permutation_compute_sigmas() {
         let mut perm: Permutation = Permutation::new();
 
-        let var_one = perm.new_variable(Fr::one());
-        let var_two = perm.new_variable(Fr::one() + &Fr::one());
-        let var_three = perm.new_variable(Fr::one() + &Fr::one() + &Fr::one());
+        let var_one = perm.new_variable();
+        let var_two = perm.new_variable();
+        let var_three = perm.new_variable();
 
         let num_wire_mappings = 4;
 
@@ -748,9 +730,9 @@ mod test {
 
         let num_wire_mappings = 4;
 
-        let var_one = perm.new_variable(Fr::one());
-        let var_two = perm.new_variable(Fr::one() + &Fr::one());
-        let var_three = perm.new_variable(Fr::one() + &Fr::one() + &Fr::one());
+        let var_one = perm.new_variable();
+        let var_two = perm.new_variable();
+        let var_three = perm.new_variable();
 
         // Add four wire mappings
         perm.add_variable_to_map(var_one, var_one, var_two, 0);
@@ -796,9 +778,9 @@ mod test {
         let mut perm = Permutation::new();
         let domain = EvaluationDomain::new(num_wire_mappings).unwrap();
 
-        let var_one = perm.new_variable(Fr::one());
-        let var_two = perm.new_variable(Fr::one() + &Fr::one());
-        let var_three = perm.new_variable(Fr::one() + &Fr::one() + &Fr::one());
+        let var_one = perm.new_variable();
+        let var_two = perm.new_variable();
+        let var_three = perm.new_variable();
 
         perm.add_variable_to_map(var_one, var_two, var_three, 0);
         perm.add_variable_to_map(var_three, var_two, var_one, 1);
