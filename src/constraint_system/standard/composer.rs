@@ -252,10 +252,10 @@ impl Composer for StandardComposer {
         let aggregate_witness = commit_key.compute_aggregate_witness(
             &[
                 quot,
-                lin_poly.clone(),
-                w_l_poly.clone(),
-                w_r_poly.clone(),
-                w_o_poly.clone(),
+                lin_poly,
+                w_l_poly,
+                w_r_poly,
+                w_o_poly,
                 preprocessed_circuit.left_sigma_poly().clone(),
                 preprocessed_circuit.right_sigma_poly().clone(),
             ],
