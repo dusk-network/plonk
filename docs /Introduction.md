@@ -11,7 +11,7 @@ The following section explains the workings of PLONK components:
 * [Polynomial commitment schemes](::notes::commitments)
 
 
-This section explains how the aggregated PLONK work protocol works:
+This section explains how elements of the aggregated PLONK work protocol works:
 * [Langrangian Interpolations](::notes::interpolation)
 * [Prover and Verify functions](::notes::prove_verfify)
 * [Unbalanced permutation arguments](::notes::pa)

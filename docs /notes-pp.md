@@ -1,5 +1,5 @@
 The notes within this module explain the inner workings
-of the permuatation arguments.
+of the permuatation polynomial evaluations.
 
 
 Permutation polynomials
