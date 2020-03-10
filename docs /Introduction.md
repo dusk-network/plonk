@@ -1,5 +1,5 @@
 This module is a self contained file which explains
-how PLONK and the protocol components work.
+how PLONK and its protocol components work.
 
 Table of Contents
 =================

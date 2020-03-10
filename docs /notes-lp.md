@@ -1,2 +1,2 @@
-In this module are the notes on how lagrangian polynomials 
+This module contais the notes on how lagrangian polynomials 
 are constructed.

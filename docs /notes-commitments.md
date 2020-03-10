@@ -1,2 +1,2 @@
-This module explains how how polynomial commitment
-schemes work.
+This module explains the inner workings of
+commitment schemes. 

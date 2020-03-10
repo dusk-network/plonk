@@ -1,2 +1,2 @@
-This module contains the methodology for 
-constructing ZK-SNARKS.
+This module contains the methodology of how
+zk-SNARKS are constructed.
