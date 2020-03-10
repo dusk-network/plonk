@@ -70,7 +70,8 @@ They are wriiten in the form
 
 ![data points](https://wikimedia.org/api/rest_v1/media/math/render/svg/5e4f064b4751bb32d87cc829aca1b2b2f38d4a6d)
 
-where no two  ![x_j](https://wikimedia.org/api/rest_v1/media/math/render/svg/5db47cb3d2f9496205a17a6856c91c1d3d363ccd) are the same, the interpolation polynomial in the Lagrange form is a linear combination
+where no two  ![x_j](https://wikimedia.org/api/rest_v1/media/math/render/svg/5db47cb3d2f9496205a17a6856c91c1d3d363ccd) are the same, 
+the interpolation polynomial in the Lagrange form is a linear combination
 
 ![Lagrange polynomial](https://wikimedia.org/api/rest_v1/media/math/render/svg/d07f3378ff7718c345e5d3d4a57d3053190226a0)
 
@@ -106,19 +107,27 @@ of the form
 
 Calculated as follows:
 
-$\mathcal{L}_{3,0}(x) = \frac{(x-x_{1})(x-x_{2})(x-x_{3})}{(x_{0}-x_{1})(x_{0}-x_{2})(x_{0}-x_{3})} = \frac{(x-0)(x-1)(x-2)}{(-1-0)(-1-1)(-1-2)} = \frac{x(x^{2}-3x+2)}{(-1)(-2)(-3)} = -\frac{1}{6}(x^{3}-3x^{2}+2x)$
+$\mathcal{L}_{3,0}(x) = \frac{(x-x_{1})(x-x_{2})(x-x_{3})}{(x_{0}-x_{1})(x_{0}-x_{2})(x_{0}-x_{3})} = 
+\frac{(x-0)(x-1)(x-2)}{(-1-0)(-1-1)(-1-2)} = \frac{x(x^{2}-3x+2)}{(-1)(-2)(-3)} = -\frac{1}{6}(x^{3}-3x^{2}+2x)$
 
-$\mathcal{L}_{3,1}(x) = \frac{(x-x_{0})(x-x_{2})(x-x_{3})}{(x_{1}-x_{0})(x_{1}-x_{2})(x_{1}-x_{3})} = \frac{(x+1)(x-1)(x-2)}{(0+1)(0-1)(0-2)} = \frac{(x^2-1)(x-2)}{(1)(-1)(-2)} = \frac{1}{2}(x^{3}-2x^{2}-x+2)$ 
+$\mathcal{L}_{3,1}(x) = \frac{(x-x_{0})(x-x_{2})(x-x_{3})}{(x_{1}-x_{0})(x_{1}-x_{2})(x_{1}-x_{3})} = 
+\frac{(x+1)(x-1)(x-2)}{(0+1)(0-1)(0-2)} = \frac{(x^2-1)(x-2)}{(1)(-1)(-2)} = \frac{1}{2}(x^{3}-2x^{2}-x+2)$ 
 
-$\mathcal{L}_{3,2}(x) = \frac{(x-x_{0})(x-x_{1})(x-x_{3})}{(x_{2}-x_{0})(x_{2}-x_{1})(x_{2}-x_{3})} = \frac{(x+1)(x-0)(x-2)}{(1+1)(1-0)(1-2)} = \frac{x(x^2-x-2)}{(2)(1)(-1)} = -\frac{1}{2}(x^{3}-x^{2}-2x)$ 
+$\mathcal{L}_{3,2}(x) = \frac{(x-x_{0})(x-x_{1})(x-x_{3})}{(x_{2}-x_{0})(x_{2}-x_{1})(x_{2}-x_{3})} = 
+\frac{(x+1)(x-0)(x-2)}{(1+1)(1-0)(1-2)} = \frac{x(x^2-x-2)}{(2)(1)(-1)} = -\frac{1}{2}(x^{3}-x^{2}-2x)$ 
 
-$\mathcal{L}_{3,3}(x) = \frac{(x-x_{0})(x-x_{1})(x-x_{2})}{(x_{3}-x_{0})(x_{3}-x_{1})(x_{3}-x_{2})} = \frac{(x+1)(x-0)(x-1)}{(2+1)(2-0)(2-1)} = \frac{x(x^2-1)}{(3)(2)(1)} = \frac{1}{6}(x^{3}-x)$ 
+$\mathcal{L}_{3,3}(x) = \frac{(x-x_{0})(x-x_{1})(x-x_{2})}{(x_{3}-x_{0})(x_{3}-x_{1})(x_{3}-x_{2})} = 
+\frac{(x+1)(x-0)(x-1)}{(2+1)(2-0)(2-1)} = \frac{x(x^2-1)}{(3)(2)(1)} = \frac{1}{6}(x^{3}-x)$ 
 
 
 This provides the unique polynomial which fits the given data sets, 
 given by the interpolating polynomial
 
-$p_{3}(x) = \sum_{j=0}^{3}y_{j}\mathcal{L}_{3,j}(x) = y_{0}\mathcal{L}_{3,0}(x) + y_{1}\mathcal{L}_{3,1}(x) + y_{2}\mathcal{L}_{3,2}(x) + y_{3}\mathcal{L}_{3,3}(x) = (3)(-\frac{1}{6})(x^{3}-3x^{2}+2x) + (-4)\frac{1}{2}(x^{3}-2x^{2}-x+2) + (5)(-\frac{1}{2})(x^{3}-x^{2}-2x) + (-6)\frac{1}{6}(x^{3}-x) = (-\frac{1}{2})(x^{3}-3x^{2}+2x) + (-2)(x^{3}-2x^{2}-x+2) + (-\frac{5}{2})(x^{3}-x^{2}-2x) - (x^{3}-x) = (-\frac{1}{2}-2-\frac{5}{2}-1)x^{3} + (\frac{3}{2} + 4 + \frac{5}{2})x^{2} + (-1+2+5+1)x - 4 = -6x^{3}+8x^{2}+7x-4$
+$p_{3}(x) = \sum_{j=0}^{3}y_{j}\mathcal{L}_{3,j}(x) = y_{0}\mathcal{L}_{3,0}(x) + y_{1}\mathcal{L}_{3,1}(x) + y_{2}\mathcal{L}_{3,2}(x) + y_{3}\mathcal{L}_{3,3}(x) = 
+(3)(-\frac{1}{6})(x^{3}-3x^{2}+2x) + (-4)\frac{1}{2}(x^{3}-2x^{2}-x+2) + (5)(-\frac{1}{2})(x^{3}-x^{2}-2x) + (-6)\frac{1}{6}(x^{3}-x) = 
+(-\frac{1}{2})(x^{3}-3x^{2}+2x) + (-2)(x^{3}-2x^{2}-x+2) + (-\frac{5}{2})(x^{3}-x^{2}-2x) - (x^{3}-x) = 
+(-\frac{1}{2}-2-\frac{5}{2}-1)x^{3} + (\frac{3}{2} + 4 + \frac{5}{2})x^{2} + (-1+2+5+1)x - 4 = 
+-6x^{3}+8x^{2}+7x-4$
 
 Lagrangian polynomials are verifiable; if each x_{i}, for i\\ \exist
 0...n, is substituted into p_{n}(x), then we obtain p_{n}(x_{i}) = 
