@@ -410,7 +410,8 @@ impl<E: PairingEngine> StandardComposer<E> {
         q_c: E::Fr,
         pi: E::Fr,
     ) -> Variable {
-        let o = self.eval(&l) + &self.eval(&r);
+        // o =
+        let o = (q_l * &self.eval(&l)) + &(q_r * &self.eval(&r)) + &pi + &q_c;
         let o = self.add_input(o);
 
         self.add_gate(l, r, o, q_l, q_r, q_o, q_c, pi);
@@ -458,7 +459,7 @@ impl<E: PairingEngine> StandardComposer<E> {
         q_c: E::Fr,
         pi: E::Fr,
     ) -> Variable {
-        let o = self.eval(&l) * &self.eval(&r);
+        let o = ((self.eval(&l) * &self.eval(&r)) * &q_m) + &q_c + &pi;
         let o = self.add_input(o);
 
         self.mul_gate(l, r, o, q_m, q_o, q_c, pi);
@@ -689,6 +690,52 @@ mod tests {
 
                 let one_seventeen = composer.add_input(Fr::from(117u16));
                 simple_mul_gadget(&mut composer, nine, thirteen, one_seventeen);
+            },
+            200,
+        );
+        assert!(ok);
+    }
+
+    #[test]
+    fn test_correct_add_mul() {
+        let ok = test_gadget(
+            |mut composer| {
+                // Verify that (4+5) * (7-6) = 9
+                let four = composer.add_input(Fr::from(4u8));
+                let five = composer.add_input(Fr::from(5u8));
+                let four_p_five = composer.add(
+                    four,
+                    five,
+                    Fr::one(),
+                    Fr::one(),
+                    -Fr::one(),
+                    Fr::zero(),
+                    Fr::zero(),
+                );
+
+                let six = composer.add_input(Fr::from(6u8));
+                let seven = composer.add_input(Fr::from(7u8));
+                let seven_m_six = composer.add(
+                    seven,
+                    six,
+                    Fr::one(),
+                    -Fr::one(),
+                    -Fr::one(),
+                    Fr::zero(),
+                    Fr::zero(),
+                );
+
+                let prod_res = composer.mul(
+                    four_p_five,
+                    seven_m_six,
+                    Fr::one(),
+                    -Fr::one(),
+                    Fr::zero(),
+                    Fr::zero(),
+                );
+
+                let nine = Fr::from(9u16);
+                composer.constrain_to_constant(prod_res, nine, Fr::zero());
             },
             200,
         );
