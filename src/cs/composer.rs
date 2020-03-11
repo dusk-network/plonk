@@ -411,7 +411,7 @@ impl<E: PairingEngine> StandardComposer<E> {
         pi: E::Fr,
     ) -> Variable {
         // o =
-        let o = (q_l * &self.eval(&l)) + &(q_r * &self.eval(&r)) + &pi + &q_c;
+        let o = ((q_l * &self.eval(&l)) + &(q_r * &self.eval(&r)) + &pi + &q_c) * &-q_o;
         let o = self.add_input(o);
 
         self.add_gate(l, r, o, q_l, q_r, q_o, q_c, pi);
@@ -459,7 +459,7 @@ impl<E: PairingEngine> StandardComposer<E> {
         q_c: E::Fr,
         pi: E::Fr,
     ) -> Variable {
-        let o = ((self.eval(&l) * &self.eval(&r)) * &q_m) + &q_c + &pi;
+        let o = (((self.eval(&l) * &self.eval(&r)) * &q_m) + &q_c + &pi) * &-q_o;
         let o = self.add_input(o);
 
         self.mul_gate(l, r, o, q_m, q_o, q_c, pi);
