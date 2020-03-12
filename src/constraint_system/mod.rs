@@ -1,4 +1,4 @@
-pub mod linear_combination;
 pub mod standard;
+pub mod variable;
 
-pub use linear_combination::{Variable, WireData};
+pub use variable::{Variable, WireData};
