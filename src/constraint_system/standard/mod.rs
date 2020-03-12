@@ -1,5 +1,5 @@
 pub mod composer;
-pub(crate) mod linearisation_poly; // XXX: change visibility to `mod linearisation_poly` we keep it like this for now, so that opening_poly won't complain
+mod linearisation_poly;
 mod preprocessed_circuit;
 pub mod proof;
 mod quotient_poly;
