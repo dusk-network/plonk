@@ -10,13 +10,14 @@ mod util;
 extern crate failure;
 
 #[doc(include = "../docs/introduction.md")]
-mod notes {
+pub mod notes {
     #[doc(include = "../docs/notes-lp.md")]
-    mod notes_interpolation {}
+    pub mod notes_interpolation {}
     #[doc(include = "../docs/notes-commitments.md")]
-    mod notes_KZG10 {}
+    pub mod notes_kzg10 {}
     #[doc(include = "../docs/notes-pp.md")]
-    mod notes_pa {}
+    pub mod notes_pa {}
     #[doc(include = "../docs/notes-snark.md")]
-    mod notes_prove_verify {}
+    pub mod notes_prove_verify {}
+
 }
