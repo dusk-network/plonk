@@ -18,4 +18,5 @@ pub enum WireData {
     Left(usize),
     Right(usize),
     Output(usize),
+    Fourth(usize),
 }
