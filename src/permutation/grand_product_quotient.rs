@@ -1,6 +1,6 @@
 use crate::fft::Evaluations;
 use crate::fft::{EvaluationDomain, Polynomial};
-use crate::permutation::constants::{K1, K2};
+use crate::permutation::constants::{K1, K2, K3};
 use bls12_381::Scalar;
 use rayon::prelude::*;
 /// Computes the Identity permutation polynomial component of the grand product
@@ -13,11 +13,12 @@ pub fn compute_identity_polynomial(
     wl_coeffs: &Polynomial,
     wr_coeffs: &Polynomial,
     wo_coeffs: &Polynomial,
+    w4_coeffs: &Polynomial,
 ) -> Evaluations {
     let n = domain.size();
     let domain_4n = EvaluationDomain::new(4 * n).unwrap();
 
-    // (a(x) + beta * X + gamma) (b(X) + beta * k1 * X + gamma) (c(X) + beta * k2 * X + gamma)
+    // (a(x) + beta * X + gamma) (b(X) + beta * k1 * X + gamma) (c(X) + beta * k2 * X + gamma)(d(X) + beta * k3 * X + gamma)
     let mut a = wl_coeffs.to_vec();
     a[0] = a[0] + gamma;
     a[1] = a[1] + beta;
@@ -32,17 +33,23 @@ pub fn compute_identity_polynomial(
     let beta_k2 = *beta * K2;
     c[1] = c[1] + &beta_k2;
 
+    let mut d = w4_coeffs.to_vec();
+    d[0] = d[0] + gamma;
+    let beta_k3 = *beta * K3;
+    d[1] = d[1] + &beta_k3;
+
     domain_4n.coset_fft_in_place(&mut a);
     domain_4n.coset_fft_in_place(&mut b);
     domain_4n.coset_fft_in_place(&mut c);
+    domain_4n.coset_fft_in_place(&mut d);
 
     let t_2: Vec<_> = (0..domain_4n.size())
         .into_par_iter()
         .map(|i| {
             let z = &z_eval_4n[i];
 
-            let mut product = a[i] * &b[i] * &c[i]; // (a(x) + beta * X + gamma) (b(X) + beta * k1 * X + gamma) (c(X) + beta * k2 * X + gamma)
-            product = product * z; // (a(x) + beta * X + gamma) (b(X) + beta * k1 * X + gamma) (c(X) + beta * k2 * X + gamma)z(X) * alpha^2
+            let mut product = a[i] * &b[i] * &c[i] * &d[i]; // (a(x) + beta * X + gamma) (b(X) + beta * k1 * X + gamma) (c(X) + beta * k2 * X + gamma)(d(X) + beta * k3 * X + gamma)
+            product = product * z; // (a(x) + beta * X + gamma) (b(X) + beta * k1 * X + gamma) (c(X) + beta * k2 * X + gamma)(d(X) + beta * k3 * X + gamma)z(X) * alpha^2
 
             product * alpha_sq
         })
@@ -59,18 +66,21 @@ pub fn compute_copy_polynomial(
     wl_poly: &Polynomial,
     wr_poly: &Polynomial,
     wo_poly: &Polynomial,
+    w4_poly: &Polynomial,
     left_sigma_poly: &Polynomial,
     right_sigma_poly: &Polynomial,
     out_sigma_poly: &Polynomial,
+    fourth_sigma_poly: &Polynomial,
 ) -> Evaluations {
     let n = domain.size();
     let domain_4n = EvaluationDomain::new(4 * n).unwrap();
 
-    // (a(x) + beta * Sigma1(X) + gamma) (b(X) + beta * Sigma2(X) + gamma) (c(X) + beta * Sigma3(X) + gamma)
+    // (a(x) + beta * Sigma1(X) + gamma) (b(X) + beta * Sigma2(X) + gamma) (c(X) + beta * Sigma3(X) + gamma)(d(X) + beta * Sigma4(X) + gamma)
     //
     let beta_left_sigma = left_sigma_poly * beta;
     let beta_right_sigma = right_sigma_poly * beta;
     let beta_out_sigma = out_sigma_poly * beta;
+    let beta_fourth_sigma = fourth_sigma_poly * beta;
     // (a(x) + beta * Sigma1(X) + gamma)
     //
     let mut a = &beta_left_sigma + wl_poly;
@@ -83,20 +93,25 @@ pub fn compute_copy_polynomial(
     //
     let mut c = &beta_out_sigma + wo_poly;
     c[0] = c[0] + gamma;
+    //(d(X) + beta * Sigma4(X) + gamma)
+    //
+    let mut d = &beta_fourth_sigma + w4_poly;
+    d[0] = d[0] + gamma;
 
     let a_fft = domain_4n.coset_fft(&a);
     let b_fft = domain_4n.coset_fft(&b);
     let c_fft = domain_4n.coset_fft(&c);
+    let d_fft = domain_4n.coset_fft(&d);
 
     let t_3: Vec<_> = (0..domain_4n.size())
         .into_par_iter()
         .map(|i| {
             let z_shifted = &z_eval_4n[i + 4];
 
-            let mut product = a_fft[i] * &b_fft[i] * &c_fft[i]; // (a(x) + beta * Sigma1(X) + gamma) (b(X) + beta * Sigma2(X) + gamma) (c(X) + beta * Sigma3(X) + gamma)
+            let mut product = a_fft[i] * &b_fft[i] * &c_fft[i] * &d_fft[i]; // (a(x) + beta * Sigma1(X) + gamma) (b(X) + beta * Sigma2(X) + gamma) (c(X) + beta * Sigma3(X) + gamma)(d(X) + beta * Sigma4(X) + gamma)
             product = product * z_shifted;
 
-            -product * alpha_sq // (a(x) + beta* Sigma1(X) + gamma) (b(X) + beta * Sigma2(X) + gamma) (c(X) + beta * Sigma3(X) + gamma) Z(X.omega) * alpha^2
+            -product * alpha_sq // (a(x) + beta* Sigma1(X) + gamma) (b(X) + beta * Sigma2(X) + gamma) (c(X) + beta * Sigma3(X) + gamma)(d(X) + beta * Sigma4(X) + gamma) Z(X.omega) * alpha^2
         })
         .collect();
 
