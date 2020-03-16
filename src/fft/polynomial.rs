@@ -160,6 +160,14 @@ impl<'a, 'b> Add<&'a Polynomial> for &'b Polynomial {
     }
 }
 
+impl Add<Polynomial> for Polynomial {
+    type Output = Polynomial;
+
+    fn add(self, other: Polynomial) -> Polynomial {
+        &self + &other
+    }
+}
+
 // Addition method tht uses iterators to add polynomials
 // Benchmark this against the original method
 fn iter_add(poly_a: &Polynomial, poly_b: &Polynomial) -> Polynomial {
