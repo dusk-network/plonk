@@ -124,8 +124,8 @@ impl EvaluationDomain {
     fn distribute_powers(coeffs: &mut [Scalar], g: Scalar) {
         let mut pow = Scalar::one();
         coeffs.iter_mut().for_each(|c| {
-            *c *= &pow;
-            pow *= &g
+            *c *= pow;
+            pow *= g
         })
     }
 
@@ -386,9 +386,9 @@ pub(crate) fn parallel_fft(a: &mut [Scalar], omega: Scalar, log_n: u32, log_cpus
             for s in 0..num_cpus {
                 let idx = (i + (s << log_new_n)) % (1 << log_n);
                 let mut t = a[idx];
-                t *= &elt;
-                tmp[i] += &t;
-                elt *= &omega_step;
+                t *= elt;
+                tmp[i] += t;
+                elt *= omega_step;
             }
             elt *= &omega_j;
         }
@@ -417,7 +417,7 @@ impl Iterator for Elements {
             None
         } else {
             let cur_elem = self.cur_elem;
-            self.cur_elem *= &self.domain.group_gen;
+            self.cur_elem *= self.domain.group_gen;
             self.cur_pow += 1;
             Some(cur_elem)
         }
