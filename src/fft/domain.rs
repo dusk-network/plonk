@@ -159,7 +159,7 @@ impl EvaluationDomain {
 
     /// Evaluate all the lagrange polynomials defined by this domain at the
     /// point `tau`.
-    pub fn evaluate_all_lagrange_coefficients(&self, tau: Scalar) -> Vec<Scalar> {
+    pub fn evaluate_all_lagrange_coefficients(&self, tau: &Scalar) -> Vec<Scalar> {
         // Evaluate all Lagrange polynomials
         let size = self.size as usize;
         let t_size = tau.pow(&[self.size, 0, 0, 0]);
@@ -168,7 +168,7 @@ impl EvaluationDomain {
             let mut u = vec![Scalar::zero(); size];
             let mut omega_i = one;
             for i in 0..size {
-                if omega_i == tau {
+                if &omega_i == tau {
                     u[i] = one;
                     break;
                 }
@@ -178,15 +178,15 @@ impl EvaluationDomain {
         } else {
             use crate::util::batch_inversion;
 
-            let mut l = (t_size - &one) * &self.size_inv;
+            let mut l = (t_size - one) * self.size_inv;
             let mut r = one;
             let mut u = vec![Scalar::zero(); size];
             let mut ls = vec![Scalar::zero(); size];
             for i in 0..size {
-                u[i] = tau - &r;
+                u[i] = tau - r;
                 ls[i] = l;
-                l *= &self.group_gen;
-                r *= &self.group_gen;
+                l *= self.group_gen;
+                r *= self.group_gen;
             }
 
             batch_inversion(u.as_mut_slice());
@@ -202,8 +202,8 @@ impl EvaluationDomain {
     /// This evaluates the vanishing polynomial for this domain at tau.
     /// For multiplicative subgroups, this polynomial is `z(X) = X^self.size -
     /// 1`.
-    pub fn evaluate_vanishing_polynomial(&self, tau: Scalar) -> Scalar {
-        tau.pow(&[self.size, 0, 0, 0]) - &Scalar::one()
+    pub fn evaluate_vanishing_polynomial(&self, tau: &Scalar) -> Scalar {
+        tau.pow(&[self.size, 0, 0, 0]) - Scalar::one()
     }
 
     /// Given that the domain size is `D`  
@@ -239,7 +239,7 @@ impl EvaluationDomain {
     /// a coset.
     pub fn divide_by_vanishing_poly_on_coset_in_place(&self, evals: &mut [Scalar]) {
         let i = self
-            .evaluate_vanishing_polynomial(GENERATOR)
+            .evaluate_vanishing_polynomial(&GENERATOR)
             .invert()
             .unwrap();
 
@@ -249,7 +249,7 @@ impl EvaluationDomain {
     /// Given an index which assumes the first elements of this domain are the
     /// elements of another (sub)domain with size size_s,
     /// this returns the actual index into this domain.
-    pub fn reindex_by_subdomain(&self, other: Self, index: usize) -> usize {
+    pub fn reindex_by_subdomain(&self, other: &Self, index: usize) -> usize {
         assert!(self.size() >= other.size());
         // Let this subgroup be G, and the subgroup we're re-indexing by be S.
         // Since its a subgroup, the 0th element of S is at index 0 in G, the first

@@ -25,12 +25,12 @@ pub fn compute_identity_polynomial(
     let mut b = wr_coeffs.to_vec();
     b[0] = b[0] + gamma;
     let beta_k1 = *beta * K1;
-    b[1] = b[1] + &beta_k1;
+    b[1] = b[1] + beta_k1;
 
     let mut c = wo_coeffs.to_vec();
     c[0] = c[0] + gamma;
     let beta_k2 = *beta * K2;
-    c[1] = c[1] + &beta_k2;
+    c[1] = c[1] + beta_k2;
 
     domain_4n.coset_fft_in_place(&mut a);
     domain_4n.coset_fft_in_place(&mut b);
@@ -41,7 +41,7 @@ pub fn compute_identity_polynomial(
         .map(|i| {
             let z = &z_eval_4n[i];
 
-            let mut product = a[i] * &b[i] * &c[i]; // (a(x) + beta * X + gamma) (b(X) + beta * k1 * X + gamma) (c(X) + beta * k2 * X + gamma)
+            let mut product = a[i] * b[i] * c[i]; // (a(x) + beta * X + gamma) (b(X) + beta * k1 * X + gamma) (c(X) + beta * k2 * X + gamma)
             product = product * z; // (a(x) + beta * X + gamma) (b(X) + beta * k1 * X + gamma) (c(X) + beta * k2 * X + gamma)z(X) * alpha^2
 
             product * alpha_sq
@@ -93,7 +93,7 @@ pub fn compute_copy_polynomial(
         .map(|i| {
             let z_shifted = &z_eval_4n[i + 4];
 
-            let mut product = a_fft[i] * &b_fft[i] * &c_fft[i]; // (a(x) + beta * Sigma1(X) + gamma) (b(X) + beta * Sigma2(X) + gamma) (c(X) + beta * Sigma3(X) + gamma)
+            let mut product = a_fft[i] * b_fft[i] * c_fft[i]; // (a(x) + beta * Sigma1(X) + gamma) (b(X) + beta * Sigma2(X) + gamma) (c(X) + beta * Sigma3(X) + gamma)
             product = product * z_shifted;
 
             -product * alpha_sq // (a(x) + beta* Sigma1(X) + gamma) (b(X) + beta * Sigma2(X) + gamma) (c(X) + beta * Sigma3(X) + gamma) Z(X.omega) * alpha^2
@@ -123,7 +123,7 @@ pub fn compute_is_one_polynomial(
 
     let t_4: Vec<_> = (0..domain_4n.size())
         .into_par_iter()
-        .map(|i| alpha_cu_l1_evals[i] * &z_evals[i])
+        .map(|i| alpha_cu_l1_evals[i] * z_evals[i])
         .collect();
     Evaluations::from_vec_and_domain(t_4, domain_4n)
 }
@@ -149,7 +149,7 @@ mod test {
         assert_ne!(rand_point, Fr::zero());
 
         // Compute l1_eval according to the Domain
-        let l1_a = domain.evaluate_all_lagrange_coefficients(rand_point)[0];
+        let l1_a = domain.evaluate_all_lagrange_coefficients(&rand_point)[0];
         // Compute l1 eval using IFFT
         let b = compute_first_lagrange_poly(&domain);
         let l1_b = b.evaluate(&rand_point);
