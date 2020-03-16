@@ -35,6 +35,12 @@ pub struct StandardComposer {
     w_l: Vec<Variable>,
     w_r: Vec<Variable>,
     w_o: Vec<Variable>,
+    w_4: Vec<Variable>,
+
+    // We reserve a variable to be zero in the system
+    // This is so that when a gate only uses three, we set the fourth wire to be
+    // the variable that references zero
+    zero_var: Variable,
 
     // These are the actual variable values
     // N.B. They should not be exposed to the end user once added into the composer
@@ -85,7 +91,7 @@ impl Composer for StandardComposer {
             Evaluations::from_vec_and_domain(domain_4n.coset_fft(&q_c_poly.coeffs), domain_4n);
 
         // 3. Compute the sigma polynomials
-        let (left_sigma_poly, right_sigma_poly, out_sigma_poly) =
+        let (left_sigma_poly, right_sigma_poly, out_sigma_poly, fourth_sigma_poly) =
             self.perm.compute_sigma_polynomials(self.n, domain);
 
         // 4. Commit to polynomials
@@ -99,6 +105,7 @@ impl Composer for StandardComposer {
         let left_sigma_poly_commit = commit_key.commit(&left_sigma_poly).unwrap();
         let right_sigma_poly_commit = commit_key.commit(&right_sigma_poly).unwrap();
         let out_sigma_poly_commit = commit_key.commit(&out_sigma_poly).unwrap();
+        let fourth_sigma_poly_commit = commit_key.commit(&fourth_sigma_poly).unwrap();
 
         //5. Add polynomial commitments to transcript
         //
@@ -111,6 +118,7 @@ impl Composer for StandardComposer {
         transcript.append_commitment(b"left_sigma", &left_sigma_poly_commit);
         transcript.append_commitment(b"right_sigma", &right_sigma_poly_commit);
         transcript.append_commitment(b"out_sigma", &out_sigma_poly_commit);
+        transcript.append_commitment(b"fourth_sigma", &fourth_sigma_poly_commit);
 
         // Append circuit size to transcript
         transcript.circuit_domain_sep(self.circuit_size() as u64);
@@ -126,6 +134,7 @@ impl Composer for StandardComposer {
             left_sigma: (left_sigma_poly, left_sigma_poly_commit),
             right_sigma: (right_sigma_poly, right_sigma_poly_commit),
             out_sigma: (out_sigma_poly, out_sigma_poly_commit),
+            fourth_sigma: (fourth_sigma_poly, fourth_sigma_poly_commit),
         }
     }
 
@@ -142,24 +151,29 @@ impl Composer for StandardComposer {
         //1. Compute witness Polynomials
         //
         // Convert Variables to Scalars
-        let (w_l_scalar, w_r_scalar, w_o_scalar) =
-            self.witness_vars_to_scalars(&self.w_l, &self.w_r, &self.w_o);
+        let w_l_scalar = self.to_scalars(&self.w_l);
+        let w_r_scalar = self.to_scalars(&self.w_r);
+        let w_o_scalar = self.to_scalars(&self.w_o);
+        let w_4_scalar = self.to_scalars(&self.w_4);
 
         // Witnesses are now in evaluation form, convert them to coefficients
         // So that we may commit to them
         let w_l_poly = Polynomial::from_coefficients_vec(domain.ifft(&w_l_scalar));
         let w_r_poly = Polynomial::from_coefficients_vec(domain.ifft(&w_r_scalar));
         let w_o_poly = Polynomial::from_coefficients_vec(domain.ifft(&w_o_scalar));
+        let w_4_poly = Polynomial::from_coefficients_vec(domain.ifft(&w_4_scalar));
 
         // Commit to witness polynomials
         let w_l_poly_commit = commit_key.commit(&w_l_poly).unwrap();
         let w_r_poly_commit = commit_key.commit(&w_r_poly).unwrap();
         let w_o_poly_commit = commit_key.commit(&w_o_poly).unwrap();
+        let w_4_poly_commit = commit_key.commit(&w_4_poly).unwrap();
 
         // Add commitment to witness polynomials to transcript
         transcript.append_commitment(b"w_l", &w_l_poly_commit);
         transcript.append_commitment(b"w_r", &w_r_poly_commit);
         transcript.append_commitment(b"w_o", &w_o_poly_commit);
+        transcript.append_commitment(b"w_4", &w_4_poly_commit);
         //
 
         // 2. Compute permutation polynomial
@@ -176,6 +190,7 @@ impl Composer for StandardComposer {
             &w_l_scalar,
             &w_r_scalar,
             &w_o_scalar,
+            &w_4_scalar,
             &(beta, gamma),
         );
         // Commit to permutation polynomial
@@ -183,6 +198,7 @@ impl Composer for StandardComposer {
         let z_poly_commit = commit_key.commit(&z_poly).unwrap();
         // Add commitment to permutation polynomials to transcript
         transcript.append_commitment(b"z", &z_poly_commit);
+
         //
         // 2. Compute public inputs polynomial
         let pi_poly = Polynomial::from_coefficients_vec(domain.ifft(&self.public_inputs));
@@ -197,29 +213,31 @@ impl Composer for StandardComposer {
             &domain,
             &preprocessed_circuit,
             &z_poly,
-            [&w_l_poly, &w_r_poly, &w_o_poly],
+            [&w_l_poly, &w_r_poly, &w_o_poly, &w_4_poly],
             &pi_poly,
             &(alpha, beta, gamma),
         );
-        // Split quotient polynomial into 3 degree `n` polynomials
-        // XXX: This implicitly assumes that the quotient polynomial will never go over
-        // degree 3n. For custom gates, this may not hold true, unless the API restricts it
-        let (t_low_poly, t_mid_poly, t_hi_poly) = self.split_tx_poly(domain.size(), &t_poly);
+        // Split quotient polynomial into 4 degree `n` polynomials
+        let (t_1_poly, t_2_poly, t_3_poly, t_4_poly) = self.split_tx_poly(domain.size(), &t_poly);
 
         // Commit to permutation polynomial
         //
-        let t_low_commit = commit_key.commit(&t_low_poly).unwrap();
-        let t_mid_commit = commit_key.commit(&t_mid_poly).unwrap();
-        let t_hi_commit = commit_key.commit(&t_hi_poly).unwrap();
+        let t_1_commit = commit_key.commit(&t_1_poly).unwrap();
+        let t_2_commit = commit_key.commit(&t_2_poly).unwrap();
+        let t_3_commit = commit_key.commit(&t_3_poly).unwrap();
+        let t_4_commit = commit_key.commit(&t_4_poly).unwrap();
+
         // Add commitment to quotient polynomials to transcript
-        transcript.append_commitment(b"t_lo", &t_low_commit);
-        transcript.append_commitment(b"t_mid", &t_mid_commit);
-        transcript.append_commitment(b"t_hi", &t_hi_commit);
+        transcript.append_commitment(b"t_1", &t_1_commit);
+        transcript.append_commitment(b"t_2", &t_2_commit);
+        transcript.append_commitment(b"t_3", &t_3_commit);
+        transcript.append_commitment(b"t_4", &t_4_commit);
 
         // 4. Compute linearisation polynomial
         //
         // Compute evaluation challenge; `z`
         let z_challenge = transcript.challenge_scalar(b"z");
+
         //
         let (lin_poly, evaluations) = linearisation_poly::compute(
             &domain,
@@ -228,6 +246,7 @@ impl Composer for StandardComposer {
             &w_l_poly,
             &w_r_poly,
             &w_o_poly,
+            &w_4_poly,
             &t_poly,
             &z_poly,
         );
@@ -235,21 +254,23 @@ impl Composer for StandardComposer {
         transcript.append_scalar(b"a_eval", &evaluations.proof.a_eval);
         transcript.append_scalar(b"b_eval", &evaluations.proof.b_eval);
         transcript.append_scalar(b"c_eval", &evaluations.proof.c_eval);
+        transcript.append_scalar(b"d_eval", &evaluations.proof.d_eval);
         transcript.append_scalar(b"left_sig_eval", &evaluations.proof.left_sigma_eval);
         transcript.append_scalar(b"right_sig_eval", &evaluations.proof.right_sigma_eval);
+        transcript.append_scalar(b"out_sig_eval", &evaluations.proof.out_sigma_eval);
         transcript.append_scalar(b"perm_eval", &evaluations.proof.perm_eval);
         transcript.append_scalar(b"t_eval", &evaluations.quot_eval);
         transcript.append_scalar(b"r_eval", &evaluations.proof.lin_poly_eval);
         //
-
         // 5. Compute openings
         //
         // We merge the quotient polynomial using the `z_challenge` so the SRS is linear in the circuit size `n`
         let quot = Self::compute_quotient_opening_poly(
             domain.size(),
-            &t_low_poly,
-            &t_mid_poly,
-            &t_hi_poly,
+            &t_1_poly,
+            &t_2_poly,
+            &t_3_poly,
+            &t_4_poly,
             &z_challenge,
         );
 
@@ -261,8 +282,10 @@ impl Composer for StandardComposer {
                 w_l_poly,
                 w_r_poly,
                 w_o_poly,
+                w_4_poly,
                 preprocessed_circuit.left_sigma_poly().clone(),
                 preprocessed_circuit.right_sigma_poly().clone(),
+                preprocessed_circuit.out_sigma_poly().clone(),
             ],
             &z_challenge,
             transcript,
@@ -279,10 +302,14 @@ impl Composer for StandardComposer {
             a_comm: w_l_poly_commit,
             b_comm: w_r_poly_commit,
             c_comm: w_o_poly_commit,
+            d_comm: w_4_poly_commit,
+
             z_comm: z_poly_commit,
-            t_lo_comm: t_low_commit,
-            t_mid_comm: t_mid_commit,
-            t_hi_comm: t_hi_commit,
+
+            t_1_comm: t_1_commit,
+            t_2_comm: t_2_commit,
+            t_3_comm: t_3_commit,
+            t_4_comm: t_4_commit,
 
             w_z_comm: w_z_comm,
             w_zw_comm: w_zx_comm,
@@ -306,51 +333,46 @@ impl StandardComposer {
         &self,
         n: usize,
         t_x: &Polynomial,
-    ) -> (Polynomial, Polynomial, Polynomial) {
+    ) -> (Polynomial, Polynomial, Polynomial, Polynomial) {
         (
             Polynomial::from_coefficients_vec(t_x[0..n].to_vec()),
             Polynomial::from_coefficients_vec(t_x[n..2 * n].to_vec()),
-            Polynomial::from_coefficients_vec(t_x[2 * n..].to_vec()),
+            Polynomial::from_coefficients_vec(t_x[2 * n..3 * n].to_vec()),
+            Polynomial::from_coefficients_vec(t_x[3 * n..].to_vec()),
         )
     }
 
     /// Convert variables to their actual witness values
-    pub(crate) fn witness_vars_to_scalars(
-        &self,
-        w_l: &[Variable],
-        w_r: &[Variable],
-        w_o: &[Variable],
-    ) -> (Vec<Scalar>, Vec<Scalar>, Vec<Scalar>) {
-        (
-            w_l.par_iter().map(|var| self.variables[var]).collect(),
-            w_r.par_iter().map(|var| self.variables[var]).collect(),
-            w_o.par_iter().map(|var| self.variables[var]).collect(),
-        )
+    pub(crate) fn to_scalars(&self, vars: &[Variable]) -> Vec<Scalar> {
+        vars.par_iter().map(|var| self.variables[var]).collect()
     }
 
     fn compute_quotient_opening_poly(
         n: usize,
-        t_lo_poly: &Polynomial,
-        t_mid_poly: &Polynomial,
-        t_hi_poly: &Polynomial,
+        t_1_poly: &Polynomial,
+        t_2_poly: &Polynomial,
+        t_3_poly: &Polynomial,
+        t_4_poly: &Polynomial,
         z_challenge: &Scalar,
     ) -> Polynomial {
-        // Compute z^n , z^2n
+        // Compute z^n , z^2n , z^3n
         let z_n = z_challenge.pow(&[n as u64, 0, 0, 0]);
         let z_two_n = z_challenge.pow(&[2 * n as u64, 0, 0, 0]);
+        let z_three_n = z_challenge.pow(&[3 * n as u64, 0, 0, 0]);
 
-        let a = t_lo_poly;
-        let b = t_mid_poly * &z_n;
-        let c = t_hi_poly * &z_two_n;
-        let ab = a + &b;
-        let res = &ab + &c;
+        let a = t_1_poly;
+        let b = t_2_poly * &z_n;
+        let c = t_3_poly * &z_two_n;
+        let d = t_4_poly * &z_three_n;
+        let abc = &(a + &b) + &c;
+        let res = &abc + &d;
         res
     }
 
     // Creates a new circuit with an expected circuit size
     // This will allow for less reallocations when building the circuit
     pub fn with_expected_size(expected_size: usize) -> Self {
-        StandardComposer {
+        let mut composer = StandardComposer {
             n: 0,
 
             q_m: Vec::with_capacity(expected_size),
@@ -363,11 +385,20 @@ impl StandardComposer {
             w_l: Vec::with_capacity(expected_size),
             w_r: Vec::with_capacity(expected_size),
             w_o: Vec::with_capacity(expected_size),
+            w_4: Vec::with_capacity(expected_size),
+
+            zero_var: Variable(0),
 
             variables: HashMap::with_capacity(expected_size),
 
             perm: Permutation::new(),
-        }
+        };
+
+        // Reserve the first variable to be zero
+        let zero_var = composer.add_input(Scalar::zero());
+        composer.zero_var = zero_var;
+
+        composer
     }
 
     // Pads the circuit to the next power of two
@@ -389,6 +420,7 @@ impl StandardComposer {
         self.w_l.extend(zeroes_var.iter());
         self.w_r.extend(zeroes_var.iter());
         self.w_o.extend(zeroes_var.iter());
+        self.w_4.extend(zeroes_var.iter());
 
         self.n = self.n + diff;
     }
@@ -421,6 +453,7 @@ impl StandardComposer {
         self.w_l.push(a);
         self.w_r.push(b);
         self.w_o.push(c);
+        self.w_4.push(self.zero_var);
 
         // For an add gate, q_m is zero
         self.q_m.push(Scalar::zero());
@@ -433,7 +466,8 @@ impl StandardComposer {
 
         self.public_inputs.push(pi);
 
-        self.perm.add_variables_to_map(a, b, c, self.n);
+        self.perm
+            .add_variables_to_map(a, b, c, self.zero_var, self.n);
 
         self.n = self.n + 1;
 
@@ -478,6 +512,7 @@ impl StandardComposer {
         self.w_l.push(a);
         self.w_r.push(b);
         self.w_o.push(c);
+        self.w_4.push(self.zero_var);
 
         // For a mul gate q_L and q_R is zero
         self.q_l.push(Scalar::zero());
@@ -490,7 +525,8 @@ impl StandardComposer {
 
         self.public_inputs.push(pi);
 
-        self.perm.add_variables_to_map(a, b, c, self.n);
+        self.perm
+            .add_variables_to_map(a, b, c, self.zero_var, self.n);
 
         self.n = self.n + 1;
 
@@ -525,6 +561,7 @@ impl StandardComposer {
         self.w_l.push(a);
         self.w_r.push(b);
         self.w_o.push(c);
+        self.w_4.push(self.zero_var);
         self.q_l.push(q_l);
         self.q_r.push(q_r);
 
@@ -535,7 +572,8 @@ impl StandardComposer {
 
         self.public_inputs.push(pi);
 
-        self.perm.add_variables_to_map(a, b, c, self.n);
+        self.perm
+            .add_variables_to_map(a, b, c, self.zero_var, self.n);
 
         self.n = self.n + 1;
 
@@ -560,6 +598,7 @@ impl StandardComposer {
         self.w_l.push(a);
         self.w_r.push(a);
         self.w_o.push(a);
+        self.w_4.push(self.zero_var);
 
         self.q_m.push(Scalar::one());
         self.q_l.push(Scalar::zero());
@@ -569,7 +608,8 @@ impl StandardComposer {
 
         self.public_inputs.push(Scalar::zero());
 
-        self.perm.add_variables_to_map(a, a, a, self.n);
+        self.perm
+            .add_variables_to_map(a, a, a, self.zero_var, self.n);
 
         self.n = self.n + 1;
 
@@ -582,16 +622,18 @@ impl StandardComposer {
         self.q_l.push(Scalar::from(2));
         self.q_r.push(Scalar::from(3));
         self.q_o.push(Scalar::from(4));
-        self.q_c.push(Scalar::from(5));
+        self.q_c.push(Scalar::from(4));
         self.public_inputs.push(Scalar::zero());
         let var_six = self.add_input(Scalar::from(6));
+        let var_one = self.add_input(Scalar::from(1));
         let var_seven = self.add_input(Scalar::from(7));
         let var_min_twenty = self.add_input(-Scalar::from(20));
         self.w_l.push(var_six);
         self.w_r.push(var_seven);
         self.w_o.push(var_min_twenty);
+        self.w_4.push(var_one);
         self.perm
-            .add_variables_to_map(var_six, var_seven, var_min_twenty, self.n);
+            .add_variables_to_map(var_six, var_seven, var_min_twenty, var_one, self.n);
         self.n = self.n + 1;
         //Add another dummy constraint so that we do not get the identity permutation
         self.q_m.push(Scalar::from(1));
@@ -603,9 +645,33 @@ impl StandardComposer {
         self.w_l.push(var_min_twenty);
         self.w_r.push(var_six);
         self.w_o.push(var_seven);
+        self.w_4.push(self.zero_var);
         self.perm
-            .add_variables_to_map(var_min_twenty, var_six, var_seven, self.n);
+            .add_variables_to_map(var_min_twenty, var_six, var_seven, self.zero_var, self.n);
         self.n = self.n + 1;
+    }
+
+    fn check_circuit_satisfied(&self) {
+        let w_l = self.to_scalars(&self.w_l);
+        let w_r = self.to_scalars(&self.w_r);
+        let w_o = self.to_scalars(&self.w_o);
+        let w_4 = self.to_scalars(&self.w_4);
+        for i in 0..self.n {
+            let qm = self.q_m[i];
+            let ql = self.q_l[i];
+            let qr = self.q_r[i];
+            let qo = self.q_o[i];
+            let qc = self.q_c[i];
+            let pi = self.public_inputs[i];
+
+            let a = w_l[i];
+            let b = w_r[i];
+            let c = w_o[i];
+            let d = w_4[i];
+
+            let k = (qm * a * b) + (ql * a) + (qr * b) + (qo * c) + d + pi + qc;
+            assert_eq!(k, Scalar::zero(), "Check failed at gate {}", i);
+        }
     }
 }
 
@@ -778,6 +844,7 @@ mod tests {
                 .unwrap();
             let domain = EvaluationDomain::new(composer.circuit_size()).unwrap();
             let mut transcript = Transcript::new(b"");
+
             // Preprocess circuit
             let preprocessed_circuit = composer.preprocess(&ck, &mut transcript, &domain);
             (
