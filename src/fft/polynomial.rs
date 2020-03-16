@@ -91,7 +91,7 @@ impl Polynomial {
             .collect();
         let mut sum = Scalar::zero();
         for eval in p_evals.into_iter() {
-            sum += &eval;
+            sum += eval;
         }
         sum
     }
@@ -115,7 +115,7 @@ impl Sum for Polynomial {
         I: Iterator<Item = Self>,
     {
         let sum: Polynomial = iter.fold(Polynomial::zero(), |mut res, val| {
-            res = &res + &val;
+            res = res + val;
             res
         });
         sum
@@ -133,7 +133,6 @@ pub(crate) fn random_scalar<R: Rng>(rng: &mut R) -> Scalar {
     ])
 }
 
-///////////
 impl<'a, 'b> Add<&'a Polynomial> for &'b Polynomial {
     type Output = Polynomial;
 
