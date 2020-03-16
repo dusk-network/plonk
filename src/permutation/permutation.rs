@@ -55,30 +55,31 @@ impl Permutation {
     }
     /// Maps a set of variables (a,b,c) to a set of Wires (left, right, out) with
     /// the corresponding gate index
-    pub fn add_variable_to_map(
+    pub fn add_variables_to_map(
         &mut self,
         a: Variable,
         b: Variable,
         c: Variable,
         gate_index: usize,
     ) {
-        assert!(self.valid_variables(&[a, b, c]));
-
         let left: WireData = WireData::Left(gate_index);
         let right: WireData = WireData::Right(gate_index);
         let output: WireData = WireData::Output(gate_index);
 
-        // Map each variable to the wire it is assosciated with
+        // Map each variable to the wire it is associated with
         // This essentially tells us that:
-        // Variable `a` is being used in the n'th gate as a left wire
-        // Variable `b` is being used in the n'th gate as a right wire
-        // Variable `c` is being used in the n'th gate as an output wire
-        for (var, wire_data) in [a, b, c].iter().zip([left, right, output].iter()) {
-            // Since we always allocate space for the Vec of WireData when a
-            // Variable is added to the variable_map, this should never fail
-            let vec_wire_data = self.variable_map.get_mut(var).unwrap();
-            vec_wire_data.push(*wire_data);
-        }
+        self.add_variable_to_map(a, left);
+        self.add_variable_to_map(b, right);
+        self.add_variable_to_map(c, output);
+    }
+
+    fn add_variable_to_map(&mut self, var: Variable, wire_data: WireData) {
+        assert!(self.valid_variables(&[var]));
+
+        // Since we always allocate space for the Vec of WireData when a
+        // Variable is added to the variable_map, this should never fail
+        let vec_wire_data = self.variable_map.get_mut(&var).unwrap();
+        vec_wire_data.push(wire_data);
     }
 
     // Performs shift by one permutation and computes sigma_1, sigma_2 and sigma_3 permutations from the variable maps
@@ -511,7 +512,7 @@ mod test {
 
         let gate_size = 100;
         for i in 0..gate_size {
-            perm.add_variable_to_map(var_one, var_one, var_two, i);
+            perm.add_variables_to_map(var_one, var_one, var_two, i);
         }
 
         // Check all gate_indices are valid
@@ -543,10 +544,10 @@ mod test {
         let num_wire_mappings = 4;
 
         // Add four wire mappings
-        perm.add_variable_to_map(var_zero, var_zero, var_five, 0);
-        perm.add_variable_to_map(var_zero, var_two, var_six, 1);
-        perm.add_variable_to_map(var_zero, var_three, var_seven, 2);
-        perm.add_variable_to_map(var_zero, var_four, var_eight, 3);
+        perm.add_variables_to_map(var_zero, var_zero, var_five, 0);
+        perm.add_variables_to_map(var_zero, var_two, var_six, 1);
+        perm.add_variables_to_map(var_zero, var_three, var_seven, 2);
+        perm.add_variables_to_map(var_zero, var_four, var_eight, 3);
 
         /*
 
@@ -643,10 +644,10 @@ mod test {
         let num_wire_mappings = 4;
 
         // Add four wire mappings
-        perm.add_variable_to_map(var_one, var_one, var_two, 0);
-        perm.add_variable_to_map(var_two, var_one, var_two, 1);
-        perm.add_variable_to_map(var_three, var_three, var_one, 2);
-        perm.add_variable_to_map(var_two, var_one, var_three, 3);
+        perm.add_variables_to_map(var_one, var_one, var_two, 0);
+        perm.add_variables_to_map(var_two, var_one, var_two, 1);
+        perm.add_variables_to_map(var_three, var_three, var_one, 2);
+        perm.add_variables_to_map(var_two, var_one, var_three, 3);
 
         /*
         Below is a sketch of the map created by adding the specific variables into the map
@@ -735,10 +736,10 @@ mod test {
         let var_three = perm.new_variable();
 
         // Add four wire mappings
-        perm.add_variable_to_map(var_one, var_one, var_two, 0);
-        perm.add_variable_to_map(var_two, var_one, var_two, 1);
-        perm.add_variable_to_map(var_three, var_three, var_one, 2);
-        perm.add_variable_to_map(var_two, var_one, var_three, 3);
+        perm.add_variables_to_map(var_one, var_one, var_two, 0);
+        perm.add_variables_to_map(var_two, var_one, var_two, 1);
+        perm.add_variables_to_map(var_three, var_three, var_one, 2);
+        perm.add_variables_to_map(var_two, var_one, var_three, 3);
 
         let domain = EvaluationDomain::new(num_wire_mappings).unwrap();
 
@@ -782,8 +783,8 @@ mod test {
         let var_two = perm.new_variable();
         let var_three = perm.new_variable();
 
-        perm.add_variable_to_map(var_one, var_two, var_three, 0);
-        perm.add_variable_to_map(var_three, var_two, var_one, 1);
+        perm.add_variables_to_map(var_one, var_two, var_three, 0);
+        perm.add_variables_to_map(var_three, var_two, var_one, 1);
 
         let w_l: Vec<_> = vec![Fr::one(), Fr::from(3)];
         let w_r: Vec<_> = vec![Fr::from(2), Fr::from(2)];
