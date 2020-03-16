@@ -67,8 +67,11 @@ pub(crate) fn compute(
         preprocessed_circuit.out_sigma_poly(),
     );
 
-    let t_4 =
-        grand_product_quotient::compute_is_one_polynomial(domain, z_poly, alpha.square() * alpha);
+    let t_4 = grand_product_quotient::compute_is_one_polynomial(
+        domain,
+        z_poly,
+        &(alpha.square() * alpha),
+    );
     // Compute 4n evaluations for X^n -1
     let v_h_coset_4n = domain_4n.compute_vanishing_poly_over_coset(domain.size() as u64);
 
