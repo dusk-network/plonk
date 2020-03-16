@@ -3,9 +3,9 @@ use super::PreProcessedCircuit;
 use crate::commitment_scheme::kzg10::{AggregateProof, Proof as SingleProof};
 use crate::commitment_scheme::kzg10::{Commitment, VerifierKey};
 use crate::fft::{EvaluationDomain, Polynomial};
-use crate::permutation::constants::{K1, K2};
+use crate::permutation::constants::{K1, K2, K3};
 use crate::transcript::TranscriptProtocol;
-use bls12_381::{multiscalar_mul::msm_variable_base, pairing, G1Affine, G1Projective, Scalar};
+use bls12_381::{multiscalar_mul::msm_variable_base, G1Affine, Scalar};
 pub struct Proof {
     // Commitment to the witness polynomial for the left wires
     pub a_comm: Commitment,
@@ -13,14 +13,17 @@ pub struct Proof {
     pub b_comm: Commitment,
     // Commitment to the witness polynomial for the output wires
     pub c_comm: Commitment,
+    // Commitment to the witness polynomial for the fourth wires
+    pub d_comm: Commitment,
 
     // Commitment to the permutation polynomial
     pub z_comm: Commitment,
 
     // Commitment to the quotient polynomial
-    pub t_lo_comm: Commitment,
-    pub t_mid_comm: Commitment,
-    pub t_hi_comm: Commitment,
+    pub t_1_comm: Commitment,
+    pub t_2_comm: Commitment,
+    pub t_3_comm: Commitment,
+    pub t_4_comm: Commitment,
 
     // Commitment to the opening polynomial
     pub w_z_comm: Commitment,
@@ -36,12 +39,14 @@ impl Proof {
             a_comm: Commitment::empty(),
             b_comm: Commitment::empty(),
             c_comm: Commitment::empty(),
+            d_comm: Commitment::empty(),
 
             z_comm: Commitment::empty(),
 
-            t_lo_comm: Commitment::empty(),
-            t_mid_comm: Commitment::empty(),
-            t_hi_comm: Commitment::empty(),
+            t_1_comm: Commitment::empty(),
+            t_2_comm: Commitment::empty(),
+            t_3_comm: Commitment::empty(),
+            t_4_comm: Commitment::empty(),
 
             w_z_comm: Commitment::empty(),
             w_zw_comm: Commitment::empty(),
@@ -49,9 +54,11 @@ impl Proof {
                 a_eval: Scalar::zero(),
                 b_eval: Scalar::zero(),
                 c_eval: Scalar::zero(),
+                d_eval: Scalar::zero(),
 
                 left_sigma_eval: Scalar::zero(),
                 right_sigma_eval: Scalar::zero(),
+                out_sigma_eval: Scalar::zero(),
 
                 lin_poly_eval: Scalar::zero(),
 
@@ -93,12 +100,12 @@ impl Proof {
         transcript.append_commitment(b"w_l", &self.a_comm);
         transcript.append_commitment(b"w_r", &self.b_comm);
         transcript.append_commitment(b"w_o", &self.c_comm);
+        transcript.append_commitment(b"w_4", &self.d_comm);
 
         // Compute beta and gamma challenges
         let beta = transcript.challenge_scalar(b"beta");
         transcript.append_scalar(b"beta", &beta);
         let gamma = transcript.challenge_scalar(b"gamma");
-
         // Add commitment to permutation polynomial to transcript
         transcript.append_commitment(b"z", &self.z_comm);
 
@@ -106,9 +113,10 @@ impl Proof {
         let alpha = transcript.challenge_scalar(b"alpha");
 
         // Add commitment to quotient polynomial to transcript
-        transcript.append_commitment(b"t_lo", &self.t_lo_comm);
-        transcript.append_commitment(b"t_mid", &self.t_mid_comm);
-        transcript.append_commitment(b"t_hi", &self.t_hi_comm);
+        transcript.append_commitment(b"t_1", &self.t_1_comm);
+        transcript.append_commitment(b"t_2", &self.t_2_comm);
+        transcript.append_commitment(b"t_3", &self.t_3_comm);
+        transcript.append_commitment(b"t_4", &self.t_4_comm);
 
         // Compute evaluation challenge
         let z_challenge = transcript.challenge_scalar(b"z");
@@ -136,14 +144,17 @@ impl Proof {
         transcript.append_scalar(b"a_eval", &self.evaluations.a_eval);
         transcript.append_scalar(b"b_eval", &self.evaluations.b_eval);
         transcript.append_scalar(b"c_eval", &self.evaluations.c_eval);
+        transcript.append_scalar(b"d_eval", &self.evaluations.d_eval);
         transcript.append_scalar(b"left_sig_eval", &self.evaluations.left_sigma_eval);
         transcript.append_scalar(b"right_sig_eval", &self.evaluations.right_sigma_eval);
+        transcript.append_scalar(b"out_sig_eval", &self.evaluations.out_sigma_eval);
         transcript.append_scalar(b"perm_eval", &self.evaluations.perm_eval);
         transcript.append_scalar(b"t_eval", &t_eval);
         transcript.append_scalar(b"r_eval", &self.evaluations.lin_poly_eval);
 
         // Compute linearisation commitment
         let r_comm = self.compute_linearisation_commitment(
+            verifier_key.g,
             alpha,
             beta,
             gamma,
@@ -165,6 +176,7 @@ impl Proof {
         aggregate_proof.add_part((self.evaluations.a_eval, self.a_comm));
         aggregate_proof.add_part((self.evaluations.b_eval, self.b_comm));
         aggregate_proof.add_part((self.evaluations.c_eval, self.c_comm));
+        aggregate_proof.add_part((self.evaluations.d_eval, self.d_comm));
         aggregate_proof.add_part((
             self.evaluations.left_sigma_eval,
             *preprocessed_circuit.left_sigma_comm(),
@@ -172,6 +184,10 @@ impl Proof {
         aggregate_proof.add_part((
             self.evaluations.right_sigma_eval,
             *preprocessed_circuit.right_sigma_comm(),
+        ));
+        aggregate_proof.add_part((
+            self.evaluations.out_sigma_eval,
+            *preprocessed_circuit.out_sigma_comm(),
         ));
         // Flatten proof with opening challenge
         let flattened_proof = aggregate_proof.flatten(transcript);
@@ -227,10 +243,14 @@ impl Proof {
         let beta_sig2 = beta * &self.evaluations.right_sigma_eval;
         let b_1 = self.evaluations.b_eval + &beta_sig2 + &gamma;
 
-        // ((c + gamma) * z_hat) * alpha^2
-        let b_2 = (self.evaluations.c_eval + &gamma) * &z_hat_eval * &alpha_sq;
+        // c+ beta * sigma_3 + gamma
+        let beta_sig3 = beta * &self.evaluations.out_sigma_eval;
+        let b_2 = self.evaluations.c_eval + &beta_sig3 + &gamma;
 
-        let b = b_0 * &b_1 * &b_2;
+        // ((d + gamma) * z_hat) * alpha^2
+        let b_3 = (self.evaluations.d_eval + &gamma) * &z_hat_eval * &alpha_sq;
+
+        let b = b_0 * b_1 * b_2 * b_3;
 
         // l_1(z) * alpha^3
         let c = l1_eval * &alpha_cu;
@@ -243,12 +263,18 @@ impl Proof {
     fn compute_quotient_commitment(&self, z_challenge: &Scalar, n: usize) -> Commitment {
         let z_n = z_challenge.pow(&[n as u64, 0, 0, 0]);
         let z_two_n = z_challenge.pow(&[2 * n as u64, 0, 0, 0]);
-        let t_comm = self.t_lo_comm.0 + self.t_mid_comm.0 * z_n + self.t_hi_comm.0 * z_two_n;
+        let z_three_n = z_challenge.pow(&[3 * n as u64, 0, 0, 0]);
+        let t_comm = self.t_1_comm.0
+            + self.t_2_comm.0 * z_n
+            + self.t_3_comm.0 * z_two_n
+            + self.t_4_comm.0 * z_three_n;
         Commitment::from_projective(t_comm)
     }
 
+    // Commitment to [r]_1
     fn compute_linearisation_commitment(
         &self,
+        g: G1Affine,
         alpha: Scalar,
         beta: Scalar,
         gamma: Scalar,
@@ -274,10 +300,13 @@ impl Proof {
         scalars.push(self.evaluations.c_eval * &alpha);
         points.push(preprocessed_circuit.qo_comm().0);
 
+        scalars.push(self.evaluations.d_eval * alpha);
+        points.push(g);
+
         scalars.push(alpha);
         points.push(preprocessed_circuit.qc_comm().0);
 
-        // (a_eval + beta * z + gamma)(b_eval + beta * z * k1 + gamma)(c_eval + beta * k2* z + gamma) * alpha^2
+        // (a_eval + beta * z + gamma)(b_eval + beta * z * k1 + gamma)(c_eval + beta * k2* z + gamma)(d_eval + beta * k3* z + gamma) * alpha^2
         let x = {
             let beta_z = beta * &z_challenge;
             let q_0 = self.evaluations.a_eval + &beta_z + &gamma;
@@ -286,9 +315,12 @@ impl Proof {
             let q_1 = self.evaluations.b_eval + &beta_k1_z + &gamma;
 
             let beta_k2_z = beta * &K2 * &z_challenge;
-            let q_2 = (self.evaluations.c_eval + &beta_k2_z + &gamma) * alpha_sq;
+            let q_2 = self.evaluations.c_eval + &beta_k2_z + &gamma;
 
-            q_0 * &q_1 * &q_2
+            let beta_k3_z = beta * &K3 * &z_challenge;
+            let q_3 = (self.evaluations.d_eval + &beta_k3_z + &gamma) * alpha_sq;
+
+            q_0 * &q_1 * &q_2 * &q_3
         };
 
         // l1(z) * alpha^3
@@ -305,12 +337,15 @@ impl Proof {
             let beta_sigma_2 = beta * &self.evaluations.right_sigma_eval;
             let q_1 = self.evaluations.b_eval + &beta_sigma_2 + &gamma;
 
-            let q_2 = beta * &self.evaluations.perm_eval * &alpha * &alpha;
+            let beta_sigma_3 = beta * &self.evaluations.out_sigma_eval;
+            let q_2 = self.evaluations.c_eval + &beta_sigma_3 + &gamma;
 
-            -(q_0 * &q_1 * &q_2)
+            let q_3 = beta * &self.evaluations.perm_eval * &alpha * &alpha;
+
+            -(q_0 * q_1 * q_2 * q_3)
         };
         scalars.push(y);
-        points.push(preprocessed_circuit.out_sigma_comm().0);
+        points.push(preprocessed_circuit.fourth_sigma_comm().0);
 
         Commitment::from_projective(msm_variable_base(&points, &scalars))
     }
