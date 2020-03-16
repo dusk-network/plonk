@@ -209,10 +209,10 @@ impl Permutation {
         let beta_roots_iter = domain.elements().map(|root| root * beta);
 
         // Compute beta * roots * K1
-        let beta_roots_K1_iter = domain.elements().map(|root| (K1 * beta) * &root);
+        let beta_roots_K1_iter = domain.elements().map(|root| (K1 * beta) * root);
 
         // Compute beta * roots * K2
-        let beta_roots_K2_iter = domain.elements().map(|root| (K2 * beta) * &root);
+        let beta_roots_K2_iter = domain.elements().map(|root| (K2 * beta) * root);
 
         // Compute left_wire + gamma
         let wL_gamma: Vec<_> = w_l.map(|w| w + gamma).collect();
@@ -251,8 +251,8 @@ impl Permutation {
             // (w_O + beta * root * k_2 + gamma)
             let prod_c = beta_root_K2 + w_o_gamma;
 
-            let mut prod = prod_a * &prod_b;
-            prod = prod * &prod_c;
+            let mut prod = prod_a * prod_b;
+            prod = prod * prod_c;
 
             numerator_partial_components.push(prod);
 
@@ -271,15 +271,15 @@ impl Permutation {
             beta_out_sigma_iter,
         ) {
             // (w_L + beta * root + gamma)
-            let prod_a = beta_left_sigma + &w_l_gamma;
+            let prod_a = beta_left_sigma + w_l_gamma;
 
             // (w_R + beta * root * k_1 + gamma)
-            let prod_b = beta_right_sigma + &w_r_gamma;
+            let prod_b = beta_right_sigma + w_r_gamma;
 
             // (w_O + beta * root * k_2 + gamma)
-            let prod_c = beta_out_sigma + &w_o_gamma;
+            let prod_c = beta_out_sigma + w_o_gamma;
 
-            let mut prod = prod_a * &prod_b;
+            let mut prod = prod_a * prod_b;
             prod = prod * &prod_c;
 
             denominator_partial_components.push(prod);
@@ -398,22 +398,22 @@ impl Permutation {
                     beta_out_sigma,
                 )| {
                     // w_j + beta * root^j-1 + gamma
-                    let ac1 = w_l_gamma + &beta_root;
+                    let ac1 = w_l_gamma + beta_root;
 
                     // w_{n+j} + beta * K1 * root^j-1 + gamma
-                    let ac2 = w_r_gamma + &beta_root_K1;
+                    let ac2 = w_r_gamma + beta_root_K1;
 
                     // w_{2n+j} + beta * K2 * root^j-1 + gamma
-                    let ac3 = w_o_gamma + &beta_root_K2;
+                    let ac3 = w_o_gamma + beta_root_K2;
 
                     // 1 / w_j + beta * sigma(j) + gamma
-                    let ac4 = (w_l_gamma + &beta_left_sigma).invert().unwrap();
+                    let ac4 = (w_l_gamma + beta_left_sigma).invert().unwrap();
 
                     // 1 / w_{n+j} + beta * sigma(n+j) + gamma
-                    let ac5 = (w_r_gamma + &beta_right_sigma).invert().unwrap();
+                    let ac5 = (w_r_gamma + beta_right_sigma).invert().unwrap();
 
                     // 1 / w_{2n+j} + beta * sigma(2n+j) + gamma
-                    let ac6 = (w_o_gamma + &beta_out_sigma).invert().unwrap();
+                    let ac6 = (w_o_gamma + beta_out_sigma).invert().unwrap();
 
                     (ac1, ac2, ac3, ac4, ac5, ac6)
                 },
@@ -446,12 +446,12 @@ impl Permutation {
         );
         let product_acumulated_components: Vec<_> = accumulator_components
             .map(move |current_component| {
-                prev.0 *= &current_component.0;
-                prev.1 *= &current_component.1;
-                prev.2 *= &current_component.2;
-                prev.3 *= &current_component.3;
-                prev.4 *= &current_component.4;
-                prev.5 *= &current_component.5;
+                prev.0 *= current_component.0;
+                prev.1 *= current_component.1;
+                prev.2 *= current_component.2;
+                prev.3 *= current_component.3;
+                prev.4 *= current_component.4;
+                prev.5 *= current_component.5;
 
                 prev
             })
@@ -469,12 +469,12 @@ impl Permutation {
             .par_iter()
             .map(move |current_component| {
                 let mut prev = Scalar::one();
-                prev *= &current_component.0;
-                prev *= &current_component.1;
-                prev *= &current_component.2;
-                prev *= &current_component.3;
-                prev *= &current_component.4;
-                prev *= &current_component.5;
+                prev *= current_component.0;
+                prev *= current_component.1;
+                prev *= current_component.2;
+                prev *= current_component.3;
+                prev *= current_component.4;
+                prev *= current_component.5;
 
                 prev
             })
@@ -596,7 +596,7 @@ mod test {
         // Left_sigma = {R0, L2,L3, L0}
         // Should turn into {1 * K1, w^2, w^3, 1}
         let encoded_left_sigma = perm.compute_permutation_lagrange(left_sigma, &domain);
-        assert_eq!(encoded_left_sigma[0], Fr::one() * &K1);
+        assert_eq!(encoded_left_sigma[0], Fr::one() * K1);
         assert_eq!(encoded_left_sigma[1], w_squared);
         assert_eq!(encoded_left_sigma[2], w_cubed);
         assert_eq!(encoded_left_sigma[3], Fr::one());
@@ -606,18 +606,18 @@ mod test {
         // Should turn into {w, w * K1, w^2 * K1, w^3 * K1}
         let encoded_right_sigma = perm.compute_permutation_lagrange(right_sigma, &domain);
         assert_eq!(encoded_right_sigma[0], w);
-        assert_eq!(encoded_right_sigma[1], w * &K1);
-        assert_eq!(encoded_right_sigma[2], w_squared * &K1);
-        assert_eq!(encoded_right_sigma[3], w_cubed * &K1);
+        assert_eq!(encoded_right_sigma[1], w * K1);
+        assert_eq!(encoded_right_sigma[2], w_squared * K1);
+        assert_eq!(encoded_right_sigma[3], w_cubed * K1);
 
         // check the output sigmas have been encoded properly
         // Out_sigma = {O0, O1, O2, O3, O4}
         // Should turn into {1 * K2, w * K2, w^2 * K2, w^3 * K2}
         let encoded_output_sigma = perm.compute_permutation_lagrange(out_sigma, &domain);
-        assert_eq!(encoded_output_sigma[0], Fr::one() * &K2);
-        assert_eq!(encoded_output_sigma[1], w * &K2);
-        assert_eq!(encoded_output_sigma[2], w_squared * &K2);
-        assert_eq!(encoded_output_sigma[3], w_cubed * &K2);
+        assert_eq!(encoded_output_sigma[0], Fr::one() * K2);
+        assert_eq!(encoded_output_sigma[1], w * K2);
+        assert_eq!(encoded_output_sigma[2], w_squared * K2);
+        assert_eq!(encoded_output_sigma[3], w_cubed * K2);
 
         let w_l = vec![Fr::from(2), Fr::from(2), Fr::from(2), Fr::from(2)];
         let w_r = vec![Fr::from(2), Fr::one(), Fr::one(), Fr::one()];
@@ -702,22 +702,22 @@ mod test {
         // check the left sigmas have been encoded properly
         let encoded_left_sigma = perm.compute_permutation_lagrange(left_sigma, &domain);
         assert_eq!(encoded_left_sigma[0], K1);
-        assert_eq!(encoded_left_sigma[1], w * &K2);
-        assert_eq!(encoded_left_sigma[2], w_squared * &K1);
-        assert_eq!(encoded_left_sigma[3], Fr::one() * &K2);
+        assert_eq!(encoded_left_sigma[1], w * K2);
+        assert_eq!(encoded_left_sigma[2], w_squared * K1);
+        assert_eq!(encoded_left_sigma[3], Fr::one() * K2);
 
         // check the right sigmas have been encoded properly
         let encoded_right_sigma = perm.compute_permutation_lagrange(right_sigma, &domain);
-        assert_eq!(encoded_right_sigma[0], w * &K1);
-        assert_eq!(encoded_right_sigma[1], w_squared * &K2);
-        assert_eq!(encoded_right_sigma[2], w_cubed * &K2);
+        assert_eq!(encoded_right_sigma[0], w * K1);
+        assert_eq!(encoded_right_sigma[1], w_squared * K2);
+        assert_eq!(encoded_right_sigma[2], w_cubed * K2);
         assert_eq!(encoded_right_sigma[3], Fr::one());
 
         // check the output sigmas have been encoded properly
         let encoded_output_sigma = perm.compute_permutation_lagrange(out_sigma, &domain);
         assert_eq!(encoded_output_sigma[0], w);
         assert_eq!(encoded_output_sigma[1], w_cubed);
-        assert_eq!(encoded_output_sigma[2], w_cubed * &K1);
+        assert_eq!(encoded_output_sigma[2], w_cubed * K1);
         assert_eq!(encoded_output_sigma[3], w_squared);
     }
 
@@ -757,12 +757,12 @@ mod test {
             prod_out_sigma = prod_out_sigma * element;
         }
 
-        let copy_grand_prod = (prod_left_sigma * prod_right_sigma) * prod_out_sigma;
+        let copy_grand_prod = prod_left_sigma * prod_right_sigma * prod_out_sigma;
 
         let mut identity_grand_prod = Fr::one();
         for element in domain.elements() {
             let root_cubed = element.pow(&[3, 0, 0, 0]);
-            let prod = (root_cubed * &K1) * &K2;
+            let prod = root_cubed * K1 * K2;
             identity_grand_prod = identity_grand_prod * prod;
         }
 

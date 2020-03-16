@@ -1,4 +1,3 @@
-use crate::constraint_system::standard::PreProcessedCircuit;
 use crate::fft::{EvaluationDomain, Polynomial};
 use crate::permutation::constants::{K1, K2};
 use bls12_381::Scalar;

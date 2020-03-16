@@ -1,7 +1,7 @@
 use bls12_381::{G1Projective, Scalar};
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
-// Computes 1,v, v^2, v^3,..v^max_degree
+/// Computes 1,v, v^2, v^3,..v^max_degree
 pub fn powers_of(scalar: &Scalar, max_degree: usize) -> Vec<Scalar> {
     let mut powers = Vec::with_capacity(max_degree + 1);
     powers.push(Scalar::one());

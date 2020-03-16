@@ -24,12 +24,12 @@ pub fn compute_identity_polynomial(
 
     let mut b = wr_coeffs.to_vec();
     b[0] = b[0] + gamma;
-    let beta_k1 = *beta * K1;
+    let beta_k1 = beta * K1;
     b[1] = b[1] + beta_k1;
 
     let mut c = wo_coeffs.to_vec();
     c[0] = c[0] + gamma;
-    let beta_k2 = *beta * K2;
+    let beta_k2 = beta * K2;
     c[1] = c[1] + beta_k2;
 
     domain_4n.coset_fft_in_place(&mut a);
@@ -106,17 +106,17 @@ pub fn compute_copy_polynomial(
 pub fn compute_is_one_polynomial(
     domain: &EvaluationDomain,
     z_poly: &Polynomial,
-    alpha_cu: Scalar,
+    alpha_cu: &Scalar,
 ) -> Evaluations {
     let n = domain.size();
     let domain_4n = EvaluationDomain::new(4 * n).unwrap();
 
     let l1_poly = compute_first_lagrange_poly(domain);
-    let alpha_cu_l1_poly = &l1_poly * &alpha_cu;
+    let alpha_cu_l1_poly = &l1_poly * alpha_cu;
 
     // (Z(x) - 1)
     let mut z_coeffs = z_poly.to_vec();
-    z_coeffs[0] = z_coeffs[0] - &Scalar::one();
+    z_coeffs[0] = z_coeffs[0] - Scalar::one();
 
     let z_evals = domain_4n.coset_fft(&z_coeffs);
     let alpha_cu_l1_evals = domain_4n.coset_fft(&alpha_cu_l1_poly.coeffs);
