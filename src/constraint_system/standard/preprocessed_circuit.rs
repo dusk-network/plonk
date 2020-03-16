@@ -1,6 +1,5 @@
 use crate::commitment_scheme::kzg10::Commitment;
 use crate::fft::{Evaluations, Polynomial};
-use bls12_381::Scalar;
 // Preprocessed circuit includes the commitment to the selector polynomials and the sigma polynomials
 // for the standard plonk composer
 pub struct PreProcessedCircuit {
@@ -13,6 +12,7 @@ pub struct PreProcessedCircuit {
     pub left_sigma: (Polynomial, Commitment),
     pub right_sigma: (Polynomial, Commitment),
     pub out_sigma: (Polynomial, Commitment),
+    pub fourth_sigma: (Polynomial, Commitment),
 }
 impl PreProcessedCircuit {
     pub fn qm_poly(&self) -> &Polynomial {
@@ -39,6 +39,9 @@ impl PreProcessedCircuit {
     pub fn out_sigma_poly(&self) -> &Polynomial {
         &self.out_sigma.0
     }
+    pub fn fourth_sigma_poly(&self) -> &Polynomial {
+        &self.fourth_sigma.0
+    }
     pub fn qm_comm(&self) -> &Commitment {
         &self.selectors[0].1
     }
@@ -62,6 +65,9 @@ impl PreProcessedCircuit {
     }
     pub fn out_sigma_comm(&self) -> &Commitment {
         &self.out_sigma.1
+    }
+    pub fn fourth_sigma_comm(&self) -> &Commitment {
+        &self.fourth_sigma.1
     }
     pub fn qm_eval_4n(&self) -> &Evaluations {
         &self.selectors[0].2
