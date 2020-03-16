@@ -433,7 +433,7 @@ impl StandardComposer {
 
         self.public_inputs.push(pi);
 
-        self.perm.add_variable_to_map(a, b, c, self.n);
+        self.perm.add_variables_to_map(a, b, c, self.n);
 
         self.n = self.n + 1;
 
@@ -490,7 +490,7 @@ impl StandardComposer {
 
         self.public_inputs.push(pi);
 
-        self.perm.add_variable_to_map(a, b, c, self.n);
+        self.perm.add_variables_to_map(a, b, c, self.n);
 
         self.n = self.n + 1;
 
@@ -535,7 +535,7 @@ impl StandardComposer {
 
         self.public_inputs.push(pi);
 
-        self.perm.add_variable_to_map(a, b, c, self.n);
+        self.perm.add_variables_to_map(a, b, c, self.n);
 
         self.n = self.n + 1;
 
@@ -569,7 +569,7 @@ impl StandardComposer {
 
         self.public_inputs.push(Scalar::zero());
 
-        self.perm.add_variable_to_map(a, a, a, self.n);
+        self.perm.add_variables_to_map(a, a, a, self.n);
 
         self.n = self.n + 1;
 
@@ -591,7 +591,7 @@ impl StandardComposer {
         self.w_r.push(var_seven);
         self.w_o.push(var_min_twenty);
         self.perm
-            .add_variable_to_map(var_six, var_seven, var_min_twenty, self.n);
+            .add_variables_to_map(var_six, var_seven, var_min_twenty, self.n);
         self.n = self.n + 1;
         //Add another dummy constraint so that we do not get the identity permutation
         self.q_m.push(Scalar::from(1));
@@ -604,7 +604,7 @@ impl StandardComposer {
         self.w_r.push(var_six);
         self.w_o.push(var_seven);
         self.perm
-            .add_variable_to_map(var_min_twenty, var_six, var_seven, self.n);
+            .add_variables_to_map(var_min_twenty, var_six, var_seven, self.n);
         self.n = self.n + 1;
     }
 }
