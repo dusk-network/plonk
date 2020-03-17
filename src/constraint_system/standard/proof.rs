@@ -154,12 +154,11 @@ impl Proof {
 
         // Compute linearisation commitment
         let r_comm = self.compute_linearisation_commitment(
-            &verifier_key.g,
             &alpha,
             &beta,
             &gamma,
             &z_challenge,
-            &l1_eval,
+            l1_eval,
             &preprocessed_circuit,
         );
 
@@ -227,7 +226,7 @@ impl Proof {
 
         // Compute the public input polynomial evaluated at `z_challenge`
         let pi_poly = Polynomial::from_coefficients_vec(domain.ifft(&pub_inputs));
-        let pi_eval = pi_poly.evaluate(&z_challenge);
+        let pi_eval = pi_poly.evaluate(z_challenge);
 
         let alpha_sq = alpha.square();
         let alpha_cu = alpha_sq * alpha;
@@ -274,12 +273,11 @@ impl Proof {
     // Commitment to [r]_1
     fn compute_linearisation_commitment(
         &self,
-        g: &G1Affine,
         alpha: &Scalar,
         beta: &Scalar,
         gamma: &Scalar,
         z_challenge: &Scalar,
-        l1_eval: &Scalar,
+        l1_eval: Scalar,
         preprocessed_circuit: &PreProcessedCircuit,
     ) -> Commitment {
         let mut scalars: Vec<_> = Vec::with_capacity(6);
@@ -301,7 +299,7 @@ impl Proof {
         points.push(preprocessed_circuit.qo_comm().0);
 
         scalars.push(self.evaluations.d_eval * alpha);
-        points.push(*g);
+        points.push(preprocessed_circuit.q4_comm().0);
 
         scalars.push(*alpha);
         points.push(preprocessed_circuit.qc_comm().0);

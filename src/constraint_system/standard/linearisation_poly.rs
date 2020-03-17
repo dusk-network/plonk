@@ -73,6 +73,7 @@ pub fn compute(
         preprocessed_circuit.qr_poly(),
         preprocessed_circuit.qo_poly(),
         preprocessed_circuit.qc_poly(),
+        preprocessed_circuit.q4_poly(),
     );
 
     let f_2 = grand_product_lineariser::compute_identity_polynomial(
@@ -80,7 +81,7 @@ pub fn compute(
         &b_eval,
         &c_eval,
         &d_eval,
-        z_challenge,
+        &z_challenge,
         &alpha_sq,
         beta,
         gamma,
@@ -137,6 +138,7 @@ fn compute_circuit_satisfiability(
     q_r_poly: &Polynomial,
     q_o_poly: &Polynomial,
     q_c_poly: &Polynomial,
+    q_4_poly: &Polynomial,
 ) -> Polynomial {
     // a_eval * b_eval * q_m_poly
     let ab = a_eval * b_eval;
@@ -151,13 +153,13 @@ fn compute_circuit_satisfiability(
     //c_eval * q_o
     let a_3 = q_o_poly * c_eval;
 
-    //d_eval
-    let a_4 = d_eval;
+    // d_eval * q_4
+    let a_4 = q_4_poly * d_eval;
 
     let mut a = &a_0 + &a_1;
     a = &a + &a_2;
     a = &a + &a_3;
-    a = &a + a_4;
+    a = &a + &a_4;
     a = &a + q_c_poly;
-    &a * alpha // (a_eval * b_eval * q_m_poly + a_eval * q_l + b_eval * q_r + c_eval * q_o + d_eval + q_c) * alpha
+    &a * alpha // (a_eval * b_eval * q_m_poly + a_eval * q_l + b_eval * q_r + c_eval * q_o + d_eval * q_4 + q_c) * alpha
 }
