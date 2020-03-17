@@ -128,12 +128,12 @@ impl Proof {
         let t_eval = self.compute_quotient_evaluation(
             &domain,
             pub_inputs,
-            alpha,
-            beta,
-            gamma,
-            z_challenge,
-            l1_eval,
-            self.evaluations.perm_eval,
+            &alpha,
+            &beta,
+            &gamma,
+            &z_challenge,
+            &l1_eval,
+            &self.evaluations.perm_eval,
         );
 
         // Compute commitment to quotient polynomial
@@ -154,10 +154,10 @@ impl Proof {
 
         // Compute linearisation commitment
         let r_comm = self.compute_linearisation_commitment(
-            alpha,
-            beta,
-            gamma,
-            z_challenge,
+            &alpha,
+            &beta,
+            &gamma,
+            &z_challenge,
             l1_eval,
             &preprocessed_circuit,
         );
@@ -214,47 +214,47 @@ impl Proof {
         &self,
         domain: &EvaluationDomain,
         pub_inputs: &[Scalar],
-        alpha: Scalar,
-        beta: Scalar,
-        gamma: Scalar,
-        z_challenge: Scalar,
-        l1_eval: Scalar,
-        z_hat_eval: Scalar,
+        alpha: &Scalar,
+        beta: &Scalar,
+        gamma: &Scalar,
+        z_challenge: &Scalar,
+        l1_eval: &Scalar,
+        z_hat_eval: &Scalar,
     ) -> Scalar {
         // Compute zero polynomial evaluated at `z_challenge`
         let z_h_eval = domain.evaluate_vanishing_polynomial(z_challenge);
 
         // Compute the public input polynomial evaluated at `z_challenge`
         let pi_poly = Polynomial::from_coefficients_vec(domain.ifft(&pub_inputs));
-        let pi_eval = pi_poly.evaluate(&z_challenge);
+        let pi_eval = pi_poly.evaluate(z_challenge);
 
         let alpha_sq = alpha.square();
-        let alpha_cu = alpha_sq * &alpha;
+        let alpha_cu = alpha_sq * alpha;
 
         // r + PI(z) * alpha
-        let a = self.evaluations.lin_poly_eval + &(pi_eval * &alpha);
+        let a = self.evaluations.lin_poly_eval + (pi_eval * alpha);
 
         // a + beta * sigma_1 + gamma
-        let beta_sig1 = beta * &self.evaluations.left_sigma_eval;
-        let b_0 = self.evaluations.a_eval + &beta_sig1 + &gamma;
+        let beta_sig1 = beta * self.evaluations.left_sigma_eval;
+        let b_0 = self.evaluations.a_eval + beta_sig1 + gamma;
 
         // b+ beta * sigma_2 + gamma
-        let beta_sig2 = beta * &self.evaluations.right_sigma_eval;
-        let b_1 = self.evaluations.b_eval + &beta_sig2 + &gamma;
+        let beta_sig2 = beta * self.evaluations.right_sigma_eval;
+        let b_1 = self.evaluations.b_eval + beta_sig2 + gamma;
 
         // c+ beta * sigma_3 + gamma
-        let beta_sig3 = beta * &self.evaluations.out_sigma_eval;
-        let b_2 = self.evaluations.c_eval + &beta_sig3 + &gamma;
+        let beta_sig3 = beta * self.evaluations.out_sigma_eval;
+        let b_2 = self.evaluations.c_eval + beta_sig3 + gamma;
 
         // ((d + gamma) * z_hat) * alpha^2
-        let b_3 = (self.evaluations.d_eval + &gamma) * &z_hat_eval * &alpha_sq;
+        let b_3 = (self.evaluations.d_eval + gamma) * z_hat_eval * alpha_sq;
 
         let b = b_0 * b_1 * b_2 * b_3;
 
         // l_1(z) * alpha^3
-        let c = l1_eval * &alpha_cu;
+        let c = l1_eval * alpha_cu;
 
-        let t_eval = (a - &b - &c) * &z_h_eval.invert().unwrap();
+        let t_eval = (a - b - c) * z_h_eval.invert().unwrap();
 
         t_eval
     }
@@ -273,10 +273,10 @@ impl Proof {
     // Commitment to [r]_1
     fn compute_linearisation_commitment(
         &self,
-        alpha: Scalar,
-        beta: Scalar,
-        gamma: Scalar,
-        z_challenge: Scalar,
+        alpha: &Scalar,
+        beta: &Scalar,
+        gamma: &Scalar,
+        z_challenge: &Scalar,
         l1_eval: Scalar,
         preprocessed_circuit: &PreProcessedCircuit,
     ) -> Commitment {
@@ -286,59 +286,59 @@ impl Proof {
         let alpha_sq = alpha * alpha;
         let alpha_cu = alpha_sq * alpha;
 
-        scalars.push(self.evaluations.a_eval * &self.evaluations.b_eval * &alpha);
+        scalars.push(self.evaluations.a_eval * self.evaluations.b_eval * alpha);
         points.push(preprocessed_circuit.qm_comm().0);
 
-        scalars.push(self.evaluations.a_eval * &alpha);
+        scalars.push(self.evaluations.a_eval * alpha);
         points.push(preprocessed_circuit.ql_comm().0);
 
-        scalars.push(self.evaluations.b_eval * &alpha);
+        scalars.push(self.evaluations.b_eval * alpha);
         points.push(preprocessed_circuit.qr_comm().0);
 
-        scalars.push(self.evaluations.c_eval * &alpha);
+        scalars.push(self.evaluations.c_eval * alpha);
         points.push(preprocessed_circuit.qo_comm().0);
 
         scalars.push(self.evaluations.d_eval * alpha);
         points.push(preprocessed_circuit.q4_comm().0);
 
-        scalars.push(alpha);
+        scalars.push(*alpha);
         points.push(preprocessed_circuit.qc_comm().0);
 
         // (a_eval + beta * z + gamma)(b_eval + beta * z * k1 + gamma)(c_eval + beta * k2* z + gamma)(d_eval + beta * k3* z + gamma) * alpha^2
         let x = {
-            let beta_z = beta * &z_challenge;
-            let q_0 = self.evaluations.a_eval + &beta_z + &gamma;
+            let beta_z = beta * z_challenge;
+            let q_0 = self.evaluations.a_eval + beta_z + gamma;
 
-            let beta_k1_z = beta * &K1 * &z_challenge;
-            let q_1 = self.evaluations.b_eval + &beta_k1_z + &gamma;
+            let beta_k1_z = beta * K1 * z_challenge;
+            let q_1 = self.evaluations.b_eval + beta_k1_z + gamma;
 
-            let beta_k2_z = beta * &K2 * &z_challenge;
-            let q_2 = self.evaluations.c_eval + &beta_k2_z + &gamma;
+            let beta_k2_z = beta * K2 * z_challenge;
+            let q_2 = self.evaluations.c_eval + beta_k2_z + gamma;
 
-            let beta_k3_z = beta * &K3 * &z_challenge;
-            let q_3 = (self.evaluations.d_eval + &beta_k3_z + &gamma) * alpha_sq;
+            let beta_k3_z = beta * K3 * z_challenge;
+            let q_3 = (self.evaluations.d_eval + beta_k3_z + gamma) * alpha_sq;
 
-            q_0 * &q_1 * &q_2 * &q_3
+            q_0 * q_1 * q_2 * q_3
         };
 
         // l1(z) * alpha^3
         let r = l1_eval * alpha_cu;
 
-        scalars.push(x + &r);
+        scalars.push(x + r);
         points.push(self.z_comm.0);
 
         // -(a_eval + beta * sigma_1_eval + gamma)(b_eval + beta * sigma_2_eval + gamma)(c_eval + beta * sigma_3_eval + gamma) *alpha^2
         let y = {
-            let beta_sigma_1 = beta * &self.evaluations.left_sigma_eval;
-            let q_0 = self.evaluations.a_eval + &beta_sigma_1 + &gamma;
+            let beta_sigma_1 = beta * self.evaluations.left_sigma_eval;
+            let q_0 = self.evaluations.a_eval + beta_sigma_1 + gamma;
 
-            let beta_sigma_2 = beta * &self.evaluations.right_sigma_eval;
-            let q_1 = self.evaluations.b_eval + &beta_sigma_2 + &gamma;
+            let beta_sigma_2 = beta * self.evaluations.right_sigma_eval;
+            let q_1 = self.evaluations.b_eval + beta_sigma_2 + gamma;
 
-            let beta_sigma_3 = beta * &self.evaluations.out_sigma_eval;
-            let q_2 = self.evaluations.c_eval + &beta_sigma_3 + &gamma;
+            let beta_sigma_3 = beta * self.evaluations.out_sigma_eval;
+            let q_2 = self.evaluations.c_eval + beta_sigma_3 + gamma;
 
-            let q_3 = beta * &self.evaluations.perm_eval * &alpha * &alpha;
+            let q_3 = beta * self.evaluations.perm_eval * alpha * alpha;
 
             -(q_0 * q_1 * q_2 * q_3)
         };

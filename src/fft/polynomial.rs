@@ -35,7 +35,7 @@ impl Polynomial {
 
     /// Checks if the given polynomial is zero.
     pub fn is_zero(&self) -> bool {
-        self.coeffs.is_empty() || self.coeffs.iter().all(|coeff| coeff == &Scalar::zero())
+        self.coeffs.is_empty() || self.coeffs.par_iter().all(|coeff| coeff == &Scalar::zero())
     }
 
     /// Constructs a new polynomial from a list of coefficients.
