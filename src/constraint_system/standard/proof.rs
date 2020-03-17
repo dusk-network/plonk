@@ -154,7 +154,6 @@ impl Proof {
 
         // Compute linearisation commitment
         let r_comm = self.compute_linearisation_commitment(
-            verifier_key.g,
             alpha,
             beta,
             gamma,
@@ -274,7 +273,6 @@ impl Proof {
     // Commitment to [r]_1
     fn compute_linearisation_commitment(
         &self,
-        g: G1Affine,
         alpha: Scalar,
         beta: Scalar,
         gamma: Scalar,
@@ -301,7 +299,7 @@ impl Proof {
         points.push(preprocessed_circuit.qo_comm().0);
 
         scalars.push(self.evaluations.d_eval * alpha);
-        points.push(g);
+        points.push(preprocessed_circuit.q4_comm().0);
 
         scalars.push(alpha);
         points.push(preprocessed_circuit.qc_comm().0);
