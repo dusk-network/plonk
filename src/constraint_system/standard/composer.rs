@@ -341,6 +341,25 @@ impl StandardComposer {
             Polynomial::from_coefficients_vec(t_x[3 * n..].to_vec()),
         )
     }
+    /// Fixes a variable in the witness to be a part of the circuit description
+    /// This method is (currently) only used in the following context:
+    /// We have gates which only require 3/4 wires,
+    /// We must assign the fourth value a value, we fix this value to be zero
+    /// However, the verifier needs to be able to verify that this value is also zero
+    /// So we must make this zero value a part of the circuit description of every circuit
+    fn add_witness_to_circuit_description(&mut self, var: Variable, value: Scalar) {
+        self.poly_gate(
+            var,
+            var,
+            var,
+            Scalar::zero(),
+            Scalar::one(),
+            Scalar::zero(),
+            Scalar::zero(),
+            -value,
+            Scalar::zero(),
+        );
+    }
 
     /// Convert variables to their actual witness values
     pub(crate) fn to_scalars(&self, vars: &[Variable]) -> Vec<Scalar> {
@@ -396,6 +415,7 @@ impl StandardComposer {
 
         // Reserve the first variable to be zero
         let zero_var = composer.add_input(Scalar::zero());
+        composer.add_witness_to_circuit_description(zero_var, Scalar::zero());
         composer.zero_var = zero_var;
 
         composer
@@ -884,6 +904,7 @@ mod tests {
             composer.add(var_one.into(), var_one.into(), Scalar::zero());
         }
 
-        assert_eq!(n, composer.circuit_size())
+        // Circuit size is n+1 because we have an extra gate which forces the first witness to be zero
+        assert_eq!(n + 1, composer.circuit_size())
     }
 }
