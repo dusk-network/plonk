@@ -235,13 +235,13 @@ impl Permutation {
         let beta_roots_iter = domain.elements().map(|root| root * beta);
 
         // Compute beta * roots * K1
-        let beta_roots_K1_iter = domain.elements().map(|root| (K1 * beta) * &root);
+        let beta_roots_K1_iter = domain.elements().map(|root| K1 * beta * root);
 
         // Compute beta * roots * K2
-        let beta_roots_K2_iter = domain.elements().map(|root| (K2 * beta) * &root);
+        let beta_roots_K2_iter = domain.elements().map(|root| K2 * beta * root);
 
         // Compute beta * roots * K3
-        let beta_roots_K3_iter = domain.elements().map(|root| (K3 * beta) * &root);
+        let beta_roots_K3_iter = domain.elements().map(|root| K3 * beta * root);
 
         // Compute left_wire + gamma
         let wL_gamma: Vec<_> = w_l.map(|w| w + gamma).collect();
@@ -327,16 +327,16 @@ impl Permutation {
             beta_fourth_sigma_iter,
         ) {
             // (w_L + beta * root + gamma)
-            let prod_a = beta_left_sigma + &w_l_gamma;
+            let prod_a = beta_left_sigma + w_l_gamma;
 
             // (w_R + beta * root * k_1 + gamma)
-            let prod_b = beta_right_sigma + &w_r_gamma;
+            let prod_b = beta_right_sigma + w_r_gamma;
 
             // (w_O + beta * root * k_2 + gamma)
-            let prod_c = beta_out_sigma + &w_o_gamma;
+            let prod_c = beta_out_sigma + w_o_gamma;
 
             // (w_4 + beta * root * k_3 + gamma)
-            let prod_d = beta_fourth_sigma + &w_4_gamma;
+            let prod_d = beta_fourth_sigma + w_4_gamma;
 
             let mut prod = prod_a * prod_b * prod_c * prod_d;
 
@@ -474,28 +474,28 @@ impl Permutation {
                     beta_fourth_sigma,
                 )| {
                     // w_j + beta * root^j-1 + gamma
-                    let ac1 = w_l_gamma + &beta_root;
+                    let ac1 = w_l_gamma + beta_root;
 
                     // w_{n+j} + beta * K1 * root^j-1 + gamma
-                    let ac2 = w_r_gamma + &beta_root_K1;
+                    let ac2 = w_r_gamma + beta_root_K1;
 
                     // w_{2n+j} + beta * K2 * root^j-1 + gamma
-                    let ac3 = w_o_gamma + &beta_root_K2;
+                    let ac3 = w_o_gamma + beta_root_K2;
 
                     // w_{3n+j} + beta * K3 * root^j-1 + gamma
-                    let ac4 = w_4_gamma + &beta_root_K3;
+                    let ac4 = w_4_gamma + beta_root_K3;
 
                     // 1 / w_j + beta * sigma(j) + gamma
-                    let ac5 = (w_l_gamma + &beta_left_sigma).invert().unwrap();
+                    let ac5 = (w_l_gamma + beta_left_sigma).invert().unwrap();
 
                     // 1 / w_{n+j} + beta * sigma(n+j) + gamma
-                    let ac6 = (w_r_gamma + &beta_right_sigma).invert().unwrap();
+                    let ac6 = (w_r_gamma + beta_right_sigma).invert().unwrap();
 
                     // 1 / w_{2n+j} + beta * sigma(2n+j) + gamma
-                    let ac7 = (w_o_gamma + &beta_out_sigma).invert().unwrap();
+                    let ac7 = (w_o_gamma + beta_out_sigma).invert().unwrap();
 
                     // 1 / w_{3n+j} + beta * sigma(3n+j) + gamma
-                    let ac8 = (w_4_gamma + &beta_fourth_sigma).invert().unwrap();
+                    let ac8 = (w_4_gamma + beta_fourth_sigma).invert().unwrap();
 
                     (ac1, ac2, ac3, ac4, ac5, ac6, ac7, ac8)
                 },
@@ -532,14 +532,14 @@ impl Permutation {
         );
         let product_acumulated_components: Vec<_> = accumulator_components
             .map(move |current_component| {
-                prev.0 *= &current_component.0;
-                prev.1 *= &current_component.1;
-                prev.2 *= &current_component.2;
-                prev.3 *= &current_component.3;
-                prev.4 *= &current_component.4;
-                prev.5 *= &current_component.5;
-                prev.6 *= &current_component.6;
-                prev.7 *= &current_component.7;
+                prev.0 *= current_component.0;
+                prev.1 *= current_component.1;
+                prev.2 *= current_component.2;
+                prev.3 *= current_component.3;
+                prev.4 *= current_component.4;
+                prev.5 *= current_component.5;
+                prev.6 *= current_component.6;
+                prev.7 *= current_component.7;
 
                 prev
             })
@@ -557,14 +557,14 @@ impl Permutation {
             .par_iter()
             .map(move |current_component| {
                 let mut prev = Scalar::one();
-                prev *= &current_component.0;
-                prev *= &current_component.1;
-                prev *= &current_component.2;
-                prev *= &current_component.3;
-                prev *= &current_component.4;
-                prev *= &current_component.5;
-                prev *= &current_component.6;
-                prev *= &current_component.7;
+                prev *= current_component.0;
+                prev *= current_component.1;
+                prev *= current_component.2;
+                prev *= current_component.3;
+                prev *= current_component.4;
+                prev *= current_component.5;
+                prev *= current_component.6;
+                prev *= current_component.7;
 
                 prev
             })

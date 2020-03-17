@@ -108,7 +108,7 @@ pub fn compute_copy_polynomial(
         .map(|i| {
             let z_shifted = &z_eval_4n[i + 4];
 
-            let mut product = a_fft[i] * &b_fft[i] * &c_fft[i] * &d_fft[i]; // (a(x) + beta * Sigma1(X) + gamma) (b(X) + beta * Sigma2(X) + gamma) (c(X) + beta * Sigma3(X) + gamma)(d(X) + beta * Sigma4(X) + gamma)
+            let mut product = a_fft[i] * b_fft[i] * c_fft[i] * d_fft[i]; // (a(x) + beta * Sigma1(X) + gamma) (b(X) + beta * Sigma2(X) + gamma) (c(X) + beta * Sigma3(X) + gamma)(d(X) + beta * Sigma4(X) + gamma)
             product = product * z_shifted;
 
             -product * alpha_sq // (a(x) + beta* Sigma1(X) + gamma) (b(X) + beta * Sigma2(X) + gamma) (c(X) + beta * Sigma3(X) + gamma)(d(X) + beta * Sigma4(X) + gamma) Z(X.omega) * alpha^2
@@ -131,14 +131,14 @@ pub fn compute_is_one_polynomial(
 
     // (Z(x) - 1)
     let mut z_coeffs = z_poly.to_vec();
-    z_coeffs[0] = z_coeffs[0] - &Scalar::one();
+    z_coeffs[0] = z_coeffs[0] - Scalar::one();
 
     let z_evals = domain_4n.coset_fft(&z_coeffs);
     let alpha_cu_l1_evals = domain_4n.coset_fft(&alpha_cu_l1_poly.coeffs);
 
     let t_4: Vec<_> = (0..domain_4n.size())
         .into_par_iter()
-        .map(|i| alpha_cu_l1_evals[i] * &z_evals[i])
+        .map(|i| alpha_cu_l1_evals[i] * z_evals[i])
         .collect();
     Evaluations::from_vec_and_domain(t_4, domain_4n)
 }
