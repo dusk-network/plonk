@@ -495,9 +495,19 @@ impl StandardComposer {
         )
     }
 
-    // Ensures q_l * a + q_r * b * q_4 * d - c = 0
+    // Ensures q_l * a + q_r * b - c = 0
     // Returns c
     pub fn add(
+        &mut self,
+        q_l_a: (Scalar, Variable),
+        q_r_b: (Scalar, Variable),
+        pi: Scalar,
+    ) -> Variable {
+        self.big_add(q_l_a, q_r_b, (Scalar::zero(), self.zero_var), pi)
+    }
+    // Ensures q_l * a + q_r * b * q_4 * d - c = 0
+    // Returns c
+    pub fn big_add(
         &mut self,
         q_l_a: (Scalar, Variable),
         q_r_b: (Scalar, Variable),
@@ -563,7 +573,7 @@ impl StandardComposer {
 
         c
     }
-
+    // Adds a width-3 mul gate
     pub fn mul_gate(
         &mut self,
         a: Variable,
@@ -574,10 +584,26 @@ impl StandardComposer {
         q_c: Scalar,
         pi: Scalar,
     ) -> Variable {
+        self.big_mul_gate(a, b, c, self.zero_var, q_m, q_o, q_c, Scalar::zero(), pi)
+    }
+
+    //Adds a width-4 mul gate
+    pub fn big_mul_gate(
+        &mut self,
+        a: Variable,
+        b: Variable,
+        c: Variable,
+        d: Variable,
+        q_m: Scalar,
+        q_o: Scalar,
+        q_c: Scalar,
+        q_4: Scalar,
+        pi: Scalar,
+    ) -> Variable {
         self.w_l.push(a);
         self.w_r.push(b);
         self.w_o.push(c);
-        self.w_4.push(self.zero_var);
+        self.w_4.push(d);
 
         // For a mul gate q_L and q_R is zero
         self.q_l.push(Scalar::zero());
@@ -587,31 +613,50 @@ impl StandardComposer {
         self.q_m.push(q_m);
         self.q_o.push(q_o);
         self.q_c.push(q_c);
-        self.q_4.push(Scalar::zero());
+        self.q_4.push(q_4);
 
         self.public_inputs.push(pi);
 
-        self.perm
-            .add_variables_to_map(a, b, c, self.zero_var, self.n);
+        self.perm.add_variables_to_map(a, b, c, d, self.n);
 
         self.n = self.n + 1;
 
         c
     }
+
     // q_m * a * b - c = 0
     pub fn mul(&mut self, q_m: Scalar, a: Variable, b: Variable, pi: Scalar) -> Variable {
+        self.big_mul(q_m, a, b, (Scalar::zero(), self.zero_var), pi)
+    }
+
+    // q_m * a * b + (q_4 * d) - c = 0
+    // returns c
+    pub fn big_mul(
+        &mut self,
+        q_m: Scalar,
+        a: Variable,
+        b: Variable,
+        q_4_d: (Scalar, Variable),
+        pi: Scalar,
+    ) -> Variable {
         let q_o = -Scalar::one();
         let q_c = Scalar::zero();
+
+        let q_4 = q_4_d.0;
+        let d = q_4_d.1;
 
         // Compute output wire
         let a_eval = self.variables[&a];
         let b_eval = self.variables[&b];
-        let c_eval = (q_m * a_eval * b_eval) + pi;
+        let d_eval = self.variables[&d];
+        let c_eval = (q_m * a_eval * b_eval) + (q_4 * d_eval) + pi;
         let c = self.add_input(c_eval);
 
-        self.mul_gate(a, b, c, q_m, q_o, q_c, pi)
+        self.big_mul_gate(a, b, c, d, q_m, q_o, q_c, q_4, pi)
     }
 
+    // Adds a width-3 poly gate
+    // We do not have a poly gate for width-4 as width-4 style gates are specialised
     pub fn poly_gate(
         &mut self,
         a: Variable,
@@ -762,7 +807,7 @@ mod tests {
         let var_one = composer.add_input(one);
 
         for _ in 0..n {
-            composer.add(
+            composer.big_add(
                 var_one.into(),
                 var_one.into(),
                 composer.zero_var.into(),
@@ -812,14 +857,14 @@ mod tests {
             |composer| {
                 let var_one = composer.add_input(Fr::one());
 
-                let should_be_three = composer.add(
+                let should_be_three = composer.big_add(
                     var_one.into(),
                     var_one.into(),
                     composer.zero_var.into(),
                     Scalar::one(),
                 );
                 composer.constrain_to_constant(should_be_three, Scalar::from(3), Scalar::zero());
-                let should_be_four = composer.add(
+                let should_be_four = composer.big_add(
                     var_one.into(),
                     var_one.into(),
                     composer.zero_var.into(),
@@ -842,9 +887,11 @@ mod tests {
                 let six = composer.add_input(Fr::from(6));
                 let seven = composer.add_input(Fr::from(7));
 
-                let fourteen = composer.add(four.into(), five.into(), five.into(), Scalar::zero());
+                let fourteen =
+                    composer.big_add(four.into(), five.into(), five.into(), Scalar::zero());
 
-                let twenty = composer.add(six.into(), seven.into(), seven.into(), Scalar::zero());
+                let twenty =
+                    composer.big_add(six.into(), seven.into(), seven.into(), Scalar::zero());
 
                 // There are quite a few ways to check the equation is correct, depending on your circumstance
                 // If we already have the output wire, we can constrain the output of the mul_gate to be equal to it
@@ -857,6 +904,38 @@ mod tests {
         );
         assert!(ok);
     }
+
+    #[test]
+    fn test_correct_big_add_mul_gate() {
+        let ok = test_gadget(
+            |composer| {
+                // Verify that (4+5+5) * (6+7+7) + (8*9) = 352
+                let four = composer.add_input(Fr::from(4));
+                let five = composer.add_input(Fr::from(5));
+                let six = composer.add_input(Fr::from(6));
+                let seven = composer.add_input(Fr::from(7));
+                let nine = composer.add_input(Fr::from(9));
+
+                let fourteen =
+                    composer.big_add(four.into(), five.into(), five.into(), Scalar::zero());
+
+                let twenty =
+                    composer.big_add(six.into(), seven.into(), seven.into(), Scalar::zero());
+
+                let output = composer.big_mul(
+                    Scalar::one(),
+                    fourteen,
+                    twenty,
+                    (Scalar::from(8), nine),
+                    Scalar::zero(),
+                );
+                composer.constrain_to_constant(output, Scalar::from(352), Scalar::zero());
+            },
+            200,
+        );
+        assert!(ok);
+    }
+
     #[test]
     fn test_incorrect_add_mul_gate() {
         let ok = test_gadget(
@@ -866,14 +945,14 @@ mod tests {
                 let six = composer.add_input(Fr::from(6));
                 let seven = composer.add_input(Fr::from(7));
 
-                let five_plus_five = composer.add(
+                let five_plus_five = composer.big_add(
                     five.into(),
                     five.into(),
                     composer.zero_var.into(),
                     Scalar::zero(),
                 );
 
-                let six_plus_seven = composer.add(
+                let six_plus_seven = composer.big_add(
                     six.into(),
                     seven.into(),
                     composer.zero_var.into(),
@@ -972,7 +1051,7 @@ mod tests {
         let n = 20;
 
         for _ in 0..n {
-            composer.add(
+            composer.big_add(
                 var_one.into(),
                 var_one.into(),
                 composer.zero_var.into(),
