@@ -178,7 +178,7 @@ impl EvaluationDomain {
         } else {
             use crate::util::batch_inversion;
 
-            let mut l = (t_size - &one) * &self.size_inv;
+            let mut l = (t_size - one) * self.size_inv;
             let mut r = one;
             let mut u = vec![Scalar::zero(); size];
             let mut ls = vec![Scalar::zero(); size];
@@ -202,8 +202,8 @@ impl EvaluationDomain {
     /// This evaluates the vanishing polynomial for this domain at tau.
     /// For multiplicative subgroups, this polynomial is `z(X) = X^self.size -
     /// 1`.
-    pub fn evaluate_vanishing_polynomial(&self, tau: Scalar) -> Scalar {
-        tau.pow(&[self.size, 0, 0, 0]) - &Scalar::one()
+    pub fn evaluate_vanishing_polynomial(&self, tau: &Scalar) -> Scalar {
+        tau.pow(&[self.size, 0, 0, 0]) - Scalar::one()
     }
 
     /// Given that the domain size is `D`  
@@ -218,8 +218,7 @@ impl EvaluationDomain {
         let v_h: Vec<_> = (0..self.size())
             .into_iter()
             .map(|i| {
-                (coset_gen * self.group_gen.pow(&[poly_degree * i as u64, 0, 0, 0]))
-                    - &Scalar::one()
+                (coset_gen * self.group_gen.pow(&[poly_degree * i as u64, 0, 0, 0])) - Scalar::one()
             })
             .collect();
         Evaluations::from_vec_and_domain(v_h, self.clone())
@@ -239,7 +238,7 @@ impl EvaluationDomain {
     /// a coset.
     pub fn divide_by_vanishing_poly_on_coset_in_place(&self, evals: &mut [Scalar]) {
         let i = self
-            .evaluate_vanishing_polynomial(GENERATOR)
+            .evaluate_vanishing_polynomial(&GENERATOR)
             .invert()
             .unwrap();
 
