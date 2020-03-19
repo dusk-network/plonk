@@ -144,6 +144,8 @@ impl Composer for StandardComposer {
             right_sigma: (right_sigma_poly, right_sigma_poly_commit),
             out_sigma: (out_sigma_poly, out_sigma_poly_commit),
             fourth_sigma: (fourth_sigma_poly, fourth_sigma_poly_commit),
+            // Compute 4n evaluations for X^n -1
+            v_h_coset_4n: domain_4n.compute_vanishing_poly_over_coset(domain.size() as u64),
         }
     }
 
