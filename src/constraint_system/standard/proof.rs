@@ -55,6 +55,7 @@ impl Proof {
                 b_eval: Scalar::zero(),
                 c_eval: Scalar::zero(),
                 d_eval: Scalar::zero(),
+                q_arith_eval: Scalar::zero(),
 
                 left_sigma_eval: Scalar::zero(),
                 right_sigma_eval: Scalar::zero(),
@@ -231,8 +232,8 @@ impl Proof {
         let alpha_sq = alpha.square();
         let alpha_cu = alpha_sq * alpha;
 
-        // r + PI(z) * alpha
-        let a = self.evaluations.lin_poly_eval + (pi_eval * alpha);
+        // r +( PI(z) * alpha) q_arith(z)
+        let a = self.evaluations.lin_poly_eval + (pi_eval * alpha) * self.evaluations.q_arith_eval;
 
         // a + beta * sigma_1 + gamma
         let beta_sig1 = beta * self.evaluations.left_sigma_eval;
@@ -303,6 +304,12 @@ impl Proof {
 
         scalars.push(*alpha);
         points.push(preprocessed_circuit.qc_comm().0);
+
+        // Multiply all terms by q_arith
+        scalars = scalars
+            .iter()
+            .map(|s| s * self.evaluations.q_arith_eval)
+            .collect();
 
         // (a_eval + beta * z + gamma)(b_eval + beta * z * k1 + gamma)(c_eval + beta * k2* z + gamma)(d_eval + beta * k3* z + gamma) * alpha^2
         let x = {
