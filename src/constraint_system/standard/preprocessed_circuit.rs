@@ -5,7 +5,7 @@ use crate::fft::{Evaluations, Polynomial};
 pub struct PreProcessedCircuit {
     // The number of gates in the circuit
     pub n: usize,
-    // Selector polynomial coefficients q_m, q_l, q_r, q_o, q_c,q_4 ,their commitments and their 4n evaluation points
+    // Selector polynomial coefficients , their commitments and their 4n evaluation points
     pub selectors: Vec<(Polynomial, Commitment, Evaluations)>,
 
     // Sigma polynomials and their commitments
@@ -32,6 +32,9 @@ impl PreProcessedCircuit {
     }
     pub fn q4_poly(&self) -> &Polynomial {
         &self.selectors[5].0
+    }
+    pub fn qarith_poly(&self) -> &Polynomial {
+        &self.selectors[6].0
     }
     pub fn left_sigma_poly(&self) -> &Polynomial {
         &self.left_sigma.0
@@ -63,6 +66,9 @@ impl PreProcessedCircuit {
     pub fn q4_comm(&self) -> &Commitment {
         &self.selectors[5].1
     }
+    pub fn qarith_comm(&self) -> &Commitment {
+        &self.selectors[6].1
+    }
     pub fn left_sigma_comm(&self) -> &Commitment {
         &self.left_sigma.1
     }
@@ -92,5 +98,8 @@ impl PreProcessedCircuit {
     }
     pub fn q4_eval_4n(&self) -> &Evaluations {
         &self.selectors[5].2
+    }
+    pub fn qarith_eval_4n(&self) -> &Evaluations {
+        &self.selectors[6].2
     }
 }

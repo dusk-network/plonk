@@ -39,6 +39,7 @@ pub(crate) fn compute(
         preprocessed_circuit.qo_eval_4n(),
         preprocessed_circuit.qc_eval_4n(),
         preprocessed_circuit.q4_eval_4n(),
+        preprocessed_circuit.qarith_eval_4n(),
         public_inputs_poly,
         w_l_poly,
         w_r_poly,
@@ -101,6 +102,7 @@ fn compute_circuit_satisfiability_equation(
     qo_eval_4n: &Evaluations,
     qc_eval_4n: &Evaluations,
     q4_eval_4n: &Evaluations,
+    qarith_eval_4n: &Evaluations,
     pi_poly: &Polynomial,
     wl_poly: &Polynomial,
     wr_poly: &Polynomial,
@@ -129,6 +131,7 @@ fn compute_circuit_satisfiability_equation(
             let q4 = &q4_eval_4n[i];
             let qc = &qc_eval_4n[i];
             let pi = &pi_eval_4n[i];
+            let qarith = &qarith_eval_4n[i];
             // (a(x)b(x)q_M(x) + a(x)q_L(x) + b(X)q_R(x) + c(X)q_O(X) + d(x)q_4(X) + PI(X) + Q_C(X))
             //
             //(a(x)b(x)q_M(x)
@@ -150,6 +153,7 @@ fn compute_circuit_satisfiability_equation(
             a += a_4;
             a += a_5;
             a += a_6;
+            a = a * qarith;
             a = a * alpha;
             a
         })
