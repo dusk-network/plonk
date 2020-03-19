@@ -11,7 +11,7 @@
 //! by performing an O(n log n) FFT over such a domain.
 
 use super::Evaluations;
-use bls12_381::{Scalar, GENERATOR, ROOT_OF_UNITY, S as TWO_ADACITY};
+use bls12_381::{Scalar, GENERATOR, ROOT_OF_UNITY, TWO_ADACITY};
 use core::fmt;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefMutIterator, ParallelIterator};
 use std::ops::MulAssign;
