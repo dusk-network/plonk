@@ -10,9 +10,8 @@
 //! This allows us to perform polynomial operations in O(n)
 //! by performing an O(n log n) FFT over such a domain.
 
-use super::constants::{GENERATOR, ROOT_OF_UNITY, TWO_ADICITY};
 use super::Evaluations;
-use bls12_381::Scalar;
+use bls12_381::{Scalar, GENERATOR, ROOT_OF_UNITY, TWO_ADACITY};
 use core::fmt;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefMutIterator, ParallelIterator};
 use std::ops::MulAssign;
@@ -52,7 +51,7 @@ impl EvaluationDomain {
         let size = num_coeffs.next_power_of_two() as u64;
         let log_size_of_group = size.trailing_zeros();
 
-        if log_size_of_group >= TWO_ADICITY {
+        if log_size_of_group >= TWO_ADACITY {
             return None;
         }
 
@@ -60,7 +59,7 @@ impl EvaluationDomain {
         // It should be 2^(log_size_of_group) root of unity.
 
         let mut group_gen = ROOT_OF_UNITY;
-        for _ in log_size_of_group..TWO_ADICITY {
+        for _ in log_size_of_group..TWO_ADACITY {
             group_gen = group_gen.square();
         }
         let size_as_field_element = Scalar::from(size);
@@ -80,7 +79,7 @@ impl EvaluationDomain {
     /// polynomial having `num_coeffs` coefficients.
     pub fn compute_size_of_domain(num_coeffs: usize) -> Option<usize> {
         let size = num_coeffs.next_power_of_two();
-        if size.trailing_zeros() < TWO_ADICITY {
+        if size.trailing_zeros() < TWO_ADACITY {
             Some(size)
         } else {
             None
