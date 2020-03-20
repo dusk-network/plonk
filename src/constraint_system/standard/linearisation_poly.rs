@@ -19,6 +19,8 @@ pub struct ProofEvaluations {
     pub c_eval: Scalar,
     // Evaluation of the witness polynomial for the fourth wire at `z`
     pub d_eval: Scalar,
+    // Evaluation of the witness polynomial for the fourth wire at `z * root of unity`
+    pub d_next_eval: Scalar,
     // Evaluation of the arithmetic selector polynomial at `z`
     pub q_arith_eval: Scalar,
 
@@ -63,6 +65,8 @@ pub fn compute(
         .evaluate(z_challenge);
     let out_sigma_eval = preprocessed_circuit.out_sigma_poly().evaluate(z_challenge);
     let q_arith_eval = preprocessed_circuit.qarith_poly().evaluate(z_challenge);
+
+    let d_next_eval = w_4_poly.evaluate(&(z_challenge * domain.group_gen));
     let perm_eval = z_poly.evaluate(&(z_challenge * domain.group_gen));
 
     let f_1 = compute_circuit_satisfiability(
@@ -71,6 +75,7 @@ pub fn compute(
         &b_eval,
         &c_eval,
         &d_eval,
+        d_next_eval,
         &q_arith_eval,
         preprocessed_circuit.qm_poly(),
         preprocessed_circuit.ql_poly(),
@@ -78,6 +83,7 @@ pub fn compute(
         preprocessed_circuit.qo_poly(),
         preprocessed_circuit.qc_poly(),
         preprocessed_circuit.q4_poly(),
+        preprocessed_circuit.qrange_poly(),
     );
 
     let f_2 = grand_product_lineariser::compute_identity_polynomial(
@@ -120,6 +126,7 @@ pub fn compute(
                 b_eval,
                 c_eval,
                 d_eval,
+                d_next_eval,
                 q_arith_eval,
                 left_sigma_eval,
                 right_sigma_eval,
@@ -138,6 +145,7 @@ fn compute_circuit_satisfiability(
     b_eval: &Scalar,
     c_eval: &Scalar,
     d_eval: &Scalar,
+    d_next_eval: Scalar,
     q_arith_eval: &Scalar,
     q_m_poly: &Polynomial,
     q_l_poly: &Polynomial,
@@ -145,7 +153,19 @@ fn compute_circuit_satisfiability(
     q_o_poly: &Polynomial,
     q_c_poly: &Polynomial,
     q_4_poly: &Polynomial,
+    q_range_poly: &Polynomial,
 ) -> Polynomial {
+    // Computes f(f-1)(f-2)(f-3)
+    let delta = |f: Scalar| -> Scalar {
+        let f_1 = f - Scalar::one();
+        let f_2 = f - Scalar::from(2);
+        let f_3 = f - Scalar::from(3);
+        f * f_1 * f_2 * f_3
+    };
+    let four = Scalar::from(4);
+
+    // (a_eval * b_eval * q_m_poly + a_eval * q_l + b_eval * q_r + c_eval * q_o + d_eval * q_4 + q_c) * q_arith_eval * alpha
+    //
     // a_eval * b_eval * q_m_poly
     let ab = a_eval * b_eval;
     let a_0 = q_m_poly * &ab;
@@ -168,5 +188,13 @@ fn compute_circuit_satisfiability(
     a = &a + &a_4;
     a = &a + q_c_poly;
     a = &a * q_arith_eval;
-    &a * alpha // (a_eval * b_eval * q_m_poly + a_eval * q_l + b_eval * q_r + c_eval * q_o + d_eval * q_4 + q_c) * q_arith_eval * alpha
+
+    // Delta([c_eval - 4 * d_eval]) + Delta([b_eval - 4 * c_eval]) + Delta([a_eval - 4 * b_eval]) + Delta([d_next_eval - 4 * a_eval]) * Q_Range(X)
+    let b_1 = delta(c_eval - four * d_eval);
+    let b_2 = delta(b_eval - four * c_eval);
+    let b_3 = delta(a_eval - four * b_eval);
+    let b_4 = delta(d_next_eval - four * a_eval);
+    let b = q_range_poly * &(b_1 + b_2 + b_3 + b_4);
+
+    &(&a + &b) * alpha
 }
