@@ -76,15 +76,12 @@ pub(crate) fn compute(
 
     let t_4 =
         grand_product_quotient::compute_is_one_polynomial(domain, z_poly, alpha.square() * alpha);
-    // Compute 4n evaluations for X^n -1
-    let v_h_coset_4n = domain_4n.compute_vanishing_poly_over_coset(domain.size() as u64);
 
-    // XXX: We can compute the 4n evaluations for the vanishing polynomial in the preprocessing stage
     let quotient: Vec<_> = (0..domain_4n.size())
         .into_par_iter()
         .map(|i| {
             let numerator = t_1[i] + t_2[i] + t_3[i] + t_4[i];
-            let denominator = v_h_coset_4n[i];
+            let denominator = preprocessed_circuit.v_h_coset_4n()[i];
             numerator * denominator.invert().unwrap()
         })
         .collect();

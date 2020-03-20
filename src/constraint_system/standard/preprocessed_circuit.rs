@@ -13,6 +13,10 @@ pub struct PreProcessedCircuit {
     pub right_sigma: (Polynomial, Commitment),
     pub out_sigma: (Polynomial, Commitment),
     pub fourth_sigma: (Polynomial, Commitment),
+
+    // Stores the `4n Evaluations for X^n -1` so they do not
+    // need to be computed on the proving stage.
+    pub(crate) v_h_coset_4n: Evaluations,
 }
 impl PreProcessedCircuit {
     pub fn qm_poly(&self) -> &Polynomial {
@@ -101,5 +105,8 @@ impl PreProcessedCircuit {
     }
     pub fn qarith_eval_4n(&self) -> &Evaluations {
         &self.selectors[6].2
+    }
+    pub fn v_h_coset_4n(&self) -> &Evaluations {
+        &self.v_h_coset_4n
     }
 }
