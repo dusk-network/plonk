@@ -198,12 +198,11 @@ impl Composer for StandardComposer {
         let w_o_poly_commit = commit_key.commit(&w_o_poly).unwrap();
         let w_4_poly_commit = commit_key.commit(&w_4_poly).unwrap();
 
-        // Add commitment to witness polynomials to transcript
+        // Add witness polynomial commitments to transcript
         transcript.append_commitment(b"w_l", &w_l_poly_commit);
         transcript.append_commitment(b"w_r", &w_r_poly_commit);
         transcript.append_commitment(b"w_o", &w_o_poly_commit);
         transcript.append_commitment(b"w_4", &w_4_poly_commit);
-        //
 
         // 2. Compute permutation polynomial
         //
@@ -212,8 +211,7 @@ impl Composer for StandardComposer {
         let beta = transcript.challenge_scalar(b"beta");
         transcript.append_scalar(b"beta", &beta);
         let gamma = transcript.challenge_scalar(b"gamma");
-        //
-        //
+
         let z_poly = self.perm.compute_permutation_poly(
             &domain,
             &w_l_scalar,
@@ -222,22 +220,22 @@ impl Composer for StandardComposer {
             &w_4_scalar,
             &(beta, gamma),
         );
+
         // Commit to permutation polynomial
         //
         let z_poly_commit = commit_key.commit(&z_poly).unwrap();
-        // Add commitment to permutation polynomials to transcript
+
+        // Add permutation polynomial commitment to transcript
         transcript.append_commitment(b"z", &z_poly_commit);
 
-        //
-        // 2. Compute public inputs polynomial
+        // 3. Compute public inputs polynomial
         let pi_poly = Polynomial::from_coefficients_vec(domain.ifft(&self.public_inputs));
-        //
 
-        // 3. Compute quotient polynomial
+        // 4. Compute quotient polynomial
         //
         // Compute quotient challenge; `alpha`
         let alpha = transcript.challenge_scalar(b"alpha");
-        //
+
         let t_poly = quotient_poly::compute(
             &domain,
             &preprocessed_circuit,
@@ -246,17 +244,17 @@ impl Composer for StandardComposer {
             &pi_poly,
             &(alpha, beta, gamma),
         );
+
         // Split quotient polynomial into 4 degree `n` polynomials
         let (t_1_poly, t_2_poly, t_3_poly, t_4_poly) = self.split_tx_poly(domain.size(), &t_poly);
 
-        // Commit to permutation polynomial
-        //
+        // Commit to splitted quotient polynomial
         let t_1_commit = commit_key.commit(&t_1_poly).unwrap();
         let t_2_commit = commit_key.commit(&t_2_poly).unwrap();
         let t_3_commit = commit_key.commit(&t_3_poly).unwrap();
         let t_4_commit = commit_key.commit(&t_4_poly).unwrap();
 
-        // Add commitment to quotient polynomials to transcript
+        // Add quotient polynomial commitments to transcript
         transcript.append_commitment(b"t_1", &t_1_commit);
         transcript.append_commitment(b"t_2", &t_2_commit);
         transcript.append_commitment(b"t_3", &t_3_commit);
@@ -267,7 +265,6 @@ impl Composer for StandardComposer {
         // Compute evaluation challenge; `z`
         let z_challenge = transcript.challenge_scalar(b"z");
 
-        //
         let (lin_poly, evaluations) = linearisation_poly::compute(
             &domain,
             &preprocessed_circuit,
@@ -279,6 +276,7 @@ impl Composer for StandardComposer {
             &t_poly,
             &z_poly,
         );
+
         // Add evaluations to transcript
         transcript.append_scalar(b"a_eval", &evaluations.proof.a_eval);
         transcript.append_scalar(b"b_eval", &evaluations.proof.b_eval);
@@ -292,8 +290,8 @@ impl Composer for StandardComposer {
         transcript.append_scalar(b"perm_eval", &evaluations.proof.perm_eval);
         transcript.append_scalar(b"t_eval", &evaluations.quot_eval);
         transcript.append_scalar(b"r_eval", &evaluations.proof.lin_poly_eval);
-        //
-        // 5. Compute openings
+
+        // 5. Compute Openings using KZG10
         //
         // We merge the quotient polynomial using the `z_challenge` so the SRS is linear in the circuit size `n`
         let quot = Self::compute_quotient_opening_poly(
@@ -305,7 +303,7 @@ impl Composer for StandardComposer {
             &z_challenge,
         );
 
-        // Compute W_z
+        // Compute aggregate witness to polynomials evaluated at the evaluation challenge `z`
         let aggregate_witness = commit_key.compute_aggregate_witness(
             &[
                 quot,
@@ -323,14 +321,14 @@ impl Composer for StandardComposer {
         );
         let w_z_comm = commit_key.commit(&aggregate_witness).unwrap();
 
-        // Compute W_zx
+        // Compute aggregate witness to polynomials evaluated at the shifted evaluation challenge
         let shifted_aggregate_witness = commit_key.compute_aggregate_witness(
             &[z_poly, w_4_poly],
             &(z_challenge * domain.group_gen),
             transcript,
         );
         let w_zx_comm = commit_key.commit(&shifted_aggregate_witness).unwrap();
-        //
+
         // Create Proof
         Proof {
             a_comm: w_l_poly_commit,
