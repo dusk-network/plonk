@@ -1,6 +1,6 @@
 use super::linearisation_poly::ProofEvaluations;
 use super::PreProcessedCircuit;
-use crate::commitment_scheme::kzg10::{AggregateProof, Proof as SingleProof};
+use crate::commitment_scheme::kzg10::AggregateProof;
 use crate::commitment_scheme::kzg10::{Commitment, VerifierKey};
 use crate::fft::{EvaluationDomain, Polynomial};
 use crate::permutation::constants::{K1, K2, K3};
@@ -55,6 +55,7 @@ impl Proof {
                 b_eval: Scalar::zero(),
                 c_eval: Scalar::zero(),
                 d_eval: Scalar::zero(),
+                d_next_eval: Scalar::zero(),
                 q_arith_eval: Scalar::zero(),
 
                 left_sigma_eval: Scalar::zero(),
@@ -146,9 +147,11 @@ impl Proof {
         transcript.append_scalar(b"b_eval", &self.evaluations.b_eval);
         transcript.append_scalar(b"c_eval", &self.evaluations.c_eval);
         transcript.append_scalar(b"d_eval", &self.evaluations.d_eval);
+        transcript.append_scalar(b"d_next_eval", &self.evaluations.d_next_eval);
         transcript.append_scalar(b"left_sig_eval", &self.evaluations.left_sigma_eval);
         transcript.append_scalar(b"right_sig_eval", &self.evaluations.right_sigma_eval);
         transcript.append_scalar(b"out_sig_eval", &self.evaluations.out_sigma_eval);
+        transcript.append_scalar(b"q_arith_eval", &self.evaluations.q_arith_eval);
         transcript.append_scalar(b"perm_eval", &self.evaluations.perm_eval);
         transcript.append_scalar(b"t_eval", &t_eval);
         transcript.append_scalar(b"r_eval", &self.evaluations.lin_poly_eval);
@@ -190,23 +193,22 @@ impl Proof {
             *preprocessed_circuit.out_sigma_comm(),
         ));
         // Flatten proof with opening challenge
-        let flattened_proof = aggregate_proof.flatten(transcript);
+        let flattened_proof_a = aggregate_proof.flatten(transcript);
+
+        // Compose the shifted aggregate proof
+        let mut shifted_aggregate_proof = AggregateProof::with_witness(self.w_zw_comm);
+        shifted_aggregate_proof.add_part((self.evaluations.perm_eval, self.z_comm));
+        shifted_aggregate_proof.add_part((self.evaluations.d_next_eval, self.d_comm));
+        let flattened_proof_b = shifted_aggregate_proof.flatten(transcript);
 
         // Add commitment to openings to transcript
         transcript.append_commitment(b"w_z", &self.w_z_comm);
         transcript.append_commitment(b"w_z_w", &self.w_zw_comm);
 
-        // Compose the Single Proof
-        let single_proof = SingleProof {
-            commitment_to_witness: self.w_zw_comm,
-            evaluated_point: self.evaluations.perm_eval,
-            commitment_to_polynomial: self.z_comm,
-        };
-
         // Batch check
         verifier_key.batch_check(
             &[z_challenge, (z_challenge * domain.group_gen)],
-            &[flattened_proof, single_proof],
+            &[flattened_proof_a, flattened_proof_b],
             transcript,
         )
     }
@@ -284,6 +286,14 @@ impl Proof {
         let mut scalars: Vec<_> = Vec::with_capacity(6);
         let mut points: Vec<G1Affine> = Vec::with_capacity(6);
 
+        // Computes f(f-1)(f-2)(f-3)
+        let delta = |f: Scalar| -> Scalar {
+            let f_1 = f - Scalar::one();
+            let f_2 = f - Scalar::from(2);
+            let f_3 = f - Scalar::from(3);
+            f * f_1 * f_2 * f_3
+        };
+
         let alpha_sq = alpha * alpha;
         let alpha_cu = alpha_sq * alpha;
 
@@ -304,12 +314,21 @@ impl Proof {
 
         scalars.push(*alpha);
         points.push(preprocessed_circuit.qc_comm().0);
-
         // Multiply all terms by q_arith
         scalars = scalars
             .iter()
             .map(|s| s * self.evaluations.q_arith_eval)
             .collect();
+
+        let four = Scalar::from(4);
+
+        let b_1 = delta(self.evaluations.c_eval - (four * self.evaluations.d_eval));
+        let b_2 = delta(self.evaluations.b_eval - four * self.evaluations.c_eval);
+        let b_3 = delta(self.evaluations.a_eval - four * self.evaluations.b_eval);
+        let b_4 = delta(self.evaluations.d_next_eval - (four * self.evaluations.a_eval));
+
+        scalars.push((b_1 + b_2 + b_3 + b_4) * alpha);
+        points.push(preprocessed_circuit.qrange_comm().0);
 
         // (a_eval + beta * z + gamma)(b_eval + beta * z * k1 + gamma)(c_eval + beta * k2* z + gamma)(d_eval + beta * k3* z + gamma) * alpha^2
         let x = {

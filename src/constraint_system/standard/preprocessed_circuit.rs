@@ -14,8 +14,10 @@ pub struct PreProcessedCircuit {
     pub out_sigma: (Polynomial, Commitment),
     pub fourth_sigma: (Polynomial, Commitment),
 
-    // Stores the `4n Evaluations for X^n -1` so they do not
-    // need to be computed on the proving stage.
+    // Preprocesses the 4n Evaluations for the vanishing polynomial, so they do not
+    // need to be computed at the proving stage.
+    // Note: With this, we can combine all parts of the quotient polynomial in their evaluation phase and
+    // divide by the quotient polynomial without having to IFFT
     pub(crate) v_h_coset_4n: Evaluations,
 }
 impl PreProcessedCircuit {
@@ -39,6 +41,9 @@ impl PreProcessedCircuit {
     }
     pub fn qarith_poly(&self) -> &Polynomial {
         &self.selectors[6].0
+    }
+    pub fn qrange_poly(&self) -> &Polynomial {
+        &self.selectors[7].0
     }
     pub fn left_sigma_poly(&self) -> &Polynomial {
         &self.left_sigma.0
@@ -73,6 +78,9 @@ impl PreProcessedCircuit {
     pub fn qarith_comm(&self) -> &Commitment {
         &self.selectors[6].1
     }
+    pub fn qrange_comm(&self) -> &Commitment {
+        &self.selectors[7].1
+    }
     pub fn left_sigma_comm(&self) -> &Commitment {
         &self.left_sigma.1
     }
@@ -105,6 +113,9 @@ impl PreProcessedCircuit {
     }
     pub fn qarith_eval_4n(&self) -> &Evaluations {
         &self.selectors[6].2
+    }
+    pub fn qrange_eval_4n(&self) -> &Evaluations {
+        &self.selectors[7].2
     }
     pub fn v_h_coset_4n(&self) -> &Evaluations {
         &self.v_h_coset_4n

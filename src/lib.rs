@@ -1,3 +1,4 @@
+mod bit_iterator;
 pub mod commitment_scheme;
 pub mod constraint_system;
 pub mod fft;
