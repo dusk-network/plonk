@@ -6,7 +6,7 @@ use rayon::prelude::*;
 /// Computes the Identity permutation polynomial component of the grand product
 pub fn compute_identity_polynomial(
     domain: &EvaluationDomain,
-    alpha_sq: &Scalar,
+    alpha: &Scalar,
     beta: &Scalar,
     gamma: &Scalar,
     z_eval_4n: &Vec<Scalar>,
@@ -49,9 +49,9 @@ pub fn compute_identity_polynomial(
             let z = &z_eval_4n[i];
 
             let mut product = a[i] * &b[i] * &c[i] * &d[i]; // (a(x) + beta * X + gamma) (b(X) + beta * k1 * X + gamma) (c(X) + beta * k2 * X + gamma)(d(X) + beta * k3 * X + gamma)
-            product = product * z; // (a(x) + beta * X + gamma) (b(X) + beta * k1 * X + gamma) (c(X) + beta * k2 * X + gamma)(d(X) + beta * k3 * X + gamma)z(X) * alpha^2
+            product = product * z; // (a(x) + beta * X + gamma) (b(X) + beta * k1 * X + gamma) (c(X) + beta * k2 * X + gamma)(d(X) + beta * k3 * X + gamma)z(X) * alpha
 
-            product * alpha_sq
+            product * alpha
         })
         .collect();
     Evaluations::from_vec_and_domain(t_2, domain_4n)
@@ -59,7 +59,7 @@ pub fn compute_identity_polynomial(
 /// Computes the Copy permutation polynomial component of the grand product
 pub fn compute_copy_polynomial(
     domain: &EvaluationDomain,
-    alpha_sq: &Scalar,
+    alpha: &Scalar,
     beta: &Scalar,
     gamma: &Scalar,
     z_eval_4n: &Vec<Scalar>,
@@ -111,7 +111,7 @@ pub fn compute_copy_polynomial(
             let mut product = a_fft[i] * b_fft[i] * c_fft[i] * d_fft[i]; // (a(x) + beta * Sigma1(X) + gamma) (b(X) + beta * Sigma2(X) + gamma) (c(X) + beta * Sigma3(X) + gamma)(d(X) + beta * Sigma4(X) + gamma)
             product = product * z_shifted;
 
-            -product * alpha_sq // (a(x) + beta* Sigma1(X) + gamma) (b(X) + beta * Sigma2(X) + gamma) (c(X) + beta * Sigma3(X) + gamma)(d(X) + beta * Sigma4(X) + gamma) Z(X.omega) * alpha^2
+            -product * alpha // (a(x) + beta* Sigma1(X) + gamma) (b(X) + beta * Sigma2(X) + gamma) (c(X) + beta * Sigma3(X) + gamma)(d(X) + beta * Sigma4(X) + gamma) Z(X.omega) * alpha
         })
         .collect();
 
@@ -121,24 +121,24 @@ pub fn compute_copy_polynomial(
 pub fn compute_is_one_polynomial(
     domain: &EvaluationDomain,
     z_poly: &Polynomial,
-    alpha_cu: Scalar,
+    alpha_sq: Scalar,
 ) -> Evaluations {
     let n = domain.size();
     let domain_4n = EvaluationDomain::new(4 * n).unwrap();
 
     let l1_poly = compute_first_lagrange_poly(domain);
-    let alpha_cu_l1_poly = &l1_poly * &alpha_cu;
+    let alpha_sq_l1_poly = &l1_poly * &alpha_sq;
 
     // (Z(x) - 1)
     let mut z_coeffs = z_poly.to_vec();
     z_coeffs[0] = z_coeffs[0] - Scalar::one();
 
     let z_evals = domain_4n.coset_fft(&z_coeffs);
-    let alpha_cu_l1_evals = domain_4n.coset_fft(&alpha_cu_l1_poly.coeffs);
+    let alpha_sq_l1_evals = domain_4n.coset_fft(&alpha_sq_l1_poly.coeffs);
 
     let t_4: Vec<_> = (0..domain_4n.size())
         .into_par_iter()
-        .map(|i| alpha_cu_l1_evals[i] * z_evals[i])
+        .map(|i| alpha_sq_l1_evals[i] * z_evals[i])
         .collect();
     Evaluations::from_vec_and_domain(t_4, domain_4n)
 }

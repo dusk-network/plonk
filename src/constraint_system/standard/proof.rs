@@ -232,10 +232,9 @@ impl Proof {
         let pi_eval = pi_poly.evaluate(z_challenge);
 
         let alpha_sq = alpha.square();
-        let alpha_cu = alpha_sq * alpha;
 
-        // r +( PI(z) * alpha) q_arith(z)
-        let a = self.evaluations.lin_poly_eval + (pi_eval * alpha) * self.evaluations.q_arith_eval;
+        // r +( PI(z) *  q_arith(z))
+        let a = self.evaluations.lin_poly_eval + (pi_eval * self.evaluations.q_arith_eval);
 
         // a + beta * sigma_1 + gamma
         let beta_sig1 = beta * self.evaluations.left_sigma_eval;
@@ -249,13 +248,13 @@ impl Proof {
         let beta_sig3 = beta * self.evaluations.out_sigma_eval;
         let b_2 = self.evaluations.c_eval + beta_sig3 + gamma;
 
-        // ((d + gamma) * z_hat) * alpha^2
-        let b_3 = (self.evaluations.d_eval + gamma) * z_hat_eval * alpha_sq;
+        // ((d + gamma) * z_hat) * alpha
+        let b_3 = (self.evaluations.d_eval + gamma) * z_hat_eval * alpha;
 
         let b = b_0 * b_1 * b_2 * b_3;
 
-        // l_1(z) * alpha^3
-        let c = l1_eval * alpha_cu;
+        // l_1(z) * alpha^2
+        let c = l1_eval * alpha_sq;
 
         let t_eval = (a - b - c) * z_h_eval.invert().unwrap();
 
@@ -295,24 +294,23 @@ impl Proof {
         };
 
         let alpha_sq = alpha * alpha;
-        let alpha_cu = alpha_sq * alpha;
 
-        scalars.push(self.evaluations.a_eval * self.evaluations.b_eval * alpha);
+        scalars.push(self.evaluations.a_eval * self.evaluations.b_eval);
         points.push(preprocessed_circuit.qm_comm().0);
 
-        scalars.push(self.evaluations.a_eval * alpha);
+        scalars.push(self.evaluations.a_eval);
         points.push(preprocessed_circuit.ql_comm().0);
 
-        scalars.push(self.evaluations.b_eval * alpha);
+        scalars.push(self.evaluations.b_eval);
         points.push(preprocessed_circuit.qr_comm().0);
 
-        scalars.push(self.evaluations.c_eval * alpha);
+        scalars.push(self.evaluations.c_eval);
         points.push(preprocessed_circuit.qo_comm().0);
 
-        scalars.push(self.evaluations.d_eval * alpha);
+        scalars.push(self.evaluations.d_eval);
         points.push(preprocessed_circuit.q4_comm().0);
 
-        scalars.push(*alpha);
+        scalars.push(Scalar::one());
         points.push(preprocessed_circuit.qc_comm().0);
         // Multiply all terms by q_arith
         scalars = scalars
@@ -327,10 +325,10 @@ impl Proof {
         let b_3 = delta(self.evaluations.a_eval - four * self.evaluations.b_eval);
         let b_4 = delta(self.evaluations.d_next_eval - (four * self.evaluations.a_eval));
 
-        scalars.push((b_1 + b_2 + b_3 + b_4) * alpha);
+        scalars.push(b_1 + b_2 + b_3 + b_4);
         points.push(preprocessed_circuit.qrange_comm().0);
 
-        // (a_eval + beta * z + gamma)(b_eval + beta * z * k1 + gamma)(c_eval + beta * k2* z + gamma)(d_eval + beta * k3* z + gamma) * alpha^2
+        // (a_eval + beta * z + gamma)(b_eval + beta * z * k1 + gamma)(c_eval + beta * k2* z + gamma)(d_eval + beta * k3* z + gamma) * alpha
         let x = {
             let beta_z = beta * z_challenge;
             let q_0 = self.evaluations.a_eval + beta_z + gamma;
@@ -342,13 +340,13 @@ impl Proof {
             let q_2 = self.evaluations.c_eval + beta_k2_z + gamma;
 
             let beta_k3_z = beta * K3 * z_challenge;
-            let q_3 = (self.evaluations.d_eval + beta_k3_z + gamma) * alpha_sq;
+            let q_3 = (self.evaluations.d_eval + beta_k3_z + gamma) * alpha;
 
             q_0 * q_1 * q_2 * q_3
         };
 
-        // l1(z) * alpha^3
-        let r = l1_eval * alpha_cu;
+        // l1(z) * alpha^2
+        let r = l1_eval * alpha_sq;
 
         scalars.push(x + r);
         points.push(self.z_comm.0);
@@ -364,7 +362,7 @@ impl Proof {
             let beta_sigma_3 = beta * self.evaluations.out_sigma_eval;
             let q_2 = self.evaluations.c_eval + beta_sigma_3 + gamma;
 
-            let q_3 = beta * self.evaluations.perm_eval * alpha * alpha;
+            let q_3 = beta * self.evaluations.perm_eval * alpha;
 
             -(q_0 * q_1 * q_2 * q_3)
         };
