@@ -1095,6 +1095,12 @@ impl StandardComposer {
         self.q_c.push(Scalar::zero());
         self.q_logic.push(Scalar::zero());
 
+        // We also need to extend the `public_inputs` Vec with
+        // zeros since the coefs will not be added by the user as
+        // they are not needed.
+        let zeros = vec![Scalar::zero(); num_quads + 1];
+        self.public_inputs.extend(zeros.iter());
+
         // Now we need to assert that the sum of accumulated values
         // matches the original values provided to the fn.
         // Note that we're only considering the quads that are included
@@ -1367,10 +1373,10 @@ mod tests {
     fn test_logic_constraint() {
         let ok = test_gadget(
             |composer| {
-                let witness_a = composer.add_input(Scalar::from((u32::max_value()) as u64));
-                let witness_b =
-                    composer.add_input(Scalar::from((u32::max_value() + 1u32) as u64 >> 16));
+                let witness_a = composer.add_input(Scalar::from(500u64));
+                let witness_b = composer.add_input(Scalar::from(499u64));
                 let xor_res = composer.logic_gate(witness_a, witness_b, 64, true);
+                composer.check_circuit_satisfied();
             },
             200,
         );
