@@ -84,6 +84,7 @@ pub fn compute(
         preprocessed_circuit.qc_poly(),
         preprocessed_circuit.q4_poly(),
         preprocessed_circuit.qrange_poly(),
+        preprocessed_circuit.qlogic_poly(),
     );
 
     let f_2 = grand_product_lineariser::compute_identity_polynomial(
@@ -154,6 +155,7 @@ fn compute_circuit_satisfiability(
     q_c_poly: &Polynomial,
     q_4_poly: &Polynomial,
     q_range_poly: &Polynomial,
+    q_logic_poly: &Polynomial,
 ) -> Polynomial {
     // Computes f(f-1)(f-2)(f-3)
     let delta = |f: Scalar| -> Scalar {
@@ -196,5 +198,8 @@ fn compute_circuit_satisfiability(
     let b_4 = delta(d_next_eval - four * a_eval);
     let b = q_range_poly * &(b_1 + b_2 + b_3 + b_4);
 
+    // XXX: Include the Logic op
+
+    // XXX: Include the q_range op
     &(&a + &b) * alpha
 }

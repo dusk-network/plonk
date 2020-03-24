@@ -45,6 +45,9 @@ impl PreProcessedCircuit {
     pub fn qrange_poly(&self) -> &Polynomial {
         &self.selectors[7].0
     }
+    pub fn qlogic_poly(&self) -> &Polynomial {
+        &self.selectors[8].0
+    }
     pub fn left_sigma_poly(&self) -> &Polynomial {
         &self.left_sigma.0
     }
@@ -81,6 +84,9 @@ impl PreProcessedCircuit {
     pub fn qrange_comm(&self) -> &Commitment {
         &self.selectors[7].1
     }
+    pub fn qlogic_comm(&self) -> &Commitment {
+        &self.selectors[8].1
+    }
     pub fn left_sigma_comm(&self) -> &Commitment {
         &self.left_sigma.1
     }
@@ -116,6 +122,9 @@ impl PreProcessedCircuit {
     }
     pub fn qrange_eval_4n(&self) -> &Evaluations {
         &self.selectors[7].2
+    }
+    pub fn qlogic_eval_4n(&self) -> &Evaluations {
+        &self.selectors[8].2
     }
     pub fn v_h_coset_4n(&self) -> &Evaluations {
         &self.v_h_coset_4n

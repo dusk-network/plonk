@@ -41,6 +41,7 @@ pub(crate) fn compute(
         preprocessed_circuit.q4_eval_4n(),
         preprocessed_circuit.qarith_eval_4n(),
         preprocessed_circuit.qrange_eval_4n(),
+        preprocessed_circuit.qlogic_eval_4n(),
         public_inputs_poly,
         w_l_poly,
         w_r_poly,
@@ -102,6 +103,7 @@ fn compute_circuit_satisfiability_equation(
     q4_eval_4n: &Evaluations,
     qarith_eval_4n: &Evaluations,
     qrange_eval_4n: &Evaluations,
+    qlogic_eval_4n: &Evaluations,
     pi_poly: &Polynomial,
     wl_poly: &Polynomial,
     wr_poly: &Polynomial,
@@ -148,6 +150,7 @@ fn compute_circuit_satisfiability_equation(
             let pi = &pi_eval_4n[i];
             let qarith = &qarith_eval_4n[i];
             let qrange = &qrange_eval_4n[i];
+            let qlogic = &qlogic_eval_4n[i];
             let v_h_i = v_h[i].invert().unwrap();
             // (a(x)b(x)q_M(x) + a(x)q_L(x) + b(X)q_R(x) + c(X)q_O(X) + d(x)q_4(X) + PI(X) + Q_C(X)) * Q_Arith(X)
             //
@@ -166,6 +169,8 @@ fn compute_circuit_satisfiability_equation(
             let b_3 = delta(wl - four * wr);
             let b_4 = delta(w4_next - four * wl);
             let b = (b_1 + b_2 + b_3 + b_4) * qrange;
+
+            // TODO CARLOS
 
             (a + b) * alpha * v_h_i
         })
