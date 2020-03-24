@@ -1097,10 +1097,18 @@ impl StandardComposer {
         self.q_logic.push(Scalar::zero());
 
         // Now we need to assert that the sum of accumulated values
-        // matches the original values provided to the fn
-        // XXX: Needs to take in mind the num_bits specified.
-        //self.assert_equal(a, *self.w_l.last().unwrap());
-        //self.assert_equal(b, *self.w_r.last().unwrap());
+        // matches the original values provided to the fn.
+        // Note that we're only considering the quads that are included
+        // in the range 0..num_bits. So at the practice, we're checking that
+        // x & ((1 << num_bits +1) -1) == [0..num_quads] accumulated sums of x.
+        assert_eq!(
+            &a_base_4[0..num_quads],
+            &self.variables[self.w_l.last().unwrap()].to_base_4()[0..num_quads]
+        );
+        assert_eq!(
+            &b_base_4[0..num_quads],
+            &self.variables[self.w_r.last().unwrap()].to_base_4()[0..num_quads]
+        );
 
         // Once the inputs are checked agains the accumulated additions,
         // we can safely return the resulting variable of the gate computation.
