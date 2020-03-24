@@ -10,7 +10,7 @@ pub fn compute_identity_polynomial(
     c_eval: &Scalar,
     d_eval: &Scalar,
     z_challenge: &Scalar,
-    alpha_sq: &Scalar,
+    alpha: &Scalar,
     beta: &Scalar,
     gamma: &Scalar,
     z_poly: &Polynomial,
@@ -39,9 +39,9 @@ pub fn compute_identity_polynomial(
     let mut a = a_0 * a_1;
     a = a * a_2;
     a = a * a_3;
-    a = a * alpha_sq; // (a_eval + beta * z_challenge + gamma)(b_eval + beta * K1 * z_challenge + gamma)(c_eval + beta * K2 * z_challenge + gamma)(d_eval + beta * K3 * z_challenge + gamma) * alpha^2
+    a = a * alpha; // (a_eval + beta * z_challenge + gamma)(b_eval + beta * K1 * z_challenge + gamma)(c_eval + beta * K2 * z_challenge + gamma)(d_eval + beta * K3 * z_challenge + gamma) * alpha
 
-    z_poly * &a // (a_eval + beta * z_challenge + gamma)(b_eval + beta * K1 * z_challenge + gamma)(c_eval + beta * K2 * z_challenge + gamma) * alpha^2 z(X)
+    z_poly * &a // (a_eval + beta * z_challenge + gamma)(b_eval + beta * K1 * z_challenge + gamma)(c_eval + beta * K2 * z_challenge + gamma) * alpha z(X)
 }
 
 /// Computes the semi-evaluated Copy permutation polynomial component of the grand product
@@ -51,7 +51,7 @@ pub fn compute_copy_polynomial(
     sigma_1_eval: &Scalar,
     sigma_2_eval: &Scalar,
     sigma_3_eval: &Scalar,
-    (alpha_sq, beta, gamma): &(Scalar, Scalar, Scalar),
+    (alpha, beta, gamma): &(Scalar, Scalar, Scalar),
     fourth_sigma_poly: &Polynomial,
 ) -> Polynomial {
     // a_eval + beta * sigma_1 + gamma
@@ -73,7 +73,7 @@ pub fn compute_copy_polynomial(
 
     let mut a = a_0 * a_1 * a_2;
     a = a * beta_z_eval;
-    a = a * alpha_sq; // (a_eval + beta * sigma_1 + gamma)(b_eval + beta * sigma_2 + gamma)(c_eval + beta * sigma_3 + gamma) * beta *z_eval * alpha^2
+    a = a * alpha; // (a_eval + beta * sigma_1 + gamma)(b_eval + beta * sigma_2 + gamma)(c_eval + beta * sigma_3 + gamma) * beta *z_eval * alpha
 
     fourth_sigma_poly * &-a // -(a_eval + beta * sigma_1 + gamma)(b_eval + beta * sigma_2 + gamma) (c_eval + beta * sigma_3 + gamma) * beta *z_eval * alpha^2 * Sigma_4(X)
 }
@@ -81,13 +81,13 @@ pub fn compute_copy_polynomial(
 pub fn compute_is_one_polynomial(
     domain: &EvaluationDomain,
     z_challenge: &Scalar,
-    alpha_cu: &Scalar,
+    alpha_sq: &Scalar,
     z_coeffs: &Polynomial,
 ) -> Polynomial {
     // Evaluate l_1(z)
     let l_1_z = domain.evaluate_all_lagrange_coefficients(*z_challenge)[0];
 
-    z_coeffs * &(l_1_z * alpha_cu)
+    z_coeffs * &(l_1_z * alpha_sq)
 }
 
 #[cfg(test)]
