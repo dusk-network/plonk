@@ -954,7 +954,6 @@ impl StandardComposer {
         let mut left_accumulator = Scalar::zero();
         let mut right_accumulator = Scalar::zero();
         let mut out_accumulator = Scalar::zero();
-        let mut product_accomulator = Scalar::zero();
         // Get vars as base_4 elems
         let a_base_4 = self.variables[&a].to_base_4();
         let b_base_4 = self.variables[&b].to_base_4();
@@ -997,7 +996,7 @@ impl StandardComposer {
         // the first step was done avobe to set correctly the first row. This means
         // that we will need to pad the end of the memory program once we've built it
         // as you can see oit's shown in the last row structure: `| an  | bn  | --- | cn  |`.
-        for i in 1..=num_quads {
+        for i in 0..num_quads {
             // On each round, we will commit every accumulator step. To do so,
             // we first need to get the ith quads of `a` and `b` and then compute
             // `out_quad` and `prod_quad`.
@@ -1102,12 +1101,20 @@ impl StandardComposer {
         // in the range 0..num_bits. So at the practice, we're checking that
         // x & ((1 << num_bits +1) -1) == [0..num_quads] accumulated sums of x.
         assert_eq!(
-            &a_base_4[0..num_quads],
-            &self.variables[self.w_l.last().unwrap()].to_base_4()[0..num_quads]
+            a_base_4[0..num_quads]
+                .iter()
+                .rev()
+                .cloned()
+                .collect::<Vec<u8>>(),
+            Vec::from(&self.variables[self.w_l.last().unwrap()].to_base_4()[0..num_quads])
         );
         assert_eq!(
-            &b_base_4[0..num_quads],
-            &self.variables[self.w_r.last().unwrap()].to_base_4()[0..num_quads]
+            b_base_4[0..num_quads]
+                .iter()
+                .rev()
+                .cloned()
+                .collect::<Vec<u8>>(),
+            Vec::from(&self.variables[self.w_r.last().unwrap()].to_base_4()[0..num_quads])
         );
 
         // Once the inputs are checked agains the accumulated additions,
