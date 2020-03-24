@@ -189,6 +189,7 @@ impl Composer for StandardComposer {
         //1. Compute witness Polynomials
         //
         // Convert Variables to Scalars
+        // XXX: Maybe there's no need to allocate `to_scalars` returning &[Scalar].
         let w_l_scalar = self.to_scalars(&self.w_l);
         let w_r_scalar = self.to_scalars(&self.w_r);
         let w_o_scalar = self.to_scalars(&self.w_o);
@@ -984,6 +985,10 @@ impl StandardComposer {
             self.zero_var,
             self.n,
         );
+        self.w_l.push(self.zero_var);
+        self.w_r.push(self.zero_var);
+        self.w_o.push(out_var_0);
+        self.w_4.push(self.zero_var);
         // Increase the gate index so we can add the following rows in the correct order.
         self.n += 1;
 
@@ -992,7 +997,7 @@ impl StandardComposer {
         // the first step was done avobe to set correctly the first row. This means
         // that we will need to pad the end of the memory program once we've built it
         // as you can see oit's shown in the last row structure: `| an  | bn  | --- | cn  |`.
-        for i in 1..num_quads {
+        for i in 1..=num_quads {
             // On each round, we will commit every accumulator step. To do so,
             // we first need to get the ith quads of `a` and `b` and then compute
             // `out_quad` and `prod_quad`.
@@ -1033,24 +1038,26 @@ impl StandardComposer {
             // Get variables pointing to the previous accumulated values.
             let var_a = self.add_input(left_accumulator);
             let var_b = self.add_input(right_accumulator);
-            let var_c = self.add_input(prod_quad_fr);
+            // On the last row of the program memory, we need to pad the
+            // output wire with a zero since we started to include it's
+            // accumulators one gate before the other wire ones.
+            let var_c = match i == num_quads {
+                true => self.zero_var,
+                false => self.add_input(prod_quad_fr),
+            };
             let var_4 = self.add_input(out_accumulator);
             // Add the variable to the variable map linking the four wire
             // accumulated variables to the actual gate index.
             // Note that by doing this, we are basically setting the wire_coeffs
             // of the wire polynomials, but we still need to link the selector_poly
             // coefficients in order to be able to have complete gates.
-            match i == num_quads - 1 {
-                false => self
-                    .perm
-                    .add_variables_to_map(var_a, var_b, var_c, var_4, self.n),
-                // On the last row of the program memory, we need to pad the
-                // output wire with a zero since we started to include it's
-                // accumulators one gate before the other wire ones.
-                true => self
-                    .perm
-                    .add_variables_to_map(var_a, var_b, self.zero_var, var_4, self.n),
-            };
+            self.perm
+                .add_variables_to_map(var_a, var_b, var_c, var_4, self.n);
+            // Push the variables to it's actual wire vector storage
+            self.w_l.push(var_a);
+            self.w_r.push(var_b);
+            self.w_o.push(var_c);
+            self.w_4.push(var_4);
             // Update the gate index
             self.n += 1;
         }
@@ -1077,14 +1084,23 @@ impl StandardComposer {
                     self.q_logic.push(Scalar::one());
                 }
             };
-            // For the last gate, `q_c` and `q_logic` are noop.
-            self.q_c.push(Scalar::zero());
-            self.q_logic.push(Scalar::zero());
         }
+        // For the last gate, `q_c` and `q_logic` are noop.
+        self.q_m.push(Scalar::zero());
+        self.q_l.push(Scalar::zero());
+        self.q_r.push(Scalar::zero());
+        self.q_arith.push(Scalar::zero());
+        self.q_o.push(Scalar::zero());
+        self.q_4.push(Scalar::zero());
+        self.q_range.push(Scalar::zero());
+        self.q_c.push(Scalar::zero());
+        self.q_logic.push(Scalar::zero());
+
         // Now we need to assert that the sum of accumulated values
         // matches the original values provided to the fn
-        self.assert_equal(a, *self.w_l.last().unwrap());
-        self.assert_equal(b, *self.w_r.last().unwrap());
+        // XXX: Needs to take in mind the num_bits specified.
+        //self.assert_equal(a, *self.w_l.last().unwrap());
+        //self.assert_equal(b, *self.w_r.last().unwrap());
 
         // Once the inputs are checked agains the accumulated additions,
         // we can safely return the resulting variable of the gate computation.
