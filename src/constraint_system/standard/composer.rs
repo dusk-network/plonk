@@ -944,6 +944,7 @@ impl StandardComposer {
         num_bits: usize,
         is_xor_gate: bool,
     ) -> Variable {
+        use crate::constraint_system::WireData;
         // Since we work on base4, we need to guarantee that we have an even
         // number of bits representing the greatest input.
         assert!((num_bits << 1) >> 1 == num_bits);
@@ -954,6 +955,8 @@ impl StandardComposer {
         let mut left_accumulator = Scalar::zero();
         let mut right_accumulator = Scalar::zero();
         let mut out_accumulator = Scalar::zero();
+        let mut left_quad = 0u8;
+        let mut right_quad = 0u8;
         // Get vars as base_4 elems
         let a_base_4 = self.variables[&a].to_base_4();
         let b_base_4 = self.variables[&b].to_base_4();
@@ -968,25 +971,18 @@ impl StandardComposer {
         // * |  :  |  :  |  :  |  :  |
         // * | an  | bn  | --- | cn  |
         // * +-----+-----+-----+-----+
-        // We need to have w_4, w_l and w_r pointing to one gate further than w_o.
+        // We need to have w_4, w_l and w_r pointing to one gate ahead of w_o.
         // We increase the gate idx and assign w_4, w_l and w_r to `zero`.
-        // To do so, we compute the first `w1` accumulator and add the whole gate.
-        // This will enable an easier implementation for the rest of gates.
-        let left_quad = a_base_4[0];
-        let right_quad = b_base_4[0];
-        // Compute out_prod and add it as a Variable (which will be holding `w1`).
-        let out_var_0 = self.add_input(Scalar::from((left_quad * right_quad) as u64));
-        // Now we can add the first row as: `| 0   | 0   | w1  | 0   |`.
-        self.perm.add_variables_to_map(
-            self.zero_var,
-            self.zero_var,
-            out_var_0,
-            self.zero_var,
-            self.n,
-        );
+        // Now we can add the first row as: `| 0 | 0 | -- | 0 |`.
+        // Note that `w_1` will be set on the first loop iteration.
+        self.perm
+            .add_variable_to_map(self.zero_var, WireData::Left(self.n));
+        self.perm
+            .add_variable_to_map(self.zero_var, WireData::Right(self.n));
+        self.perm
+            .add_variable_to_map(self.zero_var, WireData::Fourth(self.n));
         self.w_l.push(self.zero_var);
         self.w_r.push(self.zero_var);
-        self.w_o.push(out_var_0);
         self.w_4.push(self.zero_var);
         // Increase the gate index so we can add the following rows in the correct order.
         self.n += 1;
@@ -1000,8 +996,10 @@ impl StandardComposer {
             // On each round, we will commit every accumulator step. To do so,
             // we first need to get the ith quads of `a` and `b` and then compute
             // `out_quad` and `prod_quad`.
-            let left_quad_fr = Scalar::from(a_base_4[i] as u64);
-            let right_quad_fr = Scalar::from(b_base_4[i] as u64);
+            left_quad = a_base_4[i];
+            right_quad = b_base_4[i];
+            let left_quad_fr = Scalar::from(left_quad as u64);
+            let right_quad_fr = Scalar::from(right_quad as u64);
             // The `out_quad` is the result of the bitwise ops `&` or `^` between
             // the left and right quads. The op is decided with a boolean flag sent
             // as input to the function.
@@ -1034,6 +1032,7 @@ impl StandardComposer {
             right_accumulator += right_quad_fr;
             out_accumulator *= Scalar::from(4u64);
             out_accumulator += out_quad_fr;
+
             // Get variables pointing to the previous accumulated values.
             let var_a = self.add_input(left_accumulator);
             let var_b = self.add_input(right_accumulator);
@@ -1045,13 +1044,20 @@ impl StandardComposer {
                 false => self.add_input(prod_quad_fr),
             };
             let var_4 = self.add_input(out_accumulator);
-            // Add the variable to the variable map linking the four wire
+            // Add the variable to the variable map linking the fourth wire
             // accumulated variables to the actual gate index.
             // Note that by doing this, we are basically setting the wire_coeffs
             // of the wire polynomials, but we still need to link the selector_poly
             // coefficients in order to be able to have complete gates.
+            // Also note that here we're setting left, right and fourth variables to the
+            // actual gate, meanwhile we set out to the previous gate.
+            self.perm.add_variable_to_map(var_a, WireData::Left(self.n));
             self.perm
-                .add_variables_to_map(var_a, var_b, var_c, var_4, self.n);
+                .add_variable_to_map(var_b, WireData::Right(self.n));
+            self.perm
+                .add_variable_to_map(var_4, WireData::Fourth(self.n));
+            self.perm
+                .add_variable_to_map(var_c, WireData::Output(self.n - 1));
             // Push the variables to it's actual wire vector storage
             self.w_l.push(var_a);
             self.w_r.push(var_b);
@@ -1060,6 +1066,14 @@ impl StandardComposer {
             // Update the gate index
             self.n += 1;
         }
+        // We have one missing value for the last row of the program memory which
+        // is `w_o` since the rest of wires are pointing one gate ahead.
+        // To fix this, we simply pad with a 0 so the last row of the program memory
+        // will look like this:
+        // | an  | bn  | --- | cn  |
+        self.perm
+            .add_variable_to_map(self.zero_var, WireData::Output(self.n - 1));
+        self.w_o.push(self.zero_var);
 
         // Now that the wire values are set for each gate index and mapped on the
         // `variable_map` inside of the `Permutation` struct.
@@ -1125,7 +1139,7 @@ impl StandardComposer {
 
         // Once the inputs are checked agains the accumulated additions,
         // we can safely return the resulting variable of the gate computation.
-        *self.w_4.last().unwrap()
+        self.w_4[self.w_4.len() - 1]
     }
 
     /// Asserts that two variables are the same
@@ -1285,15 +1299,18 @@ impl StandardComposer {
             let qrange = self.q_range[i];
             let qlogic = self.q_logic[i];
             let pi = self.public_inputs[i];
-
             let a = w_l[i];
             let b = w_r[i];
             let c = w_o[i];
             let d = w_4[i];
             let d_next = w_4[(i + 1) % self.n];
+            println!(
+                "ITER: {} -> \nq_log: {:?}\n a: {:?}\n b: {:?}\n c: {:?}\n d: {:?}\n",
+                i, qlogic, a, b, c, d
+            );
             let k = qarith * ((qm * a * b) + (ql * a) + (qr * b) + (qo * c) + (q4 * d) + pi + qc)
                 // XXX: Review correctness
-                + qlogic * (a * b - c)
+                //+ qlogic * (a * b - c)
                 + qrange
                     * (delta(c - four * d)
                         + delta(b - four * c)
@@ -1373,9 +1390,10 @@ mod tests {
     fn test_logic_constraint() {
         let ok = test_gadget(
             |composer| {
-                let witness_a = composer.add_input(Scalar::from(500u64));
+                let witness_a = composer.add_input(Scalar::from(501u64));
                 let witness_b = composer.add_input(Scalar::from(499u64));
-                let xor_res = composer.logic_gate(witness_a, witness_b, 64, true);
+                let xor_res = composer.logic_gate(witness_a, witness_b, 16, true);
+                println!("{:?}", composer.variables[&xor_res]);
                 composer.check_circuit_satisfied();
             },
             200,
