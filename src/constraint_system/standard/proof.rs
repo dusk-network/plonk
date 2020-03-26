@@ -285,48 +285,17 @@ impl Proof {
         let mut scalars: Vec<_> = Vec::with_capacity(6);
         let mut points: Vec<G1Affine> = Vec::with_capacity(6);
 
-        // Computes f(f-1)(f-2)(f-3)
-        let delta = |f: Scalar| -> Scalar {
-            let f_1 = f - Scalar::one();
-            let f_2 = f - Scalar::from(2);
-            let f_3 = f - Scalar::from(3);
-            f * f_1 * f_2 * f_3
-        };
+        preprocessed_circuit
+            .arithmetic
+            .compute_linearisation_commitment(&mut scalars, &mut points, &self.evaluations);
+
+        preprocessed_circuit.range.compute_linearisation_commitment(
+            &mut scalars,
+            &mut points,
+            &self.evaluations,
+        );
 
         let alpha_sq = alpha * alpha;
-
-        scalars.push(self.evaluations.a_eval * self.evaluations.b_eval);
-        points.push(preprocessed_circuit.qm_comm().0);
-
-        scalars.push(self.evaluations.a_eval);
-        points.push(preprocessed_circuit.ql_comm().0);
-
-        scalars.push(self.evaluations.b_eval);
-        points.push(preprocessed_circuit.qr_comm().0);
-
-        scalars.push(self.evaluations.c_eval);
-        points.push(preprocessed_circuit.qo_comm().0);
-
-        scalars.push(self.evaluations.d_eval);
-        points.push(preprocessed_circuit.q4_comm().0);
-
-        scalars.push(Scalar::one());
-        points.push(preprocessed_circuit.qc_comm().0);
-        // Multiply all terms by q_arith
-        scalars = scalars
-            .iter()
-            .map(|s| s * self.evaluations.q_arith_eval)
-            .collect();
-
-        let four = Scalar::from(4);
-
-        let b_1 = delta(self.evaluations.c_eval - (four * self.evaluations.d_eval));
-        let b_2 = delta(self.evaluations.b_eval - four * self.evaluations.c_eval);
-        let b_3 = delta(self.evaluations.a_eval - four * self.evaluations.b_eval);
-        let b_4 = delta(self.evaluations.d_next_eval - (four * self.evaluations.a_eval));
-
-        scalars.push(b_1 + b_2 + b_3 + b_4);
-        points.push(preprocessed_circuit.qrange_comm().0);
 
         // (a_eval + beta * z + gamma)(b_eval + beta * z * k1 + gamma)(c_eval + beta * k2* z + gamma)(d_eval + beta * k3* z + gamma) * alpha
         let x = {
