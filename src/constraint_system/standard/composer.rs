@@ -2,6 +2,7 @@ use super::linearisation_poly;
 use super::quotient_poly;
 use super::{proof::Proof, Composer, PreProcessedCircuit};
 use crate::commitment_scheme::kzg10::ProverKey;
+use crate::constraint_system::widget::{ArithmeticWidget, RangeWidget};
 use crate::constraint_system::Variable;
 use crate::fft::{EvaluationDomain, Evaluations, Polynomial};
 use crate::permutation::Permutation;
@@ -9,6 +10,7 @@ use crate::transcript::TranscriptProtocol;
 use bls12_381::Scalar;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use std::collections::HashMap;
+
 /// A composer is a circuit builder
 /// and will dictate how a circuit is built
 /// We will have a default Composer called `StandardComposer`
@@ -146,18 +148,24 @@ impl Composer for StandardComposer {
 
         // Append circuit size to transcript
         transcript.circuit_domain_sep(self.circuit_size() as u64);
+
+        let arithmetic_widget = ArithmeticWidget::new((
+            (q_m_poly, q_m_poly_commit, Some(q_m_eval_4n)),
+            (q_l_poly, q_l_poly_commit, Some(q_l_eval_4n)),
+            (q_r_poly, q_r_poly_commit, Some(q_r_eval_4n)),
+            (q_o_poly, q_o_poly_commit, Some(q_o_eval_4n)),
+            (q_c_poly, q_c_poly_commit, Some(q_c_eval_4n)),
+            (q_4_poly, q_4_poly_commit, Some(q_4_eval_4n)),
+            (q_arith_poly, q_arith_poly_commit, Some(q_arith_eval_4n)),
+        ));
+
+        let range_widget =
+            RangeWidget::new((q_range_poly, q_range_poly_commit, Some(q_range_eval_4n)));
+
         PreProcessedCircuit {
             n: self.n,
-            selectors: vec![
-                (q_m_poly, q_m_poly_commit, q_m_eval_4n),
-                (q_l_poly, q_l_poly_commit, q_l_eval_4n),
-                (q_r_poly, q_r_poly_commit, q_r_eval_4n),
-                (q_o_poly, q_o_poly_commit, q_o_eval_4n),
-                (q_c_poly, q_c_poly_commit, q_c_eval_4n),
-                (q_4_poly, q_4_poly_commit, q_4_eval_4n),
-                (q_arith_poly, q_arith_poly_commit, q_arith_eval_4n),
-                (q_range_poly, q_range_poly_commit, q_range_eval_4n),
-            ],
+            arithmetic: arithmetic_widget,
+            range: range_widget,
             left_sigma: (left_sigma_poly, left_sigma_poly_commit),
             right_sigma: (right_sigma_poly, right_sigma_poly_commit),
             out_sigma: (out_sigma_poly, out_sigma_poly_commit),
