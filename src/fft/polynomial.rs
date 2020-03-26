@@ -1,11 +1,12 @@
 use super::{EvaluationDomain, Evaluations};
-use crate::util::powers_of;
+use crate::util;
 use bls12_381::Scalar;
 use rand::Rng;
 use rayon::iter::{
     IndexedParallelIterator, IntoParallelIterator, IntoParallelRefIterator, ParallelIterator,
 };
-use std::ops::{Add, AddAssign, Deref, DerefMut, Div, Mul, Neg, Sub, SubAssign};
+
+use std::ops::{Add, AddAssign, Deref, DerefMut, Mul, Neg, Sub, SubAssign};
 // This library will solely implement Dense Polynomials
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub struct Polynomial {
@@ -82,7 +83,7 @@ impl Polynomial {
         }
 
         // Compute powers of points
-        let powers = powers_of(point, self.len());
+        let powers = util::powers_of(point, self.len());
 
         let p_evals: Vec<_> = self
             .par_iter()
@@ -101,7 +102,7 @@ impl Polynomial {
     pub fn rand<R: Rng>(d: usize, mut rng: &mut R) -> Self {
         let mut random_coeffs = Vec::with_capacity(d + 1);
         for _ in 0..=d {
-            random_coeffs.push(random_scalar(&mut rng));
+            random_coeffs.push(util::random_scalar(&mut rng));
         }
         Self::from_coefficients_vec(random_coeffs)
     }
@@ -122,18 +123,6 @@ impl Sum for Polynomial {
     }
 }
 
-// bls_12-381 library does not provide a `random` method for Scalar
-// We wil use this helper function to compensate
-pub(crate) fn random_scalar<R: Rng>(rng: &mut R) -> Scalar {
-    Scalar::from_raw([
-        rng.next_u64(),
-        rng.next_u64(),
-        rng.next_u64(),
-        rng.next_u64(),
-    ])
-}
-
-///////////
 impl<'a, 'b> Add<&'a Polynomial> for &'b Polynomial {
     type Output = Polynomial;
 
