@@ -198,8 +198,8 @@ fn compute_circuit_satisfiability(
     let b_4 = delta(d_next_eval - four * a_eval);
     let b = q_range_poly * &(b_1 + b_2 + b_3 + b_4);
 
-    // XXX: Include the Logic op
+    let c = q_logic_poly * &((a_eval - b_eval) * c_eval);
 
     // XXX: Include the q_range op
-    &(&a + &b) * alpha
+    &(&(&a + &b) + &c) * alpha
 }

@@ -958,8 +958,10 @@ impl StandardComposer {
         let mut left_quad = 0u8;
         let mut right_quad = 0u8;
         // Get vars as base_4 elems
-        let a_base_4 = self.variables[&a].to_base_4();
-        let b_base_4 = self.variables[&b].to_base_4();
+        let mut a_base_4 = &mut self.variables[&a].to_base_4()[0..num_quads];
+        a_base_4.reverse();
+        let mut b_base_4 = &mut self.variables[&b].to_base_4()[0..num_quads];
+        b_base_4.reverse();
 
         // If we take a look to the program memory structure of the ref. impl.
         // * +-----+-----+-----+-----+
@@ -1013,11 +1015,6 @@ impl StandardComposer {
             // is needed to prevent the degree of our quotient polynomial from blowing up
             let prod_quad_fr = Scalar::from((left_quad * right_quad) as u64);
 
-            println!(
-                "Left_quad: {:?}\n, Right_quad: {:?}\n, XOR: {:?}\n",
-                left_quad_fr, right_quad_fr, out_quad_fr
-            );
-
             // Now that we've computed this round results, we need to apply the
             // logic transition constraint that will check the following:
             // a      - 4 . a  ϵ [0, 1, 2, 3]
@@ -1055,11 +1052,8 @@ impl StandardComposer {
             left_accumulator += left_quad_fr;
             right_accumulator *= Scalar::from(4u64);
             right_accumulator += right_quad_fr;
-            // XXX: Like this, the XOR is not computed correctly. The way to get the correct
-            // value would be to mul
             out_accumulator *= Scalar::from(4u64);
             out_accumulator += out_quad_fr;
-
             // Apply logic transition constraints.
             assert!(left_accumulator - (prev_left_accum * Scalar::from(4u64)) < Scalar::from(4u64));
             assert!(
@@ -1148,8 +1142,6 @@ impl StandardComposer {
         // they are not needed.
         let zeros = vec![Scalar::zero(); num_quads + 1];
         self.public_inputs.extend(zeros.iter());
-
-        println!("LEFT INPUT {:?}", self.variables[&self.w_l[self.n - 1]]);
 
         // Now we need to assert that the sum of accumulated values
         // matches the original values provided to the fn.
@@ -1345,8 +1337,8 @@ impl StandardComposer {
             //    i, qlogic, a, b, c, d
             //);
             let k = qarith * ((qm * a * b) + (ql * a) + (qr * b) + (qo * c) + (q4 * d) + pi + qc)
-                // XXX: Logic transition constraint here?¿?¿
-                //+ qlogic * (a * b - c)
+                // XXX: Check correctness.
+                + qlogic * ((a - b) * c)
                 + qrange
                     * (delta(c - four * d)
                         + delta(b - four * c)
@@ -1428,7 +1420,7 @@ mod tests {
             |composer| {
                 let witness_a = composer.add_input(Scalar::from(500u64));
                 let witness_b = composer.add_input(Scalar::from(499u64));
-                let xor_res = composer.logic_gate(witness_a, witness_b, 9, true);
+                let xor_res = composer.logic_gate(witness_a, witness_b, 10, false);
                 println!("{:?}", composer.variables[&xor_res]);
                 composer.check_circuit_satisfied();
             },
