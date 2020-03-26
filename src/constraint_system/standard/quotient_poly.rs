@@ -54,10 +54,10 @@ pub(crate) fn compute(
         &w_r_poly,
         &w_o_poly,
         &w_4_poly,
-        preprocessed_circuit.left_sigma_poly(),
-        preprocessed_circuit.right_sigma_poly(),
-        preprocessed_circuit.out_sigma_poly(),
-        preprocessed_circuit.fourth_sigma_poly(),
+        &preprocessed_circuit.permutation.left_sigma.polynomial,
+        &preprocessed_circuit.permutation.right_sigma.polynomial,
+        &preprocessed_circuit.permutation.out_sigma.polynomial,
+        &preprocessed_circuit.permutation.fourth_sigma.polynomial,
     );
 
     let t_4 = grand_product_quotient::compute_is_one_polynomial(domain, z_poly, alpha.square());
@@ -111,12 +111,12 @@ fn compute_circuit_satisfiability_equation(
 
             let a = preprocessed_circuit
                 .arithmetic
-                .compute_quotient(i, wl, wr, wo, w4, pi);
+                .compute_quotient(i, wl, wr, wo, w4);
             let b = preprocessed_circuit
                 .range
                 .compute_quotient(i, wl, wr, wo, w4, w4_next);
 
-            (a + b) * v_h_i
+            (a + b + pi) * v_h_i
         })
         .collect();
     Evaluations::from_vec_and_domain(t_1, domain_4n)

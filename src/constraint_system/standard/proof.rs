@@ -182,15 +182,15 @@ impl Proof {
         aggregate_proof.add_part((self.evaluations.d_eval, self.d_comm));
         aggregate_proof.add_part((
             self.evaluations.left_sigma_eval,
-            *preprocessed_circuit.left_sigma_comm(),
+            preprocessed_circuit.permutation.left_sigma.commitment,
         ));
         aggregate_proof.add_part((
             self.evaluations.right_sigma_eval,
-            *preprocessed_circuit.right_sigma_comm(),
+            preprocessed_circuit.permutation.right_sigma.commitment,
         ));
         aggregate_proof.add_part((
             self.evaluations.out_sigma_eval,
-            *preprocessed_circuit.out_sigma_comm(),
+            preprocessed_circuit.permutation.out_sigma.commitment,
         ));
         // Flatten proof with opening challenge
         let flattened_proof_a = aggregate_proof.flatten(transcript);
@@ -233,8 +233,8 @@ impl Proof {
 
         let alpha_sq = alpha.square();
 
-        // r +( PI(z) *  q_arith(z))
-        let a = self.evaluations.lin_poly_eval + (pi_eval * self.evaluations.q_arith_eval);
+        // r + PI(z)
+        let a = self.evaluations.lin_poly_eval + pi_eval;
 
         // a + beta * sigma_1 + gamma
         let beta_sig1 = beta * self.evaluations.left_sigma_eval;
@@ -336,7 +336,7 @@ impl Proof {
             -(q_0 * q_1 * q_2 * q_3)
         };
         scalars.push(y);
-        points.push(preprocessed_circuit.fourth_sigma_comm().0);
+        points.push(preprocessed_circuit.permutation.fourth_sigma.commitment.0);
 
         Commitment::from_projective(msm_variable_base(&points, &scalars))
     }

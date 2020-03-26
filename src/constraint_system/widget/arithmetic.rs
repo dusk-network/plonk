@@ -43,7 +43,6 @@ impl ArithmeticWidget {
         w_r_i: &Scalar,
         w_o_i: &Scalar,
         w_4_i: &Scalar,
-        pi_i: &Scalar,
     ) -> Scalar {
         let q_m_i = self.qM.evaluations.as_ref().unwrap()[index];
         let q_l_i = self.qL.evaluations.as_ref().unwrap()[index];
@@ -53,14 +52,14 @@ impl ArithmeticWidget {
         let q_4_i = self.q4.evaluations.as_ref().unwrap()[index];
         let q_arith_i = self.qArith.evaluations.as_ref().unwrap()[index];
 
-        // (a(x)b(x)q_M(x) + a(x)q_L(x) + b(X)q_R(x) + c(X)q_O(X) + d(x)q_4(X) + PI(X) + Q_C(X)) * Q_Arith(X)
+        // (a(x)b(x)q_M(x) + a(x)q_L(x) + b(X)q_R(x) + c(X)q_O(X) + d(x)q_4(X) + Q_C(X)) * Q_Arith(X)
         //
         let a_1 = w_l_i * w_r_i * q_m_i;
         let a_2 = w_l_i * q_l_i;
         let a_3 = w_r_i * q_r_i;
         let a_4 = w_o_i * q_o_i;
         let a_5 = w_4_i * q_4_i;
-        let a_6 = q_c_i + pi_i;
+        let a_6 = q_c_i;
         let a = (a_1 + a_2 + a_3 + a_4 + a_5 + a_6) * q_arith_i;
 
         a
