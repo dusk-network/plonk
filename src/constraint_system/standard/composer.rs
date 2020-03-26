@@ -2,9 +2,7 @@ use super::linearisation_poly;
 use super::quotient_poly;
 use super::{proof::Proof, Composer, PreProcessedCircuit};
 use crate::commitment_scheme::kzg10::ProverKey;
-use crate::constraint_system::widget::{
-    ArithmeticWidget, PermutationWidget, PublicInputWidget, RangeWidget,
-};
+use crate::constraint_system::widget::{ArithmeticWidget, PermutationWidget, RangeWidget};
 use crate::constraint_system::Variable;
 use crate::fft::{EvaluationDomain, Evaluations, Polynomial};
 use crate::permutation::Permutation;
@@ -215,7 +213,6 @@ impl Composer for StandardComposer {
             arithmetic: arithmetic_widget,
             range: range_widget,
             permutation: perm_widget,
-            public_input: PublicInputWidget {},
             // Compute 4n evaluations for X^n -1
             v_h_coset_4n: domain_4n.compute_vanishing_poly_over_coset(domain.size() as u64),
         }

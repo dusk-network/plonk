@@ -1,6 +1,4 @@
-use crate::constraint_system::widget::{
-    ArithmeticWidget, PermutationWidget, PublicInputWidget, RangeWidget,
-};
+use crate::constraint_system::widget::{ArithmeticWidget, PermutationWidget, RangeWidget};
 use crate::fft::Evaluations;
 // Preprocessed circuit includes the commitment to the selector polynomials and the sigma polynomials
 // for the standard plonk composer
@@ -11,7 +9,6 @@ pub struct PreProcessedCircuit {
     pub arithmetic: ArithmeticWidget,
     pub range: RangeWidget,
     pub permutation: PermutationWidget,
-    pub public_input: PublicInputWidget,
 
     // Preprocesses the 4n Evaluations for the vanishing polynomial, so they do not
     // need to be computed at the proving stage.
