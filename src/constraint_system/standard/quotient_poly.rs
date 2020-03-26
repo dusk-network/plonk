@@ -1,6 +1,7 @@
 /// This quotient polynomial can only be used for the standard composer
 /// Each composer will need to implement their own method for computing the quotient polynomial
 use crate::constraint_system::standard::PreProcessedCircuit;
+use crate::constraint_system::widget::{ArithmeticWidget, RangeWidget};
 
 use crate::fft::Evaluations;
 use crate::fft::{EvaluationDomain, Polynomial};
@@ -32,19 +33,12 @@ pub(crate) fn compute(
 
     let t_1 = compute_circuit_satisfiability_equation(
         domain,
-        preprocessed_circuit.qm_eval_4n(),
-        preprocessed_circuit.ql_eval_4n(),
-        preprocessed_circuit.qr_eval_4n(),
-        preprocessed_circuit.qo_eval_4n(),
-        preprocessed_circuit.qc_eval_4n(),
-        preprocessed_circuit.q4_eval_4n(),
-        preprocessed_circuit.qarith_eval_4n(),
-        preprocessed_circuit.qrange_eval_4n(),
-        public_inputs_poly,
+        preprocessed_circuit,
         w_l_poly,
         w_r_poly,
         w_o_poly,
         w_4_poly,
+        public_inputs_poly,
     );
 
     let t_2 = grand_product_quotient::compute_identity_polynomial(
@@ -83,30 +77,14 @@ pub(crate) fn compute(
 // Ensures that the circuit is satisfied
 fn compute_circuit_satisfiability_equation(
     domain: &EvaluationDomain,
-    qm_eval_4n: &Evaluations,
-    ql_eval_4n: &Evaluations,
-    qr_eval_4n: &Evaluations,
-    qo_eval_4n: &Evaluations,
-    qc_eval_4n: &Evaluations,
-    q4_eval_4n: &Evaluations,
-    qarith_eval_4n: &Evaluations,
-    qrange_eval_4n: &Evaluations,
-    pi_poly: &Polynomial,
+    preprocessed_circuit: &PreProcessedCircuit,
     wl_poly: &Polynomial,
     wr_poly: &Polynomial,
     wo_poly: &Polynomial,
     w4_poly: &Polynomial,
+    pi_poly: &Polynomial,
 ) -> Evaluations {
     let domain_4n = EvaluationDomain::new(4 * domain.size()).unwrap();
-
-    // Computes f(f-1)(f-2)(f-3)
-    let delta = |f: Scalar| -> Scalar {
-        let f_1 = f - Scalar::one();
-        let f_2 = f - Scalar::from(2);
-        let f_3 = f - Scalar::from(3);
-        f * f_1 * f_2 * f_3
-    };
-    let four = Scalar::from(4);
 
     let pi_eval_4n = domain_4n.coset_fft(pi_poly);
     let wl_eval_4n = domain_4n.coset_fft(&wl_poly);
@@ -128,33 +106,15 @@ fn compute_circuit_satisfiability_equation(
             let wo = &wo_eval_4n[i];
             let w4 = &w4_eval_4n[i];
             let w4_next = &w4_eval_4n[i + 4];
-            let qm = &qm_eval_4n[i];
-            let ql = &ql_eval_4n[i];
-            let qr = &qr_eval_4n[i];
-            let qo = &qo_eval_4n[i];
-            let q4 = &q4_eval_4n[i];
-            let qc = &qc_eval_4n[i];
             let pi = &pi_eval_4n[i];
-            let qarith = &qarith_eval_4n[i];
-            let qrange = &qrange_eval_4n[i];
             let v_h_i = v_h[i].invert().unwrap();
-            // (a(x)b(x)q_M(x) + a(x)q_L(x) + b(X)q_R(x) + c(X)q_O(X) + d(x)q_4(X) + PI(X) + Q_C(X)) * Q_Arith(X)
-            //
-            let a_1 = wl * wr * qm;
-            let a_2 = wl * ql;
-            let a_3 = wr * qr;
-            let a_4 = wo * qo;
-            let a_5 = w4 * q4;
-            let a_6 = qc + pi;
-            let a = (a_1 + a_2 + a_3 + a_4 + a_5 + a_6) * qarith;
 
-            // Delta([c(X) - 4 * d(X)]) + Delta([b(X) - 4 * c(X)]) + Delta([a(X) - 4 * b(X)]) + Delta([d(Xg) - 4 * a(X)]) * Q_Range(X)
-            //
-            let b_1 = delta(wo - four * w4);
-            let b_2 = delta(wr - four * wo);
-            let b_3 = delta(wl - four * wr);
-            let b_4 = delta(w4_next - four * wl);
-            let b = (b_1 + b_2 + b_3 + b_4) * qrange;
+            let a = preprocessed_circuit
+                .arithmetic
+                .compute_quotient(i, wl, wr, wo, w4, pi);
+            let b = preprocessed_circuit
+                .range
+                .compute_quotient(i, wl, wr, wo, w4, w4_next);
 
             (a + b) * v_h_i
         })
