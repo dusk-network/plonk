@@ -137,7 +137,7 @@ impl ProverKey {
             polynomial_commitments.push(self.commit(poly)?)
         }
 
-        // Compute the aggregate Witness for polynomials
+        // Compute the aggregate witness for polynomials
         let witness_poly = self.compute_aggregate_witness(polynomials, point, transcript);
 
         // Commit to witness polynomial
@@ -211,7 +211,7 @@ impl VerifierKey {
     }
 }
 
-/// Check whether the polynomial we are committing to:
+/// Checks whether the polynomial we are committing to:
 /// - has zero degree
 /// - has a degree which is more than the max supported degree
 /// Returns an error if any of the above conditions are true.
