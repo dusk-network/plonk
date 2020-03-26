@@ -1,6 +1,5 @@
 use crate::constraint_system::standard::PreProcessedCircuit;
 use crate::fft::{EvaluationDomain, Polynomial};
-use crate::permutation::grand_product_lineariser;
 use bls12_381::Scalar;
 
 /// Evaluations at points `z` or and `z * root of unity`
@@ -50,8 +49,6 @@ pub fn compute(
     t_x_poly: &Polynomial,
     z_poly: &Polynomial,
 ) -> (Polynomial, Evaluations) {
-    let alpha_sq = alpha.square();
-
     // Compute evaluations
     let quot_eval = t_x_poly.evaluate(z_challenge);
     let a_eval = w_l_poly.evaluate(z_challenge);
@@ -92,34 +89,16 @@ pub fn compute(
         preprocessed_circuit,
     );
 
-    let f_2 = grand_product_lineariser::compute_identity_polynomial(
-        &a_eval,
-        &b_eval,
-        &c_eval,
-        &d_eval,
-        &z_challenge,
-        &alpha,
-        beta,
-        gamma,
-        &z_poly,
-    );
-
-    let f_3 = grand_product_lineariser::compute_copy_polynomial(
-        &(a_eval, b_eval, c_eval),
+    let f_2 = preprocessed_circuit.permutation.compute_linearisation(
+        z_challenge,
+        (alpha, beta, gamma),
+        (&a_eval, &b_eval, &c_eval, &d_eval),
+        (&left_sigma_eval, &right_sigma_eval, &out_sigma_eval),
         &perm_eval,
-        &left_sigma_eval,
-        &right_sigma_eval,
-        &out_sigma_eval,
-        &(*alpha, *beta, *gamma),
-        &preprocessed_circuit.permutation.fourth_sigma.polynomial,
+        z_poly,
     );
 
-    let f_4 =
-        grand_product_lineariser::compute_is_one_polynomial(domain, z_challenge, &alpha_sq, z_poly);
-
-    let mut lin_poly = &f_1 + &f_2;
-    lin_poly = &lin_poly + &f_3;
-    lin_poly = &lin_poly + &f_4;
+    let lin_poly = &f_1 + &f_2;
 
     // Evaluate linearisation polynomial at z_challenge
     let lin_poly_eval = lin_poly.evaluate(z_challenge);
