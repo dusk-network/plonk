@@ -116,6 +116,28 @@ impl Composer for StandardComposer {
         let (left_sigma_poly, right_sigma_poly, out_sigma_poly, fourth_sigma_poly) =
             self.perm.compute_sigma_polynomials(self.n, domain);
 
+        // 3a. Compute 4n evaluations of sigma polynomials and the linear polynomial
+        let left_sigma_eval_4n = Evaluations::from_vec_and_domain(
+            domain_4n.coset_fft(&left_sigma_poly.coeffs),
+            domain_4n,
+        );
+        let right_sigma_eval_4n = Evaluations::from_vec_and_domain(
+            domain_4n.coset_fft(&right_sigma_poly.coeffs),
+            domain_4n,
+        );
+        let out_sigma_eval_4n = Evaluations::from_vec_and_domain(
+            domain_4n.coset_fft(&out_sigma_poly.coeffs),
+            domain_4n,
+        );
+        let fourth_sigma_eval_4n = Evaluations::from_vec_and_domain(
+            domain_4n.coset_fft(&fourth_sigma_poly.coeffs),
+            domain_4n,
+        );
+        let linear_eval_4n = Evaluations::from_vec_and_domain(
+            domain_4n.coset_fft(&[Scalar::zero(), Scalar::one()]),
+            domain_4n,
+        );
+
         // 4. Commit to polynomials
         //
         let q_m_poly_commit = commit_key.commit(&q_m_poly).unwrap();
@@ -165,10 +187,27 @@ impl Composer for StandardComposer {
             RangeWidget::new((q_range_poly, q_range_poly_commit, Some(q_range_eval_4n)));
 
         let perm_widget = PermutationWidget::new(
-            (left_sigma_poly, left_sigma_poly_commit),
-            (right_sigma_poly, right_sigma_poly_commit),
-            (out_sigma_poly, out_sigma_poly_commit),
-            (fourth_sigma_poly, fourth_sigma_poly_commit),
+            (
+                left_sigma_poly,
+                left_sigma_poly_commit,
+                Some(left_sigma_eval_4n),
+            ),
+            (
+                right_sigma_poly,
+                right_sigma_poly_commit,
+                Some(right_sigma_eval_4n),
+            ),
+            (
+                out_sigma_poly,
+                out_sigma_poly_commit,
+                Some(out_sigma_eval_4n),
+            ),
+            (
+                fourth_sigma_poly,
+                fourth_sigma_poly_commit,
+                Some(fourth_sigma_eval_4n),
+            ),
+            linear_eval_4n,
         );
 
         PreProcessedCircuit {
