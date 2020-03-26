@@ -1,5 +1,5 @@
 pub mod composer;
-mod linearisation_poly;
+pub(crate) mod linearisation_poly;
 mod preprocessed_circuit;
 pub mod proof;
 mod quotient_poly;
