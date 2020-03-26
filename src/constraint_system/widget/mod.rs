@@ -2,9 +2,11 @@ use crate::commitment_scheme::kzg10::Commitment;
 use crate::fft::{Evaluations, Polynomial};
 
 pub mod arithmetic;
+pub mod permutation;
 pub mod range;
 
 pub use arithmetic::ArithmeticWidget;
+pub use permutation::PermutationWidget;
 pub use range::RangeWidget;
 
 pub struct PreProcessedPolynomial {
