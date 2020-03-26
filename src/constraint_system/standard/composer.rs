@@ -1013,7 +1013,28 @@ impl StandardComposer {
             // is needed to prevent the degree of our quotient polynomial from blowing up
             let prod_quad_fr = Scalar::from((left_quad * right_quad) as u64);
 
-            // We need to add the computed quad fr_s to the circuit representing a logic gate.
+            // Now that we've computed this round results, we need to apply the
+            // logic transition constraint that will check the following:
+            // a      - 4 . a  ϵ [0, 1, 2, 3]
+            //   i + 1        i
+            //
+            //
+            //
+            //
+            //  b      - 4 . b  ϵ [0, 1, 2, 3]
+            //   i + 1        i
+            //
+            //
+            //
+            //
+            //                    /                 \          /                 \
+            //  c      - 4 . c  = | a      - 4 . a  | (& OR ^) | b      - b . a  |
+            //   i + 1        i   \  i + 1        i /          \  i + 1        i /
+            //
+            let prev_left_accum = left_accumulator;
+            let prev_right_accum = right_accumulator;
+            let prev_out_accum = out_accumulator;
+            // We also need to add the computed quad fr_s to the circuit representing a logic gate.
             // To do so, we just mul by 4 the previous accomulated result and we add to it
             // the new computed quad.
             // On this way we're basically accumulating the quads and adding them to get back the
@@ -1025,13 +1046,19 @@ impl StandardComposer {
             //   i     ===   (bits/2 - j)
             //        j = 0
             //
-            // We add them directly to the mapping
             left_accumulator *= Scalar::from(4u64);
             left_accumulator += left_quad_fr;
             right_accumulator *= Scalar::from(4u64);
             right_accumulator += right_quad_fr;
             out_accumulator *= Scalar::from(4u64);
             out_accumulator += out_quad_fr;
+
+            // Apply logic transition constraints.
+            assert!(left_accumulator - (prev_left_accum * Scalar::from(4u64)) < Scalar::from(4u64));
+            assert!(
+                right_accumulator - (prev_right_accum * Scalar::from(4u64)) < Scalar::from(4u64)
+            );
+            assert!(out_accumulator - (prev_out_accum * Scalar::from(4u64)) < Scalar::from(4u64));
 
             // Get variables pointing to the previous accumulated values.
             let var_a = self.add_input(left_accumulator);
