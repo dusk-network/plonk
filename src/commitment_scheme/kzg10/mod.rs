@@ -6,7 +6,7 @@ use crate::transcript::TranscriptProtocol;
 
 use crate::util::powers_of;
 pub use key::{ProverKey, VerifierKey};
-pub use srs::SRS;
+pub use srs::PublicParameters;
 #[derive(Copy, Clone, Debug)]
 /// Proof that a polynomial `p` was correctly evaluated at a point `z`
 /// producing the evaluated point p(z).

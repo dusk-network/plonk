@@ -232,7 +232,7 @@ mod test {
 
     // Creates a proving key and verifier key based on a specified degree
     fn setup_test(degree: usize) -> (ProverKey, VerifierKey) {
-        let srs = SRS::setup(degree, &mut rand::thread_rng()).unwrap();
+        let srs = PublicParameters::setup(degree, &mut rand::thread_rng()).unwrap();
         srs.trim(degree).unwrap()
     }
     #[test]
