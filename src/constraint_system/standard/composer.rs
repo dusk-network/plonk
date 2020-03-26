@@ -2,7 +2,9 @@ use super::linearisation_poly;
 use super::quotient_poly;
 use super::{proof::Proof, Composer, PreProcessedCircuit};
 use crate::commitment_scheme::kzg10::ProverKey;
-use crate::constraint_system::widget::{ArithmeticWidget, RangeWidget};
+use crate::constraint_system::widget::{
+    ArithmeticWidget, PermutationWidget, PublicInputWidget, RangeWidget,
+};
 use crate::constraint_system::Variable;
 use crate::fft::{EvaluationDomain, Evaluations, Polynomial};
 use crate::permutation::Permutation;
@@ -162,14 +164,19 @@ impl Composer for StandardComposer {
         let range_widget =
             RangeWidget::new((q_range_poly, q_range_poly_commit, Some(q_range_eval_4n)));
 
+        let perm_widget = PermutationWidget::new(
+            (left_sigma_poly, left_sigma_poly_commit),
+            (right_sigma_poly, right_sigma_poly_commit),
+            (out_sigma_poly, out_sigma_poly_commit),
+            (fourth_sigma_poly, fourth_sigma_poly_commit),
+        );
+
         PreProcessedCircuit {
             n: self.n,
             arithmetic: arithmetic_widget,
             range: range_widget,
-            left_sigma: (left_sigma_poly, left_sigma_poly_commit),
-            right_sigma: (right_sigma_poly, right_sigma_poly_commit),
-            out_sigma: (out_sigma_poly, out_sigma_poly_commit),
-            fourth_sigma: (fourth_sigma_poly, fourth_sigma_poly_commit),
+            permutation: perm_widget,
+            public_input: PublicInputWidget {},
             // Compute 4n evaluations for X^n -1
             v_h_coset_4n: domain_4n.compute_vanishing_poly_over_coset(domain.size() as u64),
         }
@@ -320,9 +327,21 @@ impl Composer for StandardComposer {
                 w_r_poly,
                 w_o_poly,
                 w_4_poly.clone(),
-                preprocessed_circuit.left_sigma_poly().clone(),
-                preprocessed_circuit.right_sigma_poly().clone(),
-                preprocessed_circuit.out_sigma_poly().clone(),
+                preprocessed_circuit
+                    .permutation
+                    .left_sigma
+                    .polynomial
+                    .clone(),
+                preprocessed_circuit
+                    .permutation
+                    .right_sigma
+                    .polynomial
+                    .clone(),
+                preprocessed_circuit
+                    .permutation
+                    .out_sigma
+                    .polynomial
+                    .clone(),
             ],
             &z_challenge,
             transcript,
