@@ -75,20 +75,23 @@ pub fn batch_inversion(v: &mut [Scalar]) {
         tmp = new_tmp;
     }
 }
+#[cfg(test)]
+mod test {
+    use super::*;
+    #[test]
+    fn test_batch_inversion() {
+        let one = Scalar::from(1);
+        let two = Scalar::from(2);
+        let three = Scalar::from(3);
+        let four = Scalar::from(4);
+        let five = Scalar::from(5);
 
-#[test]
-fn test_batch_inversion() {
-    let one = Scalar::from(1);
-    let two = Scalar::from(2);
-    let three = Scalar::from(3);
-    let four = Scalar::from(4);
-    let five = Scalar::from(5);
+        let original_scalars = vec![one, two, three, four, five];
+        let mut inverted_scalars = vec![one, two, three, four, five];
 
-    let original_scalars = vec![one, two, three, four, five];
-    let mut inverted_scalars = vec![one, two, three, four, five];
-
-    batch_inversion(&mut inverted_scalars);
-    for (x, x_inv) in original_scalars.iter().zip(inverted_scalars.iter()) {
-        assert_eq!(x.invert().unwrap(), *x_inv);
+        batch_inversion(&mut inverted_scalars);
+        for (x, x_inv) in original_scalars.iter().zip(inverted_scalars.iter()) {
+            assert_eq!(x.invert().unwrap(), *x_inv);
+        }
     }
 }
