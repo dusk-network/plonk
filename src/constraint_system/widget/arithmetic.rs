@@ -80,7 +80,6 @@ impl ArithmeticWidget {
         let q_o_poly = &self.qO.polynomial;
         let q_c_poly = &self.qC.polynomial;
         let q_4_poly = &self.q4.polynomial;
-        let q_arith_poly = &self.qArith.polynomial;
 
         // (a_eval * b_eval * q_m_poly + a_eval * q_l + b_eval * q_r + c_eval * q_o + d_eval * q_4 + q_c) * q_arith_eval * alpha
         //
