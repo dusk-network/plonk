@@ -58,11 +58,21 @@ pub fn compute(
     let b_eval = w_r_poly.evaluate(z_challenge);
     let c_eval = w_o_poly.evaluate(z_challenge);
     let d_eval = w_4_poly.evaluate(z_challenge);
-    let left_sigma_eval = preprocessed_circuit.left_sigma_poly().evaluate(z_challenge);
-    let right_sigma_eval = preprocessed_circuit
-        .right_sigma_poly()
+    let left_sigma_eval = preprocessed_circuit
+        .permutation
+        .left_sigma
+        .polynomial
         .evaluate(z_challenge);
-    let out_sigma_eval = preprocessed_circuit.out_sigma_poly().evaluate(z_challenge);
+    let right_sigma_eval = preprocessed_circuit
+        .permutation
+        .right_sigma
+        .polynomial
+        .evaluate(z_challenge);
+    let out_sigma_eval = preprocessed_circuit
+        .permutation
+        .out_sigma
+        .polynomial
+        .evaluate(z_challenge);
     let q_arith_eval = preprocessed_circuit
         .arithmetic
         .qArith
@@ -101,7 +111,7 @@ pub fn compute(
         &right_sigma_eval,
         &out_sigma_eval,
         &(*alpha, *beta, *gamma),
-        preprocessed_circuit.fourth_sigma_poly(),
+        &preprocessed_circuit.permutation.fourth_sigma.polynomial,
     );
 
     let f_4 =
