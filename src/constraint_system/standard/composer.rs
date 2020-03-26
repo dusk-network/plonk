@@ -1013,6 +1013,11 @@ impl StandardComposer {
             // is needed to prevent the degree of our quotient polynomial from blowing up
             let prod_quad_fr = Scalar::from((left_quad * right_quad) as u64);
 
+            println!(
+                "Left_quad: {:?}\n, Right_quad: {:?}\n, XOR: {:?}\n",
+                left_quad_fr, right_quad_fr, out_quad_fr
+            );
+
             // Now that we've computed this round results, we need to apply the
             // logic transition constraint that will check the following:
             // a      - 4 . a  ϵ [0, 1, 2, 3]
@@ -1050,6 +1055,8 @@ impl StandardComposer {
             left_accumulator += left_quad_fr;
             right_accumulator *= Scalar::from(4u64);
             right_accumulator += right_quad_fr;
+            // XXX: Like this, the XOR is not computed correctly. The way to get the correct
+            // value would be to mul
             out_accumulator *= Scalar::from(4u64);
             out_accumulator += out_quad_fr;
 
@@ -1141,6 +1148,8 @@ impl StandardComposer {
         // they are not needed.
         let zeros = vec![Scalar::zero(); num_quads + 1];
         self.public_inputs.extend(zeros.iter());
+
+        println!("LEFT INPUT {:?}", self.variables[&self.w_l[self.n - 1]]);
 
         // Now we need to assert that the sum of accumulated values
         // matches the original values provided to the fn.
@@ -1331,12 +1340,12 @@ impl StandardComposer {
             let c = w_o[i];
             let d = w_4[i];
             let d_next = w_4[(i + 1) % self.n];
-            println!(
-                "ITER: {} -> \nq_log: {:?}\n a: {:?}\n b: {:?}\n c: {:?}\n d: {:?}\n",
-                i, qlogic, a, b, c, d
-            );
+            //println!(
+            //    "ITER: {} -> \nq_log: {:?}\n a: {:?}\n b: {:?}\n c: {:?}\n d: {:?}\n",
+            //    i, qlogic, a, b, c, d
+            //);
             let k = qarith * ((qm * a * b) + (ql * a) + (qr * b) + (qo * c) + (q4 * d) + pi + qc)
-                // XXX: Review correctness
+                // XXX: Logic transition constraint here?¿?¿
                 //+ qlogic * (a * b - c)
                 + qrange
                     * (delta(c - four * d)
@@ -1417,9 +1426,9 @@ mod tests {
     fn test_logic_constraint() {
         let ok = test_gadget(
             |composer| {
-                let witness_a = composer.add_input(Scalar::from(501u64));
+                let witness_a = composer.add_input(Scalar::from(500u64));
                 let witness_b = composer.add_input(Scalar::from(499u64));
-                let xor_res = composer.logic_gate(witness_a, witness_b, 16, true);
+                let xor_res = composer.logic_gate(witness_a, witness_b, 9, true);
                 println!("{:?}", composer.variables[&xor_res]);
                 composer.check_circuit_satisfied();
             },
