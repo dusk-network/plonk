@@ -294,7 +294,7 @@ impl Composer for StandardComposer {
             &domain,
             &preprocessed_circuit,
             &z_poly,
-            [&w_l_poly, &w_r_poly, &w_o_poly, &w_4_poly],
+            (&w_l_poly, &w_r_poly, &w_o_poly, &w_4_poly),
             &pi_poly,
             &(alpha, beta, gamma),
         );

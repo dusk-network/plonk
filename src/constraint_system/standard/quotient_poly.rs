@@ -12,15 +12,10 @@ pub(crate) fn compute(
     domain: &EvaluationDomain,
     preprocessed_circuit: &PreProcessedCircuit,
     z_poly: &Polynomial,
-    witness_polynomials: [&Polynomial; 4],
+    (w_l_poly, w_r_poly, w_o_poly, w_4_poly): (&Polynomial, &Polynomial, &Polynomial, &Polynomial),
     public_inputs_poly: &Polynomial,
     (alpha, beta, gamma): &(Scalar, Scalar, Scalar),
 ) -> Polynomial {
-    let w_l_poly = witness_polynomials[0];
-    let w_r_poly = witness_polynomials[1];
-    let w_o_poly = witness_polynomials[2];
-    let w_4_poly = witness_polynomials[3];
-
     // Compute 4n eval of z(X)
     let domain_4n = EvaluationDomain::new(4 * domain.size()).unwrap();
     let mut z_eval_4n = domain_4n.coset_fft(&z_poly);
@@ -42,24 +37,16 @@ pub(crate) fn compute(
     let t_1 = compute_circuit_satisfiability_equation(
         domain,
         preprocessed_circuit,
-        &wl_eval_4n,
-        &wr_eval_4n,
-        &wo_eval_4n,
-        &w4_eval_4n,
+        (&wl_eval_4n, &wr_eval_4n, &wo_eval_4n, &w4_eval_4n),
         public_inputs_poly,
     );
 
     let t_2 = compute_permutation_checks(
         domain,
         preprocessed_circuit,
-        &wl_eval_4n,
-        &wr_eval_4n,
-        &wo_eval_4n,
-        &w4_eval_4n,
+        (&wl_eval_4n, &wr_eval_4n, &wo_eval_4n, &w4_eval_4n),
         &z_eval_4n,
-        alpha,
-        beta,
-        gamma,
+        (alpha, beta, gamma),
     );
 
     let quotient: Vec<_> = (0..domain_4n.size())
@@ -78,10 +65,7 @@ pub(crate) fn compute(
 fn compute_circuit_satisfiability_equation(
     domain: &EvaluationDomain,
     preprocessed_circuit: &PreProcessedCircuit,
-    wl_eval_4n: &[Scalar],
-    wr_eval_4n: &[Scalar],
-    wo_eval_4n: &[Scalar],
-    w4_eval_4n: &[Scalar],
+    (wl_eval_4n, wr_eval_4n, wo_eval_4n, w4_eval_4n): (&[Scalar], &[Scalar], &[Scalar], &[Scalar]),
     pi_poly: &Polynomial,
 ) -> Evaluations {
     let domain_4n = EvaluationDomain::new(4 * domain.size()).unwrap();
@@ -114,14 +98,9 @@ fn compute_circuit_satisfiability_equation(
 fn compute_permutation_checks(
     domain: &EvaluationDomain,
     preprocessed_circuit: &PreProcessedCircuit,
-    wl_eval_4n: &[Scalar],
-    wr_eval_4n: &[Scalar],
-    wo_eval_4n: &[Scalar],
-    w4_eval_4n: &[Scalar],
+    (wl_eval_4n, wr_eval_4n, wo_eval_4n, w4_eval_4n): (&[Scalar], &[Scalar], &[Scalar], &[Scalar]),
     z_eval_4n: &[Scalar],
-    alpha: &Scalar,
-    beta: &Scalar,
-    gamma: &Scalar,
+    (alpha, beta, gamma): (&Scalar, &Scalar, &Scalar),
 ) -> Evaluations {
     let domain_4n = EvaluationDomain::new(4 * domain.size()).unwrap();
 
