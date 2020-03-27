@@ -947,7 +947,7 @@ impl StandardComposer {
         use crate::constraint_system::WireData;
         // Since we work on base4, we need to guarantee that we have an even
         // number of bits representing the greatest input.
-        assert!((num_bits << 1) >> 1 == num_bits);
+        assert_eq!(num_bits & 1, 0);
         // We will have exactly `num_bits / 2` quads (quaternary digits) representing
         // both numbers.
         let num_quads = num_bits >> 1;
@@ -957,7 +957,7 @@ impl StandardComposer {
         let mut out_accumulator = Scalar::zero();
         let mut left_quad = 0u8;
         let mut right_quad = 0u8;
-        // Get vars as base_4 elems
+        // Get vars as base_4 elems and reverse them to get it's Big Endian repr.
         let mut a_base_4 = &mut self.variables[&a].to_base_4()[0..num_quads];
         a_base_4.reverse();
         let mut b_base_4 = &mut self.variables[&b].to_base_4()[0..num_quads];
@@ -992,19 +992,19 @@ impl StandardComposer {
         // Start generating accumulator rows and adding them to the circuit.
         // Note that we will do this process exactly `num_bits / 2` counting that
         // the first step was done avobe to set correctly the first row. This means
-        // that we will need to pad the end of the memory program once we've built it
-        // as you can see oit's shown in the last row structure: `| an  | bn  | --- | cn  |`.
+        // that we will need to pad the end of the memory program once we've built it.
+        // As we can see it's shown in the last row structure: `| an  | bn  | --- | cn  |`.
         for i in 0..num_quads {
             // On each round, we will commit every accumulator step. To do so,
             // we first need to get the ith quads of `a` and `b` and then compute
-            // `out_quad` and `prod_quad`.
+            // `out_quad`(logical OP result) and `prod_quad`(intermediate prod result).
             left_quad = a_base_4[i];
             right_quad = b_base_4[i];
             let left_quad_fr = Scalar::from(left_quad as u64);
             let right_quad_fr = Scalar::from(right_quad as u64);
             // The `out_quad` is the result of the bitwise ops `&` or `^` between
-            // the left and right quads. The op is decided with a boolean flag sent
-            // as input to the function.
+            // the left and right quads. The op is decided with a boolean flag set
+            // as input of the function.
             let out_quad_fr = match is_xor_gate {
                 true => Scalar::from((left_quad ^ right_quad) as u64),
                 false => Scalar::from((left_quad & right_quad) as u64),
@@ -1072,11 +1072,13 @@ impl StandardComposer {
                 false => self.add_input(prod_quad_fr),
             };
             let var_4 = self.add_input(out_accumulator);
-            // Add the variable to the variable map linking the fourth wire
-            // accumulated variables to the actual gate index.
+            // Add the variables to the variable map linking them to it's
+            // corresponding gate index.
+            //
             // Note that by doing this, we are basically setting the wire_coeffs
             // of the wire polynomials, but we still need to link the selector_poly
             // coefficients in order to be able to have complete gates.
+            //
             // Also note that here we're setting left, right and fourth variables to the
             // actual gate, meanwhile we set out to the previous gate.
             self.perm.add_variable_to_map(var_a, WireData::Left(self.n));
@@ -1094,6 +1096,7 @@ impl StandardComposer {
             // Update the gate index
             self.n += 1;
         }
+
         // We have one missing value for the last row of the program memory which
         // is `w_o` since the rest of wires are pointing one gate ahead.
         // To fix this, we simply pad with a 0 so the last row of the program memory
@@ -1103,10 +1106,10 @@ impl StandardComposer {
             .add_variable_to_map(self.zero_var, WireData::Output(self.n - 1));
         self.w_o.push(self.zero_var);
 
-        // Now that the wire values are set for each gate index and mapped on the
+        // Now the wire values are set for each gate, indexed and mapped in the
         // `variable_map` inside of the `Permutation` struct.
         // Now we just need to extend the selector polynomials with the appropiate
-        // coefficients to form complete gates.
+        // coefficients to form complete logic gates.
         for _ in 0..num_quads {
             self.q_m.push(Scalar::zero());
             self.q_l.push(Scalar::zero());
@@ -1126,7 +1129,7 @@ impl StandardComposer {
                 }
             };
         }
-        // For the last gate, `q_c` and `q_logic` are noop.
+        // For the last gate, `q_c` and `q_logic` we use no-op values (Zero).
         self.q_m.push(Scalar::zero());
         self.q_l.push(Scalar::zero());
         self.q_r.push(Scalar::zero());
@@ -1140,6 +1143,9 @@ impl StandardComposer {
         // We also need to extend the `public_inputs` Vec with
         // zeros since the coefs will not be added by the user as
         // they are not needed.
+        //
+        // It will make no sense to allow the user introduce any kind of value
+        // in the middle of the logical gate iteration.
         let zeros = vec![Scalar::zero(); num_quads + 1];
         self.public_inputs.extend(zeros.iter());
 
@@ -1148,6 +1154,13 @@ impl StandardComposer {
         // Note that we're only considering the quads that are included
         // in the range 0..num_bits. So at the practice, we're checking that
         // x & ((1 << num_bits +1) -1) == [0..num_quads] accumulated sums of x.
+        //
+        // We could also check that the last gate's wire coefficients match the
+        // original values introduced in the function.
+        // This can be done with an `assert_equal` constraint gate or simply
+        // by taking the values behind the n'th variables of `w_l` & `w_r` and
+        // checking that they're equal to the original ones behind the variables
+        // sent through the function parameters.
         assert_eq!(
             a_base_4[0..num_quads]
                 .iter()
@@ -1156,6 +1169,7 @@ impl StandardComposer {
                 .collect::<Vec<u8>>(),
             Vec::from(&self.variables[self.w_l.last().unwrap()].to_base_4()[0..num_quads])
         );
+        assert_eq!(self.variables[&a], self.variables[&self.w_l[self.n - 1]]);
         assert_eq!(
             b_base_4[0..num_quads]
                 .iter()
@@ -1164,9 +1178,12 @@ impl StandardComposer {
                 .collect::<Vec<u8>>(),
             Vec::from(&self.variables[self.w_r.last().unwrap()].to_base_4()[0..num_quads])
         );
+        assert_eq!(self.variables[&b], self.variables[&self.w_r[self.n - 1]]);
 
-        // Once the inputs are checked agains the accumulated additions,
-        // we can safely return the resulting variable of the gate computation.
+        // Once the inputs are checked against the accumulated additions,
+        // we can safely return the resulting variable of the gate computation
+        // which is stored on the last program memory row and in the column that
+        // `w_4` is holding.
         self.w_4[self.w_4.len() - 1]
     }
 
@@ -1406,11 +1423,69 @@ mod tests {
 
     #[test]
     fn test_logic_xor_constraint() {
+        // Should pass since the XOR result is correct and the bit-num is even.
         let ok = test_gadget(
             |composer| {
                 let witness_a = composer.add_input(Scalar::from(500u64));
                 let witness_b = composer.add_input(Scalar::from(499u64));
                 let xor_res = composer.logic_gate(witness_a, witness_b, 10, true);
+                // Check that the XOR result is indeed what we are expecting.
+                composer.constrain_to_constant(
+                    xor_res,
+                    Scalar::from(500u64 ^ 499u64),
+                    Scalar::zero(),
+                );
+                composer.check_circuit_satisfied();
+            },
+            200,
+        );
+        assert!(ok);
+
+        // Should pass since the AND result is correct even the bit-num is even.
+        let ok = test_gadget(
+            |composer| {
+                let witness_a = composer.add_input(Scalar::from(500u64));
+                let witness_b = composer.add_input(Scalar::from(499u64));
+                let xor_res = composer.logic_gate(witness_a, witness_b, 10, false);
+                // Check that the AND result is indeed what we are expecting.
+                composer.constrain_to_constant(
+                    xor_res,
+                    Scalar::from(500u64 & 499u64),
+                    Scalar::zero(),
+                );
+                composer.check_circuit_satisfied();
+            },
+            200,
+        );
+        assert!(ok);
+
+        // Should not pass since the XOR result is not correct even the bit-num is even.
+        let ok = test_gadget(
+            |composer| {
+                let witness_a = composer.add_input(Scalar::from(500u64));
+                let witness_b = composer.add_input(Scalar::from(499u64));
+                let xor_res = composer.logic_gate(witness_a, witness_b, 10, true);
+                // Check that the XOR result is indeed what we are expecting.
+                composer.constrain_to_constant(
+                    xor_res,
+                    Scalar::from(500u64 & 499u64),
+                    Scalar::zero(),
+                );
+            },
+            200,
+        );
+        assert!(!ok);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_logical_gate_odd_bit_num() {
+        // Should fail since the bit-num is odd.
+        let ok = test_gadget(
+            |composer| {
+                let witness_a = composer.add_input(Scalar::from(500u64));
+                let witness_b = composer.add_input(Scalar::from(499u64));
+                let xor_res = composer.logic_gate(witness_a, witness_b, 9, true);
                 // Check that the XOR result is indeed what we are expecting.
                 composer.constrain_to_constant(xor_res, Scalar::from(7u64), Scalar::zero());
                 composer.check_circuit_satisfied();
