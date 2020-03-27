@@ -1286,19 +1286,14 @@ impl StandardComposer {
         self.q_4.push(Scalar::zero());
         self.q_arith.push(Scalar::zero());
         self.q_range.push(Scalar::zero());
-        self.q_logic.push(Scalar::one());
+        self.q_logic.push(-Scalar::one());
         self.public_inputs.push(Scalar::zero());
         self.w_l.push(var_one);
-        self.w_r.push(self.zero_var);
+        self.w_r.push(var_one);
         self.w_o.push(self.zero_var);
         self.w_4.push(self.zero_var);
-        self.perm.add_variables_to_map(
-            self.zero_var,
-            self.zero_var,
-            self.zero_var,
-            self.zero_var,
-            self.n,
-        );
+        self.perm
+            .add_variables_to_map(var_one, var_one, self.zero_var, self.zero_var, self.n);
         self.n = self.n + 1;
     }
 
@@ -1332,12 +1327,7 @@ impl StandardComposer {
             let c = w_o[i];
             let d = w_4[i];
             let d_next = w_4[(i + 1) % self.n];
-            //println!(
-            //    "ITER: {} -> \nq_log: {:?}\n a: {:?}\n b: {:?}\n c: {:?}\n d: {:?}\n",
-            //    i, qlogic, a, b, c, d
-            //);
             let k = qarith * ((qm * a * b) + (ql * a) + (qr * b) + (qo * c) + (q4 * d) + pi + qc)
-                // XXX: Check correctness.
                 + qlogic * ((a - b) * c)
                 + qrange
                     * (delta(c - four * d)
@@ -1415,13 +1405,14 @@ mod tests {
     }
 
     #[test]
-    fn test_logic_constraint() {
+    fn test_logic_xor_constraint() {
         let ok = test_gadget(
             |composer| {
                 let witness_a = composer.add_input(Scalar::from(500u64));
                 let witness_b = composer.add_input(Scalar::from(499u64));
-                let xor_res = composer.logic_gate(witness_a, witness_b, 10, false);
-                println!("{:?}", composer.variables[&xor_res]);
+                let xor_res = composer.logic_gate(witness_a, witness_b, 10, true);
+                // Check that the XOR result is indeed what we are expecting.
+                composer.constrain_to_constant(xor_res, Scalar::from(7u64), Scalar::zero());
                 composer.check_circuit_satisfied();
             },
             200,
