@@ -937,7 +937,7 @@ impl StandardComposer {
         accumulators[last_accumulator] = witness;
     }
 
-    pub fn logic_gate(
+    fn logic_gate(
         &mut self,
         a: Variable,
         b: Variable,
@@ -1185,6 +1185,26 @@ impl StandardComposer {
         // which is stored on the last program memory row and in the column that
         // `w_4` is holding.
         self.w_4[self.w_4.len() - 1]
+    }
+
+    /// Adds a logical XOR gate that performs the XOR between two values for the
+    /// specified first `num_bits` returning a `Variable` holding the result.
+    ///
+    /// # Panics
+    ///
+    /// If the `num_bits` specified in the fn params is odd.
+    pub fn logic_xor_gate(&mut self, a: Variable, b: Variable, num_bits: usize) -> Variable {
+        self.logic_gate(a, b, num_bits, true)
+    }
+
+    /// Adds a logical AND gate that performs the bitwise AND between two values
+    /// for the specified first `num_bits` returning a `Variable` holding the result.
+    ///
+    /// # Panics
+    ///
+    /// If the `num_bits` specified in the fn params is odd.
+    pub fn logic_and_gate(&mut self, a: Variable, b: Variable, num_bits: usize) -> Variable {
+        self.logic_gate(a, b, num_bits, false)
     }
 
     /// Asserts that two variables are the same
