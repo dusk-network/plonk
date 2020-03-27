@@ -329,7 +329,7 @@ impl Proof {
 
         scalars.push((b_1 + b_2 + b_3 + b_4) * alpha);
         points.push(preprocessed_circuit.qrange_comm().0);
-        // XXX: Carlos
+
         scalars.push(
             (self.evaluations.a_eval - self.evaluations.b_eval) * self.evaluations.c_eval * alpha,
         );

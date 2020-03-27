@@ -170,7 +170,6 @@ fn compute_circuit_satisfiability_equation(
             let b_4 = delta(w4_next - four * wl);
             let b = (b_1 + b_2 + b_3 + b_4) * qrange;
 
-            // XXX: Carlos
             let c = qlogic * ((wl - wr) * wo);
 
             (a + b + c) * alpha * v_h_i
