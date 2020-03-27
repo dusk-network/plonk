@@ -51,7 +51,6 @@ pub fn compute(
     z_poly: &Polynomial,
 ) -> (Polynomial, Evaluations) {
     let alpha_sq = alpha.square();
-    let alpha_cu = alpha * alpha_sq;
 
     // Compute evaluations
     let quot_eval = t_x_poly.evaluate(z_challenge);
@@ -70,7 +69,6 @@ pub fn compute(
     let perm_eval = z_poly.evaluate(&(z_challenge * domain.group_gen));
 
     let f_1 = compute_circuit_satisfiability(
-        alpha,
         &a_eval,
         &b_eval,
         &c_eval,
@@ -93,7 +91,7 @@ pub fn compute(
         &c_eval,
         &d_eval,
         &z_challenge,
-        &alpha_sq,
+        &alpha,
         beta,
         gamma,
         &z_poly,
@@ -105,12 +103,12 @@ pub fn compute(
         &left_sigma_eval,
         &right_sigma_eval,
         &out_sigma_eval,
-        &(alpha_sq, *beta, *gamma),
+        &(*alpha, *beta, *gamma),
         preprocessed_circuit.fourth_sigma_poly(),
     );
 
     let f_4 =
-        grand_product_lineariser::compute_is_one_polynomial(domain, z_challenge, &alpha_cu, z_poly);
+        grand_product_lineariser::compute_is_one_polynomial(domain, z_challenge, &alpha_sq, z_poly);
 
     let mut lin_poly = &f_1 + &f_2;
     lin_poly = &lin_poly + &f_3;
@@ -141,7 +139,6 @@ pub fn compute(
 }
 
 fn compute_circuit_satisfiability(
-    alpha: &Scalar,
     a_eval: &Scalar,
     b_eval: &Scalar,
     c_eval: &Scalar,
@@ -200,6 +197,5 @@ fn compute_circuit_satisfiability(
 
     let c = q_logic_poly * &((a_eval - b_eval) * c_eval);
 
-    // XXX: Include the q_range op
-    &(&(&a + &b) + &c) * alpha
+    &(&a + &b) + &c
 }

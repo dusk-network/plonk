@@ -1360,7 +1360,7 @@ impl StandardComposer {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::commitment_scheme::kzg10::SRS;
+    use crate::commitment_scheme::kzg10::PublicParameters;
     use bls12_381::Scalar as Fr;
     use merlin::Transcript;
 
@@ -1696,7 +1696,7 @@ mod tests {
 
     fn test_gadget(gadget: fn(composer: &mut StandardComposer), n: usize) -> bool {
         // Common View
-        let public_parameters = SRS::setup(2 * n, &mut rand::thread_rng()).unwrap();
+        let public_parameters = PublicParameters::setup(2 * n, &mut rand::thread_rng()).unwrap();
         // Provers View
         let (proof, public_inputs) = {
             let mut composer: StandardComposer = add_dummy_composer(7);

@@ -32,7 +32,6 @@ pub(crate) fn compute(
 
     let t_1 = compute_circuit_satisfiability_equation(
         domain,
-        alpha,
         preprocessed_circuit.qm_eval_4n(),
         preprocessed_circuit.ql_eval_4n(),
         preprocessed_circuit.qr_eval_4n(),
@@ -50,19 +49,11 @@ pub(crate) fn compute(
     );
 
     let t_2 = grand_product_quotient::compute_identity_polynomial(
-        domain,
-        &alpha.square(),
-        beta,
-        gamma,
-        &z_eval_4n,
-        &w_l_poly,
-        &w_r_poly,
-        &w_o_poly,
-        &w_4_poly,
+        domain, &alpha, beta, gamma, &z_eval_4n, &w_l_poly, &w_r_poly, &w_o_poly, &w_4_poly,
     );
     let t_3 = grand_product_quotient::compute_copy_polynomial(
         domain,
-        &alpha.square(),
+        &alpha,
         beta,
         gamma,
         &z_eval_4n,
@@ -76,8 +67,7 @@ pub(crate) fn compute(
         preprocessed_circuit.fourth_sigma_poly(),
     );
 
-    let t_4 =
-        grand_product_quotient::compute_is_one_polynomial(domain, z_poly, alpha.square() * alpha);
+    let t_4 = grand_product_quotient::compute_is_one_polynomial(domain, z_poly, alpha.square());
 
     let quotient: Vec<_> = (0..domain_4n.size())
         .into_par_iter()
@@ -94,7 +84,6 @@ pub(crate) fn compute(
 // Ensures that the circuit is satisfied
 fn compute_circuit_satisfiability_equation(
     domain: &EvaluationDomain,
-    alpha: &Scalar,
     qm_eval_4n: &Evaluations,
     ql_eval_4n: &Evaluations,
     qr_eval_4n: &Evaluations,
@@ -172,7 +161,7 @@ fn compute_circuit_satisfiability_equation(
 
             let c = qlogic * ((wl - wr) * wo);
 
-            (a + b + c) * alpha * v_h_i
+            (a + b + c) * v_h_i
         })
         .collect();
     Evaluations::from_vec_and_domain(t_1, domain_4n)

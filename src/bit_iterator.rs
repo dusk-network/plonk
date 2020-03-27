@@ -51,6 +51,7 @@ bit_iterator!(u32, BitIterator32);
 bit_iterator!(u64, BitIterator64);
 bit_iterator!(u128, BitIterator128);
 
+#[cfg(test)]
 mod test {
     use super::*;
     #[test]

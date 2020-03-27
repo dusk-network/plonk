@@ -6,38 +6,32 @@ use crate::transcript::TranscriptProtocol;
 
 use crate::util::powers_of;
 pub use key::{ProverKey, VerifierKey};
-pub use srs::SRS;
+pub use srs::PublicParameters;
 #[derive(Copy, Clone, Debug)]
+/// Proof that a polynomial `p` was correctly evaluated at a point `z`
+/// producing the evaluated point p(z).
 pub struct Proof {
-    /// This is a commitment to the witness polynomial `w`
-    /// w = p(x) - p(z) / x - z
+    /// This is a commitment to the witness polynomial.
     pub commitment_to_witness: Commitment,
-    /// This is the evaluation `y` of the committed polynomial
-    /// y = p(z)
+    /// This is the result of evaluating a polynomial at the point `z`.
     pub evaluated_point: Scalar,
-    /// These is the commitment to the polynomial that you want to prove a statement about
+    /// This is the commitment to the polynomial that you want to prove a statement about.
     pub commitment_to_polynomial: Commitment,
-    // This is the evaluated_point `z` of the committed polynomial
-    // y = p(z)
-    // pub evaluation_point: Scalar,
 }
 
-/// Due to KZG10 being homomorphic, we can supply a single witness commitment
-/// for multiple polynomials at the same point
+/// Proof that multiple polynomials were correctly evaluated at a point `z`,
+/// each producing their respective evaluated points p_i(z).
 pub struct AggregateProof {
-    /// This is a commitment to the witness polynomial `w`
-    /// w is a witness for multiple polynomials
+    /// This is a commitment to the aggregated witness polynomial.
     pub commitment_to_witness: Commitment,
-    /// This is the evaluations `y` of the committed polynomials
+    /// These are the results of the evaluating each polynomial at the point `z`.
     pub evaluated_points: Vec<Scalar>,
-    /// These are the commitments to the polynomials that you want to prove a statement about
+    /// These are the commitments to the polynomials that you want to prove a statement about.
     pub commitments_to_polynomials: Vec<Commitment>,
-    // This is the evaluated_point `z` that all of the polynomials are evaluated at
-    // pub evaluation_point: Scalar,
 }
 
 impl AggregateProof {
-    /// Creates an `AggregatedProof` with the commitment to the witness
+    /// Initialises an `AggregatedProof` with the commitment to the witness.
     pub fn with_witness(witness: Commitment) -> AggregateProof {
         AggregateProof {
             commitment_to_witness: witness,
@@ -45,8 +39,15 @@ impl AggregateProof {
             commitments_to_polynomials: Vec::new(),
         }
     }
-    // Flattens an aggregate proof into a `Proof`
-    // The challenge must be the same challenge that was used to aggregate the witness
+
+    /// Adds an evaluated point with the commitment to the polynomial which produced it.
+    pub fn add_part(&mut self, part: (Scalar, Commitment)) {
+        self.evaluated_points.push(part.0);
+        self.commitments_to_polynomials.push(part.1);
+    }
+
+    /// Flattens an `AggregateProof` into a `Proof`.
+    /// The transcript must have the same view as the transcript that was used to aggregate the witness in the proving stage.
     pub fn flatten(&self, transcript: &mut dyn TranscriptProtocol) -> Proof {
         let challenge = transcript.challenge_scalar(b"aggregate_witness");
         let powers = powers_of(&challenge, self.commitments_to_polynomials.len() - 1);
@@ -71,11 +72,6 @@ impl AggregateProof {
             evaluated_point: flattened_poly_evaluations,
             commitment_to_polynomial: Commitment::from_projective(flattened_poly_commitments),
         }
-    }
-    // Adds an evaluated point with the commitment to the polynomial which produced it
-    pub fn add_part(&mut self, part: (Scalar, Commitment)) {
-        self.evaluated_points.push(part.0);
-        self.commitments_to_polynomials.push(part.1);
     }
 }
 
