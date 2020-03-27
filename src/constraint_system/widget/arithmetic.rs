@@ -36,7 +36,7 @@ impl ArithmeticWidget {
             qArith: PreProcessedPolynomial::new(selectors.6),
         }
     }
-    pub fn compute_quotient(
+    pub fn compute_quotient_i(
         &self,
         index: usize,
         w_l_i: &Scalar,

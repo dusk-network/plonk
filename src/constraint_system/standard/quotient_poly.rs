@@ -84,7 +84,7 @@ fn compute_circuit_satisfiability_equation(
 
             let a = preprocessed_circuit
                 .arithmetic
-                .compute_quotient(i, wl, wr, wo, w4);
+                .compute_quotient_i(i, wl, wr, wo, w4);
             let b = preprocessed_circuit
                 .range
                 .compute_quotient(i, wl, wr, wo, w4, w4_next);
