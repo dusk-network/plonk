@@ -55,6 +55,9 @@ impl Proof {
                 b_eval: Scalar::zero(),
                 c_eval: Scalar::zero(),
                 d_eval: Scalar::zero(),
+                a_next_eval: Scalar::zero(),
+                b_next_eval: Scalar::zero(),
+                c_next_eval: Scalar::zero(),
                 d_next_eval: Scalar::zero(),
                 q_arith_eval: Scalar::zero(),
 
@@ -147,6 +150,9 @@ impl Proof {
         transcript.append_scalar(b"b_eval", &self.evaluations.b_eval);
         transcript.append_scalar(b"c_eval", &self.evaluations.c_eval);
         transcript.append_scalar(b"d_eval", &self.evaluations.d_eval);
+        transcript.append_scalar(b"a_next_eval", &self.evaluations.a_next_eval);
+        transcript.append_scalar(b"b_next_eval", &self.evaluations.b_next_eval);
+        transcript.append_scalar(b"c_next_eval", &self.evaluations.c_next_eval);
         transcript.append_scalar(b"d_next_eval", &self.evaluations.d_next_eval);
         transcript.append_scalar(b"left_sig_eval", &self.evaluations.left_sigma_eval);
         transcript.append_scalar(b"right_sig_eval", &self.evaluations.right_sigma_eval);
@@ -198,6 +204,10 @@ impl Proof {
         // Compose the shifted aggregate proof
         let mut shifted_aggregate_proof = AggregateProof::with_witness(self.w_zw_comm);
         shifted_aggregate_proof.add_part((self.evaluations.perm_eval, self.z_comm));
+        // XXX: Shouldn't theese be added??
+        /*shifted_aggregate_proof.add_part((self.evaluations.a_next_eval, self.a_comm));
+        shifted_aggregate_proof.add_part((self.evaluations.b_next_eval, self.b_comm));
+        shifted_aggregate_proof.add_part((self.evaluations.c_next_eval, self.c_comm));*/
         shifted_aggregate_proof.add_part((self.evaluations.d_next_eval, self.d_comm));
         let flattened_proof_b = shifted_aggregate_proof.flatten(transcript);
 
@@ -328,7 +338,13 @@ impl Proof {
         scalars.push(b_1 + b_2 + b_3 + b_4);
         points.push(preprocessed_circuit.qrange_comm().0);
 
-        scalars.push((self.evaluations.a_eval - self.evaluations.b_eval) * self.evaluations.c_eval);
+        let c_0 =
+            (self.evaluations.a_next_eval - self.evaluations.b_next_eval) * self.evaluations.c_eval;
+        let c_1 = delta(self.evaluations.a_next_eval - four * self.evaluations.a_eval);
+        let c_2 = delta(self.evaluations.b_next_eval - four * self.evaluations.b_eval);
+        let c_3 = delta(self.evaluations.d_next_eval - four * self.evaluations.d_eval);
+
+        scalars.push(c_0 + c_1 + c_2 + c_3);
         points.push(preprocessed_circuit.qlogic_comm().0);
 
         // (a_eval + beta * z + gamma)(b_eval + beta * z * k1 + gamma)(c_eval + beta * k2* z + gamma)(d_eval + beta * k3* z + gamma) * alpha^2

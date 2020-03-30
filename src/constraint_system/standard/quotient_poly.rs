@@ -111,9 +111,21 @@ fn compute_circuit_satisfiability_equation(
     let four = Scalar::from(4);
 
     let pi_eval_4n = domain_4n.coset_fft(pi_poly);
-    let wl_eval_4n = domain_4n.coset_fft(&wl_poly);
-    let wr_eval_4n = domain_4n.coset_fft(&wr_poly);
-    let wo_eval_4n = domain_4n.coset_fft(&wo_poly);
+    let mut wl_eval_4n = domain_4n.coset_fft(&wl_poly);
+    wl_eval_4n.push(wl_eval_4n[0]);
+    wl_eval_4n.push(wl_eval_4n[1]);
+    wl_eval_4n.push(wl_eval_4n[2]);
+    wl_eval_4n.push(wl_eval_4n[3]);
+    let mut wr_eval_4n = domain_4n.coset_fft(&wr_poly);
+    wr_eval_4n.push(wr_eval_4n[0]);
+    wr_eval_4n.push(wr_eval_4n[1]);
+    wr_eval_4n.push(wr_eval_4n[2]);
+    wr_eval_4n.push(wr_eval_4n[3]);
+    let mut wo_eval_4n = domain_4n.coset_fft(&wo_poly);
+    wo_eval_4n.push(wo_eval_4n[0]);
+    wo_eval_4n.push(wo_eval_4n[1]);
+    wo_eval_4n.push(wo_eval_4n[2]);
+    wo_eval_4n.push(wo_eval_4n[3]);
     let mut w4_eval_4n = domain_4n.coset_fft(&w4_poly);
     w4_eval_4n.push(w4_eval_4n[0]);
     w4_eval_4n.push(w4_eval_4n[1]);
@@ -129,6 +141,9 @@ fn compute_circuit_satisfiability_equation(
             let wr = &wr_eval_4n[i];
             let wo = &wo_eval_4n[i];
             let w4 = &w4_eval_4n[i];
+            let wl_next = &wl_eval_4n[i + 4];
+            let wr_next = &wr_eval_4n[i + 4];
+            let wo_next = &wo_eval_4n[i + 4];
             let w4_next = &w4_eval_4n[i + 4];
             let qm = &qm_eval_4n[i];
             let ql = &ql_eval_4n[i];
@@ -159,7 +174,12 @@ fn compute_circuit_satisfiability_equation(
             let b_4 = delta(w4_next - four * wl);
             let b = (b_1 + b_2 + b_3 + b_4) * qrange;
 
-            let c = qlogic * ((wl - wr) * wo);
+            let c_0 = (wl_next - wr_next) * wo;
+            let c_1 = delta(wl_next - four * wl);
+            let c_2 = delta(wr_next - four * wr);
+            let c_3 = delta(w4_next - four * w4);
+
+            let c = qlogic * (c_0 + c_1 + c_2 + c_3);
 
             (a + b + c) * v_h_i
         })

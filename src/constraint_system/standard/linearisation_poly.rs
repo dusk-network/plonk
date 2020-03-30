@@ -19,6 +19,12 @@ pub struct ProofEvaluations {
     pub c_eval: Scalar,
     // Evaluation of the witness polynomial for the fourth wire at `z`
     pub d_eval: Scalar,
+    //
+    pub a_next_eval: Scalar,
+    //
+    pub b_next_eval: Scalar,
+    //
+    pub c_next_eval: Scalar,
     // Evaluation of the witness polynomial for the fourth wire at `z * root of unity`
     pub d_next_eval: Scalar,
     // Evaluation of the arithmetic selector polynomial at `z`
@@ -65,6 +71,9 @@ pub fn compute(
     let out_sigma_eval = preprocessed_circuit.out_sigma_poly().evaluate(z_challenge);
     let q_arith_eval = preprocessed_circuit.qarith_poly().evaluate(z_challenge);
 
+    let a_next_eval = w_l_poly.evaluate(&(z_challenge * domain.group_gen));
+    let b_next_eval = w_r_poly.evaluate(&(z_challenge * domain.group_gen));
+    let c_next_eval = w_o_poly.evaluate(&(z_challenge * domain.group_gen));
     let d_next_eval = w_4_poly.evaluate(&(z_challenge * domain.group_gen));
     let perm_eval = z_poly.evaluate(&(z_challenge * domain.group_gen));
 
@@ -73,7 +82,10 @@ pub fn compute(
         &b_eval,
         &c_eval,
         &d_eval,
-        d_next_eval,
+        &a_next_eval,
+        &b_next_eval,
+        &c_next_eval,
+        &d_next_eval,
         &q_arith_eval,
         preprocessed_circuit.qm_poly(),
         preprocessed_circuit.ql_poly(),
@@ -125,6 +137,9 @@ pub fn compute(
                 b_eval,
                 c_eval,
                 d_eval,
+                a_next_eval,
+                b_next_eval,
+                c_next_eval,
                 d_next_eval,
                 q_arith_eval,
                 left_sigma_eval,
@@ -143,7 +158,10 @@ fn compute_circuit_satisfiability(
     b_eval: &Scalar,
     c_eval: &Scalar,
     d_eval: &Scalar,
-    d_next_eval: Scalar,
+    a_next_eval: &Scalar,
+    b_next_eval: &Scalar,
+    c_next_eval: &Scalar,
+    d_next_eval: &Scalar,
     q_arith_eval: &Scalar,
     q_m_poly: &Polynomial,
     q_l_poly: &Polynomial,
@@ -195,7 +213,11 @@ fn compute_circuit_satisfiability(
     let b_4 = delta(d_next_eval - four * a_eval);
     let b = q_range_poly * &(b_1 + b_2 + b_3 + b_4);
 
-    let c = q_logic_poly * &((a_eval - b_eval) * c_eval);
+    let c_1 = (a_next_eval - b_next_eval) * c_eval;
+    let c_2 = delta(a_next_eval - a_eval * four)
+        + delta(b_next_eval - b_eval * four)
+        + delta(d_next_eval - d_eval * four);
+    let c = q_logic_poly * &(c_1 + c_2);
 
     &(&a + &b) + &c
 }

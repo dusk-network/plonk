@@ -292,6 +292,9 @@ impl Composer for StandardComposer {
         transcript.append_scalar(b"b_eval", &evaluations.proof.b_eval);
         transcript.append_scalar(b"c_eval", &evaluations.proof.c_eval);
         transcript.append_scalar(b"d_eval", &evaluations.proof.d_eval);
+        transcript.append_scalar(b"a_next_eval", &evaluations.proof.a_next_eval);
+        transcript.append_scalar(b"b_next_eval", &evaluations.proof.b_next_eval);
+        transcript.append_scalar(b"c_next_eval", &evaluations.proof.c_next_eval);
         transcript.append_scalar(b"d_next_eval", &evaluations.proof.d_next_eval);
         transcript.append_scalar(b"left_sig_eval", &evaluations.proof.left_sigma_eval);
         transcript.append_scalar(b"right_sig_eval", &evaluations.proof.right_sigma_eval);
@@ -1110,6 +1113,18 @@ impl StandardComposer {
         // `variable_map` inside of the `Permutation` struct.
         // Now we just need to extend the selector polynomials with the appropiate
         // coefficients to form complete logic gates.
+
+        /*/ XXX: First gate should not be marked as logic, otherways, the base-4 constraints
+        // might fail since we don't know what was stored on the previous row of the program memory.
+        self.q_m.push(Scalar::zero());
+        self.q_l.push(Scalar::zero());
+        self.q_r.push(Scalar::zero());
+        self.q_arith.push(Scalar::zero());
+        self.q_o.push(Scalar::zero());
+        self.q_4.push(Scalar::zero());
+        self.q_range.push(Scalar::zero());
+        self.q_c.push(Scalar::zero());
+        self.q_logic.push(Scalar::zero());*/
         for _ in 0..num_quads {
             self.q_m.push(Scalar::zero());
             self.q_l.push(Scalar::zero());
@@ -1319,18 +1334,70 @@ impl StandardComposer {
         self.q_l.push(Scalar::zero());
         self.q_r.push(Scalar::zero());
         self.q_o.push(Scalar::zero());
-        self.q_c.push(Scalar::zero());
+        self.q_c.push(-Scalar::one());
         self.q_4.push(Scalar::zero());
         self.q_arith.push(Scalar::zero());
         self.q_range.push(Scalar::zero());
         self.q_logic.push(-Scalar::one());
         self.public_inputs.push(Scalar::zero());
-        self.w_l.push(var_one);
-        self.w_r.push(var_one);
+        self.w_l.push(self.zero_var);
+        self.w_r.push(self.zero_var);
         self.w_o.push(self.zero_var);
         self.w_4.push(self.zero_var);
-        self.perm
-            .add_variables_to_map(var_one, var_one, self.zero_var, self.zero_var, self.n);
+        self.perm.add_variables_to_map(
+            self.zero_var,
+            self.zero_var,
+            self.zero_var,
+            self.zero_var,
+            self.n,
+        );
+        self.n = self.n + 1;
+        //Add another dummy constraint for Q_logic
+        // XXX: We should have a way to handle the zero polynomial
+        self.q_m.push(Scalar::zero());
+        self.q_l.push(Scalar::zero());
+        self.q_r.push(Scalar::zero());
+        self.q_o.push(Scalar::zero());
+        self.q_c.push(-Scalar::one());
+        self.q_4.push(Scalar::zero());
+        self.q_arith.push(Scalar::zero());
+        self.q_range.push(Scalar::zero());
+        self.q_logic.push(-Scalar::one());
+        self.public_inputs.push(Scalar::zero());
+        self.w_l.push(self.zero_var);
+        self.w_r.push(self.zero_var);
+        self.w_o.push(self.zero_var);
+        self.w_4.push(self.zero_var);
+        self.perm.add_variables_to_map(
+            self.zero_var,
+            self.zero_var,
+            self.zero_var,
+            self.zero_var,
+            self.n,
+        );
+        self.n = self.n + 1;
+        // Add no-op gate
+        self.q_m.push(Scalar::zero());
+        self.q_l.push(Scalar::zero());
+        self.q_r.push(Scalar::zero());
+        self.q_o.push(Scalar::zero());
+        self.q_c.push(Scalar::zero());
+        self.q_4.push(Scalar::zero());
+        self.q_arith.push(Scalar::zero());
+        self.q_range.push(Scalar::zero());
+        self.q_logic.push(Scalar::zero());
+        self.public_inputs.push(Scalar::zero());
+        self.w_l.push(self.zero_var);
+        self.w_r.push(self.zero_var);
+        self.w_o.push(self.zero_var);
+        self.w_4.push(self.zero_var);
+        self.perm.add_variables_to_map(
+            self.zero_var,
+            self.zero_var,
+            self.zero_var,
+            self.zero_var,
+            self.n,
+        );
         self.n = self.n + 1;
     }
 
@@ -1363,9 +1430,20 @@ impl StandardComposer {
             let b = w_r[i];
             let c = w_o[i];
             let d = w_4[i];
+            let a_next = w_l[(i + 1) % self.n];
+            let b_next = w_r[(i + 1) % self.n];
+            let c_next = w_o[(i + 1) % self.n];
             let d_next = w_4[(i + 1) % self.n];
+            /*println!(
+                "ITER: {}\n d: {:?} \nq_logic: {:?}\n\n left: {:?}\n next_left: {:?}\n delta_left: {:?}\n\n right: {:?}\n next_right: {:?}\n delta_right:{:?}\n\n out: {:?}\n next_out: {:?}\n delta_out: {:?}\n\n",
+                i, d, qlogic, a, a_next,delta(a_next - four * a), b, b_next, delta(b_next - four * b), c, c_next, delta(c_next - four * c)
+            );*/
             let k = qarith * ((qm * a * b) + (ql * a) + (qr * b) + (qo * c) + (q4 * d) + pi + qc)
-                + qlogic * ((a - b) * c)
+                + qlogic
+                    * (((a_next - b_next) * c)
+                        + delta(a_next - four * a)
+                        + delta(b_next - four * b)
+                        + delta(d_next - four * d))
                 + qrange
                     * (delta(c - four * d)
                         + delta(b - four * c)
