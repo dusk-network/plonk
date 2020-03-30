@@ -1,8 +1,6 @@
 /// This quotient polynomial can only be used for the standard composer
 /// Each composer will need to implement their own method for computing the quotient polynomial
 use crate::constraint_system::standard::PreProcessedCircuit;
-
-use crate::fft::Evaluations;
 use crate::fft::{EvaluationDomain, Polynomial};
 use bls12_381::Scalar;
 use rayon::prelude::*;
@@ -67,7 +65,7 @@ fn compute_circuit_satisfiability_equation(
     preprocessed_circuit: &PreProcessedCircuit,
     (wl_eval_4n, wr_eval_4n, wo_eval_4n, w4_eval_4n): (&[Scalar], &[Scalar], &[Scalar], &[Scalar]),
     pi_poly: &Polynomial,
-) -> Evaluations {
+) -> Vec<Scalar> {
     let domain_4n = EvaluationDomain::new(4 * domain.size()).unwrap();
 
     let pi_eval_4n = domain_4n.coset_fft(pi_poly);
@@ -85,14 +83,15 @@ fn compute_circuit_satisfiability_equation(
             let a = preprocessed_circuit
                 .arithmetic
                 .compute_quotient_i(i, wl, wr, wo, w4);
+
             let b = preprocessed_circuit
                 .range
-                .compute_quotient(i, wl, wr, wo, w4, w4_next);
+                .compute_quotient_i(i, wl, wr, wo, w4, w4_next);
 
             a + b + pi
         })
         .collect();
-    Evaluations::from_vec_and_domain(t, domain_4n)
+    t
 }
 
 fn compute_permutation_checks(
@@ -101,7 +100,7 @@ fn compute_permutation_checks(
     (wl_eval_4n, wr_eval_4n, wo_eval_4n, w4_eval_4n): (&[Scalar], &[Scalar], &[Scalar], &[Scalar]),
     z_eval_4n: &[Scalar],
     (alpha, beta, gamma): (&Scalar, &Scalar, &Scalar),
-) -> Evaluations {
+) -> Vec<Scalar> {
     let domain_4n = EvaluationDomain::new(4 * domain.size()).unwrap();
 
     let l1_poly_alpha = compute_first_lagrange_poly_scaled(domain, alpha.square());
@@ -125,7 +124,7 @@ fn compute_permutation_checks(
             )
         })
         .collect();
-    Evaluations::from_vec_and_domain(t, domain_4n)
+    t
 }
 fn compute_first_lagrange_poly_scaled(domain: &EvaluationDomain, scale: Scalar) -> Polynomial {
     let mut x_evals = vec![Scalar::zero(); domain.size()];
