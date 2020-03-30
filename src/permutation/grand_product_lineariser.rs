@@ -152,7 +152,6 @@ mod test {
         assert_eq!(got_poly, -expected_poly);
     }
     #[test]
-    Ignore
     fn test_fourth_component() {
         let alpha = Fr::one();
         let z_challenge = Scalar::from(123);
