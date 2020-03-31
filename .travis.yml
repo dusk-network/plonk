@@ -4,19 +4,23 @@ os:
   - linux
 
 matrix:
-  fast_finish: false
   include:
   - rust: stable
+  - rust: beta
+  - rust: nightly
 
-
-before_install:
-  - sudo apt-get update
+jobs:
+  allow_failures:
+    - rust: stable
+    - rust: beta
+  fast_finish: true
 
 # Main build
 script:
   - cargo check
   - cargo build --release --verbose --all
   - cargo test --release --verbose --all
+  - cargo doc --no-deps
 
 
 # Send a notification to the Dusk build Status Telegram channel once the CI build completes
