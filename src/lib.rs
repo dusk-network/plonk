@@ -10,12 +10,13 @@ mod util;
 extern crate failure;
 
 #[doc(include = "../docs/notes-intro.md")]
-mod notes {
+pub mod notes {
     #[doc(include = "../docs/notes-composer.md")]
+    pub mod circuit_composer {}
     #[doc(include = "../docs/notes-commitments.md")]
-    mod notes_kzg10 {}
-    #[doc(include = "../docs/notes-pp.md")]
-    mod notes_pa {}
+    pub mod commitment_schemes {}
+    #[doc(include = "../docs/notes-pa.md")]
+    pub mod permutation_arguments {}
     #[doc(include = "../docs/notes-snark.md")]
-    mod notes_prove_verify {}
+    pub mod snark_construction {}
 }
