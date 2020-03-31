@@ -31,6 +31,18 @@ pub struct PreProcessedCircuit<E: PairingEngine> {
     out_sigma: (Vec<E::Fr>, Commitment<E>),
 }
 impl<E: PairingEngine> PreProcessedCircuit<E> {
+    // Returns false if any of the polynomials are non-zero
+    // or if the polynomials have differing degrees
+    pub fn check_correctness(&self) {
+        let num_elements = self.left_sigma_poly().len();
+        debug_assert_eq!(num_elements, self.right_sigma_poly().len());
+        debug_assert_eq!(num_elements, self.out_sigma_poly().len());
+
+        for selector in self.selectors.iter() {
+            debug_assert_eq!(num_elements, selector.0.len());
+        }
+    }
+
     pub fn qm_poly(&self) -> &Vec<E::Fr> {
         &self.selectors[0].0
     }
