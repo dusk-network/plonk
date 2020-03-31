@@ -1435,15 +1435,21 @@ impl StandardComposer {
             let c_next = w_o[(i + 1) % self.n];
             let d_next = w_4[(i + 1) % self.n];
             /*println!(
-                "ITER: {}\n d: {:?} \nq_logic: {:?}\n\n left: {:?}\n next_left: {:?}\n delta_left: {:?}\n\n right: {:?}\n next_right: {:?}\n delta_right:{:?}\n\n out: {:?}\n next_out: {:?}\n delta_out: {:?}\n\n",
-                i, d, qlogic, a, a_next,delta(a_next - four * a), b, b_next, delta(b_next - four * b), c, c_next, delta(c_next - four * c)
+                "ITER: {}\n\nd: {:?} \n\n A & B {:?} \n\n A ^ B: {:?} \n\n q_logic: {:?}\n\n left: {:?}\n next_left: {:?}\n delta_left: {:?}\n\n right: {:?}\n next_right: {:?}\n delta_right:{:?}\n\n out: {:?}\n next_out: {:?}\n delta_out: {:?}\n\n",
+                i, d, (a & b), (a ^ b), qlogic, a, a_next,delta(a_next - four * a), b, b_next, delta(b_next - four * b), c, c_next, delta(c_next - four * c)
             );*/
             let k = qarith * ((qm * a * b) + (ql * a) + (qr * b) + (qo * c) + (q4 * d) + pi + qc)
                 + qlogic
                     * (((a_next - b_next) * c)
                         + delta(a_next - four * a)
                         + delta(b_next - four * b)
-                        + delta(d_next - four * d))
+                        + delta(d_next - four * d)
+                        + match (qlogic == Scalar::one(), qlogic == -Scalar::one()) {
+                            (true, false) => (a & b) - d,
+                            (false, true) => (a ^ b) - d,
+                            (false, false) => Scalar::zero(),
+                            _ => unreachable!(),
+                        })
                 + qrange
                     * (delta(c - four * d)
                         + delta(b - four * c)
