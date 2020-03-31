@@ -20,10 +20,6 @@ pub struct Permutation<E: PairingEngine> {
 
     // Maps a variable to the wires that it is assosciated to
     pub(crate) variable_map: HashMap<Variable, Vec<WireData>>,
-
-    left_sigma_mapping: Option<Vec<E::Fr>>,
-    right_sigma_mapping: Option<Vec<E::Fr>>,
-    out_sigma_mapping: Option<Vec<E::Fr>>,
 }
 
 impl<E: PairingEngine> Permutation<E> {
@@ -36,10 +32,6 @@ impl<E: PairingEngine> Permutation<E> {
             _engine: PhantomData,
             variables: HashMap::with_capacity(expected_size),
             variable_map: HashMap::with_capacity(expected_size),
-
-            left_sigma_mapping: None,
-            right_sigma_mapping: None,
-            out_sigma_mapping: None,
         }
     }
     /// Adds a Scalar into the system and creates a new variable for it
@@ -193,10 +185,6 @@ impl<E: PairingEngine> Permutation<E> {
         let right_sigma_coeffs = domain.ifft(&right_sigma);
         let out_sigma_coeffs = domain.ifft(&out_sigma);
 
-        self.left_sigma_mapping = Some(left_sigma);
-        self.right_sigma_mapping = Some(right_sigma);
-        self.out_sigma_mapping = Some(out_sigma);
-
         (left_sigma_coeffs, right_sigma_coeffs, out_sigma_coeffs)
     }
 
@@ -207,8 +195,21 @@ impl<E: PairingEngine> Permutation<E> {
         w_r: &[E::Fr],
         w_o: &[E::Fr],
         (beta, gamma): &(E::Fr, E::Fr),
+        (left_sigma_mapping, right_sigma_mapping, out_sigma_mapping): (
+            &Vec<E::Fr>,
+            &Vec<E::Fr>,
+            &Vec<E::Fr>,
+        ),
     ) -> Vec<E::Fr> {
-        let z_evaluations = self.compute_fast_permutation_poly(domain, w_l, w_r, w_o, beta, gamma);
+        let z_evaluations = self.compute_fast_permutation_poly(
+            domain,
+            w_l,
+            w_r,
+            w_o,
+            beta,
+            gamma,
+            (left_sigma_mapping, right_sigma_mapping, out_sigma_mapping),
+        );
         domain.ifft(&z_evaluations)
     }
 
@@ -220,6 +221,11 @@ impl<E: PairingEngine> Permutation<E> {
         w_o: I,
         beta: &E::Fr,
         gamma: &E::Fr,
+        (left_sigma_mapping, right_sigma_mapping, out_sigma_mapping): (
+            &Vec<E::Fr>,
+            &Vec<E::Fr>,
+            &Vec<E::Fr>,
+        ),
     ) -> (Vec<E::Fr>, Vec<E::Fr>, Vec<E::Fr>)
     where
         I: Iterator<Item = E::Fr>,
@@ -228,10 +234,6 @@ impl<E: PairingEngine> Permutation<E> {
 
         let k1 = E::Fr::multiplicative_generator();
         let k2 = E::Fr::from(13.into());
-
-        let left_sigma_mapping = self.left_sigma_mapping.as_ref().unwrap();
-        let right_sigma_mapping = self.right_sigma_mapping.as_ref().unwrap();
-        let out_sigma_mapping = self.out_sigma_mapping.as_ref().unwrap();
 
         // Compute beta * sigma polynomials
         let beta_left_sigma_iter = left_sigma_mapping.iter().map(|sigma| *sigma * beta);
@@ -364,6 +366,11 @@ impl<E: PairingEngine> Permutation<E> {
         w_o: &[E::Fr],
         beta: &E::Fr,
         gamma: &E::Fr,
+        (left_sigma_mapping, right_sigma_mapping, out_sigma_mapping): (
+            &Vec<E::Fr>,
+            &Vec<E::Fr>,
+            &Vec<E::Fr>,
+        ),
     ) -> Vec<E::Fr> {
         let n = domain.size();
 
@@ -373,9 +380,6 @@ impl<E: PairingEngine> Permutation<E> {
         let common_roots: Vec<_> = domain.elements().map(|root| root * beta).collect();
 
         use rayon::iter::ParallelIterator;
-        let left_sigma_mapping = self.left_sigma_mapping.as_ref().unwrap();
-        let right_sigma_mapping = self.right_sigma_mapping.as_ref().unwrap();
-        let out_sigma_mapping = self.out_sigma_mapping.as_ref().unwrap();
 
         // Compute beta * sigma polynomials
         let beta_left_sigmas: Vec<_> = left_sigma_mapping
@@ -794,18 +798,23 @@ mod test {
 
         let domain = EvaluationDomain::new(num_wire_mappings).unwrap();
 
-        let _ = perm.compute_sigma_polynomials(num_wire_mappings, &domain);
+        let (left_sigma_coeffs, right_sigma_coeffs, out_sigma_coeffs) =
+            perm.compute_sigma_polynomials(num_wire_mappings, &domain);
+
+        let left_sigma_mapping = domain.fft(&left_sigma_coeffs);
+        let right_sigma_mapping = domain.fft(&right_sigma_coeffs);
+        let out_sigma_mapping = domain.fft(&out_sigma_coeffs);
 
         let mut prod_left_sigma = Fr::one();
-        for element in perm.left_sigma_mapping.unwrap().iter() {
+        for element in left_sigma_mapping.iter() {
             prod_left_sigma = prod_left_sigma * element;
         }
         let mut prod_right_sigma = Fr::one();
-        for element in perm.right_sigma_mapping.unwrap().iter() {
+        for element in right_sigma_mapping.iter() {
             prod_right_sigma = prod_right_sigma * element;
         }
         let mut prod_out_sigma = Fr::one();
-        for element in perm.out_sigma_mapping.unwrap().iter() {
+        for element in out_sigma_mapping.iter() {
             prod_out_sigma = prod_out_sigma * element;
         }
 
@@ -872,7 +881,12 @@ mod test {
 
         //1. Compute the permutation polynomial using both methods
         //
-        perm.compute_sigma_polynomials(n, &domain);
+        let (left_sigma_coeffs, right_sigma_coeffs, out_sigma_coeffs) =
+            perm.compute_sigma_polynomials(n, &domain);
+        let left_sigma_mapping = domain.fft(&left_sigma_coeffs);
+        let right_sigma_mapping = domain.fft(&right_sigma_coeffs);
+        let out_sigma_mapping = domain.fft(&out_sigma_coeffs);
+
         let (z_vec, numerator_components, denominator_components) = perm
             .compute_slow_permutation_poly(
                 domain,
@@ -881,10 +895,26 @@ mod test {
                 w_o.clone().into_iter(),
                 &beta,
                 &gamma,
+                (
+                    &left_sigma_mapping,
+                    &right_sigma_mapping,
+                    &out_sigma_mapping,
+                ),
             );
 
-        let fast_z_vec =
-            perm.compute_fast_permutation_poly(domain, &w_l, &w_r, &w_o, &beta, &gamma);
+        let fast_z_vec = perm.compute_fast_permutation_poly(
+            domain,
+            &w_l,
+            &w_r,
+            &w_o,
+            &beta,
+            &gamma,
+            (
+                &left_sigma_mapping,
+                &right_sigma_mapping,
+                &out_sigma_mapping,
+            ),
+        );
         assert_eq!(fast_z_vec, z_vec);
 
         // 2. First we perform basic tests on the permutation vector

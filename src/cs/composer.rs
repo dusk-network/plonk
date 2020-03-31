@@ -166,6 +166,10 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
         transcript.append_scalar(b"beta", &beta);
         let gamma = transcript.challenge_scalar(b"gamma");
 
+        let left_sigma_mapping = domain.fft(preprocessed_circuit.left_sigma_poly());
+        let right_sigma_mapping = domain.fft(preprocessed_circuit.right_sigma_poly());
+        let out_sigma_mapping = domain.fft(preprocessed_circuit.out_sigma_poly());
+
         // compute Permutation polynomial
         let z_coeffs = self.perm.compute_permutation_poly(
             &domain,
@@ -173,6 +177,11 @@ impl<E: PairingEngine> Composer<E> for StandardComposer<E> {
             &w_r_scalar,
             &w_o_scalar,
             &(beta, gamma),
+            (
+                &left_sigma_mapping,
+                &right_sigma_mapping,
+                &out_sigma_mapping,
+            ),
         );
         // 1) Commit to permutation polynomial
         // 2) Add them to transcript
@@ -811,10 +820,8 @@ mod tests {
             let mut transcript = Transcript::new(b"");
             // Preprocess circuit
             let preprocessed_circuit = composer.preprocess(&ck, &mut transcript, &domain);
-            (
-                composer.prove(&ck, &preprocessed_circuit, &mut transcript),
-                composer.public_inputs,
-            )
+            let proof = composer.prove(&ck, &preprocessed_circuit, &mut transcript);
+            (proof, composer.public_inputs)
         };
         // Verifiers view
         //
