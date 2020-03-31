@@ -1,11 +1,12 @@
 use super::{EvaluationDomain, Evaluations};
-use crate::util::powers_of;
+use crate::util;
 use bls12_381::Scalar;
 use rand::Rng;
 use rayon::iter::{
     IndexedParallelIterator, IntoParallelIterator, IntoParallelRefIterator, ParallelIterator,
 };
-use std::ops::{Add, AddAssign, Deref, DerefMut, Div, Mul, Neg, Sub, SubAssign};
+
+use std::ops::{Add, AddAssign, Deref, DerefMut, Mul, Neg, Sub, SubAssign};
 // This library will solely implement Dense Polynomials
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub struct Polynomial {
@@ -35,7 +36,7 @@ impl Polynomial {
 
     /// Checks if the given polynomial is zero.
     pub fn is_zero(&self) -> bool {
-        self.coeffs.is_empty() || self.coeffs.iter().all(|coeff| coeff == &Scalar::zero())
+        self.coeffs.is_empty() || self.coeffs.par_iter().all(|coeff| coeff == &Scalar::zero())
     }
 
     /// Constructs a new polynomial from a list of coefficients.
@@ -82,7 +83,7 @@ impl Polynomial {
         }
 
         // Compute powers of points
-        let powers = powers_of(point, self.len());
+        let powers = util::powers_of(point, self.len());
 
         let p_evals: Vec<_> = self
             .par_iter()
@@ -101,7 +102,7 @@ impl Polynomial {
     pub fn rand<R: Rng>(d: usize, mut rng: &mut R) -> Self {
         let mut random_coeffs = Vec::with_capacity(d + 1);
         for _ in 0..=d {
-            random_coeffs.push(random_scalar(&mut rng));
+            random_coeffs.push(util::random_scalar(&mut rng));
         }
         Self::from_coefficients_vec(random_coeffs)
     }
@@ -122,18 +123,6 @@ impl Sum for Polynomial {
     }
 }
 
-// bls_12-381 library does not provide a `random` method for Scalar
-// We wil use this helper function to compensate
-pub(crate) fn random_scalar<R: Rng>(rng: &mut R) -> Scalar {
-    Scalar::from_raw([
-        rng.next_u64(),
-        rng.next_u64(),
-        rng.next_u64(),
-        rng.next_u64(),
-    ])
-}
-
-///////////
 impl<'a, 'b> Add<&'a Polynomial> for &'b Polynomial {
     type Output = Polynomial;
 
@@ -402,46 +391,48 @@ impl<'a, 'b> Sub<&'a Scalar> for &'b Polynomial {
         self + &negated_constant
     }
 }
-
-#[test]
-fn test_ruffini() {
-    // X^2 + 4X + 4
-    let quadratic =
-        Polynomial::from_coefficients_vec(vec![Scalar::from(4), Scalar::from(4), Scalar::one()]);
-
-    // Divides X^2 + 4X + 4 by X+2
-    let quotient = quadratic.ruffini(-Scalar::from(2));
-
-    // X+2
-    let expected_quotient = Polynomial::from_coefficients_vec(vec![Scalar::from(2), Scalar::one()]);
-
-    assert_eq!(quotient, expected_quotient);
-}
-#[test]
-fn test_ruffini_zero() {
-    // Tests the two situations where zero can be added to Ruffini :
-    // (1) Zero polynomial in the divided
-    // (2) Zero as the constant term for the polynomial you are dividing by
-    // In the first case, we should get zero as the quotient
-    // In the second case, this is the same as dividing by X
-
-    // (1)
-    //
-    // Zero polynomial
-    let zero = Polynomial::zero();
-    // Quotient is invariant under any argument we pass
-    let quotient = zero.ruffini(-Scalar::from(2));
-    assert_eq!(quotient, Polynomial::zero());
-
-    // (2)
-    //
-    // X^2 + X
-    let p = Polynomial::from_coefficients_vec(vec![Scalar::zero(), Scalar::one(), Scalar::one()]);
-
-    // Divides X^2 + X by X
-    let quotient = p.ruffini(Scalar::zero());
-
-    // X + 1
-    let expected_quotient = Polynomial::from_coefficients_vec(vec![Scalar::one(), Scalar::one()]);
-    assert_eq!(quotient, expected_quotient);
+#[cfg(test)]
+mod test {
+    use super::*;
+    #[test]
+    fn test_ruffini() {
+        // X^2 + 4X + 4
+        let quadratic = Polynomial::from_coefficients_vec(vec![
+            Scalar::from(4),
+            Scalar::from(4),
+            Scalar::one(),
+        ]);
+        // Divides X^2 + 4X + 4 by X+2
+        let quotient = quadratic.ruffini(-Scalar::from(2));
+        // X+2
+        let expected_quotient =
+            Polynomial::from_coefficients_vec(vec![Scalar::from(2), Scalar::one()]);
+        assert_eq!(quotient, expected_quotient);
+    }
+    #[test]
+    fn test_ruffini_zero() {
+        // Tests the two situations where zero can be added to Ruffini :
+        // (1) Zero polynomial in the divided
+        // (2) Zero as the constant term for the polynomial you are dividing by
+        // In the first case, we should get zero as the quotient
+        // In the second case, this is the same as dividing by X
+        // (1)
+        //
+        // Zero polynomial
+        let zero = Polynomial::zero();
+        // Quotient is invariant under any argument we pass
+        let quotient = zero.ruffini(-Scalar::from(2));
+        assert_eq!(quotient, Polynomial::zero());
+        // (2)
+        //
+        // X^2 + X
+        let p =
+            Polynomial::from_coefficients_vec(vec![Scalar::zero(), Scalar::one(), Scalar::one()]);
+        // Divides X^2 + X by X
+        let quotient = p.ruffini(Scalar::zero());
+        // X + 1
+        let expected_quotient =
+            Polynomial::from_coefficients_vec(vec![Scalar::one(), Scalar::one()]);
+        assert_eq!(quotient, expected_quotient);
+    }
 }

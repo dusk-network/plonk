@@ -1,4 +1,4 @@
-use super::constants::{K1, K2};
+use super::constants::{K1, K2, K3};
 use crate::constraint_system::{Variable, WireData};
 use crate::fft::{EvaluationDomain, Polynomial};
 use bls12_381::Scalar;
@@ -12,6 +12,7 @@ pub struct Permutation {
     left_sigma_mapping: Option<Vec<Scalar>>,
     right_sigma_mapping: Option<Vec<Scalar>>,
     out_sigma_mapping: Option<Vec<Scalar>>,
+    fourth_sigma_mapping: Option<Vec<Scalar>>,
 }
 
 impl Permutation {
@@ -26,6 +27,7 @@ impl Permutation {
             left_sigma_mapping: None,
             right_sigma_mapping: None,
             out_sigma_mapping: None,
+            fourth_sigma_mapping: None,
         }
     }
     /// Creates a new Variable by incrementing the index of the Variable Map
@@ -53,41 +55,46 @@ impl Permutation {
 
         results.is_empty()
     }
-    /// Maps a set of variables (a,b,c) to a set of Wires (left, right, out) with
+    /// Maps a set of variables (a,b,c,d) to a set of Wires (left, right, out, fourth) with
     /// the corresponding gate index
-    pub fn add_variable_to_map(
+    pub fn add_variables_to_map(
         &mut self,
         a: Variable,
         b: Variable,
         c: Variable,
+        d: Variable,
         gate_index: usize,
     ) {
-        assert!(self.valid_variables(&[a, b, c]));
-
         let left: WireData = WireData::Left(gate_index);
         let right: WireData = WireData::Right(gate_index);
         let output: WireData = WireData::Output(gate_index);
+        let fourth: WireData = WireData::Fourth(gate_index);
 
-        // Map each variable to the wire it is assosciated with
+        // Map each variable to the wire it is associated with
         // This essentially tells us that:
-        // Variable `a` is being used in the n'th gate as a left wire
-        // Variable `b` is being used in the n'th gate as a right wire
-        // Variable `c` is being used in the n'th gate as an output wire
-        for (var, wire_data) in [a, b, c].iter().zip([left, right, output].iter()) {
-            // Since we always allocate space for the Vec of WireData when a
-            // Variable is added to the variable_map, this should never fail
-            let vec_wire_data = self.variable_map.get_mut(var).unwrap();
-            vec_wire_data.push(*wire_data);
-        }
+        self.add_variable_to_map(a, left);
+        self.add_variable_to_map(b, right);
+        self.add_variable_to_map(c, output);
+        self.add_variable_to_map(d, fourth);
     }
 
-    // Performs shift by one permutation and computes sigma_1, sigma_2 and sigma_3 permutations from the variable maps
-    pub(super) fn compute_sigma_permutations(&mut self, n: usize) -> [Vec<WireData>; 3] {
+    pub fn add_variable_to_map(&mut self, var: Variable, wire_data: WireData) {
+        assert!(self.valid_variables(&[var]));
+
+        // Since we always allocate space for the Vec of WireData when a
+        // Variable is added to the variable_map, this should never fail
+        let vec_wire_data = self.variable_map.get_mut(&var).unwrap();
+        vec_wire_data.push(wire_data);
+    }
+
+    // Performs shift by one permutation and computes sigma_1, sigma_2 and sigma_3, sigma_4 permutations from the variable maps
+    pub(super) fn compute_sigma_permutations(&mut self, n: usize) -> [Vec<WireData>; 4] {
         let sigma_1: Vec<_> = (0..n).map(|x| WireData::Left(x)).collect();
         let sigma_2: Vec<_> = (0..n).map(|x| WireData::Right(x)).collect();
         let sigma_3: Vec<_> = (0..n).map(|x| WireData::Output(x)).collect();
+        let sigma_4: Vec<_> = (0..n).map(|x| WireData::Fourth(x)).collect();
 
-        let mut sigmas = [sigma_1, sigma_2, sigma_3];
+        let mut sigmas = [sigma_1, sigma_2, sigma_3, sigma_4];
 
         for (_, wire_data) in self.variable_map.iter() {
             // Gets the data for each wire assosciated with this variable
@@ -107,6 +114,7 @@ impl Permutation {
                     WireData::Left(index) => sigmas[0][*index] = *next_wire,
                     WireData::Right(index) => sigmas[1][*index] = *next_wire,
                     WireData::Output(index) => sigmas[2][*index] = *next_wire,
+                    WireData::Fourth(index) => sigmas[3][*index] = *next_wire,
                 };
             }
         }
@@ -136,6 +144,10 @@ impl Permutation {
                     let root = &roots[*index];
                     K2 * root
                 }
+                WireData::Fourth(index) => {
+                    let root = &roots[*index];
+                    K3 * root
+                }
             })
             .collect();
 
@@ -146,28 +158,37 @@ impl Permutation {
         &mut self,
         n: usize,
         domain: &EvaluationDomain,
-    ) -> (Polynomial, Polynomial, Polynomial) {
+    ) -> (Polynomial, Polynomial, Polynomial, Polynomial) {
         // Compute sigma mappings
         let sigmas = self.compute_sigma_permutations(n);
 
         assert_eq!(sigmas[0].len(), n);
         assert_eq!(sigmas[1].len(), n);
         assert_eq!(sigmas[2].len(), n);
+        assert_eq!(sigmas[3].len(), n);
 
         // define the sigma permutations using two non quadratic residues
         let left_sigma = self.compute_permutation_lagrange(&sigmas[0], domain);
         let right_sigma = self.compute_permutation_lagrange(&sigmas[1], domain);
         let out_sigma = self.compute_permutation_lagrange(&sigmas[2], domain);
+        let fourth_sigma = self.compute_permutation_lagrange(&sigmas[3], domain);
 
         let left_sigma_poly = Polynomial::from_coefficients_vec(domain.ifft(&left_sigma));
         let right_sigma_poly = Polynomial::from_coefficients_vec(domain.ifft(&right_sigma));
         let out_sigma_poly = Polynomial::from_coefficients_vec(domain.ifft(&out_sigma));
+        let fourth_sigma_poly = Polynomial::from_coefficients_vec(domain.ifft(&fourth_sigma));
 
         self.left_sigma_mapping = Some(left_sigma);
         self.right_sigma_mapping = Some(right_sigma);
         self.out_sigma_mapping = Some(out_sigma);
+        self.fourth_sigma_mapping = Some(fourth_sigma);
 
-        (left_sigma_poly, right_sigma_poly, out_sigma_poly)
+        (
+            left_sigma_poly,
+            right_sigma_poly,
+            out_sigma_poly,
+            fourth_sigma_poly,
+        )
     }
 
     pub(crate) fn compute_permutation_poly(
@@ -176,9 +197,11 @@ impl Permutation {
         w_l: &[Scalar],
         w_r: &[Scalar],
         w_o: &[Scalar],
+        w_4: &[Scalar],
         (beta, gamma): &(Scalar, Scalar),
     ) -> Polynomial {
-        let z_evaluations = self.compute_fast_permutation_poly(domain, w_l, w_r, w_o, beta, gamma);
+        let z_evaluations =
+            self.compute_fast_permutation_poly(domain, w_l, w_r, w_o, w_4, beta, gamma);
         Polynomial::from_coefficients_vec(domain.ifft(&z_evaluations))
     }
 
@@ -188,6 +211,7 @@ impl Permutation {
         w_l: I,
         w_r: I,
         w_o: I,
+        w_4: I,
         beta: &Scalar,
         gamma: &Scalar,
     ) -> (Vec<Scalar>, Vec<Scalar>, Vec<Scalar>)
@@ -199,20 +223,25 @@ impl Permutation {
         let left_sigma_mapping = self.left_sigma_mapping.as_ref().unwrap();
         let right_sigma_mapping = self.right_sigma_mapping.as_ref().unwrap();
         let out_sigma_mapping = self.out_sigma_mapping.as_ref().unwrap();
+        let fourth_sigma_mapping = self.fourth_sigma_mapping.as_ref().unwrap();
 
         // Compute beta * sigma polynomials
         let beta_left_sigma_iter = left_sigma_mapping.iter().map(|sigma| *sigma * beta);
         let beta_right_sigma_iter = right_sigma_mapping.iter().map(|sigma| *sigma * beta);
         let beta_out_sigma_iter = out_sigma_mapping.iter().map(|sigma| *sigma * beta);
+        let beta_fourth_sigma_iter = fourth_sigma_mapping.iter().map(|sigma| *sigma * beta);
 
         // Compute beta * roots
         let beta_roots_iter = domain.elements().map(|root| root * beta);
 
         // Compute beta * roots * K1
-        let beta_roots_K1_iter = domain.elements().map(|root| (K1 * beta) * &root);
+        let beta_roots_K1_iter = domain.elements().map(|root| K1 * beta * root);
 
         // Compute beta * roots * K2
-        let beta_roots_K2_iter = domain.elements().map(|root| (K2 * beta) * &root);
+        let beta_roots_K2_iter = domain.elements().map(|root| K2 * beta * root);
+
+        // Compute beta * roots * K3
+        let beta_roots_K3_iter = domain.elements().map(|root| K3 * beta * root);
 
         // Compute left_wire + gamma
         let wL_gamma: Vec<_> = w_l.map(|w| w + gamma).collect();
@@ -222,6 +251,9 @@ impl Permutation {
 
         // Compute out_wire + gamma
         let wO_gamma: Vec<_> = w_o.map(|w| w + gamma).collect();
+
+        // Compute fourth_wire + gamma
+        let w4_gamma: Vec<_> = w_4.map(|w| w + gamma).collect();
 
         let mut numerator_partial_components: Vec<Scalar> = Vec::with_capacity(n);
         let mut denominator_partial_components: Vec<Scalar> = Vec::with_capacity(n);
@@ -234,13 +266,24 @@ impl Permutation {
         denominator_coefficients.push(Scalar::one());
 
         // Compute numerator coefficients
-        for (w_l_gamma, w_r_gamma, w_o_gamma, beta_root, beta_root_K1, beta_root_K2) in izip!(
+        for (
+            w_l_gamma,
+            w_r_gamma,
+            w_o_gamma,
+            w_4_gamma,
+            beta_root,
+            beta_root_K1,
+            beta_root_K2,
+            beta_root_K3,
+        ) in izip!(
             wL_gamma.iter(),
             wR_gamma.iter(),
             wO_gamma.iter(),
+            w4_gamma.iter(),
             beta_roots_iter,
             beta_roots_K1_iter,
             beta_roots_K2_iter,
+            beta_roots_K3_iter,
         ) {
             // (w_L + beta * root + gamma)
             let prod_a = beta_root + w_l_gamma;
@@ -251,8 +294,10 @@ impl Permutation {
             // (w_O + beta * root * k_2 + gamma)
             let prod_c = beta_root_K2 + w_o_gamma;
 
-            let mut prod = prod_a * &prod_b;
-            prod = prod * &prod_c;
+            // (w_4 + beta * root * k_3 + gamma)
+            let prod_d = beta_root_K3 + w_4_gamma;
+
+            let mut prod = prod_a * prod_b * prod_c * prod_d;
 
             numerator_partial_components.push(prod);
 
@@ -262,25 +307,38 @@ impl Permutation {
         }
 
         // Compute denominator coefficients
-        for (w_l_gamma, w_r_gamma, w_o_gamma, beta_left_sigma, beta_right_sigma, beta_out_sigma) in izip!(
+        for (
+            w_l_gamma,
+            w_r_gamma,
+            w_o_gamma,
+            w_4_gamma,
+            beta_left_sigma,
+            beta_right_sigma,
+            beta_out_sigma,
+            beta_fourth_sigma,
+        ) in izip!(
             wL_gamma,
             wR_gamma,
             wO_gamma,
+            w4_gamma,
             beta_left_sigma_iter,
             beta_right_sigma_iter,
             beta_out_sigma_iter,
+            beta_fourth_sigma_iter,
         ) {
             // (w_L + beta * root + gamma)
-            let prod_a = beta_left_sigma + &w_l_gamma;
+            let prod_a = beta_left_sigma + w_l_gamma;
 
             // (w_R + beta * root * k_1 + gamma)
-            let prod_b = beta_right_sigma + &w_r_gamma;
+            let prod_b = beta_right_sigma + w_r_gamma;
 
             // (w_O + beta * root * k_2 + gamma)
-            let prod_c = beta_out_sigma + &w_o_gamma;
+            let prod_c = beta_out_sigma + w_o_gamma;
 
-            let mut prod = prod_a * &prod_b;
-            prod = prod * &prod_c;
+            // (w_4 + beta * root * k_3 + gamma)
+            let prod_d = beta_fourth_sigma + w_4_gamma;
+
+            let mut prod = prod_a * prod_b * prod_c * prod_d;
 
             denominator_partial_components.push(prod);
 
@@ -329,6 +387,7 @@ impl Permutation {
         w_l: &[Scalar],
         w_r: &[Scalar],
         w_o: &[Scalar],
+        w_4: &[Scalar],
         beta: &Scalar,
         gamma: &Scalar,
     ) -> Vec<Scalar> {
@@ -341,6 +400,7 @@ impl Permutation {
         let left_sigma_mapping = self.left_sigma_mapping.as_ref().unwrap();
         let right_sigma_mapping = self.right_sigma_mapping.as_ref().unwrap();
         let out_sigma_mapping = self.out_sigma_mapping.as_ref().unwrap();
+        let fourth_sigma_mapping = self.fourth_sigma_mapping.as_ref().unwrap();
 
         // Compute beta * sigma polynomials
         let beta_left_sigmas: Vec<_> = left_sigma_mapping
@@ -355,12 +415,19 @@ impl Permutation {
             .par_iter()
             .map(|sigma| sigma * beta)
             .collect();
+        let beta_fourth_sigmas: Vec<_> = fourth_sigma_mapping
+            .par_iter()
+            .map(|sigma| sigma * beta)
+            .collect();
 
         // Compute beta * roots * K1
         let beta_roots_K1: Vec<_> = common_roots.par_iter().map(|x| x * K1).collect();
 
         // Compute beta * roots * K2
         let beta_roots_K2: Vec<_> = common_roots.par_iter().map(|x| x * K2).collect();
+
+        // Compute beta * roots * K3
+        let beta_roots_K3: Vec<_> = common_roots.par_iter().map(|x| x * K3).collect();
 
         // Compute left_wire + gamma
         let wL_gamma: Vec<_> = w_l.par_iter().map(|w_L| w_L + gamma).collect();
@@ -371,18 +438,24 @@ impl Permutation {
         // Compute out_wire + gamma
         let wO_gamma: Vec<_> = w_o.par_iter().map(|w_O| w_O + gamma).collect();
 
+        // Compute fourth_wire + gamma
+        let w4_gamma: Vec<_> = w_4.par_iter().map(|w_4| w_4 + gamma).collect();
+
         // Compute 6 accumulator components
         // Parallisable
         let accumulator_components_without_l1: Vec<_> = (
             wL_gamma,
             wR_gamma,
             wO_gamma,
+            w4_gamma,
             common_roots,
             beta_roots_K1,
             beta_roots_K2,
+            beta_roots_K3,
             beta_left_sigmas,
             beta_right_sigmas,
             beta_out_sigmas,
+            beta_fourth_sigmas,
         )
             .into_par_iter()
             .map(
@@ -390,38 +463,49 @@ impl Permutation {
                     w_l_gamma,
                     w_r_gamma,
                     w_o_gamma,
+                    w_4_gamma,
                     beta_root,
                     beta_root_K1,
                     beta_root_K2,
+                    beta_root_K3,
                     beta_left_sigma,
                     beta_right_sigma,
                     beta_out_sigma,
+                    beta_fourth_sigma,
                 )| {
                     // w_j + beta * root^j-1 + gamma
-                    let ac1 = w_l_gamma + &beta_root;
+                    let ac1 = w_l_gamma + beta_root;
 
                     // w_{n+j} + beta * K1 * root^j-1 + gamma
-                    let ac2 = w_r_gamma + &beta_root_K1;
+                    let ac2 = w_r_gamma + beta_root_K1;
 
                     // w_{2n+j} + beta * K2 * root^j-1 + gamma
-                    let ac3 = w_o_gamma + &beta_root_K2;
+                    let ac3 = w_o_gamma + beta_root_K2;
+
+                    // w_{3n+j} + beta * K3 * root^j-1 + gamma
+                    let ac4 = w_4_gamma + beta_root_K3;
 
                     // 1 / w_j + beta * sigma(j) + gamma
-                    let ac4 = (w_l_gamma + &beta_left_sigma).invert().unwrap();
+                    let ac5 = (w_l_gamma + beta_left_sigma).invert().unwrap();
 
                     // 1 / w_{n+j} + beta * sigma(n+j) + gamma
-                    let ac5 = (w_r_gamma + &beta_right_sigma).invert().unwrap();
+                    let ac6 = (w_r_gamma + beta_right_sigma).invert().unwrap();
 
                     // 1 / w_{2n+j} + beta * sigma(2n+j) + gamma
-                    let ac6 = (w_o_gamma + &beta_out_sigma).invert().unwrap();
+                    let ac7 = (w_o_gamma + beta_out_sigma).invert().unwrap();
 
-                    (ac1, ac2, ac3, ac4, ac5, ac6)
+                    // 1 / w_{3n+j} + beta * sigma(3n+j) + gamma
+                    let ac8 = (w_4_gamma + beta_fourth_sigma).invert().unwrap();
+
+                    (ac1, ac2, ac3, ac4, ac5, ac6, ac7, ac8)
                 },
             )
             .collect();
 
         // Prepend ones to the beginning of each accumulator to signify L_1(x)
         let accumulator_components = std::iter::once((
+            Scalar::one(),
+            Scalar::one(),
             Scalar::one(),
             Scalar::one(),
             Scalar::one(),
@@ -443,15 +527,19 @@ impl Permutation {
             Scalar::one(),
             Scalar::one(),
             Scalar::one(),
+            Scalar::one(),
+            Scalar::one(),
         );
         let product_acumulated_components: Vec<_> = accumulator_components
             .map(move |current_component| {
-                prev.0 *= &current_component.0;
-                prev.1 *= &current_component.1;
-                prev.2 *= &current_component.2;
-                prev.3 *= &current_component.3;
-                prev.4 *= &current_component.4;
-                prev.5 *= &current_component.5;
+                prev.0 *= current_component.0;
+                prev.1 *= current_component.1;
+                prev.2 *= current_component.2;
+                prev.3 *= current_component.3;
+                prev.4 *= current_component.4;
+                prev.5 *= current_component.5;
+                prev.6 *= current_component.6;
+                prev.7 *= current_component.7;
 
                 prev
             })
@@ -469,12 +557,14 @@ impl Permutation {
             .par_iter()
             .map(move |current_component| {
                 let mut prev = Scalar::one();
-                prev *= &current_component.0;
-                prev *= &current_component.1;
-                prev *= &current_component.2;
-                prev *= &current_component.3;
-                prev *= &current_component.4;
-                prev *= &current_component.5;
+                prev *= current_component.0;
+                prev *= current_component.1;
+                prev *= current_component.2;
+                prev *= current_component.3;
+                prev *= current_component.4;
+                prev *= current_component.5;
+                prev *= current_component.6;
+                prev *= current_component.7;
 
                 prev
             })
@@ -508,19 +598,21 @@ mod test {
 
         let var_one = perm.new_variable();
         let var_two = perm.new_variable();
+        let var_three = perm.new_variable();
 
         let gate_size = 100;
         for i in 0..gate_size {
-            perm.add_variable_to_map(var_one, var_one, var_two, i);
+            perm.add_variables_to_map(var_one, var_one, var_two, var_three, i);
         }
 
         // Check all gate_indices are valid
         for (_, wire_data) in perm.variable_map.iter() {
             for wire in wire_data.iter() {
                 match wire {
-                    WireData::Left(index) | WireData::Right(index) | WireData::Output(index) => {
-                        assert!(*index < gate_size)
-                    }
+                    WireData::Left(index)
+                    | WireData::Right(index)
+                    | WireData::Output(index)
+                    | WireData::Fourth(index) => assert!(*index < gate_size),
                 };
             }
         }
@@ -539,14 +631,15 @@ mod test {
         let var_six = perm.new_variable();
         let var_seven = perm.new_variable();
         let var_eight = perm.new_variable();
+        let var_nine = perm.new_variable();
 
         let num_wire_mappings = 4;
 
         // Add four wire mappings
-        perm.add_variable_to_map(var_zero, var_zero, var_five, 0);
-        perm.add_variable_to_map(var_zero, var_two, var_six, 1);
-        perm.add_variable_to_map(var_zero, var_three, var_seven, 2);
-        perm.add_variable_to_map(var_zero, var_four, var_eight, 3);
+        perm.add_variables_to_map(var_zero, var_zero, var_five, var_nine, 0);
+        perm.add_variables_to_map(var_zero, var_two, var_six, var_nine, 1);
+        perm.add_variables_to_map(var_zero, var_three, var_seven, var_nine, 2);
+        perm.add_variables_to_map(var_zero, var_four, var_eight, var_nine, 3);
 
         /*
 
@@ -562,12 +655,14 @@ mod test {
         Left_sigma = {R0, L2,L3, L0}
         Right_sigma = {L1, R1, R2, R3}
         Out_sigma = {O0, O1, O2, O3, O4}
+        Fourth_sigma = {F0, F1, F2, F3, F4}
 
         */
         let sigmas = perm.compute_sigma_permutations(num_wire_mappings);
         let left_sigma = &sigmas[0];
         let right_sigma = &sigmas[1];
         let out_sigma = &sigmas[2];
+        let fourth_sigma = &sigmas[3];
 
         // Check the left sigma polynomial
         assert_eq!(left_sigma[0], WireData::Right(0));
@@ -586,6 +681,12 @@ mod test {
         assert_eq!(out_sigma[1], WireData::Output(1));
         assert_eq!(out_sigma[2], WireData::Output(2));
         assert_eq!(out_sigma[3], WireData::Output(3));
+
+        // Check the output sigma polynomial
+        assert_eq!(fourth_sigma[0], WireData::Fourth(1));
+        assert_eq!(fourth_sigma[1], WireData::Fourth(2));
+        assert_eq!(fourth_sigma[2], WireData::Fourth(3));
+        assert_eq!(fourth_sigma[3], WireData::Fourth(0));
 
         let domain = EvaluationDomain::new(num_wire_mappings).unwrap();
         let w: Fr = domain.group_gen;
@@ -619,9 +720,19 @@ mod test {
         assert_eq!(encoded_output_sigma[2], w_squared * &K2);
         assert_eq!(encoded_output_sigma[3], w_cubed * &K2);
 
+        // check the fourth sigmas have been encoded properly
+        // Out_sigma = {F0, F1, F2, F3, F4}
+        // Should turn into {1 * K3, w * K3, w^2 * K3, w^3 * K3}
+        let encoded_fourth_sigma = perm.compute_permutation_lagrange(fourth_sigma, &domain);
+        assert_eq!(encoded_fourth_sigma[0], w * &K3);
+        assert_eq!(encoded_fourth_sigma[1], w_squared * &K3);
+        assert_eq!(encoded_fourth_sigma[2], w_cubed * &K3);
+        assert_eq!(encoded_fourth_sigma[3], K3);
+
         let w_l = vec![Fr::from(2), Fr::from(2), Fr::from(2), Fr::from(2)];
         let w_r = vec![Fr::from(2), Fr::one(), Fr::one(), Fr::one()];
         let w_o = vec![Fr::one(), Fr::one(), Fr::one(), Fr::one()];
+        let w_4 = vec![Fr::one(), Fr::one(), Fr::one(), Fr::one()];
 
         test_correct_permutation_poly(
             num_wire_mappings,
@@ -630,6 +741,7 @@ mod test {
             w_l.clone(),
             w_r.clone(),
             w_o.clone(),
+            w_4.clone(),
         );
     }
     #[test]
@@ -639,14 +751,15 @@ mod test {
         let var_one = perm.new_variable();
         let var_two = perm.new_variable();
         let var_three = perm.new_variable();
+        let var_four = perm.new_variable();
 
         let num_wire_mappings = 4;
 
         // Add four wire mappings
-        perm.add_variable_to_map(var_one, var_one, var_two, 0);
-        perm.add_variable_to_map(var_two, var_one, var_two, 1);
-        perm.add_variable_to_map(var_three, var_three, var_one, 2);
-        perm.add_variable_to_map(var_two, var_one, var_three, 3);
+        perm.add_variables_to_map(var_one, var_one, var_two, var_four, 0);
+        perm.add_variables_to_map(var_two, var_one, var_two, var_four, 1);
+        perm.add_variables_to_map(var_three, var_three, var_one, var_four, 2);
+        perm.add_variables_to_map(var_two, var_one, var_three, var_four, 3);
 
         /*
         Below is a sketch of the map created by adding the specific variables into the map
@@ -654,16 +767,19 @@ mod test {
         var_one : {L0,R0, R1, O2, R3 }
         var_two : {O0, L1, O1, L3}
         var_three : {L2, R2, O3}
+        var_four : {F0, F1, F2, F3}
 
         Left_Sigma : {0,1,2,3} -> {R0,O1,R2,O0}
         Right_Sigma : {0,1,2,3} -> {R1, O2, O3, L0}
         Out_Sigma : {0,1,2,3} -> {L1, L3, R3, L2}
+        Fourth_Sigma : {0,1,2,3} -> {F0, F1, F2, F3}
 
         */
         let sigmas = perm.compute_sigma_permutations(num_wire_mappings);
         let left_sigma = &sigmas[0];
         let right_sigma = &sigmas[1];
         let out_sigma = &sigmas[2];
+        let fourth_sigma = &sigmas[3];
 
         // Check the left sigma polynomial
         assert_eq!(left_sigma[0], WireData::Right(0));
@@ -683,17 +799,26 @@ mod test {
         assert_eq!(out_sigma[2], WireData::Right(3));
         assert_eq!(out_sigma[3], WireData::Left(2));
 
+        // Check the fourth sigma polynomial
+        assert_eq!(fourth_sigma[0], WireData::Fourth(1));
+        assert_eq!(fourth_sigma[1], WireData::Fourth(2));
+        assert_eq!(fourth_sigma[2], WireData::Fourth(3));
+        assert_eq!(fourth_sigma[3], WireData::Fourth(0));
+
         /*
 
         Check that the unique encodings of the sigma polynomials have been computed properly
         Left_Sigma : {R0,O1,R2,O0}
-            When encoded using w, K1,K2 we have {1 * K1, w * K2, w^2 *K1, w^3 * K2}
+            When encoded using w, K1,K2,K3 we have {1 * K1, w * K2, w^2 *K1, w^3 * K2}
 
         Right_Sigma : {R1, O2, O3, L0}
-            When encoded using w, K1,K2 we have {1 * K1, w * K2, w^2 * K2, w^3}
+            When encoded using w, K1,K2,K3 we have {1 * K1, w * K2, w^2 * K2, w^3}
 
         Out_Sigma : {L1, L3, R3, L2}
-            When encoded using w, K1, K2 we have {1, w , w^2 * K1, w^3}
+            When encoded using w, K1, K2,K3 we have {1, w , w^2 * K1, w^3}
+
+        Fourth_Sigma : {0,1,2,3} -> {F0, F1, F2, F3}
+            When encoded using w, K1, K2,K3 we have {1 * K3, w * K3, w^2 * K3, w^3 * K3}
         */
         let domain = EvaluationDomain::new(num_wire_mappings).unwrap();
         let w: Fr = domain.group_gen;
@@ -719,57 +844,13 @@ mod test {
         assert_eq!(encoded_output_sigma[1], w_cubed);
         assert_eq!(encoded_output_sigma[2], w_cubed * &K1);
         assert_eq!(encoded_output_sigma[3], w_squared);
-    }
 
-    #[test]
-    // Checks that when gamma = zero and beta = 1
-    // root^3 * k_1 * k_2 / (left_sigma * right_sigma * out_sigma) == 1
-    // If the encoding for the permutation does not have unique values then this test would fail
-    fn test_permutation_encoding_has_unique_values() {
-        let mut perm: Permutation = Permutation::new();
-
-        let num_wire_mappings = 4;
-
-        let var_one = perm.new_variable();
-        let var_two = perm.new_variable();
-        let var_three = perm.new_variable();
-
-        // Add four wire mappings
-        perm.add_variable_to_map(var_one, var_one, var_two, 0);
-        perm.add_variable_to_map(var_two, var_one, var_two, 1);
-        perm.add_variable_to_map(var_three, var_three, var_one, 2);
-        perm.add_variable_to_map(var_two, var_one, var_three, 3);
-
-        let domain = EvaluationDomain::new(num_wire_mappings).unwrap();
-
-        let _ = perm.compute_sigma_polynomials(num_wire_mappings, &domain);
-
-        let mut prod_left_sigma = Fr::one();
-        for element in perm.left_sigma_mapping.unwrap().iter() {
-            prod_left_sigma = prod_left_sigma * element;
-        }
-        let mut prod_right_sigma = Fr::one();
-        for element in perm.right_sigma_mapping.unwrap().iter() {
-            prod_right_sigma = prod_right_sigma * element;
-        }
-        let mut prod_out_sigma = Fr::one();
-        for element in perm.out_sigma_mapping.unwrap().iter() {
-            prod_out_sigma = prod_out_sigma * element;
-        }
-
-        let copy_grand_prod = (prod_left_sigma * prod_right_sigma) * prod_out_sigma;
-
-        let mut identity_grand_prod = Fr::one();
-        for element in domain.elements() {
-            let root_cubed = element.pow(&[3, 0, 0, 0]);
-            let prod = (root_cubed * &K1) * &K2;
-            identity_grand_prod = identity_grand_prod * prod;
-        }
-
-        assert_eq!(
-            identity_grand_prod * copy_grand_prod.invert().unwrap(),
-            Fr::one()
-        );
+        // check the fourth sigmas have been encoded properly
+        let encoded_fourth_sigma = perm.compute_permutation_lagrange(fourth_sigma, &domain);
+        assert_eq!(encoded_fourth_sigma[0], w * &K3);
+        assert_eq!(encoded_fourth_sigma[1], w_squared * &K3);
+        assert_eq!(encoded_fourth_sigma[2], w_cubed * &K3);
+        assert_eq!(encoded_fourth_sigma[3], K3);
     }
 
     #[test]
@@ -781,13 +862,15 @@ mod test {
         let var_one = perm.new_variable();
         let var_two = perm.new_variable();
         let var_three = perm.new_variable();
+        let var_four = perm.new_variable();
 
-        perm.add_variable_to_map(var_one, var_two, var_three, 0);
-        perm.add_variable_to_map(var_three, var_two, var_one, 1);
+        perm.add_variables_to_map(var_one, var_two, var_three, var_four, 0);
+        perm.add_variables_to_map(var_three, var_two, var_one, var_four, 1);
 
         let w_l: Vec<_> = vec![Fr::one(), Fr::from(3)];
         let w_r: Vec<_> = vec![Fr::from(2), Fr::from(2)];
         let w_o: Vec<_> = vec![Fr::from(3), Fr::one()];
+        let w_4: Vec<_> = vec![Fr::one(), Fr::one()];
 
         test_correct_permutation_poly(
             num_wire_mappings,
@@ -796,6 +879,7 @@ mod test {
             w_l.clone(),
             w_r.clone(),
             w_o.clone(),
+            w_4.clone(),
         );
     }
 
@@ -814,6 +898,7 @@ mod test {
         w_l: Vec<Fr>,
         w_r: Vec<Fr>,
         w_o: Vec<Fr>,
+        w_4: Vec<Fr>,
     ) {
         // 0. Generate beta and gamma challenges
         //
@@ -830,12 +915,13 @@ mod test {
                 w_l.clone().into_iter(),
                 w_r.clone().into_iter(),
                 w_o.clone().into_iter(),
+                w_4.clone().into_iter(),
                 &beta,
                 &gamma,
             );
 
         let fast_z_vec =
-            perm.compute_fast_permutation_poly(domain, &w_l, &w_r, &w_o, &beta, &gamma);
+            perm.compute_fast_permutation_poly(domain, &w_l, &w_r, &w_o, &w_4, &beta, &gamma);
         assert_eq!(fast_z_vec, z_vec);
 
         // 2. First we perform basic tests on the permutation vector
