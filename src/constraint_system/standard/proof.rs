@@ -60,6 +60,8 @@ impl Proof {
                 c_next_eval: Scalar::zero(),
                 d_next_eval: Scalar::zero(),
                 q_arith_eval: Scalar::zero(),
+                q_c_eval: Scalar::zero(),
+                q_logic_eval: Scalar::zero(),
 
                 left_sigma_eval: Scalar::zero(),
                 right_sigma_eval: Scalar::zero(),
@@ -158,6 +160,8 @@ impl Proof {
         transcript.append_scalar(b"right_sig_eval", &self.evaluations.right_sigma_eval);
         transcript.append_scalar(b"out_sig_eval", &self.evaluations.out_sigma_eval);
         transcript.append_scalar(b"q_arith_eval", &self.evaluations.q_arith_eval);
+        transcript.append_scalar(b"q_c_eval", &self.evaluations.q_c_eval);
+        transcript.append_scalar(b"q_logic_eval", &self.evaluations.q_logic_eval);
         transcript.append_scalar(b"perm_eval", &self.evaluations.perm_eval);
         transcript.append_scalar(b"t_eval", &t_eval);
         transcript.append_scalar(b"r_eval", &self.evaluations.lin_poly_eval);
@@ -343,8 +347,118 @@ impl Proof {
         let c_1 = delta(self.evaluations.a_next_eval - four * self.evaluations.a_eval);
         let c_2 = delta(self.evaluations.b_next_eval - four * self.evaluations.b_eval);
         let c_3 = delta(self.evaluations.d_next_eval - four * self.evaluations.d_eval);
-
-        scalars.push(c_0 + c_1 + c_2 + c_3);
+        let c_4 = {
+            let six = Scalar::from(6u64);
+            let eighty_one = Scalar::from(81u64);
+            let eighty_three = Scalar::from(83u64);
+            let mut delta_sum = Scalar::zero();
+            let mut delta_sq_sum = Scalar::zero();
+            let mut T0 = Scalar::zero();
+            let mut T1 = Scalar::zero();
+            let mut T2 = Scalar::zero();
+            let mut T3 = Scalar::zero();
+            let mut T4 = Scalar::zero();
+            let mut identity = Scalar::zero();
+            // T0 = a
+            T0 = self.evaluations.a_eval.double();
+            T0 = T0.double();
+            T0 = self.evaluations.a_next_eval - T0;
+            // T1 = b
+            T1 = self.evaluations.b_eval.double();
+            T1 = T1.double();
+            T1 = self.evaluations.b_next_eval - T1;
+            // delta_sum = a + b
+            delta_sum = T0 + T1;
+            // T2 = a^2
+            T2 = T0 * T0;
+            // T3 = b^2
+            T3 = T1 * T1;
+            delta_sq_sum = T2 + T3;
+            // identity = a^2 + b^2 + 2ab
+            identity = delta_sum * delta_sum;
+            // identity = 2ab
+            identity -= delta_sq_sum;
+            // identity = 2(ab - w)
+            T4 = self.evaluations.c_eval.double();
+            identity -= T4;
+            // identity *= alpha; XXX: What happens with alphas now?
+            // T4 = 4w
+            T4 += T4;
+            // T2 = a^2 - a
+            T2 -= T0;
+            // T0 = a^2 - 5a + 6
+            T0 += T0;
+            T0 += T0;
+            T0 = T2 - T0;
+            T0 += six;
+            // identity = (identity + a(a - 1)(a - 2)(a - 3)) * alpha
+            T0 *= T2;
+            identity += T0;
+            // identity *= alpha; XXX: What happens with alphas now?
+            // T3 = b^2 - b
+            T3 -= T1;
+            // T1 = b^2 - 5b + 6
+            T1 += T1;
+            T1 += T1;
+            T1 = T3 - T1;
+            T1 += six;
+            // identity = (identity + b(b - 1)(b - 2)(b - 3)) * alpha
+            T1 *= T3;
+            identity += T1;
+            // identity *= alpha; XXX: What happens with alphas now?
+            // T0 = 3(a + b)
+            T0 = delta_sum + delta_sum;
+            T0 += delta_sum;
+            // T1 = 9(a + b)
+            T1 = T0 + T0;
+            T1 += T0;
+            // delta_sum = 18(a + b)
+            delta_sum = T1 + T1;
+            // T1 = 81(a + b)
+            T2 = delta_sum + delta_sum;
+            T2 += T2;
+            T1 += T2;
+            // delta_squared_sum = 18(a^2 + b^2)
+            T2 = delta_sq_sum + delta_sq_sum;
+            T2 += delta_sq_sum;
+            delta_sq_sum = T2 + T2;
+            delta_sq_sum += T2;
+            delta_sq_sum += delta_sq_sum;
+            // delta_sum = w(4w - 18(a + b) + 81)
+            delta_sum = T4 - delta_sum;
+            delta_sum += eighty_one;
+            delta_sum *= self.evaluations.c_eval;
+            // T1 = 18(a^2 + b^2) - 81(a + b) + 83
+            T1 = delta_sq_sum - T1;
+            T1 += eighty_three;
+            // delta_sum = w ( w ( 4w - 18(a + b) + 81) + 18(a^2 + b^2) - 81(a + b) + 83)
+            delta_sum += T1;
+            delta_sum *= self.evaluations.c_eval;
+            // T2 = 3c
+            T2 = self.evaluations.d_eval.double();
+            T2 += T2;
+            T2 = self.evaluations.d_next_eval - T2;
+            T3 = T2 + T2;
+            T2 += T3;
+            // T3 = 9c
+            T3 = T2 + T2;
+            T3 += T2;
+            // T3 = q_c * (9c - 3(a + b))
+            T3 -= T0;
+            T3 *= self.evaluations.q_c_eval;
+            // T2 = 3c + 3(a + b) - 2 * delta_sum
+            T2 += T0;
+            delta_sum += delta_sum;
+            T2 -= delta_sum;
+            // T2 = T2 + T3
+            T2 += T3;
+            // identity = q_logic * alpha_base * (identity + T2)
+            identity += T2;
+            // identity *= alpha_base;
+            identity *= self.evaluations.q_logic_eval;
+            identity
+        };
+        scalars.push(c_0 + c_1 + c_2 + c_3 + c_4);
         points.push(preprocessed_circuit.qlogic_comm().0);
 
         // (a_eval + beta * z + gamma)(b_eval + beta * z * k1 + gamma)(c_eval + beta * k2* z + gamma)(d_eval + beta * k3* z + gamma) * alpha^2

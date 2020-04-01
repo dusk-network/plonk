@@ -178,8 +178,147 @@ fn compute_circuit_satisfiability_equation(
             let c_1 = delta(wl_next - four * wl);
             let c_2 = delta(wr_next - four * wr);
             let c_3 = delta(w4_next - four * w4);
+            let c_4 = {
+                let six = Scalar::from(6u64);
+                let eighty_one = Scalar::from(81u64);
+                let eighty_three = Scalar::from(83u64);
+                let mut delta_sum = Scalar::zero();
+                let mut delta_sq_sum = Scalar::zero();
+                let mut T0 = Scalar::zero();
+                let mut T1 = Scalar::zero();
+                let mut T2 = Scalar::zero();
+                let mut T3 = Scalar::zero();
+                let mut T4 = Scalar::zero();
+                let mut identity = Scalar::zero();
 
-            let c = qlogic * (c_0 + c_1 + c_2 + c_3);
+                // T0 = a
+                T0 = wl.double();
+                T0 = T0.double();
+                T0 = wl_next - T0;
+
+                // T1 = b
+                T1 = wr.double();
+                T1 = T1.double();
+                T1 = wr_next - T1;
+
+                // delta_sum = a + b
+                delta_sum = T0 + T1;
+
+                // T2 = a^2
+                T2 = T0 * T0;
+                // T3 = b^2
+                T3 = T1 * T1;
+
+                delta_sq_sum = T2 + T3;
+                // identity = a^2 + b^2 + 2ab
+                identity = delta_sum * delta_sum;
+                // identity = 2ab
+                identity -= delta_sq_sum;
+
+                // identity = 2(ab - w)
+                T4 = wo.double();
+                identity -= T4;
+                // identity *= alpha; XXX: What happens with alphas now?
+
+                // T4 = 4w
+                T4 += T4;
+
+                // T2 = a^2 - a
+                T2 -= T0;
+
+                // T0 = a^2 - 5a + 6
+                T0 += T0;
+                T0 += T0;
+                T0 = T2 - T0;
+                T0 += six;
+
+                // identity = (identity + a(a - 1)(a - 2)(a - 3)) * alpha
+                T0 *= T2;
+                identity += T0;
+                // identity *= alpha; XXX: What happens with alphas now?
+
+                // T3 = b^2 - b
+                T3 -= T1;
+
+                // T1 = b^2 - 5b + 6
+                T1 += T1;
+                T1 += T1;
+                T1 = T3 - T1;
+                T1 += six;
+
+                // identity = (identity + b(b - 1)(b - 2)(b - 3)) * alpha
+                T1 *= T3;
+                identity += T1;
+                // identity *= alpha; XXX: What happens with alphas now?
+
+                // T0 = 3(a + b)
+                T0 = delta_sum + delta_sum;
+                T0 += delta_sum;
+
+                // T1 = 9(a + b)
+                T1 = T0 + T0;
+                T1 += T0;
+
+                // delta_sum = 18(a + b)
+                delta_sum = T1 + T1;
+
+                // T1 = 81(a + b)
+                T2 = delta_sum + delta_sum;
+                T2 += T2;
+                T1 += T2;
+
+                // delta_squared_sum = 18(a^2 + b^2)
+                T2 = delta_sq_sum + delta_sq_sum;
+                T2 += delta_sq_sum;
+                delta_sq_sum = T2 + T2;
+                delta_sq_sum += T2;
+                delta_sq_sum += delta_sq_sum;
+
+                // delta_sum = w(4w - 18(a + b) + 81)
+                delta_sum = T4 - delta_sum;
+                delta_sum += eighty_one;
+                delta_sum *= wo;
+
+                // T1 = 18(a^2 + b^2) - 81(a + b) + 83
+                T1 = delta_sq_sum - T1;
+                T1 += eighty_three;
+
+                // delta_sum = w ( w ( 4w - 18(a + b) + 81) + 18(a^2 + b^2) - 81(a + b) + 83)
+                delta_sum += T1;
+                delta_sum *= wo;
+
+                // T2 = 3c
+                T2 = w4.double();
+                T2 += T2;
+                T2 = w4_next - T2;
+                T3 = T2 + T2;
+                T2 += T3;
+
+                // T3 = 9c
+                T3 = T2 + T2;
+                T3 += T2;
+
+                // T3 = q_c * (9c - 3(a + b))
+                T3 -= T0;
+                T3 *= qc;
+
+                // T2 = 3c + 3(a + b) - 2 * delta_sum
+                T2 += T0;
+                delta_sum += delta_sum;
+                T2 -= delta_sum;
+
+                // T2 = T2 + T3
+                T2 += T3;
+
+                // identity = q_logic * alpha_base * (identity + T2)
+                identity += T2;
+                // identity *= alpha_base;
+                identity *= qlogic;
+
+                identity
+            };
+
+            let c = qlogic * (c_0 + c_1 + c_2 + c_3 + c_4);
 
             (a + b + c) * v_h_i
         })

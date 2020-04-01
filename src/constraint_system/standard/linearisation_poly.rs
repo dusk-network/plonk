@@ -29,7 +29,10 @@ pub struct ProofEvaluations {
     pub d_next_eval: Scalar,
     // Evaluation of the arithmetic selector polynomial at `z`
     pub q_arith_eval: Scalar,
-
+    //
+    pub q_c_eval: Scalar,
+    //
+    pub q_logic_eval: Scalar,
     // Evaluation of the left sigma polynomial at `z`
     pub left_sigma_eval: Scalar,
     // Evaluation of the right sigma polynomial at `z`
@@ -70,6 +73,8 @@ pub fn compute(
         .evaluate(z_challenge);
     let out_sigma_eval = preprocessed_circuit.out_sigma_poly().evaluate(z_challenge);
     let q_arith_eval = preprocessed_circuit.qarith_poly().evaluate(z_challenge);
+    let q_c_eval = preprocessed_circuit.qc_poly().evaluate(z_challenge);
+    let q_logic_eval = preprocessed_circuit.qlogic_poly().evaluate(z_challenge);
 
     let a_next_eval = w_l_poly.evaluate(&(z_challenge * domain.group_gen));
     let b_next_eval = w_r_poly.evaluate(&(z_challenge * domain.group_gen));
@@ -87,6 +92,8 @@ pub fn compute(
         &c_next_eval,
         &d_next_eval,
         &q_arith_eval,
+        &q_c_eval,
+        &q_logic_eval,
         preprocessed_circuit.qm_poly(),
         preprocessed_circuit.ql_poly(),
         preprocessed_circuit.qr_poly(),
@@ -142,6 +149,8 @@ pub fn compute(
                 c_next_eval,
                 d_next_eval,
                 q_arith_eval,
+                q_c_eval,
+                q_logic_eval,
                 left_sigma_eval,
                 right_sigma_eval,
                 out_sigma_eval,
@@ -163,6 +172,8 @@ fn compute_circuit_satisfiability(
     c_next_eval: &Scalar,
     d_next_eval: &Scalar,
     q_arith_eval: &Scalar,
+    q_c_eval: &Scalar,
+    q_logic_eval: &Scalar,
     q_m_poly: &Polynomial,
     q_l_poly: &Polynomial,
     q_r_poly: &Polynomial,
@@ -217,7 +228,146 @@ fn compute_circuit_satisfiability(
     let c_2 = delta(a_next_eval - a_eval * four)
         + delta(b_next_eval - b_eval * four)
         + delta(d_next_eval - d_eval * four);
-    let c = q_logic_poly * &(c_1 + c_2);
+    let c_3 = {
+        let six = Scalar::from(6u64);
+        let eighty_one = Scalar::from(81u64);
+        let eighty_three = Scalar::from(83u64);
+        let mut delta_sum: Scalar;
+        let mut delta_sq_sum: Scalar;
+        let mut T0: Scalar;
+        let mut T1: Scalar;
+        let mut T2: Scalar;
+        let mut T3: Scalar;
+        let mut T4: Scalar;
+        let mut identity: Scalar;
+
+        // T0 = a
+        T0 = a_eval.double();
+        T0 = T0.double();
+        T0 = a_next_eval - T0;
+
+        // T1 = b
+        T1 = b_eval.double();
+        T1 = T1.double();
+        T1 = b_next_eval - T1;
+
+        // delta_sum = a + b
+        delta_sum = T0 + T1;
+
+        // T2 = a^2
+        T2 = T0 * T0;
+        // T3 = b^2
+        T3 = T1 * T1;
+
+        delta_sq_sum = T2 + T3;
+        // identity = a^2 + b^2 + 2ab
+        identity = delta_sum * delta_sum;
+        // identity = 2ab
+        identity -= delta_sq_sum;
+
+        // identity = 2(ab - w)
+        T4 = c_eval.double();
+        identity -= T4;
+        // identity *= alpha; XXX: What happens with alphas now?
+
+        // T4 = 4w
+        T4 += T4;
+
+        // T2 = a^2 - a
+        T2 -= T0;
+
+        // T0 = a^2 - 5a + 6
+        T0 += T0;
+        T0 += T0;
+        T0 = T2 - T0;
+        T0 += six;
+
+        // identity = (identity + a(a - 1)(a - 2)(a - 3)) * alpha
+        T0 *= T2;
+        identity += T0;
+        // identity *= alpha; XXX: What happens with alphas now?
+
+        // T3 = b^2 - b
+        T3 -= T1;
+
+        // T1 = b^2 - 5b + 6
+        T1 += T1;
+        T1 += T1;
+        T1 = T3 - T1;
+        T1 += six;
+
+        // identity = (identity + b(b - 1)(b - 2)(b - 3)) * alpha
+        T1 *= T3;
+        identity += T1;
+        // identity *= alpha; XXX: What happens with alphas now?
+
+        // T0 = 3(a + b)
+        T0 = delta_sum + delta_sum;
+        T0 += delta_sum;
+
+        // T1 = 9(a + b)
+        T1 = T0 + T0;
+        T1 += T0;
+
+        // delta_sum = 18(a + b)
+        delta_sum = T1 + T1;
+
+        // T1 = 81(a + b)
+        T2 = delta_sum + delta_sum;
+        T2 += T2;
+        T1 += T2;
+
+        // delta_squared_sum = 18(a^2 + b^2)
+        T2 = delta_sq_sum + delta_sq_sum;
+        T2 += delta_sq_sum;
+        delta_sq_sum = T2 + T2;
+        delta_sq_sum += T2;
+        delta_sq_sum += delta_sq_sum;
+
+        // delta_sum = w(4w - 18(a + b) + 81)
+        delta_sum = T4 - delta_sum;
+        delta_sum += eighty_one;
+        delta_sum *= c_eval;
+
+        // T1 = 18(a^2 + b^2) - 81(a + b) + 83
+        T1 = delta_sq_sum - T1;
+        T1 += eighty_three;
+
+        // delta_sum = w ( w ( 4w - 18(a + b) + 81) + 18(a^2 + b^2) - 81(a + b) + 83)
+        delta_sum += T1;
+        delta_sum *= c_eval;
+
+        // T2 = 3c
+        T2 = d_eval.double();
+        T2 += T2;
+        T2 = d_next_eval - T2;
+        T3 = T2 + T2;
+        T2 += T3;
+
+        // T3 = 9c
+        T3 = T2 + T2;
+        T3 += T2;
+
+        // T3 = q_c * (9c - 3(a + b))
+        T3 -= T0;
+        T3 *= q_c_eval;
+
+        // T2 = 3c + 3(a + b) - 2 * delta_sum
+        T2 += T0;
+        delta_sum += delta_sum;
+        T2 -= delta_sum;
+
+        // T2 = T2 + T3
+        T2 += T3;
+
+        // identity = q_logic * alpha_base * (identity + T2)
+        identity += T2;
+        // identity *= alpha_base;
+        identity *= q_logic_eval;
+
+        identity
+    };
+    let c = q_logic_poly * &(c_1 + c_2 + c_3);
 
     &(&a + &b) + &c
 }

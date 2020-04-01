@@ -300,6 +300,8 @@ impl Composer for StandardComposer {
         transcript.append_scalar(b"right_sig_eval", &evaluations.proof.right_sigma_eval);
         transcript.append_scalar(b"out_sig_eval", &evaluations.proof.out_sigma_eval);
         transcript.append_scalar(b"q_arith_eval", &evaluations.proof.q_arith_eval);
+        transcript.append_scalar(b"q_c_eval", &evaluations.proof.q_c_eval);
+        transcript.append_scalar(b"q_logic_eval", &evaluations.proof.q_logic_eval);
         transcript.append_scalar(b"perm_eval", &evaluations.proof.perm_eval);
         transcript.append_scalar(b"t_eval", &evaluations.quot_eval);
         transcript.append_scalar(b"r_eval", &evaluations.proof.lin_poly_eval);
