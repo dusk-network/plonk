@@ -306,11 +306,12 @@ impl Proof {
             &self.evaluations,
         );
 
-        /*preprocessed_circuit.logic.compute_linearisation_commitment(
+        preprocessed_circuit.logic.compute_linearisation_commitment(
             &mut scalars,
             &mut points,
             &self.evaluations,
-        );*/
+            alpha,
+        );
 
         preprocessed_circuit
             .permutation

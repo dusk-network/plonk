@@ -110,6 +110,7 @@ pub fn compute(
         &q_c_eval,
         &q_logic_eval,
         preprocessed_circuit,
+        &alpha,
     );
 
     let f_2 = preprocessed_circuit.permutation.compute_linearisation(
@@ -163,6 +164,7 @@ fn compute_circuit_satisfiability(
     q_c_eval: &Scalar,
     q_logic_eval: &Scalar,
     preprocessed_circuit: &PreProcessedCircuit,
+    alpha: &Scalar,
 ) -> Polynomial {
     let a = preprocessed_circuit.arithmetic.compute_linearisation(
         a_eval,
@@ -179,16 +181,17 @@ fn compute_circuit_satisfiability(
         d_eval,
         &d_next_eval,
     );
-    /*let c = preprocessed_circuit.logic.compute_linearisation(
+    let c = preprocessed_circuit.logic.compute_linearisation(
         a_eval,
+        a_next_eval,
         b_eval,
+        b_next_eval,
         c_eval,
         d_eval,
-        a_next_eval,
-        b_next_eval,
         d_next_eval,
         q_c_eval,
         q_logic_eval,
-    );*/
-    (&a + &b) /*+ &c*/
+        alpha,
+    );
+    &(&a + &b) + &c
 }

@@ -31,6 +31,7 @@ impl LogicWidget {
         w_o_i: &Scalar,
         w_4_i: &Scalar,
         w_4_i_next: &Scalar,
+        alpha: &Scalar,
     ) -> Scalar {
         let four = Scalar::from(4);
 
@@ -41,18 +42,18 @@ impl LogicWidget {
         let c_1 = delta(w_l_i_next - four * w_l_i);
         let c_2 = delta(w_r_i_next - four * w_r_i);
         let c_3 = delta(w_4_i_next - four * w_4_i);
-        /*let c_4 = {
+        let c_4 = {
             let six = Scalar::from(6u64);
             let eighty_one = Scalar::from(81u64);
             let eighty_three = Scalar::from(83u64);
-            let mut delta_sum = Scalar::zero();
-            let mut delta_sq_sum = Scalar::zero();
-            let mut T0 = Scalar::zero();
-            let mut T1 = Scalar::zero();
-            let mut T2 = Scalar::zero();
-            let mut T3 = Scalar::zero();
-            let mut T4 = Scalar::zero();
-            let mut identity = Scalar::zero();
+            let mut delta_sum: Scalar;
+            let mut delta_sq_sum: Scalar;
+            let mut T0: Scalar;
+            let mut T1: Scalar;
+            let mut T2: Scalar;
+            let mut T3: Scalar;
+            let mut T4: Scalar;
+            let mut identity: Scalar;
             // T0 = a
             T0 = w_l_i.double();
             T0 = T0.double();
@@ -75,7 +76,7 @@ impl LogicWidget {
             // identity = 2(ab - w)
             T4 = w_o_i.double();
             identity -= T4;
-            // identity *= alpha; XXX: What happens with alphas now?
+            identity *= alpha;
             // T4 = 4w
             T4 += T4;
             // T2 = a^2 - a
@@ -88,7 +89,7 @@ impl LogicWidget {
             // identity = (identity + a(a - 1)(a - 2)(a - 3)) * alpha
             T0 *= T2;
             identity += T0;
-            // identity *= alpha; XXX: What happens with alphas now?
+            identity *= alpha;
             // T3 = b^2 - b
             T3 -= T1;
             // T1 = b^2 - 5b + 6
@@ -99,7 +100,7 @@ impl LogicWidget {
             // identity = (identity + b(b - 1)(b - 2)(b - 3)) * alpha
             T1 *= T3;
             identity += T1;
-            // identity *= alpha; XXX: What happens with alphas now?
+            identity *= alpha;
             // T0 = 3(a + b)
             T0 = delta_sum + delta_sum;
             T0 += delta_sum;
@@ -148,12 +149,12 @@ impl LogicWidget {
             T2 += T3;
             // identity = q_logic * alpha_base * (identity + T2)
             identity += T2;
-            // identity *= alpha_base;
+            identity *= alpha; // On the ref code is: alpha_base;
             identity *= q_logic_i;
             identity
         };
-        c_4*/
-        q_logic_i * (c_0 + c_1 + c_2 + c_3)
+
+        q_logic_i * (c_4)
     }
 
     pub fn compute_linearisation(
@@ -167,6 +168,7 @@ impl LogicWidget {
         d_next_eval: &Scalar,
         q_c_eval: &Scalar,
         q_logic_eval: &Scalar,
+        alpha: &Scalar,
     ) -> Polynomial {
         let four = Scalar::from(4);
 
@@ -176,7 +178,7 @@ impl LogicWidget {
         let c_1 = delta(a_next_eval - four * a_eval);
         let c_2 = delta(b_next_eval - four * b_eval);
         let c_3 = delta(d_next_eval - four * d_eval);
-        /*let c_4 = {
+        let c_4 = {
             let six = Scalar::from(6u64);
             let eighty_one = Scalar::from(81u64);
             let eighty_three = Scalar::from(83u64);
@@ -210,7 +212,7 @@ impl LogicWidget {
             // identity = 2(ab - w)
             T4 = c_eval.double();
             identity -= T4;
-            // identity *= alpha; XXX: What happens with alphas now?
+            identity *= alpha;
             // T4 = 4w
             T4 += T4;
             // T2 = a^2 - a
@@ -223,7 +225,7 @@ impl LogicWidget {
             // identity = (identity + a(a - 1)(a - 2)(a - 3)) * alpha
             T0 *= T2;
             identity += T0;
-            // identity *= alpha; XXX: What happens with alphas now?
+            identity *= alpha;
             // T3 = b^2 - b
             T3 -= T1;
             // T1 = b^2 - 5b + 6
@@ -234,7 +236,7 @@ impl LogicWidget {
             // identity = (identity + b(b - 1)(b - 2)(b - 3)) * alpha
             T1 *= T3;
             identity += T1;
-            // identity *= alpha; XXX: What happens with alphas now?
+            identity *= alpha;
             // T0 = 3(a + b)
             T0 = delta_sum + delta_sum;
             T0 += delta_sum;
@@ -283,14 +285,11 @@ impl LogicWidget {
             T2 += T3;
             // identity = q_logic * alpha_base * (identity + T2)
             identity += T2;
-            // identity *= alpha_base;
+            identity *= alpha; // XXX: alpha_base in the ref impl
             identity *= q_logic_eval;
             identity
         };
-        // XXX: Review
-        q_logic_poly * &c_4*/
-
-        q_logic_poly * &(q_logic_eval * &(c_0 + c_1 + c_2 + c_3))
+        q_logic_poly * &(c_4)
     }
 
     pub fn compute_linearisation_commitment(
@@ -298,6 +297,7 @@ impl LogicWidget {
         scalars: &mut Vec<Scalar>,
         points: &mut Vec<G1Affine>,
         evaluations: &ProofEvaluations,
+        alpha: &Scalar,
     ) {
         let four = Scalar::from(4);
 
@@ -305,7 +305,7 @@ impl LogicWidget {
         let c_1 = delta(evaluations.a_next_eval - four * evaluations.a_eval);
         let c_2 = delta(evaluations.b_next_eval - four * evaluations.b_eval);
         let c_3 = delta(evaluations.d_next_eval - four * evaluations.d_eval);
-        /*let c_4 = {
+        let c_4 = {
             let six = Scalar::from(6u64);
             let eighty_one = Scalar::from(81u64);
             let eighty_three = Scalar::from(83u64);
@@ -339,7 +339,7 @@ impl LogicWidget {
             // identity = 2(ab - w)
             T4 = evaluations.c_eval.double();
             identity -= T4;
-            // identity *= alpha; XXX: What happens with alphas now?
+            identity *= alpha;
             // T4 = 4w
             T4 += T4;
             // T2 = a^2 - a
@@ -352,7 +352,7 @@ impl LogicWidget {
             // identity = (identity + a(a - 1)(a - 2)(a - 3)) * alpha
             T0 *= T2;
             identity += T0;
-            // identity *= alpha; XXX: What happens with alphas now?
+            identity *= alpha;
             // T3 = b^2 - b
             T3 -= T1;
             // T1 = b^2 - 5b + 6
@@ -363,7 +363,7 @@ impl LogicWidget {
             // identity = (identity + b(b - 1)(b - 2)(b - 3)) * alpha
             T1 *= T3;
             identity += T1;
-            // identity *= alpha; XXX: What happens with alphas now?
+            identity *= alpha;
             // T0 = 3(a + b)
             T0 = delta_sum + delta_sum;
             T0 += delta_sum;
@@ -412,13 +412,11 @@ impl LogicWidget {
             T2 += T3;
             // identity = q_logic * alpha_base * (identity + T2)
             identity += T2;
-            // identity *= alpha_base;
+            identity *= alpha; // XXX: alpha_base in the ref impl.
             identity *= evaluations.q_logic_eval;
             identity
-        };*/
-        scalars.push(
-            evaluations.q_logic_eval * (c_0 + c_1 + c_2 + c_3), /*+ c_4*/
-        );
+        };
+        scalars.push(c_4);
         points.push(self.q_logic.commitment.0);
     }
 }
