@@ -290,7 +290,7 @@ impl LogicWidget {
         // XXX: Review
         q_logic_poly * &c_4*/
 
-        q_logic_poly * &(c_0 + c_1 + c_2 + c_3)
+        q_logic_poly * &(q_logic_eval * &(c_0 + c_1 + c_2 + c_3))
     }
 
     pub fn compute_linearisation_commitment(
@@ -416,7 +416,9 @@ impl LogicWidget {
             identity *= evaluations.q_logic_eval;
             identity
         };*/
-        scalars.push(c_0 + c_1 + c_2 + c_3 /*+ c_4*/);
+        scalars.push(
+            evaluations.q_logic_eval * (c_0 + c_1 + c_2 + c_3), /*+ c_4*/
+        );
         points.push(self.q_logic.commitment.0);
     }
 }

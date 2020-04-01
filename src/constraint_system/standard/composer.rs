@@ -1504,7 +1504,6 @@ impl StandardComposer {
             let d = w_4[i];
             let a_next = w_l[(i + 1) % self.n];
             let b_next = w_r[(i + 1) % self.n];
-            let c_next = w_o[(i + 1) % self.n];
             let d_next = w_4[(i + 1) % self.n];
             /*println!(
                 "ITER: {}\n\nd: {:?} \n\n A & B {:?} \n\n A ^ B: {:?} \n\n q_logic: {:?}\n\n left: {:?}\n next_left: {:?}\n delta_left: {:?}\n\n right: {:?}\n next_right: {:?}\n delta_right:{:?}\n\n out: {:?}\n next_out: {:?}\n delta_out: {:?}\n\n",

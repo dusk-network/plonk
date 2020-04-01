@@ -179,7 +179,7 @@ fn compute_circuit_satisfiability(
         d_eval,
         &d_next_eval,
     );
-    let c = preprocessed_circuit.logic.compute_linearisation(
+    /*let c = preprocessed_circuit.logic.compute_linearisation(
         a_eval,
         b_eval,
         c_eval,
@@ -189,6 +189,6 @@ fn compute_circuit_satisfiability(
         d_next_eval,
         q_c_eval,
         q_logic_eval,
-    );
-    &(&a + &b) + &c
+    );*/
+    (&a + &b) /*+ &c*/
 }

@@ -98,11 +98,11 @@ fn compute_circuit_satisfiability_equation(
                 .range
                 .compute_quotient_i(i, wl, wr, wo, w4, w4_next);
 
-            let c = preprocessed_circuit
-                .logic
-                .compute_quotient_i(i, &wl, &wl_next, &wr, &wr_next, &wo, &w4, &w4_next);
+            /*let c = preprocessed_circuit
+            .logic
+            .compute_quotient_i(i, &wl, &wl_next, &wr, &wr_next, &wo, &w4, &w4_next);*/
 
-            a + b + c + pi
+            a + b /*+ c*/ + pi
         })
         .collect();
     t

@@ -208,8 +208,7 @@ impl Proof {
         shifted_aggregate_proof.add_part((self.evaluations.perm_eval, self.z_comm));
         // XXX: Shouldn't theese be added??
         /*shifted_aggregate_proof.add_part((self.evaluations.a_next_eval, self.a_comm));
-        shifted_aggregate_proof.add_part((self.evaluations.b_next_eval, self.b_comm));
-        shifted_aggregate_proof.add_part((self.evaluations.c_next_eval, self.c_comm));*/
+        shifted_aggregate_proof.add_part((self.evaluations.b_next_eval, self.b_comm));*/
         shifted_aggregate_proof.add_part((self.evaluations.d_next_eval, self.d_comm));
         let flattened_proof_b = shifted_aggregate_proof.flatten(transcript);
 
@@ -307,11 +306,11 @@ impl Proof {
             &self.evaluations,
         );
 
-        preprocessed_circuit.logic.compute_linearisation_commitment(
+        /*preprocessed_circuit.logic.compute_linearisation_commitment(
             &mut scalars,
             &mut points,
             &self.evaluations,
-        );
+        );*/
 
         preprocessed_circuit
             .permutation
