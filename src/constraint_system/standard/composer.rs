@@ -2,6 +2,9 @@ use super::linearisation_poly;
 use super::quotient_poly;
 use super::{proof::Proof, Composer, PreProcessedCircuit};
 use crate::commitment_scheme::kzg10::ProverKey;
+use crate::constraint_system::widget::{
+    ArithmeticWidget, LogicWidget, PermutationWidget, RangeWidget,
+};
 use crate::constraint_system::Variable;
 use crate::fft::{EvaluationDomain, Evaluations, Polynomial};
 use crate::permutation::Permutation;
@@ -9,6 +12,7 @@ use crate::transcript::TranscriptProtocol;
 use bls12_381::Scalar;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use std::collections::HashMap;
+
 /// A composer is a circuit builder
 /// and will dictate how a circuit is built
 /// We will have a default Composer called `StandardComposer`
@@ -118,6 +122,28 @@ impl Composer for StandardComposer {
         let (left_sigma_poly, right_sigma_poly, out_sigma_poly, fourth_sigma_poly) =
             self.perm.compute_sigma_polynomials(self.n, domain);
 
+        // 3a. Compute 4n evaluations of sigma polynomials and the linear polynomial
+        let left_sigma_eval_4n = Evaluations::from_vec_and_domain(
+            domain_4n.coset_fft(&left_sigma_poly.coeffs),
+            domain_4n,
+        );
+        let right_sigma_eval_4n = Evaluations::from_vec_and_domain(
+            domain_4n.coset_fft(&right_sigma_poly.coeffs),
+            domain_4n,
+        );
+        let out_sigma_eval_4n = Evaluations::from_vec_and_domain(
+            domain_4n.coset_fft(&out_sigma_poly.coeffs),
+            domain_4n,
+        );
+        let fourth_sigma_eval_4n = Evaluations::from_vec_and_domain(
+            domain_4n.coset_fft(&fourth_sigma_poly.coeffs),
+            domain_4n,
+        );
+        let linear_eval_4n = Evaluations::from_vec_and_domain(
+            domain_4n.coset_fft(&[Scalar::zero(), Scalar::one()]),
+            domain_4n,
+        );
+
         // 4. Commit to polynomials
         //
         let q_m_poly_commit = commit_key.commit(&q_m_poly).unwrap();
@@ -154,23 +180,56 @@ impl Composer for StandardComposer {
 
         // Append circuit size to transcript
         transcript.circuit_domain_sep(self.circuit_size() as u64);
+
+        let arithmetic_widget = ArithmeticWidget::new((
+            (q_m_poly, q_m_poly_commit, Some(q_m_eval_4n)),
+            (q_l_poly, q_l_poly_commit, Some(q_l_eval_4n)),
+            (q_r_poly, q_r_poly_commit, Some(q_r_eval_4n)),
+            (q_o_poly, q_o_poly_commit, Some(q_o_eval_4n)),
+            // XXX: Should try to remove the clones
+            (q_c_poly.clone(), q_c_poly_commit, Some(q_c_eval_4n.clone())),
+            (q_4_poly, q_4_poly_commit, Some(q_4_eval_4n)),
+            (q_arith_poly, q_arith_poly_commit, Some(q_arith_eval_4n)),
+        ));
+
+        let range_widget =
+            RangeWidget::new((q_range_poly, q_range_poly_commit, Some(q_range_eval_4n)));
+
+        let logic_widget = LogicWidget::new(
+            (q_c_poly, q_c_poly_commit, Some(q_c_eval_4n)),
+            (q_logic_poly, q_logic_poly_commit, Some(q_logic_eval_4n)),
+        );
+
+        let perm_widget = PermutationWidget::new(
+            (
+                left_sigma_poly,
+                left_sigma_poly_commit,
+                Some(left_sigma_eval_4n),
+            ),
+            (
+                right_sigma_poly,
+                right_sigma_poly_commit,
+                Some(right_sigma_eval_4n),
+            ),
+            (
+                out_sigma_poly,
+                out_sigma_poly_commit,
+                Some(out_sigma_eval_4n),
+            ),
+            (
+                fourth_sigma_poly,
+                fourth_sigma_poly_commit,
+                Some(fourth_sigma_eval_4n),
+            ),
+            linear_eval_4n,
+        );
+
         PreProcessedCircuit {
             n: self.n,
-            selectors: vec![
-                (q_m_poly, q_m_poly_commit, q_m_eval_4n),
-                (q_l_poly, q_l_poly_commit, q_l_eval_4n),
-                (q_r_poly, q_r_poly_commit, q_r_eval_4n),
-                (q_o_poly, q_o_poly_commit, q_o_eval_4n),
-                (q_c_poly, q_c_poly_commit, q_c_eval_4n),
-                (q_4_poly, q_4_poly_commit, q_4_eval_4n),
-                (q_arith_poly, q_arith_poly_commit, q_arith_eval_4n),
-                (q_range_poly, q_range_poly_commit, q_range_eval_4n),
-                (q_logic_poly, q_logic_poly_commit, q_logic_eval_4n),
-            ],
-            left_sigma: (left_sigma_poly, left_sigma_poly_commit),
-            right_sigma: (right_sigma_poly, right_sigma_poly_commit),
-            out_sigma: (out_sigma_poly, out_sigma_poly_commit),
-            fourth_sigma: (fourth_sigma_poly, fourth_sigma_poly_commit),
+            arithmetic: arithmetic_widget,
+            range: range_widget,
+            logic: logic_widget,
+            permutation: perm_widget,
             // Compute 4n evaluations for X^n -1
             v_h_coset_4n: domain_4n.compute_vanishing_poly_over_coset(domain.size() as u64),
         }
@@ -250,7 +309,7 @@ impl Composer for StandardComposer {
             &domain,
             &preprocessed_circuit,
             &z_poly,
-            [&w_l_poly, &w_r_poly, &w_o_poly, &w_4_poly],
+            (&w_l_poly, &w_r_poly, &w_o_poly, &w_4_poly),
             &pi_poly,
             &(alpha, beta, gamma),
         );
@@ -294,7 +353,6 @@ impl Composer for StandardComposer {
         transcript.append_scalar(b"d_eval", &evaluations.proof.d_eval);
         transcript.append_scalar(b"a_next_eval", &evaluations.proof.a_next_eval);
         transcript.append_scalar(b"b_next_eval", &evaluations.proof.b_next_eval);
-        transcript.append_scalar(b"c_next_eval", &evaluations.proof.c_next_eval);
         transcript.append_scalar(b"d_next_eval", &evaluations.proof.d_next_eval);
         transcript.append_scalar(b"left_sig_eval", &evaluations.proof.left_sigma_eval);
         transcript.append_scalar(b"right_sig_eval", &evaluations.proof.right_sigma_eval);
@@ -327,9 +385,21 @@ impl Composer for StandardComposer {
                 w_r_poly,
                 w_o_poly,
                 w_4_poly.clone(),
-                preprocessed_circuit.left_sigma_poly().clone(),
-                preprocessed_circuit.right_sigma_poly().clone(),
-                preprocessed_circuit.out_sigma_poly().clone(),
+                preprocessed_circuit
+                    .permutation
+                    .left_sigma
+                    .polynomial
+                    .clone(),
+                preprocessed_circuit
+                    .permutation
+                    .right_sigma
+                    .polynomial
+                    .clone(),
+                preprocessed_circuit
+                    .permutation
+                    .out_sigma
+                    .polynomial
+                    .clone(),
             ],
             &z_challenge,
             transcript,

@@ -57,7 +57,6 @@ impl Proof {
                 d_eval: Scalar::zero(),
                 a_next_eval: Scalar::zero(),
                 b_next_eval: Scalar::zero(),
-                c_next_eval: Scalar::zero(),
                 d_next_eval: Scalar::zero(),
                 q_arith_eval: Scalar::zero(),
                 q_c_eval: Scalar::zero(),
@@ -154,7 +153,6 @@ impl Proof {
         transcript.append_scalar(b"d_eval", &self.evaluations.d_eval);
         transcript.append_scalar(b"a_next_eval", &self.evaluations.a_next_eval);
         transcript.append_scalar(b"b_next_eval", &self.evaluations.b_next_eval);
-        transcript.append_scalar(b"c_next_eval", &self.evaluations.c_next_eval);
         transcript.append_scalar(b"d_next_eval", &self.evaluations.d_next_eval);
         transcript.append_scalar(b"left_sig_eval", &self.evaluations.left_sigma_eval);
         transcript.append_scalar(b"right_sig_eval", &self.evaluations.right_sigma_eval);
@@ -192,15 +190,15 @@ impl Proof {
         aggregate_proof.add_part((self.evaluations.d_eval, self.d_comm));
         aggregate_proof.add_part((
             self.evaluations.left_sigma_eval,
-            *preprocessed_circuit.left_sigma_comm(),
+            preprocessed_circuit.permutation.left_sigma.commitment,
         ));
         aggregate_proof.add_part((
             self.evaluations.right_sigma_eval,
-            *preprocessed_circuit.right_sigma_comm(),
+            preprocessed_circuit.permutation.right_sigma.commitment,
         ));
         aggregate_proof.add_part((
             self.evaluations.out_sigma_eval,
-            *preprocessed_circuit.out_sigma_comm(),
+            preprocessed_circuit.permutation.out_sigma.commitment,
         ));
         // Flatten proof with opening challenge
         let flattened_proof_a = aggregate_proof.flatten(transcript);
@@ -247,8 +245,8 @@ impl Proof {
 
         let alpha_sq = alpha.square();
 
-        // r +( PI(z) *  q_arith(z))
-        let a = self.evaluations.lin_poly_eval + (pi_eval * self.evaluations.q_arith_eval);
+        // r + PI(z)
+        let a = self.evaluations.lin_poly_eval + pi_eval;
 
         // a + beta * sigma_1 + gamma
         let beta_sig1 = beta * self.evaluations.left_sigma_eval;
@@ -299,208 +297,33 @@ impl Proof {
         let mut scalars: Vec<_> = Vec::with_capacity(6);
         let mut points: Vec<G1Affine> = Vec::with_capacity(6);
 
-        // Computes f(f-1)(f-2)(f-3)
-        let delta = |f: Scalar| -> Scalar {
-            let f_1 = f - Scalar::one();
-            let f_2 = f - Scalar::from(2);
-            let f_3 = f - Scalar::from(3);
-            f * f_1 * f_2 * f_3
-        };
+        preprocessed_circuit
+            .arithmetic
+            .compute_linearisation_commitment(&mut scalars, &mut points, &self.evaluations);
 
-        let alpha_sq = alpha * alpha;
+        preprocessed_circuit.range.compute_linearisation_commitment(
+            &mut scalars,
+            &mut points,
+            &self.evaluations,
+        );
 
-        scalars.push(self.evaluations.a_eval * self.evaluations.b_eval);
-        points.push(preprocessed_circuit.qm_comm().0);
+        preprocessed_circuit.logic.compute_linearisation_commitment(
+            &mut scalars,
+            &mut points,
+            &self.evaluations,
+        );
 
-        scalars.push(self.evaluations.a_eval);
-        points.push(preprocessed_circuit.ql_comm().0);
-
-        scalars.push(self.evaluations.b_eval);
-        points.push(preprocessed_circuit.qr_comm().0);
-
-        scalars.push(self.evaluations.c_eval);
-        points.push(preprocessed_circuit.qo_comm().0);
-
-        scalars.push(self.evaluations.d_eval);
-        points.push(preprocessed_circuit.q4_comm().0);
-
-        scalars.push(Scalar::one());
-        points.push(preprocessed_circuit.qc_comm().0);
-        // Multiply all terms by q_arith
-        scalars = scalars
-            .iter()
-            .map(|s| s * self.evaluations.q_arith_eval)
-            .collect();
-
-        let four = Scalar::from(4);
-
-        let b_1 = delta(self.evaluations.c_eval - (four * self.evaluations.d_eval));
-        let b_2 = delta(self.evaluations.b_eval - four * self.evaluations.c_eval);
-        let b_3 = delta(self.evaluations.a_eval - four * self.evaluations.b_eval);
-        let b_4 = delta(self.evaluations.d_next_eval - (four * self.evaluations.a_eval));
-
-        scalars.push(b_1 + b_2 + b_3 + b_4);
-        points.push(preprocessed_circuit.qrange_comm().0);
-
-        let c_0 =
-            (self.evaluations.a_next_eval - self.evaluations.b_next_eval) * self.evaluations.c_eval;
-        let c_1 = delta(self.evaluations.a_next_eval - four * self.evaluations.a_eval);
-        let c_2 = delta(self.evaluations.b_next_eval - four * self.evaluations.b_eval);
-        let c_3 = delta(self.evaluations.d_next_eval - four * self.evaluations.d_eval);
-        let c_4 = {
-            let six = Scalar::from(6u64);
-            let eighty_one = Scalar::from(81u64);
-            let eighty_three = Scalar::from(83u64);
-            let mut delta_sum = Scalar::zero();
-            let mut delta_sq_sum = Scalar::zero();
-            let mut T0 = Scalar::zero();
-            let mut T1 = Scalar::zero();
-            let mut T2 = Scalar::zero();
-            let mut T3 = Scalar::zero();
-            let mut T4 = Scalar::zero();
-            let mut identity = Scalar::zero();
-            // T0 = a
-            T0 = self.evaluations.a_eval.double();
-            T0 = T0.double();
-            T0 = self.evaluations.a_next_eval - T0;
-            // T1 = b
-            T1 = self.evaluations.b_eval.double();
-            T1 = T1.double();
-            T1 = self.evaluations.b_next_eval - T1;
-            // delta_sum = a + b
-            delta_sum = T0 + T1;
-            // T2 = a^2
-            T2 = T0 * T0;
-            // T3 = b^2
-            T3 = T1 * T1;
-            delta_sq_sum = T2 + T3;
-            // identity = a^2 + b^2 + 2ab
-            identity = delta_sum * delta_sum;
-            // identity = 2ab
-            identity -= delta_sq_sum;
-            // identity = 2(ab - w)
-            T4 = self.evaluations.c_eval.double();
-            identity -= T4;
-            // identity *= alpha; XXX: What happens with alphas now?
-            // T4 = 4w
-            T4 += T4;
-            // T2 = a^2 - a
-            T2 -= T0;
-            // T0 = a^2 - 5a + 6
-            T0 += T0;
-            T0 += T0;
-            T0 = T2 - T0;
-            T0 += six;
-            // identity = (identity + a(a - 1)(a - 2)(a - 3)) * alpha
-            T0 *= T2;
-            identity += T0;
-            // identity *= alpha; XXX: What happens with alphas now?
-            // T3 = b^2 - b
-            T3 -= T1;
-            // T1 = b^2 - 5b + 6
-            T1 += T1;
-            T1 += T1;
-            T1 = T3 - T1;
-            T1 += six;
-            // identity = (identity + b(b - 1)(b - 2)(b - 3)) * alpha
-            T1 *= T3;
-            identity += T1;
-            // identity *= alpha; XXX: What happens with alphas now?
-            // T0 = 3(a + b)
-            T0 = delta_sum + delta_sum;
-            T0 += delta_sum;
-            // T1 = 9(a + b)
-            T1 = T0 + T0;
-            T1 += T0;
-            // delta_sum = 18(a + b)
-            delta_sum = T1 + T1;
-            // T1 = 81(a + b)
-            T2 = delta_sum + delta_sum;
-            T2 += T2;
-            T1 += T2;
-            // delta_squared_sum = 18(a^2 + b^2)
-            T2 = delta_sq_sum + delta_sq_sum;
-            T2 += delta_sq_sum;
-            delta_sq_sum = T2 + T2;
-            delta_sq_sum += T2;
-            delta_sq_sum += delta_sq_sum;
-            // delta_sum = w(4w - 18(a + b) + 81)
-            delta_sum = T4 - delta_sum;
-            delta_sum += eighty_one;
-            delta_sum *= self.evaluations.c_eval;
-            // T1 = 18(a^2 + b^2) - 81(a + b) + 83
-            T1 = delta_sq_sum - T1;
-            T1 += eighty_three;
-            // delta_sum = w ( w ( 4w - 18(a + b) + 81) + 18(a^2 + b^2) - 81(a + b) + 83)
-            delta_sum += T1;
-            delta_sum *= self.evaluations.c_eval;
-            // T2 = 3c
-            T2 = self.evaluations.d_eval.double();
-            T2 += T2;
-            T2 = self.evaluations.d_next_eval - T2;
-            T3 = T2 + T2;
-            T2 += T3;
-            // T3 = 9c
-            T3 = T2 + T2;
-            T3 += T2;
-            // T3 = q_c * (9c - 3(a + b))
-            T3 -= T0;
-            T3 *= self.evaluations.q_c_eval;
-            // T2 = 3c + 3(a + b) - 2 * delta_sum
-            T2 += T0;
-            delta_sum += delta_sum;
-            T2 -= delta_sum;
-            // T2 = T2 + T3
-            T2 += T3;
-            // identity = q_logic * alpha_base * (identity + T2)
-            identity += T2;
-            // identity *= alpha_base;
-            identity *= self.evaluations.q_logic_eval;
-            identity
-        };
-        scalars.push(c_0 + c_1 + c_2 + c_3 + c_4);
-        points.push(preprocessed_circuit.qlogic_comm().0);
-
-        // (a_eval + beta * z + gamma)(b_eval + beta * z * k1 + gamma)(c_eval + beta * k2* z + gamma)(d_eval + beta * k3* z + gamma) * alpha^2
-        let x = {
-            let beta_z = beta * z_challenge;
-            let q_0 = self.evaluations.a_eval + beta_z + gamma;
-
-            let beta_k1_z = beta * K1 * z_challenge;
-            let q_1 = self.evaluations.b_eval + beta_k1_z + gamma;
-
-            let beta_k2_z = beta * K2 * z_challenge;
-            let q_2 = self.evaluations.c_eval + beta_k2_z + gamma;
-
-            let beta_k3_z = beta * K3 * z_challenge;
-            let q_3 = (self.evaluations.d_eval + beta_k3_z + gamma) * alpha;
-
-            q_0 * q_1 * q_2 * q_3
-        };
-
-        // l1(z) * alpha^2
-        let r = l1_eval * alpha_sq;
-
-        scalars.push(x + r);
-        points.push(self.z_comm.0);
-
-        // -(a_eval + beta * sigma_1_eval + gamma)(b_eval + beta * sigma_2_eval + gamma)(c_eval + beta * sigma_3_eval + gamma) *alpha^2
-        let y = {
-            let beta_sigma_1 = beta * self.evaluations.left_sigma_eval;
-            let q_0 = self.evaluations.a_eval + beta_sigma_1 + gamma;
-
-            let beta_sigma_2 = beta * self.evaluations.right_sigma_eval;
-            let q_1 = self.evaluations.b_eval + beta_sigma_2 + gamma;
-
-            let beta_sigma_3 = beta * self.evaluations.out_sigma_eval;
-            let q_2 = self.evaluations.c_eval + beta_sigma_3 + gamma;
-
-            let q_3 = beta * self.evaluations.perm_eval * alpha;
-
-            -(q_0 * q_1 * q_2 * q_3)
-        };
-        scalars.push(y);
-        points.push(preprocessed_circuit.fourth_sigma_comm().0);
+        preprocessed_circuit
+            .permutation
+            .compute_linearisation_commitment(
+                &mut scalars,
+                &mut points,
+                &self.evaluations,
+                z_challenge,
+                (alpha, beta, gamma),
+                &l1_eval,
+                self.z_comm.0,
+            );
 
         Commitment::from_projective(msm_variable_base(&points, &scalars))
     }

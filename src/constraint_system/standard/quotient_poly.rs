@@ -1,10 +1,7 @@
 /// This quotient polynomial can only be used for the standard composer
 /// Each composer will need to implement their own method for computing the quotient polynomial
 use crate::constraint_system::standard::PreProcessedCircuit;
-
-use crate::fft::Evaluations;
 use crate::fft::{EvaluationDomain, Polynomial};
-use crate::permutation::grand_product_quotient;
 use bls12_381::Scalar;
 use rayon::prelude::*;
 
@@ -13,15 +10,10 @@ pub(crate) fn compute(
     domain: &EvaluationDomain,
     preprocessed_circuit: &PreProcessedCircuit,
     z_poly: &Polynomial,
-    witness_polynomials: [&Polynomial; 4],
+    (w_l_poly, w_r_poly, w_o_poly, w_4_poly): (&Polynomial, &Polynomial, &Polynomial, &Polynomial),
     public_inputs_poly: &Polynomial,
     (alpha, beta, gamma): &(Scalar, Scalar, Scalar),
 ) -> Polynomial {
-    let w_l_poly = witness_polynomials[0];
-    let w_r_poly = witness_polynomials[1];
-    let w_o_poly = witness_polynomials[2];
-    let w_4_poly = witness_polynomials[3];
-
     // Compute 4n eval of z(X)
     let domain_4n = EvaluationDomain::new(4 * domain.size()).unwrap();
     let mut z_eval_4n = domain_4n.coset_fft(&z_poly);
@@ -30,51 +22,45 @@ pub(crate) fn compute(
     z_eval_4n.push(z_eval_4n[2]);
     z_eval_4n.push(z_eval_4n[3]);
 
+    // Compute 4n evaluations of the wire polynomials
+    let mut wl_eval_4n = domain_4n.coset_fft(&w_l_poly);
+    wl_eval_4n.push(wl_eval_4n[0]);
+    wl_eval_4n.push(wl_eval_4n[1]);
+    wl_eval_4n.push(wl_eval_4n[2]);
+    wl_eval_4n.push(wl_eval_4n[3]);
+    let mut wr_eval_4n = domain_4n.coset_fft(&w_r_poly);
+    wr_eval_4n.push(wr_eval_4n[0]);
+    wr_eval_4n.push(wr_eval_4n[1]);
+    wr_eval_4n.push(wr_eval_4n[2]);
+    wr_eval_4n.push(wr_eval_4n[3]);
+    let wo_eval_4n = domain_4n.coset_fft(&w_o_poly);
+    let mut w4_eval_4n = domain_4n.coset_fft(&w_4_poly);
+    w4_eval_4n.push(w4_eval_4n[0]);
+    w4_eval_4n.push(w4_eval_4n[1]);
+    w4_eval_4n.push(w4_eval_4n[2]);
+    w4_eval_4n.push(w4_eval_4n[3]);
+
     let t_1 = compute_circuit_satisfiability_equation(
         domain,
-        preprocessed_circuit.qm_eval_4n(),
-        preprocessed_circuit.ql_eval_4n(),
-        preprocessed_circuit.qr_eval_4n(),
-        preprocessed_circuit.qo_eval_4n(),
-        preprocessed_circuit.qc_eval_4n(),
-        preprocessed_circuit.q4_eval_4n(),
-        preprocessed_circuit.qarith_eval_4n(),
-        preprocessed_circuit.qrange_eval_4n(),
-        preprocessed_circuit.qlogic_eval_4n(),
+        preprocessed_circuit,
+        (&wl_eval_4n, &wr_eval_4n, &wo_eval_4n, &w4_eval_4n),
         public_inputs_poly,
-        w_l_poly,
-        w_r_poly,
-        w_o_poly,
-        w_4_poly,
     );
 
-    let t_2 = grand_product_quotient::compute_identity_polynomial(
-        domain, &alpha, beta, gamma, &z_eval_4n, &w_l_poly, &w_r_poly, &w_o_poly, &w_4_poly,
-    );
-    let t_3 = grand_product_quotient::compute_copy_polynomial(
+    let t_2 = compute_permutation_checks(
         domain,
-        &alpha,
-        beta,
-        gamma,
+        preprocessed_circuit,
+        (&wl_eval_4n, &wr_eval_4n, &wo_eval_4n, &w4_eval_4n),
         &z_eval_4n,
-        &w_l_poly,
-        &w_r_poly,
-        &w_o_poly,
-        &w_4_poly,
-        preprocessed_circuit.left_sigma_poly(),
-        preprocessed_circuit.right_sigma_poly(),
-        preprocessed_circuit.out_sigma_poly(),
-        preprocessed_circuit.fourth_sigma_poly(),
+        (alpha, beta, gamma),
     );
-
-    let t_4 = grand_product_quotient::compute_is_one_polynomial(domain, z_poly, alpha.square());
 
     let quotient: Vec<_> = (0..domain_4n.size())
         .into_par_iter()
         .map(|i| {
-            let numerator = t_2[i] + t_3[i] + t_4[i];
+            let numerator = t_1[i] + t_2[i];
             let denominator = preprocessed_circuit.v_h_coset_4n()[i];
-            t_1[i] + (numerator * denominator.invert().unwrap())
+            numerator * denominator.invert().unwrap()
         })
         .collect();
 
@@ -84,57 +70,15 @@ pub(crate) fn compute(
 // Ensures that the circuit is satisfied
 fn compute_circuit_satisfiability_equation(
     domain: &EvaluationDomain,
-    qm_eval_4n: &Evaluations,
-    ql_eval_4n: &Evaluations,
-    qr_eval_4n: &Evaluations,
-    qo_eval_4n: &Evaluations,
-    qc_eval_4n: &Evaluations,
-    q4_eval_4n: &Evaluations,
-    qarith_eval_4n: &Evaluations,
-    qrange_eval_4n: &Evaluations,
-    qlogic_eval_4n: &Evaluations,
+    preprocessed_circuit: &PreProcessedCircuit,
+    (wl_eval_4n, wr_eval_4n, wo_eval_4n, w4_eval_4n): (&[Scalar], &[Scalar], &[Scalar], &[Scalar]),
     pi_poly: &Polynomial,
-    wl_poly: &Polynomial,
-    wr_poly: &Polynomial,
-    wo_poly: &Polynomial,
-    w4_poly: &Polynomial,
-) -> Evaluations {
+) -> Vec<Scalar> {
     let domain_4n = EvaluationDomain::new(4 * domain.size()).unwrap();
 
-    // Computes f(f-1)(f-2)(f-3)
-    let delta = |f: Scalar| -> Scalar {
-        let f_1 = f - Scalar::one();
-        let f_2 = f - Scalar::from(2);
-        let f_3 = f - Scalar::from(3);
-        f * f_1 * f_2 * f_3
-    };
-    let four = Scalar::from(4);
-
     let pi_eval_4n = domain_4n.coset_fft(pi_poly);
-    let mut wl_eval_4n = domain_4n.coset_fft(&wl_poly);
-    wl_eval_4n.push(wl_eval_4n[0]);
-    wl_eval_4n.push(wl_eval_4n[1]);
-    wl_eval_4n.push(wl_eval_4n[2]);
-    wl_eval_4n.push(wl_eval_4n[3]);
-    let mut wr_eval_4n = domain_4n.coset_fft(&wr_poly);
-    wr_eval_4n.push(wr_eval_4n[0]);
-    wr_eval_4n.push(wr_eval_4n[1]);
-    wr_eval_4n.push(wr_eval_4n[2]);
-    wr_eval_4n.push(wr_eval_4n[3]);
-    let mut wo_eval_4n = domain_4n.coset_fft(&wo_poly);
-    wo_eval_4n.push(wo_eval_4n[0]);
-    wo_eval_4n.push(wo_eval_4n[1]);
-    wo_eval_4n.push(wo_eval_4n[2]);
-    wo_eval_4n.push(wo_eval_4n[3]);
-    let mut w4_eval_4n = domain_4n.coset_fft(&w4_poly);
-    w4_eval_4n.push(w4_eval_4n[0]);
-    w4_eval_4n.push(w4_eval_4n[1]);
-    w4_eval_4n.push(w4_eval_4n[2]);
-    w4_eval_4n.push(w4_eval_4n[3]);
 
-    let v_h = domain_4n.compute_vanishing_poly_over_coset(domain.size() as u64);
-
-    let t_1: Vec<_> = (0..domain_4n.size())
+    let t: Vec<_> = (0..domain_4n.size())
         .into_par_iter()
         .map(|i| {
             let wl = &wl_eval_4n[i];
@@ -143,185 +87,62 @@ fn compute_circuit_satisfiability_equation(
             let w4 = &w4_eval_4n[i];
             let wl_next = &wl_eval_4n[i + 4];
             let wr_next = &wr_eval_4n[i + 4];
-            let wo_next = &wo_eval_4n[i + 4];
             let w4_next = &w4_eval_4n[i + 4];
-            let qm = &qm_eval_4n[i];
-            let ql = &ql_eval_4n[i];
-            let qr = &qr_eval_4n[i];
-            let qo = &qo_eval_4n[i];
-            let q4 = &q4_eval_4n[i];
-            let qc = &qc_eval_4n[i];
             let pi = &pi_eval_4n[i];
-            let qarith = &qarith_eval_4n[i];
-            let qrange = &qrange_eval_4n[i];
-            let qlogic = &qlogic_eval_4n[i];
-            let v_h_i = v_h[i].invert().unwrap();
-            // (a(x)b(x)q_M(x) + a(x)q_L(x) + b(X)q_R(x) + c(X)q_O(X) + d(x)q_4(X) + PI(X) + Q_C(X)) * Q_Arith(X)
-            //
-            let a_1 = wl * wr * qm;
-            let a_2 = wl * ql;
-            let a_3 = wr * qr;
-            let a_4 = wo * qo;
-            let a_5 = w4 * q4;
-            let a_6 = qc + pi;
-            let a = (a_1 + a_2 + a_3 + a_4 + a_5 + a_6) * qarith;
 
-            // Delta([c(X) - 4 * d(X)]) + Delta([b(X) - 4 * c(X)]) + Delta([a(X) - 4 * b(X)]) + Delta([d(Xg) - 4 * a(X)]) * Q_Range(X)
-            //
-            let b_1 = delta(wo - four * w4);
-            let b_2 = delta(wr - four * wo);
-            let b_3 = delta(wl - four * wr);
-            let b_4 = delta(w4_next - four * wl);
-            let b = (b_1 + b_2 + b_3 + b_4) * qrange;
+            let a = preprocessed_circuit
+                .arithmetic
+                .compute_quotient_i(i, wl, wr, wo, w4);
 
-            let c_0 = (wl_next - wr_next) * wo;
-            let c_1 = delta(wl_next - four * wl);
-            let c_2 = delta(wr_next - four * wr);
-            let c_3 = delta(w4_next - four * w4);
-            let c_4 = {
-                let six = Scalar::from(6u64);
-                let eighty_one = Scalar::from(81u64);
-                let eighty_three = Scalar::from(83u64);
-                let mut delta_sum = Scalar::zero();
-                let mut delta_sq_sum = Scalar::zero();
-                let mut T0 = Scalar::zero();
-                let mut T1 = Scalar::zero();
-                let mut T2 = Scalar::zero();
-                let mut T3 = Scalar::zero();
-                let mut T4 = Scalar::zero();
-                let mut identity = Scalar::zero();
+            let b = preprocessed_circuit
+                .range
+                .compute_quotient_i(i, wl, wr, wo, w4, w4_next);
 
-                // T0 = a
-                T0 = wl.double();
-                T0 = T0.double();
-                T0 = wl_next - T0;
+            let c = preprocessed_circuit
+                .logic
+                .compute_quotient_i(i, &wl, &wl_next, &wr, &wr_next, &wo, &w4, &w4_next);
 
-                // T1 = b
-                T1 = wr.double();
-                T1 = T1.double();
-                T1 = wr_next - T1;
-
-                // delta_sum = a + b
-                delta_sum = T0 + T1;
-
-                // T2 = a^2
-                T2 = T0 * T0;
-                // T3 = b^2
-                T3 = T1 * T1;
-
-                delta_sq_sum = T2 + T3;
-                // identity = a^2 + b^2 + 2ab
-                identity = delta_sum * delta_sum;
-                // identity = 2ab
-                identity -= delta_sq_sum;
-
-                // identity = 2(ab - w)
-                T4 = wo.double();
-                identity -= T4;
-                // identity *= alpha; XXX: What happens with alphas now?
-
-                // T4 = 4w
-                T4 += T4;
-
-                // T2 = a^2 - a
-                T2 -= T0;
-
-                // T0 = a^2 - 5a + 6
-                T0 += T0;
-                T0 += T0;
-                T0 = T2 - T0;
-                T0 += six;
-
-                // identity = (identity + a(a - 1)(a - 2)(a - 3)) * alpha
-                T0 *= T2;
-                identity += T0;
-                // identity *= alpha; XXX: What happens with alphas now?
-
-                // T3 = b^2 - b
-                T3 -= T1;
-
-                // T1 = b^2 - 5b + 6
-                T1 += T1;
-                T1 += T1;
-                T1 = T3 - T1;
-                T1 += six;
-
-                // identity = (identity + b(b - 1)(b - 2)(b - 3)) * alpha
-                T1 *= T3;
-                identity += T1;
-                // identity *= alpha; XXX: What happens with alphas now?
-
-                // T0 = 3(a + b)
-                T0 = delta_sum + delta_sum;
-                T0 += delta_sum;
-
-                // T1 = 9(a + b)
-                T1 = T0 + T0;
-                T1 += T0;
-
-                // delta_sum = 18(a + b)
-                delta_sum = T1 + T1;
-
-                // T1 = 81(a + b)
-                T2 = delta_sum + delta_sum;
-                T2 += T2;
-                T1 += T2;
-
-                // delta_squared_sum = 18(a^2 + b^2)
-                T2 = delta_sq_sum + delta_sq_sum;
-                T2 += delta_sq_sum;
-                delta_sq_sum = T2 + T2;
-                delta_sq_sum += T2;
-                delta_sq_sum += delta_sq_sum;
-
-                // delta_sum = w(4w - 18(a + b) + 81)
-                delta_sum = T4 - delta_sum;
-                delta_sum += eighty_one;
-                delta_sum *= wo;
-
-                // T1 = 18(a^2 + b^2) - 81(a + b) + 83
-                T1 = delta_sq_sum - T1;
-                T1 += eighty_three;
-
-                // delta_sum = w ( w ( 4w - 18(a + b) + 81) + 18(a^2 + b^2) - 81(a + b) + 83)
-                delta_sum += T1;
-                delta_sum *= wo;
-
-                // T2 = 3c
-                T2 = w4.double();
-                T2 += T2;
-                T2 = w4_next - T2;
-                T3 = T2 + T2;
-                T2 += T3;
-
-                // T3 = 9c
-                T3 = T2 + T2;
-                T3 += T2;
-
-                // T3 = q_c * (9c - 3(a + b))
-                T3 -= T0;
-                T3 *= qc;
-
-                // T2 = 3c + 3(a + b) - 2 * delta_sum
-                T2 += T0;
-                delta_sum += delta_sum;
-                T2 -= delta_sum;
-
-                // T2 = T2 + T3
-                T2 += T3;
-
-                // identity = q_logic * alpha_base * (identity + T2)
-                identity += T2;
-                // identity *= alpha_base;
-                identity *= qlogic;
-
-                identity
-            };
-
-            let c = qlogic * (c_0 + c_1 + c_2 + c_3 + c_4);
-
-            (a + b + c) * v_h_i
+            a + b + c + pi
         })
         .collect();
-    Evaluations::from_vec_and_domain(t_1, domain_4n)
+    t
+}
+
+fn compute_permutation_checks(
+    domain: &EvaluationDomain,
+    preprocessed_circuit: &PreProcessedCircuit,
+    (wl_eval_4n, wr_eval_4n, wo_eval_4n, w4_eval_4n): (&[Scalar], &[Scalar], &[Scalar], &[Scalar]),
+    z_eval_4n: &[Scalar],
+    (alpha, beta, gamma): (&Scalar, &Scalar, &Scalar),
+) -> Vec<Scalar> {
+    let domain_4n = EvaluationDomain::new(4 * domain.size()).unwrap();
+
+    let l1_poly_alpha = compute_first_lagrange_poly_scaled(domain, alpha.square());
+    let l1_alpha_sq_evals = domain_4n.coset_fft(&l1_poly_alpha.coeffs);
+
+    let t: Vec<_> = (0..domain_4n.size())
+        .into_par_iter()
+        .map(|i| {
+            preprocessed_circuit.permutation.compute_quotient_i(
+                i,
+                &wl_eval_4n[i],
+                &wr_eval_4n[i],
+                &wo_eval_4n[i],
+                &w4_eval_4n[i],
+                &z_eval_4n[i],
+                &z_eval_4n[i + 4],
+                &alpha,
+                &l1_alpha_sq_evals[i],
+                &beta,
+                &gamma,
+            )
+        })
+        .collect();
+    t
+}
+fn compute_first_lagrange_poly_scaled(domain: &EvaluationDomain, scale: Scalar) -> Polynomial {
+    let mut x_evals = vec![Scalar::zero(); domain.size()];
+    x_evals[0] = scale;
+    domain.ifft_in_place(&mut x_evals);
+    Polynomial::from_coefficients_vec(x_evals)
 }
