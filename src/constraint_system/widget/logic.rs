@@ -29,6 +29,7 @@ impl LogicWidget {
         w_r_i: &Scalar,
         w_r_i_next: &Scalar,
         w_o_i: &Scalar,
+        w_o_i_next: &Scalar,
         w_4_i: &Scalar,
         w_4_i_next: &Scalar,
         alpha: &Scalar,
@@ -42,7 +43,7 @@ impl LogicWidget {
         let c_1 = delta(w_l_i_next - four * w_l_i);
         let c_2 = delta(w_r_i_next - four * w_r_i);
         let c_3 = delta(w_4_i_next - four * w_4_i);
-        let c_4 = delta_xor_and(&w_l_i, &w_r_i, &w_o_i, &w_4_i, &q_c_i);
+        let c_4 = delta_xor_and(&w_l_i, &w_r_i, &w_o_i_next, &w_4_i, &q_c_i);
 
         q_logic_i * (c_0 + c_1 + c_2 + c_3 + c_4)
     }
@@ -54,6 +55,7 @@ impl LogicWidget {
         b_eval: &Scalar,
         b_next_eval: &Scalar,
         c_eval: &Scalar,
+        c_next_eval: &Scalar,
         d_eval: &Scalar,
         d_next_eval: &Scalar,
         q_c_eval: &Scalar,
@@ -68,7 +70,7 @@ impl LogicWidget {
         let c_1 = delta(a_next_eval - four * a_eval);
         let c_2 = delta(b_next_eval - four * b_eval);
         let c_3 = delta(d_next_eval - four * d_eval);
-        let c_4 = delta_xor_and(&a_eval, &b_eval, &c_eval, &d_eval, q_c_eval);
+        let c_4 = delta_xor_and(&a_eval, &b_eval, &c_next_eval, &d_eval, q_c_eval);
         q_logic_poly * &(c_0 + c_1 + c_2 + c_3 + c_4)
     }
 
@@ -88,7 +90,7 @@ impl LogicWidget {
         let c_4 = delta_xor_and(
             &evaluations.a_eval,
             &evaluations.b_eval,
-            &evaluations.c_eval,
+            &evaluations.c_next_eval,
             &evaluations.d_eval,
             &evaluations.q_c_eval,
         );

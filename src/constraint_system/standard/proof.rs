@@ -57,6 +57,7 @@ impl Proof {
                 d_eval: Scalar::zero(),
                 a_next_eval: Scalar::zero(),
                 b_next_eval: Scalar::zero(),
+                c_next_eval: Scalar::zero(),
                 d_next_eval: Scalar::zero(),
                 q_arith_eval: Scalar::zero(),
                 q_c_eval: Scalar::zero(),
@@ -153,6 +154,7 @@ impl Proof {
         transcript.append_scalar(b"d_eval", &self.evaluations.d_eval);
         transcript.append_scalar(b"a_next_eval", &self.evaluations.a_next_eval);
         transcript.append_scalar(b"b_next_eval", &self.evaluations.b_next_eval);
+        transcript.append_scalar(b"c_next_eval", &self.evaluations.c_next_eval);
         transcript.append_scalar(b"d_next_eval", &self.evaluations.d_next_eval);
         transcript.append_scalar(b"left_sig_eval", &self.evaluations.left_sigma_eval);
         transcript.append_scalar(b"right_sig_eval", &self.evaluations.right_sigma_eval);

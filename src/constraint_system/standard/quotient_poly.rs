@@ -33,7 +33,11 @@ pub(crate) fn compute(
     wr_eval_4n.push(wr_eval_4n[1]);
     wr_eval_4n.push(wr_eval_4n[2]);
     wr_eval_4n.push(wr_eval_4n[3]);
-    let wo_eval_4n = domain_4n.coset_fft(&w_o_poly);
+    let mut wo_eval_4n = domain_4n.coset_fft(&w_o_poly);
+    wo_eval_4n.push(wo_eval_4n[0]);
+    wo_eval_4n.push(wo_eval_4n[1]);
+    wo_eval_4n.push(wo_eval_4n[2]);
+    wo_eval_4n.push(wo_eval_4n[3]);
     let mut w4_eval_4n = domain_4n.coset_fft(&w_4_poly);
     w4_eval_4n.push(w4_eval_4n[0]);
     w4_eval_4n.push(w4_eval_4n[1]);
@@ -89,6 +93,7 @@ fn compute_circuit_satisfiability_equation(
             let w4 = &w4_eval_4n[i];
             let wl_next = &wl_eval_4n[i + 4];
             let wr_next = &wr_eval_4n[i + 4];
+            let wo_next = &wo_eval_4n[i + 4];
             let w4_next = &w4_eval_4n[i + 4];
             let pi = &pi_eval_4n[i];
 
@@ -100,9 +105,9 @@ fn compute_circuit_satisfiability_equation(
                 .range
                 .compute_quotient_i(i, wl, wr, wo, w4, w4_next);
 
-            let c = preprocessed_circuit
-                .logic
-                .compute_quotient_i(i, &wl, &wl_next, &wr, &wr_next, &wo, &w4, &w4_next, &alpha);
+            let c = preprocessed_circuit.logic.compute_quotient_i(
+                i, &wl, &wl_next, &wr, &wr_next, &wo, &wo_next, &w4, &w4_next, &alpha,
+            );
 
             a + b + c + pi
         })
