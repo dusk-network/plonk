@@ -1,3 +1,13 @@
+//! The `Composer` is a Trait that is actually defining some kind of
+//! Circuit Builder for PLONK.
+//!
+//! In that sense, here we have the implementation of the `StandardComposer`
+//! which has been designed in order to provide the maximum amount of performance
+//! while having a big scope in utility terms.
+//!
+//! It allows us not only to build Add and Mul constraints but also to build
+//! ECC op. gates, Range checks, Logical gates (Bitwise ops) etc.
+
 // Gate fn's have a big number of attributes but
 // it is intended to be like this in order to provide
 // maximum performance and minimum circuit sizes.

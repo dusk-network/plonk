@@ -8,7 +8,7 @@
 #![allow(clippy::match_bool)]
 #![deny(intra_doc_link_resolution_failure)]
 #![deny(missing_debug_implementations)]
-#![deny(missing_docs)]
+//#![deny(missing_docs)]
 #![deny(unsafe_code)]
 
 mod bit_iterator;
