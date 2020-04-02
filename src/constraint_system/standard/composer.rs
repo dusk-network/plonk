@@ -1185,18 +1185,6 @@ impl StandardComposer {
         // `variable_map` inside of the `Permutation` struct.
         // Now we just need to extend the selector polynomials with the appropiate
         // coefficients to form complete logic gates.
-
-        /*/ XXX: First gate should not be marked as logic, otherways, the base-4 constraints
-        // might fail since we don't know what was stored on the previous row of the program memory.
-        self.q_m.push(Scalar::zero());
-        self.q_l.push(Scalar::zero());
-        self.q_r.push(Scalar::zero());
-        self.q_arith.push(Scalar::zero());
-        self.q_o.push(Scalar::zero());
-        self.q_4.push(Scalar::zero());
-        self.q_range.push(Scalar::zero());
-        self.q_c.push(Scalar::zero());
-        self.q_logic.push(Scalar::zero());*/
         for _ in 0..num_quads {
             self.q_m.push(Scalar::zero());
             self.q_l.push(Scalar::zero());
@@ -1506,8 +1494,8 @@ impl StandardComposer {
             let b_next = w_r[(i + 1) % self.n];
             let d_next = w_4[(i + 1) % self.n];
             /*println!(
-                "ITER: {}\n\nd: {:?} \n\n A & B {:?} \n\n A ^ B: {:?} \n\n q_logic: {:?}\n\n left: {:?}\n next_left: {:?}\n delta_left: {:?}\n\n right: {:?}\n next_right: {:?}\n delta_right:{:?}\n\n out: {:?}\n next_out: {:?}\n delta_out: {:?}\n\n",
-                i, d, (a & b), (a ^ b), qlogic, a, a_next,delta(a_next - four * a), b, b_next, delta(b_next - four * b), c, c_next, delta(c_next - four * c)
+                "ITER: {}\n\nd: {:?} \n\n A & B {:?} \n\n A ^ B: {:?} \n\n q_logic: {:?}\n\n left: {:?}\n next_left: {:?}\n delta_left: {:?}\n\n right: {:?}\n next_right: {:?}\n delta_right:{:?}\n\n out: {:?}\n",
+                i, d, (a & b), (a ^ b), qlogic, a, a_next,delta(a_next - four * a), b, b_next, delta(b_next - four * b), c
             );*/
             let k = qarith * ((qm * a * b) + (ql * a) + (qr * b) + (qo * c) + (q4 * d) + pi + qc)
                 + qlogic
