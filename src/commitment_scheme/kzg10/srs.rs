@@ -56,10 +56,10 @@ impl PublicParameters {
             },
             verifier_key: VerifierKey {
                 g: g.into(),
-                h: h,
-                beta_h: beta_h,
-                prepared_h: prepared_h,
-                prepared_beta_h: prepared_beta_h,
+                h,
+                beta_h,
+                prepared_h,
+                prepared_beta_h,
             },
         })
     }

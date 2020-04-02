@@ -406,7 +406,7 @@ impl Composer for StandardComposer {
             t_3_comm: t_3_commit,
             t_4_comm: t_4_commit,
 
-            w_z_comm: w_z_comm,
+            w_z_comm,
             w_zw_comm: w_zx_comm,
 
             evaluations: evaluations.proof,
