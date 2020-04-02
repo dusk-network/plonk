@@ -46,22 +46,10 @@ macro_rules! bit_iterator {
     };
 }
 bit_iterator!(u8, BitIterator8);
-bit_iterator!(u16, BitIterator16);
-bit_iterator!(u32, BitIterator32);
-bit_iterator!(u64, BitIterator64);
-bit_iterator!(u128, BitIterator128);
 
 #[cfg(test)]
 mod test {
     use super::*;
-    #[test]
-    fn test_bit_iterator64() {
-        let mut a = BitIterator64::new([0xa953d79b83f6ab59, 0x6dea2059e200bd39]);
-        let expected = "01101101111010100010000001011001111000100000000010111101001110011010100101010011110101111001101110000011111101101010101101011001";
-        for e in expected.chars() {
-            assert!(a.next().unwrap() == (e == '1'));
-        }
-    }
     use bls12_381::Scalar;
     #[test]
     fn test_bit_iterator8() {
@@ -70,6 +58,6 @@ mod test {
         for e in expected.chars() {
             assert!(a.next().unwrap() == (e == '1'));
         }
-        let a_vec: Vec<_> = a.collect();
+        let _a_vec: Vec<_> = a.collect();
     }
 }

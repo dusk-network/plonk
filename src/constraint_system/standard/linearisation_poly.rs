@@ -37,6 +37,7 @@ pub struct ProofEvaluations {
     pub perm_eval: Scalar,
 }
 
+#[allow(clippy::too_many_arguments)]
 /// Compute the linearisation polynomial
 pub fn compute(
     domain: &EvaluationDomain,
@@ -72,7 +73,7 @@ pub fn compute(
         .evaluate(z_challenge);
     let q_arith_eval = preprocessed_circuit
         .arithmetic
-        .qArith
+        .q_arith
         .polynomial
         .evaluate(z_challenge);
 

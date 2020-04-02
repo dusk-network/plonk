@@ -149,6 +149,7 @@ impl<'a, 'b> Add<&'a Polynomial> for &'b Polynomial {
     }
 }
 
+#[allow(dead_code)]
 // Addition method tht uses iterators to add polynomials
 // Benchmark this against the original method
 fn iter_add(poly_a: &Polynomial, poly_b: &Polynomial) -> Polynomial {
@@ -167,7 +168,7 @@ fn iter_add(poly_a: &Polynomial, poly_b: &Polynomial) -> Polynomial {
     let partial_addition = poly_a_iter
         .by_ref()
         .zip(poly_b_iter.by_ref())
-        .map(|(&a, &b)| a + &b)
+        .map(|(&a, &b)| a + b)
         .take(min_len);
 
     data.extend(partial_addition);
@@ -294,11 +295,13 @@ impl<'a, 'b> SubAssign<&'a Polynomial> for Polynomial {
 }
 
 impl Polynomial {
+    #[allow(dead_code)]
     #[inline]
     fn leading_coefficient(&self) -> Option<&Scalar> {
         self.last()
     }
 
+    #[allow(dead_code)]
     #[inline]
     fn iter_with_index(&self) -> Vec<(usize, Scalar)> {
         self.iter().cloned().enumerate().collect()
@@ -378,7 +381,7 @@ impl<'a, 'b> Add<&'a Scalar> for &'b Polynomial {
             return result;
         }
 
-        result[0] = result[0] + constant;
+        result[0] += constant;
         result
     }
 }

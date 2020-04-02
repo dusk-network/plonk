@@ -77,9 +77,8 @@ impl ProverKey {
     /// ie. only the remainder changes. we can therefore compute the witness as f(x) / x - z
     /// and only use the remainder term f(z) during verification.
     pub fn compute_single_witness(&self, polynomial: &Polynomial, point: &Scalar) -> Polynomial {
-        // Computes f(x) / x-z
-        let witness_poly = polynomial.ruffini(*point);
-        witness_poly
+        // Computes `f(x) / x-z`, returning it as the witness poly
+        polynomial.ruffini(*point)
     }
 
     /// Computes a single witness for multiple polynomials at the same point, by taking
@@ -97,12 +96,11 @@ impl ProverKey {
         assert_eq!(powers.len(), polynomials.len());
 
         let numerator: Polynomial = polynomials
-            .into_iter()
+            .iter()
             .zip(powers.iter())
             .map(|(poly, challenge)| poly * challenge)
             .sum();
-        let witness_poly = numerator.ruffini(*point);
-        witness_poly
+        numerator.ruffini(*point)
     }
 
     /// Creates an opening proof that a polynomial `p` was correctly evaluated at p(z) and produced the value
@@ -190,7 +188,7 @@ impl VerifierKey {
         for ((proof, challenge), point) in proofs.iter().zip(powers).zip(points) {
             let mut c = G1Projective::from(proof.commitment_to_polynomial.0);
             let w = proof.commitment_to_witness.0;
-            c = c + w * point;
+            c += w * point;
             g_multiplier += challenge * proof.evaluated_point;
 
             total_c += c * challenge;

@@ -1,3 +1,7 @@
+// Gate fn's have a big number of attributes but
+// it is intended to be like this in order to provide
+// maximum performance and minimum circuit sizes.
+#![allow(clippy::too_many_arguments)]
 use super::linearisation_poly;
 use super::quotient_poly;
 use super::{proof::Proof, Composer, PreProcessedCircuit};
@@ -418,6 +422,12 @@ impl Composer for StandardComposer {
     }
 }
 
+impl Default for StandardComposer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl StandardComposer {
     pub fn new() -> Self {
         StandardComposer::with_expected_size(0)
@@ -479,8 +489,7 @@ impl StandardComposer {
         let c = t_3_poly * &z_two_n;
         let d = t_4_poly * &z_three_n;
         let abc = &(a + &b) + &c;
-        let res = &abc + &d;
-        res
+        &abc + &d
     }
 
     // Creates a new circuit with an expected circuit size
@@ -543,7 +552,7 @@ impl StandardComposer {
         self.w_o.extend(zeroes_var.iter());
         self.w_4.extend(zeroes_var.iter());
 
-        self.n = self.n + diff;
+        self.n += diff;
     }
 
     /// Add Input first calls the `Permutation` struct
@@ -662,7 +671,7 @@ impl StandardComposer {
 
         self.perm.add_variables_to_map(a, b, c, d, self.n);
 
-        self.n = self.n + 1;
+        self.n += 1;
 
         c
     }
@@ -715,7 +724,7 @@ impl StandardComposer {
 
         self.perm.add_variables_to_map(a, b, c, d, self.n);
 
-        self.n = self.n + 1;
+        self.n += 1;
 
         c
     }
@@ -785,7 +794,7 @@ impl StandardComposer {
 
         self.perm
             .add_variables_to_map(a, b, c, self.zero_var, self.n);
-        self.n = self.n + 1;
+        self.n += 1;
 
         (a, b, c)
     }
@@ -825,7 +834,7 @@ impl StandardComposer {
         self.perm
             .add_variables_to_map(a, a, a, self.zero_var, self.n);
 
-        self.n = self.n + 1;
+        self.n += 1;
 
         a
     }
@@ -935,7 +944,7 @@ impl StandardComposer {
             add_wire(self, i, self.zero_var);
         }
 
-        for i in pad..num_quads + 1 {
+        for i in pad..=num_quads {
             // Convert each pair of bits to quads
             let bit_index = (num_quads - i) << 1;
             let q_0 = bits[bit_index] as u64;
@@ -965,7 +974,7 @@ impl StandardComposer {
         self.q_4.extend(zeros.iter());
         self.q_range.extend(ones.iter());
         self.public_inputs.extend(zeros.iter());
-        self.n = self.n + used_gates;
+        self.n += used_gates;
 
         // As mentioned above, we must switch off the range constraint for the last gate
         // Remember; it will contain one quad in the fourth wire, which will be used in the
@@ -1022,7 +1031,7 @@ impl StandardComposer {
         self.w_4.push(var_one);
         self.perm
             .add_variables_to_map(var_six, var_seven, var_min_twenty, var_one, self.n);
-        self.n = self.n + 1;
+        self.n += 1;
         //Add another dummy constraint so that we do not get the identity permutation
         self.q_m.push(Scalar::from(1));
         self.q_l.push(Scalar::from(1));
@@ -1039,7 +1048,7 @@ impl StandardComposer {
         self.w_4.push(self.zero_var);
         self.perm
             .add_variables_to_map(var_min_twenty, var_six, var_seven, self.zero_var, self.n);
-        self.n = self.n + 1;
+        self.n += 1;
         //Add another dummy constraint fro Q_range
         // XXX: We should have a way to handle the zero polynomial
         self.q_m.push(Scalar::zero());
@@ -1062,7 +1071,7 @@ impl StandardComposer {
             self.zero_var,
             self.n,
         );
-        self.n = self.n + 1;
+        self.n += 1;
         // Previous gate will look at the d_next in this gate
         self.q_m.push(Scalar::zero());
         self.q_l.push(Scalar::zero());
@@ -1084,9 +1093,10 @@ impl StandardComposer {
             var_four,
             self.n,
         );
-        self.n = self.n + 1;
+        self.n += 1;
     }
 
+    #[allow(dead_code)]
     fn check_circuit_satisfied(&self) {
         let w_l = self.to_scalars(&self.w_l);
         let w_r = self.to_scalars(&self.w_r);
@@ -1230,7 +1240,7 @@ mod tests {
     #[should_panic]
     fn test_odd_bit_range() {
         // Should fail as the number we we need a even number of bits
-        let ok = test_gadget(
+        let _ok = test_gadget(
             |composer| {
                 let witness = composer.add_input(Scalar::from(u32::max_value() as u64));
                 composer.range_gate(witness, 33);

@@ -3,7 +3,6 @@ use super::PreProcessedCircuit;
 use crate::commitment_scheme::kzg10::AggregateProof;
 use crate::commitment_scheme::kzg10::{Commitment, VerifierKey};
 use crate::fft::{EvaluationDomain, Polynomial};
-use crate::permutation::constants::{K1, K2, K3};
 use crate::transcript::TranscriptProtocol;
 use bls12_381::{multiscalar_mul::msm_variable_base, G1Affine, Scalar};
 pub struct Proof {
@@ -76,7 +75,7 @@ impl Proof {
         a_comm: &Commitment,
         b_comm: &Commitment,
         c_comm: &Commitment,
-    ) -> () {
+    ) {
         self.a_comm = *a_comm;
         self.b_comm = *b_comm;
         self.c_comm = *c_comm;
@@ -213,6 +212,7 @@ impl Proof {
         )
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn compute_quotient_evaluation(
         &self,
         domain: &EvaluationDomain,
@@ -256,9 +256,8 @@ impl Proof {
         // l_1(z) * alpha^2
         let c = l1_eval * alpha_sq;
 
-        let t_eval = (a - b - c) * z_h_eval.invert().unwrap();
-
-        t_eval
+        // Return t_eval
+        (a - b - c) * z_h_eval.invert().unwrap()
     }
 
     fn compute_quotient_commitment(&self, z_challenge: &Scalar, n: usize) -> Commitment {

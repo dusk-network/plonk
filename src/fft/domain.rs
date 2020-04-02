@@ -156,6 +156,7 @@ impl EvaluationDomain {
         Self::distribute_powers(evals, self.generator_inv);
     }
 
+    #[allow(clippy::needless_range_loop)]
     /// Evaluate all the lagrange polynomials defined by this domain at the
     /// point `tau`.
     pub fn evaluate_all_lagrange_coefficients(&self, tau: Scalar) -> Vec<Scalar> {
@@ -182,7 +183,7 @@ impl EvaluationDomain {
             let mut u = vec![Scalar::zero(); size];
             let mut ls = vec![Scalar::zero(); size];
             for i in 0..size {
-                u[i] = tau - &r;
+                u[i] = tau - r;
                 ls[i] = l;
                 l *= &self.group_gen;
                 r *= &self.group_gen;
@@ -215,12 +216,11 @@ impl EvaluationDomain {
         assert!((self.size() as u64) > poly_degree);
         let coset_gen = GENERATOR.pow(&[poly_degree, 0, 0, 0]);
         let v_h: Vec<_> = (0..self.size())
-            .into_iter()
             .map(|i| {
                 (coset_gen * self.group_gen.pow(&[poly_degree * i as u64, 0, 0, 0])) - Scalar::one()
             })
             .collect();
-        Evaluations::from_vec_and_domain(v_h, self.clone())
+        Evaluations::from_vec_and_domain(v_h, *self)
     }
 
     /// Return an iterator over the elements of the domain.

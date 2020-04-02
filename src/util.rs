@@ -35,7 +35,7 @@ pub(crate) fn random_g2_point<R: RngCore>(rng: &mut R) -> G2Projective {
 /// The intention is just to compute the resulting points
 /// of the operation `a*P, b*P, c*P ... (n-1)*P` into a `Vec`.
 pub(crate) fn slow_multiscalar_mul_single_base(
-    scalars: &Vec<Scalar>,
+    scalars: &[Scalar],
     base: G1Projective,
 ) -> Vec<G1Projective> {
     scalars.par_iter().map(|s| base * *s).collect()
@@ -71,7 +71,7 @@ pub fn batch_inversion(v: &mut [Scalar]) {
     {
         // tmp := tmp * f; f := tmp * s = 1/f
         let new_tmp = tmp * *f;
-        *f = tmp * &s;
+        *f = tmp * s;
         tmp = new_tmp;
     }
 }
