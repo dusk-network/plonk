@@ -5,6 +5,7 @@ use crate::commitment_scheme::kzg10::{Commitment, VerifierKey};
 use crate::fft::{EvaluationDomain, Polynomial};
 use crate::transcript::TranscriptProtocol;
 use bls12_381::{multiscalar_mul::msm_variable_base, G1Affine, Scalar};
+#[derive(Debug)]
 pub struct Proof {
     // Commitment to the witness polynomial for the left wires
     pub a_comm: Commitment,

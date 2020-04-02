@@ -2,6 +2,7 @@ use crate::constraint_system::widget::{ArithmeticWidget, PermutationWidget, Rang
 use crate::fft::Evaluations;
 // Preprocessed circuit includes the commitment to the selector polynomials and the sigma polynomials
 // for the standard plonk composer
+#[derive(Debug)]
 pub struct PreProcessedCircuit {
     // The number of gates in the circuit
     pub n: usize,

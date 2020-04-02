@@ -18,6 +18,7 @@ use std::collections::HashMap;
 /// A composer is a circuit builder
 /// and will dictate how a circuit is built
 /// We will have a default Composer called `StandardComposer`
+#[derive(Debug)]
 pub struct StandardComposer {
     // n represents the number of arithmetic gates in the circuit
     n: usize,

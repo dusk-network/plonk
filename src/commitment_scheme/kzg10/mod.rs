@@ -21,6 +21,7 @@ pub struct Proof {
 
 /// Proof that multiple polynomials were correctly evaluated at a point `z`,
 /// each producing their respective evaluated points p_i(z).
+#[derive(Debug)]
 pub struct AggregateProof {
     /// This is a commitment to the aggregated witness polynomial.
     pub commitment_to_witness: Commitment,

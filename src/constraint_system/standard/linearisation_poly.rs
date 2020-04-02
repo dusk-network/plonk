@@ -9,6 +9,7 @@ pub struct Evaluations {
     pub quot_eval: Scalar,
 }
 // Proof Evaluations is a subset of all of the evaluations. These evaluations will be added to the proof
+#[derive(Debug)]
 pub struct ProofEvaluations {
     // Evaluation of the witness polynomial for the left wire at `z`
     pub a_eval: Scalar,

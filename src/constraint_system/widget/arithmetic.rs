@@ -4,6 +4,7 @@ use crate::constraint_system::standard::linearisation_poly::ProofEvaluations;
 use crate::fft::{Evaluations, Polynomial};
 use bls12_381::{G1Affine, Scalar};
 
+#[derive(Debug)]
 pub struct ArithmeticWidget {
     pub q_m: PreProcessedPolynomial,
     pub q_l: PreProcessedPolynomial,

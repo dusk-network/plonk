@@ -402,6 +402,7 @@ pub(crate) fn parallel_fft(a: &mut [Scalar], omega: Scalar, log_n: u32, log_cpus
 }
 
 /// An iterator over the elements of the domain.
+#[derive(Debug)]
 pub struct Elements {
     cur_elem: Scalar,
     cur_pow: u64,

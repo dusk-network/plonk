@@ -8,6 +8,8 @@ use crate::fft::{EvaluationDomain, Evaluations, Polynomial};
 use crate::permutation::constants::{K1, K2, K3};
 use bls12_381::{G1Affine, Scalar};
 use rayon::prelude::*;
+
+#[derive(Debug)]
 pub struct PermutationWidget {
     pub left_sigma: PreProcessedPolynomial,
     pub right_sigma: PreProcessedPolynomial,
