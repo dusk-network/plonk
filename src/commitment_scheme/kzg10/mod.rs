@@ -93,8 +93,8 @@ impl Commitment {
     pub fn from_affine(g: G1Affine) -> Self {
         Self(g)
     }
-    /// Builds an empty `Commitment` which is equivalent to a
-    /// `G1Affine` identoty point on Bls12_381.
+    /// Builds an empty `Commitment` which is equivalent to the
+    /// `G1Affine` identity point in Bls12_381.
     pub fn empty() -> Self {
         Commitment(G1Affine::identity())
     }
