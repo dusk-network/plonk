@@ -51,7 +51,7 @@ pub fn batch_inversion(v: &mut [Scalar]) {
     // First pass: compute [a, ab, abc, ...]
     let mut prod = Vec::with_capacity(v.len());
     let mut tmp = Scalar::one();
-    for f in v.iter().filter(|f| !(f == &&Scalar::zero())) {
+    for f in v.iter().filter(|f| f != &&Scalar::zero()) {
         tmp.mul_assign(f);
         prod.push(tmp);
     }
@@ -65,7 +65,7 @@ pub fn batch_inversion(v: &mut [Scalar]) {
         // Backwards
         .rev()
         // Ignore normalized elements
-        .filter(|f| !(f == &&Scalar::zero()))
+        .filter(|f| f != &&Scalar::zero())
         // Backwards, skip last element, fill in one for last term.
         .zip(prod.into_iter().rev().skip(1).chain(Some(Scalar::one())))
     {

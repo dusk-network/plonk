@@ -144,6 +144,7 @@ pub fn compute(
     )
 }
 
+#[allow(clippy::too_many_arguments)]
 fn compute_circuit_satisfiability(
     a_eval: &Scalar,
     b_eval: &Scalar,

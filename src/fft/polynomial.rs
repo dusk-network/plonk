@@ -56,7 +56,7 @@ impl Polynomial {
         assert!(result
             .coeffs
             .last()
-            .map_or(true, |coeff| !(coeff == &Scalar::zero())));
+            .map_or(true, |coeff| coeff != &Scalar::zero()));
 
         result
     }
@@ -69,7 +69,7 @@ impl Polynomial {
         assert!(self
             .coeffs
             .last()
-            .map_or(false, |coeff| !(coeff == &Scalar::zero())));
+            .map_or(false, |coeff| coeff != &Scalar::zero()));
         self.coeffs.len() - 1
     }
 

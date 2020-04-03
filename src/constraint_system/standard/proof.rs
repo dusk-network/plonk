@@ -323,12 +323,6 @@ impl Proof {
             &self.evaluations,
         );
 
-        let q_c_eval = preprocessed_circuit
-            .arithmetic
-            .q_c
-            .polynomial
-            .evaluate(z_challenge);
-
         preprocessed_circuit.logic.compute_linearisation_commitment(
             &mut scalars,
             &mut points,

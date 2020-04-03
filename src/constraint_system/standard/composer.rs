@@ -1124,12 +1124,12 @@ impl StandardComposer {
         let mut left_accumulator = Scalar::zero();
         let mut right_accumulator = Scalar::zero();
         let mut out_accumulator = Scalar::zero();
-        let mut left_quad = 0u8;
-        let mut right_quad = 0u8;
+        let mut left_quad: u8;
+        let mut right_quad: u8;
         // Get vars as base_4 elems and reverse them to get it's Big Endian repr.
-        let mut a_base_4 = &mut self.variables[&a].to_base_4()[0..num_quads];
+        let a_base_4 = &mut self.variables[&a].to_base_4()[0..num_quads];
         a_base_4.reverse();
-        let mut b_base_4 = &mut self.variables[&b].to_base_4()[0..num_quads];
+        let b_base_4 = &mut self.variables[&b].to_base_4()[0..num_quads];
         b_base_4.reverse();
 
         // If we take a look to the program memory structure of the ref. impl.
@@ -1536,7 +1536,7 @@ impl StandardComposer {
             self.zero_var,
             self.n,
         );
-        self.n = self.n + 1;
+        self.n += 1;
         // Add no-op gate
         self.q_m.push(Scalar::zero());
         self.q_l.push(Scalar::zero());
@@ -1559,7 +1559,7 @@ impl StandardComposer {
             self.zero_var,
             self.n,
         );
-        self.n = self.n + 1;
+        self.n += 1;
     }
 }
 

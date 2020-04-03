@@ -44,7 +44,6 @@ pub(crate) fn compute(
         domain,
         preprocessed_circuit,
         (&wl_eval_4n, &wr_eval_4n, &wo_eval_4n, &w4_eval_4n),
-        &alpha,
         public_inputs_poly,
     );
 
@@ -73,7 +72,6 @@ fn compute_circuit_satisfiability_equation(
     domain: &EvaluationDomain,
     preprocessed_circuit: &PreProcessedCircuit,
     (wl_eval_4n, wr_eval_4n, wo_eval_4n, w4_eval_4n): (&[Scalar], &[Scalar], &[Scalar], &[Scalar]),
-    alpha: &Scalar,
     pi_poly: &Polynomial,
 ) -> Vec<Scalar> {
     let domain_4n = EvaluationDomain::new(4 * domain.size()).unwrap();

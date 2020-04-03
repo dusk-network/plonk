@@ -1,3 +1,4 @@
+#![allow(clippy::too_many_arguments)]
 use super::PreProcessedPolynomial;
 use crate::commitment_scheme::kzg10::Commitment;
 use crate::constraint_system::standard::linearisation_poly::ProofEvaluations;
@@ -124,6 +125,7 @@ fn delta(f: Scalar) -> Scalar {
     f * f_1 * f_2 * f_3
 }
 
+#[allow(non_snake_case)]
 // The identity we want to check is q_logic * A = 0
 // A = B + E
 // B = q_c * [9c - 3(a+b)]
