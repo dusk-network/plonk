@@ -5,6 +5,7 @@ use crate::fft::{Evaluations, Polynomial};
 use bls12_381::G1Affine;
 use bls12_381::Scalar;
 
+#[derive(Debug)]
 pub struct LogicWidget {
     pub q_c: PreProcessedPolynomial,
     pub q_logic: PreProcessedPolynomial,
