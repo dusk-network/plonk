@@ -6,8 +6,6 @@ _This code is highly experimental, use at your own risk_.
 
 This library contains a modularised implementation of KZG10 as the default polynomial commitment scheme.
 
-**Ongoing : Currently the multi scalar multiplication algorithm is not working as expected, so the prover run time has been overflated**
-
 ## Example
 
 The following example shows how to setup the SRS and verify whether a value is a boolean
