@@ -30,8 +30,6 @@ pub struct ProofEvaluations {
     pub q_arith_eval: Scalar,
     //
     pub q_c_eval: Scalar,
-    //
-    pub q_logic_eval: Scalar,
     // Evaluation of the left sigma polynomial at `z`
     pub left_sigma_eval: Scalar,
     // Evaluation of the right sigma polynomial at `z`
@@ -89,11 +87,6 @@ pub fn compute(
         .q_c
         .polynomial
         .evaluate(z_challenge);
-    let q_logic_eval = preprocessed_circuit
-        .logic
-        .q_logic
-        .polynomial
-        .evaluate(z_challenge);
 
     let a_next_eval = w_l_poly.evaluate(&(z_challenge * domain.group_gen));
     let b_next_eval = w_r_poly.evaluate(&(z_challenge * domain.group_gen));
@@ -112,7 +105,6 @@ pub fn compute(
         &d_next_eval,
         &q_arith_eval,
         &q_c_eval,
-        &q_logic_eval,
         preprocessed_circuit,
         &alpha,
     );
@@ -145,7 +137,6 @@ pub fn compute(
                 d_next_eval,
                 q_arith_eval,
                 q_c_eval,
-                q_logic_eval,
                 left_sigma_eval,
                 right_sigma_eval,
                 out_sigma_eval,
@@ -168,7 +159,6 @@ fn compute_circuit_satisfiability(
     d_next_eval: &Scalar,
     q_arith_eval: &Scalar,
     q_c_eval: &Scalar,
-    q_logic_eval: &Scalar,
     preprocessed_circuit: &PreProcessedCircuit,
     alpha: &Scalar,
 ) -> Polynomial {
@@ -197,8 +187,6 @@ fn compute_circuit_satisfiability(
         d_eval,
         d_next_eval,
         q_c_eval,
-        q_logic_eval,
-        alpha,
     );
     &(&a + &b) + &c
 }
