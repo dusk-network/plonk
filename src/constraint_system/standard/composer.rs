@@ -1188,13 +1188,23 @@ impl StandardComposer {
         );
         self.n += 1;
     }
+}
 
-    #[allow(dead_code)]
-    fn check_circuit_satisfied(&self) {
-        let w_l = self.to_scalars(&self.w_l);
-        let w_r = self.to_scalars(&self.w_r);
-        let w_o = self.to_scalars(&self.w_o);
-        let w_4 = self.to_scalars(&self.w_4);
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::commitment_scheme::kzg10::PublicParameters;
+    use bls12_381::Scalar as Fr;
+    use merlin::Transcript;
+
+    /// Utility function that allows to check on the "front-end"
+    /// side of the PLONK implementation if the identity polynomial
+    /// is satisfied for each one of the `StandardComposer`'s gates.
+    fn check_circuit_satisfied(composer: &StandardComposer) {
+        let w_l = composer.to_scalars(&composer.w_l);
+        let w_r = composer.to_scalars(&composer.w_r);
+        let w_o = composer.to_scalars(&composer.w_o);
+        let w_4 = composer.to_scalars(&composer.w_4);
         // Computes f(f-1)(f-2)(f-3)
         let delta = |f: Scalar| -> Scalar {
             let f_1 = f - Scalar::one();
@@ -1204,22 +1214,22 @@ impl StandardComposer {
         };
         let four = Scalar::from(4);
 
-        for i in 0..self.n {
-            let qm = self.q_m[i];
-            let ql = self.q_l[i];
-            let qr = self.q_r[i];
-            let qo = self.q_o[i];
-            let qc = self.q_c[i];
-            let q4 = self.q_4[i];
-            let qarith = self.q_arith[i];
-            let qrange = self.q_range[i];
-            let pi = self.public_inputs[i];
+        for i in 0..composer.n {
+            let qm = composer.q_m[i];
+            let ql = composer.q_l[i];
+            let qr = composer.q_r[i];
+            let qo = composer.q_o[i];
+            let qc = composer.q_c[i];
+            let q4 = composer.q_4[i];
+            let qarith = composer.q_arith[i];
+            let qrange = composer.q_range[i];
+            let pi = composer.public_inputs[i];
 
             let a = w_l[i];
             let b = w_r[i];
             let c = w_o[i];
             let d = w_4[i];
-            let d_next = w_4[(i + 1) % self.n];
+            let d_next = w_4[(i + 1) % composer.n];
             let k = qarith * ((qm * a * b) + (ql * a) + (qr * b) + (qo * c) + (q4 * d) + pi + qc)
                 + qrange
                     * (delta(c - four * d)
@@ -1230,14 +1240,6 @@ impl StandardComposer {
             assert_eq!(k, Scalar::zero(), "Check failed at gate {}", i,);
         }
     }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::commitment_scheme::kzg10::PublicParameters;
-    use bls12_381::Scalar as Fr;
-    use merlin::Transcript;
 
     // Returns a composer with `n` constraints
     fn add_dummy_composer(n: usize) -> StandardComposer {
@@ -1288,7 +1290,7 @@ mod tests {
         let ok = test_gadget(
             |composer| {
                 // do nothing except add the dummy constraints
-                composer.check_circuit_satisfied();
+                check_circuit_satisfied(&composer);
             },
             200,
         );
@@ -1322,7 +1324,7 @@ mod tests {
             |composer| {
                 let witness = composer.add_input(Scalar::from(2u64.pow(34) - 1));
                 composer.range_gate(witness, 34);
-                composer.check_circuit_satisfied();
+                check_circuit_satisfied(composer);
             },
             200,
         );
@@ -1381,7 +1383,7 @@ mod tests {
                 let fourteen =
                     composer.big_add(four.into(), five.into(), five.into(), Scalar::zero());
 
-                composer.check_circuit_satisfied();
+                check_circuit_satisfied(composer);
 
                 let twenty =
                     composer.big_add(six.into(), seven.into(), seven.into(), Scalar::zero());
