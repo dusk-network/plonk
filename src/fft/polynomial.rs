@@ -1,3 +1,4 @@
+//! This module contains the implementation of Dense Polynomials.
 use super::{EvaluationDomain, Evaluations};
 use crate::util;
 use bls12_381::Scalar;
@@ -7,8 +8,9 @@ use rayon::iter::{
 };
 
 use std::ops::{Add, AddAssign, Deref, DerefMut, Mul, Neg, Sub, SubAssign};
-// This library will solely implement Dense Polynomials
+
 #[derive(Debug, Eq, PartialEq, Clone)]
+/// Polynomial represents a Dense Polynomial.
 pub struct Polynomial {
     /// The coefficient of `x^i` is stored at location `i` in `self.coeffs`.
     pub coeffs: Vec<Scalar>,
