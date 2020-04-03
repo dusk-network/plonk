@@ -325,7 +325,7 @@ impl Proof {
 
         let q_c_eval = preprocessed_circuit
             .arithmetic
-            .qC
+            .q_c
             .polynomial
             .evaluate(z_challenge);
 
