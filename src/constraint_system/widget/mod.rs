@@ -9,6 +9,7 @@ pub use arithmetic::ArithmeticWidget;
 pub use permutation::PermutationWidget;
 pub use range::RangeWidget;
 
+#[derive(Debug)]
 pub struct PreProcessedPolynomial {
     pub(crate) polynomial: Polynomial,
     pub(crate) commitment: Commitment,

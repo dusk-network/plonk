@@ -1,13 +1,25 @@
 use crate::constraint_system::widget::{ArithmeticWidget, PermutationWidget, RangeWidget};
 use crate::fft::Evaluations;
-// Preprocessed circuit includes the commitment to the selector polynomials and the sigma polynomials
-// for the standard plonk composer
-pub struct PreProcessedCircuit {
-    // The number of gates in the circuit
-    pub n: usize,
 
+/// `PreProcessedCircuit` is a data structure that holds the commitments to
+/// the selector and sigma polynomials.
+///
+/// By doing this, we can see the `PreProcessedCircuit` as a "circuit-shape descriptor"
+/// since it only stores the commitments that describe the operations that we will perform
+/// innside the circuit.
+#[derive(Debug)]
+pub struct PreProcessedCircuit {
+    /// The number of gates in the circuit
+    pub n: usize,
+    /// Holds the polynomials, commitments and evaluations
+    /// of all of the arithmetic-related gates.
     pub arithmetic: ArithmeticWidget,
+    /// Holds the polynomials, commitments and evaluations
+    /// of all of the range_constraint gate.
     pub range: RangeWidget,
+    /// Holds the polynomials, commitments and evaluations
+    /// related to the sigmas and also stores the linear
+    /// evaluations.
     pub permutation: PermutationWidget,
 
     // Pre-processes the 4n Evaluations for the vanishing polynomial, so they do not
@@ -17,7 +29,7 @@ pub struct PreProcessedCircuit {
     pub(crate) v_h_coset_4n: Evaluations,
 }
 impl PreProcessedCircuit {
-    pub fn v_h_coset_4n(&self) -> &Evaluations {
+    pub(crate) fn v_h_coset_4n(&self) -> &Evaluations {
         &self.v_h_coset_4n
     }
 }

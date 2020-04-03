@@ -9,6 +9,7 @@ pub struct Evaluations {
     pub quot_eval: Scalar,
 }
 // Proof Evaluations is a subset of all of the evaluations. These evaluations will be added to the proof
+#[derive(Debug)]
 pub struct ProofEvaluations {
     // Evaluation of the witness polynomial for the left wire at `z`
     pub a_eval: Scalar,
@@ -37,6 +38,7 @@ pub struct ProofEvaluations {
     pub perm_eval: Scalar,
 }
 
+#[allow(clippy::too_many_arguments)]
 /// Compute the linearisation polynomial
 pub fn compute(
     domain: &EvaluationDomain,
@@ -72,7 +74,7 @@ pub fn compute(
         .evaluate(z_challenge);
     let q_arith_eval = preprocessed_circuit
         .arithmetic
-        .qArith
+        .q_arith
         .polynomial
         .evaluate(z_challenge);
 

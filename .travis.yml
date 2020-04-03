@@ -7,16 +7,14 @@ matrix:
   include:
   - rust: stable
   - rust: beta
-  - rust: nightly
 
-jobs:
-  allow_failures:
-    - rust: stable
-    - rust: beta
-  fast_finish: true
+before_script:
+- rustup component add clippy 
 
 # Main build
 script:
+  # we want the build job to fail when encountering warnings
+  - cargo clippy -- -D warnings
   - cargo check
   - cargo build --release --verbose --all
   - cargo test --release --verbose --all
