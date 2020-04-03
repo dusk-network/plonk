@@ -29,10 +29,8 @@ impl LogicWidget {
         w_r_i: &Scalar,
         w_r_i_next: &Scalar,
         w_o_i: &Scalar,
-        w_o_i_next: &Scalar,
         w_4_i: &Scalar,
         w_4_i_next: &Scalar,
-        alpha: &Scalar,
     ) -> Scalar {
         let four = Scalar::from(4);
 
@@ -64,7 +62,6 @@ impl LogicWidget {
         b_eval: &Scalar,
         b_next_eval: &Scalar,
         c_eval: &Scalar,
-        c_next_eval: &Scalar,
         d_eval: &Scalar,
         d_next_eval: &Scalar,
         q_c_eval: &Scalar,

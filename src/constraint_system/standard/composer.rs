@@ -353,7 +353,6 @@ impl Composer for StandardComposer {
         transcript.append_scalar(b"d_eval", &evaluations.proof.d_eval);
         transcript.append_scalar(b"a_next_eval", &evaluations.proof.a_next_eval);
         transcript.append_scalar(b"b_next_eval", &evaluations.proof.b_next_eval);
-        transcript.append_scalar(b"c_next_eval", &evaluations.proof.c_next_eval);
         transcript.append_scalar(b"d_next_eval", &evaluations.proof.d_next_eval);
         transcript.append_scalar(b"left_sig_eval", &evaluations.proof.left_sigma_eval);
         transcript.append_scalar(b"right_sig_eval", &evaluations.proof.right_sigma_eval);

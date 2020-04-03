@@ -22,8 +22,6 @@ pub struct ProofEvaluations {
     pub a_next_eval: Scalar,
     //
     pub b_next_eval: Scalar,
-    //
-    pub c_next_eval: Scalar,
     // Evaluation of the witness polynomial for the fourth wire at `z * root of unity`
     pub d_next_eval: Scalar,
     // Evaluation of the arithmetic selector polynomial at `z`
@@ -90,7 +88,6 @@ pub fn compute(
 
     let a_next_eval = w_l_poly.evaluate(&(z_challenge * domain.group_gen));
     let b_next_eval = w_r_poly.evaluate(&(z_challenge * domain.group_gen));
-    let c_next_eval = w_o_poly.evaluate(&(z_challenge * domain.group_gen));
     let d_next_eval = w_4_poly.evaluate(&(z_challenge * domain.group_gen));
     let perm_eval = z_poly.evaluate(&(z_challenge * domain.group_gen));
 
@@ -101,12 +98,10 @@ pub fn compute(
         &d_eval,
         &a_next_eval,
         &b_next_eval,
-        &c_next_eval,
         &d_next_eval,
         &q_arith_eval,
         &q_c_eval,
         preprocessed_circuit,
-        &alpha,
     );
 
     let f_2 = preprocessed_circuit.permutation.compute_linearisation(
@@ -133,7 +128,6 @@ pub fn compute(
                 d_eval,
                 a_next_eval,
                 b_next_eval,
-                c_next_eval,
                 d_next_eval,
                 q_arith_eval,
                 q_c_eval,
@@ -155,12 +149,10 @@ fn compute_circuit_satisfiability(
     d_eval: &Scalar,
     a_next_eval: &Scalar,
     b_next_eval: &Scalar,
-    c_next_eval: &Scalar,
     d_next_eval: &Scalar,
     q_arith_eval: &Scalar,
     q_c_eval: &Scalar,
     preprocessed_circuit: &PreProcessedCircuit,
-    alpha: &Scalar,
 ) -> Polynomial {
     let a = preprocessed_circuit.arithmetic.compute_linearisation(
         a_eval,
@@ -183,7 +175,6 @@ fn compute_circuit_satisfiability(
         b_eval,
         b_next_eval,
         c_eval,
-        c_next_eval,
         d_eval,
         d_next_eval,
         q_c_eval,
