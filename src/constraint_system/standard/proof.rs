@@ -60,7 +60,6 @@ impl Proof {
                 d_next_eval: Scalar::zero(),
                 q_arith_eval: Scalar::zero(),
                 q_c_eval: Scalar::zero(),
-                q_logic_eval: Scalar::zero(),
 
                 left_sigma_eval: Scalar::zero(),
                 right_sigma_eval: Scalar::zero(),
@@ -159,7 +158,6 @@ impl Proof {
         transcript.append_scalar(b"out_sig_eval", &self.evaluations.out_sigma_eval);
         transcript.append_scalar(b"q_arith_eval", &self.evaluations.q_arith_eval);
         transcript.append_scalar(b"q_c_eval", &self.evaluations.q_c_eval);
-        transcript.append_scalar(b"q_logic_eval", &self.evaluations.q_logic_eval);
         transcript.append_scalar(b"perm_eval", &self.evaluations.perm_eval);
         transcript.append_scalar(b"t_eval", &t_eval);
         transcript.append_scalar(b"r_eval", &self.evaluations.lin_poly_eval);
@@ -206,9 +204,8 @@ impl Proof {
         // Compose the shifted aggregate proof
         let mut shifted_aggregate_proof = AggregateProof::with_witness(self.w_zw_comm);
         shifted_aggregate_proof.add_part((self.evaluations.perm_eval, self.z_comm));
-        // XXX: Shouldn't theese be added??
-        /*shifted_aggregate_proof.add_part((self.evaluations.a_next_eval, self.a_comm));
-        shifted_aggregate_proof.add_part((self.evaluations.b_next_eval, self.b_comm));*/
+        shifted_aggregate_proof.add_part((self.evaluations.a_next_eval, self.a_comm));
+        shifted_aggregate_proof.add_part((self.evaluations.b_next_eval, self.b_comm));
         shifted_aggregate_proof.add_part((self.evaluations.d_next_eval, self.d_comm));
         let flattened_proof_b = shifted_aggregate_proof.flatten(transcript);
 
@@ -306,11 +303,16 @@ impl Proof {
             &self.evaluations,
         );
 
+        let q_c_eval = preprocessed_circuit
+            .arithmetic
+            .qC
+            .polynomial
+            .evaluate(z_challenge);
+
         preprocessed_circuit.logic.compute_linearisation_commitment(
             &mut scalars,
             &mut points,
             &self.evaluations,
-            alpha,
         );
 
         preprocessed_circuit

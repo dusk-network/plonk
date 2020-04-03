@@ -359,7 +359,6 @@ impl Composer for StandardComposer {
         transcript.append_scalar(b"out_sig_eval", &evaluations.proof.out_sigma_eval);
         transcript.append_scalar(b"q_arith_eval", &evaluations.proof.q_arith_eval);
         transcript.append_scalar(b"q_c_eval", &evaluations.proof.q_c_eval);
-        transcript.append_scalar(b"q_logic_eval", &evaluations.proof.q_logic_eval);
         transcript.append_scalar(b"perm_eval", &evaluations.proof.perm_eval);
         transcript.append_scalar(b"t_eval", &evaluations.quot_eval);
         transcript.append_scalar(b"r_eval", &evaluations.proof.lin_poly_eval);
@@ -381,8 +380,8 @@ impl Composer for StandardComposer {
             &[
                 quot,
                 lin_poly,
-                w_l_poly,
-                w_r_poly,
+                w_l_poly.clone(),
+                w_r_poly.clone(),
                 w_o_poly,
                 w_4_poly.clone(),
                 preprocessed_circuit
@@ -408,7 +407,7 @@ impl Composer for StandardComposer {
 
         // Compute aggregate witness to polynomials evaluated at the shifted evaluation challenge
         let shifted_aggregate_witness = commit_key.compute_aggregate_witness(
-            &[z_poly, w_4_poly],
+            &[z_poly, w_l_poly, w_r_poly, w_4_poly],
             &(z_challenge * domain.group_gen),
             transcript,
         );
