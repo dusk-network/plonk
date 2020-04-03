@@ -1,3 +1,9 @@
+//! Aztec's PLONK system implementation built by the [Dusk Network team](dusk.network)
+//!
+//! This code has not been audited or reviewed so no security assumptions
+//! can be made over it.
+//!
+//! USE AT YOUR OWN RISK.
 // Bitshift/Bitwise ops are allowed to gain performance.
 #![allow(clippy::suspicious_arithmetic_impl)]
 // Some structs do not have AddAssign or MulAssign impl.
@@ -8,7 +14,7 @@
 #![allow(clippy::match_bool)]
 #![deny(intra_doc_link_resolution_failure)]
 #![deny(missing_debug_implementations)]
-//#![deny(missing_docs)]
+#![deny(missing_docs)]
 #![deny(unsafe_code)]
 
 mod bit_iterator;
