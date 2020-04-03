@@ -12,6 +12,8 @@ use ff_fft::EvaluationDomain;
 use num_traits::{One, Zero};
 use poly_commit::data_structures::PCCommitment;
 use poly_commit::kzg10::{Commitment, VerifierKey};
+
+#[derive(Clone)]
 pub struct Proof<E: PairingEngine> {
     // Commitment to the witness polynomial for the left wires
     pub a_comm: Commitment<E>,
