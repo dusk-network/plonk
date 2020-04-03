@@ -1,3 +1,4 @@
+//! The Public Parameters can also be referred to, as the Structured Reference String (SRS).
 use super::{
     errors::Error,
     key::{ProverKey, VerifierKey},
@@ -9,8 +10,11 @@ use rand_core::RngCore;
 /// The Public Parameters can also be referred to, as the Structured Reference String (SRS).
 /// It is available to both the prover and verifier and allows the verifier to
 /// efficiently verify claims about polynomials up to and including a configured degree.
+#[derive(Debug)]
 pub struct PublicParameters {
+    /// Key used to generate proofs for composed circuits.
     pub commit_key: ProverKey,
+    /// Key used to verify proofs for composed circuits.
     pub verifier_key: VerifierKey,
 }
 
@@ -56,10 +60,10 @@ impl PublicParameters {
             },
             verifier_key: VerifierKey {
                 g: g.into(),
-                h: h,
-                beta_h: beta_h,
-                prepared_h: prepared_h,
-                prepared_beta_h: prepared_beta_h,
+                h,
+                beta_h,
+                prepared_h,
+                prepared_beta_h,
             },
         })
     }

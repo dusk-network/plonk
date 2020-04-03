@@ -1,3 +1,17 @@
+//! The `Composer` is a Trait that is actually defining some kind of
+//! Circuit Builder for PLONK.
+//!
+//! In that sense, here we have the implementation of the `StandardComposer`
+//! which has been designed in order to provide the maximum amount of performance
+//! while having a big scope in utility terms.
+//!
+//! It allows us not only to build Add and Mul constraints but also to build
+//! ECC op. gates, Range checks, Logical gates (Bitwise ops) etc.
+
+// Gate fn's have a big number of attributes but
+// it is intended to be like this in order to provide
+// maximum performance and minimum circuit sizes.
+#![allow(clippy::too_many_arguments)]
 use super::linearisation_poly;
 use super::quotient_poly;
 use super::{proof::Proof, Composer, PreProcessedCircuit};
@@ -16,6 +30,7 @@ use std::collections::HashMap;
 /// A composer is a circuit builder
 /// and will dictate how a circuit is built
 /// We will have a default Composer called `StandardComposer`
+#[derive(Debug)]
 pub struct StandardComposer {
     // n represents the number of arithmetic gates in the circuit
     n: usize,
@@ -427,7 +442,7 @@ impl Composer for StandardComposer {
             t_3_comm: t_3_commit,
             t_4_comm: t_4_commit,
 
-            w_z_comm: w_z_comm,
+            w_z_comm,
             w_zw_comm: w_zx_comm,
 
             evaluations: evaluations.proof,
@@ -439,12 +454,26 @@ impl Composer for StandardComposer {
     }
 }
 
+impl Default for StandardComposer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl StandardComposer {
+    /// Generates a new empty `StandardComposer` with all of it's fields
+    /// set to hold an initial capacity of 0.
+    ///
+    /// # Warning
+    ///
+    /// The usage of this may cause lots of re-allocations since the `Composer`
+    /// holds `Vec` for every polynomial, and theese will need to be re-allocated
+    /// each time the circuit grows considerably.
     pub fn new() -> Self {
         StandardComposer::with_expected_size(0)
     }
 
-    // Split `t(X)` poly into three degree-n polynomials.
+    /// Split `t(X)` poly into three degree-n polynomials.
     pub fn split_tx_poly(
         &self,
         n: usize,
@@ -457,12 +486,12 @@ impl StandardComposer {
             Polynomial::from_coefficients_vec(t_x[3 * n..].to_vec()),
         )
     }
-    /// Fixes a variable in the witness to be a part of the circuit description
+    /// Fixes a variable in the witness to be a part of the circuit description.s
     /// This method is (currently) only used in the following context:
     /// We have gates which only require 3/4 wires,
-    /// We must assign the fourth value a value, we fix this value to be zero
-    /// However, the verifier needs to be able to verify that this value is also zero
-    /// So we must make this zero value a part of the circuit description of every circuit
+    /// We must assign the fourth value a value, we fix this value to be zero.
+    /// However, the verifier needs to be able to verify that this value is also zero.
+    /// So we must make this zero value a part of the circuit description of every circuit.
     fn add_witness_to_circuit_description(&mut self, var: Variable, value: Scalar) {
         self.poly_gate(
             var,
@@ -477,11 +506,12 @@ impl StandardComposer {
         );
     }
 
-    /// Convert variables to their actual witness values
+    /// Convert variables to their actual witness values.
     pub(crate) fn to_scalars(&self, vars: &[Variable]) -> Vec<Scalar> {
         vars.par_iter().map(|var| self.variables[var]).collect()
     }
 
+    /// Computes the quotient opening polynomial.
     fn compute_quotient_opening_poly(
         n: usize,
         t_1_poly: &Polynomial,
@@ -500,12 +530,13 @@ impl StandardComposer {
         let c = t_3_poly * &z_two_n;
         let d = t_4_poly * &z_three_n;
         let abc = &(a + &b) + &c;
-        let res = &abc + &d;
-        res
+        &abc + &d
     }
 
-    // Creates a new circuit with an expected circuit size
-    // This will allow for less reallocations when building the circuit
+    /// Creates a new circuit with an expected circuit size.
+    /// This will allow for less reallocations when building the circuit
+    /// since the `Vec`s will already have an appropiate allocation at the
+    /// beggining of the composing stage.
     pub fn with_expected_size(expected_size: usize) -> Self {
         let mut composer = StandardComposer {
             n: 0,
@@ -541,8 +572,8 @@ impl StandardComposer {
         composer
     }
 
-    // Pads the circuit to the next power of two
-    // diff is the difference between circuit size and next power of two
+    /// Pads the circuit to the next power of two-
+    /// `diff` is the difference between circuit size and next power of two.
     fn pad(&mut self, diff: usize) {
         // Add a zero variable to circuit
         let zero_scalar = Scalar::zero();
@@ -566,11 +597,11 @@ impl StandardComposer {
         self.w_o.extend(zeroes_var.iter());
         self.w_4.extend(zeroes_var.iter());
 
-        self.n = self.n + diff;
+        self.n += diff;
     }
 
     /// Add Input first calls the `Permutation` struct
-    /// to generate and allocate a new variable `var`
+    /// to generate and allocate a new variable `var`.
     /// The composer then links the Variable to the Scalar
     /// and returns the Variable for use in the system.
     pub fn add_input(&mut self, s: Scalar) -> Variable {
@@ -582,7 +613,9 @@ impl StandardComposer {
         var
     }
 
-    // Adds a width-3 add gate to the circuit
+    /// Adds a width-3 add gate to the circuit linking the addition of the
+    /// provided inputs scaled by the selector coefficients with the output
+    /// provided.
     pub fn add_gate(
         &mut self,
         a: Variable,
@@ -608,8 +641,16 @@ impl StandardComposer {
         )
     }
 
-    // Ensures q_l * a + q_r * b - c = 0
-    // Returns c
+    /// Adds a `big_addition_gate` with the left and right inputs
+    /// and it's scaling factors, computing & returning the output (result)
+    /// `Variable` and adding the corresponding addition constraint.
+    ///
+    /// This type of gate is usually used when we don't need to have
+    /// the biggest ammount of performance and the minimum circuit-size
+    /// possible. Since it defaults some of the selector coefs = 0 in order
+    /// to reduce the verbosity and complexity.
+    ///
+    /// Forces `q_l * w_l + q_r * w_r + PI = w_o(computed by the gate)`.
     pub fn add(
         &mut self,
         q_l_a: (Scalar, Variable),
@@ -618,8 +659,17 @@ impl StandardComposer {
     ) -> Variable {
         self.big_add(q_l_a, q_r_b, (Scalar::zero(), self.zero_var), pi)
     }
-    // Ensures q_l * a + q_r * b * q_4 * d - c = 0
-    // Returns c
+
+    /// Adds a `big_addition_gate` with the left, right and fourth inputs
+    /// and it's scaling factors, computing & returning the output (result)
+    /// `Variable` and adding the corresponding addition constraint.
+    ///
+    /// This type of gate is usually used when we don't need to have
+    /// the biggest ammount of performance and the minimum circuit-size
+    /// possible. Since it defaults some of the selector coefs = 0 in order
+    /// to reduce the verbosity and complexity.
+    ///
+    /// Forces `q_l * w_l + q_r * w_r + q_4 * w_4 + PI = w_o(computed by the gate)`.
     pub fn big_add(
         &mut self,
         q_l_a: (Scalar, Variable),
@@ -649,7 +699,13 @@ impl StandardComposer {
         self.big_add_gate(a, b, c, d, q_l, q_r, q_o, q_4, q_c, pi)
     }
 
-    // Adds a width-4 add gate to the circuit
+    /// Adds a width-4 add gate to the circuit and it's corresponding
+    /// constraint.
+    ///
+    /// This type of gate is usually used when we need to have
+    /// the biggest ammount of performance and the minimum circuit-size
+    /// possible. Since it allows the end-user to set every selector coefficient
+    /// as scaling value on the gate eq.
     pub fn big_add_gate(
         &mut self,
         a: Variable,
@@ -685,11 +741,16 @@ impl StandardComposer {
 
         self.perm.add_variables_to_map(a, b, c, d, self.n);
 
-        self.n = self.n + 1;
+        self.n += 1;
 
         c
     }
-    // Adds a width-3 mul gate
+    /// Adds a width-3 add gate to the circuit linking the product of the
+    /// provided inputs scaled by the selector coefficient `q_m` with the output
+    /// provided scaled by `q_o`.
+    ///
+    /// Note that this gate requires to provide the actual result of the gate
+    /// (output wire) since it will just add a `mul constraint` to the circuit.
     pub fn mul_gate(
         &mut self,
         a: Variable,
@@ -703,7 +764,16 @@ impl StandardComposer {
         self.big_mul_gate(a, b, c, self.zero_var, q_m, q_o, q_c, Scalar::zero(), pi)
     }
 
-    //Adds a width-4 mul gate
+    /// Adds a width-4 `big_mul_gate` with the left, right and fourth inputs
+    /// and it's scaling factors, computing & returning the output (result)
+    /// `Variable` and adding the corresponding mul constraint.
+    ///
+    /// This type of gate is usually used when we need to have
+    /// the biggest ammount of performance and the minimum circuit-size
+    /// possible. Since it allows the end-user to setup all of the selector
+    /// coefficients.
+    ///
+    /// Forces `q_l * (w_l + w_r) + w_4 * q_4 + + q_c + PI = q_o * w_o(computed by the gate)`.
     pub fn big_mul_gate(
         &mut self,
         a: Variable,
@@ -739,18 +809,27 @@ impl StandardComposer {
 
         self.perm.add_variables_to_map(a, b, c, d, self.n);
 
-        self.n = self.n + 1;
+        self.n += 1;
 
         c
     }
 
-    // q_m * a * b - c = 0
+    /// Adds a simple and basic addition to the circuit between to `Variable`s
+    /// returning the resulting `Variable`.
     pub fn mul(&mut self, q_m: Scalar, a: Variable, b: Variable, pi: Scalar) -> Variable {
         self.big_mul(q_m, a, b, (Scalar::zero(), self.zero_var), pi)
     }
 
-    // q_m * a * b + (q_4 * d) - c = 0
-    // returns c
+    /// Adds a width-4 `big_mul_gate` with the left, right and fourth inputs
+    /// and it's scaling factors, computing & returning the output (result)
+    /// `Variable` and adding the corresponding mul constraint.
+    ///
+    /// This type of gate is usually used when we don't need to have
+    /// the biggest ammount of performance and the minimum circuit-size
+    /// possible. Since it defaults some of the selector coefs = 0 in order
+    /// to reduce the verbosity and complexity.
+    ///
+    /// Forces `q_l * (w_l + w_r) + w_4 * q_4 + PI = w_o(computed by the gate)`.
     pub fn big_mul(
         &mut self,
         q_m: Scalar,
@@ -775,8 +854,14 @@ impl StandardComposer {
         self.big_mul_gate(a, b, c, d, q_m, q_o, q_c, q_4, pi)
     }
 
-    // Adds a width-3 poly gate
-    // We do not have a poly gate for width-4 as width-4 style gates are specialised
+    /// Adds a width-3 poly gate.
+    /// This gate gives total freedom to the end user to implement it's circuits
+    /// in the most optimized way possible since he/she has access to the whole set
+    /// of variables and selector coefficients that take part in the computation
+    /// of the gate equation.
+    ///
+    /// The final constraint added will force the following:
+    /// `(a * b) * q_m + a * q_l + b * q_r + q_c + PI + q_o * c = 0`.
     pub fn poly_gate(
         &mut self,
         a: Variable,
@@ -810,11 +895,13 @@ impl StandardComposer {
 
         self.perm
             .add_variables_to_map(a, b, c, self.zero_var, self.n);
-        self.n = self.n + 1;
+        self.n += 1;
 
         (a, b, c)
     }
 
+    /// Adds a gate which is designed to constraint a `Variable` to have
+    /// a specific constant value which is sent as an `Scalar`.
     pub fn constrain_to_constant(&mut self, a: Variable, constant: Scalar, pi: Scalar) {
         self.poly_gate(
             a,
@@ -829,6 +916,12 @@ impl StandardComposer {
         );
     }
 
+    /// Adds a boolean constraint (also known as binary constraint) where
+    /// the gate eq. will enforce that the `Variable` recieved is either `0`
+    /// or `1` by adding a constraint in the circuit.
+    ///
+    /// Note that use this constraint with whatever `Variable` that is not
+    /// representing a value = 0 or 1 will force the equation to fail always.
     pub fn bool_gate(&mut self, a: Variable) -> Variable {
         self.w_l.push(a);
         self.w_r.push(a);
@@ -851,11 +944,13 @@ impl StandardComposer {
         self.perm
             .add_variables_to_map(a, a, a, self.zero_var, self.n);
 
-        self.n = self.n + 1;
+        self.n += 1;
 
         a
     }
 
+    /// Adds a range-constraint gate that checks and constraints a
+    /// `Variable` to be inside of the range [0,num_bits].
     pub fn range_gate(&mut self, witness: Variable, num_bits: usize) {
         use super::super::variable::WireData;
         use crate::bit_iterator::*;
@@ -961,7 +1056,7 @@ impl StandardComposer {
             add_wire(self, i, self.zero_var);
         }
 
-        for i in pad..num_quads + 1 {
+        for i in pad..=num_quads {
             // Convert each pair of bits to quads
             let bit_index = (num_quads - i) << 1;
             let q_0 = bits[bit_index] as u64;
@@ -992,7 +1087,7 @@ impl StandardComposer {
         self.q_range.extend(ones.iter());
         self.q_logic.extend(zeros.iter());
         self.public_inputs.extend(zeros.iter());
-        self.n = self.n + used_gates;
+        self.n += used_gates;
 
         // As mentioned above, we must switch off the range constraint for the last gate
         // Remember; it will contain one quad in the fourth wire, which will be used in the
@@ -1282,7 +1377,7 @@ impl StandardComposer {
     }
 
     /// Asserts that two variables are the same
-    /// XXX: Instead of wasting a gate, we can use the permutation polynomial to do this
+    // XXX: Instead of wasting a gate, we can use the permutation polynomial to do this
     pub fn assert_equal(&mut self, a: Variable, b: Variable) {
         self.poly_gate(
             a,
@@ -1297,6 +1392,13 @@ impl StandardComposer {
         );
     }
 
+    /// This function should be used in order to avoid having
+    /// `DegreeZero` polynomials since it adds at least one coeff
+    /// different from zero for each selector coefficient.
+    ///
+    /// Using it once if we never use one of the selector polynomials
+    /// will save us from having `DegreeZeroPolynomial` errors.
+    // XXX: We should have a way to handle this.
     pub fn add_dummy_constraints(&mut self) {
         // Add a dummy constraint so that we do not have zero polynomials
         self.q_m.push(Scalar::from(1));
@@ -1320,7 +1422,7 @@ impl StandardComposer {
         self.w_4.push(var_one);
         self.perm
             .add_variables_to_map(var_six, var_seven, var_min_twenty, var_one, self.n);
-        self.n = self.n + 1;
+        self.n += 1;
         //Add another dummy constraint so that we do not get the identity permutation
         self.q_m.push(Scalar::from(1));
         self.q_l.push(Scalar::from(1));
@@ -1338,8 +1440,8 @@ impl StandardComposer {
         self.w_4.push(self.zero_var);
         self.perm
             .add_variables_to_map(var_min_twenty, var_six, var_seven, self.zero_var, self.n);
-        self.n = self.n + 1;
-        //Add another dummy constraint for Q_range
+        self.n += 1;
+        //Add another dummy constraint fro Q_range
         // XXX: We should have a way to handle the zero polynomial
         self.q_m.push(Scalar::zero());
         self.q_l.push(Scalar::zero());
@@ -1362,7 +1464,7 @@ impl StandardComposer {
             self.zero_var,
             self.n,
         );
-        self.n = self.n + 1;
+        self.n += 1;
         // Previous gate will look at the d_next in this gate
         self.q_m.push(Scalar::zero());
         self.q_l.push(Scalar::zero());
@@ -1385,7 +1487,7 @@ impl StandardComposer {
             var_four,
             self.n,
         );
-        self.n = self.n + 1;
+        self.n += 1;
 
         //Add another dummy constraint for Q_logic
         // XXX: We should have a way to handle the zero polynomial
@@ -1410,7 +1512,7 @@ impl StandardComposer {
             self.zero_var,
             self.n,
         );
-        self.n = self.n + 1;
+        self.n += 1;
         //Add another dummy constraint for Q_logic
         // XXX: We should have a way to handle the zero polynomial
         self.q_m.push(Scalar::zero());
@@ -1459,12 +1561,23 @@ impl StandardComposer {
         );
         self.n = self.n + 1;
     }
+}
 
-    fn check_circuit_satisfied(&self) {
-        let w_l = self.to_scalars(&self.w_l);
-        let w_r = self.to_scalars(&self.w_r);
-        let w_o = self.to_scalars(&self.w_o);
-        let w_4 = self.to_scalars(&self.w_4);
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::commitment_scheme::kzg10::PublicParameters;
+    use bls12_381::Scalar as Fr;
+    use merlin::Transcript;
+
+    /// Utility function that allows to check on the "front-end"
+    /// side of the PLONK implementation if the identity polynomial
+    /// is satisfied for each one of the `StandardComposer`'s gates.
+    fn check_circuit_satisfied(composer: &StandardComposer) {
+        let w_l = composer.to_scalars(&composer.w_l);
+        let w_r = composer.to_scalars(&composer.w_r);
+        let w_o = composer.to_scalars(&composer.w_o);
+        let w_4 = composer.to_scalars(&composer.w_4);
         // Computes f(f-1)(f-2)(f-3)
         let delta = |f: Scalar| -> Scalar {
             let f_1 = f - Scalar::one();
@@ -1474,28 +1587,25 @@ impl StandardComposer {
         };
         let four = Scalar::from(4);
 
-        for i in 0..self.n {
-            let qm = self.q_m[i];
-            let ql = self.q_l[i];
-            let qr = self.q_r[i];
-            let qo = self.q_o[i];
-            let qc = self.q_c[i];
-            let q4 = self.q_4[i];
-            let qarith = self.q_arith[i];
-            let qrange = self.q_range[i];
-            let qlogic = self.q_logic[i];
-            let pi = self.public_inputs[i];
+        for i in 0..composer.n {
+            let qm = composer.q_m[i];
+            let ql = composer.q_l[i];
+            let qr = composer.q_r[i];
+            let qo = composer.q_o[i];
+            let qc = composer.q_c[i];
+            let q4 = composer.q_4[i];
+            let qarith = composer.q_arith[i];
+            let qrange = composer.q_range[i];
+            let qlogic = composer.q_logic[i];
+            let pi = composer.public_inputs[i];
+
             let a = w_l[i];
+            let a_next = w_l[(i + 1) % composer.n];
             let b = w_r[i];
+            let b_next = w_r[(i + 1) % composer.n];
             let c = w_o[i];
             let d = w_4[i];
-            let a_next = w_l[(i + 1) % self.n];
-            let b_next = w_r[(i + 1) % self.n];
-            let d_next = w_4[(i + 1) % self.n];
-            /*println!(
-                "ITER: {}\n\nd: {:?} \n\n A & B {:?} \n\n A ^ B: {:?} \n\n q_logic: {:?}\n\n left: {:?}\n next_left: {:?}\n delta_left: {:?}\n\n right: {:?}\n next_right: {:?}\n delta_right:{:?}\n\n out: {:?}\n",
-                i, d, (a & b), (a ^ b), qlogic, a, a_next,delta(a_next - four * a), b, b_next, delta(b_next - four * b), c
-            );*/
+            let d_next = w_4[(i + 1) % composer.n];
             let k = qarith * ((qm * a * b) + (ql * a) + (qr * b) + (qo * c) + (q4 * d) + pi + qc)
                 + qlogic
                     * (((a_next - b_next) * c)
@@ -1517,14 +1627,6 @@ impl StandardComposer {
             assert_eq!(k, Scalar::zero(), "Check failed at gate {}", i,);
         }
     }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::commitment_scheme::kzg10::PublicParameters;
-    use bls12_381::Scalar as Fr;
-    use merlin::Transcript;
 
     // Returns a composer with `n` constraints
     fn add_dummy_composer(n: usize) -> StandardComposer {
@@ -1576,7 +1678,7 @@ mod tests {
         let ok = test_gadget(
             |composer| {
                 // do nothing except add the dummy constraints
-                composer.check_circuit_satisfied();
+                check_circuit_satisfied(&composer);
             },
             200,
         );
@@ -1597,7 +1699,7 @@ mod tests {
                     Scalar::from(500u64 ^ 499u64),
                     Scalar::zero(),
                 );
-                composer.check_circuit_satisfied();
+                check_circuit_satisfied(composer);
             },
             200,
         );
@@ -1615,7 +1717,7 @@ mod tests {
                     Scalar::from(500u64 & 499u64),
                     Scalar::zero(),
                 );
-                composer.check_circuit_satisfied();
+                check_circuit_satisfied(composer);
             },
             200,
         );
@@ -1650,7 +1752,7 @@ mod tests {
                 let xor_res = composer.logic_gate(witness_a, witness_b, 9, true);
                 // Check that the XOR result is indeed what we are expecting.
                 composer.constrain_to_constant(xor_res, Scalar::from(7u64), Scalar::zero());
-                composer.check_circuit_satisfied();
+                check_circuit_satisfied(composer);
             },
             200,
         );
@@ -1684,7 +1786,7 @@ mod tests {
             |composer| {
                 let witness = composer.add_input(Scalar::from(2u64.pow(34) - 1));
                 composer.range_gate(witness, 34);
-                composer.check_circuit_satisfied();
+                check_circuit_satisfied(composer);
             },
             200,
         );
@@ -1695,7 +1797,7 @@ mod tests {
     #[should_panic]
     fn test_odd_bit_range() {
         // Should fail as the number we we need a even number of bits
-        let ok = test_gadget(
+        let _ok = test_gadget(
             |composer| {
                 let witness = composer.add_input(Scalar::from(u32::max_value() as u64));
                 composer.range_gate(witness, 33);
@@ -1743,7 +1845,7 @@ mod tests {
                 let fourteen =
                     composer.big_add(four.into(), five.into(), five.into(), Scalar::zero());
 
-                composer.check_circuit_satisfied();
+                check_circuit_satisfied(composer);
 
                 let twenty =
                     composer.big_add(six.into(), seven.into(), seven.into(), Scalar::zero());
@@ -1879,22 +1981,20 @@ mod tests {
         };
         // Verifiers view
         //
-        let ok = {
-            let mut composer: StandardComposer = add_dummy_composer(7);
-            gadget(&mut composer);
 
-            let (ck, vk) = public_parameters
-                .trim(composer.circuit_size().next_power_of_two())
-                .unwrap();
-            let domain = EvaluationDomain::new(composer.circuit_size()).unwrap();
-            // setup transcript
-            let mut transcript = Transcript::new(b"");
-            // Preprocess circuit
-            let preprocessed_circuit = composer.preprocess(&ck, &mut transcript, &domain);
-            // Verify proof
-            proof.verify(&preprocessed_circuit, &mut transcript, &vk, &public_inputs)
-        };
-        ok
+        let mut composer: StandardComposer = add_dummy_composer(7);
+        gadget(&mut composer);
+
+        let (ck, vk) = public_parameters
+            .trim(composer.circuit_size().next_power_of_two())
+            .unwrap();
+        let domain = EvaluationDomain::new(composer.circuit_size()).unwrap();
+        // setup transcript
+        let mut transcript = Transcript::new(b"");
+        // Preprocess circuit
+        let preprocessed_circuit = composer.preprocess(&ck, &mut transcript, &domain);
+        // Verify proof
+        proof.verify(&preprocessed_circuit, &mut transcript, &vk, &public_inputs)
     }
 
     #[test]

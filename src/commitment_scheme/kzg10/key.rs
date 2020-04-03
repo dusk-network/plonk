@@ -1,3 +1,6 @@
+//! Key module contains the ultilities and data structures
+//! that support the generation and usage of Prover and
+//! Verifier keys.
 use super::{errors::Error, AggregateProof, Commitment, Proof};
 use crate::{fft::Polynomial, transcript::TranscriptProtocol, util};
 use bls12_381::{
@@ -20,6 +23,7 @@ pub struct VerifierKey {
 }
 
 /// Prover key is used to commit to a polynomial which is bounded by the max_degree.
+#[derive(Debug)]
 pub struct ProverKey {
     /// Group elements of the form `{ \beta^i G }`, where `i` ranges from 0 to `degree`.
     pub powers_of_g: Vec<G1Affine>,
@@ -59,7 +63,8 @@ impl ProverKey {
         check_degree_is_within_bounds(self.max_degree(), poly_degree)
     }
 
-    /// Commits to a polynomial.
+    /// Commits to a polynomial returning the corresponding `Commitment`.
+    ///
     /// Returns an error if the polynomial's degree is more than the max degree of the prover key.
     pub fn commit(&self, polynomial: &Polynomial) -> Result<Commitment, Error> {
         // Check whether we can safely commit to this polynomial
@@ -77,9 +82,8 @@ impl ProverKey {
     /// ie. only the remainder changes. we can therefore compute the witness as f(x) / x - z
     /// and only use the remainder term f(z) during verification.
     pub fn compute_single_witness(&self, polynomial: &Polynomial, point: &Scalar) -> Polynomial {
-        // Computes f(x) / x-z
-        let witness_poly = polynomial.ruffini(*point);
-        witness_poly
+        // Computes `f(x) / x-z`, returning it as the witness poly
+        polynomial.ruffini(*point)
     }
 
     /// Computes a single witness for multiple polynomials at the same point, by taking
@@ -97,12 +101,11 @@ impl ProverKey {
         assert_eq!(powers.len(), polynomials.len());
 
         let numerator: Polynomial = polynomials
-            .into_iter()
+            .iter()
             .zip(powers.iter())
             .map(|(poly, challenge)| poly * challenge)
             .sum();
-        let witness_poly = numerator.ruffini(*point);
-        witness_poly
+        numerator.ruffini(*point)
     }
 
     /// Creates an opening proof that a polynomial `p` was correctly evaluated at p(z) and produced the value
@@ -121,6 +124,7 @@ impl ProverKey {
             commitment_to_polynomial: self.commit(polynomial)?,
         })
     }
+
     /// Creates an opening proof that multiple polynomials were evaluated at the same point
     /// and that each evaluation produced the correct evaluation point.
     /// Returns an error if any of the polynomial's degrees are too large.
@@ -190,7 +194,7 @@ impl VerifierKey {
         for ((proof, challenge), point) in proofs.iter().zip(powers).zip(points) {
             let mut c = G1Projective::from(proof.commitment_to_polynomial.0);
             let w = proof.commitment_to_witness.0;
-            c = c + w * point;
+            c += w * point;
             g_multiplier += challenge * proof.evaluated_point;
 
             total_c += c * challenge;
@@ -212,8 +216,10 @@ impl VerifierKey {
 }
 
 /// Checks whether the polynomial we are committing to:
-/// - has zero degree
-/// - has a degree which is more than the max supported degree
+/// - Has zero degree
+/// - Has a degree which is more than the max supported degree
+///
+///
 /// Returns an error if any of the above conditions are true.
 fn check_degree_is_within_bounds(max_degree: usize, poly_degree: usize) -> Result<(), Error> {
     if poly_degree == 0 {
