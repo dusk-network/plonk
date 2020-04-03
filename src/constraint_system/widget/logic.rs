@@ -128,7 +128,7 @@ fn delta(f: Scalar) -> Scalar {
 // A = B + E
 // B = q_c * [9c - 3(a+b)]
 // E = 3(a+b+c) - 2F
-// F = w[w(4w - 18(a+b) + 81) + 18(a^2 + b^2) - 81(a+b) + 81]
+// F = w[w(4w - 18(a+b) + 81) + 18(a^2 + b^2) - 81(a+b) + 83]
 fn delta_xor_and(a: &Scalar, b: &Scalar, w: &Scalar, c: &Scalar, q_c: &Scalar) -> Scalar {
     let nine = Scalar::from(9u64);
     let two = Scalar::from(2u64);
