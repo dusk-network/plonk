@@ -1517,22 +1517,20 @@ mod tests {
         };
         // Verifiers view
         //
-        let ok = {
-            let mut composer: StandardComposer = add_dummy_composer(7);
-            gadget(&mut composer);
 
-            let (ck, vk) = public_parameters
-                .trim(composer.circuit_size().next_power_of_two())
-                .unwrap();
-            let domain = EvaluationDomain::new(composer.circuit_size()).unwrap();
-            // setup transcript
-            let mut transcript = Transcript::new(b"");
-            // Preprocess circuit
-            let preprocessed_circuit = composer.preprocess(&ck, &mut transcript, &domain);
-            // Verify proof
-            proof.verify(&preprocessed_circuit, &mut transcript, &vk, &public_inputs)
-        };
-        ok
+        let mut composer: StandardComposer = add_dummy_composer(7);
+        gadget(&mut composer);
+
+        let (ck, vk) = public_parameters
+            .trim(composer.circuit_size().next_power_of_two())
+            .unwrap();
+        let domain = EvaluationDomain::new(composer.circuit_size()).unwrap();
+        // setup transcript
+        let mut transcript = Transcript::new(b"");
+        // Preprocess circuit
+        let preprocessed_circuit = composer.preprocess(&ck, &mut transcript, &domain);
+        // Verify proof
+        proof.verify(&preprocessed_circuit, &mut transcript, &vk, &public_inputs)
     }
 
     #[test]
