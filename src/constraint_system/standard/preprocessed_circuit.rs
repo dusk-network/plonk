@@ -19,7 +19,8 @@ pub struct PreProcessedCircuit {
     /// Holds the polynomials, commitments and evaluations
     /// of all of the range_constraint gate.
     pub range: RangeWidget,
-    /// XXX: Add docs
+    /// Holds the polynomials, commitments and evaluations
+    /// of all of the logic_constraint gate.
     pub logic: LogicWidget,
     /// Holds the polynomials, commitments and evaluations
     /// related to the sigmas and also stores the linear
