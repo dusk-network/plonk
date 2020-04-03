@@ -568,6 +568,44 @@ impl<E: PairingEngine> StandardComposer<E> {
             .add_variable_to_map(var_min_twenty, var_six, var_seven, self.n);
         self.n = self.n + 1;
     }
+
+    pub fn fill_capacity_with_dummy_constraints(&mut self, capacity: usize) {
+        if self.circuit_size() >= capacity {
+            return;
+        }
+
+        let l = self.add_input(E::Fr::one());
+        let r = self.add_input(E::Fr::one());
+        let o = self.add_input(E::Fr::zero());
+
+        self.add_gate(
+            l,
+            r,
+            o,
+            E::Fr::one(),
+            -E::Fr::one(),
+            E::Fr::one(),
+            E::Fr::zero(),
+            E::Fr::zero(),
+        );
+
+        if ((self.circuit_size() - capacity) & 1) == 1 {
+            self.add_gate(
+                l,
+                r,
+                o,
+                E::Fr::one(),
+                -E::Fr::one(),
+                E::Fr::one(),
+                E::Fr::zero(),
+                E::Fr::zero(),
+            );
+        }
+
+        while self.circuit_size() < capacity {
+            self.add_dummy_constraints();
+        }
+    }
 }
 
 #[cfg(test)]
