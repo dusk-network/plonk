@@ -1,5 +1,6 @@
+//! Code taken from zcash repo and generalised as we do not have access to the limbs
 use std::mem;
-// Code taken from zcash repo and generalised as we do not have access to the limbs
+
 macro_rules! bit_iterator {
     ($sty : ty, $name : ident) => {
         #[derive(Debug, Clone, Copy)]
