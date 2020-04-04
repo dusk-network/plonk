@@ -2,11 +2,13 @@ use super::PreProcessedCircuit;
 use crate::transcript::TranscriptProtocol;
 use algebra::curves::PairingEngine;
 use algebra::{
+    biginteger::BigInteger256 as BigInteger,
     curves::{AffineCurve, ProjectiveCurve},
     fields::{Field, PrimeField},
     groups::Group,
     msm::VariableBaseMSM,
 };
+
 use ff_fft::DensePolynomial as Polynomial;
 use ff_fft::EvaluationDomain;
 use num_traits::{One, Zero};
@@ -195,7 +197,8 @@ impl<E: PairingEngine> Proof<E> {
 
         let init_time_2 = start_timer!(|| "Evaluate lagrange coeffs");
         // Compute first lagrange polynomial evaluated at `z_challenge`
-        let n_fr = E::Fr::from(domain.size() as u8);
+
+        let n_fr = E::Fr::from_repr((domain.size() as u64).into());
         let denom = n_fr * &(z_challenge - &E::Fr::one());
         let l1_eval = z_h_eval / &denom;
         end_timer!(init_time_2);
