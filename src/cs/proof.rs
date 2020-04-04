@@ -160,6 +160,9 @@ impl<E: PairingEngine> Proof<E> {
         verifier_key: &VerifierKey<E>,
         pub_inputs: &Vec<E::Fr>,
     ) -> bool {
+        use bench_utils::*;
+
+        let init_time = start_timer!(|| "Transcript Setup");
         let domain = EvaluationDomain::new(preprocessed_circuit.n).unwrap();
 
         // XXX: Check if components are valid
@@ -183,15 +186,25 @@ impl<E: PairingEngine> Proof<E> {
         transcript.append_commitment(b"t_hi", &self.t_hi_comm);
         // Compute evaluation challenge
         let z_challenge = transcript.challenge_scalar(b"z");
+        end_timer!(init_time);
+
+        let init_time_2 = start_timer!(|| "Evaluate vanishing poly");
         // Compute zero polynomial evaluated at `z_challenge`
         let z_h_eval = domain.evaluate_vanishing_polynomial(z_challenge);
+        end_timer!(init_time_2);
 
+        let init_time_2 = start_timer!(|| "Evaluate lagrange coeffs");
         // Compute first lagrange polynomial evaluated at `z_challenge`
         let l1_eval = domain.evaluate_all_lagrange_coefficients(z_challenge)[0];
+        end_timer!(init_time_2);
 
+        let init_time_2 = start_timer!(|| "Compute PI eval at z_challenge");
         // Compute the public input polynomial evaluated at `z_challenge`
         let pi_poly = Polynomial::from_coefficients_vec(domain.ifft(&pub_inputs));
         let pi_eval = pi_poly.evaluate(z_challenge);
+        end_timer!(init_time_2);
+
+        let init_time_2 = start_timer!(|| "Compute quotient poly eval at z_challenge");
         // Compute quotient polynomial evaluated at `z_challenge`
         let t_eval = self.compute_quotient_evaluation(
             pi_eval,
@@ -202,7 +215,9 @@ impl<E: PairingEngine> Proof<E> {
             z_h_eval,
             self.z_hat_eval,
         );
+        end_timer!(init_time_2);
 
+        let init_time_2 = start_timer!(|| "Add evals to transcript");
         // Add evaluations to transcript
         transcript.append_scalar(b"a_eval", &self.a_eval);
         transcript.append_scalar(b"b_eval", &self.b_eval);
@@ -222,6 +237,8 @@ impl<E: PairingEngine> Proof<E> {
         // Compute multi-point separation challenge
         let u = transcript.challenge_scalar(b"u");
 
+        end_timer!(init_time_2);
+        let init_time_2 = start_timer!(|| "Compute partial opening commitment");
         // Compute Partial Opening commitment
         let d_comm = self.compute_partial_opening_commitment(
             alpha,
@@ -234,6 +251,8 @@ impl<E: PairingEngine> Proof<E> {
             &preprocessed_circuit,
         );
 
+        end_timer!(init_time_2);
+        let init_time_2 = start_timer!(|| "Compute batch opening commitment");
         // Compute batch opening commitment
         let f_comm = self.compute_batch_opening_commitment(
             z_challenge,
@@ -242,11 +261,14 @@ impl<E: PairingEngine> Proof<E> {
             &preprocessed_circuit,
         );
 
+        end_timer!(init_time_2);
+        let init_time_2 = start_timer!(|| "Compute batch evaluation commitment");
         // Compute batch evaluation commitment
         let e_comm = self.compute_batch_evaluation_commitment(u, v, t_eval, &verifier_key);
-
+        end_timer!(init_time_2);
         // Validate
 
+        let init_time_2 = start_timer!(|| "Pairing validation");
         let lhs = E::pairing(
             self.w_z_comm.0.into_projective() + &self.w_zw_comm.0.into_projective().mul(&u),
             verifier_key.beta_h,
@@ -262,7 +284,7 @@ impl<E: PairingEngine> Proof<E> {
         };
 
         let rhs = E::pairing(inner, verifier_key.h);
-
+        end_timer!(init_time_2);
         lhs == rhs
     }
 
