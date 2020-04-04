@@ -568,6 +568,44 @@ impl<E: PairingEngine> StandardComposer<E> {
             .add_variable_to_map(var_min_twenty, var_six, var_seven, self.n);
         self.n = self.n + 1;
     }
+
+    pub fn fill_capacity_with_dummy_constraints(&mut self, capacity: usize) {
+        if self.circuit_size() >= capacity {
+            return;
+        }
+
+        let l = self.add_input(E::Fr::one());
+        let r = self.add_input(E::Fr::one());
+        let o = self.add_input(E::Fr::zero());
+
+        self.add_gate(
+            l,
+            r,
+            o,
+            E::Fr::one(),
+            -E::Fr::one(),
+            E::Fr::one(),
+            E::Fr::zero(),
+            E::Fr::zero(),
+        );
+
+        if ((self.circuit_size() - capacity) & 1) == 1 {
+            self.add_gate(
+                l,
+                r,
+                o,
+                E::Fr::one(),
+                -E::Fr::one(),
+                E::Fr::one(),
+                E::Fr::zero(),
+                E::Fr::zero(),
+            );
+        }
+
+        while self.circuit_size() < capacity {
+            self.add_dummy_constraints();
+        }
+    }
 }
 
 #[cfg(test)]
@@ -862,5 +900,49 @@ mod tests {
         }
 
         assert_eq!(n, composer.circuit_size())
+    }
+
+    #[test]
+    fn test_prover_bench_code() {
+        use crate::srs::*;
+        use bench_utils::*;
+        // cargo test --release test_prover_bench_code --features print-trace -- --nocapture
+        // THis code does not test srs generation or preprocessing
+        /*
+        Circuit contained just a simple add_gadget a+b-c = 0 repeated
+        2^13 -> 1.125 seconds
+        2^14 -> 1.803 seconds
+        2^15 -> 3.612 seconds
+        2^16 -> 7.394 seconds
+        2^17 -> 13.159  seconds
+        2^18 -> 25.400 seconds
+        2^19 -> 53.112 seconds
+        2^20 -> 102.850 seconds
+        */
+        let public_parameters = setup(2usize.pow(21), &mut rand::thread_rng());
+
+        for i in 17..19 {
+            let mut composer: StandardComposer<Bls12_381> = add_dummy_composer(2usize.pow(i) - 1);
+            let (ck, vk) = trim(&public_parameters, composer.n.next_power_of_two()).unwrap();
+            let domain = EvaluationDomain::new(composer.n).unwrap();
+            // Provers View
+            //
+            // setup transcript
+            let mut transcript = Transcript::new(b"");
+            // Preprocess circuit
+            let preprocessed_circuit = composer.preprocess(&ck, &mut transcript, &domain);
+            println!("Circuit Size -> 2^{}", i);
+            let init_time = start_timer!(|| "Proving");
+            let proof = composer.prove(&ck, &preprocessed_circuit, &mut transcript);
+            end_timer!(init_time);
+            let init_time_2 = start_timer!(|| "Verification");
+            proof.verify(
+                &preprocessed_circuit,
+                &mut transcript,
+                &vk,
+                &vec![Fr::zero()],
+            );
+            end_timer!(init_time_2);
+        }
     }
 }
