@@ -903,6 +903,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn test_prover_bench_code() {
         use crate::srs::*;
         use bench_utils::*;
