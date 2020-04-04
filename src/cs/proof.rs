@@ -400,8 +400,9 @@ impl<E: PairingEngine> Proof<E> {
         };
         scalars.push(-y);
         points.push(preprocessed_circuit.out_sigma_comm().0);
-
-        let scalars: Vec<_> = scalars.iter().map(|s| s.into_repr()).collect();
+        use rayon::iter::IntoParallelRefIterator;
+        use rayon::iter::ParallelIterator;
+        let scalars: Vec<_> = scalars.par_iter().map(|s| s.into_repr()).collect();
 
         VariableBaseMSM::multi_scalar_mul(&points, &scalars)
     }
@@ -445,8 +446,9 @@ impl<E: PairingEngine> Proof<E> {
 
         scalars.push(v.pow(&[6 as u64]));
         points.push(preprocessed_circuit.right_sigma_comm().0);
-
-        let scalars: Vec<_> = scalars.iter().map(|s| s.into_repr()).collect();
+        use rayon::iter::IntoParallelRefIterator;
+        use rayon::iter::ParallelIterator;
+        let scalars: Vec<_> = scalars.par_iter().map(|s| s.into_repr()).collect();
 
         VariableBaseMSM::multi_scalar_mul(&points, &scalars)
     }
