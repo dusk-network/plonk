@@ -185,7 +185,9 @@ impl<E: PairingEngine> Proof<E> {
         let z_h_eval = domain.evaluate_vanishing_polynomial(z_challenge);
 
         // Compute first lagrange polynomial evaluated at `z_challenge`
-        let l1_eval = domain.evaluate_all_lagrange_coefficients(z_challenge)[0];
+        let n_fr = E::Fr::from(domain.size() as u8);
+        let denom = n_fr * &(z_challenge - &E::Fr::one());
+        let l1_eval = z_h_eval / &denom;
 
         // Compute the public input polynomial evaluated at `z_challenge`
         let pi_poly = Polynomial::from_coefficients_vec(domain.ifft(&pub_inputs));
