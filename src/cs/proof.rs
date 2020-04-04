@@ -203,7 +203,9 @@ impl<E: PairingEngine> Proof<E> {
         let init_time_2 = start_timer!(|| "Compute PI eval at z_challenge");
         // Compute the public input polynomial evaluated at `z_challenge`
         let pi_poly = Polynomial::from_coefficients_vec(domain.ifft(&pub_inputs));
-        let pi_eval = pi_poly.evaluate(z_challenge);
+        let mut sparse_pi_poly: SparsePolynomial<E> = SparsePolynomial::new();
+        sparse_pi_poly.from_dense_polynomial(&pi_poly);
+        let pi_eval = sparse_pi_poly.evaluate(z_challenge);
         end_timer!(init_time_2);
 
         let init_time_2 = start_timer!(|| "Compute quotient poly eval at z_challenge");
@@ -469,5 +471,39 @@ impl<E: PairingEngine> Proof<E> {
         }
 
         vk.g.into_projective().mul(&result)
+    }
+}
+use std::marker::PhantomData;
+
+struct SparsePolynomial<'a, E: PairingEngine> {
+    _engine: PhantomData<E>,
+    coeffs: Vec<(usize, &'a E::Fr)>,
+}
+
+impl<'a, E: PairingEngine> SparsePolynomial<'a, E> {
+    pub fn new() -> Self {
+        SparsePolynomial {
+            _engine: PhantomData,
+            coeffs: Vec::new(),
+        }
+    }
+
+    fn from_dense_polynomial(&mut self, p: &'a Polynomial<E::Fr>) {
+        let mut sparse_coeffs: Vec<(usize, &E::Fr)> = Vec::new();
+
+        for (index, scalar) in p.coeffs.iter().enumerate() {
+            if !scalar.is_zero() {
+                self.coeffs.push((index, scalar))
+            }
+        }
+    }
+    fn evaluate(&self, point: E::Fr) -> E::Fr {
+        let mut result = E::Fr::zero();
+
+        for (index, coeff) in self.coeffs.iter() {
+            let power = point.pow(&[*index as u64]);
+            result += &(power * coeff);
+        }
+        result
     }
 }
