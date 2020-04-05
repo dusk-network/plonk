@@ -908,6 +908,7 @@ mod tests {
         use crate::srs::*;
         use bench_utils::*;
         // cargo test --release test_prover_bench_code --features print-trace -- --nocapture
+        // env RAYON_NUM_THREADS=1 cargo test --release test_prover_bench_code --features print-trace -- --nocapture
         // THis code does not test srs generation or preprocessing
         /*
         Circuit contained just a simple add_gadget a+b-c = 0 repeated
@@ -920,9 +921,9 @@ mod tests {
         2^19 -> 53.112 seconds
         2^20 -> 102.850 seconds
         */
-        let public_parameters = setup(2usize.pow(21), &mut rand::thread_rng());
+        let public_parameters = setup(2usize.pow(15), &mut rand::thread_rng());
 
-        for i in 17..19 {
+        for i in 13..14 {
             let mut composer: StandardComposer<Bls12_381> = add_dummy_composer(2usize.pow(i) - 1);
             let (ck, vk) = trim(&public_parameters, composer.n.next_power_of_two()).unwrap();
             let domain = EvaluationDomain::new(composer.n).unwrap();
@@ -931,7 +932,7 @@ mod tests {
             // setup transcript
             let mut transcript = Transcript::new(b"");
             // Preprocess circuit
-            let preprocessed_circuit = composer.preprocess(&ck, &mut transcript, &domain);
+            let mut preprocessed_circuit = composer.preprocess(&ck, &mut transcript, &domain);
             println!("Circuit Size -> 2^{}", i);
             let init_time = start_timer!(|| "Proving");
             let proof = composer.prove(&ck, &preprocessed_circuit, &mut transcript);
@@ -941,7 +942,7 @@ mod tests {
                 &preprocessed_circuit,
                 &mut transcript,
                 &vk,
-                &vec![Fr::zero()],
+                &vec![Fr::zero(); preprocessed_circuit.n],
             );
             end_timer!(init_time_2);
         }

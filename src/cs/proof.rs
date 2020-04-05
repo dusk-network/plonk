@@ -2,14 +2,12 @@ use super::PreProcessedCircuit;
 use crate::transcript::TranscriptProtocol;
 use algebra::curves::PairingEngine;
 use algebra::{
-    biginteger::BigInteger256 as BigInteger,
-    curves::{AffineCurve, ProjectiveCurve},
+    curves::{AffineCurve, PairingCurve, ProjectiveCurve},
     fields::{Field, PrimeField},
     groups::Group,
     msm::VariableBaseMSM,
 };
 
-use ff_fft::DensePolynomial as Polynomial;
 use ff_fft::EvaluationDomain;
 use num_traits::{One, Zero};
 use poly_commit::data_structures::PCCommitment;
@@ -205,10 +203,7 @@ impl<E: PairingEngine> Proof<E> {
 
         let init_time_2 = start_timer!(|| "Compute PI eval at z_challenge");
         // Compute the public input polynomial evaluated at `z_challenge`
-        let pi_poly = Polynomial::from_coefficients_vec(domain.ifft(&pub_inputs));
-        let mut sparse_pi_poly: SparsePolynomial<E> = SparsePolynomial::new();
-        sparse_pi_poly.from_dense_polynomial(&pi_poly);
-        let pi_eval = sparse_pi_poly.evaluate(z_challenge);
+        let pi_eval = compute_barycentric_eval::<E>(&pub_inputs, z_challenge, &domain);
         end_timer!(init_time_2);
 
         let init_time_2 = start_timer!(|| "Compute quotient poly eval at z_challenge");
@@ -274,25 +269,30 @@ impl<E: PairingEngine> Proof<E> {
         let e_comm = self.compute_batch_evaluation_commitment(u, v, t_eval, &verifier_key);
         end_timer!(init_time_2);
         // Validate
-
         let init_time_2 = start_timer!(|| "Pairing validation");
-        let lhs = E::pairing(
-            self.w_z_comm.0.into_projective() + &self.w_zw_comm.0.into_projective().mul(&u),
-            verifier_key.beta_h,
-        );
 
-        let inner = {
+        let inner_a: E::G1Affine = (self.w_z_comm.0.into_projective()
+            + &self.w_zw_comm.0.into_projective().mul(&u))
+            .into();
+
+        let inner_b: E::G1Affine = {
             let k_0 = self.w_z_comm.0.into_projective().mul(&z_challenge);
 
             let u_z_root = u * &z_challenge * &domain.group_gen;
             let k_1 = self.w_zw_comm.0.into_projective().mul(&u_z_root);
 
-            k_0 + &k_1 + &f_comm - &e_comm
+            (-(k_0 + &k_1 + &f_comm - &e_comm)).into()
         };
 
-        let rhs = E::pairing(inner, verifier_key.h);
+        // XXX: change to product of pairings
+        let miller = E::miller_loop(&[
+            (&(inner_a.prepare()), &(verifier_key.prepared_beta_h)),
+            (&(inner_b.prepare()), &(verifier_key.prepared_h)),
+        ]);
+        let lhs = E::final_exponentiation(&miller).unwrap();
+
         end_timer!(init_time_2);
-        lhs == rhs
+        lhs == E::Fqk::one()
     }
 
     fn compute_quotient_evaluation(
@@ -478,37 +478,51 @@ impl<E: PairingEngine> Proof<E> {
         vk.g.into_projective().mul(&result)
     }
 }
-use std::marker::PhantomData;
 
-struct SparsePolynomial<'a, E: PairingEngine> {
-    _engine: PhantomData<E>,
-    coeffs: Vec<(usize, &'a E::Fr)>,
-}
+fn compute_barycentric_eval<E: PairingEngine>(
+    evaluations: &Vec<E::Fr>,
+    point: E::Fr,
+    domain: &EvaluationDomain<E::Fr>,
+) -> E::Fr {
+    use algebra::fields::batch_inversion;
+    use rayon::iter::IntoParallelIterator;
+    use rayon::prelude::*;
 
-impl<'a, E: PairingEngine> SparsePolynomial<'a, E> {
-    pub fn new() -> Self {
-        SparsePolynomial {
-            _engine: PhantomData,
-            coeffs: Vec::new(),
-        }
+    let numerator = (point.pow(&[domain.size() as u64]) - &E::Fr::one()) * &domain.size_inv;
+
+    let mut denominators: Vec<E::Fr> = Vec::with_capacity(domain.size());
+    denominators.push(point - &E::Fr::one());
+
+    let mut group_gen_inv = domain.group_gen_inv;
+    for _ in 1..evaluations.len() {
+        let d = (group_gen_inv * &point) - &E::Fr::one();
+        denominators.push(d);
+        group_gen_inv *= &domain.group_gen_inv;
     }
+    batch_inversion(&mut denominators);
 
-    fn from_dense_polynomial(&mut self, p: &'a Polynomial<E::Fr>) {
-        let mut sparse_coeffs: Vec<(usize, &E::Fr)> = Vec::new();
-
-        for (index, scalar) in p.coeffs.iter().enumerate() {
-            if !scalar.is_zero() {
-                self.coeffs.push((index, scalar))
+    let result: E::Fr = (0..evaluations.len())
+        .into_par_iter()
+        .map(|i| {
+            let eval = &evaluations[i];
+            if eval.is_zero() {
+                return E::Fr::zero();
             }
-        }
-    }
-    fn evaluate(&self, point: E::Fr) -> E::Fr {
-        let mut result = E::Fr::zero();
+            denominators[i] * eval
+        })
+        .sum();
 
-        for (index, coeff) in self.coeffs.iter() {
-            let power = point.pow(&[*index as u64]);
-            result += &(power * coeff);
-        }
-        result
-    }
+    // Leaving this here for Carlos
+    // -- Filter zeros
+    // let non_zero_evals: Vec<(&E::Fr, E::Fr)> = evaluations
+    // .iter()
+    // .zip(denominators.into_iter())
+    // .filter(|(eval, _)| !eval.is_zero())
+    // .collect();
+    // let result: E::Fr = non_zero_evals
+    //     .into_iter()
+    //     .map(|(eval, denom)| denom * eval)
+    //     .sum();
+
+    result * &numerator
 }
