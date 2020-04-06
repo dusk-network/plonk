@@ -15,11 +15,13 @@
 use super::linearisation_poly;
 use super::quotient_poly;
 use super::{proof::Proof, Composer, PreProcessedCircuit};
+use crate::bit_iterator::*;
 use crate::commitment_scheme::kzg10::ProverKey;
 use crate::constraint_system::widget::{
     ArithmeticWidget, LogicWidget, PermutationWidget, RangeWidget,
 };
 use crate::constraint_system::Variable;
+use crate::constraint_system::WireData;
 use crate::fft::{EvaluationDomain, Evaluations, Polynomial};
 use crate::permutation::Permutation;
 use crate::transcript::TranscriptProtocol;
@@ -952,9 +954,6 @@ impl StandardComposer {
     /// Adds a range-constraint gate that checks and constraints a
     /// `Variable` to be inside of the range [0,num_bits].
     pub fn range_gate(&mut self, witness: Variable, num_bits: usize) {
-        use super::super::variable::WireData;
-        use crate::bit_iterator::*;
-
         // Adds `variable` into the appropriate witness position
         // based on the accumulator number a_i
         let add_wire = |composer: &mut StandardComposer, i: usize, variable: Variable| {
@@ -1125,7 +1124,6 @@ impl StandardComposer {
         num_bits: usize,
         is_xor_gate: bool,
     ) -> Variable {
-        use crate::constraint_system::WireData;
         // Since we work on base4, we need to guarantee that we have an even
         // number of bits representing the greatest input.
         assert_eq!(num_bits & 1, 0);
@@ -1138,11 +1136,14 @@ impl StandardComposer {
         let mut out_accumulator = Scalar::zero();
         let mut left_quad: u8;
         let mut right_quad: u8;
-        // Get vars as base_4 elems and reverse them to get it's Big Endian repr.
-        let a_base_4 = &mut self.variables[&a].to_base_4()[0..num_quads];
-        a_base_4.reverse();
-        let b_base_4 = &mut self.variables[&b].to_base_4()[0..num_quads];
-        b_base_4.reverse();
+        // Get vars as bits and reverse them to get it's Little Endian repr.
+        let a_bit_iter = BitIterator8::new(self.variables[&a].to_bytes());
+        let a_bits: Vec<_> = a_bit_iter.skip(256 - num_bits).collect();
+        let b_bit_iter = BitIterator8::new(self.variables[&b].to_bytes());
+        let b_bits: Vec<_> = b_bit_iter.skip(256 - num_bits).collect();
+        // XXX Doc this
+        assert!(a_bits.len() >= num_bits);
+        assert!(b_bits.len() >= num_bits);
 
         // If we take a look to the program memory structure of the ref. impl.
         // * +-----+-----+-----+-----+
@@ -1179,8 +1180,19 @@ impl StandardComposer {
             // On each round, we will commit every accumulator step. To do so,
             // we first need to get the ith quads of `a` and `b` and then compute
             // `out_quad`(logical OP result) and `prod_quad`(intermediate prod result).
-            left_quad = a_base_4[i];
-            right_quad = b_base_4[i];
+
+            // Here we compute each quad by taking the most significant bit
+            // multiplying it by two and adding to it the less significant
+            // bit to form the quad with a ternary value encapsulated in an `u8`
+            // in Big Endian form.
+            left_quad = {
+                let idx = i << 1;
+                ((a_bits[idx] as u8) << 1) + (a_bits[idx + 1] as u8)
+            };
+            right_quad = {
+                let idx = i << 1;
+                ((b_bits[idx] as u8) << 1) + (b_bits[idx + 1] as u8)
+            };
             let left_quad_fr = Scalar::from(left_quad as u64);
             let right_quad_fr = Scalar::from(right_quad as u64);
             // The `out_quad` is the result of the bitwise ops `&` or `^` between
@@ -1342,23 +1354,7 @@ impl StandardComposer {
         // by taking the values behind the n'th variables of `w_l` & `w_r` and
         // checking that they're equal to the original ones behind the variables
         // sent through the function parameters.
-        assert_eq!(
-            a_base_4[0..num_quads]
-                .iter()
-                .rev()
-                .cloned()
-                .collect::<Vec<u8>>(),
-            Vec::from(&self.variables[self.w_l.last().unwrap()].to_base_4()[0..num_quads])
-        );
         assert_eq!(self.variables[&a], self.variables[&self.w_l[self.n - 1]]);
-        assert_eq!(
-            b_base_4[0..num_quads]
-                .iter()
-                .rev()
-                .cloned()
-                .collect::<Vec<u8>>(),
-            Vec::from(&self.variables[self.w_r.last().unwrap()].to_base_4()[0..num_quads])
-        );
         assert_eq!(self.variables[&b], self.variables[&self.w_r[self.n - 1]]);
 
         // Once the inputs are checked against the accumulated additions,
@@ -1620,7 +1616,7 @@ mod tests {
             let d_next = w_4[(i + 1) % composer.n];
             let k = qarith * ((qm * a * b) + (ql * a) + (qr * b) + (qo * c) + (q4 * d) + pi + qc)
                 + qlogic
-                    * (((a_next - b_next) * c)
+                    * (((delta(a_next - four * a) - delta(b_next - four * b)) * c)
                         + delta(a_next - four * a)
                         + delta(b_next - four * b)
                         + delta(d_next - four * d)
@@ -1703,12 +1699,12 @@ mod tests {
         let ok = test_gadget(
             |composer| {
                 let witness_a = composer.add_input(Scalar::from(500u64));
-                let witness_b = composer.add_input(Scalar::from(499u64));
+                let witness_b = composer.add_input(Scalar::from(357u64));
                 let xor_res = composer.logic_gate(witness_a, witness_b, 10, true);
                 // Check that the XOR result is indeed what we are expecting.
                 composer.constrain_to_constant(
                     xor_res,
-                    Scalar::from(500u64 ^ 499u64),
+                    Scalar::from(500u64 ^ 357u64),
                     Scalar::zero(),
                 );
                 check_circuit_satisfied(composer);
@@ -1720,13 +1716,13 @@ mod tests {
         // Should pass since the AND result is correct even the bit-num is even.
         let ok = test_gadget(
             |composer| {
-                let witness_a = composer.add_input(Scalar::from(500u64));
-                let witness_b = composer.add_input(Scalar::from(499u64));
+                let witness_a = composer.add_input(Scalar::from(469u64));
+                let witness_b = composer.add_input(Scalar::from(321u64));
                 let xor_res = composer.logic_gate(witness_a, witness_b, 10, false);
                 // Check that the AND result is indeed what we are expecting.
                 composer.constrain_to_constant(
                     xor_res,
-                    Scalar::from(500u64 & 499u64),
+                    Scalar::from(469u64 & 321u64),
                     Scalar::zero(),
                 );
                 check_circuit_satisfied(composer);
@@ -1738,13 +1734,13 @@ mod tests {
         // Should not pass since the XOR result is not correct even the bit-num is even.
         let ok = test_gadget(
             |composer| {
-                let witness_a = composer.add_input(Scalar::from(500u64));
-                let witness_b = composer.add_input(Scalar::from(499u64));
+                let witness_a = composer.add_input(Scalar::from(139u64));
+                let witness_b = composer.add_input(Scalar::from(33u64));
                 let xor_res = composer.logic_gate(witness_a, witness_b, 10, true);
                 // Check that the XOR result is indeed what we are expecting.
                 composer.constrain_to_constant(
                     xor_res,
-                    Scalar::from(500u64 & 499u64),
+                    Scalar::from(139u64 & 33u64),
                     Scalar::zero(),
                 );
             },
