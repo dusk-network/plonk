@@ -490,29 +490,23 @@ fn compute_barycentric_eval<E: PairingEngine>(
 
     let numerator = (point.pow(&[domain.size() as u64]) - &E::Fr::one()) * &domain.size_inv;
 
-    let mut denominators: Vec<E::Fr> = Vec::with_capacity(domain.size());
-    denominators.push(point - &E::Fr::one());
-
-    let mut group_gen_inv = domain.group_gen_inv;
-
     // Indices with non-zero evaluations
-    let mut non_zero_evaluations: Vec<usize> = (1..evaluations.len())
+    let mut non_zero_evaluations: Vec<usize> = (0..evaluations.len())
         .into_par_iter()
-        .filter(|&i| {
-            let evaluation = evaluations[i];
-            !evaluation.is_zero()
-        })
+        .filter(|&i| !evaluations[i].is_zero())
         .collect();
-    non_zero_evaluations.insert(0, 0);
 
     // Only compute the denominators with non-zero evaluations
-    for i in 1..non_zero_evaluations.len() {
-        // index of non-zero evaluation
-        let index = non_zero_evaluations[i];
+    let mut denominators: Vec<E::Fr> = (0..non_zero_evaluations.len())
+        .into_par_iter()
+        .map(|i| {
+            // index of non-zero evaluation
+            let index = non_zero_evaluations[i];
 
-        let d = (group_gen_inv.pow(&[index as u64]) * &point) - &E::Fr::one();
-        denominators.push(d);
-    }
+            (domain.group_gen_inv.pow(&[index as u64, 0, 0, 0]) * &point) - &E::Fr::one()
+        })
+        .collect();
+
     batch_inversion(&mut denominators);
 
     let result: E::Fr = (0..non_zero_evaluations.len())
