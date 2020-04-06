@@ -1106,7 +1106,19 @@ impl StandardComposer {
         accumulators[last_accumulator] = witness;
     }
 
-    fn logic_gate(
+    /// Performs a logical AND or XOR op between the inputs provided for the specified
+    /// number of bits.
+    ///
+    /// Each logic gate adds `(num_bits / 2) + 1` gates to the circuit to perform the
+    /// whole operation.
+    ///
+    /// ## Selector
+    /// - is_xor_gate = 1 -> Performs XOR between the first `num_bits` for `a` and `b`.
+    /// - is_xor_gate = 0 -> Performs AND between the first `num_bits` for `a` and `b`.
+    ///
+    /// ## Panics
+    /// This function will panic if the num_bits specified is not even `num_bits % 2 != 0`.
+    pub fn logic_gate(
         &mut self,
         a: Variable,
         b: Variable,
