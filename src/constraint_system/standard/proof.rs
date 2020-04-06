@@ -343,24 +343,37 @@ fn compute_barycentric_eval(
         (point.pow(&[domain.size() as u64, 0, 0, 0]) - &Scalar::one()) * &domain.size_inv;
 
     let mut denominators: Vec<Scalar> = Vec::with_capacity(domain.size());
-    denominators.push(point - &Scalar::one());
+    denominators.push(point - Scalar::one());
 
     let mut group_gen_inv = domain.group_gen_inv;
-    for _ in 1..evaluations.len() {
-        let d = (group_gen_inv * point) - &Scalar::one();
+
+    // Indices with non-zero evaluations
+    let mut non_zero_evaluations: Vec<usize> = (1..evaluations.len())
+        .into_par_iter()
+        .filter(|&i| {
+            let evaluation = &evaluations[i];
+            !(evaluation == &Scalar::zero())
+        })
+        .collect();
+    non_zero_evaluations.insert(0, 0);
+
+    // Only compute the denominators with non-zero evaluations
+    for i in 1..non_zero_evaluations.len() {
+        // index of non-zero evaluation
+        let index = non_zero_evaluations[i];
+
+        let d = (group_gen_inv.pow(&[index as u64, 0, 0, 0]) * point) - Scalar::one();
         denominators.push(d);
-        group_gen_inv *= &domain.group_gen_inv;
     }
     batch_inversion(&mut denominators);
 
-    let result: Scalar = (0..evaluations.len())
+    let result: Scalar = (0..non_zero_evaluations.len())
         .into_par_iter()
         .map(|i| {
-            let eval = &evaluations[i];
-            if (eval == &Scalar::zero()) {
-                return Scalar::zero();
-            }
-            denominators[i] * eval
+            let eval_index = non_zero_evaluations[i];
+            let eval = evaluations[eval_index];
+
+            denominators[i] * &eval
         })
         .sum();
 
