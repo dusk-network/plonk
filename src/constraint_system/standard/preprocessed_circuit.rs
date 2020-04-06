@@ -1,4 +1,6 @@
-use crate::constraint_system::widget::{ArithmeticWidget, PermutationWidget, RangeWidget};
+use crate::constraint_system::widget::{
+    ArithmeticWidget, LogicWidget, PermutationWidget, RangeWidget,
+};
 use crate::fft::Evaluations;
 
 /// `PreProcessedCircuit` is a data structure that holds the commitments to
@@ -17,6 +19,9 @@ pub struct PreProcessedCircuit {
     /// Holds the polynomials, commitments and evaluations
     /// of all of the range_constraint gate.
     pub range: RangeWidget,
+    /// Holds the polynomials, commitments and evaluations
+    /// of all of the logic_constraint gate.
+    pub logic: LogicWidget,
     /// Holds the polynomials, commitments and evaluations
     /// related to the sigmas and also stores the linear
     /// evaluations.
