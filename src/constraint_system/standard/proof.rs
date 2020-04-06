@@ -326,10 +326,9 @@ fn compute_first_lagrange_evaluation(
 ) -> Scalar {
     let n_fr = Scalar::from(domain.size() as u64);
     let denom = n_fr * (z_challenge - Scalar::one());
-    let l1_eval = z_h_eval * denom.invert().unwrap();
-    l1_eval
+    z_h_eval * denom.invert().unwrap()
 }
-
+#[warn(clippy::needless_range_loop)]
 fn compute_barycentric_eval(
     evaluations: &[Scalar],
     point: &Scalar,
@@ -339,32 +338,27 @@ fn compute_barycentric_eval(
     use rayon::iter::IntoParallelIterator;
     use rayon::prelude::*;
 
-    let numerator =
-        (point.pow(&[domain.size() as u64, 0, 0, 0]) - &Scalar::one()) * &domain.size_inv;
-
-    let mut denominators: Vec<Scalar> = Vec::with_capacity(domain.size());
-    denominators.push(point - Scalar::one());
-
-    let mut group_gen_inv = domain.group_gen_inv;
+    let numerator = (point.pow(&[domain.size() as u64, 0, 0, 0]) - Scalar::one()) * domain.size_inv;
 
     // Indices with non-zero evaluations
-    let mut non_zero_evaluations: Vec<usize> = (1..evaluations.len())
+    let non_zero_evaluations: Vec<usize> = (0..evaluations.len())
         .into_par_iter()
         .filter(|&i| {
             let evaluation = &evaluations[i];
             !(evaluation == &Scalar::zero())
         })
         .collect();
-    non_zero_evaluations.insert(0, 0);
 
     // Only compute the denominators with non-zero evaluations
-    for i in 1..non_zero_evaluations.len() {
-        // index of non-zero evaluation
-        let index = non_zero_evaluations[i];
+    let mut denominators: Vec<Scalar> = (0..non_zero_evaluations.len())
+        .into_par_iter()
+        .map(|i| {
+            // index of non-zero evaluation
+            let index = non_zero_evaluations[i];
 
-        let d = (group_gen_inv.pow(&[index as u64, 0, 0, 0]) * point) - Scalar::one();
-        denominators.push(d);
-    }
+            (domain.group_gen_inv.pow(&[index as u64, 0, 0, 0]) * point) - Scalar::one()
+        })
+        .collect();
     batch_inversion(&mut denominators);
 
     let result: Scalar = (0..non_zero_evaluations.len())
@@ -373,7 +367,7 @@ fn compute_barycentric_eval(
             let eval_index = non_zero_evaluations[i];
             let eval = evaluations[eval_index];
 
-            denominators[i] * &eval
+            denominators[i] * eval
         })
         .sum();
 
