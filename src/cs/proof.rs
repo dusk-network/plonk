@@ -494,35 +494,36 @@ fn compute_barycentric_eval<E: PairingEngine>(
     denominators.push(point - &E::Fr::one());
 
     let mut group_gen_inv = domain.group_gen_inv;
-    for _ in 1..evaluations.len() {
-        let d = (group_gen_inv * &point) - &E::Fr::one();
+
+    // Indices with non-zero evaluations
+    let mut non_zero_evaluations: Vec<usize> = (1..evaluations.len())
+        .into_par_iter()
+        .filter(|&i| {
+            let evaluation = evaluations[i];
+            !evaluation.is_zero()
+        })
+        .collect();
+    non_zero_evaluations.insert(0, 0);
+
+    // Only compute the denominators with non-zero evaluations
+    for i in 1..non_zero_evaluations.len() {
+        // index of non-zero evaluation
+        let index = non_zero_evaluations[i];
+
+        let d = (group_gen_inv.pow(&[index as u64]) * &point) - &E::Fr::one();
         denominators.push(d);
-        group_gen_inv *= &domain.group_gen_inv;
     }
     batch_inversion(&mut denominators);
 
-    let result: E::Fr = (0..evaluations.len())
+    let result: E::Fr = (0..non_zero_evaluations.len())
         .into_par_iter()
         .map(|i| {
-            let eval = &evaluations[i];
-            if eval.is_zero() {
-                return E::Fr::zero();
-            }
-            denominators[i] * eval
+            let eval_index = non_zero_evaluations[i];
+            let eval = evaluations[eval_index];
+
+            denominators[i] * &eval
         })
         .sum();
-
-    // Leaving this here for Carlos
-    // -- Filter zeros
-    // let non_zero_evals: Vec<(&E::Fr, E::Fr)> = evaluations
-    // .iter()
-    // .zip(denominators.into_iter())
-    // .filter(|(eval, _)| !eval.is_zero())
-    // .collect();
-    // let result: E::Fr = non_zero_evals
-    //     .into_iter()
-    //     .map(|(eval, denom)| denom * eval)
-    //     .sum();
 
     result * &numerator
 }
