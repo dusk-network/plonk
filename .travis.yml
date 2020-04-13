@@ -6,19 +6,31 @@ os:
 matrix:
   include:
   - rust: stable
+    install:
+    before_script:
+      - rustup component add clippy
+    script:
+      - cargo clippy -- -D warnings
+      - cargo check
+      - cargo build --release --verbose --all
+      - cargo test --release --verbose --all
   - rust: beta
-
-before_script:
-- rustup component add clippy 
-
-# Main build
-script:
-  # we want the build job to fail when encountering warnings
-  - cargo clippy -- -D warnings
-  - cargo check
-  - cargo build --release --verbose --all
-  - cargo test --release --verbose --all
-  - cargo doc --no-deps
+    install:
+    script:
+      - cargo check
+      - cargo build --release --verbose --all
+      - cargo test --release --verbose --all
+  - rust: nightly
+    install:
+    before_script:
+      - pip install 'travis-cargo<0.2' --user && export PATH=$HOME/.local/bin:$PATH
+    script:
+      - cargo check --features nightly
+      - cargo build --release --verbose --all --features nightly
+      - cargo test --release --verbose --all --features nightly
+      - cargo doc --no-deps --features nightly
+    after_success:
+      - travis-cargo --only nightly doc-upload
 
 
 # Send a notification to the Dusk build Status Telegram channel once the CI build completes

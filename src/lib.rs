@@ -1,3 +1,4 @@
+#![cfg_attr(feature = "nightly", feature(external_doc))]
 //! Permutations over Lagrange-bases for Oecumenical Noninteractive
 //! arguments of Knowledge (PLONK) is a zero knowledge proof system.
 //!
@@ -9,7 +10,7 @@
 //! This crate contains a pure-rust implementation done by the [DuskNetwork team](dusk.network)
 //! of this algorithm using as a reference implementation this one done
 //! by the creators of the protocol:
-//! S
+//!
 //! https://github.com/AztecProtocol/barretenberg/blob/master/barretenberg/src/aztec/plonk/
 //!
 // Bitshift/Bitwise ops are allowed to gain performance.
@@ -35,3 +36,29 @@ mod util;
 
 #[macro_use]
 extern crate failure;
+
+#[cfg(feature = "nightly")]
+#[doc(include = "../docs/notes-intro.md")]
+pub mod notes {
+    #[cfg(feature = "nightly")]
+    #[doc(include = "../docs/notes-composer.md")]
+    pub mod circuit_composer {}
+    #[cfg(feature = "nightly")]
+    #[doc(include = "../docs/notes-commitments.md")]
+    pub mod commitment_schemes {}
+    #[cfg(feature = "nightly")]
+    #[doc(include = "../docs/notes-pa.md")]
+    pub mod permutation_arguments {}
+    #[cfg(feature = "nightly")]
+    #[doc(include = "../docs/notes-snark.md")]
+    pub mod snark_construction {}
+    #[cfg(feature = "nightly")]
+    #[doc(include = "../docs/notes-prove-verify.md")]
+    pub mod prove_verify {}
+    #[cfg(feature = "nightly")]
+    #[doc(include = "../docs/notes-pa.md")]
+    pub mod unbalanced_perm_args {}
+    #[cfg(feature = "nightly")]
+    #[doc(include = "../docs/notes-KZG10.md")]
+    pub mod kzg10_docs {}
+}
