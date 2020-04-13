@@ -1,5 +1,5 @@
 #![feature(external_doc)]
-=======
+
 //! Permutations over Lagrange-bases for Oecumenical Noninteractive
 //! arguments of Knowledge (PLONK) is a zero knowledge proof system.
 //!
@@ -26,7 +26,6 @@
 #![deny(missing_debug_implementations)]
 #![deny(missing_docs)]
 #![deny(unsafe_code)]
-
 
 mod bit_iterator;
 pub mod commitment_scheme;
