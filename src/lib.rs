@@ -1,5 +1,4 @@
-#![feature(external_doc)]
-
+#![cfg_attr(feature = "nightly", feature(external_doc))]
 //! Permutations over Lagrange-bases for Oecumenical Noninteractive
 //! arguments of Knowledge (PLONK) is a zero knowledge proof system.
 //!
@@ -38,14 +37,19 @@ mod util;
 #[macro_use]
 extern crate failure;
 
+#[cfg(feature = "nightly")]
 #[doc(include = "../docs/notes-intro.md")]
 pub mod notes {
+    #[cfg(feature = "nightly")]
     #[doc(include = "../docs/notes-composer.md")]
     pub mod circuit_composer {}
+    #[cfg(feature = "nightly")]
     #[doc(include = "../docs/notes-commitments.md")]
     pub mod commitment_schemes {}
+    #[cfg(feature = "nightly")]
     #[doc(include = "../docs/notes-pa.md")]
     pub mod permutation_arguments {}
+    #[cfg(feature = "nightly")]
     #[doc(include = "../docs/notes-snark.md")]
     pub mod snark_construction {}
 }
