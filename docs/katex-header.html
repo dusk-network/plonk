@@ -6,15 +6,25 @@
 <script src="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/contrib/auto-render.min.js"
     integrity="sha384-kmZOZB5ObwgQnS/DuDg6TScgOiWWBiVt0plIRkZCmE6rDZGrEOQeHM5PcHi+nyqe"
     crossorigin="anonymous"></script>
+
 <script>
     document.addEventListener("DOMContentLoaded", function () {
         renderMathInElement(document.body, {
-            delimiters: [
-                { left: "$$", right: "$$", display: true },
-                { left: "\\(", right: "\\)", display: false },
-                { left: "$", right: "$", display: false },
-                { left: "\\[", right: "\\]", display: true }
-            ]
+            macros: {
+                "\\lo": "\\text{lo}",
+                "\\hi": "\\text{hi}"
+            }
         });
-    });
+    });		
 </script>
+<style>
+    .katex {
+        font-size: 1em !important;
+    }
+
+    pre.rust,
+    .docblock code,
+    .docblock-short code {
+        font-size: 0.85em !important;
+    }
+</style>
