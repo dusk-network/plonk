@@ -11,7 +11,7 @@
 //! This crate contains a pure-rust implementation done by the [DuskNetwork team](dusk.network)
 //! of this algorithm using as a reference implementation this one done
 //! by the creators of the protocol:
-//! S
+//!
 //! https://github.com/AztecProtocol/barretenberg/blob/master/barretenberg/src/aztec/plonk/
 //!
 // Bitshift/Bitwise ops are allowed to gain performance.

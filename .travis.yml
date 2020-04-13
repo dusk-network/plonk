@@ -5,8 +5,7 @@ os:
 
 matrix:
   include:
-  - rust: stable
-  - rust: beta
+  - rust: nightly
 
 before_script:
 - rustup component add clippy 
