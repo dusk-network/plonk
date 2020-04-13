@@ -1,39 +1,58 @@
+//! A Proof stores the commitments to all of the elements that
+//! are needed to univocally identify a prove of some statement.
+//!
+//! This module contains the implementation of the `StandardComposer`s
+//! `Proof` structure and it's methods.
 use super::linearisation_poly::ProofEvaluations;
 use super::PreProcessedCircuit;
 use crate::commitment_scheme::kzg10::AggregateProof;
 use crate::commitment_scheme::kzg10::{Commitment, VerifierKey};
 use crate::fft::{EvaluationDomain, Polynomial};
-use crate::permutation::constants::{K1, K2, K3};
 use crate::transcript::TranscriptProtocol;
 use bls12_381::{multiscalar_mul::msm_variable_base, G1Affine, Scalar};
+
+#[derive(Debug)]
+/// A Proof is a composition of `Commitments` to the witness, permutation,
+/// quotient, shifted and opening polynomials as well as the
+/// `ProofEvaluations`.
+///
+/// It's main goal is to have a `verify()` method attached which contains the
+/// logic of the operations that the `Verifier` will need to do in order to
+/// formally verify the `Proof`.
 pub struct Proof {
-    // Commitment to the witness polynomial for the left wires
+    /// Commitment to the witness polynomial for the left wires.
     pub a_comm: Commitment,
-    // Commitment to the witness polynomial for the right wires
+    /// Commitment to the witness polynomial for the right wires.
     pub b_comm: Commitment,
-    // Commitment to the witness polynomial for the output wires
+    /// Commitment to the witness polynomial for the output wires.
     pub c_comm: Commitment,
-    // Commitment to the witness polynomial for the fourth wires
+    /// Commitment to the witness polynomial for the fourth wires.
     pub d_comm: Commitment,
 
-    // Commitment to the permutation polynomial
+    /// Commitment to the permutation polynomial.
     pub z_comm: Commitment,
 
-    // Commitment to the quotient polynomial
+    // XXX: We could explain more here?
+    /// Commitment to the quotient polynomial.
     pub t_1_comm: Commitment,
+    /// Commitment to the quotient polynomial.
     pub t_2_comm: Commitment,
+    /// Commitment to the quotient polynomial.
     pub t_3_comm: Commitment,
+    /// Commitment to the quotient polynomial.
     pub t_4_comm: Commitment,
 
-    // Commitment to the opening polynomial
+    /// Commitment to the opening polynomial.
     pub w_z_comm: Commitment,
-    // Commitment to the shifted opening polynomial
+    /// Commitment to the shifted opening polynomial.
     pub w_zw_comm: Commitment,
-
+    /// Subset of all of the evaluations added to the proof.
     pub evaluations: ProofEvaluations,
 }
 
 impl Proof {
+    /// Generates an empty proof with all of the `Commitments` and
+    /// `Evaluations` set to `Default` or zero.
     pub fn empty() -> Proof {
         Proof {
             a_comm: Commitment::empty(),
@@ -55,8 +74,11 @@ impl Proof {
                 b_eval: Scalar::zero(),
                 c_eval: Scalar::zero(),
                 d_eval: Scalar::zero(),
+                a_next_eval: Scalar::zero(),
+                b_next_eval: Scalar::zero(),
                 d_next_eval: Scalar::zero(),
                 q_arith_eval: Scalar::zero(),
+                q_c_eval: Scalar::zero(),
 
                 left_sigma_eval: Scalar::zero(),
                 right_sigma_eval: Scalar::zero(),
@@ -69,19 +91,20 @@ impl Proof {
         }
     }
 
-    // Includes the commitments to the witness polynomials for left
-    // right and output wires in the proof
+    /// Includes the commitments to the witness polynomials for the left,
+    /// right and output wires into the `Proof`.
     pub fn set_witness_poly_commitments(
         &mut self,
         a_comm: &Commitment,
         b_comm: &Commitment,
         c_comm: &Commitment,
-    ) -> () {
+    ) {
         self.a_comm = *a_comm;
         self.b_comm = *b_comm;
         self.c_comm = *c_comm;
     }
 
+    /// Performs the verification of a `Proof` returning a boolean result.
     pub fn verify(
         &self,
         preprocessed_circuit: &PreProcessedCircuit,
@@ -147,11 +170,14 @@ impl Proof {
         transcript.append_scalar(b"b_eval", &self.evaluations.b_eval);
         transcript.append_scalar(b"c_eval", &self.evaluations.c_eval);
         transcript.append_scalar(b"d_eval", &self.evaluations.d_eval);
+        transcript.append_scalar(b"a_next_eval", &self.evaluations.a_next_eval);
+        transcript.append_scalar(b"b_next_eval", &self.evaluations.b_next_eval);
         transcript.append_scalar(b"d_next_eval", &self.evaluations.d_next_eval);
         transcript.append_scalar(b"left_sig_eval", &self.evaluations.left_sigma_eval);
         transcript.append_scalar(b"right_sig_eval", &self.evaluations.right_sigma_eval);
         transcript.append_scalar(b"out_sig_eval", &self.evaluations.out_sigma_eval);
         transcript.append_scalar(b"q_arith_eval", &self.evaluations.q_arith_eval);
+        transcript.append_scalar(b"q_c_eval", &self.evaluations.q_c_eval);
         transcript.append_scalar(b"perm_eval", &self.evaluations.perm_eval);
         transcript.append_scalar(b"t_eval", &t_eval);
         transcript.append_scalar(b"r_eval", &self.evaluations.lin_poly_eval);
@@ -198,6 +224,8 @@ impl Proof {
         // Compose the shifted aggregate proof
         let mut shifted_aggregate_proof = AggregateProof::with_witness(self.w_zw_comm);
         shifted_aggregate_proof.add_part((self.evaluations.perm_eval, self.z_comm));
+        shifted_aggregate_proof.add_part((self.evaluations.a_next_eval, self.a_comm));
+        shifted_aggregate_proof.add_part((self.evaluations.b_next_eval, self.b_comm));
         shifted_aggregate_proof.add_part((self.evaluations.d_next_eval, self.d_comm));
         let flattened_proof_b = shifted_aggregate_proof.flatten(transcript);
 
@@ -213,6 +241,7 @@ impl Proof {
         )
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn compute_quotient_evaluation(
         &self,
         domain: &EvaluationDomain,
@@ -256,9 +285,8 @@ impl Proof {
         // l_1(z) * alpha^2
         let c = l1_eval * alpha_sq;
 
-        let t_eval = (a - b - c) * z_h_eval.invert().unwrap();
-
-        t_eval
+        // Return t_eval
+        (a - b - c) * z_h_eval.invert().unwrap()
     }
 
     fn compute_quotient_commitment(&self, z_challenge: &Scalar, n: usize) -> Commitment {
@@ -290,6 +318,12 @@ impl Proof {
             .compute_linearisation_commitment(&mut scalars, &mut points, &self.evaluations);
 
         preprocessed_circuit.range.compute_linearisation_commitment(
+            &mut scalars,
+            &mut points,
+            &self.evaluations,
+        );
+
+        preprocessed_circuit.logic.compute_linearisation_commitment(
             &mut scalars,
             &mut points,
             &self.evaluations,

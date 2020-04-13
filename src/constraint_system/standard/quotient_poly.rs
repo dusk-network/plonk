@@ -23,8 +23,16 @@ pub(crate) fn compute(
     z_eval_4n.push(z_eval_4n[3]);
 
     // Compute 4n evaluations of the wire polynomials
-    let wl_eval_4n = domain_4n.coset_fft(&w_l_poly);
-    let wr_eval_4n = domain_4n.coset_fft(&w_r_poly);
+    let mut wl_eval_4n = domain_4n.coset_fft(&w_l_poly);
+    wl_eval_4n.push(wl_eval_4n[0]);
+    wl_eval_4n.push(wl_eval_4n[1]);
+    wl_eval_4n.push(wl_eval_4n[2]);
+    wl_eval_4n.push(wl_eval_4n[3]);
+    let mut wr_eval_4n = domain_4n.coset_fft(&w_r_poly);
+    wr_eval_4n.push(wr_eval_4n[0]);
+    wr_eval_4n.push(wr_eval_4n[1]);
+    wr_eval_4n.push(wr_eval_4n[2]);
+    wr_eval_4n.push(wr_eval_4n[3]);
     let wo_eval_4n = domain_4n.coset_fft(&w_o_poly);
     let mut w4_eval_4n = domain_4n.coset_fft(&w_4_poly);
     w4_eval_4n.push(w4_eval_4n[0]);
@@ -77,6 +85,8 @@ fn compute_circuit_satisfiability_equation(
             let wr = &wr_eval_4n[i];
             let wo = &wo_eval_4n[i];
             let w4 = &w4_eval_4n[i];
+            let wl_next = &wl_eval_4n[i + 4];
+            let wr_next = &wr_eval_4n[i + 4];
             let w4_next = &w4_eval_4n[i + 4];
             let pi = &pi_eval_4n[i];
 
@@ -88,7 +98,11 @@ fn compute_circuit_satisfiability_equation(
                 .range
                 .compute_quotient_i(i, wl, wr, wo, w4, w4_next);
 
-            a + b + pi
+            let c = preprocessed_circuit
+                .logic
+                .compute_quotient_i(i, &wl, &wl_next, &wr, &wr_next, &wo, &w4, &w4_next);
+
+            a + b + c + pi
         })
         .collect();
     t

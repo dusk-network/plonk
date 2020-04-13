@@ -1,3 +1,6 @@
+// Functions with a big number of args are allowed in order to
+// get maximum performance and minimum circuit sizes and composing times.
+#![allow(clippy::too_many_arguments)]
 use super::PreProcessedPolynomial;
 use crate::commitment_scheme::kzg10::Commitment;
 use crate::constraint_system::standard::linearisation_poly::ProofEvaluations;
@@ -5,6 +8,8 @@ use crate::fft::{EvaluationDomain, Evaluations, Polynomial};
 use crate::permutation::constants::{K1, K2, K3};
 use bls12_381::{G1Affine, Scalar};
 use rayon::prelude::*;
+
+#[derive(Debug)]
 pub struct PermutationWidget {
     pub left_sigma: PreProcessedPolynomial,
     pub right_sigma: PreProcessedPolynomial,
@@ -26,7 +31,7 @@ impl PermutationWidget {
             right_sigma: PreProcessedPolynomial::new(right_sigma),
             out_sigma: PreProcessedPolynomial::new(out_sigma),
             fourth_sigma: PreProcessedPolynomial::new(fourth_sigma),
-            linear_evaluations: linear_evaluations,
+            linear_evaluations,
         }
     }
 
@@ -68,13 +73,12 @@ impl PermutationWidget {
     ) -> Scalar {
         let x = self.linear_evaluations[index];
 
-        let product = (w_l_i + (beta * x) + gamma)
+        (w_l_i + (beta * x) + gamma)
             * (w_r_i + (beta * K1 * x) + gamma)
             * (w_o_i + (beta * K2 * x) + gamma)
             * (w_4_i + (beta * K3 * x) + gamma)
             * z_i
-            * alpha;
-        product
+            * alpha
     }
     // (a(x) + beta* Sigma1(X) + gamma) (b(X) + beta * Sigma2(X) + gamma) (c(X) + beta * Sigma3(X) + gamma)(d(X) + beta * Sigma4(X) + gamma) Z(X.omega) * alpha
     fn compute_quotient_copy_range_check_i(
@@ -152,24 +156,24 @@ impl PermutationWidget {
         a_0 += gamma;
 
         // b_eval + beta * K1 * z_challenge + gamma
-        let beta_z_K1 = K1 * beta_z;
-        let mut a_1 = b_eval + beta_z_K1;
+        let beta_z_k1 = K1 * beta_z;
+        let mut a_1 = b_eval + beta_z_k1;
         a_1 += gamma;
 
         // c_eval + beta * K2 * z_challenge + gamma
-        let beta_z_K2 = K2 * beta_z;
-        let mut a_2 = c_eval + beta_z_K2;
+        let beta_z_k2 = K2 * beta_z;
+        let mut a_2 = c_eval + beta_z_k2;
         a_2 += gamma;
 
         // d_eval + beta * K3 * z_challenge + gamma
-        let beta_z_K3 = K3 * beta_z;
-        let mut a_3 = d_eval + beta_z_K3;
+        let beta_z_k3 = K3 * beta_z;
+        let mut a_3 = d_eval + beta_z_k3;
         a_3 += gamma;
 
         let mut a = a_0 * a_1;
-        a = a * a_2;
-        a = a * a_3;
-        a = a * alpha; // (a_eval + beta * z_challenge + gamma)(b_eval + beta * K1 * z_challenge + gamma)(c_eval + beta * K2 * z_challenge + gamma)(d_eval + beta * K3 * z_challenge + gamma) * alpha
+        a *= a_2;
+        a *= a_3;
+        a *= alpha; // (a_eval + beta * z_challenge + gamma)(b_eval + beta * K1 * z_challenge + gamma)(c_eval + beta * K2 * z_challenge + gamma)(d_eval + beta * K3 * z_challenge + gamma) * alpha
         z_poly * &a // (a_eval + beta * z_challenge + gamma)(b_eval + beta * K1 * z_challenge + gamma)(c_eval + beta * K2 * z_challenge + gamma) * alpha z(X)
     }
     // -(a_eval + beta * sigma_1 + gamma)(b_eval + beta * sigma_2 + gamma) (c_eval + beta * sigma_3 + gamma) * beta *z_eval * alpha^2 * Sigma_4(X)
@@ -201,8 +205,8 @@ impl PermutationWidget {
         let beta_z_eval = beta * z_eval;
 
         let mut a = a_0 * a_1 * a_2;
-        a = a * beta_z_eval;
-        a = a * alpha; // (a_eval + beta * sigma_1 + gamma)(b_eval + beta * sigma_2 + gamma)(c_eval + beta * sigma_3 + gamma) * beta *z_eval * alpha
+        a *= beta_z_eval;
+        a *= alpha; // (a_eval + beta * sigma_1 + gamma)(b_eval + beta * sigma_2 + gamma)(c_eval + beta * sigma_3 + gamma) * beta *z_eval * alpha
 
         fourth_sigma_poly * &-a // -(a_eval + beta * sigma_1 + gamma)(b_eval + beta * sigma_2 + gamma) (c_eval + beta * sigma_3 + gamma) * beta *z_eval * alpha^2 * Sigma_4(X)
     }
@@ -275,12 +279,14 @@ impl PermutationWidget {
     }
 }
 
+#[allow(dead_code)]
 fn compute_first_lagrange_poly_scaled(domain: &EvaluationDomain, scale: Scalar) -> Polynomial {
     let mut x_evals = vec![Scalar::zero(); domain.size()];
     x_evals[0] = scale;
     domain.ifft_in_place(&mut x_evals);
     Polynomial::from_coefficients_vec(x_evals)
 }
+#[allow(dead_code)]
 /// Ensures that the polynomial evaluated at the first root of unity is one
 pub fn compute_is_one_polynomial(
     domain: &EvaluationDomain,
