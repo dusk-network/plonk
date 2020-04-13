@@ -52,4 +52,13 @@ pub mod notes {
     #[cfg(feature = "nightly")]
     #[doc(include = "../docs/notes-snark.md")]
     pub mod snark_construction {}
+    #[cfg(feature = "nightly")]
+    #[doc(include = "../docs/notes-prove-verify.md")]
+    pub mod prove_verify {}
+    #[cfg(feature = "nightly")]
+    #[doc(include = "../docs/notes-pa.md")]
+    pub mod unbalanced_perm_args {}
+    #[cfg(feature = "nightly")]
+    #[doc(include = "../docs/notes-KZG10.md")]
+    pub mod kzg10_docs {}
 }
