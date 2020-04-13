@@ -9,6 +9,7 @@ pub struct Evaluations {
     pub quot_eval: Scalar,
 }
 // Proof Evaluations is a subset of all of the evaluations. These evaluations will be added to the proof
+#[derive(Debug)]
 pub struct ProofEvaluations {
     // Evaluation of the witness polynomial for the left wire at `z`
     pub a_eval: Scalar,
@@ -18,11 +19,16 @@ pub struct ProofEvaluations {
     pub c_eval: Scalar,
     // Evaluation of the witness polynomial for the fourth wire at `z`
     pub d_eval: Scalar,
+    //
+    pub a_next_eval: Scalar,
+    //
+    pub b_next_eval: Scalar,
     // Evaluation of the witness polynomial for the fourth wire at `z * root of unity`
     pub d_next_eval: Scalar,
     // Evaluation of the arithmetic selector polynomial at `z`
     pub q_arith_eval: Scalar,
-
+    //
+    pub q_c_eval: Scalar,
     // Evaluation of the left sigma polynomial at `z`
     pub left_sigma_eval: Scalar,
     // Evaluation of the right sigma polynomial at `z`
@@ -37,6 +43,7 @@ pub struct ProofEvaluations {
     pub perm_eval: Scalar,
 }
 
+#[allow(clippy::too_many_arguments)]
 /// Compute the linearisation polynomial
 pub fn compute(
     domain: &EvaluationDomain,
@@ -72,10 +79,17 @@ pub fn compute(
         .evaluate(z_challenge);
     let q_arith_eval = preprocessed_circuit
         .arithmetic
-        .qArith
+        .q_arith
+        .polynomial
+        .evaluate(z_challenge);
+    let q_c_eval = preprocessed_circuit
+        .logic
+        .q_c
         .polynomial
         .evaluate(z_challenge);
 
+    let a_next_eval = w_l_poly.evaluate(&(z_challenge * domain.group_gen));
+    let b_next_eval = w_r_poly.evaluate(&(z_challenge * domain.group_gen));
     let d_next_eval = w_4_poly.evaluate(&(z_challenge * domain.group_gen));
     let perm_eval = z_poly.evaluate(&(z_challenge * domain.group_gen));
 
@@ -84,8 +98,11 @@ pub fn compute(
         &b_eval,
         &c_eval,
         &d_eval,
-        d_next_eval,
+        &a_next_eval,
+        &b_next_eval,
+        &d_next_eval,
         &q_arith_eval,
+        &q_c_eval,
         preprocessed_circuit,
     );
 
@@ -111,8 +128,11 @@ pub fn compute(
                 b_eval,
                 c_eval,
                 d_eval,
+                a_next_eval,
+                b_next_eval,
                 d_next_eval,
                 q_arith_eval,
+                q_c_eval,
                 left_sigma_eval,
                 right_sigma_eval,
                 out_sigma_eval,
@@ -124,13 +144,17 @@ pub fn compute(
     )
 }
 
+#[allow(clippy::too_many_arguments)]
 fn compute_circuit_satisfiability(
     a_eval: &Scalar,
     b_eval: &Scalar,
     c_eval: &Scalar,
     d_eval: &Scalar,
-    d_next_eval: Scalar,
+    a_next_eval: &Scalar,
+    b_next_eval: &Scalar,
+    d_next_eval: &Scalar,
     q_arith_eval: &Scalar,
+    q_c_eval: &Scalar,
     preprocessed_circuit: &PreProcessedCircuit,
 ) -> Polynomial {
     let a = preprocessed_circuit.arithmetic.compute_linearisation(
@@ -148,5 +172,15 @@ fn compute_circuit_satisfiability(
         d_eval,
         &d_next_eval,
     );
-    &a + &b
+    let c = preprocessed_circuit.logic.compute_linearisation(
+        a_eval,
+        a_next_eval,
+        b_eval,
+        b_next_eval,
+        c_eval,
+        d_eval,
+        d_next_eval,
+        q_c_eval,
+    );
+    &(&a + &b) + &c
 }

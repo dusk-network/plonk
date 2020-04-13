@@ -1,3 +1,4 @@
+//! Implementation of the KZG10 polynomial commitment scheme.
 use bls12_381::{G1Affine, G1Projective, Scalar};
 pub mod errors;
 pub mod key;
@@ -21,6 +22,7 @@ pub struct Proof {
 
 /// Proof that multiple polynomials were correctly evaluated at a point `z`,
 /// each producing their respective evaluated points p_i(z).
+#[derive(Debug)]
 pub struct AggregateProof {
     /// This is a commitment to the aggregated witness polynomial.
     pub commitment_to_witness: Commitment,
@@ -76,19 +78,23 @@ impl AggregateProof {
 }
 
 #[derive(Copy, Clone, Debug)]
+/// Holds a commitment to a polynomial in a form of a `G1Affine` Bls12_381 point.
 pub struct Commitment(
     /// The commitment is a group element.
     pub G1Affine,
 );
 
 impl Commitment {
+    /// Builds a `Commitment` from a Bls12_381 `G1Projective` point.
     pub fn from_projective(g: G1Projective) -> Self {
         Self(g.into())
     }
+    /// Builds a `Commitment` from a Bls12_381 `G1Affine` point.
     pub fn from_affine(g: G1Affine) -> Self {
         Self(g)
     }
-
+    /// Builds an empty `Commitment` which is equivalent to the
+    /// `G1Affine` identity point in Bls12_381.
     pub fn empty() -> Self {
         Commitment(G1Affine::identity())
     }

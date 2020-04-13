@@ -5,14 +5,15 @@ use crate::fft::{Evaluations, Polynomial};
 use bls12_381::G1Affine;
 use bls12_381::Scalar;
 
+#[derive(Debug)]
 pub struct RangeWidget {
-    pub qRange: PreProcessedPolynomial,
+    pub q_range: PreProcessedPolynomial,
 }
 
 impl RangeWidget {
     pub fn new(selector: (Polynomial, Commitment, Option<Evaluations>)) -> RangeWidget {
         RangeWidget {
-            qRange: PreProcessedPolynomial::new(selector),
+            q_range: PreProcessedPolynomial::new(selector),
         }
     }
 
@@ -27,7 +28,7 @@ impl RangeWidget {
     ) -> Scalar {
         let four = Scalar::from(4);
 
-        let q_range_i = &self.qRange.evaluations.as_ref().unwrap()[index];
+        let q_range_i = &self.q_range.evaluations.as_ref().unwrap()[index];
 
         // Delta([c(X) - 4 * d(X)]) + Delta([b(X) - 4 * c(X)]) + Delta([a(X) - 4 * b(X)]) + Delta([d(Xg) - 4 * a(X)]) * Q_Range(X)
         //
@@ -35,8 +36,7 @@ impl RangeWidget {
         let b_2 = delta(w_r_i - four * w_o_i);
         let b_3 = delta(w_l_i - four * w_r_i);
         let b_4 = delta(w_4_i_next - four * w_l_i);
-        let b = (b_1 + b_2 + b_3 + b_4) * q_range_i;
-        b
+        (b_1 + b_2 + b_3 + b_4) * q_range_i
     }
 
     pub fn compute_linearisation(
@@ -49,15 +49,14 @@ impl RangeWidget {
     ) -> Polynomial {
         let four = Scalar::from(4);
 
-        let q_range_poly = &self.qRange.polynomial;
+        let q_range_poly = &self.q_range.polynomial;
 
         // Delta([c_eval - 4 * d_eval]) + Delta([b_eval - 4 * c_eval]) + Delta([a_eval - 4 * b_eval]) + Delta([d_next_eval - 4 * a_eval]) * Q_Range(X)
         let b_1 = delta(c_eval - four * d_eval);
         let b_2 = delta(b_eval - four * c_eval);
         let b_3 = delta(a_eval - four * b_eval);
         let b_4 = delta(d_next_eval - four * a_eval);
-        let b = q_range_poly * &(b_1 + b_2 + b_3 + b_4);
-        b
+        q_range_poly * &(b_1 + b_2 + b_3 + b_4)
     }
 
     pub fn compute_linearisation_commitment(
@@ -74,7 +73,7 @@ impl RangeWidget {
         let b_4 = delta(evaluations.d_next_eval - (four * evaluations.a_eval));
 
         scalars.push(b_1 + b_2 + b_3 + b_4);
-        points.push(self.qRange.commitment.0);
+        points.push(self.q_range.commitment.0);
     }
 }
 
