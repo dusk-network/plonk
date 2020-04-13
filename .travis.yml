@@ -9,7 +9,7 @@ matrix:
 
 before_script:
 - rustup component add clippy 
-- rustup override set 1.42.0 
+- rustup override set nightly
 
 # Main build
 script:
