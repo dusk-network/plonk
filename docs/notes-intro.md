@@ -5,17 +5,17 @@ Table of Contents
 =================
 
 The following section explains the workings of PLONK components:
-* [Composers](::notes::circuit-composer)
-* [Commitment schemes](::notes::commitment-schemes)
-* [Proof construction components](::notes::snark-construction)
-* [Permutation polynomials](::notes::permutation-arguments)
+* [Composers](circuit_composer/index.html)
+* [Commitment schemes](commitment_schemes/index.html)
+* [Proof construction components](snark_construction/index.html)
+* [Permutation polynomials](permutation_arguments/index.html)
 
 
 
 This section explains how elements of the aggregated PLONK work protocol works
 and some of the unique features in this library:
 
-* [Prover and Verify algorithms](notes-prove-verfify)
-* [Unbalanced permutation arguments](notes-pa)
-* [KZG10 commitment scheme](notes-kzg10)
+* [Prover and Verify algorithms](prove_verify/index.html)
+* [Unbalanced permutation arguments](unbalanced_perm_args/index.html)
+* [KZG10 commitment scheme](kzg10_docs/index.html)
 
