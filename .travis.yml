@@ -8,16 +8,16 @@ matrix:
   - rust: stable
 
 before_script:
+- rustup default nightly-2019-10-04
 - rustup component add clippy 
-- rustup override set nightly
 
 # Main build
 script:
   # we want the build job to fail when encountering warnings
-  - rustup run nightly cargo clippy -- -D warnings
-  - rustup run nightly cargo build --release --verbose --all
-  - rustup run nightly cargo test --release --verbose --all
-  - rustup run nightly cargo doc --no-deps
+  - cargo clippy -- -D warnings
+  - cargo build --release --verbose --all
+  - cargo test --release --verbose --all
+  - cargo doc --no-deps
 
 
 # Send a notification to the Dusk build Status Telegram channel once the CI build completes
