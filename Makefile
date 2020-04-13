@@ -21,9 +21,4 @@ doc: ## Generate documentation
 doc-internal: ## Generate documentation with private items
 	@cargo rustdoc --features nightly --lib -- --document-private-items -- --html-in-header docs/katex-header.html --document-private-items
 
-
-publish-doc: ### Publish the documentation as github pages
-	@$(call generate_docs, $(shell mktemp -d)) && \
-	git push -f https://github.com/dusk-network/$(REPO_NAME) gh-pages
-
 .PHONY: help doc doc-internal publish-doc
