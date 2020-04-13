@@ -26,6 +26,7 @@ use crate::fft::{EvaluationDomain, Evaluations, Polynomial};
 use crate::permutation::Permutation;
 use crate::transcript::TranscriptProtocol;
 use bls12_381::Scalar;
+use jubjub::{AffinePoint as JubJubAffine, Fr as JubJubScalar};
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use std::collections::HashMap;
 
@@ -1382,6 +1383,21 @@ impl StandardComposer {
     /// If the `num_bits` specified in the fn params is odd.
     pub fn logic_and_gate(&mut self, a: Variable, b: Variable, num_bits: usize) -> Variable {
         self.logic_gate(a, b, num_bits, false)
+    }
+
+    /// XXX: Doc this.
+    pub fn fix_base_mul(&mut self, scalar: &JubJubScalar, point: &JubJubAffine) -> () {
+        // Get the JubJub Scalar in w-3 WNAF form
+        let mut w_naf_scalar = scalar.compute_windowed_naf(3u8).to_vec();
+        w_naf_scalar.reverse();
+        // The ID point Q will be used as the accumulator where the rounds
+        // will deposit it's result.
+        let mut Q = JubJubAffine::identity();
+        // Allocate accumulator variables
+        let wnaf_accum = Scalar::zero();
+
+        // We iterate over the w_naf terms.
+        for wnaf_term in w_naf_scalar {}
     }
 
     /// Asserts that two variables are the same
