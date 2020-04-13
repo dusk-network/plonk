@@ -9,11 +9,12 @@ matrix:
 
 before_script:
 - rustup component add clippy 
+- rustup override set 1.42.0 
 
 # Main build
 script:
   # we want the build job to fail when encountering warnings
-  - cargo clippy -- -D warnings
+  - rustup run nightly cargo clippy -- -D warnings
   - rustup run nightly cargo build --release --verbose --all
   - rustup run nightly cargo test --release --verbose --all
   - rustup run nightly cargo doc --no-deps
