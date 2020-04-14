@@ -22,8 +22,6 @@ rand_chacha = "0.2"
 rayon = "1.3.0"
 bench-utils = { git = "https://github.com/scipr-lab/zexe/" }
 
-
-
 [features]
 print-trace = [ "bench-utils/print-trace" ]
 
@@ -37,3 +35,17 @@ debug-assertions = false
 overflow-checks = false
 codegen-units = 1
 target-cpu = "native" 
+
+# This is a temporary fix until we stop to use zexe; it's needed to replace
+# in the dependency graph the library below with the revision specified.
+# Unfortunately `patch` works matching just the URL - doesn't take in account
+# revision or branches, see:  https://github.com/rust-lang/cargo/issues/5478
+#
+# A quick workaround is changing the URL with double slashes
+[patch.'https://github.com/scipr-lab/zexe/']
+algebra = { git = 'https://github.com/scipr-lab//zexe', rev="2c22b77" }
+ff-fft = { git = "https://github.com/scipr-lab//zexe", rev="2c22b77" }
+bench-utils = { git = "https://github.com/scipr-lab//zexe", rev="2c22b77" }
+
+[patch.'https://github.com/scipr-lab/poly-commit']
+poly-commit = { git = "https://github.com/scipr-lab//poly-commit", rev="77676213"}
