@@ -26,7 +26,7 @@ use crate::fft::{EvaluationDomain, Evaluations, Polynomial};
 use crate::permutation::Permutation;
 use crate::transcript::TranscriptProtocol;
 use bls12_381::Scalar;
-use jubjub::{AffinePoint as JubJubAffine, Fr as JubJubScalar};
+use jubjub::{AffinePoint as JubJubAffine, ExtendedPoint as JubJubExtended, Fr as JubJubScalar};
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use std::collections::HashMap;
 
@@ -1394,10 +1394,28 @@ impl StandardComposer {
         // will deposit it's result.
         let mut Q = JubJubAffine::identity();
         // Allocate accumulator variables
-        let wnaf_accum = Scalar::zero();
+        let mut wnaf_accum = Scalar::zero();
+        let four = Scalar::from(4u64);
 
         // We iterate over the w_naf terms.
-        for wnaf_term in w_naf_scalar {}
+        for wnaf_term in w_naf_scalar {
+            wnaf_accum *= four;
+            let wnaf_as_scalar = match (wnaf_term > 0i8, wnaf_term < 0i8, wnaf_term == 0i8) {
+                (true, false, false) => Scalar::from(wnaf_term as u64),
+                (false, true, false) => Scalar::zero(),
+                (false, false, true) => -Scalar::from(wnaf_term.abs() as u64),
+                (_, _, _) => unreachable!(),
+            };
+            // Accumulated wnaf scalar value to be pushed.
+            wnaf_accum += wnaf_as_scalar;
+            Q = JubJubAffine::from(JubJubExtended::from(Q).double());
+
+            // Here we need to pick a point from the ODD_BASEPOINT_MULTIPLES_TABLE according to
+            // the actual w_naf_term and then add it to Q.
+            //
+            // Once this is done we need to place each term of points and the accumulator
+            // on it's corresponding wire/selector.
+        }
     }
 
     /// Asserts that two variables are the same
