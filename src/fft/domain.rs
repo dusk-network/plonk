@@ -104,14 +104,14 @@ impl EvaluationDomain {
         best_fft(coeffs, self.group_gen, self.log_size_of_group)
     }
 
-    /// Compute a IFFT.
+    /// Compute an IFFT.
     pub fn ifft(&self, evals: &[Scalar]) -> Vec<Scalar> {
         let mut evals = evals.to_vec();
         self.ifft_in_place(&mut evals);
         evals
     }
 
-    /// Compute a IFFT, modifying the vector in place.
+    /// Compute an IFFT, modifying the vector in place.
     #[inline]
     pub fn ifft_in_place(&self, evals: &mut Vec<Scalar>) {
         evals.resize(self.size(), Scalar::zero());
@@ -142,14 +142,14 @@ impl EvaluationDomain {
         self.fft_in_place(coeffs);
     }
 
-    /// Compute a IFFT over a coset of the domain.
+    /// Compute an IFFT over a coset of the domain.
     pub fn coset_ifft(&self, evals: &[Scalar]) -> Vec<Scalar> {
         let mut evals = evals.to_vec();
         self.coset_ifft_in_place(&mut evals);
         evals
     }
 
-    /// Compute a IFFT over a coset of the domain, modifying the input vector in
+    /// Compute an IFFT over a coset of the domain, modifying the input vector in
     /// place.
     pub fn coset_ifft_in_place(&self, evals: &mut Vec<Scalar>) {
         self.ifft_in_place(evals);

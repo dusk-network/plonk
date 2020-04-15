@@ -8,7 +8,7 @@ use rayon::iter::*;
 use std::collections::HashMap;
 #[derive(Debug)]
 pub struct Permutation {
-    // Maps a variable to the wires that it is assosciated to
+    // Maps a variable to the wires that it is associated to
     pub(crate) variable_map: HashMap<Variable, Vec<WireData>>,
 
     left_sigma_mapping: Option<Vec<Scalar>>,
@@ -522,7 +522,7 @@ impl Permutation {
         // A simplified example is the following:
         // A1 = [1,2,3,4]
         // result = [1, 1*2, 1*2*3, 1*2*3*4]
-        // Non Parallisable
+        // Non Parallelisable
         let mut prev = (
             Scalar::one(),
             Scalar::one(),
@@ -548,7 +548,7 @@ impl Permutation {
             })
             .collect();
 
-        // right now we basically have 6 acumulators of the form:
+        // Right now we basically have 6 acumulators of the form:
         // A1 = [a1, a1 * a2, a1*a2*a3,...]
         // A2 = [b1, b1 * b2, b1*b2*b3,...]
         // A3 = [c1, c1 * c2, c1*c2*c3,...]
@@ -695,7 +695,7 @@ mod test {
         let w_squared = w.pow(&[2, 0, 0, 0]);
         let w_cubed = w.pow(&[3, 0, 0, 0]);
 
-        // check the left sigmas have been encoded properly
+        // Check the left sigmas have been encoded properly
         // Left_sigma = {R0, L2,L3, L0}
         // Should turn into {1 * K1, w^2, w^3, 1}
         let encoded_left_sigma = perm.compute_permutation_lagrange(left_sigma, &domain);
@@ -704,7 +704,7 @@ mod test {
         assert_eq!(encoded_left_sigma[2], w_cubed);
         assert_eq!(encoded_left_sigma[3], Fr::one());
 
-        // check the right sigmas have been encoded properly
+        // Check the right sigmas have been encoded properly
         // Right_sigma = {L1, R1, R2, R3}
         // Should turn into {w, w * K1, w^2 * K1, w^3 * K1}
         let encoded_right_sigma = perm.compute_permutation_lagrange(right_sigma, &domain);
@@ -713,7 +713,7 @@ mod test {
         assert_eq!(encoded_right_sigma[2], w_squared * &K1);
         assert_eq!(encoded_right_sigma[3], w_cubed * &K1);
 
-        // check the output sigmas have been encoded properly
+        // Check the output sigmas have been encoded properly
         // Out_sigma = {O0, O1, O2, O3, O4}
         // Should turn into {1 * K2, w * K2, w^2 * K2, w^3 * K2}
         let encoded_output_sigma = perm.compute_permutation_lagrange(out_sigma, &domain);
@@ -722,7 +722,7 @@ mod test {
         assert_eq!(encoded_output_sigma[2], w_squared * &K2);
         assert_eq!(encoded_output_sigma[3], w_cubed * &K2);
 
-        // check the fourth sigmas have been encoded properly
+        // Check the fourth sigmas have been encoded properly
         // Out_sigma = {F0, F1, F2, F3, F4}
         // Should turn into {1 * K3, w * K3, w^2 * K3, w^3 * K3}
         let encoded_fourth_sigma = perm.compute_permutation_lagrange(fourth_sigma, &domain);
