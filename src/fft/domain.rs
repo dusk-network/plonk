@@ -152,6 +152,8 @@ impl<'de> Deserialize<'de> for EvaluationDomain {
                 let generator_inv = seq
                     .next_element()?
                     .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
+                // Deserialization will fail if the log_size_of_group > TWO_ADACITY
+                // according to the `new()` fn implemented for `EvaluationDomain`.
                 match log_size_of_group < TWO_ADACITY {
                     true => Ok(EvaluationDomain {
                         size,
