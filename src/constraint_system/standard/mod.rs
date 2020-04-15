@@ -7,9 +7,9 @@
 //! - Preprocessing the circuit and return a `PreprocessedCircuit`
 //! data structure which contains the circuit definition formed by
 //! the selector polynomials.
-//! - Prove generation using the `PreprocessedCircuit` which holds the
-//! circuit description and the `Composer` data stored which will contain
-//! the witness polynomials that the circuit has.
+//! - Proof generation using the `PreprocessedCircuit` which holds the
+//! circuit description, and the stored `Composer` data, which will contain
+//! the witness polynomials which the circuit has.
 pub mod composer;
 pub(crate) mod linearisation_poly;
 mod preprocessed_circuit;
