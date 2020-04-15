@@ -13,7 +13,7 @@ pub use range::RangeWidget;
 #[cfg(feature = "serde")]
 use serde::{de::Visitor, ser::SerializeStruct, Deserialize, Deserializer, Serialize, Serializer};
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct PreProcessedPolynomial {
     pub(crate) polynomial: Polynomial,
     pub(crate) commitment: Commitment,
