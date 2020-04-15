@@ -23,15 +23,15 @@ impl Serialize for ArithmeticWidget {
     where
         S: Serializer,
     {
-        let mut eval_dom = serializer.serialize_struct("struct ArithmeticWidget", 7)?;
-        eval_dom.serialize_field("q_m", &self.q_m)?;
-        eval_dom.serialize_field("q_l", &self.q_l)?;
-        eval_dom.serialize_field("q_r", &self.q_r)?;
-        eval_dom.serialize_field("q_o", &self.q_o)?;
-        eval_dom.serialize_field("q_c", &self.q_c)?;
-        eval_dom.serialize_field("q_4", &self.q_4)?;
-        eval_dom.serialize_field("q_arith", &self.q_arith)?;
-        eval_dom.end()
+        let mut arith_widget = serializer.serialize_struct("struct ArithmeticWidget", 7)?;
+        arith_widget.serialize_field("q_m", &self.q_m)?;
+        arith_widget.serialize_field("q_l", &self.q_l)?;
+        arith_widget.serialize_field("q_r", &self.q_r)?;
+        arith_widget.serialize_field("q_o", &self.q_o)?;
+        arith_widget.serialize_field("q_c", &self.q_c)?;
+        arith_widget.serialize_field("q_4", &self.q_4)?;
+        arith_widget.serialize_field("q_arith", &self.q_arith)?;
+        arith_widget.end()
     }
 }
 

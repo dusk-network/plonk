@@ -19,10 +19,10 @@ impl Serialize for LogicWidget {
     where
         S: Serializer,
     {
-        let mut eval_dom = serializer.serialize_struct("struct LogicWidget", 2)?;
-        eval_dom.serialize_field("q_c", &self.q_c)?;
-        eval_dom.serialize_field("q_logic", &self.q_logic)?;
-        eval_dom.end()
+        let mut logic_widget = serializer.serialize_struct("struct LogicWidget", 2)?;
+        logic_widget.serialize_field("q_c", &self.q_c)?;
+        logic_widget.serialize_field("q_logic", &self.q_logic)?;
+        logic_widget.end()
     }
 }
 
