@@ -169,7 +169,7 @@ impl<'de> Deserialize<'de> for EvaluationDomain {
             }
         }
 
-        const FIELDS: &'static [&'static str] = &[
+        const FIELDS: &[&str] = &[
             "size",
             "log_size_of_group",
             "size_as_field_element",

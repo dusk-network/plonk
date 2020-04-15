@@ -7,10 +7,7 @@ use crate::transcript::TranscriptProtocol;
 use crate::util::powers_of;
 pub use key::{ProverKey, VerifierKey};
 #[cfg(feature = "serde")]
-use serde::{
-    de::Visitor, ser::SerializeSeq, ser::SerializeStruct, Deserialize, Deserializer, Serialize,
-    Serializer,
-};
+use serde::{de::Visitor, ser::SerializeStruct, Deserialize, Deserializer, Serialize, Serializer};
 pub use srs::PublicParameters;
 
 #[derive(Copy, Clone, Debug)]
@@ -162,36 +159,9 @@ impl<'de> Deserialize<'de> for Commitment {
                     .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
                 Ok(Commitment(g1_affine))
             }
-
-            /*fn visit_map<V>(self, mut map: V) -> Result<Commitment, V::Error>
-            where
-                V: MapAccess<'de>,
-            {
-                let mut secs = None;
-                let mut nanos = None;
-                while let Some(key) = map.next_key()? {
-                    match key {
-                        Field::Secs => {
-                            if secs.is_some() {
-                                return Err(de::Error::duplicate_field("secs"));
-                            }
-                            secs = Some(map.next_value()?);
-                        }
-                        Field::Nanos => {
-                            if nanos.is_some() {
-                                return Err(de::Error::duplicate_field("nanos"));
-                            }
-                            nanos = Some(map.next_value()?);
-                        }
-                    }
-                }
-                let secs = secs.ok_or_else(|| de::Error::missing_field("secs"))?;
-                let nanos = nanos.ok_or_else(|| de::Error::missing_field("nanos"))?;
-                Ok(Commitment::new(secs, nanos))
-            }*/
         }
 
-        const FIELDS: &'static [&'static str] = &["g1affine"];
+        const FIELDS: &[&str] = &["g1affine"];
         deserializer.deserialize_struct("Commitment", FIELDS, CommitmentVisitor)
     }
 }
@@ -213,8 +183,8 @@ impl Commitment {
 }
 
 mod tests {
+    #[allow(unused_imports)]
     use super::*;
-
     #[cfg(feature = "serde")]
     #[test]
     fn commitment_serde_roundtrip() {
