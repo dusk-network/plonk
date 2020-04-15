@@ -242,7 +242,7 @@ mod tests {
 
     #[cfg(feature = "serde")]
     #[test]
-    fn q_logic_serde_roundtrip() {
+    fn logic_widget_serde_roundtrip() {
         use bincode;
         let coeffs = vec![
             Scalar::one(),
