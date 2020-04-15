@@ -26,7 +26,7 @@ impl Serialize for PermutationWidget {
     where
         S: Serializer,
     {
-        let mut perm_widget = serializer.serialize_struct("struct PermutationWidget", 7)?;
+        let mut perm_widget = serializer.serialize_struct("struct PermutationWidget", 5)?;
         perm_widget.serialize_field("left_sig", &self.left_sigma)?;
         perm_widget.serialize_field("right_sig", &self.right_sigma)?;
         perm_widget.serialize_field("out_sig", &self.out_sigma)?;
