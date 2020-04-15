@@ -31,9 +31,9 @@ impl DerefMut for Polynomial {
 }
 
 #[cfg(feature = "serde")]
-use serde::de::Visitor;
-#[cfg(feature = "serde")]
-use serde::{self, ser::SerializeSeq, Deserialize, Deserializer, Serialize, Serializer};
+use serde::{
+    self, de::Visitor, ser::SerializeSeq, Deserialize, Deserializer, Serialize, Serializer,
+};
 
 #[cfg(feature = "serde")]
 impl Serialize for Polynomial {

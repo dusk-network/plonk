@@ -22,11 +22,65 @@ pub struct VerifierKey {
     pub prepared_beta_h: G2Prepared,
 }
 
+#[cfg(feature = "serde")]
+use serde::{
+    self, de::Visitor, ser::SerializeSeq, Deserialize, Deserializer, Serialize, Serializer,
+};
+
 /// Prover key is used to commit to a polynomial which is bounded by the max_degree.
 #[derive(Debug)]
 pub struct ProverKey {
     /// Group elements of the form `{ \beta^i G }`, where `i` ranges from 0 to `degree`.
     pub powers_of_g: Vec<G1Affine>,
+}
+
+#[cfg(feature = "serde")]
+impl Serialize for ProverKey {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut tup = serializer.serialize_seq(Some(self.powers_of_g.len()))?;
+        for power in &self.powers_of_g {
+            tup.serialize_element(&power)?;
+        }
+        tup.end()
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<'de> Deserialize<'de> for ProverKey {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        struct ProverKeyVisitor;
+
+        impl<'de> Visitor<'de> for ProverKeyVisitor {
+            type Value = ProverKey;
+
+            fn expecting(&self, formatter: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+                formatter.write_str("a prover key with valid powers per points")
+            }
+
+            fn visit_seq<A>(self, mut seq: A) -> Result<ProverKey, A::Error>
+            where
+                A: serde::de::SeqAccess<'de>,
+            {
+                let mut powers_vec = Vec::new();
+                // Visit each element in the inner array and push it onto
+                // the existing vector.
+                while let Some(elem) = seq.next_element()? {
+                    powers_vec.push(elem)
+                }
+                Ok(ProverKey {
+                    powers_of_g: powers_vec,
+                })
+            }
+        }
+
+        deserializer.deserialize_seq(ProverKeyVisitor)
+    }
 }
 
 impl ProverKey {
@@ -374,5 +428,25 @@ mod test {
         };
 
         assert!(ok);
+    }
+
+    #[cfg(feature = "serde")]
+    #[test]
+    fn prover_key_serde_roundtrip() {
+        use bincode;
+        let prover_key = ProverKey {
+            powers_of_g: vec![
+                G1Affine::generator(),
+                G1Affine::generator(),
+                G1Affine::generator(),
+                G1Affine::generator(),
+                G1Affine::generator(),
+                G1Affine::generator(),
+            ],
+        };
+        let ser = bincode::serialize(&prover_key).unwrap();
+        let deser: ProverKey = bincode::deserialize(&ser).unwrap();
+
+        assert!(&prover_key.powers_of_g[..] == &deser.powers_of_g[..]);
     }
 }
