@@ -189,12 +189,16 @@ mod tests {
         let poly = Polynomial::from_coefficients_vec(coeffs);
         let comm = crate::commitment_scheme::kzg10::Commitment::from_affine(G1Affine::generator());
 
+        // Build directly the widget since the `new()` impl doesn't check any
+        // correctness on the inputs.
         let prep_poly_w_evals = PreProcessedPolynomial {
             polynomial: poly.clone(),
             commitment: comm,
             evaluations: Some(evals),
         };
 
+        // Build directly the widget since the `new()` impl doesn't check any
+        // correctness on the inputs.
         let range_widget = RangeWidget {
             q_range: prep_poly_w_evals,
         };

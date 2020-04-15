@@ -448,11 +448,16 @@ mod tests {
         let poly = Polynomial::from_coefficients_vec(coeffs);
         let comm = crate::commitment_scheme::kzg10::Commitment::from_affine(G1Affine::generator());
 
+        // Build directly the widget since the `new()` impl doesn't check any
+        // correctness on the inputs.
         let prep_poly_w_evals = PreProcessedPolynomial {
             polynomial: poly.clone(),
             commitment: comm,
             evaluations: Some(evals.clone()),
         };
+
+        // Build directly the widget since the `new()` impl doesn't check any
+        // correctness on the inputs.
         let prep_poly_without_evals = PreProcessedPolynomial {
             polynomial: poly,
             commitment: comm,
