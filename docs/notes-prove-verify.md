@@ -4,3 +4,5 @@ for PLONK, are documented.
 
 PLONK proof construction 
 ========================
+
+Constructing a PLONK proof 
