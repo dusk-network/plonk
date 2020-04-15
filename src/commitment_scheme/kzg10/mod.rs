@@ -30,7 +30,7 @@ pub struct AggregateProof {
     pub commitment_to_witness: Commitment,
     /// These are the results of the evaluating each polynomial at the point `z`.
     pub evaluated_points: Vec<Scalar>,
-    /// These are the commitments to the polynomials that you want to prove a statement about.
+    /// These are the commitments to the polynomials which you want to prove a statement about.
     pub commitments_to_polynomials: Vec<Commitment>,
 }
 

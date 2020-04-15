@@ -19,10 +19,10 @@ pub struct PreProcessedCircuit {
     /// of all of the arithmetic-related gates.
     pub arithmetic: ArithmeticWidget,
     /// Holds the polynomials, commitments and evaluations
-    /// of all of the range_constraint gate.
+    /// of all of the range_constraint gates.
     pub range: RangeWidget,
     /// Holds the polynomials, commitments and evaluations
-    /// of all of the logic_constraint gate.
+    /// of all of the logic_constraint gates.
     pub logic: LogicWidget,
     /// Holds the polynomials, commitments and evaluations
     /// related to the sigmas and also stores the linear
@@ -32,7 +32,7 @@ pub struct PreProcessedCircuit {
     // Pre-processes the 4n Evaluations for the vanishing polynomial, so they do not
     // need to be computed at the proving stage.
     // Note: With this, we can combine all parts of the quotient polynomial in their evaluation phase and
-    // divide by the quotient polynomial without having to IFFT
+    // divide by the quotient polynomial without having to perform IFFT
     pub(crate) v_h_coset_4n: Evaluations,
 }
 
