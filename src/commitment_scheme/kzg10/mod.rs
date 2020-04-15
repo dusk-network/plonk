@@ -79,7 +79,7 @@ impl AggregateProof {
     }
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 /// Holds a commitment to a polynomial in a form of a `G1Affine` Bls12_381 point.
 pub struct Commitment(
     /// The commitment is a group element.
