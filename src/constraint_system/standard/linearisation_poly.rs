@@ -45,6 +45,7 @@ pub struct ProofEvaluations {
     // (Shifted) Evaluation of the permutation polynomial at `z * root of unity`
     pub perm_eval: Scalar,
 }
+
 #[cfg(feature = "serde")]
 impl Serialize for ProofEvaluations {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>

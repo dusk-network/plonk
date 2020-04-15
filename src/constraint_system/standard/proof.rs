@@ -10,8 +10,10 @@ use crate::commitment_scheme::kzg10::{Commitment, VerifierKey};
 use crate::fft::{EvaluationDomain, Polynomial};
 use crate::transcript::TranscriptProtocol;
 use bls12_381::{multiscalar_mul::msm_variable_base, G1Affine, Scalar};
+#[cfg(feature = "serde")]
+use serde::{de::Visitor, ser::SerializeStruct, Deserialize, Deserializer, Serialize, Serializer};
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 /// A Proof is a composition of `Commitments` to the witness, permutation,
 /// quotient, shifted and opening polynomials as well as the
 /// `ProofEvaluations`.
@@ -48,6 +50,177 @@ pub struct Proof {
     pub w_zw_comm: Commitment,
     /// Subset of all of the evaluations added to the proof.
     pub evaluations: ProofEvaluations,
+}
+
+#[cfg(feature = "serde")]
+impl Serialize for Proof {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut proof = serializer.serialize_struct("struct Proof", 12)?;
+        proof.serialize_field("a_comm", &self.a_comm)?;
+        proof.serialize_field("b_comm", &self.b_comm)?;
+        proof.serialize_field("c_comm", &self.c_comm)?;
+        proof.serialize_field("d_comm", &self.d_comm)?;
+        proof.serialize_field("z_comm", &self.z_comm)?;
+        proof.serialize_field("t_1_comm", &self.t_1_comm)?;
+        proof.serialize_field("t_2_comm", &self.t_2_comm)?;
+        proof.serialize_field("t_3_comm", &self.t_3_comm)?;
+        proof.serialize_field("t_4_comm", &self.t_4_comm)?;
+        proof.serialize_field("w_z_comm", &self.w_z_comm)?;
+        proof.serialize_field("w_zw_comm", &self.w_zw_comm)?;
+        proof.serialize_field("evaluations", &self.evaluations)?;
+        proof.end()
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<'de> Deserialize<'de> for Proof {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        enum Field {
+            Acomm,
+            Bcomm,
+            Ccomm,
+            Dcomm,
+            Zcomm,
+            T1comm,
+            T2comm,
+            T3comm,
+            T4comm,
+            WZcomm,
+            WZWcomm,
+            Evals,
+        };
+
+        impl<'de> Deserialize<'de> for Field {
+            fn deserialize<D>(deserializer: D) -> Result<Field, D::Error>
+            where
+                D: Deserializer<'de>,
+            {
+                struct FieldVisitor;
+
+                impl<'de> Visitor<'de> for FieldVisitor {
+                    type Value = Field;
+
+                    fn expecting(
+                        &self,
+                        formatter: &mut ::core::fmt::Formatter,
+                    ) -> ::core::fmt::Result {
+                        formatter.write_str("struct Proof")
+                    }
+
+                    fn visit_str<E>(self, value: &str) -> Result<Field, E>
+                    where
+                        E: serde::de::Error,
+                    {
+                        match value {
+                            "a_comm" => Ok(Field::Acomm),
+                            "b_comm" => Ok(Field::Bcomm),
+                            "c_comm" => Ok(Field::Ccomm),
+                            "d_comm" => Ok(Field::Dcomm),
+                            "z_comm" => Ok(Field::Zcomm),
+                            "t_1_comm" => Ok(Field::T1comm),
+                            "t_2_comm" => Ok(Field::T2comm),
+                            "t_3_comm" => Ok(Field::T3comm),
+                            "t_4_comm" => Ok(Field::T4comm),
+                            "w_z_comm" => Ok(Field::WZcomm),
+                            "w_zw_comm" => Ok(Field::WZWcomm),
+                            "evaluations" => Ok(Field::Evals),
+                            _ => Err(serde::de::Error::unknown_field(value, FIELDS)),
+                        }
+                    }
+                }
+
+                deserializer.deserialize_identifier(FieldVisitor)
+            }
+        }
+
+        struct ProofVisitor;
+
+        impl<'de> Visitor<'de> for ProofVisitor {
+            type Value = Proof;
+
+            fn expecting(&self, formatter: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+                formatter.write_str("struct Proof")
+            }
+
+            fn visit_seq<V>(self, mut seq: V) -> Result<Proof, V::Error>
+            where
+                V: serde::de::SeqAccess<'de>,
+            {
+                let a_comm = seq
+                    .next_element()?
+                    .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
+                let b_comm = seq
+                    .next_element()?
+                    .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
+                let c_comm = seq
+                    .next_element()?
+                    .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
+                let d_comm = seq
+                    .next_element()?
+                    .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
+                let z_comm = seq
+                    .next_element()?
+                    .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
+                let t_1_comm = seq
+                    .next_element()?
+                    .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
+                let t_2_comm = seq
+                    .next_element()?
+                    .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
+                let t_3_comm = seq
+                    .next_element()?
+                    .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
+                let t_4_comm = seq
+                    .next_element()?
+                    .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
+                let w_z_comm = seq
+                    .next_element()?
+                    .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
+                let w_zw_comm = seq
+                    .next_element()?
+                    .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
+                let evaluations = seq
+                    .next_element()?
+                    .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
+                Ok(Proof {
+                    a_comm,
+                    b_comm,
+                    c_comm,
+                    d_comm,
+                    z_comm,
+                    t_1_comm,
+                    t_2_comm,
+                    t_3_comm,
+                    t_4_comm,
+                    w_z_comm,
+                    w_zw_comm,
+                    evaluations,
+                })
+            }
+        }
+
+        const FIELDS: &[&str] = &[
+            "a_comm",
+            "b_comm",
+            "c_comm",
+            "d_comm",
+            "z_comm",
+            "t_1_comm",
+            "t_2_comm",
+            "t_3_comm",
+            "t_4_comm",
+            "w_z_comm",
+            "w_zw_comm",
+            "evaluations",
+        ];
+        deserializer.deserialize_struct("Proof", FIELDS, ProofVisitor)
+    }
 }
 
 impl Proof {
@@ -342,5 +515,59 @@ impl Proof {
             );
 
         Commitment::from_projective(msm_variable_base(&points, &scalars))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[cfg(feature = "serde")]
+    #[test]
+    fn proof_serde_roundtrip() {
+        use bincode;
+        let comm = Commitment::empty();
+        let one = Scalar::one();
+
+        // Build directly the widget since there's not any `new()` impl
+        // dor any other check and correctness methodology for the inputs.
+        let proof_evals = ProofEvaluations {
+            a_eval: one,
+            b_eval: one,
+            c_eval: one,
+            d_eval: one,
+            a_next_eval: one,
+            b_next_eval: one,
+            d_next_eval: one,
+            q_arith_eval: one,
+            q_c_eval: one,
+            left_sigma_eval: one,
+            right_sigma_eval: one,
+            out_sigma_eval: one,
+            lin_poly_eval: one,
+            perm_eval: one,
+        };
+
+        // Build directly the widget since there's not any `new()` impl
+        // dor any other check and correctness methodology for the inputs.
+        let proof = Proof {
+            a_comm: comm,
+            b_comm: comm,
+            c_comm: comm,
+            d_comm: comm,
+            z_comm: comm,
+            t_1_comm: comm,
+            t_2_comm: comm,
+            t_3_comm: comm,
+            t_4_comm: comm,
+            w_z_comm: comm,
+            w_zw_comm: comm,
+            evaluations: proof_evals,
+        };
+
+        // Roundtrip with evals
+        let ser = bincode::serialize(&proof).unwrap();
+        let deser: Proof = bincode::deserialize(&ser).unwrap();
+        assert_eq!(proof, deser);
     }
 }
