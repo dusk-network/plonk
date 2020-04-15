@@ -4,10 +4,15 @@ pub mod errors;
 pub mod key;
 pub mod srs;
 use crate::transcript::TranscriptProtocol;
-
 use crate::util::powers_of;
 pub use key::{ProverKey, VerifierKey};
+#[cfg(feature = "serde")]
+use serde::{
+    de::Visitor, ser::SerializeSeq, ser::SerializeStruct, Deserialize, Deserializer, Serialize,
+    Serializer,
+};
 pub use srs::PublicParameters;
+
 #[derive(Copy, Clone, Debug)]
 /// Proof that a polynomial `p` was correctly evaluated at a point `z`
 /// producing the evaluated point p(z).
@@ -84,6 +89,113 @@ pub struct Commitment(
     pub G1Affine,
 );
 
+#[cfg(feature = "serde")]
+impl Serialize for Commitment {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        // 3 is the number of fields in the struct.
+        let mut state = serializer.serialize_struct("struct Commitment", 1)?;
+        state.serialize_field("g1affine", &self.0)?;
+        state.end()
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<'de> Deserialize<'de> for Commitment {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        enum Field {
+            G1Affine,
+        };
+
+        impl<'de> Deserialize<'de> for Field {
+            fn deserialize<D>(deserializer: D) -> Result<Field, D::Error>
+            where
+                D: Deserializer<'de>,
+            {
+                struct FieldVisitor;
+
+                impl<'de> Visitor<'de> for FieldVisitor {
+                    type Value = Field;
+
+                    fn expecting(
+                        &self,
+                        formatter: &mut ::core::fmt::Formatter,
+                    ) -> ::core::fmt::Result {
+                        formatter.write_str("commitment")
+                    }
+
+                    fn visit_str<E>(self, value: &str) -> Result<Field, E>
+                    where
+                        E: serde::de::Error,
+                    {
+                        match value {
+                            "g1affine" => Ok(Field::G1Affine),
+                            _ => Err(serde::de::Error::unknown_field(value, FIELDS)),
+                        }
+                    }
+                }
+
+                deserializer.deserialize_identifier(FieldVisitor)
+            }
+        }
+
+        struct CommitmentVisitor;
+
+        impl<'de> Visitor<'de> for CommitmentVisitor {
+            type Value = Commitment;
+
+            fn expecting(&self, formatter: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+                formatter.write_str("struct Commitment")
+            }
+
+            fn visit_seq<V>(self, mut seq: V) -> Result<Commitment, V::Error>
+            where
+                V: serde::de::SeqAccess<'de>,
+            {
+                let g1_affine = seq
+                    .next_element()?
+                    .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
+                Ok(Commitment(g1_affine))
+            }
+
+            /*fn visit_map<V>(self, mut map: V) -> Result<Commitment, V::Error>
+            where
+                V: MapAccess<'de>,
+            {
+                let mut secs = None;
+                let mut nanos = None;
+                while let Some(key) = map.next_key()? {
+                    match key {
+                        Field::Secs => {
+                            if secs.is_some() {
+                                return Err(de::Error::duplicate_field("secs"));
+                            }
+                            secs = Some(map.next_value()?);
+                        }
+                        Field::Nanos => {
+                            if nanos.is_some() {
+                                return Err(de::Error::duplicate_field("nanos"));
+                            }
+                            nanos = Some(map.next_value()?);
+                        }
+                    }
+                }
+                let secs = secs.ok_or_else(|| de::Error::missing_field("secs"))?;
+                let nanos = nanos.ok_or_else(|| de::Error::missing_field("nanos"))?;
+                Ok(Commitment::new(secs, nanos))
+            }*/
+        }
+
+        const FIELDS: &'static [&'static str] = &["g1affine"];
+        deserializer.deserialize_struct("Commitment", FIELDS, CommitmentVisitor)
+    }
+}
+
 impl Commitment {
     /// Builds a `Commitment` from a Bls12_381 `G1Projective` point.
     pub fn from_projective(g: G1Projective) -> Self {
@@ -97,5 +209,20 @@ impl Commitment {
     /// `G1Affine` identity point in Bls12_381.
     pub fn empty() -> Self {
         Commitment(G1Affine::identity())
+    }
+}
+
+mod tests {
+    use super::*;
+
+    #[cfg(feature = "serde")]
+    #[test]
+    fn commitment_serde_roundtrip() {
+        use bincode;
+        let comm_og = Commitment(G1Affine::generator());
+        let ser = bincode::serialize(&comm_og).unwrap();
+        let deser: Commitment = bincode::deserialize(&ser).unwrap();
+
+        assert_eq!(comm_og.0, deser.0);
     }
 }
