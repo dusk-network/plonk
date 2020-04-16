@@ -1898,6 +1898,25 @@ mod tests {
     }
 
     #[test]
+    fn test_correct_add_gate() {
+        let ok = test_gadget(
+            |composer| {
+                let zero = composer.add_input(Fr::zero());
+                let one = composer.add_input(Fr::one());
+
+                let c = composer.add(
+                    (Scalar::one(), one),
+                    (Scalar::zero(), zero),
+                    Scalar::from(2u64),
+                    Scalar::zero(),
+                );
+                composer.constrain_to_constant(c, Scalar::from(3), Scalar::zero());
+            },
+            32,
+        );
+        assert!(ok)
+    }
+    #[test]
     fn test_correct_big_add_mul_gate() {
         let ok = test_gadget(
             |composer| {
