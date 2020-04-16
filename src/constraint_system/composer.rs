@@ -12,18 +12,18 @@
 // it is intended to be like this in order to provide
 // maximum performance and minimum circuit sizes.
 #![allow(clippy::too_many_arguments)]
-use super::linearisation_poly;
-use super::quotient_poly;
-use super::{proof::Proof, Composer, PreProcessedCircuit};
 use crate::bit_iterator::*;
 use crate::commitment_scheme::kzg10::ProverKey;
-use crate::constraint_system::widget::{
-    ArithmeticWidget, LogicWidget, PermutationWidget, RangeWidget,
-};
 use crate::constraint_system::Variable;
 use crate::constraint_system::WireData;
 use crate::fft::{EvaluationDomain, Evaluations, Polynomial};
 use crate::permutation::Permutation;
+use crate::proving_system::linearisation_poly;
+use crate::proving_system::quotient_poly;
+use crate::proving_system::widget::{
+    ArithmeticWidget, LogicWidget, PermutationWidget, RangeWidget,
+};
+use crate::proving_system::{proof::Proof, PreProcessedCircuit};
 use crate::transcript::TranscriptProtocol;
 use bls12_381::Scalar;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
@@ -78,7 +78,7 @@ pub struct StandardComposer {
     pub(crate) perm: Permutation,
 }
 
-impl Composer for StandardComposer {
+impl StandardComposer {
     // Computes the pre-processed polynomials
     // So the verifier can verify a proof made using this circuit
     fn preprocess(
@@ -305,6 +305,12 @@ impl Composer for StandardComposer {
             &w_o_scalar,
             &w_4_scalar,
             &(beta, gamma),
+            (
+                &preprocessed_circuit.permutation.left_sigma.polynomial,
+                &preprocessed_circuit.permutation.right_sigma.polynomial,
+                &preprocessed_circuit.permutation.out_sigma.polynomial,
+                &preprocessed_circuit.permutation.fourth_sigma.polynomial,
+            ),
         );
 
         // Commit to permutation polynomial
@@ -450,8 +456,8 @@ impl Composer for StandardComposer {
             evaluations: evaluations.proof,
         }
     }
-
-    fn circuit_size(&self) -> usize {
+    /// Returns the number of gates in the circuit
+    pub fn circuit_size(&self) -> usize {
         self.n
     }
 }

@@ -1,5 +1,5 @@
-use crate::constraint_system::standard::PreProcessedCircuit;
 use crate::fft::{EvaluationDomain, Polynomial};
+use crate::proving_system::PreProcessedCircuit;
 use bls12_381::Scalar;
 
 /// Evaluations at points `z` or and `z * root of unity`

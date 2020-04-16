@@ -1,8 +1,8 @@
 #![allow(clippy::too_many_arguments)]
 use super::PreProcessedPolynomial;
 use crate::commitment_scheme::kzg10::Commitment;
-use crate::constraint_system::standard::linearisation_poly::ProofEvaluations;
 use crate::fft::{Evaluations, Polynomial};
+use crate::proving_system::linearisation_poly::ProofEvaluations;
 use bls12_381::G1Affine;
 use bls12_381::Scalar;
 

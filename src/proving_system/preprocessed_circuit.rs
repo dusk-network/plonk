@@ -1,7 +1,7 @@
-use crate::constraint_system::widget::{
+use crate::fft::Evaluations;
+use crate::proving_system::widget::{
     ArithmeticWidget, LogicWidget, PermutationWidget, RangeWidget,
 };
-use crate::fft::Evaluations;
 
 /// `PreProcessedCircuit` is a data structure that holds the commitments to
 /// the selector and sigma polynomials.
