@@ -305,6 +305,12 @@ impl Composer for StandardComposer {
             &w_o_scalar,
             &w_4_scalar,
             &(beta, gamma),
+            (
+                &preprocessed_circuit.permutation.left_sigma.polynomial,
+                &preprocessed_circuit.permutation.right_sigma.polynomial,
+                &preprocessed_circuit.permutation.out_sigma.polynomial,
+                &preprocessed_circuit.permutation.fourth_sigma.polynomial,
+            ),
         );
 
         // Commit to permutation polynomial
