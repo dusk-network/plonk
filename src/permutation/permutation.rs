@@ -10,11 +10,6 @@ use std::collections::HashMap;
 pub struct Permutation {
     // Maps a variable to the wires that it is associated to
     pub(crate) variable_map: HashMap<Variable, Vec<WireData>>,
-
-    left_sigma_mapping: Option<Vec<Scalar>>,
-    right_sigma_mapping: Option<Vec<Scalar>>,
-    out_sigma_mapping: Option<Vec<Scalar>>,
-    fourth_sigma_mapping: Option<Vec<Scalar>>,
 }
 
 impl Permutation {
@@ -25,11 +20,6 @@ impl Permutation {
     pub fn with_capacity(expected_size: usize) -> Permutation {
         Permutation {
             variable_map: HashMap::with_capacity(expected_size),
-
-            left_sigma_mapping: None,
-            right_sigma_mapping: None,
-            out_sigma_mapping: None,
-            fourth_sigma_mapping: None,
         }
     }
     /// Creates a new Variable by incrementing the index of the Variable Map
