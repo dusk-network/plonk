@@ -648,18 +648,19 @@ impl StandardComposer {
     /// `Variable`, and adding the corresponding addition constraint.
     ///
     /// This type of gate is usually used when we don't need to have
-    /// the largest ammount of performance as well as the minimum circuit-size
+    /// the largest amount of performance as well as the minimum circuit-size
     /// possible. Since it defaults some of the selector coeffs = 0 in order
     /// to reduce the verbosity and complexity.
     ///
-    /// Forces `q_l * w_l + q_r * w_r + PI = w_o(computed by the gate)`.
+    /// Forces `q_l * w_l + q_r * w_r + q_c + PI = w_o(computed by the gate)`.
     pub fn add(
         &mut self,
         q_l_a: (Scalar, Variable),
         q_r_b: (Scalar, Variable),
+        q_c: Scalar,
         pi: Scalar,
     ) -> Variable {
-        self.big_add(q_l_a, q_r_b, (Scalar::zero(), self.zero_var), pi)
+        self.big_add(q_l_a, q_r_b, (Scalar::zero(), self.zero_var), q_c, pi)
     }
 
     /// Adds a `big_addition_gate` with the left, right and fourth inputs
@@ -671,12 +672,13 @@ impl StandardComposer {
     /// possible. Since it defaults some of the selector coeffs = 0 in order
     /// to reduce the verbosity and complexity.
     ///
-    /// Forces `q_l * w_l + q_r * w_r + q_4 * w_4 + PI = w_o(computed by the gate)`.
+    /// Forces `q_l * w_l + q_r * w_r + q_4 * w_4 + q_c + PI = w_o(computed by the gate)`.
     pub fn big_add(
         &mut self,
         q_l_a: (Scalar, Variable),
         q_r_b: (Scalar, Variable),
         q_4_d: (Scalar, Variable),
+        q_c: Scalar,
         pi: Scalar,
     ) -> Variable {
         let q_l = q_l_a.0;
@@ -689,7 +691,6 @@ impl StandardComposer {
         let d = q_4_d.1;
 
         let q_o = -Scalar::one();
-        let q_c = Scalar::zero();
 
         // Compute the output wire
         let a_eval = self.variables[&a];
@@ -705,7 +706,7 @@ impl StandardComposer {
     /// constraint.
     ///
     /// This type of gate is usually used when we need to have
-    /// the largest ammount of performance and the minimum circuit-size
+    /// the largest amount of performance and the minimum circuit-size
     /// possible. Since it allows the end-user to set every selector coefficient
     /// as scaling value on the gate eq.
     pub fn big_add_gate(
@@ -771,7 +772,7 @@ impl StandardComposer {
     /// `Variable` and adding the corresponding mul constraint.
     ///
     /// This type of gate is usually used when we need to have
-    /// the largest ammount of performance and the minimum circuit-size
+    /// the largest amount of performance and the minimum circuit-size
     /// possible. Since it allows the end-user to setup all of the selector
     /// coefficients.
     ///
@@ -818,8 +819,15 @@ impl StandardComposer {
 
     /// Adds a simple and basic addition to the circuit between to `Variable`s
     /// returning the resulting `Variable`.
-    pub fn mul(&mut self, q_m: Scalar, a: Variable, b: Variable, pi: Scalar) -> Variable {
-        self.big_mul(q_m, a, b, (Scalar::zero(), self.zero_var), pi)
+    pub fn mul(
+        &mut self,
+        q_m: Scalar,
+        a: Variable,
+        b: Variable,
+        q_c: Scalar,
+        pi: Scalar,
+    ) -> Variable {
+        self.big_mul(q_m, a, b, (Scalar::zero(), self.zero_var), q_c, pi)
     }
 
     /// Adds a width-4 `big_mul_gate` with the left, right and fourth inputs
@@ -831,17 +839,17 @@ impl StandardComposer {
     /// possible. Since it defaults some of the selector coeffs = 0 in order
     /// to reduce the verbosity and complexity.
     ///
-    /// Forces `q_l * (w_l + w_r) + w_4 * q_4 + PI = w_o(computed by the gate)`.
+    /// Forces `q_l * (w_l + w_r) + w_4 * q_4 + q_c + PI = w_o(computed by the gate)`.
     pub fn big_mul(
         &mut self,
         q_m: Scalar,
         a: Variable,
         b: Variable,
         q_4_d: (Scalar, Variable),
+        q_c: Scalar,
         pi: Scalar,
     ) -> Variable {
         let q_o = -Scalar::one();
-        let q_c = Scalar::zero();
 
         let q_4 = q_4_d.0;
         let d = q_4_d.1;
@@ -858,7 +866,7 @@ impl StandardComposer {
 
     /// Adds a width-3 poly gate.
     /// This gate gives total freedom to the end user to implement the corresponding
-    /// circuits in the most optimized way possible because the uder has access to the
+    /// circuits in the most optimized way possible because the under has access to the
     /// whole set of variables, as well as selector coefficients that take part in the
     /// computation of the gate equation.
     ///
@@ -919,7 +927,7 @@ impl StandardComposer {
     }
 
     /// Adds a boolean constraint (also known as binary constraint) where
-    /// the gate eq. will enforce that the `Variable` recieved is either `0`
+    /// the gate eq. will enforce that the `Variable` received is either `0`
     /// or `1` by adding a constraint in the circuit.
     ///
     /// Note that using this constraint with whatever `Variable` that is not
@@ -1650,6 +1658,7 @@ mod tests {
                 var_one.into(),
                 composer.zero_var.into(),
                 Scalar::zero(),
+                Scalar::zero(),
             );
         }
         composer.add_dummy_constraints();
@@ -1824,6 +1833,7 @@ mod tests {
                     var_one.into(),
                     var_one.into(),
                     composer.zero_var.into(),
+                    Scalar::zero(),
                     Scalar::one(),
                 );
                 composer.constrain_to_constant(should_be_three, Scalar::from(3), Scalar::zero());
@@ -1831,6 +1841,7 @@ mod tests {
                     var_one.into(),
                     var_one.into(),
                     composer.zero_var.into(),
+                    Scalar::zero(),
                     Scalar::from(2),
                 );
                 composer.constrain_to_constant(should_be_four, Scalar::from(4), Scalar::zero());
@@ -1850,19 +1861,35 @@ mod tests {
                 let six = composer.add_input(Fr::from(6));
                 let seven = composer.add_input(Fr::from(7));
 
-                let fourteen =
-                    composer.big_add(four.into(), five.into(), five.into(), Scalar::zero());
+                let fourteen = composer.big_add(
+                    four.into(),
+                    five.into(),
+                    five.into(),
+                    Scalar::zero(),
+                    Scalar::zero(),
+                );
 
                 check_circuit_satisfied(composer);
 
-                let twenty =
-                    composer.big_add(six.into(), seven.into(), seven.into(), Scalar::zero());
+                let twenty = composer.big_add(
+                    six.into(),
+                    seven.into(),
+                    seven.into(),
+                    Scalar::zero(),
+                    Scalar::zero(),
+                );
 
                 // There are quite a few ways to check the equation is correct, depending on your circumstance
                 // If we already have the output wire, we can constrain the output of the mul_gate to be equal to it
                 // If we do not, we can compute it using the `mul`
                 // If the output is public, we can also constrain the output wire of the mul gate to it. This is what this test does
-                let output = composer.mul(Scalar::one(), fourteen, twenty, Scalar::zero());
+                let output = composer.mul(
+                    Scalar::one(),
+                    fourteen,
+                    twenty,
+                    Scalar::zero(),
+                    Scalar::zero(),
+                );
                 composer.constrain_to_constant(output, Scalar::from(280), Scalar::zero());
             },
             200,
@@ -1881,17 +1908,28 @@ mod tests {
                 let seven = composer.add_input(Fr::from(7));
                 let nine = composer.add_input(Fr::from(9));
 
-                let fourteen =
-                    composer.big_add(four.into(), five.into(), five.into(), Scalar::zero());
+                let fourteen = composer.big_add(
+                    four.into(),
+                    five.into(),
+                    five.into(),
+                    Scalar::zero(),
+                    Scalar::zero(),
+                );
 
-                let twenty =
-                    composer.big_add(six.into(), seven.into(), seven.into(), Scalar::zero());
+                let twenty = composer.big_add(
+                    six.into(),
+                    seven.into(),
+                    seven.into(),
+                    Scalar::zero(),
+                    Scalar::zero(),
+                );
 
                 let output = composer.big_mul(
                     Scalar::one(),
                     fourteen,
                     twenty,
                     (Scalar::from(8), nine),
+                    Scalar::zero(),
                     Scalar::zero(),
                 );
                 composer.constrain_to_constant(output, Scalar::from(352), Scalar::zero());
@@ -1915,6 +1953,7 @@ mod tests {
                     five.into(),
                     composer.zero_var.into(),
                     Scalar::zero(),
+                    Scalar::zero(),
                 );
 
                 let six_plus_seven = composer.big_add(
@@ -1922,12 +1961,14 @@ mod tests {
                     seven.into(),
                     composer.zero_var.into(),
                     Scalar::zero(),
+                    Scalar::zero(),
                 );
 
                 let output = composer.mul(
                     Scalar::one(),
                     five_plus_five,
                     six_plus_seven,
+                    Scalar::zero(),
                     Scalar::zero(),
                 );
                 composer.constrain_to_constant(output, Scalar::from(117), Scalar::zero());
@@ -2018,6 +2059,7 @@ mod tests {
                 var_one.into(),
                 var_one.into(),
                 composer.zero_var.into(),
+                Scalar::zero(),
                 Scalar::zero(),
             );
         }
