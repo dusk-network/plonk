@@ -359,7 +359,7 @@ fn compute_barycentric_eval(
         .into_par_iter()
         .filter(|&i| {
             let evaluation = &evaluations[i];
-            !(evaluation == &Scalar::zero())
+            evaluation != &Scalar::zero()
         })
         .collect();
 
