@@ -17,10 +17,10 @@ described immediately above, there is
 another reason for choosing a commitment
 scheme with homomorphism. PLONK makes use
 of the linearisation technique, originally
-concieved in the SONIC [paper][sonic_paper]. 
+conceived in the SONIC [paper][sonic_paper]. 
 This technique requires the the commitment 
 scheme to be homomorphic. Without modification 
-of PLONK by means of remving the lineariser, 
+of PLONK by means of removing the lineariser, 
 we are unable to use techniques such as 
 [FRI][fri_paper] protocol. 
 
