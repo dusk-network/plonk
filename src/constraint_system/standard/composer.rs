@@ -8,16 +8,20 @@
 //! It allows us not only to build Add and Mul constraints but also to build
 //! ECC op. gates, Range checks, Logical gates (Bitwise ops) etc.
 
-// Gate fn's have a big number of attributes but
+// Gate fn's have a large number of attributes but
 // it is intended to be like this in order to provide
 // maximum performance and minimum circuit sizes.
 #![allow(clippy::too_many_arguments)]
 use super::linearisation_poly;
 use super::quotient_poly;
 use super::{proof::Proof, Composer, PreProcessedCircuit};
+use crate::bit_iterator::*;
 use crate::commitment_scheme::kzg10::ProverKey;
-use crate::constraint_system::widget::{ArithmeticWidget, PermutationWidget, RangeWidget};
+use crate::constraint_system::widget::{
+    ArithmeticWidget, LogicWidget, PermutationWidget, RangeWidget,
+};
 use crate::constraint_system::Variable;
+use crate::constraint_system::WireData;
 use crate::fft::{EvaluationDomain, Evaluations, Polynomial};
 use crate::permutation::Permutation;
 use crate::transcript::TranscriptProtocol;
@@ -51,6 +55,8 @@ pub struct StandardComposer {
     q_arith: Vec<Scalar>,
     // range selector
     q_range: Vec<Scalar>,
+    // logic selector
+    q_logic: Vec<Scalar>,
 
     public_inputs: Vec<Scalar>,
 
@@ -89,6 +95,7 @@ impl Composer for StandardComposer {
         assert!(self.q_4.len() == k);
         assert!(self.q_arith.len() == k);
         assert!(self.q_range.len() == k);
+        assert!(self.q_logic.len() == k);
         assert!(self.w_l.len() == k);
         assert!(self.w_r.len() == k);
         assert!(self.w_o.len() == k);
@@ -105,6 +112,7 @@ impl Composer for StandardComposer {
         let q_4_poly = Polynomial::from_coefficients_slice(&domain.ifft(&self.q_4));
         let q_arith_poly = Polynomial::from_coefficients_slice(&domain.ifft(&self.q_arith));
         let q_range_poly = Polynomial::from_coefficients_slice(&domain.ifft(&self.q_range));
+        let q_logic_poly = Polynomial::from_coefficients_slice(&domain.ifft(&self.q_logic));
 
         // 2b. Compute 4n evaluations of selector polynomial
         let domain_4n = EvaluationDomain::new(4 * domain.size()).unwrap();
@@ -124,6 +132,8 @@ impl Composer for StandardComposer {
             Evaluations::from_vec_and_domain(domain_4n.coset_fft(&q_arith_poly.coeffs), domain_4n);
         let q_range_eval_4n =
             Evaluations::from_vec_and_domain(domain_4n.coset_fft(&q_range_poly.coeffs), domain_4n);
+        let q_logic_eval_4n =
+            Evaluations::from_vec_and_domain(domain_4n.coset_fft(&q_logic_poly.coeffs), domain_4n);
 
         // 3. Compute the sigma polynomials
         let (left_sigma_poly, right_sigma_poly, out_sigma_poly, fourth_sigma_poly) =
@@ -161,6 +171,7 @@ impl Composer for StandardComposer {
         let q_4_poly_commit = commit_key.commit(&q_4_poly).unwrap();
         let q_arith_poly_commit = commit_key.commit(&q_arith_poly).unwrap();
         let q_range_poly_commit = commit_key.commit(&q_range_poly).unwrap();
+        let q_logic_poly_commit = commit_key.commit(&q_logic_poly).unwrap();
 
         let left_sigma_poly_commit = commit_key.commit(&left_sigma_poly).unwrap();
         let right_sigma_poly_commit = commit_key.commit(&right_sigma_poly).unwrap();
@@ -177,6 +188,7 @@ impl Composer for StandardComposer {
         transcript.append_commitment(b"q_4", &q_4_poly_commit);
         transcript.append_commitment(b"q_arith", &q_arith_poly_commit);
         transcript.append_commitment(b"q_range", &q_range_poly_commit);
+        transcript.append_commitment(b"q_logic", &q_logic_poly_commit);
 
         transcript.append_commitment(b"left_sigma", &left_sigma_poly_commit);
         transcript.append_commitment(b"right_sigma", &right_sigma_poly_commit);
@@ -191,13 +203,19 @@ impl Composer for StandardComposer {
             (q_l_poly, q_l_poly_commit, Some(q_l_eval_4n)),
             (q_r_poly, q_r_poly_commit, Some(q_r_eval_4n)),
             (q_o_poly, q_o_poly_commit, Some(q_o_eval_4n)),
-            (q_c_poly, q_c_poly_commit, Some(q_c_eval_4n)),
+            // XXX: Should try to remove the clones
+            (q_c_poly.clone(), q_c_poly_commit, Some(q_c_eval_4n.clone())),
             (q_4_poly, q_4_poly_commit, Some(q_4_eval_4n)),
             (q_arith_poly, q_arith_poly_commit, Some(q_arith_eval_4n)),
         ));
 
         let range_widget =
             RangeWidget::new((q_range_poly, q_range_poly_commit, Some(q_range_eval_4n)));
+
+        let logic_widget = LogicWidget::new(
+            (q_c_poly, q_c_poly_commit, Some(q_c_eval_4n)),
+            (q_logic_poly, q_logic_poly_commit, Some(q_logic_eval_4n)),
+        );
 
         let perm_widget = PermutationWidget::new(
             (
@@ -227,6 +245,7 @@ impl Composer for StandardComposer {
             n: self.n,
             arithmetic: arithmetic_widget,
             range: range_widget,
+            logic: logic_widget,
             permutation: perm_widget,
             // Compute 4n evaluations for X^n -1
             v_h_coset_4n: domain_4n.compute_vanishing_poly_over_coset(domain.size() as u64),
@@ -246,6 +265,7 @@ impl Composer for StandardComposer {
         //1. Compute witness Polynomials
         //
         // Convert Variables to Scalars
+        // XXX: Maybe there's no need to allocate `to_scalars` returning &[Scalar].
         let w_l_scalar = self.to_scalars(&self.w_l);
         let w_r_scalar = self.to_scalars(&self.w_r);
         let w_o_scalar = self.to_scalars(&self.w_o);
@@ -348,11 +368,14 @@ impl Composer for StandardComposer {
         transcript.append_scalar(b"b_eval", &evaluations.proof.b_eval);
         transcript.append_scalar(b"c_eval", &evaluations.proof.c_eval);
         transcript.append_scalar(b"d_eval", &evaluations.proof.d_eval);
+        transcript.append_scalar(b"a_next_eval", &evaluations.proof.a_next_eval);
+        transcript.append_scalar(b"b_next_eval", &evaluations.proof.b_next_eval);
         transcript.append_scalar(b"d_next_eval", &evaluations.proof.d_next_eval);
         transcript.append_scalar(b"left_sig_eval", &evaluations.proof.left_sigma_eval);
         transcript.append_scalar(b"right_sig_eval", &evaluations.proof.right_sigma_eval);
         transcript.append_scalar(b"out_sig_eval", &evaluations.proof.out_sigma_eval);
         transcript.append_scalar(b"q_arith_eval", &evaluations.proof.q_arith_eval);
+        transcript.append_scalar(b"q_c_eval", &evaluations.proof.q_c_eval);
         transcript.append_scalar(b"perm_eval", &evaluations.proof.perm_eval);
         transcript.append_scalar(b"t_eval", &evaluations.quot_eval);
         transcript.append_scalar(b"r_eval", &evaluations.proof.lin_poly_eval);
@@ -374,8 +397,8 @@ impl Composer for StandardComposer {
             &[
                 quot,
                 lin_poly,
-                w_l_poly,
-                w_r_poly,
+                w_l_poly.clone(),
+                w_r_poly.clone(),
                 w_o_poly,
                 w_4_poly.clone(),
                 preprocessed_circuit
@@ -401,7 +424,7 @@ impl Composer for StandardComposer {
 
         // Compute aggregate witness to polynomials evaluated at the shifted evaluation challenge
         let shifted_aggregate_witness = commit_key.compute_aggregate_witness(
-            &[z_poly, w_4_poly],
+            &[z_poly, w_l_poly, w_r_poly, w_4_poly],
             &(z_challenge * domain.group_gen),
             transcript,
         );
@@ -446,13 +469,13 @@ impl StandardComposer {
     /// # Warning
     ///
     /// The usage of this may cause lots of re-allocations since the `Composer`
-    /// holds `Vec` for every polynomial, and theese will need to be re-allocated
+    /// holds `Vec` for every polynomial, and these will need to be re-allocated
     /// each time the circuit grows considerably.
     pub fn new() -> Self {
         StandardComposer::with_expected_size(0)
     }
 
-    /// Split `t(X)` poly into three degree-n polynomials.
+    /// Split `t(X)` poly into 3 degree `n` polynomials.
     pub fn split_tx_poly(
         &self,
         n: usize,
@@ -465,12 +488,12 @@ impl StandardComposer {
             Polynomial::from_coefficients_vec(t_x[3 * n..].to_vec()),
         )
     }
-    /// Fixes a variable in the witness to be a part of the circuit description.s
+    /// Fixes a variable in the witness to be a part of the circuit description.
     /// This method is (currently) only used in the following context:
     /// We have gates which only require 3/4 wires,
-    /// We must assign the fourth value a value, we fix this value to be zero.
+    /// We must assign the fourth value to another value, we then fix this value to be zero.
     /// However, the verifier needs to be able to verify that this value is also zero.
-    /// So we must make this zero value a part of the circuit description of every circuit.
+    /// We therefore must make this zero value a part of the circuit description of every circuit.
     fn add_witness_to_circuit_description(&mut self, var: Variable, value: Scalar) {
         self.poly_gate(
             var,
@@ -528,6 +551,7 @@ impl StandardComposer {
             q_4: Vec::with_capacity(expected_size),
             q_arith: Vec::with_capacity(expected_size),
             q_range: Vec::with_capacity(expected_size),
+            q_logic: Vec::with_capacity(expected_size),
             public_inputs: Vec::with_capacity(expected_size),
 
             w_l: Vec::with_capacity(expected_size),
@@ -550,7 +574,7 @@ impl StandardComposer {
         composer
     }
 
-    /// Pads the circuit to the next power of two-
+    /// Pads the circuit to the next power of two
     /// `diff` is the difference between circuit size and next power of two.
     fn pad(&mut self, diff: usize) {
         // Add a zero variable to circuit
@@ -568,6 +592,7 @@ impl StandardComposer {
         self.q_4.extend(zeroes_scalar.iter());
         self.q_arith.extend(zeroes_scalar.iter());
         self.q_range.extend(zeroes_scalar.iter());
+        self.q_logic.extend(zeroes_scalar.iter());
 
         self.w_l.extend(zeroes_var.iter());
         self.w_r.extend(zeroes_var.iter());
@@ -590,8 +615,8 @@ impl StandardComposer {
         var
     }
 
-    /// Adds a width-3 add gate to the circuit linking the addition of the
-    /// provided inputs scaled by the selector coefficients with the output
+    /// Adds a width-3 add gate to the circuit, linking the addition of the
+    /// provided inputs, scaled by the selector coefficients with the output
     /// provided.
     pub fn add_gate(
         &mut self,
@@ -620,21 +645,22 @@ impl StandardComposer {
 
     /// Adds a `big_addition_gate` with the left and right inputs
     /// and it's scaling factors, computing & returning the output (result)
-    /// `Variable` and adding the corresponding addition constraint.
+    /// `Variable`, and adding the corresponding addition constraint.
     ///
     /// This type of gate is usually used when we don't need to have
-    /// the biggest ammount of performance and the minimum circuit-size
-    /// possible. Since it defaults some of the selector coefs = 0 in order
+    /// the largest amount of performance as well as the minimum circuit-size
+    /// possible. Since it defaults some of the selector coeffs = 0 in order
     /// to reduce the verbosity and complexity.
     ///
-    /// Forces `q_l * w_l + q_r * w_r + PI = w_o(computed by the gate)`.
+    /// Forces `q_l * w_l + q_r * w_r + q_c + PI = w_o(computed by the gate)`.
     pub fn add(
         &mut self,
         q_l_a: (Scalar, Variable),
         q_r_b: (Scalar, Variable),
+        q_c: Scalar,
         pi: Scalar,
     ) -> Variable {
-        self.big_add(q_l_a, q_r_b, (Scalar::zero(), self.zero_var), pi)
+        self.big_add(q_l_a, q_r_b, (Scalar::zero(), self.zero_var), q_c, pi)
     }
 
     /// Adds a `big_addition_gate` with the left, right and fourth inputs
@@ -642,16 +668,17 @@ impl StandardComposer {
     /// `Variable` and adding the corresponding addition constraint.
     ///
     /// This type of gate is usually used when we don't need to have
-    /// the biggest ammount of performance and the minimum circuit-size
-    /// possible. Since it defaults some of the selector coefs = 0 in order
+    /// the largets ammount of performance and the minimum circuit-size
+    /// possible. Since it defaults some of the selector coeffs = 0 in order
     /// to reduce the verbosity and complexity.
     ///
-    /// Forces `q_l * w_l + q_r * w_r + q_4 * w_4 + PI = w_o(computed by the gate)`.
+    /// Forces `q_l * w_l + q_r * w_r + q_4 * w_4 + q_c + PI = w_o(computed by the gate)`.
     pub fn big_add(
         &mut self,
         q_l_a: (Scalar, Variable),
         q_r_b: (Scalar, Variable),
         q_4_d: (Scalar, Variable),
+        q_c: Scalar,
         pi: Scalar,
     ) -> Variable {
         let q_l = q_l_a.0;
@@ -664,7 +691,6 @@ impl StandardComposer {
         let d = q_4_d.1;
 
         let q_o = -Scalar::one();
-        let q_c = Scalar::zero();
 
         // Compute the output wire
         let a_eval = self.variables[&a];
@@ -680,7 +706,7 @@ impl StandardComposer {
     /// constraint.
     ///
     /// This type of gate is usually used when we need to have
-    /// the biggest ammount of performance and the minimum circuit-size
+    /// the largest amount of performance and the minimum circuit-size
     /// possible. Since it allows the end-user to set every selector coefficient
     /// as scaling value on the gate eq.
     pub fn big_add_gate(
@@ -711,8 +737,8 @@ impl StandardComposer {
         self.q_c.push(q_c);
         self.q_4.push(q_4);
         self.q_arith.push(Scalar::one());
-
         self.q_range.push(Scalar::zero());
+        self.q_logic.push(Scalar::zero());
 
         self.public_inputs.push(pi);
 
@@ -746,7 +772,7 @@ impl StandardComposer {
     /// `Variable` and adding the corresponding mul constraint.
     ///
     /// This type of gate is usually used when we need to have
-    /// the biggest ammount of performance and the minimum circuit-size
+    /// the largest amount of performance and the minimum circuit-size
     /// possible. Since it allows the end-user to setup all of the selector
     /// coefficients.
     ///
@@ -780,6 +806,7 @@ impl StandardComposer {
         self.q_arith.push(Scalar::one());
 
         self.q_range.push(Scalar::zero());
+        self.q_logic.push(Scalar::zero());
 
         self.public_inputs.push(pi);
 
@@ -792,8 +819,15 @@ impl StandardComposer {
 
     /// Adds a simple and basic addition to the circuit between to `Variable`s
     /// returning the resulting `Variable`.
-    pub fn mul(&mut self, q_m: Scalar, a: Variable, b: Variable, pi: Scalar) -> Variable {
-        self.big_mul(q_m, a, b, (Scalar::zero(), self.zero_var), pi)
+    pub fn mul(
+        &mut self,
+        q_m: Scalar,
+        a: Variable,
+        b: Variable,
+        q_c: Scalar,
+        pi: Scalar,
+    ) -> Variable {
+        self.big_mul(q_m, a, b, (Scalar::zero(), self.zero_var), q_c, pi)
     }
 
     /// Adds a width-4 `big_mul_gate` with the left, right and fourth inputs
@@ -801,21 +835,21 @@ impl StandardComposer {
     /// `Variable` and adding the corresponding mul constraint.
     ///
     /// This type of gate is usually used when we don't need to have
-    /// the biggest ammount of performance and the minimum circuit-size
-    /// possible. Since it defaults some of the selector coefs = 0 in order
+    /// the largest ammount of performance and the minimum circuit-size
+    /// possible. Since it defaults some of the selector coeffs = 0 in order
     /// to reduce the verbosity and complexity.
     ///
-    /// Forces `q_l * (w_l + w_r) + w_4 * q_4 + PI = w_o(computed by the gate)`.
+    /// Forces `q_l * (w_l + w_r) + w_4 * q_4 + q_c + PI = w_o(computed by the gate)`.
     pub fn big_mul(
         &mut self,
         q_m: Scalar,
         a: Variable,
         b: Variable,
         q_4_d: (Scalar, Variable),
+        q_c: Scalar,
         pi: Scalar,
     ) -> Variable {
         let q_o = -Scalar::one();
-        let q_c = Scalar::zero();
 
         let q_4 = q_4_d.0;
         let d = q_4_d.1;
@@ -831,10 +865,10 @@ impl StandardComposer {
     }
 
     /// Adds a width-3 poly gate.
-    /// This gate gives total freedom to the end user to implement it's circuits
-    /// in the most optimized way possible since he/she has access to the whole set
-    /// of variables and selector coefficients that take part in the computation
-    /// of the gate equation.
+    /// This gate gives total freedom to the end user to implement the corresponding
+    /// circuits in the most optimized way possible because the under has access to the
+    /// whole set of variables, as well as selector coefficients that take part in the
+    /// computation of the gate equation.
     ///
     /// The final constraint added will force the following:
     /// `(a * b) * q_m + a * q_l + b * q_r + q_c + PI + q_o * c = 0`.
@@ -865,6 +899,7 @@ impl StandardComposer {
         self.q_arith.push(Scalar::one());
 
         self.q_range.push(Scalar::zero());
+        self.q_logic.push(Scalar::zero());
 
         self.public_inputs.push(pi);
 
@@ -875,8 +910,8 @@ impl StandardComposer {
         (a, b, c)
     }
 
-    /// Adds a gate which is designed to constraint a `Variable` to have
-    /// a specific constant value which is sent as an `Scalar`.
+    /// Adds a gate which is designed to constrain a `Variable` to have
+    /// a specific constant value which is sent as a `Scalar`.
     pub fn constrain_to_constant(&mut self, a: Variable, constant: Scalar, pi: Scalar) {
         self.poly_gate(
             a,
@@ -892,11 +927,11 @@ impl StandardComposer {
     }
 
     /// Adds a boolean constraint (also known as binary constraint) where
-    /// the gate eq. will enforce that the `Variable` recieved is either `0`
+    /// the gate eq. will enforce that the `Variable` received is either `0`
     /// or `1` by adding a constraint in the circuit.
     ///
-    /// Note that use this constraint with whatever `Variable` that is not
-    /// representing a value = 0 or 1 will force the equation to fail always.
+    /// Note that using this constraint with whatever `Variable` that is not
+    /// representing a value equalling 0 or 1, will always force the equation to fail.
     pub fn bool_gate(&mut self, a: Variable) -> Variable {
         self.w_l.push(a);
         self.w_r.push(a);
@@ -912,6 +947,7 @@ impl StandardComposer {
         self.q_arith.push(Scalar::one());
 
         self.q_range.push(Scalar::zero());
+        self.q_logic.push(Scalar::zero());
 
         self.public_inputs.push(Scalar::zero());
 
@@ -923,12 +959,9 @@ impl StandardComposer {
         a
     }
 
-    /// Adds a range-constraint gate that checks and constraints a
+    /// Adds a range-constraint gate that checks and constrains a
     /// `Variable` to be inside of the range [0,num_bits].
     pub fn range_gate(&mut self, witness: Variable, num_bits: usize) {
-        use super::super::variable::WireData;
-        use crate::bit_iterator::*;
-
         // Adds `variable` into the appropriate witness position
         // based on the accumulator number a_i
         let add_wire = |composer: &mut StandardComposer, i: usize, variable: Variable| {
@@ -1004,7 +1037,7 @@ impl StandardComposer {
         // Case 2: When the number of bits is not divisible by 8
         // Since the number is not divisible by 4, as in case 1, when we add the genesis quad, we will have more than 1 quad on the last row
         // In this case, the genesis quad, did not add an extra gate. What will add the extra gate, is the padding.
-        // We must apply padding in order ensure the last row has only one quad in on the fourth wire
+        // We must apply padding in order to ensure the last row has only one quad in on the fourth wire
         // In this case, it is the padding which will add an extra number of gates
         // Example: 34 bits requires 17 quads. We add one for the zeroed out accumulator. To make 18 quads. We can fit all of these quads in 5 gates.
         // 18 % 4 = 2 so on the last row, we will have two quads, which is bad.
@@ -1059,6 +1092,7 @@ impl StandardComposer {
         self.q_arith.extend(zeros.iter());
         self.q_4.extend(zeros.iter());
         self.q_range.extend(ones.iter());
+        self.q_logic.extend(zeros.iter());
         self.public_inputs.extend(zeros.iter());
         self.n += used_gates;
 
@@ -1077,6 +1111,285 @@ impl StandardComposer {
         let last_accumulator = accumulators.len() - 1;
         self.assert_equal(accumulators[last_accumulator], witness);
         accumulators[last_accumulator] = witness;
+    }
+
+    /// Performs a logical AND or XOR op between the inputs provided for the specified
+    /// number of bits.
+    ///
+    /// Each logic gate adds `(num_bits / 2) + 1` gates to the circuit to perform the
+    /// whole operation.
+    ///
+    /// ## Selector
+    /// - is_xor_gate = 1 -> Performs XOR between the first `num_bits` for `a` and `b`.
+    /// - is_xor_gate = 0 -> Performs AND between the first `num_bits` for `a` and `b`.
+    ///
+    /// ## Panics
+    /// This function will panic if the num_bits specified is not even `num_bits % 2 != 0`.
+    pub fn logic_gate(
+        &mut self,
+        a: Variable,
+        b: Variable,
+        num_bits: usize,
+        is_xor_gate: bool,
+    ) -> Variable {
+        // Since we work on base4, we need to guarantee that we have an even
+        // number of bits representing the greatest input.
+        assert_eq!(num_bits & 1, 0);
+        // We will have exactly `num_bits / 2` quads (quaternary digits) representing
+        // both numbers.
+        let num_quads = num_bits >> 1;
+        // Allocate accumulators for gate construction.
+        let mut left_accumulator = Scalar::zero();
+        let mut right_accumulator = Scalar::zero();
+        let mut out_accumulator = Scalar::zero();
+        let mut left_quad: u8;
+        let mut right_quad: u8;
+        // Get vars as bits and reverse them to get the Little Endian repr.
+        let a_bit_iter = BitIterator8::new(self.variables[&a].to_bytes());
+        let a_bits: Vec<_> = a_bit_iter.skip(256 - num_bits).collect();
+        let b_bit_iter = BitIterator8::new(self.variables[&b].to_bytes());
+        let b_bits: Vec<_> = b_bit_iter.skip(256 - num_bits).collect();
+        // XXX Doc this
+        assert!(a_bits.len() >= num_bits);
+        assert!(b_bits.len() >= num_bits);
+
+        // If we take a look to the program memory structure of the ref. impl.
+        // * +-----+-----+-----+-----+
+        // * |  A  |  B  |  C  |  D  |
+        // * +-----+-----+-----+-----+
+        // * | 0   | 0   | w1  | 0   |
+        // * | a1  | b1  | w2  | c1  |
+        // * | a2  | b2  | w3  | c2  |
+        // * |  :  |  :  |  :  |  :  |
+        // * | an  | bn  | --- | cn  |
+        // * +-----+-----+-----+-----+
+        // We need to have w_4, w_l and w_r pointing to one gate ahead of w_o.
+        // We increase the gate idx and assign w_4, w_l and w_r to `zero`.
+        // Now we can add the first row as: `| 0 | 0 | -- | 0 |`.
+        // Note that `w_1` will be set on the first loop iteration.
+        self.perm
+            .add_variable_to_map(self.zero_var, WireData::Left(self.n));
+        self.perm
+            .add_variable_to_map(self.zero_var, WireData::Right(self.n));
+        self.perm
+            .add_variable_to_map(self.zero_var, WireData::Fourth(self.n));
+        self.w_l.push(self.zero_var);
+        self.w_r.push(self.zero_var);
+        self.w_4.push(self.zero_var);
+        // Increase the gate index so we can add the following rows in the correct order.
+        self.n += 1;
+
+        // Start generating accumulator rows and adding them to the circuit.
+        // Note that we will do this process exactly `num_bits / 2` counting that
+        // the first step above was done correctly to obtain the right format the the first row.
+        // This means that we will need to pad the end of the memory program once we've built it.
+        // As we can see in the last row structure: `| an  | bn  | --- | cn  |`.
+        for i in 0..num_quads {
+            // On each round, we will commit every accumulator step. To do so,
+            // we first need to get the ith quads of `a` and `b` and then compute
+            // `out_quad`(logical OP result) and `prod_quad`(intermediate prod result).
+
+            // Here we compute each quad by taking the most significant bit
+            // multiplying it by two and adding to it the less significant
+            // bit to form the quad with a ternary value encapsulated in an `u8`
+            // in Big Endian form.
+            left_quad = {
+                let idx = i << 1;
+                ((a_bits[idx] as u8) << 1) + (a_bits[idx + 1] as u8)
+            };
+            right_quad = {
+                let idx = i << 1;
+                ((b_bits[idx] as u8) << 1) + (b_bits[idx + 1] as u8)
+            };
+            let left_quad_fr = Scalar::from(left_quad as u64);
+            let right_quad_fr = Scalar::from(right_quad as u64);
+            // The `out_quad` is the result of the bitwise ops `&` or `^` between
+            // the left and right quads. The op is decided with a boolean flag set
+            // as input of the function.
+            let out_quad_fr = match is_xor_gate {
+                true => Scalar::from((left_quad ^ right_quad) as u64),
+                false => Scalar::from((left_quad & right_quad) as u64),
+            };
+            // We also need to allocate a helper item which is the result
+            // of the product between the left and right quads.
+            // This param is identified as `w` in the program memory and
+            // is needed to prevent the degree of our quotient polynomial from blowing up
+            let prod_quad_fr = Scalar::from((left_quad * right_quad) as u64);
+
+            // Now that we've computed this round results, we need to apply the
+            // logic transition constraint that will check the following:
+            // a      - 4 . a  ϵ [0, 1, 2, 3]
+            //   i + 1        i
+            //
+            //
+            //
+            //
+            //  b      - 4 . b  ϵ [0, 1, 2, 3]
+            //   i + 1        i
+            //
+            //
+            //
+            //
+            //                    /                 \          /                 \
+            //  c      - 4 . c  = | a      - 4 . a  | (& OR ^) | b      - 4 . b  |
+            //   i + 1        i   \  i + 1        i /          \  i + 1        i /
+            //
+            let prev_left_accum = left_accumulator;
+            let prev_right_accum = right_accumulator;
+            let prev_out_accum = out_accumulator;
+            // We also need to add the computed quad fr_s to the circuit representing a logic gate.
+            // To do so, we just mul by 4 the previous accomulated result and we add to it
+            // the new computed quad.
+            // With this technique we're basically accumulating the quads and adding them to get back to the
+            // starting value, at the i-th iteration.
+            //          i
+            //         ===
+            //         \                     j
+            //  x   =  /    q            . 4
+            //   i     ===   (bits/2 - j)
+            //        j = 0
+            //
+            left_accumulator *= Scalar::from(4u64);
+            left_accumulator += left_quad_fr;
+            right_accumulator *= Scalar::from(4u64);
+            right_accumulator += right_quad_fr;
+            out_accumulator *= Scalar::from(4u64);
+            out_accumulator += out_quad_fr;
+            // Apply logic transition constraints.
+            assert!(left_accumulator - (prev_left_accum * Scalar::from(4u64)) < Scalar::from(4u64));
+            assert!(
+                right_accumulator - (prev_right_accum * Scalar::from(4u64)) < Scalar::from(4u64)
+            );
+            assert!(out_accumulator - (prev_out_accum * Scalar::from(4u64)) < Scalar::from(4u64));
+
+            // Get variables pointing to the previous accumulated values.
+            let var_a = self.add_input(left_accumulator);
+            let var_b = self.add_input(right_accumulator);
+            // On the last row of the program memory, we need to pad the
+            // output wire with a zero since we started to include it's
+            // accumulators one gate before the other wire ones.
+            let var_c = match i == num_quads {
+                true => self.zero_var,
+                false => self.add_input(prod_quad_fr),
+            };
+            let var_4 = self.add_input(out_accumulator);
+            // Add the variables to the variable map linking them to it's
+            // corresponding gate index.
+            //
+            // Note that by doing this, we are basically setting the wire_coeffs
+            // of the wire polynomials, but we still need to link the selector_poly
+            // coefficients in order to be able to have complete gates.
+            //
+            // Also note that here we're setting left, right and fourth variables to the
+            // actual gate, meanwhile we set out to the previous gate.
+            self.perm.add_variable_to_map(var_a, WireData::Left(self.n));
+            self.perm
+                .add_variable_to_map(var_b, WireData::Right(self.n));
+            self.perm
+                .add_variable_to_map(var_4, WireData::Fourth(self.n));
+            self.perm
+                .add_variable_to_map(var_c, WireData::Output(self.n - 1));
+            // Push the variables to it's actual wire vector storage
+            self.w_l.push(var_a);
+            self.w_r.push(var_b);
+            self.w_o.push(var_c);
+            self.w_4.push(var_4);
+            // Update the gate index
+            self.n += 1;
+        }
+
+        // We have one missing value for the last row of the program memory which
+        // is `w_o` since the rest of wires are pointing one gate ahead.
+        // To fix this, we simply pad with a 0 so the last row of the program memory
+        // will look like this:
+        // | an  | bn  | --- | cn  |
+        self.perm
+            .add_variable_to_map(self.zero_var, WireData::Output(self.n - 1));
+        self.w_o.push(self.zero_var);
+
+        // Now the wire values are set for each gate, indexed and mapped in the
+        // `variable_map` inside of the `Permutation` struct.
+        // Now we just need to extend the selector polynomials with the appropiate
+        // coefficients to form complete logic gates.
+        for _ in 0..num_quads {
+            self.q_m.push(Scalar::zero());
+            self.q_l.push(Scalar::zero());
+            self.q_r.push(Scalar::zero());
+            self.q_arith.push(Scalar::zero());
+            self.q_o.push(Scalar::zero());
+            self.q_4.push(Scalar::zero());
+            self.q_range.push(Scalar::zero());
+            match is_xor_gate {
+                true => {
+                    self.q_c.push(-Scalar::one());
+                    self.q_logic.push(-Scalar::one());
+                }
+                false => {
+                    self.q_c.push(Scalar::one());
+                    self.q_logic.push(Scalar::one());
+                }
+            };
+        }
+        // For the last gate, `q_c` and `q_logic` we use no-op values (Zero).
+        self.q_m.push(Scalar::zero());
+        self.q_l.push(Scalar::zero());
+        self.q_r.push(Scalar::zero());
+        self.q_arith.push(Scalar::zero());
+        self.q_o.push(Scalar::zero());
+        self.q_4.push(Scalar::zero());
+        self.q_range.push(Scalar::zero());
+        self.q_c.push(Scalar::zero());
+        self.q_logic.push(Scalar::zero());
+
+        // We also need to extend the `public_inputs` Vec with
+        // zeros since the coeffs will not be added by the user as
+        // they are not needed.
+        //
+        // It makes no sense to allow the user introduce any kind of value
+        // in the middle of the logical gate iteration.
+        let zeros = vec![Scalar::zero(); num_quads + 1];
+        self.public_inputs.extend(zeros.iter());
+
+        // Now we need to assert that the sum of accumulated values
+        // matches the original values provided to the fn.
+        // Note that we're only considering the quads that are included
+        // in the range 0..num_bits. So, when actually executed, we're checking that
+        // x & ((1 << num_bits +1) -1) == [0..num_quads] accumulated sums of x.
+        //
+        // We could also check that the last gates wire coefficients match the
+        // original values introduced in the function.
+        // This can be done with an `assert_equal` constraint gate or simply
+        // by taking the values behind the n'th variables of `w_l` & `w_r` and
+        // checking that they're equal to the original ones behind the variables
+        // sent through the function parameters.
+        assert_eq!(self.variables[&a], self.variables[&self.w_l[self.n - 1]]);
+        assert_eq!(self.variables[&b], self.variables[&self.w_r[self.n - 1]]);
+
+        // Once the inputs are checked against the accumulated additions,
+        // we can safely return the resulting variable of the gate computation
+        // which is stored on the last program memory row and in the column that
+        // `w_4` is holding.
+        self.w_4[self.w_4.len() - 1]
+    }
+
+    /// Adds a logical XOR gate that performs the XOR between two values for the
+    /// specified first `num_bits` returning a `Variable` holding the result.
+    ///
+    /// # Panics
+    ///
+    /// If the `num_bits` specified in the fn params is odd.
+    pub fn logic_xor_gate(&mut self, a: Variable, b: Variable, num_bits: usize) -> Variable {
+        self.logic_gate(a, b, num_bits, true)
+    }
+
+    /// Adds a logical AND gate that performs the bitwise AND between two values
+    /// for the specified first `num_bits` returning a `Variable` holding the result.
+    ///
+    /// # Panics
+    ///
+    /// If the `num_bits` specified in the fn params is odd.
+    pub fn logic_and_gate(&mut self, a: Variable, b: Variable, num_bits: usize) -> Variable {
+        self.logic_gate(a, b, num_bits, false)
     }
 
     /// Asserts that two variables are the same
@@ -1099,7 +1412,7 @@ impl StandardComposer {
     /// `DegreeZero` polynomials since it adds at least one coeff
     /// different from zero for each selector coefficient.
     ///
-    /// Using it once if we never use one of the selector polynomials
+    /// Using it once if we never use one of the selector polynomials,
     /// will save us from having `DegreeZeroPolynomial` errors.
     // XXX: We should have a way to handle this.
     pub fn add_dummy_constraints(&mut self) {
@@ -1112,6 +1425,7 @@ impl StandardComposer {
         self.q_4.push(Scalar::one());
         self.q_arith.push(Scalar::one());
         self.q_range.push(Scalar::zero());
+        self.q_logic.push(Scalar::zero());
         self.public_inputs.push(Scalar::zero());
         let var_six = self.add_input(Scalar::from(6));
         let var_one = self.add_input(Scalar::from(1));
@@ -1134,6 +1448,7 @@ impl StandardComposer {
         self.q_4.push(Scalar::zero());
         self.q_arith.push(Scalar::one());
         self.q_range.push(Scalar::zero());
+        self.q_logic.push(Scalar::zero());
         self.public_inputs.push(Scalar::zero());
         self.w_l.push(var_min_twenty);
         self.w_r.push(var_six);
@@ -1142,7 +1457,7 @@ impl StandardComposer {
         self.perm
             .add_variables_to_map(var_min_twenty, var_six, var_seven, self.zero_var, self.n);
         self.n += 1;
-        //Add another dummy constraint fro Q_range
+        //Add another dummy constraint from Q_range
         // XXX: We should have a way to handle the zero polynomial
         self.q_m.push(Scalar::zero());
         self.q_l.push(Scalar::zero());
@@ -1152,6 +1467,7 @@ impl StandardComposer {
         self.q_4.push(Scalar::zero());
         self.q_arith.push(Scalar::zero());
         self.q_range.push(Scalar::one());
+        self.q_logic.push(Scalar::zero());
         self.public_inputs.push(Scalar::zero());
         self.w_l.push(var_one);
         self.w_r.push(self.zero_var);
@@ -1174,6 +1490,7 @@ impl StandardComposer {
         self.q_4.push(Scalar::zero());
         self.q_arith.push(Scalar::zero());
         self.q_range.push(Scalar::zero());
+        self.q_logic.push(Scalar::zero());
         self.public_inputs.push(Scalar::zero());
         self.w_l.push(self.zero_var);
         self.w_r.push(self.zero_var);
@@ -1184,6 +1501,78 @@ impl StandardComposer {
             self.zero_var,
             self.zero_var,
             var_four,
+            self.n,
+        );
+        self.n += 1;
+
+        //Add another dummy constraint for Q_logic
+        // XXX: We should have a way to handle the zero polynomial
+        self.q_m.push(Scalar::zero());
+        self.q_l.push(Scalar::zero());
+        self.q_r.push(Scalar::zero());
+        self.q_o.push(Scalar::zero());
+        self.q_c.push(-Scalar::one());
+        self.q_4.push(Scalar::zero());
+        self.q_arith.push(Scalar::zero());
+        self.q_range.push(Scalar::zero());
+        self.q_logic.push(-Scalar::one());
+        self.public_inputs.push(Scalar::zero());
+        self.w_l.push(self.zero_var);
+        self.w_r.push(self.zero_var);
+        self.w_o.push(self.zero_var);
+        self.w_4.push(self.zero_var);
+        self.perm.add_variables_to_map(
+            self.zero_var,
+            self.zero_var,
+            self.zero_var,
+            self.zero_var,
+            self.n,
+        );
+        self.n += 1;
+        //Add another dummy constraint for Q_logic
+        // XXX: We should have a way to handle the zero polynomial
+        self.q_m.push(Scalar::zero());
+        self.q_l.push(Scalar::zero());
+        self.q_r.push(Scalar::zero());
+        self.q_o.push(Scalar::zero());
+        self.q_c.push(-Scalar::one());
+        self.q_4.push(Scalar::zero());
+        self.q_arith.push(Scalar::zero());
+        self.q_range.push(Scalar::zero());
+        self.q_logic.push(-Scalar::one());
+        self.public_inputs.push(Scalar::zero());
+        self.w_l.push(self.zero_var);
+        self.w_r.push(self.zero_var);
+        self.w_o.push(self.zero_var);
+        self.w_4.push(self.zero_var);
+        self.perm.add_variables_to_map(
+            self.zero_var,
+            self.zero_var,
+            self.zero_var,
+            self.zero_var,
+            self.n,
+        );
+        self.n += 1;
+        // Add no-op gate
+        self.q_m.push(Scalar::zero());
+        self.q_l.push(Scalar::zero());
+        self.q_r.push(Scalar::zero());
+        self.q_o.push(Scalar::zero());
+        self.q_c.push(Scalar::zero());
+        self.q_4.push(Scalar::zero());
+        self.q_arith.push(Scalar::zero());
+        self.q_range.push(Scalar::zero());
+        self.q_logic.push(Scalar::zero());
+        self.public_inputs.push(Scalar::zero());
+        self.w_l.push(self.zero_var);
+        self.w_r.push(self.zero_var);
+        self.w_o.push(self.zero_var);
+        self.w_4.push(self.zero_var);
+        self.perm.add_variables_to_map(
+            self.zero_var,
+            self.zero_var,
+            self.zero_var,
+            self.zero_var,
             self.n,
         );
         self.n += 1;
@@ -1223,14 +1612,28 @@ mod tests {
             let q4 = composer.q_4[i];
             let qarith = composer.q_arith[i];
             let qrange = composer.q_range[i];
+            let qlogic = composer.q_logic[i];
             let pi = composer.public_inputs[i];
 
             let a = w_l[i];
+            let a_next = w_l[(i + 1) % composer.n];
             let b = w_r[i];
+            let b_next = w_r[(i + 1) % composer.n];
             let c = w_o[i];
             let d = w_4[i];
             let d_next = w_4[(i + 1) % composer.n];
             let k = qarith * ((qm * a * b) + (ql * a) + (qr * b) + (qo * c) + (q4 * d) + pi + qc)
+                + qlogic
+                    * (((delta(a_next - four * a) - delta(b_next - four * b)) * c)
+                        + delta(a_next - four * a)
+                        + delta(b_next - four * b)
+                        + delta(d_next - four * d)
+                        + match (qlogic == Scalar::one(), qlogic == -Scalar::one()) {
+                            (true, false) => (a & b) - d,
+                            (false, true) => (a ^ b) - d,
+                            (false, false) => Scalar::zero(),
+                            _ => unreachable!(),
+                        })
                 + qrange
                     * (delta(c - four * d)
                         + delta(b - four * c)
@@ -1254,6 +1657,7 @@ mod tests {
                 var_one.into(),
                 var_one.into(),
                 composer.zero_var.into(),
+                Scalar::zero(),
                 Scalar::zero(),
             );
         }
@@ -1280,6 +1684,7 @@ mod tests {
         assert!(composer.q_c.len() == size);
         assert!(composer.q_arith.len() == size);
         assert!(composer.q_range.len() == size);
+        assert!(composer.q_logic.len() == size);
         assert!(composer.w_l.len() == size);
         assert!(composer.w_r.len() == size);
         assert!(composer.w_o.len() == size);
@@ -1291,6 +1696,80 @@ mod tests {
             |composer| {
                 // do nothing except add the dummy constraints
                 check_circuit_satisfied(&composer);
+            },
+            200,
+        );
+        assert!(ok);
+    }
+
+    #[test]
+    fn test_logic_xor_constraint() {
+        // Should pass since the XOR result is correct and the bit-num is even.
+        let ok = test_gadget(
+            |composer| {
+                let witness_a = composer.add_input(Scalar::from(500u64));
+                let witness_b = composer.add_input(Scalar::from(357u64));
+                let xor_res = composer.logic_gate(witness_a, witness_b, 10, true);
+                // Check that the XOR result is indeed what we are expecting.
+                composer.constrain_to_constant(
+                    xor_res,
+                    Scalar::from(500u64 ^ 357u64),
+                    Scalar::zero(),
+                );
+                check_circuit_satisfied(composer);
+            },
+            200,
+        );
+        assert!(ok);
+
+        // Should pass since the AND result is correct even the bit-num is even.
+        let ok = test_gadget(
+            |composer| {
+                let witness_a = composer.add_input(Scalar::from(469u64));
+                let witness_b = composer.add_input(Scalar::from(321u64));
+                let xor_res = composer.logic_gate(witness_a, witness_b, 10, false);
+                // Check that the AND result is indeed what we are expecting.
+                composer.constrain_to_constant(
+                    xor_res,
+                    Scalar::from(469u64 & 321u64),
+                    Scalar::zero(),
+                );
+                check_circuit_satisfied(composer);
+            },
+            200,
+        );
+        assert!(ok);
+
+        // Should not pass since the XOR result is not correct even the bit-num is even.
+        let ok = test_gadget(
+            |composer| {
+                let witness_a = composer.add_input(Scalar::from(139u64));
+                let witness_b = composer.add_input(Scalar::from(33u64));
+                let xor_res = composer.logic_gate(witness_a, witness_b, 10, true);
+                // Check that the XOR result is indeed what we are expecting.
+                composer.constrain_to_constant(
+                    xor_res,
+                    Scalar::from(139u64 & 33u64),
+                    Scalar::zero(),
+                );
+            },
+            200,
+        );
+        assert!(!ok);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_logical_gate_odd_bit_num() {
+        // Should fail since the bit-num is odd.
+        let ok = test_gadget(
+            |composer| {
+                let witness_a = composer.add_input(Scalar::from(500u64));
+                let witness_b = composer.add_input(Scalar::from(499u64));
+                let xor_res = composer.logic_gate(witness_a, witness_b, 9, true);
+                // Check that the XOR result is indeed what we are expecting.
+                composer.constrain_to_constant(xor_res, Scalar::from(7u64), Scalar::zero());
+                check_circuit_satisfied(composer);
             },
             200,
         );
@@ -1354,6 +1833,7 @@ mod tests {
                     var_one.into(),
                     var_one.into(),
                     composer.zero_var.into(),
+                    Scalar::zero(),
                     Scalar::one(),
                 );
                 composer.constrain_to_constant(should_be_three, Scalar::from(3), Scalar::zero());
@@ -1361,6 +1841,7 @@ mod tests {
                     var_one.into(),
                     var_one.into(),
                     composer.zero_var.into(),
+                    Scalar::zero(),
                     Scalar::from(2),
                 );
                 composer.constrain_to_constant(should_be_four, Scalar::from(4), Scalar::zero());
@@ -1380,19 +1861,35 @@ mod tests {
                 let six = composer.add_input(Fr::from(6));
                 let seven = composer.add_input(Fr::from(7));
 
-                let fourteen =
-                    composer.big_add(four.into(), five.into(), five.into(), Scalar::zero());
+                let fourteen = composer.big_add(
+                    four.into(),
+                    five.into(),
+                    five.into(),
+                    Scalar::zero(),
+                    Scalar::zero(),
+                );
 
                 check_circuit_satisfied(composer);
 
-                let twenty =
-                    composer.big_add(six.into(), seven.into(), seven.into(), Scalar::zero());
+                let twenty = composer.big_add(
+                    six.into(),
+                    seven.into(),
+                    seven.into(),
+                    Scalar::zero(),
+                    Scalar::zero(),
+                );
 
                 // There are quite a few ways to check the equation is correct, depending on your circumstance
                 // If we already have the output wire, we can constrain the output of the mul_gate to be equal to it
                 // If we do not, we can compute it using the `mul`
                 // If the output is public, we can also constrain the output wire of the mul gate to it. This is what this test does
-                let output = composer.mul(Scalar::one(), fourteen, twenty, Scalar::zero());
+                let output = composer.mul(
+                    Scalar::one(),
+                    fourteen,
+                    twenty,
+                    Scalar::zero(),
+                    Scalar::zero(),
+                );
                 composer.constrain_to_constant(output, Scalar::from(280), Scalar::zero());
             },
             200,
@@ -1411,17 +1908,28 @@ mod tests {
                 let seven = composer.add_input(Fr::from(7));
                 let nine = composer.add_input(Fr::from(9));
 
-                let fourteen =
-                    composer.big_add(four.into(), five.into(), five.into(), Scalar::zero());
+                let fourteen = composer.big_add(
+                    four.into(),
+                    five.into(),
+                    five.into(),
+                    Scalar::zero(),
+                    Scalar::zero(),
+                );
 
-                let twenty =
-                    composer.big_add(six.into(), seven.into(), seven.into(), Scalar::zero());
+                let twenty = composer.big_add(
+                    six.into(),
+                    seven.into(),
+                    seven.into(),
+                    Scalar::zero(),
+                    Scalar::zero(),
+                );
 
                 let output = composer.big_mul(
                     Scalar::one(),
                     fourteen,
                     twenty,
                     (Scalar::from(8), nine),
+                    Scalar::zero(),
                     Scalar::zero(),
                 );
                 composer.constrain_to_constant(output, Scalar::from(352), Scalar::zero());
@@ -1445,6 +1953,7 @@ mod tests {
                     five.into(),
                     composer.zero_var.into(),
                     Scalar::zero(),
+                    Scalar::zero(),
                 );
 
                 let six_plus_seven = composer.big_add(
@@ -1452,12 +1961,14 @@ mod tests {
                     seven.into(),
                     composer.zero_var.into(),
                     Scalar::zero(),
+                    Scalar::zero(),
                 );
 
                 let output = composer.mul(
                     Scalar::one(),
                     five_plus_five,
                     six_plus_seven,
+                    Scalar::zero(),
                     Scalar::zero(),
                 );
                 composer.constrain_to_constant(output, Scalar::from(117), Scalar::zero());
@@ -1548,6 +2059,7 @@ mod tests {
                 var_one.into(),
                 var_one.into(),
                 composer.zero_var.into(),
+                Scalar::zero(),
                 Scalar::zero(),
             );
         }

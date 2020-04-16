@@ -56,7 +56,7 @@ impl Polynomial {
         assert!(result
             .coeffs
             .last()
-            .map_or(true, |coeff| !(coeff == &Scalar::zero())));
+            .map_or(true, |coeff| coeff != &Scalar::zero()));
 
         result
     }
@@ -69,7 +69,7 @@ impl Polynomial {
         assert!(self
             .coeffs
             .last()
-            .map_or(false, |coeff| !(coeff == &Scalar::zero())));
+            .map_or(false, |coeff| coeff != &Scalar::zero()));
         self.coeffs.len() - 1
     }
 
@@ -317,7 +317,7 @@ impl Polynomial {
         // Reverse the results and use Ruffini's method to compute the quotient
         // The coefficients must be reversed as Ruffini's method
         // starts with the leading coefficient, while Polynomials
-        // are stored in increasing order ie the leading coefficient is the last element
+        // are stored in increasing order i.e. the leading coefficient is the last element
         for coeff in self.coeffs.iter().rev() {
             let t = coeff + k;
             quotient.push(t);
@@ -416,7 +416,7 @@ mod test {
     }
     #[test]
     fn test_ruffini_zero() {
-        // Tests the two situations where zero can be added to Ruffini :
+        // Tests the two situations where zero can be added to Ruffini:
         // (1) Zero polynomial in the divided
         // (2) Zero as the constant term for the polynomial you are dividing by
         // In the first case, we should get zero as the quotient

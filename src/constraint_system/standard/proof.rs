@@ -74,8 +74,11 @@ impl Proof {
                 b_eval: Scalar::zero(),
                 c_eval: Scalar::zero(),
                 d_eval: Scalar::zero(),
+                a_next_eval: Scalar::zero(),
+                b_next_eval: Scalar::zero(),
                 d_next_eval: Scalar::zero(),
                 q_arith_eval: Scalar::zero(),
+                q_c_eval: Scalar::zero(),
 
                 left_sigma_eval: Scalar::zero(),
                 right_sigma_eval: Scalar::zero(),
@@ -158,11 +161,14 @@ impl Proof {
         transcript.append_scalar(b"b_eval", &self.evaluations.b_eval);
         transcript.append_scalar(b"c_eval", &self.evaluations.c_eval);
         transcript.append_scalar(b"d_eval", &self.evaluations.d_eval);
+        transcript.append_scalar(b"a_next_eval", &self.evaluations.a_next_eval);
+        transcript.append_scalar(b"b_next_eval", &self.evaluations.b_next_eval);
         transcript.append_scalar(b"d_next_eval", &self.evaluations.d_next_eval);
         transcript.append_scalar(b"left_sig_eval", &self.evaluations.left_sigma_eval);
         transcript.append_scalar(b"right_sig_eval", &self.evaluations.right_sigma_eval);
         transcript.append_scalar(b"out_sig_eval", &self.evaluations.out_sigma_eval);
         transcript.append_scalar(b"q_arith_eval", &self.evaluations.q_arith_eval);
+        transcript.append_scalar(b"q_c_eval", &self.evaluations.q_c_eval);
         transcript.append_scalar(b"perm_eval", &self.evaluations.perm_eval);
         transcript.append_scalar(b"t_eval", &t_eval);
         transcript.append_scalar(b"r_eval", &self.evaluations.lin_poly_eval);
@@ -209,6 +215,8 @@ impl Proof {
         // Compose the shifted aggregate proof
         let mut shifted_aggregate_proof = AggregateProof::with_witness(self.w_zw_comm);
         shifted_aggregate_proof.add_part((self.evaluations.perm_eval, self.z_comm));
+        shifted_aggregate_proof.add_part((self.evaluations.a_next_eval, self.a_comm));
+        shifted_aggregate_proof.add_part((self.evaluations.b_next_eval, self.b_comm));
         shifted_aggregate_proof.add_part((self.evaluations.d_next_eval, self.d_comm));
         let flattened_proof_b = shifted_aggregate_proof.flatten(transcript);
 
@@ -298,6 +306,12 @@ impl Proof {
             .compute_linearisation_commitment(&mut scalars, &mut points, &self.evaluations);
 
         preprocessed_circuit.range.compute_linearisation_commitment(
+            &mut scalars,
+            &mut points,
+            &self.evaluations,
+        );
+
+        preprocessed_circuit.logic.compute_linearisation_commitment(
             &mut scalars,
             &mut points,
             &self.evaluations,
