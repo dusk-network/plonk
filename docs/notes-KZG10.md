@@ -19,10 +19,12 @@ scheme with homomorphism. PLONK makes use
 of the linearisation technique, originally
 conceived in the SONIC [paper][sonic_paper]. 
 This technique requires the the commitment 
-scheme to be homomorphic. Without modification 
-of PLONK by means of removing the lineariser, 
-we are unable to use techniques such as 
-[FRI][fri_paper] protocol. 
+scheme to be homomorphic. The use of this 
+lineariser in the PLONK protocol prevents 
+us from being able to use merkle tree like
+techniques, such as the [FRI][fri_paper] 
+protocol. 
+ 
 
 
 We use 'KZG10 commitments', often called 'Kate' 
@@ -52,7 +54,7 @@ two different pairing curves with generators {\mathbf{G}}
 respectively. 
 
 These commitments are homomorphic, which enables us 
-to perform operations on the already encryptied values 
+to perform operations on the already encrypted values 
 and have the evaluation be indistinguishable from the 
 evaluation of operations performed on the decrypted values.
 In terms of Kate commitments, we are able to take two
@@ -71,4 +73,4 @@ i.e.
 
 [sonic_paper]:https://eprint.iacr.org/2019/099.pdf
 [fri_paper]:https://drops.dagstuhl.de/opus/volltexte/2018/9018/pdf/LIPIcs-ICALP-2018-14.pdf
-[kzg10_paper]:https://pdfs.semanticscholar.org/31eb/add7a0109a584cfbf94b3afaa3c117c78c91.pdf
+[kzg10_paper]:https://www.iacr.org/archive/asiacrypt2010/6477178/6477178.pdf
