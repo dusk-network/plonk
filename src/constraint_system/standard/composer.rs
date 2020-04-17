@@ -305,6 +305,12 @@ impl Composer for StandardComposer {
             &w_o_scalar,
             &w_4_scalar,
             &(beta, gamma),
+            (
+                &preprocessed_circuit.permutation.left_sigma.polynomial,
+                &preprocessed_circuit.permutation.right_sigma.polynomial,
+                &preprocessed_circuit.permutation.out_sigma.polynomial,
+                &preprocessed_circuit.permutation.fourth_sigma.polynomial,
+            ),
         );
 
         // Commit to permutation polynomial
@@ -696,7 +702,7 @@ impl StandardComposer {
         let a_eval = self.variables[&a];
         let b_eval = self.variables[&b];
         let d_eval = self.variables[&d];
-        let c_eval = (q_l * a_eval) + (q_r * b_eval) + (q_4 * d_eval) + pi;
+        let c_eval = (q_l * a_eval) + (q_r * b_eval) + (q_4 * d_eval) + q_c + pi;
         let c = self.add_input(c_eval);
 
         self.big_add_gate(a, b, c, d, q_l, q_r, q_o, q_4, q_c, pi)
@@ -858,7 +864,7 @@ impl StandardComposer {
         let a_eval = self.variables[&a];
         let b_eval = self.variables[&b];
         let d_eval = self.variables[&d];
-        let c_eval = (q_m * a_eval * b_eval) + (q_4 * d_eval) + pi;
+        let c_eval = (q_m * a_eval * b_eval) + (q_4 * d_eval) + q_c + pi;
         let c = self.add_input(c_eval);
 
         self.big_mul_gate(a, b, c, d, q_m, q_o, q_c, q_4, pi)
@@ -1898,6 +1904,25 @@ mod tests {
     }
 
     #[test]
+    fn test_correct_add_gate() {
+        let ok = test_gadget(
+            |composer| {
+                let zero = composer.add_input(Fr::zero());
+                let one = composer.add_input(Fr::one());
+
+                let c = composer.add(
+                    (Scalar::one(), one),
+                    (Scalar::zero(), zero),
+                    Scalar::from(2u64),
+                    Scalar::zero(),
+                );
+                composer.constrain_to_constant(c, Scalar::from(3), Scalar::zero());
+            },
+            32,
+        );
+        assert!(ok)
+    }
+    #[test]
     fn test_correct_big_add_mul_gate() {
         let ok = test_gadget(
             |composer| {
@@ -1992,6 +2017,7 @@ mod tests {
         );
         assert!(ok)
     }
+
     #[test]
     fn test_incorrect_bool_gate() {
         let ok = test_gadget(
