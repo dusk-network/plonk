@@ -34,19 +34,20 @@ A deep explanation on how this particular commitment
 scheme operates can be found [here][kzg10_paper] 
 in the original paper.
 There a multiple benefits of the KZG10 commitments
-aside from having readable code. It allow us to have 
-constant size commitments, which is achieved by having
-the commitments as single elements. The cost of these 
-commitments is also constant irrespective of the 
-number of evaluations, so we are able to work with a 
-low overhead cost.
+aside from having code compatible with the PLONK 
+proof structure, is that it allow us to have 
+constant size commitments; the witness of the 
+evaluations is a single group element. The cost 
+of these commitments is also constant irrespective 
+of the number of evaluations, so we are able to 
+employ with a low overhead cost.
 
 
 
 
 
-This commitment is used to build the structured 
-reference string (SRS), and commit to a polynomial
+This commitment is used to commit to a polynomial,
+from a given structured reference string (SRS),
 \phi by means of a bilinear pairing group.
 Where {\mathbf{G_1}} and {\mathbf{G_2}} and groups 
 two different pairing curves with generators {\mathbf{G}}
