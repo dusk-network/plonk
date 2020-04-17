@@ -5,7 +5,6 @@ Table of Contents
 =================
 
 The following section explains the workings of PLONK components:
-* [Composers](circuit_composer/index.html)
 * [Commitment schemes](commitment_schemes/index.html)
 * [Proof construction components](snark_construction/index.html)
 * [Permutation polynomials](permutation_arguments/index.html)

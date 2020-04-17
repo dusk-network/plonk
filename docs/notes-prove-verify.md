@@ -3,6 +3,3 @@ algorithm and verification functions are constructed
 for PLONK, are documented.
 
 PLONK proof construction 
-========================
-
-Constructing a PLONK proof 
