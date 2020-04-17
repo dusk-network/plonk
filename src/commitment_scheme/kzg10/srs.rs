@@ -1,4 +1,4 @@
-//! The Public Parameters can also be referred to, as the Structured Reference String (SRS).
+//! The Public Parameters can also be referred to as the Structured Reference String (SRS).
 use super::{
     errors::Error,
     key::{ProverKey, VerifierKey},
@@ -7,7 +7,7 @@ use crate::util;
 use bls12_381::{G1Affine, G1Projective, G2Affine, G2Prepared};
 use rand_core::RngCore;
 
-/// The Public Parameters can also be referred to, as the Structured Reference String (SRS).
+/// The Public Parameters can also be referred to as the Structured Reference String (SRS).
 /// It is available to both the prover and verifier and allows the verifier to
 /// efficiently verify claims about polynomials up to and including a configured degree.
 #[derive(Debug)]
