@@ -8,22 +8,20 @@ KZG10 Commitments
 PLONK can be constructed with different 
 commitment schemes and does not requre solely
 homomorphic commitments. However, this library
-has only homomorphic commitment schemes as they 
-are intelligble for users and have many useful
-properties. 
+implemnts only homomorphic commitments for two 
+reasons. One is their useful properties when 
+given encrypted values, and the second is the 
+requirements of the linearisation technique in
+PLONK.
 
-In addition to the code complexity issue, 
-described immediately above, there is  
-another reason for choosing a commitment
-scheme with homomorphism. PLONK makes use
-of the linearisation technique, originally
-conceived in the SONIC [paper][sonic_paper]. 
-This technique requires the the commitment 
-scheme to be homomorphic. The use of this 
-lineariser in the PLONK protocol prevents 
-us from being able to use merkle tree like
-techniques, such as the [FRI][fri_paper] 
-protocol. 
+PLONK makes use of the linearisation technique, 
+originally conceived in the SONIC [paper]
+[sonic_paper]. This technique requires the 
+the commitment scheme to be homomorphic. 
+The use of this lineariser in the PLONK 
+protocol prevents us from being able to 
+use merkle tree like techniques, such as 
+the [FRI][fri_paper] protocol. 
  
 
 
@@ -33,14 +31,15 @@ created by Kate, Zaverucha and Goldberg.
 A deep explanation on how this particular commitment 
 scheme operates can be found [here][kzg10_paper] 
 in the original paper.
-There a multiple benefits of the KZG10 commitments
-aside from having code compatible with the PLONK 
-proof structure, is that it allow us to have 
-constant size commitments; the witness of the 
-evaluations is a single group element. The cost 
-of these commitments is also constant irrespective 
-of the number of evaluations, so we are able to 
-employ with a low overhead cost.
+Aside from the compatability wiht the chosen 
+linearisation technique, there are multiple 
+benefits of using the KZG10 commitment scheme
+in the PLONK. The first is that it allow
+us to have constant size commitments; the witness 
+of the evaluations is a single group element. 
+The cost of these commitments is also constant 
+irrespective of the number of evaluations, 
+so we are able to employ with a low overhead cost.
 
 
 
