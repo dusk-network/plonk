@@ -7,7 +7,7 @@ use super::linearisation_poly::ProofEvaluations;
 use super::PreProcessedCircuit;
 use crate::commitment_scheme::kzg10::AggregateProof;
 use crate::commitment_scheme::kzg10::{Commitment, VerifierKey};
-use crate::fft::{EvaluationDomain, Polynomial};
+use crate::fft::EvaluationDomain;
 use crate::transcript::TranscriptProtocol;
 use bls12_381::{multiscalar_mul::msm_variable_base, G1Affine, Scalar};
 
@@ -91,19 +91,6 @@ impl Proof {
         }
     }
 
-    /// Includes the commitments to the witness polynomials for the left,
-    /// right and output wires into the `Proof`.
-    pub fn set_witness_poly_commitments(
-        &mut self,
-        a_comm: &Commitment,
-        b_comm: &Commitment,
-        c_comm: &Commitment,
-    ) {
-        self.a_comm = *a_comm;
-        self.b_comm = *b_comm;
-        self.c_comm = *c_comm;
-    }
-
     /// Performs the verification of a `Proof` returning a boolean result.
     pub fn verify(
         &self,
@@ -146,8 +133,11 @@ impl Proof {
         // Compute evaluation challenge
         let z_challenge = transcript.challenge_scalar(b"z");
 
+        // Compute zero polynomial evaluated at `z_challenge`
+        let z_h_eval = domain.evaluate_vanishing_polynomial(&z_challenge);
+
         // Compute first lagrange polynomial evaluated at `z_challenge`
-        let l1_eval = domain.evaluate_all_lagrange_coefficients(z_challenge)[0];
+        let l1_eval = compute_first_lagrange_evaluation(&domain, &z_h_eval, &z_challenge);
 
         // Compute quotient polynomial evaluated at `z_challenge`
         let t_eval = self.compute_quotient_evaluation(
@@ -157,6 +147,7 @@ impl Proof {
             &beta,
             &gamma,
             &z_challenge,
+            &z_h_eval,
             &l1_eval,
             &self.evaluations.perm_eval,
         );
@@ -250,15 +241,12 @@ impl Proof {
         beta: &Scalar,
         gamma: &Scalar,
         z_challenge: &Scalar,
+        z_h_eval: &Scalar,
         l1_eval: &Scalar,
         z_hat_eval: &Scalar,
     ) -> Scalar {
-        // Compute zero polynomial evaluated at `z_challenge`
-        let z_h_eval = domain.evaluate_vanishing_polynomial(z_challenge);
-
         // Compute the public input polynomial evaluated at `z_challenge`
-        let pi_poly = Polynomial::from_coefficients_vec(domain.ifft(&pub_inputs));
-        let pi_eval = pi_poly.evaluate(z_challenge);
+        let pi_eval = compute_barycentric_eval(pub_inputs, z_challenge, domain);
 
         let alpha_sq = alpha.square();
 
@@ -343,4 +331,59 @@ impl Proof {
 
         Commitment::from_projective(msm_variable_base(&points, &scalars))
     }
+}
+
+fn compute_first_lagrange_evaluation(
+    domain: &EvaluationDomain,
+    z_h_eval: &Scalar,
+    z_challenge: &Scalar,
+) -> Scalar {
+    let n_fr = Scalar::from(domain.size() as u64);
+    let denom = n_fr * (z_challenge - Scalar::one());
+    z_h_eval * denom.invert().unwrap()
+}
+#[warn(clippy::needless_range_loop)]
+fn compute_barycentric_eval(
+    evaluations: &[Scalar],
+    point: &Scalar,
+    domain: &EvaluationDomain,
+) -> Scalar {
+    use crate::util::batch_inversion;
+    use rayon::iter::IntoParallelIterator;
+    use rayon::prelude::*;
+
+    let numerator = (point.pow(&[domain.size() as u64, 0, 0, 0]) - Scalar::one()) * domain.size_inv;
+
+    // Indices with non-zero evaluations
+    let non_zero_evaluations: Vec<usize> = (0..evaluations.len())
+        .into_par_iter()
+        .filter(|&i| {
+            let evaluation = &evaluations[i];
+            evaluation != &Scalar::zero()
+        })
+        .collect();
+
+    // Only compute the denominators with non-zero evaluations
+    let mut denominators: Vec<Scalar> = (0..non_zero_evaluations.len())
+        .into_par_iter()
+        .map(|i| {
+            // index of non-zero evaluation
+            let index = non_zero_evaluations[i];
+
+            (domain.group_gen_inv.pow(&[index as u64, 0, 0, 0]) * point) - Scalar::one()
+        })
+        .collect();
+    batch_inversion(&mut denominators);
+
+    let result: Scalar = (0..non_zero_evaluations.len())
+        .into_par_iter()
+        .map(|i| {
+            let eval_index = non_zero_evaluations[i];
+            let eval = evaluations[eval_index];
+
+            denominators[i] * eval
+        })
+        .sum();
+
+    result * numerator
 }
