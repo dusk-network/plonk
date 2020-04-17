@@ -1,5 +1,5 @@
-// Functions with a big number of args are allowed in order to
-// get maximum performance and minimum circuit sizes and composing times.
+// Functions with a large number of args are permitted to achieve a
+// maximum performance and minimum circuit sizes, as well as composition times.
 #![allow(clippy::too_many_arguments)]
 use super::PreProcessedPolynomial;
 use crate::commitment_scheme::kzg10::Commitment;
@@ -206,9 +206,9 @@ impl PermutationWidget {
 
         let mut a = a_0 * a_1 * a_2;
         a *= beta_z_eval;
-        a *= alpha; // (a_eval + beta * sigma_1 + gamma)(b_eval + beta * sigma_2 + gamma)(c_eval + beta * sigma_3 + gamma) * beta *z_eval * alpha
+        a *= alpha; // (a_eval + beta * sigma_1 + gamma)(b_eval + beta * sigma_2 + gamma)(c_eval + beta * sigma_3 + gamma) * beta * z_eval * alpha
 
-        fourth_sigma_poly * &-a // -(a_eval + beta * sigma_1 + gamma)(b_eval + beta * sigma_2 + gamma) (c_eval + beta * sigma_3 + gamma) * beta *z_eval * alpha^2 * Sigma_4(X)
+        fourth_sigma_poly * &-a // -(a_eval + beta * sigma_1 + gamma)(b_eval + beta * sigma_2 + gamma) (c_eval + beta * sigma_3 + gamma) * beta * z_eval * alpha^2 * Sigma_4(X)
     }
 
     fn compute_lineariser_check_is_one(
@@ -236,7 +236,7 @@ impl PermutationWidget {
     ) {
         let alpha_sq = alpha * alpha;
 
-        // (a_eval + beta * z + gamma)(b_eval + beta * z * k1 + gamma)(c_eval + beta * k2* z + gamma)(d_eval + beta * k3* z + gamma) * alpha
+        // (a_eval + beta * z + gamma)(b_eval + beta * z * k1 + gamma)(c_eval + beta * k2 * z + gamma)(d_eval + beta * k3 * z + gamma) * alpha
         let x = {
             let beta_z = beta * z_challenge;
             let q_0 = evaluations.a_eval + beta_z + gamma;
@@ -259,7 +259,7 @@ impl PermutationWidget {
         scalars.push(x + r);
         points.push(z_comm);
 
-        // -(a_eval + beta * sigma_1_eval + gamma)(b_eval + beta * sigma_2_eval + gamma)(c_eval + beta * sigma_3_eval + gamma) *alpha^2
+        // -(a_eval + beta * sigma_1_eval + gamma)(b_eval + beta * sigma_2_eval + gamma)(c_eval + beta * sigma_3_eval + gamma) * alpha^2
         let y = {
             let beta_sigma_1 = beta * evaluations.left_sigma_eval;
             let q_0 = evaluations.a_eval + beta_sigma_1 + gamma;
