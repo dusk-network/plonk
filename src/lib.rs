@@ -41,9 +41,6 @@ extern crate failure;
 #[doc(include = "../docs/notes-intro.md")]
 pub mod notes {
     #[cfg(feature = "nightly")]
-    #[doc(include = "../docs/notes-composer.md")]
-    pub mod circuit_composer {}
-    #[cfg(feature = "nightly")]
     #[doc(include = "../docs/notes-commitments.md")]
     pub mod commitment_schemes {}
     #[cfg(feature = "nightly")]
