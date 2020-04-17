@@ -15,8 +15,8 @@ requirements of the linearisation technique in
 PLONK.
 
 PLONK makes use of the linearisation technique, 
-originally conceived in the SONIC [paper]
-[sonic_paper]. This technique requires the 
+originally conceived in the SONIC [paper][sonic_paper]. 
+This technique requires the 
 the commitment scheme to be homomorphic. 
 The use of this lineariser in the PLONK 
 protocol prevents us from being able to 
