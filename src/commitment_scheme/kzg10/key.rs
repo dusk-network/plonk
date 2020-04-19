@@ -245,7 +245,7 @@ impl ProverKey {
     /// for p(z) using Ruffini's method for simplicity.
     /// The Witness is the quotient of f(x) - f(z) / x-z.
     /// However we note that the quotient polynomial is invariant under the value f(z)
-    /// ie. only the remainder changes. we can therefore compute the witness as f(x) / x - z
+    /// ie. only the remainder changes. We can therefore compute the witness as f(x) / x - z
     /// and only use the remainder term f(z) during verification.
     pub fn compute_single_witness(&self, polynomial: &Polynomial, point: &Scalar) -> Polynomial {
         // Computes `f(x) / x-z`, returning it as the witness poly

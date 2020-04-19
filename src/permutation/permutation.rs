@@ -10,11 +10,6 @@ use std::collections::HashMap;
 pub struct Permutation {
     // Maps a variable to the wires that it is associated to
     pub(crate) variable_map: HashMap<Variable, Vec<WireData>>,
-
-    left_sigma_mapping: Option<Vec<Scalar>>,
-    right_sigma_mapping: Option<Vec<Scalar>>,
-    out_sigma_mapping: Option<Vec<Scalar>>,
-    fourth_sigma_mapping: Option<Vec<Scalar>>,
 }
 
 impl Permutation {
@@ -25,11 +20,6 @@ impl Permutation {
     pub fn with_capacity(expected_size: usize) -> Permutation {
         Permutation {
             variable_map: HashMap::with_capacity(expected_size),
-
-            left_sigma_mapping: None,
-            right_sigma_mapping: None,
-            out_sigma_mapping: None,
-            fourth_sigma_mapping: None,
         }
     }
     /// Creates a new Variable by incrementing the index of the Variable Map
@@ -181,11 +171,6 @@ impl Permutation {
         let out_sigma_poly = Polynomial::from_coefficients_vec(domain.ifft(&out_sigma));
         let fourth_sigma_poly = Polynomial::from_coefficients_vec(domain.ifft(&fourth_sigma));
 
-        self.left_sigma_mapping = Some(left_sigma);
-        self.right_sigma_mapping = Some(right_sigma);
-        self.out_sigma_mapping = Some(out_sigma);
-        self.fourth_sigma_mapping = Some(fourth_sigma);
-
         (
             left_sigma_poly,
             right_sigma_poly,
@@ -202,9 +187,28 @@ impl Permutation {
         w_o: &[Scalar],
         w_4: &[Scalar],
         (beta, gamma): &(Scalar, Scalar),
+        (left_sigma_poly, right_sigma_poly, out_sigma_poly, fourth_sigma_poly): (
+            &Polynomial,
+            &Polynomial,
+            &Polynomial,
+            &Polynomial,
+        ),
     ) -> Polynomial {
-        let z_evaluations =
-            self.compute_fast_permutation_poly(domain, w_l, w_r, w_o, w_4, beta, gamma);
+        let z_evaluations = self.compute_fast_permutation_poly(
+            domain,
+            w_l,
+            w_r,
+            w_o,
+            w_4,
+            beta,
+            gamma,
+            (
+                left_sigma_poly,
+                right_sigma_poly,
+                out_sigma_poly,
+                fourth_sigma_poly,
+            ),
+        );
         Polynomial::from_coefficients_vec(domain.ifft(&z_evaluations))
     }
 
@@ -218,16 +222,22 @@ impl Permutation {
         w_4: I,
         beta: &Scalar,
         gamma: &Scalar,
+        (left_sigma_poly, right_sigma_poly, out_sigma_poly, fourth_sigma_poly): (
+            &Polynomial,
+            &Polynomial,
+            &Polynomial,
+            &Polynomial,
+        ),
     ) -> (Vec<Scalar>, Vec<Scalar>, Vec<Scalar>)
     where
         I: Iterator<Item = Scalar>,
     {
         let n = domain.size();
 
-        let left_sigma_mapping = self.left_sigma_mapping.as_ref().unwrap();
-        let right_sigma_mapping = self.right_sigma_mapping.as_ref().unwrap();
-        let out_sigma_mapping = self.out_sigma_mapping.as_ref().unwrap();
-        let fourth_sigma_mapping = self.fourth_sigma_mapping.as_ref().unwrap();
+        let left_sigma_mapping = domain.fft(&left_sigma_poly);
+        let right_sigma_mapping = domain.fft(&right_sigma_poly);
+        let out_sigma_mapping = domain.fft(&out_sigma_poly);
+        let fourth_sigma_mapping = domain.fft(&fourth_sigma_poly);
 
         // Compute beta * sigma polynomials
         let beta_left_sigma_iter = left_sigma_mapping.iter().map(|sigma| *sigma * beta);
@@ -394,16 +404,22 @@ impl Permutation {
         w_4: &[Scalar],
         beta: &Scalar,
         gamma: &Scalar,
+        (left_sigma_poly, right_sigma_poly, out_sigma_poly, fourth_sigma_poly): (
+            &Polynomial,
+            &Polynomial,
+            &Polynomial,
+            &Polynomial,
+        ),
     ) -> Vec<Scalar> {
         let n = domain.size();
 
         // Compute beta * roots
         let common_roots: Vec<Scalar> = domain.elements().map(|root| root * beta).collect();
 
-        let left_sigma_mapping = self.left_sigma_mapping.as_ref().unwrap();
-        let right_sigma_mapping = self.right_sigma_mapping.as_ref().unwrap();
-        let out_sigma_mapping = self.out_sigma_mapping.as_ref().unwrap();
-        let fourth_sigma_mapping = self.fourth_sigma_mapping.as_ref().unwrap();
+        let left_sigma_mapping = domain.fft(&left_sigma_poly);
+        let right_sigma_mapping = domain.fft(&right_sigma_poly);
+        let out_sigma_mapping = domain.fft(&out_sigma_poly);
+        let fourth_sigma_mapping = domain.fft(&fourth_sigma_poly);
 
         // Compute beta * sigma polynomials
         let beta_left_sigmas: Vec<_> = left_sigma_mapping
@@ -910,7 +926,8 @@ mod test {
 
         //1. Compute the permutation polynomial using both methods
         //
-        perm.compute_sigma_polynomials(n, &domain);
+        let (left_sigma_poly, right_sigma_poly, out_sigma_poly, fourth_sigma_poly) =
+            perm.compute_sigma_polynomials(n, &domain);
         let (z_vec, numerator_components, denominator_components) = perm
             .compute_slow_permutation_poly(
                 domain,
@@ -920,10 +937,29 @@ mod test {
                 w_4.clone().into_iter(),
                 &beta,
                 &gamma,
+                (
+                    &left_sigma_poly,
+                    &right_sigma_poly,
+                    &out_sigma_poly,
+                    &fourth_sigma_poly,
+                ),
             );
 
-        let fast_z_vec =
-            perm.compute_fast_permutation_poly(domain, &w_l, &w_r, &w_o, &w_4, &beta, &gamma);
+        let fast_z_vec = perm.compute_fast_permutation_poly(
+            domain,
+            &w_l,
+            &w_r,
+            &w_o,
+            &w_4,
+            &beta,
+            &gamma,
+            (
+                &left_sigma_poly,
+                &right_sigma_poly,
+                &out_sigma_poly,
+                &fourth_sigma_poly,
+            ),
+        );
         assert_eq!(fast_z_vec, z_vec);
 
         // 2. First we perform basic tests on the permutation vector
