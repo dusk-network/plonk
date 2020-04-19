@@ -108,13 +108,65 @@ but are instead polynomials.
 This QAP is intended to give 
 the prover the necessary 'tools'
 to construct a proof from a 
-given arithmetic circuit. 
+given arithmetic circuit.  
 
 Following on from the example
 above, we can show a QAP being
 constructed from an 'n' number 
-of multiplication gates.
+of multiplication gates. The 
+inputs to the gates will be 
+a vector of polynomials, all 
+evaluated for indice value at
+some polynomial Z\_{(*z*)}
 
+Let the left input polynomial be: 
+
+\\[
+\begin{aligned}
+\vec{A} = (A\_{i}(z))\_{i=0}^{n}\\\\
+\end{aligned}
+\\]
+
+Let the right input polynomial be: 
+
+\\\[
+\begin{aligned}
+\vec{B} = (B\_{i}(z))\_{i=0}^{n}\\\\ 
+\end{aligned}
+\\]
+
+Let the outputs polynomial be: 
+
+\\[
+\begin{aligned}
+\vec{C} = (C\_{i}(z))\_{i=0}^{n}\\\\ 
+\end{aligned}
+\\]
+
+The coefficients of these
+polynomials are inside 
+some [finite field][finite_field]
+, which also contains the 
+polynomial Z\_{(*z*)}.
+As a result, it can be checked
+that the Z\_{(*z*)} divides
+the mul gate polynomials. 
+
+This is done in the following 
+way:
+
+P(z) = A(z)*B(z) - C(z)
+
+When given the above equation, 
+the verifier can check the 
+divisibility of P(z) by 
+Z\_{(*z*)}.
+
+
+
+
+
+[finite_field]: https://web.stanford.edu/class/ee392d/Chap7.pdf
 
 
 
