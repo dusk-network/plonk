@@ -66,10 +66,11 @@ pub struct StandardComposer {
     w_o: Vec<Variable>,
     w_4: Vec<Variable>,
 
-    // We reserve a variable to be zero in the system
-    // This is so that when a gate only uses three, we set the fourth wire to be
-    // the variable that references zero
-    zero_var: Variable,
+    /// We reserve a variable to be zero in the system
+    /// This is so that when a gate only uses three, we set the fourth wire to be
+    /// the variable that references zero without needing to re-create zero-variables
+    /// constantly.
+    pub zero_var: Variable,
 
     // These are the actual variable values
     // N.B. They should not be exposed to the end user once added into the composer
