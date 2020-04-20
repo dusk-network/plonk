@@ -37,6 +37,11 @@ mod util;
 #[macro_use]
 extern crate failure;
 
+#[cfg(all(test, feature = "serde"))]
+extern crate bincode;
+#[cfg(feature = "serde")]
+extern crate serde;
+
 #[cfg(feature = "nightly")]
 #[doc(include = "../docs/notes-intro.md")]
 pub mod notes {
