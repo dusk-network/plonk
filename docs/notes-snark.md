@@ -24,7 +24,16 @@ of a program. We will also show
 how SNARKs satisfy the fundamental
 features of zero knowledge. Namely:
 Completeness, Soundess and Zero 
-Knowledge. 
+Knowledge. Completeness is the
+verifier convinced that the claims
+from the prover are true. Soundess
+means that if the information is 
+false, then the prover cannot 
+convince the verifier otherwise.
+Zero knowledge means that the 
+proof should reveal nothing 
+other than the statement or 
+claim itself.
 
 To construct their proofs, SNARKS
 convert an arithmetic circuit into
@@ -150,24 +159,74 @@ some [finite field][finite_field]
 polynomial Z\_{(*z*)}.
 As a result, it can be checked
 that the Z\_{(*z*)} divides
-the mul gate polynomials. 
+the mul gate polynomials.
+
 
 This is done in the following 
 way:
 
-P(z) = A(z)*B(z) - C(z)
+P(z) = A(z) * B(z) - C(z)
 
-When given the above equation, 
-the verifier can check the 
-divisibility of P(z) by 
-Z\_{(*z*)}.
+When the above equation is 
+constructed by the prover,
+the verifier can check claims
+by checking the divisibility 
+of P(z) by Z\_{(*z*)}. This 
+Z\_{(*z*)} polynomial is 
+often referred to as the 
+'target polynomial'. The 
+added benefit of having this
+checked in polynomial form, 
+is that even with a large 
+polynomials, the identity
+between the two will hold 
+at most points if the identity
+holds between the polynomials. 
+Which means the check can be 
+the two can be performed at
+randomly chosen points to 
+verify the proof.
+
+In order to turn a given QAP
+into a zk-SNARK, a prover must 
+rely upon a third party. Which 
+is more commonly known as 'a 
+trusted set up'. The trusted
+set up constructs the polynomial
+Z\_{(*z*)}. The prover then 
+commits the vector values along 
+with their secret input, known as 
+the *witness*, to the equation
+P(z) = A(z) * B(z) - C(z).
+
+Then the prover completes the 
+divisibility check between P(z)
+and Z\_{(*z*)}. This way, the
+verifier can be sure that the 
+prover knows the value *witness*. 
+
+The inner workings of the SNARK
+also contain a 'bilinear pairing', 
+which is referring to the fields 
+whcih are used throughout the 
+protocol. However, in detail 
+explanations of these are a out 
+of scope for these docs, more 
+information on the role of pairing
+cryptography has within SNARK 
+construction can be found [here][pairings] 
+
+
+
+
+
 
 
 
 
 
 [finite_field]: https://web.stanford.edu/class/ee392d/Chap7.pdf
-
+[pairings]:https://eprint.iacr.org/2016/260.pdf
 
 
 
