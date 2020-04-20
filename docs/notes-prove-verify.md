@@ -193,18 +193,15 @@ This stems from writing the interpolating polynomial as
 
 where the polynomials {\mathcal{L\_n},\_j(x\_i)} have the property 
 that 
-\documentclass{article}
-\usepackage{amsmath}
-\begin{document}
-\begin{equation}
+\begin{aligned}
   {\mathcal{L\_n},\_j(x\_i)}
     \begin{cases}
       1 & \text{if $i$ = $j$}\\
       0 & \text{if $i$ \neq $j$}\\
 
-    \end{cases}       
-\end{equation}
-\end{document}
+       
+\end{aligned}
+
  
  The polynomials {\mathcal{L\_n},\_j}, j\\ = 0,...,n, are intertpolations
  of the points x\_0, x\_1,...,x\_n. Theya are commonly called the 
