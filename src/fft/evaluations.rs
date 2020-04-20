@@ -1,4 +1,4 @@
-//! A polynomial represented in evaluations form.
+//! A polynomial represented in evaluations form over a domain of size 2^n.
 
 use super::domain::EvaluationDomain;
 use super::polynomial::Polynomial;

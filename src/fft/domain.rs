@@ -1,7 +1,3 @@
-//! This module contains an `EvaluationDomain` abstraction for
-//! performing various kinds of polynomial arithmetic on top of
-//! the scalar field.
-//!
 //! In pairing-based SNARKs like GM17, we need to calculate
 //! a quotient polynomial over a target polynomial with roots
 //! at distinct points associated with each constraint of the
