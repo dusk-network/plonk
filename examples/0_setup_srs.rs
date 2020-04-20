@@ -32,7 +32,6 @@ extern crate bincode;
 extern crate plonk;
 extern crate rand;
 
-use bicode;
 use plonk::commitment_scheme::kzg10::PublicParameters;
 use std::fs;
 
@@ -59,7 +58,7 @@ fn main() -> () {
     // `PublicParameters` struct on every test you do, but if the size is big it
     // may take a little bit of time, instead, deserializing it might be a way faster and
     // easier.
-    let ser_pub_params = bincode::serialize(&public_params);
+    let ser_pub_params = bincode::serialize(&public_params).unwrap();
 
-    fs::write(".public_params.bin", &ser_pub_params).expect("Unable to write file");
+    fs::write("public_params.bin", &ser_pub_params).expect("Unable to write file");
 }
