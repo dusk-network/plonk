@@ -1,7 +1,7 @@
 This module contains the methodology of how
 zk-SNARKS are constructed.
 
-SNARK
+SNARKs
 =====
 These notes will 
 show an abstraction on the construction 
