@@ -69,7 +69,7 @@ pub struct StandardComposer {
     // We reserve a variable to be zero in the system
     // This is so that when a gate only uses three, we set the fourth wire to be
     // the variable that references zero
-    zero_var: Variable,
+    pub zero_var: Variable,
 
     // These are the actual variable values
     // N.B. They should not be exposed to the end user once added into the composer
