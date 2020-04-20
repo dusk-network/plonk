@@ -76,6 +76,64 @@ which in PLONK are reduced to a
 small amount of polynomial 
 equations which are capable of 
 representing the two types.
-PLONK also has constants 
-in gate equations
+PLONK allows us to combine the
+two gate equations by describing 
+their relationship relative to 
+the role in the circuit.
+PLONK also has constant, which
+are denoted as 'Q'. These 
+values will change for each 
+programme. When they are 
+combined with the gate 
+equations, we get the 
+polynomial equation for 
+a reduced form as:
+
+\\[
+\begin{aligned}  
+*L* = left \\\\
+*R* = right \\\\
+*O* = output \\\\
+*M* = multiplication \\\\ 
+*C* = constants \\\\
+
+\mathbf{Q}\_*L\_i* \circ a\_i +
+\mathbf{Q}\_*R\_i* \circ b\_i +
+\mathbf{Q}\_*0\_i* \circ c\_i +
+\mathbf{Q}\_*M\_i* \circ a\_ib\_i +
+\mathbf{Q}\_*C\_i* =
+0
+\end{aligned}
+\\]
+This can be used for both
+addition and multiplication
+gates, where there values 
+can be provided by the user 
+depending on the circuit 
+composition. 
+For an addition gate, 
+we derive it as follows:
+
+\\[
+\begin{aligned}
+\mathbf{Q}\_*L\_i* = 1
+\mathbf{Q}\_*R\_i* = 1
+\mathbf{Q}\_*0\_i* = -1
+\mathbf{Q}\_*M\_i* = 0
+\mathbf{Q}\_*C\_i* = 1
+\end{aligned}
+\\]
+
+Which results in:
+\\[
+\begin{aligned}  
+a\_i +
+b\_i -
+c\_i =
+0
+\end{aligned}
+\\]
+
+
+
 
