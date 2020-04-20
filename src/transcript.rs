@@ -1,7 +1,15 @@
+//! Transcript is an utility that helps to perform the
+//! `Fiat-Shamir` heuristics without a direct communication
+//! between `Prover` and `Verifier`.
+//!
+//! This is an extension over the [Merlin Transcript](merlin::Transcript)
+//! which adds a few extra functionalities.
 use crate::commitment_scheme::kzg10::Commitment;
 use bls12_381::Scalar;
 use merlin::Transcript;
 
+/// This is an extension over the [Merlin Transcript](merlin::Transcript)
+/// which adds a few extra functionalities.
 pub trait TranscriptProtocol {
     /// Append a `commitment` with the given `label`.
     fn append_commitment(&mut self, label: &'static [u8], comm: &Commitment);

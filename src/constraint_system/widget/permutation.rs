@@ -1,3 +1,6 @@
+// Functions with a large number of args are permitted to achieve a
+// maximum performance and minimum circuit sizes, as well as composition times.
+#![allow(clippy::too_many_arguments)]
 use super::PreProcessedPolynomial;
 use crate::commitment_scheme::kzg10::Commitment;
 use crate::constraint_system::standard::linearisation_poly::ProofEvaluations;
@@ -5,12 +8,131 @@ use crate::fft::{EvaluationDomain, Evaluations, Polynomial};
 use crate::permutation::constants::{K1, K2, K3};
 use bls12_381::{G1Affine, Scalar};
 use rayon::prelude::*;
+#[cfg(feature = "serde")]
+use serde::{de::Visitor, ser::SerializeStruct, Deserialize, Deserializer, Serialize, Serializer};
+
+#[derive(Debug, Eq, PartialEq)]
 pub struct PermutationWidget {
     pub left_sigma: PreProcessedPolynomial,
     pub right_sigma: PreProcessedPolynomial,
     pub out_sigma: PreProcessedPolynomial,
     pub fourth_sigma: PreProcessedPolynomial,
     pub linear_evaluations: Evaluations, // Evaluations of f(x) = X
+}
+
+#[cfg(feature = "serde")]
+impl Serialize for PermutationWidget {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut perm_widget = serializer.serialize_struct("struct PermutationWidget", 5)?;
+        perm_widget.serialize_field("left_sig", &self.left_sigma)?;
+        perm_widget.serialize_field("right_sig", &self.right_sigma)?;
+        perm_widget.serialize_field("out_sig", &self.out_sigma)?;
+        perm_widget.serialize_field("fourth_sig", &self.fourth_sigma)?;
+        perm_widget.serialize_field("lin_evals", &self.linear_evaluations)?;
+        perm_widget.end()
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<'de> Deserialize<'de> for PermutationWidget {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        enum Field {
+            LeftSigma,
+            RightSigma,
+            OutSigma,
+            FourthSigma,
+            LinEvals,
+        };
+
+        impl<'de> Deserialize<'de> for Field {
+            fn deserialize<D>(deserializer: D) -> Result<Field, D::Error>
+            where
+                D: Deserializer<'de>,
+            {
+                struct FieldVisitor;
+
+                impl<'de> Visitor<'de> for FieldVisitor {
+                    type Value = Field;
+
+                    fn expecting(
+                        &self,
+                        formatter: &mut ::core::fmt::Formatter,
+                    ) -> ::core::fmt::Result {
+                        formatter.write_str("struct PermutationWidget")
+                    }
+
+                    fn visit_str<E>(self, value: &str) -> Result<Field, E>
+                    where
+                        E: serde::de::Error,
+                    {
+                        match value {
+                            "left_sig" => Ok(Field::LeftSigma),
+                            "right_sig" => Ok(Field::RightSigma),
+                            "out_sig" => Ok(Field::OutSigma),
+                            "fourth_sig" => Ok(Field::FourthSigma),
+                            "lin_evals" => Ok(Field::LinEvals),
+                            _ => Err(serde::de::Error::unknown_field(value, FIELDS)),
+                        }
+                    }
+                }
+
+                deserializer.deserialize_identifier(FieldVisitor)
+            }
+        }
+
+        struct PermutationWidgetVisitor;
+
+        impl<'de> Visitor<'de> for PermutationWidgetVisitor {
+            type Value = PermutationWidget;
+
+            fn expecting(&self, formatter: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+                formatter.write_str("struct PermutationWidget")
+            }
+
+            fn visit_seq<V>(self, mut seq: V) -> Result<PermutationWidget, V::Error>
+            where
+                V: serde::de::SeqAccess<'de>,
+            {
+                let left_sigma = seq
+                    .next_element()?
+                    .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
+                let right_sigma = seq
+                    .next_element()?
+                    .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
+                let out_sigma = seq
+                    .next_element()?
+                    .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
+                let fourth_sigma = seq
+                    .next_element()?
+                    .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
+                let linear_evaluations = seq
+                    .next_element()?
+                    .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
+                Ok(PermutationWidget {
+                    left_sigma,
+                    right_sigma,
+                    out_sigma,
+                    fourth_sigma,
+                    linear_evaluations,
+                })
+            }
+        }
+
+        const FIELDS: &[&str] = &[
+            "left_sig",
+            "right_sig",
+            "out_sig",
+            "fourth_sig",
+            "lin_evals",
+        ];
+        deserializer.deserialize_struct("PermutationWidget", FIELDS, PermutationWidgetVisitor)
+    }
 }
 
 impl PermutationWidget {
@@ -26,7 +148,7 @@ impl PermutationWidget {
             right_sigma: PreProcessedPolynomial::new(right_sigma),
             out_sigma: PreProcessedPolynomial::new(out_sigma),
             fourth_sigma: PreProcessedPolynomial::new(fourth_sigma),
-            linear_evaluations: linear_evaluations,
+            linear_evaluations,
         }
     }
 
@@ -68,13 +190,12 @@ impl PermutationWidget {
     ) -> Scalar {
         let x = self.linear_evaluations[index];
 
-        let product = (w_l_i + (beta * x) + gamma)
+        (w_l_i + (beta * x) + gamma)
             * (w_r_i + (beta * K1 * x) + gamma)
             * (w_o_i + (beta * K2 * x) + gamma)
             * (w_4_i + (beta * K3 * x) + gamma)
             * z_i
-            * alpha;
-        product
+            * alpha
     }
     // (a(x) + beta* Sigma1(X) + gamma) (b(X) + beta * Sigma2(X) + gamma) (c(X) + beta * Sigma3(X) + gamma)(d(X) + beta * Sigma4(X) + gamma) Z(X.omega) * alpha
     fn compute_quotient_copy_range_check_i(
@@ -152,24 +273,24 @@ impl PermutationWidget {
         a_0 += gamma;
 
         // b_eval + beta * K1 * z_challenge + gamma
-        let beta_z_K1 = K1 * beta_z;
-        let mut a_1 = b_eval + beta_z_K1;
+        let beta_z_k1 = K1 * beta_z;
+        let mut a_1 = b_eval + beta_z_k1;
         a_1 += gamma;
 
         // c_eval + beta * K2 * z_challenge + gamma
-        let beta_z_K2 = K2 * beta_z;
-        let mut a_2 = c_eval + beta_z_K2;
+        let beta_z_k2 = K2 * beta_z;
+        let mut a_2 = c_eval + beta_z_k2;
         a_2 += gamma;
 
         // d_eval + beta * K3 * z_challenge + gamma
-        let beta_z_K3 = K3 * beta_z;
-        let mut a_3 = d_eval + beta_z_K3;
+        let beta_z_k3 = K3 * beta_z;
+        let mut a_3 = d_eval + beta_z_k3;
         a_3 += gamma;
 
         let mut a = a_0 * a_1;
-        a = a * a_2;
-        a = a * a_3;
-        a = a * alpha; // (a_eval + beta * z_challenge + gamma)(b_eval + beta * K1 * z_challenge + gamma)(c_eval + beta * K2 * z_challenge + gamma)(d_eval + beta * K3 * z_challenge + gamma) * alpha
+        a *= a_2;
+        a *= a_3;
+        a *= alpha; // (a_eval + beta * z_challenge + gamma)(b_eval + beta * K1 * z_challenge + gamma)(c_eval + beta * K2 * z_challenge + gamma)(d_eval + beta * K3 * z_challenge + gamma) * alpha
         z_poly * &a // (a_eval + beta * z_challenge + gamma)(b_eval + beta * K1 * z_challenge + gamma)(c_eval + beta * K2 * z_challenge + gamma) * alpha z(X)
     }
     // -(a_eval + beta * sigma_1 + gamma)(b_eval + beta * sigma_2 + gamma) (c_eval + beta * sigma_3 + gamma) * beta *z_eval * alpha^2 * Sigma_4(X)
@@ -201,10 +322,10 @@ impl PermutationWidget {
         let beta_z_eval = beta * z_eval;
 
         let mut a = a_0 * a_1 * a_2;
-        a = a * beta_z_eval;
-        a = a * alpha; // (a_eval + beta * sigma_1 + gamma)(b_eval + beta * sigma_2 + gamma)(c_eval + beta * sigma_3 + gamma) * beta *z_eval * alpha
+        a *= beta_z_eval;
+        a *= alpha; // (a_eval + beta * sigma_1 + gamma)(b_eval + beta * sigma_2 + gamma)(c_eval + beta * sigma_3 + gamma) * beta * z_eval * alpha
 
-        fourth_sigma_poly * &-a // -(a_eval + beta * sigma_1 + gamma)(b_eval + beta * sigma_2 + gamma) (c_eval + beta * sigma_3 + gamma) * beta *z_eval * alpha^2 * Sigma_4(X)
+        fourth_sigma_poly * &-a // -(a_eval + beta * sigma_1 + gamma)(b_eval + beta * sigma_2 + gamma) (c_eval + beta * sigma_3 + gamma) * beta * z_eval * alpha^2 * Sigma_4(X)
     }
 
     fn compute_lineariser_check_is_one(
@@ -232,7 +353,7 @@ impl PermutationWidget {
     ) {
         let alpha_sq = alpha * alpha;
 
-        // (a_eval + beta * z + gamma)(b_eval + beta * z * k1 + gamma)(c_eval + beta * k2* z + gamma)(d_eval + beta * k3* z + gamma) * alpha
+        // (a_eval + beta * z + gamma)(b_eval + beta * z * k1 + gamma)(c_eval + beta * k2 * z + gamma)(d_eval + beta * k3 * z + gamma) * alpha
         let x = {
             let beta_z = beta * z_challenge;
             let q_0 = evaluations.a_eval + beta_z + gamma;
@@ -255,7 +376,7 @@ impl PermutationWidget {
         scalars.push(x + r);
         points.push(z_comm);
 
-        // -(a_eval + beta * sigma_1_eval + gamma)(b_eval + beta * sigma_2_eval + gamma)(c_eval + beta * sigma_3_eval + gamma) *alpha^2
+        // -(a_eval + beta * sigma_1_eval + gamma)(b_eval + beta * sigma_2_eval + gamma)(c_eval + beta * sigma_3_eval + gamma) * alpha^2
         let y = {
             let beta_sigma_1 = beta * evaluations.left_sigma_eval;
             let q_0 = evaluations.a_eval + beta_sigma_1 + gamma;
@@ -275,12 +396,14 @@ impl PermutationWidget {
     }
 }
 
+#[allow(dead_code)]
 fn compute_first_lagrange_poly_scaled(domain: &EvaluationDomain, scale: Scalar) -> Polynomial {
     let mut x_evals = vec![Scalar::zero(); domain.size()];
     x_evals[0] = scale;
     domain.ifft_in_place(&mut x_evals);
     Polynomial::from_coefficients_vec(x_evals)
 }
+#[allow(dead_code)]
 /// Ensures that the polynomial evaluated at the first root of unity is one
 pub fn compute_is_one_polynomial(
     domain: &EvaluationDomain,
@@ -299,4 +422,61 @@ pub fn compute_is_one_polynomial(
         .map(|i| alpha_sq_l1_evals[i] * (z_eval_4n[i] - Scalar::one()))
         .collect();
     Evaluations::from_vec_and_domain(t_4, domain_4n)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::fft::EvaluationDomain;
+
+    #[cfg(feature = "serde")]
+    #[test]
+    fn perm_widget_serde_roundtrip() {
+        use bincode;
+        let coeffs = vec![
+            Scalar::one(),
+            Scalar::one(),
+            Scalar::one(),
+            Scalar::one(),
+            Scalar::one(),
+            Scalar::one(),
+            Scalar::one(),
+            Scalar::one(),
+        ];
+        let dom = EvaluationDomain::new(coeffs.len()).unwrap();
+        let evals = Evaluations::from_vec_and_domain(coeffs.clone(), dom);
+        let poly = Polynomial::from_coefficients_vec(coeffs);
+        let comm = crate::commitment_scheme::kzg10::Commitment::from_affine(G1Affine::generator());
+
+        // Build directly the widget since the `new()` impl doesn't check any
+        // correctness on the inputs.
+        let prep_poly_w_evals = PreProcessedPolynomial {
+            polynomial: poly.clone(),
+            commitment: comm,
+            evaluations: Some(evals.clone()),
+        };
+
+        // Build directly the widget since the `new()` impl doesn't check any
+        // correctness on the inputs.
+        let prep_poly_without_evals = PreProcessedPolynomial {
+            polynomial: poly,
+            commitment: comm,
+            evaluations: None,
+        };
+
+        // Build directly the widget since the `new()` impl doesn't check any
+        // correctness on the inputs.
+        let perm_widget = PermutationWidget {
+            left_sigma: prep_poly_w_evals.clone(),
+            right_sigma: prep_poly_without_evals.clone(),
+            out_sigma: prep_poly_without_evals.clone(),
+            fourth_sigma: prep_poly_w_evals.clone(),
+            linear_evaluations: evals,
+        };
+
+        // Roundtrip with evals
+        let ser = bincode::serialize(&perm_widget).unwrap();
+        let deser: PermutationWidget = bincode::deserialize(&ser).unwrap();
+        assert_eq!(perm_widget, deser);
+    }
 }

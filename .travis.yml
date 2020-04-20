@@ -6,21 +6,31 @@ os:
 matrix:
   include:
   - rust: stable
+    install:
+    before_script:
+      - rustup component add clippy
+    script:
+      - cargo clippy -- -D warnings
+      - cargo check
+      - cargo build --release --verbose --all
+      - cargo test --release --verbose --all
   - rust: beta
+    install:
+    script:
+      - cargo check
+      - cargo build --release --verbose --all
+      - cargo test --release --verbose --all
   - rust: nightly
-
-jobs:
-  allow_failures:
-    - rust: stable
-    - rust: beta
-  fast_finish: true
-
-# Main build
-script:
-  - cargo check
-  - cargo build --release --verbose --all
-  - cargo test --release --verbose --all
-  - cargo doc --no-deps
+    install:
+    before_script:
+      - pip install 'travis-cargo<0.2' --user && export PATH=$HOME/.local/bin:$PATH
+    script:
+      - cargo check --features nightly
+      - cargo build --release --verbose --all --features nightly
+      - cargo test --release --verbose --all --features nightly
+      - cargo doc --no-deps --features nightly
+    after_success:
+      - travis-cargo --only nightly doc-upload
 
 
 # Send a notification to the Dusk build Status Telegram channel once the CI build completes
