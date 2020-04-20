@@ -134,6 +134,30 @@ c\_i =
 \end{aligned}
 \\]
 
+For a multiplication gate, 
+we derive it as follows:
+
+\\[
+\begin{aligned}
+\mathbf{Q}\_*L\_i* = 0
+\mathbf{Q}\_*R\_i* = 0
+\mathbf{Q}\_*0\_i* = -1
+\mathbf{Q}\_*M\_i* = 1
+\mathbf{Q}\_*C\_i* = 0
+\end{aligned}
+\\]
+
+Which results in:
+\\[
+\begin{aligned}  
+a\_ib\_i -
+c\_i =
+0
+\end{aligned}
+\\]
+
+With this format, there is 
+a prover who has a 
 
 
 

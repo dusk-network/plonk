@@ -208,13 +208,13 @@ prover knows the value *witness*.
 The inner workings of the SNARK
 also contain a 'bilinear pairing', 
 which is referring to the fields 
-whcih are used throughout the 
+which are used throughout the 
 protocol. However, in detail 
 explanations of these are a out 
 of scope for these docs, more 
 information on the role of pairing
 cryptography has within SNARK 
-construction can be found [here][pairings] 
+construction can be found [here][pairings]. 
 
 
 
