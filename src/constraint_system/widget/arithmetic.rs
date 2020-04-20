@@ -3,8 +3,10 @@ use crate::commitment_scheme::kzg10::Commitment;
 use crate::constraint_system::standard::linearisation_poly::ProofEvaluations;
 use crate::fft::{Evaluations, Polynomial};
 use bls12_381::{G1Affine, Scalar};
+#[cfg(feature = "serde")]
+use serde::{de::Visitor, ser::SerializeStruct, Deserialize, Deserializer, Serialize, Serializer};
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct ArithmeticWidget {
     pub q_m: PreProcessedPolynomial,
     pub q_l: PreProcessedPolynomial,
@@ -13,6 +15,129 @@ pub struct ArithmeticWidget {
     pub q_c: PreProcessedPolynomial,
     pub q_4: PreProcessedPolynomial,
     pub q_arith: PreProcessedPolynomial,
+}
+
+#[cfg(feature = "serde")]
+impl Serialize for ArithmeticWidget {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut arith_widget = serializer.serialize_struct("struct ArithmeticWidget", 7)?;
+        arith_widget.serialize_field("q_m", &self.q_m)?;
+        arith_widget.serialize_field("q_l", &self.q_l)?;
+        arith_widget.serialize_field("q_r", &self.q_r)?;
+        arith_widget.serialize_field("q_o", &self.q_o)?;
+        arith_widget.serialize_field("q_c", &self.q_c)?;
+        arith_widget.serialize_field("q_4", &self.q_4)?;
+        arith_widget.serialize_field("q_arith", &self.q_arith)?;
+        arith_widget.end()
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<'de> Deserialize<'de> for ArithmeticWidget {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        enum Field {
+            Qm,
+            Ql,
+            Qr,
+            Qo,
+            Qc,
+            Q4,
+            Qarith,
+        };
+
+        impl<'de> Deserialize<'de> for Field {
+            fn deserialize<D>(deserializer: D) -> Result<Field, D::Error>
+            where
+                D: Deserializer<'de>,
+            {
+                struct FieldVisitor;
+
+                impl<'de> Visitor<'de> for FieldVisitor {
+                    type Value = Field;
+
+                    fn expecting(
+                        &self,
+                        formatter: &mut ::core::fmt::Formatter,
+                    ) -> ::core::fmt::Result {
+                        formatter.write_str("struct ArithmeticWidget")
+                    }
+
+                    fn visit_str<E>(self, value: &str) -> Result<Field, E>
+                    where
+                        E: serde::de::Error,
+                    {
+                        match value {
+                            "q_m" => Ok(Field::Qm),
+                            "q_l" => Ok(Field::Ql),
+                            "q_r" => Ok(Field::Qr),
+                            "q_o" => Ok(Field::Qo),
+                            "q_c" => Ok(Field::Qc),
+                            "q_4" => Ok(Field::Q4),
+                            "q_arith" => Ok(Field::Qarith),
+                            _ => Err(serde::de::Error::unknown_field(value, FIELDS)),
+                        }
+                    }
+                }
+
+                deserializer.deserialize_identifier(FieldVisitor)
+            }
+        }
+
+        struct ArithmeticWidgetVisitor;
+
+        impl<'de> Visitor<'de> for ArithmeticWidgetVisitor {
+            type Value = ArithmeticWidget;
+
+            fn expecting(&self, formatter: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+                formatter.write_str("struct ArithmeticWidget")
+            }
+
+            fn visit_seq<V>(self, mut seq: V) -> Result<ArithmeticWidget, V::Error>
+            where
+                V: serde::de::SeqAccess<'de>,
+            {
+                let q_m = seq
+                    .next_element()?
+                    .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
+                let q_l = seq
+                    .next_element()?
+                    .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
+                let q_r = seq
+                    .next_element()?
+                    .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
+                let q_o = seq
+                    .next_element()?
+                    .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
+                let q_c = seq
+                    .next_element()?
+                    .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
+                let q_4 = seq
+                    .next_element()?
+                    .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
+                let q_arith = seq
+                    .next_element()?
+                    .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
+                Ok(ArithmeticWidget {
+                    q_m,
+                    q_l,
+                    q_r,
+                    q_o,
+                    q_c,
+                    q_4,
+                    q_arith,
+                })
+            }
+        }
+
+        const FIELDS: &[&str] = &["q_m", "q_l", "q_r", "q_o", "q_c", "q_4", "q_arith"];
+        deserializer.deserialize_struct("ArithmeticWidget", FIELDS, ArithmeticWidgetVisitor)
+    }
 }
 
 impl ArithmeticWidget {
@@ -132,5 +257,64 @@ impl ArithmeticWidget {
 
         scalars.push(q_arith_eval);
         points.push(self.q_c.commitment.0);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::fft::EvaluationDomain;
+
+    #[cfg(feature = "serde")]
+    #[test]
+    fn arith_widget_serde_roundtrip() {
+        use bincode;
+        let coeffs = vec![
+            Scalar::one(),
+            Scalar::one(),
+            Scalar::one(),
+            Scalar::one(),
+            Scalar::one(),
+            Scalar::one(),
+            Scalar::one(),
+            Scalar::one(),
+        ];
+        let dom = EvaluationDomain::new(coeffs.len()).unwrap();
+        let evals = Evaluations::from_vec_and_domain(coeffs.clone(), dom);
+        let poly = Polynomial::from_coefficients_vec(coeffs);
+        let comm = crate::commitment_scheme::kzg10::Commitment::from_affine(G1Affine::generator());
+
+        // Build directly the widget since the `new()` impl doesn't check any
+        // correctness on the inputs.
+        let prep_poly_w_evals = PreProcessedPolynomial {
+            polynomial: poly.clone(),
+            commitment: comm,
+            evaluations: Some(evals),
+        };
+
+        // Build directly the widget since the `new()` impl doesn't check any
+        // correctness on the inputs.
+        let prep_poly_without_evals = PreProcessedPolynomial {
+            polynomial: poly,
+            commitment: comm,
+            evaluations: None,
+        };
+
+        // Build directly the widget since the `new()` impl doesn't check any
+        // correctness on the inputs.
+        let arith_widget = ArithmeticWidget {
+            q_m: prep_poly_w_evals.clone(),
+            q_l: prep_poly_without_evals.clone(),
+            q_r: prep_poly_without_evals.clone(),
+            q_o: prep_poly_w_evals.clone(),
+            q_c: prep_poly_w_evals.clone(),
+            q_4: prep_poly_w_evals,
+            q_arith: prep_poly_without_evals,
+        };
+
+        // Roundtrip with evals
+        let ser = bincode::serialize(&arith_widget).unwrap();
+        let deser: ArithmeticWidget = bincode::deserialize(&ser).unwrap();
+        assert_eq!(arith_widget, deser);
     }
 }

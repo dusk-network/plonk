@@ -8,14 +8,131 @@ use crate::fft::{EvaluationDomain, Evaluations, Polynomial};
 use crate::permutation::constants::{K1, K2, K3};
 use bls12_381::{G1Affine, Scalar};
 use rayon::prelude::*;
+#[cfg(feature = "serde")]
+use serde::{de::Visitor, ser::SerializeStruct, Deserialize, Deserializer, Serialize, Serializer};
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct PermutationWidget {
     pub left_sigma: PreProcessedPolynomial,
     pub right_sigma: PreProcessedPolynomial,
     pub out_sigma: PreProcessedPolynomial,
     pub fourth_sigma: PreProcessedPolynomial,
     pub linear_evaluations: Evaluations, // Evaluations of f(x) = X
+}
+
+#[cfg(feature = "serde")]
+impl Serialize for PermutationWidget {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut perm_widget = serializer.serialize_struct("struct PermutationWidget", 5)?;
+        perm_widget.serialize_field("left_sig", &self.left_sigma)?;
+        perm_widget.serialize_field("right_sig", &self.right_sigma)?;
+        perm_widget.serialize_field("out_sig", &self.out_sigma)?;
+        perm_widget.serialize_field("fourth_sig", &self.fourth_sigma)?;
+        perm_widget.serialize_field("lin_evals", &self.linear_evaluations)?;
+        perm_widget.end()
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<'de> Deserialize<'de> for PermutationWidget {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        enum Field {
+            LeftSigma,
+            RightSigma,
+            OutSigma,
+            FourthSigma,
+            LinEvals,
+        };
+
+        impl<'de> Deserialize<'de> for Field {
+            fn deserialize<D>(deserializer: D) -> Result<Field, D::Error>
+            where
+                D: Deserializer<'de>,
+            {
+                struct FieldVisitor;
+
+                impl<'de> Visitor<'de> for FieldVisitor {
+                    type Value = Field;
+
+                    fn expecting(
+                        &self,
+                        formatter: &mut ::core::fmt::Formatter,
+                    ) -> ::core::fmt::Result {
+                        formatter.write_str("struct PermutationWidget")
+                    }
+
+                    fn visit_str<E>(self, value: &str) -> Result<Field, E>
+                    where
+                        E: serde::de::Error,
+                    {
+                        match value {
+                            "left_sig" => Ok(Field::LeftSigma),
+                            "right_sig" => Ok(Field::RightSigma),
+                            "out_sig" => Ok(Field::OutSigma),
+                            "fourth_sig" => Ok(Field::FourthSigma),
+                            "lin_evals" => Ok(Field::LinEvals),
+                            _ => Err(serde::de::Error::unknown_field(value, FIELDS)),
+                        }
+                    }
+                }
+
+                deserializer.deserialize_identifier(FieldVisitor)
+            }
+        }
+
+        struct PermutationWidgetVisitor;
+
+        impl<'de> Visitor<'de> for PermutationWidgetVisitor {
+            type Value = PermutationWidget;
+
+            fn expecting(&self, formatter: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+                formatter.write_str("struct PermutationWidget")
+            }
+
+            fn visit_seq<V>(self, mut seq: V) -> Result<PermutationWidget, V::Error>
+            where
+                V: serde::de::SeqAccess<'de>,
+            {
+                let left_sigma = seq
+                    .next_element()?
+                    .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
+                let right_sigma = seq
+                    .next_element()?
+                    .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
+                let out_sigma = seq
+                    .next_element()?
+                    .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
+                let fourth_sigma = seq
+                    .next_element()?
+                    .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
+                let linear_evaluations = seq
+                    .next_element()?
+                    .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
+                Ok(PermutationWidget {
+                    left_sigma,
+                    right_sigma,
+                    out_sigma,
+                    fourth_sigma,
+                    linear_evaluations,
+                })
+            }
+        }
+
+        const FIELDS: &[&str] = &[
+            "left_sig",
+            "right_sig",
+            "out_sig",
+            "fourth_sig",
+            "lin_evals",
+        ];
+        deserializer.deserialize_struct("PermutationWidget", FIELDS, PermutationWidgetVisitor)
+    }
 }
 
 impl PermutationWidget {
@@ -305,4 +422,61 @@ pub fn compute_is_one_polynomial(
         .map(|i| alpha_sq_l1_evals[i] * (z_eval_4n[i] - Scalar::one()))
         .collect();
     Evaluations::from_vec_and_domain(t_4, domain_4n)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::fft::EvaluationDomain;
+
+    #[cfg(feature = "serde")]
+    #[test]
+    fn perm_widget_serde_roundtrip() {
+        use bincode;
+        let coeffs = vec![
+            Scalar::one(),
+            Scalar::one(),
+            Scalar::one(),
+            Scalar::one(),
+            Scalar::one(),
+            Scalar::one(),
+            Scalar::one(),
+            Scalar::one(),
+        ];
+        let dom = EvaluationDomain::new(coeffs.len()).unwrap();
+        let evals = Evaluations::from_vec_and_domain(coeffs.clone(), dom);
+        let poly = Polynomial::from_coefficients_vec(coeffs);
+        let comm = crate::commitment_scheme::kzg10::Commitment::from_affine(G1Affine::generator());
+
+        // Build directly the widget since the `new()` impl doesn't check any
+        // correctness on the inputs.
+        let prep_poly_w_evals = PreProcessedPolynomial {
+            polynomial: poly.clone(),
+            commitment: comm,
+            evaluations: Some(evals.clone()),
+        };
+
+        // Build directly the widget since the `new()` impl doesn't check any
+        // correctness on the inputs.
+        let prep_poly_without_evals = PreProcessedPolynomial {
+            polynomial: poly,
+            commitment: comm,
+            evaluations: None,
+        };
+
+        // Build directly the widget since the `new()` impl doesn't check any
+        // correctness on the inputs.
+        let perm_widget = PermutationWidget {
+            left_sigma: prep_poly_w_evals.clone(),
+            right_sigma: prep_poly_without_evals.clone(),
+            out_sigma: prep_poly_without_evals.clone(),
+            fourth_sigma: prep_poly_w_evals.clone(),
+            linear_evaluations: evals,
+        };
+
+        // Roundtrip with evals
+        let ser = bincode::serialize(&perm_widget).unwrap();
+        let deser: PermutationWidget = bincode::deserialize(&ser).unwrap();
+        assert_eq!(perm_widget, deser);
+    }
 }

@@ -30,6 +30,58 @@ impl DerefMut for Polynomial {
     }
 }
 
+#[cfg(feature = "serde")]
+use serde::{
+    self, de::Visitor, ser::SerializeSeq, Deserialize, Deserializer, Serialize, Serializer,
+};
+
+#[cfg(feature = "serde")]
+impl Serialize for Polynomial {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut tup = serializer.serialize_seq(Some(self.len()))?;
+        for coeff in &self.coeffs {
+            tup.serialize_element(&coeff)?;
+        }
+        tup.end()
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<'de> Deserialize<'de> for Polynomial {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        struct PolynomialVisitor;
+
+        impl<'de> Visitor<'de> for PolynomialVisitor {
+            type Value = Polynomial;
+
+            fn expecting(&self, formatter: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+                formatter.write_str("a polynomial with valid scalars")
+            }
+
+            fn visit_seq<A>(self, mut seq: A) -> Result<Polynomial, A::Error>
+            where
+                A: serde::de::SeqAccess<'de>,
+            {
+                let mut scalar_vec = Vec::new();
+                // Visit each element in the inner array and push it onto
+                // the existing vector.
+                while let Some(elem) = seq.next_element()? {
+                    scalar_vec.push(elem)
+                }
+                Ok(Polynomial::from_coefficients_vec(scalar_vec))
+            }
+        }
+
+        deserializer.deserialize_seq(PolynomialVisitor)
+    }
+}
+
 impl Polynomial {
     /// Returns the zero polynomial.
     pub fn zero() -> Self {
@@ -439,5 +491,23 @@ mod test {
         let expected_quotient =
             Polynomial::from_coefficients_vec(vec![Scalar::one(), Scalar::one()]);
         assert_eq!(quotient, expected_quotient);
+    }
+
+    #[cfg(feature = "serde")]
+    #[test]
+    fn poly_serialisation_roundtrip() {
+        use bincode;
+        let poly = Polynomial::from_coefficients_slice(&[
+            Scalar::one(),
+            Scalar::one(),
+            Scalar::one(),
+            Scalar::one(),
+            Scalar::one(),
+            Scalar::one(),
+        ]);
+        let ser = bincode::serialize(&poly).unwrap();
+        let deser: Polynomial = bincode::deserialize(&ser).unwrap();
+
+        assert!(&poly.coeffs[..] == &deser.coeffs[..]);
     }
 }
