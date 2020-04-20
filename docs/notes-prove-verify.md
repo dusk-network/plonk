@@ -6,8 +6,7 @@ PLONK proof construction
 ========================
 
 Following on from the generic
-SNARK construction, given in
-[Proof construction components](notes-snark.md), 
+SNARK construction, 
 here we will give the set up
 of a PLONK proof and show 
 which steps need to be satisfied
