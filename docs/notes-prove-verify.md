@@ -1,6 +1,6 @@
 In this module, the notes on how the prover 
-algorithm and verification functions are constructed
-for PLONK, are documented.
+algorithm is constructed
+for PLONK, is documented.
 
 PLONK proof construction 
 ========================
@@ -10,7 +10,7 @@ SNARK construction,
 here we will give the set up
 of a PLONK proof and show 
 which steps need to be satisfied
-as part of the protocol.
+to utilise the protocol.
 
 First we will explain the 
 derivation and simplification 
