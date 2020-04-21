@@ -28,10 +28,6 @@ example of:
 We can express multiples of the 
 same wires in or out of the same 
 gate, with the above equation.
-PLONK also uses 'copy
-constraints', which are used to 
-associate wires, which have 
-equality, from the entire circuit.
 
 Thus we have 'ith' gates, so the 
 index from left or right across 
@@ -68,7 +64,20 @@ the gate constrain satisfies:
 \mathbf{W}\_*L* + \mathbf{W}\_*R* = \mathbf{W}\_*O*,
 \\]
 
-After the constriants
+PLONK also uses 'copy
+constraints', which are used to 
+associate wires, which have 
+equality, from the entire circuit.
+These constriants are checked 
+with a permutation argument. 
+In essence, this checks that 
+wires are mot repeated by using 
+randomness given by the verifier. 
+
+This process is better explained in 
+the permutation [notes](notes-pa).
+
+After the constraints
 are made, they are formatted into a 
 system of mumerical equations, 
 which in PLONK are reduced to a 
@@ -156,7 +165,81 @@ c\_i =
 \\]
 
 With this format, there is 
-a prover who has a 
+a specific method used to 
+convert all the equations 
+into polynomials form.
+Basically, for bundling
+these together, PLONK can 
+take sets of equations and 
+turn them into one single 
+equation over polynomials. 
+This called the evalutaion 
+form. We are then able to 
+use Lagrangian interpolation
+to convert coefificient form. 
+All this interpolation is doing
+is allowing us to evaluate a
+functions over specific points,
+for 'x' values,the polynomial 
+is equal to '1' or '0'.
+
+With these specific basis, we
+can derive the relation between 
+all sets fo equations into one 
+single polynomial equation,
+where we have a vector of inputs
+to each gate type:
+\\[
+\begin{aligned}
+\mathbf{Q}\_*L*(*x*) \circ a(*x*) +
+\mathbf{Q}\_*R*(*x*) \circ b(*x*) +
+\mathbf{Q}\_*0*(*x*) \circ c(*x*) +
+\mathbf{Q}\_*M*(*x*) \circ a(*x*)b(*x*) +
+\mathbf{Q}\_*C*(*x*) =
+0
+\end{aligned}
+\\]
+
+The utility for this is PLONK, 
+as a univeral SNARK, is that 
+any operaation or relationship 
+that holds with the vectors, 
+will also hold over the polynomial.
+
+In order to check this in PLONK, 
+a 'vanishing polynomial' is 
+introduced. Which is just a 
+polynomial equal to zero for
+all the points we evaluate at.
+So this means that the vectors
+will be divisible by this vanashing
+polynomial, if the expression we 
+check does indeed hold. 
+
+To summarise what the PLONK
+proof must satisfy:
+
+The generation of copy and 
+gate constraints where the 
+former are representative 
+of permuted wires. Generate 
+all of the polynomials to  
+be checked against the 
+vanishing polynomials.
+Take all of the wire values
+and convert them into three
+polynomials, A(x), B(x), C(x). 
+Check the polynomials at 
+some random Z(*z*), by making
+commitments and checking 
+the evaluation form. 
+Then commit all evalution 
+polynomials forms for the 
+verfier. 
+
+
+
+
 
 
 
