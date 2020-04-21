@@ -162,14 +162,33 @@ a prover who has a
 
 
 
-Langrangian polynomials are introduced as a means of 
-constructing continous functions from discrete data.
-With alternative polynomial constructions, discrete 
-data sets can be approximated; Langrangian polynomials, 
-however, from a solution that fits data exactly. This is 
-achieved through *interpolation*, which finds a linear 
-combination of 'n' inputted functions with respect to a 
-given data set which imposes 'n' constraints and computes 
+
+The use of polynomials in the 
+PLONK proving scheme refers
+to specific evaluation domains,
+names Lagrangian polynomials,  
+based on interpolation of two 
+functions of a particular group
+elements. The following section 
+gives a more comprehensive
+understanding to the way in 
+which these polynomials are 
+formed, given certain inputs. 
+
+
+Langrangian polynomials are 
+introduced as a means of 
+constructing continous functions
+from discrete data. With alternative 
+polynomial constructions, discrete 
+data sets can be approximated; 
+Langrangian polynomials, however, 
+form a solution that fits data exactly.
+This is achieved through *interpolation*, 
+which finds a linear combination of 'n' 
+inputted functions with respect to a 
+given data set which imposes 'n' 
+constraints and computes 
 an exact fitting solution. 
 
 Linear Algebra dictates that interpolation polynomial ought 
@@ -177,7 +196,7 @@ to be formed from the system {\mathbf{A}\{x}} = {\mathbf{b}},
 where b\_i = y\_i, i\\ = 0,...,n\\, and the entries of {\mathbf{A}} 
 are defined by {\mathbf{a}}\_{\operatorname{ij}} = 
 {\mathbf{p}}{(x\_i)},i\\,j\\ = 0,....,n, where x\_0,x\_1,...,x\_n 
-are the points at which data y\_o, y\_1,...,y\_n are obatained, and 
+are the points at which data y\_o, y\_1,...,y\_n are obtained, and 
 {\mathbf{p\_j}}{(x\_i)} = x^{j}, j\\ = 0,1,...,n. The basis {1,x\\,...,
 x^{n}} of the space of polynomials degree n\\+1 is valled the *monomial 
 basis*, and the corresponding matrix A is called the *Vandermode
