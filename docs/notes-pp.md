@@ -5,4 +5,4 @@ of the permutation polynomial evaluations.
 Permutation polynomials
 ======================
 
-A permutation
+A permutation polynomials is 
