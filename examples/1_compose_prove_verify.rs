@@ -46,15 +46,20 @@ extern crate bincode;
 extern crate merlin;
 extern crate plonk;
 
-use bls12_381::{G1Affine, Scalar};
+use bls12_381::Scalar;
 use merlin::Transcript;
 use plonk::commitment_scheme::kzg10::PublicParameters;
-use plonk::constraint_system::standard::proof::Proof;
-use plonk::constraint_system::standard::{Composer, PreProcessedCircuit, StandardComposer};
+use plonk::constraint_system::standard::{Composer, StandardComposer};
 use plonk::fft::EvaluationDomain;
 use std::fs;
 
 fn main() {
+    //
+    //
+    // Circuit construction stage
+    //
+    //
+    //
     // First of all, let's create our new composer. If we know the size that it will
     // have, calling `with expected size` can decrease the re-allocs and so improve
     // the performance.
@@ -193,6 +198,7 @@ fn main() {
     // Using this way, we need to know that it is applying the following constraint:
     // `ab_xor_cd - q_c + PI = 0`. So we need to give the negative sign to the public inputs
     // to then force the gate to do `ab_xor_cd - q_c + (-PI) = 0
+    println!("{:?}", composer.circuit_size());
     composer.constrain_to_constant(ab_xor_cd, Scalar::zero(), -one);
 
     // We can also use the same approach as before and go for an addition gate that subtracts the variable
@@ -222,6 +228,15 @@ fn main() {
         -one,
     );
 
+    // Since we have polynomials inside of our Composer that don't have any coeff != 0 such as q_range,
+    // we need to add dummy_constraints which allow us to avoid the `PolynomialDegreeZero` error.
+    composer.add_dummy_constraints();
+
+    //
+    //
+    // PreProcessing Stage
+    //
+    //
     // We've now finished building our circuit. So what we do now?
     // We need to preprocessit.
     //
@@ -243,7 +258,7 @@ fn main() {
     // 1. A `merlin::Transcript` which will allow Prover and Verifier to perform the fiat-Shamir heuristics without having
     // a direct communication between themseleves.
     // That means that both need to initialize the Transcript with the same randomness seed.
-    let mut transcript = Transcript::new(b"Examples-randomness");
+    let mut prover_transcript = Transcript::new(b"End-To-End-Example");
     // 2. The `EvaluationDomain` on which we are working and performing our evaluations.
     // It's not needed to understand what it is, if you want to get the `EvaluationDomain` on which your
     // composer is working, you just need to do the following:
@@ -264,11 +279,11 @@ fn main() {
     let pub_params: PublicParameters = bincode::deserialize(&ser_pub_params).unwrap();
     // Derive the `ProverKey` from the `PublicParameters`.
     let (prover_key, verifier_key) = pub_params
-        .trim(2 * composer.circuit_size().next_power_of_two())
+        .trim(composer.circuit_size().next_power_of_two())
         .unwrap();
 
     // Now we can finally preprocess the circuit that we've built.
-    let pre_processed_circ = composer.preprocess(&prover_key, &mut transcript, &eval_domain);
+    let pre_processed_circ = composer.preprocess(&prover_key, &mut prover_transcript, &eval_domain);
 
     // We will now store our `PreProcessedCircuit` serialized with `bincode`.
     let ser_prep_cir = bincode::serialize(&pre_processed_circ).unwrap();
@@ -280,15 +295,24 @@ fn main() {
 
     // Whith the preprocessed_circuit we can now elaborate proofs with the `witness` values (Variables)
     // that we've loaded into our `Composer`.
-    let proof = composer.prove(&prover_key, &pre_processed_circ, &mut transcript);
+    //
+    // We clone the transcript since we don't want to modify it to allow then the verifier to re-use it.
+    let proof = composer.prove(
+        &prover_key,
+        &pre_processed_circ,
+        &mut prover_transcript.clone(),
+    );
+
+    // Generate the Verifier Transcript with the same original randomness.
+    //let mut verifier_transcript = Transcript::new(b"End-To-End-Example");
 
     let zero = Scalar::zero();
     let one = Scalar::one();
     // On this example, since we are using the same composer, we just need to
     assert!(proof.verify(
         &pre_processed_circ,
-        &mut transcript,
+        &mut prover_transcript,
         &verifier_key,
-        &vec![zero, zero, zero, zero, zero, zero, zero, zero, zero, zero, -one, -one],
+        &vec![zero, zero, zero, zero, zero, zero, zero, zero, zero, zero, zero, zero, -one, -one],
     ));
 }
