@@ -8,12 +8,12 @@ show an abstraction on the construction
 of SNARKs by showing the mathematical 
 steps involved. 
 
-Zk-SNARK stands for zero-knowledge 
+ZK-SNARK stands for Zero-Knowledge 
 Succinct Non-Interactive ARgument of
 Knowledge. Implementing a SNARK 
 protocol allows us to prove that a
 presented statement is true without
-revealing anything other then the 
+revealing anything other than the 
 statement itself. 
 
 The type of SNARK we will focus on
@@ -22,7 +22,7 @@ stage. This means that the inputs
 to our SNARK system is an output
 of a program. We will also show 
 how SNARKs satisfy the fundamental
-features of zero knowledge. Namely:
+properties of zero knowledge. Namely:
 Completeness, Soundess and Zero 
 Knowledge. Completeness is the
 verifier convinced that the claims
@@ -42,7 +42,11 @@ The arithemtic circuit here, is
 a mapping, performed by a system of 
 wires and gates, where the outputs 
 are inputs which have passed through 
-the circuit. 
+the circuit. The input for this is 
+standardly assumed to be a computer 
+program and those used in the zero 
+knowledge fields tend to have a large
+number of operations.
 
 For SNARK circuits, the prover will 
 select gates, 
@@ -108,16 +112,19 @@ for each programme, they can
 be collected together and 
 the constraint can be 
 checked at varying values. 
-This was, a proof can just 
-check for values at certain 
-indices. Following this, the 
-indices the values are being
+This step involves checks for
+the values at specified 
+indices. Additionally, the 
+indice values that are being
 checked at are not numbers, 
-but are instead polynomials.
-This QAP is intended to give 
-the prover the necessary 'tools'
-to construct a proof from a 
-given arithmetic circuit.  
+but are instead a polynomial.
+This polynomial is computed 
+by the QAP from the input 
+vectors. This QAP is intended 
+to give the prover the necessary
+'tools' to derive these polynomial
+for a proof, from a given
+arithmetic circuit.  
 
 Following on from the example
 above, we can show a QAP being
@@ -126,7 +133,8 @@ of multiplication gates. The
 inputs to the gates will be 
 a vector of polynomials, all 
 evaluated for indice value at
-some polynomial Z\_{(*z*)}
+some polynomial of their reduced
+form, Z\_{(*z*)}
 
 Let the left input polynomial be: 
 
@@ -159,7 +167,8 @@ some [finite field][finite_field]
 polynomial Z\_{(*z*)}.
 As a result, it can be checked
 that the Z\_{(*z*)} divides
-the mul gate polynomials.
+the multiplication gates
+polynomial.
 
 
 This is done in the following 

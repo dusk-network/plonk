@@ -1,6 +1,6 @@
-In this module, the notes on how the prover 
-algorithm is constructed
-for PLONK, is documented.
+This module contains the notes on 
+how the prover algorithm is 
+constructed for PLONK.
 
 PLONK proof construction 
 ========================
@@ -71,7 +71,7 @@ equality, from the entire circuit.
 These constriants are checked 
 with a permutation argument. 
 In essence, this checks that 
-wires are mot repeated by using 
+wires are not repeated by using 
 randomness given by the verifier. 
 
 This process is better explained in 
@@ -83,7 +83,7 @@ system of mumerical equations,
 which in PLONK are reduced to a 
 small amount of polynomial 
 equations which are capable of 
-representing the two types.
+representing the constraints.
 PLONK allows us to combine the
 two gate equations by describing 
 their relationship relative to 
@@ -168,7 +168,7 @@ With this format, there is
 a specific method used to 
 convert all the equations 
 into polynomials form.
-Basically, for bundling
+Basically, to bundling
 these together, PLONK can 
 take sets of equations and 
 turn them into one single 
@@ -176,14 +176,15 @@ equation over polynomials.
 This called the evalutaion 
 form. We are then able to 
 use Lagrangian interpolation
-to convert coefificient form. 
+to convert to coefificient form. 
 All this interpolation is doing
 is allowing us to evaluate a
 functions over specific points,
-for 'x' values,the polynomial 
-is equal to '1' or '0'.
+for 'x' values, where the target
+polynomial is equal to '1' or 
+'0'.
 
-With these specific basis, we
+With these specific bases, we
 can derive the relation between 
 all sets fo equations into one 
 single polynomial equation,
@@ -200,11 +201,12 @@ to each gate type:
 \end{aligned}
 \\]
 
-The utility for this is PLONK, 
+The utility for this in PLONK, 
 as a univeral SNARK, is that 
-any operaation or relationship 
-that holds with the vectors, 
-will also hold over the polynomial.
+any operation or relationship 
+that holds with the inputted 
+vectors, will also hold over 
+the polynomial.
 
 In order to check this in PLONK, 
 a 'vanishing polynomial' is 
@@ -212,7 +214,7 @@ introduced. Which is just a
 polynomial equal to zero for
 all the points we evaluate at.
 So this means that the vectors
-will be divisible by this vanashing
+will be divisible by this vanishing
 polynomial, if the expression we 
 check does indeed hold. 
 
