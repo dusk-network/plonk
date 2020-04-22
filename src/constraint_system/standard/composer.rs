@@ -80,7 +80,8 @@ pub struct StandardComposer {
 
 impl Composer for StandardComposer {
     // Computes the pre-processed polynomials
-    // So the verifier can verify a proof made using this circuit
+    // So the verifier can verify a proof made using this circuit.
+    #[cfg(not(feature = "trace"))]
     fn preprocess(
         &mut self,
         commit_key: &ProverKey,
@@ -254,6 +255,7 @@ impl Composer for StandardComposer {
 
     // Prove will compute the pre-processed polynomials and
     // produce a proof
+    #[cfg(not(feature = "trace"))]
     fn prove(
         &mut self,
         commit_key: &ProverKey,
@@ -479,6 +481,13 @@ impl StandardComposer {
     /// each time the circuit grows considerably.
     pub fn new() -> Self {
         StandardComposer::with_expected_size(0)
+    }
+
+    /// Returns the public inputs that the `StandardComposer` has stored until
+    /// the time when this function is called as a `Vec<Scalar>`.
+    #[cfg(feature = "trace")]
+    pub fn public_inputs(&self) -> Vec<Scalar> {
+        self.public_inputs
     }
 
     /// Split `t(X)` poly into 3 degree `n` polynomials.
@@ -1582,6 +1591,65 @@ impl StandardComposer {
             self.n,
         );
         self.n += 1;
+    }
+
+    /// Utility function that allows to check on the "front-end"
+    /// side of the PLONK implementation if the identity polynomial
+    /// is satisfied for each one of the `StandardComposer`'s gates.
+    #[cfg(feature = "trace")]
+    pub fn check_circuit_satisfied(&self) {
+        let w_l = self.to_scalars(&self.w_l);
+        let w_r = self.to_scalars(&self.w_r);
+        let w_o = self.to_scalars(&self.w_o);
+        let w_4 = self.to_scalars(&self.w_4);
+        // Computes f(f-1)(f-2)(f-3)
+        let delta = |f: Scalar| -> Scalar {
+            let f_1 = f - Scalar::one();
+            let f_2 = f - Scalar::from(2);
+            let f_3 = f - Scalar::from(3);
+            f * f_1 * f_2 * f_3
+        };
+        let four = Scalar::from(4);
+
+        for i in 0..self.n {
+            let qm = self.q_m[i];
+            let ql = self.q_l[i];
+            let qr = self.q_r[i];
+            let qo = self.q_o[i];
+            let qc = self.q_c[i];
+            let q4 = self.q_4[i];
+            let qarith = self.q_arith[i];
+            let qrange = self.q_range[i];
+            let qlogic = self.q_logic[i];
+            let pi = self.public_inputs[i];
+
+            let a = w_l[i];
+            let a_next = w_l[(i + 1) % self.n];
+            let b = w_r[i];
+            let b_next = w_r[(i + 1) % self.n];
+            let c = w_o[i];
+            let d = w_4[i];
+            let d_next = w_4[(i + 1) % self.n];
+            let k = qarith * ((qm * a * b) + (ql * a) + (qr * b) + (qo * c) + (q4 * d) + pi + qc)
+                + qlogic
+                    * (((delta(a_next - four * a) - delta(b_next - four * b)) * c)
+                        + delta(a_next - four * a)
+                        + delta(b_next - four * b)
+                        + delta(d_next - four * d)
+                        + match (qlogic == Scalar::one(), qlogic == -Scalar::one()) {
+                            (true, false) => (a & b) - d,
+                            (false, true) => (a ^ b) - d,
+                            (false, false) => Scalar::zero(),
+                            _ => unreachable!(),
+                        })
+                + qrange
+                    * (delta(c - four * d)
+                        + delta(b - four * c)
+                        + delta(a - four * b)
+                        + delta(d_next - four * a));
+
+            assert_eq!(k, Scalar::zero(), "Check failed at gate {}", i,);
+        }
     }
 }
 
