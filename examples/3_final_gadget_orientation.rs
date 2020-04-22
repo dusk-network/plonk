@@ -69,7 +69,7 @@ fn gadget_builder(composer: &mut StandardComposer, inputs: &[Scalar], final_resu
 
     let ab_xor_cd = composer.logic_xor_gate(a_plus_b, c_plus_d, 14usize);
     composer.bool_gate(ab_xor_cd);
-    composer.constrain_to_constant(ab_xor_cd, Scalar::zero(), -final_result);
+    composer.constrain_to_constant(ab_xor_cd, Scalar::zero(), final_result);
     composer.add_dummy_constraints();
 }
 
@@ -78,7 +78,7 @@ fn elaborate_proof(composer: &mut StandardComposer, transcript: &mut Transcript)
 }
 
 fn verify_proof(proof: &Proof, pub_input: Scalar) -> bool {
-    let mut verif_transcript = Transcript::new(b"PLONK!!");
+    let mut verif_transcript = Transcript::new(b"Gadget-Orientation-Is-Cool");
     let zero = Scalar::zero();
 
     proof.verify(
@@ -86,14 +86,14 @@ fn verify_proof(proof: &Proof, pub_input: Scalar) -> bool {
         &mut verif_transcript,
         &VERIFIER_KEY,
         &[
-            zero, zero, zero, zero, zero, zero, zero, zero, zero, zero, zero, zero, -pub_input,
+            zero, zero, zero, zero, zero, zero, zero, zero, zero, zero, zero, zero, pub_input,
         ],
     )
 }
 
 fn start_proving(inputs: &[Scalar], final_result: Scalar) -> Proof {
     let mut composer = StandardComposer::new();
-    let mut transcript = Transcript::new(b"PLONK!!");
+    let mut transcript = Transcript::new(b"Gadget-Orientation-Is-Cool");
     gadget_builder(&mut composer, inputs, final_result);
     elaborate_proof(&mut composer, &mut transcript)
 }
