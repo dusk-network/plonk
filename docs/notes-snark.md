@@ -221,7 +221,7 @@ which are used throughout the
 protocol. However, in detail 
 explanations of these are a out 
 of scope for these docs, more 
-information on the role of pairing
+information on the role pairing
 cryptography has within SNARK 
 construction can be found [here][pairings]. 
 

@@ -91,7 +91,9 @@ the role in the circuit.
 PLONK also has constant, which
 are denoted as 'Q'. These 
 values will change for each 
-programme. When they are 
+programme. The shape of 
+the circuit is defined by
+these When they are 
 combined with the gate 
 equations, we get the 
 polynomial equation for 
@@ -186,7 +188,7 @@ polynomial is equal to '1' or
 
 With these specific bases, we
 can derive the relation between 
-all sets fo equations into one 
+all sets of equations into one 
 single polynomial equation,
 where we have a vector of inputs
 to each gate type:
@@ -247,11 +249,13 @@ verfier.
 
 
 
+Lagrangian polynomials
+======================
 
 The use of polynomials in the 
 PLONK proving scheme refers
 to specific evaluation domains,
-names Lagrangian polynomials,  
+named Lagrangian polynomials,  
 based on interpolation of two 
 functions of a particular group
 elements. The following section 
