@@ -42,3 +42,4 @@ rustdoc-args = [
 [features]
 nightly = []
 default = ["serde"]
+trace = []
