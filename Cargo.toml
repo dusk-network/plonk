@@ -43,3 +43,4 @@ rustdoc-args = [
 nightly = []
 default = ["serde"]
 trace = []
+trace-print = ["trace"]
