@@ -194,12 +194,16 @@ impl Permutation {
             &Polynomial,
         ),
     ) -> Polynomial {
+        // We need to pad the witness coeffs to match the `EvaluationDomain`
+        // size which is usually the next power of two respectively to the
+        // domain.size
+        let padding = vec![Scalar::zero(); domain.size() - w_l.len()];
         let z_evaluations = self.compute_fast_permutation_poly(
             domain,
-            w_l,
-            w_r,
-            w_o,
-            w_4,
+            &[w_l, &padding].concat(),
+            &[w_r, &padding].concat(),
+            &[w_o, &padding].concat(),
+            &[w_4, &padding].concat(),
             beta,
             gamma,
             (
