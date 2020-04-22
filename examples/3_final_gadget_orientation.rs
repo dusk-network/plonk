@@ -22,14 +22,14 @@ lazy_static! {
         prep_circ
     };
     static ref VERIFIER_KEY: VerifierKey = {
-        let ser_pub_params = fs::read(&"public_params.bin")
+        let ser_pub_params = fs::read(&"examples/.public_params.bin")
             .expect("File not found. Run example `0_setup_srs.rs` first please");
         let pub_params: PublicParameters = bincode::deserialize(&ser_pub_params).unwrap();
         let verif_key: VerifierKey = pub_params.trim(CIRCUIT_SIZE.next_power_of_two()).unwrap().1;
         verif_key
     };
     static ref PROVER_KEY: ProverKey = {
-        let ser_pub_params = fs::read(&"public_params.bin")
+        let ser_pub_params = fs::read(&"examples/.public_params.bin")
             .expect("File not found. Run example `0_setup_srs.rs` first please");
         let pub_params: PublicParameters = bincode::deserialize(&ser_pub_params).unwrap();
         let prov_key: ProverKey = pub_params
@@ -113,9 +113,12 @@ fn main() {
     ];
     // We just need to do call one function to build a proof
     let proof = start_proving(&inputs, pub_input);
+
     // Verify it is as easy as
     assert!(verify_proof(&proof, pub_input) == true);
 
+    //
+    //
     // We can also asume that we just recieve `Proof`s on a serialized manner that have been
     // sent through the network.
     let ok_proof_data =
