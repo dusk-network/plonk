@@ -138,8 +138,8 @@ fn build_proof(
     // the `ProverKey`.
     //
     // Read serialized pub_params from the file where we stored them on the previous example.
-    let ser_pub_params = fs::read(&"public_params.bin")
-        .expect("File not found. Run example `0_setup_srs.rs` first please");
+    let ser_pub_params = fs::read(&"examples/.public_params.bin")
+        .expect("File not found. Run example `0_setup_srs` first please");
     let pub_params: PublicParameters = bincode::deserialize(&ser_pub_params).unwrap();
     // Derive the `ProverKey` from the `PublicParameters`.
     let (prover_key, _) = pub_params
@@ -173,7 +173,7 @@ fn gen_verifier_params(
     // the `ProverKey`.
     //
     // Read serialized pub_params from the file where we stored them on the previous example.
-    let ser_pub_params = fs::read(&"public_params.bin")
+    let ser_pub_params = fs::read(&"examples/.public_params.bin")
         .expect("File not found. Run example `0_setup_srs.rs` first please");
     let pub_params: PublicParameters = bincode::deserialize(&ser_pub_params).unwrap();
     // Derive the `ProverKey` from the `PublicParameters`.
@@ -278,4 +278,5 @@ fn main() -> () {
         &mut verifier_transcript,
         &-Scalar::one()
     ));
+    println!("The proof was succesfully verified!");
 }
