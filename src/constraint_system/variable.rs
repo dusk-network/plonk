@@ -1,4 +1,5 @@
-//! This module holds XXXX
+//! This module holds the components needed in the Constraint System.
+//! The two components used are Variables and Wires.
 use bls12_381::Scalar;
 
 /// The value is a reference to the actual value that was added to the constraint system

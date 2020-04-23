@@ -66,10 +66,11 @@ pub struct StandardComposer {
     w_o: Vec<Variable>,
     w_4: Vec<Variable>,
 
-    // We reserve a variable to be zero in the system
-    // This is so that when a gate only uses three, we set the fourth wire to be
-    // the variable that references zero
-    zero_var: Variable,
+    /// A zero variable that is a part of the circuit description.
+    /// We reserve a variable to be zero in the system
+    /// This is so that when a gate only uses three wires, we set the fourth wire to be
+    /// the variable that references zero
+    pub zero_var: Variable,
 
     // These are the actual variable values
     // N.B. They should not be exposed to the end user once added into the composer
@@ -1138,7 +1139,7 @@ impl StandardComposer {
     ///
     /// ## Panics
     /// This function will panic if the num_bits specified is not even `num_bits % 2 != 0`.
-    pub fn logic_gate(
+    pub(crate) fn logic_gate(
         &mut self,
         a: Variable,
         b: Variable,

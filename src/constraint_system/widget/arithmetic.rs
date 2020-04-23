@@ -142,7 +142,7 @@ impl<'de> Deserialize<'de> for ArithmeticWidget {
 
 impl ArithmeticWidget {
     #[allow(clippy::type_complexity)]
-    pub fn new(
+    pub(crate) fn new(
         selectors: (
             (Polynomial, Commitment, Option<Evaluations>),
             (Polynomial, Commitment, Option<Evaluations>),
@@ -163,7 +163,7 @@ impl ArithmeticWidget {
             q_arith: PreProcessedPolynomial::new(selectors.6),
         }
     }
-    pub fn compute_quotient_i(
+    pub(crate) fn compute_quotient_i(
         &self,
         index: usize,
         w_l_i: &Scalar,
@@ -190,7 +190,7 @@ impl ArithmeticWidget {
         (a_1 + a_2 + a_3 + a_4 + a_5 + a_6) * q_arith_i
     }
 
-    pub fn compute_linearisation(
+    pub(crate) fn compute_linearisation(
         &self,
         a_eval: &Scalar,
         b_eval: &Scalar,
@@ -233,7 +233,7 @@ impl ArithmeticWidget {
         a
     }
 
-    pub fn compute_linearisation_commitment(
+    pub(crate) fn compute_linearisation_commitment(
         &self,
         scalars: &mut Vec<Scalar>,
         points: &mut Vec<G1Affine>,
