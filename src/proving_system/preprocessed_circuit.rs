@@ -1,5 +1,4 @@
 use crate::fft::Evaluations;
-use crate::fft::Evaluations;
 use crate::proving_system::widget::{
     ArithmeticWidget, LogicWidget, PermutationWidget, RangeWidget,
 };
