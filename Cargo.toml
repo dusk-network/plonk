@@ -4,11 +4,20 @@ version = "0.1.0"
 authors = ["Kevaundray Wedderburn <kevtheappdev@gmail.com>",
            "Luke Pearson <luke@dusk.network>", 
            "CPerezz <carlos@dusk.network>"] 
+readme = "README.md"
+documentation = "https://dusk-network.github.io/plonk/plonk/"
+repository = "https://github.com/dusk-network/plonk"
+keywords = ["cryptography", "plonk", "zk-snarks", "zero-knowledge", "crypto"]
+categories =["Algorithms", "Cryptography", "Development tools"]
+description = "A pure-Rust implementation of the PLONK ZK-Proof algorithm"
+exclude = [
+    "**/.gitignore",
+    ".gitignore",
+    "**/examples"
+]
+license = "MPL-2.0"
 edition = "2018"
 
-
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 merlin = "2.0.0"
