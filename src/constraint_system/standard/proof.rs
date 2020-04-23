@@ -34,7 +34,6 @@ pub struct Proof {
     /// Commitment to the permutation polynomial.
     pub z_comm: Commitment,
 
-    // XXX: We could explain more here?
     /// Commitment to the quotient polynomial.
     pub t_1_comm: Commitment,
     /// Commitment to the quotient polynomial.
@@ -224,46 +223,6 @@ impl<'de> Deserialize<'de> for Proof {
 }
 
 impl Proof {
-    /// Generates an empty proof with all of the `Commitments` and
-    /// `Evaluations` set to `Default` or zero.
-    pub fn empty() -> Proof {
-        Proof {
-            a_comm: Commitment::empty(),
-            b_comm: Commitment::empty(),
-            c_comm: Commitment::empty(),
-            d_comm: Commitment::empty(),
-
-            z_comm: Commitment::empty(),
-
-            t_1_comm: Commitment::empty(),
-            t_2_comm: Commitment::empty(),
-            t_3_comm: Commitment::empty(),
-            t_4_comm: Commitment::empty(),
-
-            w_z_comm: Commitment::empty(),
-            w_zw_comm: Commitment::empty(),
-            evaluations: ProofEvaluations {
-                a_eval: Scalar::zero(),
-                b_eval: Scalar::zero(),
-                c_eval: Scalar::zero(),
-                d_eval: Scalar::zero(),
-                a_next_eval: Scalar::zero(),
-                b_next_eval: Scalar::zero(),
-                d_next_eval: Scalar::zero(),
-                q_arith_eval: Scalar::zero(),
-                q_c_eval: Scalar::zero(),
-
-                left_sigma_eval: Scalar::zero(),
-                right_sigma_eval: Scalar::zero(),
-                out_sigma_eval: Scalar::zero(),
-
-                lin_poly_eval: Scalar::zero(),
-
-                perm_eval: Scalar::zero(),
-            },
-        }
-    }
-
     /// Performs the verification of a `Proof` returning a boolean result.
     pub fn verify(
         &self,
@@ -274,7 +233,7 @@ impl Proof {
     ) -> bool {
         let domain = EvaluationDomain::new(preprocessed_circuit.n).unwrap();
 
-        // XXX: Check if components are valid
+        // subgroup checks are done when the proof is deserialised.
 
         // In order for the Verifier and Prover to have the same view in the non-interactive setting
         // Both parties must commit the same elements into the transcript
@@ -559,7 +518,6 @@ fn compute_barycentric_eval(
         .sum();
 
     result * numerator
-
 }
 
 #[cfg(test)]
