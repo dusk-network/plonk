@@ -1,7 +1,8 @@
 use super::PreProcessedPolynomial;
 use crate::commitment_scheme::kzg10::Commitment;
-use crate::constraint_system::standard::linearisation_poly::ProofEvaluations;
 use crate::fft::{Evaluations, Polynomial};
+use crate::proof_system::linearisation_poly::ProofEvaluations;
+
 use bls12_381::{G1Affine, Scalar};
 #[cfg(feature = "serde")]
 use serde::{de::Visitor, ser::SerializeStruct, Deserialize, Deserializer, Serialize, Serializer};
@@ -91,13 +92,13 @@ impl<'de> Deserialize<'de> for RangeWidget {
 }
 
 impl RangeWidget {
-    pub fn new(selector: (Polynomial, Commitment, Option<Evaluations>)) -> RangeWidget {
+    pub(crate) fn new(selector: (Polynomial, Commitment, Option<Evaluations>)) -> RangeWidget {
         RangeWidget {
             q_range: PreProcessedPolynomial::new(selector),
         }
     }
 
-    pub fn compute_quotient_i(
+    pub(crate) fn compute_quotient_i(
         &self,
         index: usize,
         w_l_i: &Scalar,
@@ -119,7 +120,7 @@ impl RangeWidget {
         (b_1 + b_2 + b_3 + b_4) * q_range_i
     }
 
-    pub fn compute_linearisation(
+    pub(crate) fn compute_linearisation(
         &self,
         a_eval: &Scalar,
         b_eval: &Scalar,
@@ -139,7 +140,7 @@ impl RangeWidget {
         q_range_poly * &(b_1 + b_2 + b_3 + b_4)
     }
 
-    pub fn compute_linearisation_commitment(
+    pub(crate) fn compute_linearisation_commitment(
         &self,
         scalars: &mut Vec<Scalar>,
         points: &mut Vec<G1Affine>,

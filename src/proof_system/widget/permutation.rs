@@ -3,9 +3,9 @@
 #![allow(clippy::too_many_arguments)]
 use super::PreProcessedPolynomial;
 use crate::commitment_scheme::kzg10::Commitment;
-use crate::constraint_system::standard::linearisation_poly::ProofEvaluations;
 use crate::fft::{EvaluationDomain, Evaluations, Polynomial};
 use crate::permutation::constants::{K1, K2, K3};
+use crate::proof_system::linearisation_poly::ProofEvaluations;
 use bls12_381::{G1Affine, Scalar};
 use rayon::prelude::*;
 #[cfg(feature = "serde")]
@@ -136,7 +136,7 @@ impl<'de> Deserialize<'de> for PermutationWidget {
 }
 
 impl PermutationWidget {
-    pub fn new(
+    pub(crate) fn new(
         left_sigma: (Polynomial, Commitment, Option<Evaluations>),
         right_sigma: (Polynomial, Commitment, Option<Evaluations>),
         out_sigma: (Polynomial, Commitment, Option<Evaluations>),
@@ -152,7 +152,7 @@ impl PermutationWidget {
         }
     }
 
-    pub fn compute_quotient_i(
+    pub(crate) fn compute_quotient_i(
         &self,
         index: usize,
         w_l_i: &Scalar,
@@ -229,7 +229,7 @@ impl PermutationWidget {
         (z_i - Scalar::one()) * l1_alpha_sq
     }
 
-    pub fn compute_linearisation(
+    pub(crate) fn compute_linearisation(
         &self,
         z_challenge: &Scalar,
         (alpha, beta, gamma): (&Scalar, &Scalar, &Scalar),
@@ -341,7 +341,7 @@ impl PermutationWidget {
         z_coeffs * &(l_1_z * alpha_sq)
     }
 
-    pub fn compute_linearisation_commitment(
+    pub(crate) fn compute_linearisation_commitment(
         &self,
         scalars: &mut Vec<Scalar>,
         points: &mut Vec<G1Affine>,
