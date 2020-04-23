@@ -60,5 +60,5 @@ fn main() -> () {
     // easier.
     let ser_pub_params = bincode::serialize(&public_params).unwrap();
 
-    fs::write("public_params.bin", &ser_pub_params).expect("Unable to write file");
+    fs::write("examples/.public_params.bin", &ser_pub_params).expect("Unable to write file");
 }

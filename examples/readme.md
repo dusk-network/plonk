@@ -10,7 +10,7 @@ To run the examples, run:
 
 ## Table of contents
 
-Examples are splited into 4 files at the moment (we might extend it on the future).
+Examples are splited into 5 files at the moment (we might extend it on the future).
 
 
 1. `0_setup_srs` tries to show to the user how to generate a "Trusted Setup"
@@ -32,7 +32,12 @@ code as well as less code duplications and more performance. It tries to not inc
 extra crates and explains step by step everything that is done there. 
 It also adds some coments on what could be improved to lead to a better implementation.
 
-4. `3_final_gadget_orientation` is basically the **model file** or how the final code
+4. `3_0_setup_for_gadgets` shows how to setup all of the parameters that you can
+pre-compute as seen in example `2_gadget_orientation` on an easy & quick way and that
+will then be used for our final and recommended way of implementing plonk in your
+library stack.
+
+5. `3_1_final_gadget_orientation` is basically the **model file** or how the final code
 on your plonk implementations should look like to allow better readability and avoid 
 code duplications and/or errors in the implementation.
 All of the things that we do there are explained on the previous examples. So if you feel
