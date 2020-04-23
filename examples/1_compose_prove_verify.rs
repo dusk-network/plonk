@@ -198,7 +198,6 @@ fn main() {
     // Using this way, we need to know that it is applying the following constraint:
     // `ab_xor_cd - q_c + PI = 0`. So we need to give the negative sign to the public inputs
     // to then force the gate to do `ab_xor_cd - q_c + (-PI) = 0
-    println!("{:?}", composer.circuit_size());
     composer.constrain_to_constant(ab_xor_cd, Scalar::zero(), -one);
 
     // We can also use the same approach as before and go for an addition gate that subtracts the variable
@@ -274,8 +273,8 @@ fn main() {
     // the `ProverKey`.
     //
     // Read serialized pub_params from the file where we stored them on the previous example.
-    let ser_pub_params = fs::read(&"public_params.bin")
-        .expect("File not found.\n Run example `0_setup_srs.rs` first please");
+    let ser_pub_params = fs::read(&"examples/.public_params.bin")
+        .expect("File not found.\n Run example `0_setup_srs` first please");
     let pub_params: PublicParameters = bincode::deserialize(&ser_pub_params).unwrap();
     // Derive the `ProverKey` from the `PublicParameters`.
     let (prover_key, verifier_key) = pub_params
@@ -285,15 +284,16 @@ fn main() {
     // Now we can finally preprocess the circuit that we've built.
     let pre_processed_circ = composer.preprocess(&prover_key, &mut prover_transcript, &eval_domain);
 
-    // We will now store our `PreProcessedCircuit` serialized with `bincode`.
-    let ser_prep_cir = bincode::serialize(&pre_processed_circ).unwrap();
-    // We will store the `PreProcessedCircuit` serialized in a file for later usage.
-    fs::write("preprocessed_circ.bin", &ser_prep_cir).expect("Unable to write file");
+    // We could now store our `PreProcessedCircuit` serialized with `bincode`.
+    // let ser_prep_cir = bincode::serialize(&pre_processed_circ).unwrap();
+    // We can store the `PreProcessedCircuit` serialized in a file for later usage.
+    //
+    //fs::write("preprocessed_circ.bin", &ser_prep_cir).expect("Unable to write file");
 
     // We can do a quick prove and verify process now since we have our witnesses loaded in the
     // Composer and we also have our circuit preprocessed.
 
-    // Whith the preprocessed_circuit we can now elaborate proofs with the `witness` values (Variables)
+    // With the preprocessed_circuit we can now elaborate proofs with the `witness` values (Variables)
     // that we've loaded into our `Composer`.
     //
     // We clone the transcript since we don't want to modify it to allow then the verifier to re-use it.
@@ -302,9 +302,6 @@ fn main() {
         &pre_processed_circ,
         &mut prover_transcript.clone(),
     );
-
-    // Generate the Verifier Transcript with the same original randomness.
-    //let mut verifier_transcript = Transcript::new(b"End-To-End-Example");
 
     let zero = Scalar::zero();
     let one = Scalar::one();
@@ -315,4 +312,5 @@ fn main() {
         &verifier_key,
         &vec![zero, zero, zero, zero, zero, zero, zero, zero, zero, zero, zero, zero, -one, -one],
     ));
+    println!("Proof verified succesfully!");
 }
