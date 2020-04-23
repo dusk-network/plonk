@@ -99,7 +99,7 @@ impl<'de> Deserialize<'de> for LogicWidget {
 }
 
 impl LogicWidget {
-    pub fn new(
+    pub(crate) fn new(
         q_c: (Polynomial, Commitment, Option<Evaluations>),
         q_logic: (Polynomial, Commitment, Option<Evaluations>),
     ) -> LogicWidget {
@@ -109,7 +109,7 @@ impl LogicWidget {
         }
     }
 
-    pub fn compute_quotient_i(
+    pub(crate) fn compute_quotient_i(
         &self,
         index: usize,
         w_l_i: &Scalar,
@@ -143,7 +143,7 @@ impl LogicWidget {
         q_logic_i * (c_3 + c_0 + c_1 + c_2 + c_4)
     }
 
-    pub fn compute_linearisation(
+    pub(crate) fn compute_linearisation(
         &self,
         a_eval: &Scalar,
         a_next_eval: &Scalar,
@@ -176,7 +176,7 @@ impl LogicWidget {
         q_logic_poly * &(c_0 + c_1 + c_2 + c_3 + c_4)
     }
 
-    pub fn compute_linearisation_commitment(
+    pub(crate) fn compute_linearisation_commitment(
         &self,
         scalars: &mut Vec<Scalar>,
         points: &mut Vec<G1Affine>,
