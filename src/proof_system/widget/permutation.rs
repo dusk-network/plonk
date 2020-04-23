@@ -3,9 +3,9 @@
 #![allow(clippy::too_many_arguments)]
 use super::PreProcessedPolynomial;
 use crate::commitment_scheme::kzg10::Commitment;
-use crate::constraint_system::standard::linearisation_poly::ProofEvaluations;
 use crate::fft::{EvaluationDomain, Evaluations, Polynomial};
 use crate::permutation::constants::{K1, K2, K3};
+use crate::proof_system::linearisation_poly::ProofEvaluations;
 use bls12_381::{G1Affine, Scalar};
 use rayon::prelude::*;
 #[cfg(feature = "serde")]

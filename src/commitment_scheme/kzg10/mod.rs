@@ -182,6 +182,12 @@ impl Commitment {
     }
 }
 
+impl Default for Commitment {
+    fn default() -> Self {
+        Commitment::empty()
+    }
+}
+
 mod tests {
     #[allow(unused_imports)]
     use super::*;
