@@ -13,7 +13,9 @@ description = "A pure-Rust implementation of the PLONK ZK-Proof algorithm"
 exclude = [
     "**/.gitignore",
     ".gitignore",
-    "**/examples"
+    "**/examples",
+    "benchmarks/",
+    ".CHANGELOG.md"
 ]
 license = "MPL-2.0"
 edition = "2018"
@@ -34,7 +36,7 @@ serde = {version = "1.0.106", features = ["derive"], optional = true}
 [dev-dependencies]
 criterion = "0.3.0"
 rand = "0.7.0"
-bincode = "1"
+bincode = "1.2.1"
 lazy_static = "1.4.0"
 
 # Criterion benchmarks
