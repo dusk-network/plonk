@@ -1,7 +1,7 @@
 use super::PreProcessedPolynomial;
 use crate::commitment_scheme::kzg10::Commitment;
-use crate::constraint_system::standard::linearisation_poly::ProofEvaluations;
 use crate::fft::{Evaluations, Polynomial};
+use crate::proof_system::linearisation_poly::ProofEvaluations;
 use bls12_381::{G1Affine, Scalar};
 #[cfg(feature = "serde")]
 use serde::{de::Visitor, ser::SerializeStruct, Deserialize, Deserializer, Serialize, Serializer};

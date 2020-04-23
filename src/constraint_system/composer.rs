@@ -12,18 +12,16 @@
 // it is intended to be like this in order to provide
 // maximum performance and minimum circuit sizes.
 #![allow(clippy::too_many_arguments)]
-use super::linearisation_poly;
-use super::quotient_poly;
-use super::{proof::Proof, Composer, PreProcessedCircuit};
 use crate::bit_iterator::*;
 use crate::commitment_scheme::kzg10::ProverKey;
-use crate::constraint_system::widget::{
-    ArithmeticWidget, LogicWidget, PermutationWidget, RangeWidget,
-};
 use crate::constraint_system::Variable;
 use crate::constraint_system::WireData;
 use crate::fft::{EvaluationDomain, Evaluations, Polynomial};
 use crate::permutation::Permutation;
+use crate::proof_system::linearisation_poly;
+use crate::proof_system::quotient_poly;
+use crate::proof_system::widget::{ArithmeticWidget, LogicWidget, PermutationWidget, RangeWidget};
+use crate::proof_system::{proof::Proof, PreProcessedCircuit};
 use crate::transcript::TranscriptProtocol;
 use bls12_381::Scalar;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
@@ -79,10 +77,10 @@ pub struct StandardComposer {
     pub(crate) perm: Permutation,
 }
 
-impl Composer for StandardComposer {
-    // Computes the pre-processed polynomials
-    // So the verifier can verify a proof made using this circuit.
-    fn preprocess(
+impl StandardComposer {
+    /// Computes the pre-processed polynomials
+    /// So the verifier can verify a proof made using this circuit
+    pub fn preprocess(
         &mut self,
         commit_key: &ProverKey,
         transcript: &mut dyn TranscriptProtocol,
@@ -253,9 +251,9 @@ impl Composer for StandardComposer {
         }
     }
 
-    // Prove will compute the pre-processed polynomials and
-    // produce a proof
-    fn prove(
+    /// Prove will compute the pre-processed polynomials and
+    /// produce a proof
+    pub fn prove(
         &mut self,
         commit_key: &ProverKey,
         preprocessed_circuit: &PreProcessedCircuit,
@@ -458,8 +456,8 @@ impl Composer for StandardComposer {
             evaluations: evaluations.proof,
         }
     }
-
-    fn circuit_size(&self) -> usize {
+    /// Returns the number of gates in the circuit
+    pub fn circuit_size(&self) -> usize {
         self.n
     }
 }

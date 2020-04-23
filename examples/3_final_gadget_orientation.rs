@@ -9,9 +9,9 @@ extern crate plonk;
 use bls12_381::Scalar;
 use merlin::Transcript;
 use plonk::commitment_scheme::kzg10::{ProverKey, PublicParameters, VerifierKey};
-use plonk::constraint_system::standard::proof::Proof;
-use plonk::constraint_system::standard::{Composer, PreProcessedCircuit, StandardComposer};
+use plonk::constraint_system::StandardComposer;
 use plonk::fft::EvaluationDomain;
+use plonk::proof_system::{PreProcessedCircuit, Proof};
 use std::fs;
 
 lazy_static! {
