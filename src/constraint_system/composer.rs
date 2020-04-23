@@ -1306,7 +1306,6 @@ mod tests {
     use crate::commitment_scheme::kzg10::PublicParameters;
     use crate::proof_system::{Prover, Verifier};
     use bls12_381::Scalar as Fr;
-    use merlin::Transcript;
 
     // Returns a composer with `n` constraints
     fn add_dummy_composer(n: usize) -> StandardComposer {
@@ -1718,7 +1717,7 @@ mod tests {
                 .unwrap();
 
             // Preprocess circuit
-            let preprocessed_circuit = prover.preprocess(&ck);
+            prover.preprocess(&ck);
 
             // Compute Proof
             (prover.prove(&ck), prover.cs.public_inputs)
@@ -1738,7 +1737,7 @@ mod tests {
             .unwrap();
 
         // Preprocess circuit
-        let preprocessed_circuit = verifier.preprocess(&ck);
+        verifier.preprocess(&ck);
 
         // Verify proof
         verifier.verify(&proof, &vk, &public_inputs)

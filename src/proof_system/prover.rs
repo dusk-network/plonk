@@ -9,6 +9,7 @@ use merlin::Transcript;
 
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 /// Prover composes a circuit and builds a proof
+#[allow(missing_debug_implementations)]
 pub struct Prover {
     pub(crate) preprocessed_circuit: Option<PreProcessedCircuit>,
 
@@ -19,7 +20,8 @@ pub struct Prover {
 }
 
 impl Prover {
-    pub(crate) fn mut_cs(&mut self) -> &mut StandardComposer {
+    /// Returns a mutable copy of the underlying composer
+    pub fn mut_cs(&mut self) -> &mut StandardComposer {
         &mut self.cs
     }
     /// Preprocesses the underlying constraint system
@@ -32,6 +34,12 @@ impl Prover {
 // Draft 5: Lets just have the Prover wrap the composer functions
 // Cons of this approach is that we are duplicating. So might throw this away and go for something similar to Draft 4
 // In this idea, we have one composer per prover. So once we instantiate a Prover, you should not change the Composer/Preprocessed circuit
+
+impl Default for Prover {
+    fn default() -> Prover {
+        Prover::new()
+    }
+}
 
 impl Prover {
     /// Creates a new prover object

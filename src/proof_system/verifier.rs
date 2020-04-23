@@ -2,11 +2,11 @@ use crate::commitment_scheme::kzg10::{ProverKey, VerifierKey};
 use crate::constraint_system::StandardComposer;
 use crate::proof_system::PreProcessedCircuit;
 use crate::proof_system::Proof;
-use crate::transcript::TranscriptProtocol;
 use bls12_381::Scalar;
 use merlin::Transcript;
 
 /// Verifier verifies a proof
+#[allow(missing_debug_implementations)]
 pub struct Verifier {
     pub(crate) preprocessed_circuit: Option<PreProcessedCircuit>,
 
@@ -14,6 +14,12 @@ pub struct Verifier {
     // Store the messages exchanged during the preprocessing stage
     // This is copied each time, we make a proof
     pub(crate) preprocessed_transcript: Transcript,
+}
+
+impl Default for Verifier {
+    fn default() -> Verifier {
+        Verifier::new()
+    }
 }
 
 impl Verifier {
@@ -26,7 +32,8 @@ impl Verifier {
         }
     }
 
-    pub(crate) fn mut_cs(&mut self) -> &mut StandardComposer {
+    /// Returns a mutable copy of the underlying composer
+    pub fn mut_cs(&mut self) -> &mut StandardComposer {
         &mut self.cs
     }
     /// Preprocess a proof
@@ -42,7 +49,7 @@ impl Verifier {
         &self,
         proof: &Proof,
         verifier_key: &VerifierKey,
-        public_inputs: &Vec<Scalar>,
+        public_inputs: &[Scalar],
     ) -> bool {
         let mut cloned_transcript = self.preprocessed_transcript.clone();
         let preprocessed_circuit = self.preprocessed_circuit.as_ref().unwrap();

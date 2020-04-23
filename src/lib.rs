@@ -22,7 +22,7 @@
 // Bool expr are usually easier to read with match statements.
 #![allow(clippy::match_bool)]
 #![deny(intra_doc_link_resolution_failure)]
-#![warn(missing_debug_implementations)]
+#![deny(missing_debug_implementations)]
 #![deny(missing_docs)]
 #![deny(unsafe_code)]
 
