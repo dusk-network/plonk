@@ -81,7 +81,7 @@ pub struct StandardComposer {
 
 impl Composer for StandardComposer {
     // Computes the pre-processed polynomials
-    // So the verifier can verify a proof made using this circuit
+    // So the verifier can verify a proof made using this circuit.
     fn preprocess(
         &mut self,
         commit_key: &ProverKey,
@@ -481,6 +481,13 @@ impl StandardComposer {
     /// each time the circuit grows considerably.
     pub fn new() -> Self {
         StandardComposer::with_expected_size(0)
+    }
+
+    /// Returns the public inputs that the `StandardComposer` has stored until
+    /// the time when this function is called as a `Vec<Scalar>`.
+    #[cfg(feature = "trace")]
+    pub fn public_inputs(&self) -> Vec<Scalar> {
+        self.public_inputs.clone()
     }
 
     /// Split `t(X)` poly into 3 degree `n` polynomials.
@@ -1585,23 +1592,16 @@ impl StandardComposer {
         );
         self.n += 1;
     }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::commitment_scheme::kzg10::PublicParameters;
-    use bls12_381::Scalar as Fr;
-    use merlin::Transcript;
 
     /// Utility function that allows to check on the "front-end"
     /// side of the PLONK implementation if the identity polynomial
     /// is satisfied for each one of the `StandardComposer`'s gates.
-    fn check_circuit_satisfied(composer: &StandardComposer) {
-        let w_l = composer.to_scalars(&composer.w_l);
-        let w_r = composer.to_scalars(&composer.w_r);
-        let w_o = composer.to_scalars(&composer.w_o);
-        let w_4 = composer.to_scalars(&composer.w_4);
+    #[cfg(feature = "trace")]
+    pub fn check_circuit_satisfied(&self) {
+        let w_l = self.to_scalars(&self.w_l);
+        let w_r = self.to_scalars(&self.w_r);
+        let w_o = self.to_scalars(&self.w_o);
+        let w_4 = self.to_scalars(&self.w_4);
         // Computes f(f-1)(f-2)(f-3)
         let delta = |f: Scalar| -> Scalar {
             let f_1 = f - Scalar::one();
@@ -1611,25 +1611,46 @@ mod tests {
         };
         let four = Scalar::from(4);
 
-        for i in 0..composer.n {
-            let qm = composer.q_m[i];
-            let ql = composer.q_l[i];
-            let qr = composer.q_r[i];
-            let qo = composer.q_o[i];
-            let qc = composer.q_c[i];
-            let q4 = composer.q_4[i];
-            let qarith = composer.q_arith[i];
-            let qrange = composer.q_range[i];
-            let qlogic = composer.q_logic[i];
-            let pi = composer.public_inputs[i];
+        for i in 0..self.n {
+            let qm = self.q_m[i];
+            let ql = self.q_l[i];
+            let qr = self.q_r[i];
+            let qo = self.q_o[i];
+            let qc = self.q_c[i];
+            let q4 = self.q_4[i];
+            let qarith = self.q_arith[i];
+            let qrange = self.q_range[i];
+            let qlogic = self.q_logic[i];
+            let pi = self.public_inputs[i];
 
             let a = w_l[i];
-            let a_next = w_l[(i + 1) % composer.n];
+            let a_next = w_l[(i + 1) % self.n];
             let b = w_r[i];
-            let b_next = w_r[(i + 1) % composer.n];
+            let b_next = w_r[(i + 1) % self.n];
             let c = w_o[i];
             let d = w_4[i];
-            let d_next = w_4[(i + 1) % composer.n];
+            let d_next = w_4[(i + 1) % self.n];
+            #[cfg(feature = "trace-print")]
+            println!(
+                "--------------------------------------------\n
+            #Gate Index = {}
+            #Selector Polynomials:\n
+            - qm -> {:?}\n
+            - ql -> {:?}\n
+            - qr -> {:?}\n
+            - q4 -> {:?}\n
+            - qo -> {:?}\n
+            - qc -> {:?}\n
+            - q_arith -> {:?}\n
+            - q_range -> {:?}\n
+            - q_logic -> {:?}\n
+            # Witness polynomials:\n
+            - w_l -> {:?}\n
+            - w_r -> {:?}\n
+            - w_o -> {:?}\n
+            - w_4 -> {:?}\n",
+                i, qm, ql, qr, q4, qo, qc, qarith, qrange, qlogic, a, b, c, d
+            );
             let k = qarith * ((qm * a * b) + (ql * a) + (qr * b) + (qo * c) + (q4 * d) + pi + qc)
                 + qlogic
                     * (((delta(a_next - four * a) - delta(b_next - four * b)) * c)
@@ -1651,6 +1672,14 @@ mod tests {
             assert_eq!(k, Scalar::zero(), "Check failed at gate {}", i,);
         }
     }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::commitment_scheme::kzg10::PublicParameters;
+    use bls12_381::Scalar as Fr;
+    use merlin::Transcript;
 
     // Returns a composer with `n` constraints
     fn add_dummy_composer(n: usize) -> StandardComposer {
@@ -1698,12 +1727,12 @@ mod tests {
         assert!(composer.w_o.len() == size);
     }
 
+    #[cfg(feature = "trace")]
     #[test]
     fn test_prove_verify() {
         let ok = test_gadget(
             |composer| {
                 // do nothing except add the dummy constraints
-                check_circuit_satisfied(&composer);
             },
             200,
         );
@@ -1724,7 +1753,6 @@ mod tests {
                     Scalar::from(500u64 ^ 357u64),
                     Scalar::zero(),
                 );
-                check_circuit_satisfied(composer);
             },
             200,
         );
@@ -1742,7 +1770,6 @@ mod tests {
                     Scalar::from(469u64 & 321u64),
                     Scalar::zero(),
                 );
-                check_circuit_satisfied(composer);
             },
             200,
         );
@@ -1777,7 +1804,6 @@ mod tests {
                 let xor_res = composer.logic_gate(witness_a, witness_b, 9, true);
                 // Check that the XOR result is indeed what we are expecting.
                 composer.constrain_to_constant(xor_res, Scalar::from(7u64), Scalar::zero());
-                check_circuit_satisfied(composer);
             },
             200,
         );
@@ -1811,7 +1837,6 @@ mod tests {
             |composer| {
                 let witness = composer.add_input(Scalar::from(2u64.pow(34) - 1));
                 composer.range_gate(witness, 34);
-                check_circuit_satisfied(composer);
             },
             200,
         );
@@ -1876,8 +1901,6 @@ mod tests {
                     Scalar::zero(),
                     Scalar::zero(),
                 );
-
-                check_circuit_satisfied(composer);
 
                 let twenty = composer.big_add(
                     six.into(),
