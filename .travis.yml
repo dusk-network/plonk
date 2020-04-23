@@ -2,6 +2,11 @@ language: rust
 sudo: true
 os: 
   - linux
+
+## Things to do before installation
+before_install:
+  - sudo apt-get update
+  
 # Inclide needed packages
 addons:
   apt:
