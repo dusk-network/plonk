@@ -6,7 +6,7 @@ os:
 ## Things to do before installation
 before_install:
   - sudo apt-get update
-  
+
 # Inclide needed packages
 addons:
   apt:
@@ -33,12 +33,17 @@ matrix:
       - cargo check
       - cargo build --release --verbose --all
       - cargo test --release --verbose --all
+      ## Build & test in debug mode so codecov can take the data required
+      - cargo build
+      - cargo test
+
   - rust: beta
     install:
     script:
       - cargo check
       - cargo build --release --verbose --all
       - cargo test --release --verbose --all
+      
   - rust: nightly
     install:
     before_script:
