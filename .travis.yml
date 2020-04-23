@@ -3,23 +3,47 @@ sudo: true
 os: 
   - linux
 
+## Things to do before installation
+before_install:
+  - sudo apt-get update
+
+# Inclide needed packages
+addons:
+  apt:
+    packages:
+    ## All of these are needed by CodeCov.
+      - libcurl4-openssl-dev
+      - libelf-dev
+      - libdw-dev
+      - cmake
+      - gcc
+      - binutils-dev
+
+# Build definition
 matrix:
   include:
   - rust: stable
     install:
     before_script:
+      - sudo apt-get update
+      - sudo apt-get install libmodbus-dev
       - rustup component add clippy
     script:
       - cargo clippy -- -D warnings
       - cargo check
       - cargo build --release --verbose --all
       - cargo test --release --verbose --all
+      ## Build & test in debug mode so codecov can take the data required
+      - cargo build
+      - cargo test
+
   - rust: beta
     install:
     script:
       - cargo check
       - cargo build --release --verbose --all
       - cargo test --release --verbose --all
+      
   - rust: nightly
     install:
     before_script:
@@ -29,8 +53,37 @@ matrix:
       - cargo build --release --verbose --all --features nightly
       - cargo test --release --verbose --all --features nightly
       - cargo doc --no-deps --features nightly
-    after_success:
-      - travis-cargo --only nightly doc-upload
+
+
+# Upload docs
+after_success:
+  # Coverage report
+  - |
+      if [[ "$TRAVIS_OS_NAME" == "linux" && "$TRAVIS_RUST_VERSION" == "stable" ]]; then
+        wget https://github.com/SimonKagstrom/kcov/archive/master.tar.gz &&
+        tar xzf master.tar.gz &&
+        cd kcov-master &&
+        mkdir build &&
+        cd build &&
+        cmake .. &&
+        make &&
+        sudo make install &&
+        cd ../.. &&
+        rm -rf kcov-master &&
+        for file in target/debug/plonk-*[^\.d]; do mkdir -p "target/cov/$(basename $file)"; kcov --exclude-pattern=/.cargo,/usr/lib --verify "target/cov/$(basename $file)" "$file"; done &&
+        bash <(curl -s https://codecov.io/bash) &&
+        echo "Uploaded code coverage"
+      fi
+
+  # Upload docs
+  - |
+      if [[ "$TRAVIS_OS_NAME" == "linux" && "$TRAVIS_RUST_VERSION" == "nightly" && "$TRAVIS_PULL_REQUEST" = "false" && "$TRAVIS_BRANCH" == "master" ]]; then
+        cargo doc --no-deps --features nightly &&
+        echo "<meta http-equiv=refresh content=0;url=plonk/index.html>" > target/doc/index.html &&
+        git clone https://github.com/davisp/ghp-import.git &&
+        ./ghp-import/ghp_import.py -n -p -f -m "Documentation upload" -r https://"$GH_TOKEN"@github.com/"$TRAVIS_REPO_SLUG.git" target/doc &&
+        echo "Uploaded documentation"
+      fi
 
 
 # Send a notification to the Dusk build Status Telegram channel once the CI build completes
