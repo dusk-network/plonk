@@ -1,7 +1,3 @@
-//! This module contains an `EvaluationDomain` abstraction for
-//! performing various kinds of polynomial arithmetic on top of
-//! the scalar field.
-//!
 //! In pairing-based SNARKs like GM17, we need to calculate
 //! a quotient polynomial over a target polynomial with roots
 //! at distinct points associated with each constraint of the
@@ -14,6 +10,8 @@ use super::Evaluations;
 use bls12_381::{Scalar, GENERATOR, ROOT_OF_UNITY, TWO_ADACITY};
 use core::fmt;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefMutIterator, ParallelIterator};
+#[cfg(feature = "serde")]
+use serde::{de::Visitor, ser::SerializeStruct, Deserialize, Deserializer, Serialize, Serializer};
 use std::ops::MulAssign;
 
 /// Defines a domain over which finite field (I)FFTs can be performed. Works
@@ -40,6 +38,145 @@ pub struct EvaluationDomain {
 impl fmt::Debug for EvaluationDomain {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "Multiplicative subgroup of size {}", self.size)
+    }
+}
+
+#[cfg(feature = "serde")]
+impl Serialize for EvaluationDomain {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut eval_dom = serializer.serialize_struct("struct EvaluationDomain", 7)?;
+        eval_dom.serialize_field("size", &self.size)?;
+        eval_dom.serialize_field("log_size_of_group", &self.log_size_of_group)?;
+        eval_dom.serialize_field("size_as_field_element", &self.size_as_field_element)?;
+        eval_dom.serialize_field("size_inv", &self.size_inv)?;
+        eval_dom.serialize_field("group_gen", &self.group_gen)?;
+        eval_dom.serialize_field("group_gen_inv", &self.group_gen_inv)?;
+        eval_dom.serialize_field("generator_inv", &self.generator_inv)?;
+
+        eval_dom.end()
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<'de> Deserialize<'de> for EvaluationDomain {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        enum Field {
+            Size,
+            LogSizeOfGroup,
+            SizeAsFieldElement,
+            SizeInv,
+            GroupGen,
+            GroupGenInv,
+            GenInv,
+        };
+
+        impl<'de> Deserialize<'de> for Field {
+            fn deserialize<D>(deserializer: D) -> Result<Field, D::Error>
+            where
+                D: Deserializer<'de>,
+            {
+                struct FieldVisitor;
+
+                impl<'de> Visitor<'de> for FieldVisitor {
+                    type Value = Field;
+
+                    fn expecting(
+                        &self,
+                        formatter: &mut ::core::fmt::Formatter,
+                    ) -> ::core::fmt::Result {
+                        formatter.write_str("struct EvaluationDomain")
+                    }
+
+                    fn visit_str<E>(self, value: &str) -> Result<Field, E>
+                    where
+                        E: serde::de::Error,
+                    {
+                        match value {
+                            "size" => Ok(Field::Size),
+                            "log_size_of_group" => Ok(Field::LogSizeOfGroup),
+                            "size_as_field_element" => Ok(Field::SizeAsFieldElement),
+                            "size_inv" => Ok(Field::SizeInv),
+                            "group_gen" => Ok(Field::GroupGen),
+                            "group_gen_inv" => Ok(Field::GroupGenInv),
+                            "generator_inv" => Ok(Field::GenInv),
+                            _ => Err(serde::de::Error::unknown_field(value, FIELDS)),
+                        }
+                    }
+                }
+
+                deserializer.deserialize_identifier(FieldVisitor)
+            }
+        }
+
+        struct EvaluationDomainVisitor;
+
+        impl<'de> Visitor<'de> for EvaluationDomainVisitor {
+            type Value = EvaluationDomain;
+
+            fn expecting(&self, formatter: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+                formatter.write_str("struct EvaluationDomain")
+            }
+
+            fn visit_seq<V>(self, mut seq: V) -> Result<EvaluationDomain, V::Error>
+            where
+                V: serde::de::SeqAccess<'de>,
+            {
+                let size = seq
+                    .next_element()?
+                    .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
+                let log_size_of_group = seq
+                    .next_element()?
+                    .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
+                let size_as_field_element = seq
+                    .next_element()?
+                    .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
+                let size_inv = seq
+                    .next_element()?
+                    .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
+                let group_gen = seq
+                    .next_element()?
+                    .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
+                let group_gen_inv = seq
+                    .next_element()?
+                    .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
+                let generator_inv = seq
+                    .next_element()?
+                    .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
+                // Deserialization will fail if the log_size_of_group > TWO_ADACITY
+                // according to the `new()` fn implemented for `EvaluationDomain`.
+                match log_size_of_group < TWO_ADACITY {
+                    true => Ok(EvaluationDomain {
+                        size,
+                        log_size_of_group,
+                        size_as_field_element,
+                        size_inv,
+                        group_gen,
+                        group_gen_inv,
+                        generator_inv,
+                    }),
+                    false => Err(serde::de::Error::custom(
+                        "log_size_of_group is greater than Bls12_381 two_adacity",
+                    )),
+                }
+            }
+        }
+
+        const FIELDS: &[&str] = &[
+            "size",
+            "log_size_of_group",
+            "size_as_field_element",
+            "size_inv",
+            "group_gen",
+            "group_gen_inv",
+            "generator_inv",
+        ];
+        deserializer.deserialize_struct("EvaluationDomain", FIELDS, EvaluationDomainVisitor)
     }
 }
 
@@ -446,5 +583,16 @@ mod tests {
                 assert_eq!(element, domain.group_gen.pow(&[i as u64, 0, 0, 0]));
             }
         }
+    }
+
+    #[cfg(feature = "serde")]
+    #[test]
+    fn eval_domain_serde_roundtrip() {
+        use bincode;
+        let eval_dom = EvaluationDomain::new(((1 << 13) - 233) as usize).unwrap();
+        let ser = bincode::serialize(&eval_dom).unwrap();
+        let deser: EvaluationDomain = bincode::deserialize(&ser).unwrap();
+
+        assert_eq!(eval_dom, deser);
     }
 }

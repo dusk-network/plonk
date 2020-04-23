@@ -22,11 +22,177 @@ pub struct VerifierKey {
     pub prepared_beta_h: G2Prepared,
 }
 
+#[cfg(feature = "serde")]
+use serde::{
+    self, de::Visitor, ser::SerializeStruct, Deserialize, Deserializer, Serialize, Serializer,
+};
+
+#[cfg(feature = "serde")]
+impl Serialize for VerifierKey {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut verif_key = serializer.serialize_struct("struct VerifierKey", 5)?;
+        verif_key.serialize_field("g", &self.g)?;
+        verif_key.serialize_field("h", &self.h)?;
+        verif_key.serialize_field("beta_h", &self.beta_h)?;
+        verif_key.serialize_field("prepared_h", &self.prepared_h)?;
+        verif_key.serialize_field("prepared_beta_h", &self.prepared_beta_h)?;
+        verif_key.end()
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<'de> Deserialize<'de> for VerifierKey {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        enum Field {
+            G,
+            H,
+            BetaH,
+            PreparedH,
+            PreparedBetaH,
+        };
+
+        impl<'de> Deserialize<'de> for Field {
+            fn deserialize<D>(deserializer: D) -> Result<Field, D::Error>
+            where
+                D: Deserializer<'de>,
+            {
+                struct FieldVisitor;
+
+                impl<'de> Visitor<'de> for FieldVisitor {
+                    type Value = Field;
+
+                    fn expecting(
+                        &self,
+                        formatter: &mut ::core::fmt::Formatter,
+                    ) -> ::core::fmt::Result {
+                        formatter.write_str("struct VerifierKey")
+                    }
+
+                    fn visit_str<E>(self, value: &str) -> Result<Field, E>
+                    where
+                        E: serde::de::Error,
+                    {
+                        match value {
+                            "g" => Ok(Field::G),
+                            "h" => Ok(Field::H),
+                            "beta_h" => Ok(Field::BetaH),
+                            "prepared_h" => Ok(Field::PreparedH),
+                            "prepared_beta_h" => Ok(Field::PreparedBetaH),
+                            _ => Err(serde::de::Error::unknown_field(value, FIELDS)),
+                        }
+                    }
+                }
+
+                deserializer.deserialize_identifier(FieldVisitor)
+            }
+        }
+
+        struct VerifierKeyVisitor;
+
+        impl<'de> Visitor<'de> for VerifierKeyVisitor {
+            type Value = VerifierKey;
+
+            fn expecting(&self, formatter: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+                formatter.write_str("struct VerifierKey")
+            }
+
+            fn visit_seq<V>(self, mut seq: V) -> Result<VerifierKey, V::Error>
+            where
+                V: serde::de::SeqAccess<'de>,
+            {
+                let g = seq
+                    .next_element()?
+                    .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
+                let h = seq
+                    .next_element()?
+                    .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
+                let beta_h = seq
+                    .next_element()?
+                    .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
+                let prepared_h = seq
+                    .next_element()?
+                    .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
+                let prepared_beta_h = seq
+                    .next_element()?
+                    .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
+                Ok(VerifierKey {
+                    g,
+                    h,
+                    beta_h,
+                    prepared_h,
+                    prepared_beta_h,
+                })
+            }
+        }
+
+        const FIELDS: &[&str] = &["g", "h", "beta_h", "prepared_h", "prepared_beta_h"];
+        deserializer.deserialize_struct("VerifierKey", FIELDS, VerifierKeyVisitor)
+    }
+}
+
 /// Prover key is used to commit to a polynomial which is bounded by the max_degree.
 #[derive(Debug)]
 pub struct ProverKey {
     /// Group elements of the form `{ \beta^i G }`, where `i` ranges from 0 to `degree`.
     pub powers_of_g: Vec<G1Affine>,
+}
+
+#[cfg(feature = "serde")]
+use serde::ser::SerializeSeq;
+
+#[cfg(feature = "serde")]
+impl Serialize for ProverKey {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut tup = serializer.serialize_seq(Some(self.powers_of_g.len()))?;
+        for power in &self.powers_of_g {
+            tup.serialize_element(&power)?;
+        }
+        tup.end()
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<'de> Deserialize<'de> for ProverKey {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        struct ProverKeyVisitor;
+
+        impl<'de> Visitor<'de> for ProverKeyVisitor {
+            type Value = ProverKey;
+
+            fn expecting(&self, formatter: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+                formatter.write_str("a prover key with valid powers per points")
+            }
+
+            fn visit_seq<A>(self, mut seq: A) -> Result<ProverKey, A::Error>
+            where
+                A: serde::de::SeqAccess<'de>,
+            {
+                let mut powers_vec = Vec::new();
+                // Visit each element in the inner array and push it onto
+                // the existing vector.
+                while let Some(elem) = seq.next_element()? {
+                    powers_vec.push(elem)
+                }
+                Ok(ProverKey {
+                    powers_of_g: powers_vec,
+                })
+            }
+        }
+
+        deserializer.deserialize_seq(ProverKeyVisitor)
+    }
 }
 
 impl ProverKey {
@@ -79,7 +245,7 @@ impl ProverKey {
     /// for p(z) using Ruffini's method for simplicity.
     /// The Witness is the quotient of f(x) - f(z) / x-z.
     /// However we note that the quotient polynomial is invariant under the value f(z)
-    /// ie. only the remainder changes. we can therefore compute the witness as f(x) / x - z
+    /// ie. only the remainder changes. We can therefore compute the witness as f(x) / x - z
     /// and only use the remainder term f(z) during verification.
     pub fn compute_single_witness(&self, polynomial: &Polynomial, point: &Scalar) -> Polynomial {
         // Computes `f(x) / x-z`, returning it as the witness poly
@@ -374,5 +540,49 @@ mod test {
         };
 
         assert!(ok);
+    }
+
+    #[cfg(feature = "serde")]
+    #[test]
+    fn prover_key_serde_roundtrip() {
+        use bincode;
+        let prover_key = ProverKey {
+            powers_of_g: vec![
+                G1Affine::generator(),
+                G1Affine::generator(),
+                G1Affine::generator(),
+                G1Affine::generator(),
+                G1Affine::generator(),
+                G1Affine::generator(),
+            ],
+        };
+        let ser = bincode::serialize(&prover_key).unwrap();
+        let deser: ProverKey = bincode::deserialize(&ser).unwrap();
+
+        assert!(&prover_key.powers_of_g[..] == &deser.powers_of_g[..]);
+    }
+
+    #[cfg(feature = "serde")]
+    #[test]
+    fn verifier_key_serde_roundtrip() {
+        use bincode;
+        use bls12_381::G2Prepared;
+        let g2_point = G2Affine::generator();
+        let g2_prep_point = G2Prepared::from(g2_point);
+        let g1_point = G1Affine::generator();
+
+        let verifier_key = VerifierKey {
+            g: g1_point,
+            h: g2_point,
+            beta_h: g2_point,
+            prepared_h: g2_prep_point.clone(),
+            prepared_beta_h: g2_prep_point,
+        };
+        let ser = bincode::serialize(&verifier_key).unwrap();
+        let deser: VerifierKey = bincode::deserialize(&ser).unwrap();
+
+        assert!(verifier_key.g == deser.g);
+        assert!(verifier_key.h == deser.h);
+        assert!(verifier_key.beta_h == deser.beta_h);
     }
 }

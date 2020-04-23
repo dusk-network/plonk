@@ -38,12 +38,14 @@ mod util;
 #[macro_use]
 extern crate failure;
 
+#[cfg(all(test, feature = "serde"))]
+extern crate bincode;
+#[cfg(feature = "serde")]
+extern crate serde;
+
 #[cfg(feature = "nightly")]
 #[doc(include = "../docs/notes-intro.md")]
 pub mod notes {
-    #[cfg(feature = "nightly")]
-    #[doc(include = "../docs/notes-composer.md")]
-    pub mod circuit_composer {}
     #[cfg(feature = "nightly")]
     #[doc(include = "../docs/notes-commitments.md")]
     pub mod commitment_schemes {}

@@ -2,22 +2,103 @@ use super::PreProcessedPolynomial;
 use crate::commitment_scheme::kzg10::Commitment;
 use crate::fft::{Evaluations, Polynomial};
 use crate::proving_system::linearisation_poly::ProofEvaluations;
-use bls12_381::G1Affine;
-use bls12_381::Scalar;
 
-#[derive(Debug)]
+use bls12_381::{G1Affine, Scalar};
+#[cfg(feature = "serde")]
+use serde::{de::Visitor, ser::SerializeStruct, Deserialize, Deserializer, Serialize, Serializer};
+
+#[derive(Debug, Eq, PartialEq)]
 pub struct RangeWidget {
     pub q_range: PreProcessedPolynomial,
 }
 
+#[cfg(feature = "serde")]
+impl Serialize for RangeWidget {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut logic_widget = serializer.serialize_struct("struct RangeWidget", 1)?;
+        logic_widget.serialize_field("q_range", &self.q_range)?;
+        logic_widget.end()
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<'de> Deserialize<'de> for RangeWidget {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        enum Field {
+            Qrange,
+        };
+
+        impl<'de> Deserialize<'de> for Field {
+            fn deserialize<D>(deserializer: D) -> Result<Field, D::Error>
+            where
+                D: Deserializer<'de>,
+            {
+                struct FieldVisitor;
+
+                impl<'de> Visitor<'de> for FieldVisitor {
+                    type Value = Field;
+
+                    fn expecting(
+                        &self,
+                        formatter: &mut ::core::fmt::Formatter,
+                    ) -> ::core::fmt::Result {
+                        formatter.write_str("struct RangeWidget")
+                    }
+
+                    fn visit_str<E>(self, value: &str) -> Result<Field, E>
+                    where
+                        E: serde::de::Error,
+                    {
+                        match value {
+                            "q_range" => Ok(Field::Qrange),
+                            _ => Err(serde::de::Error::unknown_field(value, FIELDS)),
+                        }
+                    }
+                }
+
+                deserializer.deserialize_identifier(FieldVisitor)
+            }
+        }
+
+        struct RangeWidgetVisitor;
+
+        impl<'de> Visitor<'de> for RangeWidgetVisitor {
+            type Value = RangeWidget;
+
+            fn expecting(&self, formatter: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+                formatter.write_str("struct RangeWidget")
+            }
+
+            fn visit_seq<V>(self, mut seq: V) -> Result<RangeWidget, V::Error>
+            where
+                V: serde::de::SeqAccess<'de>,
+            {
+                let q_range = seq
+                    .next_element()?
+                    .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
+                Ok(RangeWidget { q_range })
+            }
+        }
+
+        const FIELDS: &[&str] = &["q_range"];
+        deserializer.deserialize_struct("RangeWidget", FIELDS, RangeWidgetVisitor)
+    }
+}
+
 impl RangeWidget {
-    pub fn new(selector: (Polynomial, Commitment, Option<Evaluations>)) -> RangeWidget {
+    pub(crate) fn new(selector: (Polynomial, Commitment, Option<Evaluations>)) -> RangeWidget {
         RangeWidget {
             q_range: PreProcessedPolynomial::new(selector),
         }
     }
 
-    pub fn compute_quotient_i(
+    pub(crate) fn compute_quotient_i(
         &self,
         index: usize,
         w_l_i: &Scalar,
@@ -39,7 +120,7 @@ impl RangeWidget {
         (b_1 + b_2 + b_3 + b_4) * q_range_i
     }
 
-    pub fn compute_linearisation(
+    pub(crate) fn compute_linearisation(
         &self,
         a_eval: &Scalar,
         b_eval: &Scalar,
@@ -59,7 +140,7 @@ impl RangeWidget {
         q_range_poly * &(b_1 + b_2 + b_3 + b_4)
     }
 
-    pub fn compute_linearisation_commitment(
+    pub(crate) fn compute_linearisation_commitment(
         &self,
         scalars: &mut Vec<Scalar>,
         points: &mut Vec<G1Affine>,
@@ -83,4 +164,49 @@ fn delta(f: Scalar) -> Scalar {
     let f_2 = f - Scalar::from(2);
     let f_3 = f - Scalar::from(3);
     f * f_1 * f_2 * f_3
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::fft::EvaluationDomain;
+
+    #[cfg(feature = "serde")]
+    #[test]
+    fn range_widget_serde_roundtrip() {
+        use bincode;
+        let coeffs = vec![
+            Scalar::one(),
+            Scalar::one(),
+            Scalar::one(),
+            Scalar::one(),
+            Scalar::one(),
+            Scalar::one(),
+            Scalar::one(),
+            Scalar::one(),
+        ];
+        let dom = EvaluationDomain::new(coeffs.len()).unwrap();
+        let evals = Evaluations::from_vec_and_domain(coeffs.clone(), dom);
+        let poly = Polynomial::from_coefficients_vec(coeffs);
+        let comm = crate::commitment_scheme::kzg10::Commitment::from_affine(G1Affine::generator());
+
+        // Build directly the widget since the `new()` impl doesn't check any
+        // correctness on the inputs.
+        let prep_poly_w_evals = PreProcessedPolynomial {
+            polynomial: poly.clone(),
+            commitment: comm,
+            evaluations: Some(evals),
+        };
+
+        // Build directly the widget since the `new()` impl doesn't check any
+        // correctness on the inputs.
+        let range_widget = RangeWidget {
+            q_range: prep_poly_w_evals,
+        };
+
+        // Roundtrip with evals
+        let ser = bincode::serialize(&range_widget).unwrap();
+        let deser: RangeWidget = bincode::deserialize(&ser).unwrap();
+        assert_eq!(range_widget, deser);
+    }
 }

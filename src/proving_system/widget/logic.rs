@@ -3,17 +3,104 @@ use super::PreProcessedPolynomial;
 use crate::commitment_scheme::kzg10::Commitment;
 use crate::fft::{Evaluations, Polynomial};
 use crate::proving_system::linearisation_poly::ProofEvaluations;
-use bls12_381::G1Affine;
-use bls12_381::Scalar;
 
-#[derive(Debug)]
+use bls12_381::{G1Affine, Scalar};
+#[cfg(feature = "serde")]
+use serde::{de::Visitor, ser::SerializeStruct, Deserialize, Deserializer, Serialize, Serializer};
+
+#[derive(Debug, Eq, PartialEq)]
 pub struct LogicWidget {
     pub q_c: PreProcessedPolynomial,
     pub q_logic: PreProcessedPolynomial,
 }
 
+#[cfg(feature = "serde")]
+impl Serialize for LogicWidget {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut logic_widget = serializer.serialize_struct("struct LogicWidget", 2)?;
+        logic_widget.serialize_field("q_c", &self.q_c)?;
+        logic_widget.serialize_field("q_logic", &self.q_logic)?;
+        logic_widget.end()
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<'de> Deserialize<'de> for LogicWidget {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        enum Field {
+            Qc,
+            Qlogic,
+        };
+
+        impl<'de> Deserialize<'de> for Field {
+            fn deserialize<D>(deserializer: D) -> Result<Field, D::Error>
+            where
+                D: Deserializer<'de>,
+            {
+                struct FieldVisitor;
+
+                impl<'de> Visitor<'de> for FieldVisitor {
+                    type Value = Field;
+
+                    fn expecting(
+                        &self,
+                        formatter: &mut ::core::fmt::Formatter,
+                    ) -> ::core::fmt::Result {
+                        formatter.write_str("struct LogicWidget")
+                    }
+
+                    fn visit_str<E>(self, value: &str) -> Result<Field, E>
+                    where
+                        E: serde::de::Error,
+                    {
+                        match value {
+                            "q_c" => Ok(Field::Qc),
+                            "q_logic" => Ok(Field::Qlogic),
+                            _ => Err(serde::de::Error::unknown_field(value, FIELDS)),
+                        }
+                    }
+                }
+
+                deserializer.deserialize_identifier(FieldVisitor)
+            }
+        }
+
+        struct LogicWidgetVisitor;
+
+        impl<'de> Visitor<'de> for LogicWidgetVisitor {
+            type Value = LogicWidget;
+
+            fn expecting(&self, formatter: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+                formatter.write_str("struct LogicWidget")
+            }
+
+            fn visit_seq<V>(self, mut seq: V) -> Result<LogicWidget, V::Error>
+            where
+                V: serde::de::SeqAccess<'de>,
+            {
+                let q_c = seq
+                    .next_element()?
+                    .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
+                let q_logic = seq
+                    .next_element()?
+                    .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
+                Ok(LogicWidget { q_c, q_logic })
+            }
+        }
+
+        const FIELDS: &[&str] = &["q_c", "q_logic"];
+        deserializer.deserialize_struct("LogicWidget", FIELDS, LogicWidgetVisitor)
+    }
+}
+
 impl LogicWidget {
-    pub fn new(
+    pub(crate) fn new(
         q_c: (Polynomial, Commitment, Option<Evaluations>),
         q_logic: (Polynomial, Commitment, Option<Evaluations>),
     ) -> LogicWidget {
@@ -23,7 +110,7 @@ impl LogicWidget {
         }
     }
 
-    pub fn compute_quotient_i(
+    pub(crate) fn compute_quotient_i(
         &self,
         index: usize,
         w_l_i: &Scalar,
@@ -57,7 +144,7 @@ impl LogicWidget {
         q_logic_i * (c_3 + c_0 + c_1 + c_2 + c_4)
     }
 
-    pub fn compute_linearisation(
+    pub(crate) fn compute_linearisation(
         &self,
         a_eval: &Scalar,
         a_next_eval: &Scalar,
@@ -90,7 +177,7 @@ impl LogicWidget {
         q_logic_poly * &(c_0 + c_1 + c_2 + c_3 + c_4)
     }
 
-    pub fn compute_linearisation_commitment(
+    pub(crate) fn compute_linearisation_commitment(
         &self,
         scalars: &mut Vec<Scalar>,
         points: &mut Vec<G1Affine>,
@@ -147,4 +234,58 @@ fn delta_xor_and(a: &Scalar, b: &Scalar, w: &Scalar, c: &Scalar, q_c: &Scalar) -
     let E = three * (a + b + c) - (two * F);
     let B = q_c * ((nine * c) - three * (a + b));
     B + E
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::fft::EvaluationDomain;
+
+    #[cfg(feature = "serde")]
+    #[test]
+    fn logic_widget_serde_roundtrip() {
+        use bincode;
+        let coeffs = vec![
+            Scalar::one(),
+            Scalar::one(),
+            Scalar::one(),
+            Scalar::one(),
+            Scalar::one(),
+            Scalar::one(),
+            Scalar::one(),
+            Scalar::one(),
+        ];
+        let dom = EvaluationDomain::new(coeffs.len()).unwrap();
+        let evals = Evaluations::from_vec_and_domain(coeffs.clone(), dom);
+        let poly = Polynomial::from_coefficients_vec(coeffs);
+        let comm = crate::commitment_scheme::kzg10::Commitment::from_affine(G1Affine::generator());
+
+        // Build directly the widget since the `new()` impl doesn't check any
+        // correctness on the inputs.
+        let prep_poly_w_evals = PreProcessedPolynomial {
+            polynomial: poly.clone(),
+            commitment: comm,
+            evaluations: Some(evals),
+        };
+
+        // Build directly the widget since the `new()` impl doesn't check any
+        // correctness on the inputs.
+        let prep_poly_without_evals = PreProcessedPolynomial {
+            polynomial: poly,
+            commitment: comm,
+            evaluations: None,
+        };
+
+        // Build directly the widget since the `new()` impl doesn't check any
+        // correctness on the inputs.
+        let logic_widget = LogicWidget {
+            q_c: prep_poly_w_evals.clone(),
+            q_logic: prep_poly_without_evals.clone(),
+        };
+
+        // Roundtrip with evals
+        let ser = bincode::serialize(&logic_widget).unwrap();
+        let deser: LogicWidget = bincode::deserialize(&ser).unwrap();
+        assert_eq!(logic_widget, deser);
+    }
 }
