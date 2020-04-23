@@ -18,12 +18,10 @@ use crate::constraint_system::Variable;
 use crate::constraint_system::WireData;
 use crate::fft::{EvaluationDomain, Evaluations, Polynomial};
 use crate::permutation::Permutation;
-use crate::proving_system::linearisation_poly;
-use crate::proving_system::quotient_poly;
-use crate::proving_system::widget::{
-    ArithmeticWidget, LogicWidget, PermutationWidget, RangeWidget,
-};
-use crate::proving_system::{proof::Proof, PreProcessedCircuit};
+use crate::proof_system::linearisation_poly;
+use crate::proof_system::quotient_poly;
+use crate::proof_system::widget::{ArithmeticWidget, LogicWidget, PermutationWidget, RangeWidget};
+use crate::proof_system::{proof::Proof, PreProcessedCircuit};
 use crate::transcript::TranscriptProtocol;
 use bls12_381::Scalar;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
@@ -80,9 +78,9 @@ pub struct StandardComposer {
 }
 
 impl StandardComposer {
-    // Computes the pre-processed polynomials
-    // So the verifier can verify a proof made using this circuit
-    fn preprocess(
+    /// Computes the pre-processed polynomials
+    /// So the verifier can verify a proof made using this circuit
+    pub fn preprocess(
         &mut self,
         commit_key: &ProverKey,
         transcript: &mut dyn TranscriptProtocol,
@@ -253,9 +251,9 @@ impl StandardComposer {
         }
     }
 
-    // Prove will compute the pre-processed polynomials and
-    // produce a proof
-    fn prove(
+    /// Prove will compute the pre-processed polynomials and
+    /// produce a proof
+    pub fn prove(
         &mut self,
         commit_key: &ProverKey,
         preprocessed_circuit: &PreProcessedCircuit,

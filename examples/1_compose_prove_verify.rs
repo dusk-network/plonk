@@ -49,7 +49,7 @@ extern crate plonk;
 use bls12_381::Scalar;
 use merlin::Transcript;
 use plonk::commitment_scheme::kzg10::PublicParameters;
-use plonk::constraint_system::standard::{Composer, StandardComposer};
+use plonk::constraint_system::StandardComposer;
 use plonk::fft::EvaluationDomain;
 use std::fs;
 

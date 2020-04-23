@@ -18,9 +18,9 @@ extern crate plonk;
 use bls12_381::Scalar;
 use merlin::Transcript;
 use plonk::commitment_scheme::kzg10::{PublicParameters, VerifierKey};
-use plonk::constraint_system::standard::proof::Proof;
-use plonk::constraint_system::standard::{Composer, PreProcessedCircuit, StandardComposer};
+use plonk::constraint_system::StandardComposer;
 use plonk::fft::EvaluationDomain;
+use plonk::proof_system::{PreProcessedCircuit, Proof};
 use std::fs;
 
 /// This function will populate our `Composer` adding to it the witness values that we

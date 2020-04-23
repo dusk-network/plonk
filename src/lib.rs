@@ -31,7 +31,7 @@ pub mod commitment_scheme;
 pub mod constraint_system;
 pub mod fft;
 mod permutation;
-pub mod proving_system;
+pub mod proof_system;
 pub mod transcript;
 mod util;
 

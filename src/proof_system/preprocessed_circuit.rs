@@ -1,7 +1,5 @@
 use crate::fft::Evaluations;
-use crate::proving_system::widget::{
-    ArithmeticWidget, LogicWidget, PermutationWidget, RangeWidget,
-};
+use crate::proof_system::widget::{ArithmeticWidget, LogicWidget, PermutationWidget, RangeWidget};
 #[cfg(feature = "serde")]
 use serde::{de::Visitor, ser::SerializeStruct, Deserialize, Deserializer, Serialize, Serializer};
 
@@ -169,8 +167,8 @@ impl PreProcessedCircuit {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::constraint_system::widget::PreProcessedPolynomial;
     use crate::fft::{EvaluationDomain, Polynomial};
+    use crate::proof_system::widget::PreProcessedPolynomial;
     use bls12_381::{G1Affine, Scalar};
 
     #[cfg(feature = "serde")]

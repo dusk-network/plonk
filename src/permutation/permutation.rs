@@ -420,11 +420,6 @@ impl Permutation {
     ) -> Vec<Scalar> {
         let n = domain.size();
 
-        let left_sigma_mapping = domain.fft(&left_sigma_poly);
-        let right_sigma_mapping = domain.fft(&right_sigma_poly);
-        let out_sigma_mapping = domain.fft(&out_sigma_poly);
-        let fourth_sigma_mapping = domain.fft(&fourth_sigma_poly);
-
         // Compute beta * roots
         let common_roots: Vec<Scalar> = domain.elements().map(|root| root * beta).collect();
 
