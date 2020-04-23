@@ -200,13 +200,12 @@ impl Permutation {
             &Polynomial,
         ),
     ) -> Polynomial {
-        let pad = vec![Scalar::zero(); domain.size() - w_l.len()];
         let z_evaluations = self.compute_fast_permutation_poly(
             domain,
-            &[w_l, &pad].concat(),
-            &[w_r, &pad].concat(),
-            &[w_o, &pad].concat(),
-            &[w_4, &pad].concat(),
+            w_l,
+            w_r,
+            w_o,
+            w_4,
             beta,
             gamma,
             (

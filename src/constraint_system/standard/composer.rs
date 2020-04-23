@@ -266,11 +266,17 @@ impl Composer for StandardComposer {
         //1. Compute witness Polynomials
         //
         // Convert Variables to Scalars
-        // XXX: Maybe there's no need to allocate `to_scalars` returning &[Scalar].
-        let w_l_scalar = self.to_scalars(&self.w_l);
-        let w_r_scalar = self.to_scalars(&self.w_r);
-        let w_o_scalar = self.to_scalars(&self.w_o);
-        let w_4_scalar = self.to_scalars(&self.w_4);
+        let mut w_l_scalar = self.to_scalars(&self.w_l);
+        let mut w_r_scalar = self.to_scalars(&self.w_r);
+        let mut w_o_scalar = self.to_scalars(&self.w_o);
+        let mut w_4_scalar = self.to_scalars(&self.w_4);
+
+        // Pad witness
+        let pad = vec![Scalar::zero(); domain.size() - w_l.len()].iter();
+        w_l_scalar.extend(pad);
+        w_r_scalar.extend(pad);
+        w_o_scalar.extend(pad);
+        w_4_scalar.extend(pad);
 
         // Witnesses are now in evaluation form, convert them to coefficients
         // So that we may commit to them
