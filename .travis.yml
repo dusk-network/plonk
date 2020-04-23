@@ -8,6 +8,8 @@ matrix:
   - rust: stable
     install:
     before_script:
+      - sudo apt-get update
+      - sudo apt-get install libmodbus-dev
       - rustup component add clippy
     script:
       - cargo clippy -- -D warnings
@@ -29,8 +31,6 @@ matrix:
       - cargo build --release --verbose --all --features nightly
       - cargo test --release --verbose --all --features nightly
       - cargo doc --no-deps --features nightly
-    #after_success:
-    #  - travis-cargo --only nightly doc-upload
 
 
 # Upload docs
