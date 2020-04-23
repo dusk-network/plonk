@@ -1132,7 +1132,7 @@ impl StandardComposer {
     ///
     /// ## Panics
     /// This function will panic if the num_bits specified is not even `num_bits % 2 != 0`.
-    pub fn logic_gate(
+    pub(crate) fn logic_gate(
         &mut self,
         a: Variable,
         b: Variable,

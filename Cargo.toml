@@ -26,6 +26,7 @@ serde = {version = "1.0.106", features = ["derive"], optional = true}
 criterion = "0.3.0"
 rand = "0.7.0"
 bincode = "1"
+lazy_static = "1.4.0"
 
 # Criterion benchmarks
 [[bench]]
