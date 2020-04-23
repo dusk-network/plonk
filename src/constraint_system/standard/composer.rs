@@ -272,11 +272,11 @@ impl Composer for StandardComposer {
         let mut w_4_scalar = self.to_scalars(&self.w_4);
 
         // Pad witness
-        let pad = vec![Scalar::zero(); domain.size() - w_l.len()].iter();
-        w_l_scalar.extend(pad);
-        w_r_scalar.extend(pad);
-        w_o_scalar.extend(pad);
-        w_4_scalar.extend(pad);
+        let pad = vec![Scalar::zero(); domain.size() - w_l_scalar.len()];
+        w_l_scalar.extend(pad.iter());
+        w_r_scalar.extend(pad.iter());
+        w_o_scalar.extend(pad.iter());
+        w_4_scalar.extend(pad.iter());
 
         // Witnesses are now in evaluation form, convert them to coefficients
         // So that we may commit to them
