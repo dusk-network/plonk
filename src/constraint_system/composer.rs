@@ -1421,6 +1421,7 @@ impl StandardComposer {
         );
     }
 
+
     /// This function is used to add a blinding factor to the witness polynomials
     pub fn add_dummy_constraints(&mut self) {
         // Add a dummy constraint so that we do not have zero polynomials
