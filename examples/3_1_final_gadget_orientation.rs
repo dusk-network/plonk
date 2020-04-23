@@ -116,6 +116,7 @@ fn main() {
 
     // Verify it is as easy as
     assert!(verify_proof(&proof, pub_input) == true);
+    println!("Proof constructed in the example was succesfully verified!");
 
     //
     //
@@ -130,5 +131,7 @@ fn main() {
     let ko_proof: Proof = bincode::deserialize(&ko_proof_data).unwrap();
 
     assert!(verify_proof(&ok_proof, pub_input) == true);
+    println!("OK Proof constructed before was succesfully verified!");
     assert!(verify_proof(&ko_proof, pub_input) == false);
+    println!("KO Proof constructed before was succesfully verified unsuccessfully as we expected!");
 }
