@@ -265,19 +265,20 @@ impl Composer for StandardComposer {
 
         //1. Compute witness Polynomials
         //
-        // Convert Variables to Scalars
-        // XXX: Maybe there's no need to allocate `to_scalars` returning &[Scalar].
-        let w_l_scalar = self.to_scalars(&self.w_l);
-        let w_r_scalar = self.to_scalars(&self.w_r);
-        let w_o_scalar = self.to_scalars(&self.w_o);
-        let w_4_scalar = self.to_scalars(&self.w_4);
+        // Convert Variables to Scalars padding them to the
+        // correct domain size.
+        let pad = vec![Scalar::zero(); domain.size() - self.w_l.len()];
+        let w_l_scalar = &[&self.to_scalars(&self.w_l)[..], &pad].concat();
+        let w_r_scalar = &[&self.to_scalars(&self.w_r)[..], &pad].concat();
+        let w_o_scalar = &[&self.to_scalars(&self.w_o)[..], &pad].concat();
+        let w_4_scalar = &[&self.to_scalars(&self.w_4)[..], &pad].concat();
 
         // Witnesses are now in evaluation form, convert them to coefficients
         // So that we may commit to them
-        let w_l_poly = Polynomial::from_coefficients_vec(domain.ifft(&w_l_scalar));
-        let w_r_poly = Polynomial::from_coefficients_vec(domain.ifft(&w_r_scalar));
-        let w_o_poly = Polynomial::from_coefficients_vec(domain.ifft(&w_o_scalar));
-        let w_4_poly = Polynomial::from_coefficients_vec(domain.ifft(&w_4_scalar));
+        let w_l_poly = Polynomial::from_coefficients_vec(domain.ifft(w_l_scalar));
+        let w_r_poly = Polynomial::from_coefficients_vec(domain.ifft(w_r_scalar));
+        let w_o_poly = Polynomial::from_coefficients_vec(domain.ifft(w_o_scalar));
+        let w_4_poly = Polynomial::from_coefficients_vec(domain.ifft(w_4_scalar));
 
         // Commit to witness polynomials
         let w_l_poly_commit = commit_key.commit(&w_l_poly).unwrap();
