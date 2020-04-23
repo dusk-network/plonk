@@ -2,7 +2,19 @@ language: rust
 sudo: true
 os: 
   - linux
+# Inclide needed packages
+addons:
+  apt:
+    packages:
+    ## All of these are needed by CodeCov.
+      - libcurl4-openssl-dev
+      - libelf-dev
+      - libdw-dev
+      - cmake
+      - gcc
+      - binutils-dev
 
+# Build definition
 matrix:
   include:
   - rust: stable
