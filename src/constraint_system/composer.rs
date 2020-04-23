@@ -162,15 +162,15 @@ impl StandardComposer {
 
         // 4. Commit to polynomials
         //
-        let q_m_poly_commit = commit_key.commit(&q_m_poly).unwrap();
-        let q_l_poly_commit = commit_key.commit(&q_l_poly).unwrap();
-        let q_r_poly_commit = commit_key.commit(&q_r_poly).unwrap();
-        let q_o_poly_commit = commit_key.commit(&q_o_poly).unwrap();
-        let q_c_poly_commit = commit_key.commit(&q_c_poly).unwrap();
-        let q_4_poly_commit = commit_key.commit(&q_4_poly).unwrap();
-        let q_arith_poly_commit = commit_key.commit(&q_arith_poly).unwrap();
-        let q_range_poly_commit = commit_key.commit(&q_range_poly).unwrap();
-        let q_logic_poly_commit = commit_key.commit(&q_logic_poly).unwrap();
+        let q_m_poly_commit = commit_key.commit(&q_m_poly).unwrap_or_default();
+        let q_l_poly_commit = commit_key.commit(&q_l_poly).unwrap_or_default();
+        let q_r_poly_commit = commit_key.commit(&q_r_poly).unwrap_or_default();
+        let q_o_poly_commit = commit_key.commit(&q_o_poly).unwrap_or_default();
+        let q_c_poly_commit = commit_key.commit(&q_c_poly).unwrap_or_default();
+        let q_4_poly_commit = commit_key.commit(&q_4_poly).unwrap_or_default();
+        let q_arith_poly_commit = commit_key.commit(&q_arith_poly).unwrap_or_default();
+        let q_range_poly_commit = commit_key.commit(&q_range_poly).unwrap_or_default();
+        let q_logic_poly_commit = commit_key.commit(&q_logic_poly).unwrap_or_default();
 
         let left_sigma_poly_commit = commit_key.commit(&left_sigma_poly).unwrap();
         let right_sigma_poly_commit = commit_key.commit(&right_sigma_poly).unwrap();
@@ -1421,13 +1421,8 @@ impl StandardComposer {
         );
     }
 
-    /// This function should be used in order to avoid having
-    /// `DegreeZero` polynomials since it adds at least one coeff
-    /// different from zero for each selector coefficient.
-    ///
-    /// Using it once if we never use one of the selector polynomials,
-    /// will save us from having `DegreeZeroPolynomial` errors.
-    // XXX: We should have a way to handle this.
+
+    /// This function is used to add a blinding factor to the witness polynomials
     pub fn add_dummy_constraints(&mut self) {
         // Add a dummy constraint so that we do not have zero polynomials
         self.q_m.push(Scalar::from(1));
@@ -1442,7 +1437,6 @@ impl StandardComposer {
         self.public_inputs.push(Scalar::zero());
         let var_six = self.add_input(Scalar::from(6));
         let var_one = self.add_input(Scalar::from(1));
-        let var_four = self.add_input(Scalar::from(4));
         let var_seven = self.add_input(Scalar::from(7));
         let var_min_twenty = self.add_input(-Scalar::from(20));
         self.w_l.push(var_six);
@@ -1469,125 +1463,6 @@ impl StandardComposer {
         self.w_4.push(self.zero_var);
         self.perm
             .add_variables_to_map(var_min_twenty, var_six, var_seven, self.zero_var, self.n);
-        self.n += 1;
-        //Add another dummy constraint from Q_range
-        // XXX: We should have a way to handle the zero polynomial
-        self.q_m.push(Scalar::zero());
-        self.q_l.push(Scalar::zero());
-        self.q_r.push(Scalar::zero());
-        self.q_o.push(Scalar::zero());
-        self.q_c.push(Scalar::zero());
-        self.q_4.push(Scalar::zero());
-        self.q_arith.push(Scalar::zero());
-        self.q_range.push(Scalar::one());
-        self.q_logic.push(Scalar::zero());
-        self.public_inputs.push(Scalar::zero());
-        self.w_l.push(var_one);
-        self.w_r.push(self.zero_var);
-        self.w_o.push(self.zero_var);
-        self.w_4.push(self.zero_var);
-        self.perm.add_variables_to_map(
-            var_one,
-            self.zero_var,
-            self.zero_var,
-            self.zero_var,
-            self.n,
-        );
-        self.n += 1;
-        // Previous gate will look at the d_next in this gate
-        self.q_m.push(Scalar::zero());
-        self.q_l.push(Scalar::zero());
-        self.q_r.push(Scalar::zero());
-        self.q_o.push(Scalar::zero());
-        self.q_c.push(Scalar::zero());
-        self.q_4.push(Scalar::zero());
-        self.q_arith.push(Scalar::zero());
-        self.q_range.push(Scalar::zero());
-        self.q_logic.push(Scalar::zero());
-        self.public_inputs.push(Scalar::zero());
-        self.w_l.push(self.zero_var);
-        self.w_r.push(self.zero_var);
-        self.w_o.push(self.zero_var);
-        self.w_4.push(var_four);
-        self.perm.add_variables_to_map(
-            self.zero_var,
-            self.zero_var,
-            self.zero_var,
-            var_four,
-            self.n,
-        );
-        self.n += 1;
-
-        //Add another dummy constraint for Q_logic
-        // XXX: We should have a way to handle the zero polynomial
-        self.q_m.push(Scalar::zero());
-        self.q_l.push(Scalar::zero());
-        self.q_r.push(Scalar::zero());
-        self.q_o.push(Scalar::zero());
-        self.q_c.push(-Scalar::one());
-        self.q_4.push(Scalar::zero());
-        self.q_arith.push(Scalar::zero());
-        self.q_range.push(Scalar::zero());
-        self.q_logic.push(-Scalar::one());
-        self.public_inputs.push(Scalar::zero());
-        self.w_l.push(self.zero_var);
-        self.w_r.push(self.zero_var);
-        self.w_o.push(self.zero_var);
-        self.w_4.push(self.zero_var);
-        self.perm.add_variables_to_map(
-            self.zero_var,
-            self.zero_var,
-            self.zero_var,
-            self.zero_var,
-            self.n,
-        );
-        self.n += 1;
-        //Add another dummy constraint for Q_logic
-        // XXX: We should have a way to handle the zero polynomial
-        self.q_m.push(Scalar::zero());
-        self.q_l.push(Scalar::zero());
-        self.q_r.push(Scalar::zero());
-        self.q_o.push(Scalar::zero());
-        self.q_c.push(-Scalar::one());
-        self.q_4.push(Scalar::zero());
-        self.q_arith.push(Scalar::zero());
-        self.q_range.push(Scalar::zero());
-        self.q_logic.push(-Scalar::one());
-        self.public_inputs.push(Scalar::zero());
-        self.w_l.push(self.zero_var);
-        self.w_r.push(self.zero_var);
-        self.w_o.push(self.zero_var);
-        self.w_4.push(self.zero_var);
-        self.perm.add_variables_to_map(
-            self.zero_var,
-            self.zero_var,
-            self.zero_var,
-            self.zero_var,
-            self.n,
-        );
-        self.n += 1;
-        // Add no-op gate
-        self.q_m.push(Scalar::zero());
-        self.q_l.push(Scalar::zero());
-        self.q_r.push(Scalar::zero());
-        self.q_o.push(Scalar::zero());
-        self.q_c.push(Scalar::zero());
-        self.q_4.push(Scalar::zero());
-        self.q_arith.push(Scalar::zero());
-        self.q_range.push(Scalar::zero());
-        self.q_logic.push(Scalar::zero());
-        self.public_inputs.push(Scalar::zero());
-        self.w_l.push(self.zero_var);
-        self.w_r.push(self.zero_var);
-        self.w_o.push(self.zero_var);
-        self.w_4.push(self.zero_var);
-        self.perm.add_variables_to_map(
-            self.zero_var,
-            self.zero_var,
-            self.zero_var,
-            self.zero_var,
-            self.n,
-        );
         self.n += 1;
     }
 
