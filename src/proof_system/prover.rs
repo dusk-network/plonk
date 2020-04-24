@@ -33,10 +33,6 @@ impl Prover {
     }
 }
 
-// Draft 5: Lets just have the Prover wrap the composer functions
-// Cons of this approach is that we are duplicating. So might throw this away and go for something similar to Draft 4
-// In this idea, we have one composer per prover. So once we instantiate a Prover, you should not change the Composer/Preprocessed circuit
-
 impl Default for Prover {
     fn default() -> Prover {
         Prover::new(b"plonk")
