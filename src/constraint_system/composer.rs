@@ -98,7 +98,6 @@ impl StandardComposer {
         assert!(self.w_o.len() == k);
 
         //1. Pad circuit to a power of two
-        dbg!(domain.size(), self.n);
         self.pad(domain.size as usize - self.n);
 
         // 2a. Convert selector evaluations to selector coefficients
@@ -1754,6 +1753,53 @@ mod tests {
 
         // Verify proof
         verifier.verify(&proof, &vk, &public_inputs)
+    }
+
+    #[test]
+    fn test_multiple_proofs() {
+        let public_parameters = PublicParameters::setup(2 * 30, &mut rand::thread_rng()).unwrap();
+
+        // Create a prover struct
+        let mut prover = Prover::new(b"demo");
+
+        // Add gadgets
+        dummy_gadget(10, prover.mut_cs());
+
+        // Commit Key
+        let (ck, _) = public_parameters.trim(2 * 20).unwrap();
+
+        // Preprocess circuit
+        prover.preprocess(&ck);
+
+        let public_inputs = prover.cs.public_inputs.clone();
+
+        let mut proofs = Vec::new();
+
+        // Compute multiple proofs
+        for _ in 0..10 {
+            proofs.push(prover.prove(&ck));
+
+            // Add another witness instance
+            dummy_gadget(10, prover.mut_cs());
+        }
+
+        // Verifier
+        //
+        let mut verifier = Verifier::new(b"demo");
+
+        // Add gadgets
+        dummy_gadget(10, verifier.mut_cs());
+
+        // Commit and Verifier Key
+        let (ck, vk) = public_parameters.trim(2 * 20).unwrap();
+
+        // Preprocess
+        verifier.preprocess(&ck);
+
+        for proof in proofs {
+            let ok = verifier.verify(&proof, &vk, &public_inputs);
+            assert!(ok);
+        }
     }
 
     #[test]

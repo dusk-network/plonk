@@ -1,13 +1,12 @@
 use crate::commitment_scheme::kzg10::ProverKey;
 use crate::constraint_system::{StandardComposer, Variable};
 use crate::fft::{EvaluationDomain, Polynomial};
-use crate::proof_system::{linearisation_poly, quotient_poly};
-use crate::proof_system::{proof::Proof, PreProcessedCircuit};
+use crate::proof_system::{linearisation_poly, proof::Proof, quotient_poly, PreProcessedCircuit};
 use crate::transcript::TranscriptProtocol;
 use bls12_381::Scalar;
 use merlin::Transcript;
-
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
+
 /// Prover composes a circuit and builds a proof
 #[allow(missing_debug_implementations)]
 pub struct Prover {
