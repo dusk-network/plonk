@@ -1711,7 +1711,7 @@ mod tests {
             let mut prover = Prover::new(b"demo");
 
             // Additionally key the transcript
-            prover.key_transcript(b"This is a test method");
+            prover.key_transcript(b"key", b"additional seed information");
 
             // Add gadgets
             dummy_gadget(7, prover.mut_cs());
@@ -1738,7 +1738,7 @@ mod tests {
         let mut verifier = Verifier::new(b"demo");
 
         // Additionally key the transcript
-        verifier.key_transcript(b"This is a test method");
+        verifier.key_transcript(b"key", b"additional seed information");
 
         // Add gadgets
         dummy_gadget(7, verifier.mut_cs());

@@ -103,14 +103,13 @@ impl Prover {
     }
 
     /// Keys the transcript with additional seed information
-    pub fn key_transcript(&mut self, label: &'static [u8]) {
-        self.preprocessed_transcript
-            .append_message(b"dom-sep", label);
+    /// Wrapper around transcript.append_message
+    pub fn key_transcript(&mut self, label: &'static [u8], message: &[u8]) {
+        self.preprocessed_transcript.append_message(label, message);
     }
 
     /// Prove will compute the pre-processed polynomials and
     /// produce a proof
-    /// We assume that the Prover struct has a composer
     pub fn prove(&mut self, commit_key: &ProverKey) -> Proof {
         if self.preprocessed_circuit.is_none() {
             // Preprocess circuit

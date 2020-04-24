@@ -36,6 +36,7 @@ impl Verifier {
     pub fn mut_cs(&mut self) -> &mut StandardComposer {
         &mut self.cs
     }
+
     /// Preprocess a proof
     pub fn preprocess(&mut self, commit_key: &ProverKey) {
         let ppc = self
@@ -46,9 +47,9 @@ impl Verifier {
     }
 
     /// Keys the transcript with additional seed information
-    pub fn key_transcript(&mut self, label: &'static [u8]) {
-        self.preprocessed_transcript
-            .append_message(b"dom-sep", label);
+    /// Wrapper around transcript.append_message
+    pub fn key_transcript(&mut self, label: &'static [u8], message: &[u8]) {
+        self.preprocessed_transcript.append_message(label, message);
     }
 
     /// Verifies a proof
