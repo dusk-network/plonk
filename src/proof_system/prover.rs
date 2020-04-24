@@ -25,9 +25,11 @@ impl Prover {
         &mut self.cs
     }
     /// Preprocesses the underlying constraint system
-    pub fn preprocess(&mut self, commit_key: &ProverKey) -> PreProcessedCircuit {
-        self.cs
-            .preprocess(commit_key, &mut self.preprocessed_transcript)
+    pub fn preprocess(&mut self, commit_key: &ProverKey) {
+        let ppc = self
+            .cs
+            .preprocess(commit_key, &mut self.preprocessed_transcript);
+        self.preprocessed_circuit = Some(ppc);
     }
 }
 
@@ -37,21 +39,21 @@ impl Prover {
 
 impl Default for Prover {
     fn default() -> Prover {
-        Prover::new()
+        Prover::new(b"plonk")
     }
 }
 
 impl Prover {
     /// Creates a new prover object
-    pub fn new() -> Prover {
+    pub fn new(label: &'static [u8]) -> Prover {
         Prover {
             preprocessed_circuit: None,
             cs: StandardComposer::new(),
-            preprocessed_transcript: Transcript::new(b"plonk"),
+            preprocessed_transcript: Transcript::new(label),
         }
     }
 
-    /// Split `t(X)` poly into 3 degree `n` polynomials.
+    /// Split `t(X)` poly into 4 degree `n` polynomials.
     pub fn split_tx_poly(
         &self,
         n: usize,
@@ -89,29 +91,38 @@ impl Prover {
     pub(crate) fn to_scalars(&self, vars: &[Variable]) -> Vec<Scalar> {
         vars.par_iter().map(|var| self.cs.variables[var]).collect()
     }
+    /// Resets the witnesses in the prover object.
+    /// This function is used when the user wants to make multiple proofs with the same circuit.
+    pub fn clear_witness(&mut self) {
+        self.cs = StandardComposer::new();
+    }
 
-    pub(crate) fn reset(&mut self) {
-        self.cs.w_l.clear();
-        self.cs.w_r.clear();
-        self.cs.w_o.clear();
-        self.cs.w_4.clear();
+    /// Clears all data in the Prover
+    /// This function is used when the user wants to use the same Prover to
+    /// make a proof regarding a different circuit.
+    pub fn clear(&mut self) {
+        self.clear_witness();
+        self.preprocessed_circuit = None;
+        self.preprocessed_transcript = Transcript::new(b"plonk");
+    }
 
-        // Do not reset the Transcript as we need the previous messages exchanged during the preprocessing stage
+    /// Keys the transcript with additional seed information
+    pub fn key_transcript(&mut self, label: &'static [u8]) {
+        self.preprocessed_transcript
+            .append_message(b"dom-sep", label);
     }
 
     /// Prove will compute the pre-processed polynomials and
     /// produce a proof
     /// We assume that the Prover struct has a composer
-    /// XXX: Accept a string, that we can key the transcript with?
     pub fn prove(&mut self, commit_key: &ProverKey) -> Proof {
         if self.preprocessed_circuit.is_none() {
-            // Create a fresh transcript
-            let mut transcript = Transcript::new(b"plonk");
             // Preprocess circuit
-            let preprocessed_circuit = self.cs.preprocess(commit_key, &mut transcript);
+            let preprocessed_circuit = self
+                .cs
+                .preprocess(commit_key, &mut self.preprocessed_transcript);
             // Store preprocessed circuit and transcript in the Prover
             self.preprocessed_circuit = Some(preprocessed_circuit);
-            self.preprocessed_transcript = transcript;
         }
 
         let domain = EvaluationDomain::new(self.cs.circuit_size()).unwrap();
@@ -297,7 +308,7 @@ impl Prover {
         let w_zx_comm = commit_key.commit(&shifted_aggregate_witness).unwrap();
 
         // Reset composer variables
-        self.reset();
+        self.clear_witness();
 
         // Create Proof
         Proof {

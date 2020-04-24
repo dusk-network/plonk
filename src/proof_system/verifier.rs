@@ -18,17 +18,17 @@ pub struct Verifier {
 
 impl Default for Verifier {
     fn default() -> Verifier {
-        Verifier::new()
+        Verifier::new(b"plonk")
     }
 }
 
 impl Verifier {
     /// Creates a new verifier object
-    pub fn new() -> Verifier {
+    pub fn new(label: &'static [u8]) -> Verifier {
         Verifier {
             preprocessed_circuit: None,
             cs: StandardComposer::new(),
-            preprocessed_transcript: Transcript::new(b"plonk"),
+            preprocessed_transcript: Transcript::new(label),
         }
     }
 
@@ -44,6 +44,13 @@ impl Verifier {
 
         self.preprocessed_circuit = Some(ppc)
     }
+
+    /// Keys the transcript with additional seed information
+    pub fn key_transcript(&mut self, label: &'static [u8]) {
+        self.preprocessed_transcript
+            .append_message(b"dom-sep", label);
+    }
+
     /// Verifies a proof
     pub fn verify(
         &self,

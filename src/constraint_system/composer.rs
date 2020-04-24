@@ -1708,10 +1708,16 @@ mod tests {
         // Provers View
         let (proof, public_inputs) = {
             // Create a prover struct
-            let mut prover = Prover::new();
+            let mut prover = Prover::new(b"demo");
+
+            // Additionally key the transcript
+            prover.key_transcript(b"This is a test method");
+
+            // Add gadgets
             dummy_gadget(7, prover.mut_cs());
             gadget(&mut prover.mut_cs());
 
+            // Commit Key
             let (ck, _) = public_parameters
                 .trim(2 * prover.cs.circuit_size().next_power_of_two())
                 .unwrap();
@@ -1719,19 +1725,26 @@ mod tests {
             // Preprocess circuit
             prover.preprocess(&ck);
 
-            // Compute Proof
-            (prover.prove(&ck), prover.cs.public_inputs)
-        };
+            // Once the prove method is called, the public inputs are cleared
+            // So pre-fetch these before calling Prove
+            let public_inputs = prover.cs.public_inputs.clone();
 
+            // Compute Proof
+            (prover.prove(&ck), public_inputs)
+        };
         // Verifiers view
         //
-
         // Create a Verifier object
-        let mut verifier = Verifier::new();
-        dummy_gadget(7, verifier.mut_cs());
+        let mut verifier = Verifier::new(b"demo");
 
+        // Additionally key the transcript
+        verifier.key_transcript(b"This is a test method");
+
+        // Add gadgets
+        dummy_gadget(7, verifier.mut_cs());
         gadget(&mut verifier.mut_cs());
 
+        // Compute Commit and Verifier Key
         let (ck, vk) = public_parameters
             .trim(verifier.cs.circuit_size().next_power_of_two())
             .unwrap();
