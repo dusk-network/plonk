@@ -15,7 +15,9 @@ exclude = [
     ".gitignore",
     "**/examples",
     "benchmarks/",
-    ".CHANGELOG.md"
+    ".CHANGELOG.md",
+    ".CONTRIBUTING.md",
+    ".travis.yml"
 ]
 license = "MPL-2.0"
 edition = "2018"
