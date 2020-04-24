@@ -8,12 +8,13 @@ use merlin::Transcript;
 /// Verifier verifies a proof
 #[allow(missing_debug_implementations)]
 pub struct Verifier {
-    pub(crate) preprocessed_circuit: Option<PreProcessedCircuit>,
+    /// Preprocessed circuit
+    pub preprocessed_circuit: Option<PreProcessedCircuit>,
 
     pub(crate) cs: StandardComposer,
-    // Store the messages exchanged during the preprocessing stage
-    // This is copied each time, we make a proof
-    pub(crate) preprocessed_transcript: Transcript,
+    /// Store the messages exchanged during the preprocessing stage
+    /// This is copied each time, we make a proof
+    pub preprocessed_transcript: Transcript,
 }
 
 impl Default for Verifier {
@@ -30,6 +31,11 @@ impl Verifier {
             cs: StandardComposer::new(),
             preprocessed_transcript: Transcript::new(label),
         }
+    }
+
+    /// Returns the number of gates in the circuit
+    pub fn circuit_size(&self) -> usize {
+        self.cs.circuit_size()
     }
 
     /// Returns a mutable copy of the underlying composer

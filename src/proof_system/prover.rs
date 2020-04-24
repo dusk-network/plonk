@@ -10,12 +10,13 @@ use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 /// Prover composes a circuit and builds a proof
 #[allow(missing_debug_implementations)]
 pub struct Prover {
-    pub(crate) preprocessed_circuit: Option<PreProcessedCircuit>,
+    /// Preprocessed circuit
+    pub preprocessed_circuit: Option<PreProcessedCircuit>,
 
     pub(crate) cs: StandardComposer,
-    // Store the messages exchanged during the preprocessing stage
-    // This is copied each time, we make a proof
-    pub(crate) preprocessed_transcript: Transcript,
+    /// Store the messages exchanged during the preprocessing stage
+    /// This is copied each time, we make a proof
+    pub preprocessed_transcript: Transcript,
 }
 
 impl Prover {
@@ -46,6 +47,10 @@ impl Prover {
             cs: StandardComposer::new(),
             preprocessed_transcript: Transcript::new(label),
         }
+    }
+    /// Returns the number of gates in the circuit
+    pub fn circuit_size(&self) -> usize {
+        self.cs.circuit_size()
     }
 
     /// Split `t(X)` poly into 4 degree `n` polynomials.
@@ -107,24 +112,18 @@ impl Prover {
         self.preprocessed_transcript.append_message(label, message);
     }
 
-    /// Prove will compute the pre-processed polynomials and
-    /// produce a proof
-    pub fn prove(&mut self, commit_key: &ProverKey) -> Proof {
-        if self.preprocessed_circuit.is_none() {
-            // Preprocess circuit
-            let preprocessed_circuit = self
-                .cs
-                .preprocess(commit_key, &mut self.preprocessed_transcript);
-            // Store preprocessed circuit and transcript in the Prover
-            self.preprocessed_circuit = Some(preprocessed_circuit);
-        }
-
+    /// Creates a Proof that a circuit is satisfied
+    /// Note that if you intend to make multiple proofs, after calling this method, the user should then
+    /// call `clear_witness`. This is automatically done when `prove` is called
+    pub fn prove_with_preprocessed(
+        &self,
+        commit_key: &ProverKey,
+        preprocessed_circuit: &PreProcessedCircuit,
+    ) -> Proof {
         let domain = EvaluationDomain::new(self.cs.circuit_size()).unwrap();
 
         // Clone the transcript so we can do multiple proofs
         let mut transcript = self.preprocessed_transcript.clone();
-
-        let preprocessed_circuit = self.preprocessed_circuit.as_ref().unwrap();
 
         //1. Compute witness Polynomials
         //
@@ -301,9 +300,6 @@ impl Prover {
         );
         let w_zx_comm = commit_key.commit(&shifted_aggregate_witness).unwrap();
 
-        // Reset composer variables
-        self.clear_witness();
-
         // Create Proof
         Proof {
             a_comm: w_l_poly_commit,
@@ -323,5 +319,30 @@ impl Prover {
 
             evaluations: evaluations.proof,
         }
+    }
+
+    /// Proves a circuit is satisfied, then clears the witness variables
+    /// If the circuit is not pre-processed, then the preprocessed circuit will
+    /// also be computed
+    pub fn prove(&mut self, commit_key: &ProverKey) -> Proof {
+        let preprocessed_circuit: &PreProcessedCircuit;
+
+        if self.preprocessed_circuit.is_none() {
+            // Preprocess circuit
+            let preprocessed_circuit = self
+                .cs
+                .preprocess(commit_key, &mut self.preprocessed_transcript);
+            // Store preprocessed circuit and transcript in the Prover
+            self.preprocessed_circuit = Some(preprocessed_circuit);
+        }
+
+        preprocessed_circuit = self.preprocessed_circuit.as_ref().unwrap();
+
+        let proof = self.prove_with_preprocessed(commit_key, preprocessed_circuit);
+
+        // Clear witness and reset composer variables
+        self.clear_witness();
+
+        proof
     }
 }
