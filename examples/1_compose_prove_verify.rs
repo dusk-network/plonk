@@ -47,10 +47,7 @@ extern crate merlin;
 extern crate plonk;
 
 use bls12_381::Scalar;
-use merlin::Transcript;
 use plonk::commitment_scheme::kzg10::PublicParameters;
-use plonk::constraint_system::StandardComposer;
-use plonk::fft::EvaluationDomain;
 use plonk::proof_system::{Prover, Verifier};
 use std::fs;
 
@@ -66,7 +63,7 @@ fn main() {
     // the performance.
     let mut prover = Prover::new(b"End-To-End-Example");
 
-    let mut composer = prover.mut_cs();
+    let composer = prover.mut_cs();
 
     // Then we generate our `Scalar` values A, B, C, D that we want to prove
     // that satisfy the aformentioned properties.
@@ -255,21 +252,7 @@ fn main() {
     // This will save us time since it's no longer needed to compile again all of the circuit logic every time we
     // want to create a new `Proof` of the same type. We can simply set new values for the input variables and that's it.
     //
-    // To do the preprocessing, we will also need three more things.
-    //
-    // 1. A `merlin::Transcript` which will allow Prover and Verifier to perform the fiat-Shamir heuristics without having
-    // a direct communication between themselves.
-    // That means that both need to initialize the Transcript with the same randomness seed.
-    // let mut prover = Prover::new(b"End-To-End-Example");
-    // 2. The `EvaluationDomain` on which we are working and performing our evaluations.
-    // It's not needed to understand what it is, if you want to get the `EvaluationDomain` on which your
-    // composer is working, you just need to do the following:
-    //
-    // This will give us the order of the circuit that we've built (The number of cates/constraints that our circuit has).
-    let circ_size = composer.circuit_size();
-    // The `EvaluationDomain` is built according to the `circuit_size` of our Composer. To generate it we simply do:
-    let eval_domain = EvaluationDomain::new(circ_size).unwrap();
-    // 3. The Commitment Key `ProverKey` which will allow us to compute the commitments and basically "hide" our secret values.
+    // 1. The Commitment Key `ProverKey` which will allow us to compute the commitments and basically "hide" our secret values.
     // It is derived from the Trusted Setup `PublicParameters`.
     //
     // What we will do now is basically get the previously generated `PublicParameters` (the testing ones) and derive from them

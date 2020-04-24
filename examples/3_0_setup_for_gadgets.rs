@@ -15,8 +15,7 @@ use bls12_381::Scalar;
 use merlin::Transcript;
 use plonk::commitment_scheme::kzg10::PublicParameters;
 use plonk::constraint_system::StandardComposer;
-use plonk::fft::EvaluationDomain;
-use plonk::proof_system::{PreProcessedCircuit, Proof, Prover, Verifier};
+use plonk::proof_system::{PreProcessedCircuit, Proof, Prover};
 use std::fs;
 
 // To do this, we basically need to import our gadget builder function.
@@ -57,8 +56,6 @@ fn build_prep_circ() -> PreProcessedCircuit {
         &[Scalar::one(), Scalar::one(), Scalar::one(), Scalar::one()],
         Scalar::one(),
     );
-    let circ_size = composer.circuit_size();
-    let eval_domain = EvaluationDomain::new(circ_size).unwrap();
     let ser_pub_params = fs::read(&"examples/.public_params.bin")
         .expect("File not found. Run example `0_setup_srs` first please");
     let pub_params: PublicParameters = bincode::deserialize(&ser_pub_params).unwrap();
@@ -80,7 +77,7 @@ fn build_proof(inputs: &[Scalar], final_result: Scalar, prep_circ: &PreProcessed
     let (prover_key, _) = pub_params
         .trim(2 * prover.circuit_size().next_power_of_two())
         .unwrap();
-    prover.prove(&prover_key)
+    prover.prove_with_preprocessed(&prover_key, &prep_circ)
 }
 
 fn main() {
