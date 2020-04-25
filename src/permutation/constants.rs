@@ -1,4 +1,4 @@
-use bls12_381::Scalar;
+use dusk-bls12_381::Scalar;
 
 /// Constants used in the permutation argument to ensure that the wire subsets are disjoint.
 pub(crate) const K1: Scalar = Scalar::from_raw([7, 0, 0, 0]);

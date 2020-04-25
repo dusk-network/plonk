@@ -1,5 +1,5 @@
 //! Implementation of the KZG10 polynomial commitment scheme.
-use bls12_381::{G1Affine, G1Projective, Scalar};
+use dusk-bls12_381::{G1Affine, G1Projective, Scalar};
 pub mod errors;
 pub mod key;
 pub mod srs;

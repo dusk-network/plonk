@@ -6,7 +6,7 @@ use crate::commitment_scheme::kzg10::Commitment;
 use crate::fft::{EvaluationDomain, Evaluations, Polynomial};
 use crate::permutation::constants::{K1, K2, K3};
 use crate::proof_system::linearisation_poly::ProofEvaluations;
-use bls12_381::{G1Affine, Scalar};
+use dusk-bls12_381::{G1Affine, Scalar};
 use rayon::prelude::*;
 #[cfg(feature = "serde")]
 use serde::{de::Visitor, ser::SerializeStruct, Deserialize, Deserializer, Serialize, Serializer};

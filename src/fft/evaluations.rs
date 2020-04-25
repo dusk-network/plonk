@@ -2,7 +2,7 @@
 
 use super::domain::EvaluationDomain;
 use super::polynomial::Polynomial;
-use bls12_381::Scalar;
+use dusk-bls12_381::Scalar;
 use core::ops::{Add, AddAssign, DivAssign, Index, Mul, MulAssign, Sub, SubAssign};
 #[cfg(feature = "serde")]
 use serde::{de::Visitor, ser::SerializeStruct, Deserialize, Deserializer, Serialize, Serializer};

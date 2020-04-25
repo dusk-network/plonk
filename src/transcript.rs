@@ -1,7 +1,7 @@
 //! This is an extension over the [Merlin Transcript](merlin::Transcript)
 //! which adds a few extra functionalities.
 use crate::commitment_scheme::kzg10::Commitment;
-use bls12_381::Scalar;
+use dusk-bls12_381::Scalar;
 use merlin::Transcript;
 
 /// Transcript adds an abstraction over the Merlin transcript

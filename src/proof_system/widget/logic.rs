@@ -4,7 +4,7 @@ use crate::commitment_scheme::kzg10::Commitment;
 use crate::fft::{Evaluations, Polynomial};
 use crate::proof_system::linearisation_poly::ProofEvaluations;
 
-use bls12_381::{G1Affine, Scalar};
+use dusk-bls12_381::{G1Affine, Scalar};
 #[cfg(feature = "serde")]
 use serde::{de::Visitor, ser::SerializeStruct, Deserialize, Deserializer, Serialize, Serializer};
 
