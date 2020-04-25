@@ -13,10 +13,11 @@ description = "A pure-Rust implementation of the PLONK ZK-Proof algorithm"
 exclude = [
     "**/.gitignore",
     ".gitignore",
+    "Cargo.lock",
     "**/examples",
     "benchmarks/",
-    ".CHANGELOG.md",
-    ".CONTRIBUTING.md",
+    "CHANGELOG.md",
+    "CONTRIBUTING.md",
     ".travis.yml"
 ]
 license = "MPL-2.0"
