@@ -8,15 +8,15 @@
 //! - PublicParameters (was done on example 0 so it's not going to be done here).
 //!
 extern crate bincode;
+extern crate dusk_plonk;
 extern crate merlin;
-extern crate plonk;
 
 use dusk_bls12_381::Scalar;
+use dusk_plonk::commitment_scheme::kzg10::PublicParameters;
+use dusk_plonk::constraint_system::StandardComposer;
+use dusk_plonk::fft::EvaluationDomain;
+use dusk_plonk::proof_system::{PreProcessedCircuit, Proof};
 use merlin::Transcript;
-use plonk::commitment_scheme::kzg10::PublicParameters;
-use plonk::constraint_system::StandardComposer;
-use plonk::fft::EvaluationDomain;
-use plonk::proof_system::{PreProcessedCircuit, Proof};
 use std::fs;
 
 // To do this, we basically need to import our gadget builder function.

@@ -3,15 +3,15 @@
 extern crate bincode;
 #[macro_use]
 extern crate lazy_static;
+extern crate dusk_plonk;
 extern crate merlin;
-extern crate plonk;
 
 use dusk_bls12_381::Scalar;
+use dusk_plonk::commitment_scheme::kzg10::{ProverKey, PublicParameters, VerifierKey};
+use dusk_plonk::constraint_system::StandardComposer;
+use dusk_plonk::fft::EvaluationDomain;
+use dusk_plonk::proof_system::{PreProcessedCircuit, Proof};
 use merlin::Transcript;
-use plonk::commitment_scheme::kzg10::{ProverKey, PublicParameters, VerifierKey};
-use plonk::constraint_system::StandardComposer;
-use plonk::fft::EvaluationDomain;
-use plonk::proof_system::{PreProcessedCircuit, Proof};
 use std::fs;
 
 lazy_static! {

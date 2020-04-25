@@ -1,11 +1,11 @@
 [package]
-name = "plonk"
+name = "dusk-plonk"
 version = "0.1.0"
 authors = ["Kevaundray Wedderburn <kevtheappdev@gmail.com>",
            "Luke Pearson <luke@dusk.network>", 
            "CPerezz <carlos@dusk.network>"] 
 readme = "README.md"
-documentation = "https://dusk-network.github.io/plonk/plonk/"
+documentation = "https://dusk-network.github.io/plonk"
 repository = "https://github.com/dusk-network/plonk"
 keywords = ["cryptography", "plonk", "zk-snarks", "zero-knowledge", "crypto"]
 categories =["Algorithms", "Cryptography", "Development tools"]

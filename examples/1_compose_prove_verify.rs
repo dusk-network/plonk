@@ -43,14 +43,14 @@
 //! but not for the witness values.
 
 extern crate bincode;
+extern crate dusk_plonk;
 extern crate merlin;
-extern crate plonk;
 
 use dusk_bls12_381::Scalar;
+use dusk_plonk::commitment_scheme::kzg10::PublicParameters;
+use dusk_plonk::constraint_system::StandardComposer;
+use dusk_plonk::fft::EvaluationDomain;
 use merlin::Transcript;
-use plonk::commitment_scheme::kzg10::PublicParameters;
-use plonk::constraint_system::StandardComposer;
-use plonk::fft::EvaluationDomain;
 use std::fs;
 
 fn main() {

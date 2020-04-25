@@ -29,10 +29,10 @@
 //! `Proof`s and `PreProcessedCircuit`s as well as verify these `Proof`s.
 
 extern crate bincode;
-extern crate plonk;
+extern crate dusk_plonk;
 extern crate rand;
 
-use plonk::commitment_scheme::kzg10::PublicParameters;
+use dusk_plonk::commitment_scheme::kzg10::PublicParameters;
 use std::fs;
 
 fn main() -> () {
