@@ -23,7 +23,7 @@ use crate::proof_system::quotient_poly;
 use crate::proof_system::widget::{ArithmeticWidget, LogicWidget, PermutationWidget, RangeWidget};
 use crate::proof_system::{proof::Proof, PreProcessedCircuit};
 use crate::transcript::TranscriptProtocol;
-use bls12_381::Scalar;
+use dusk_bls12_381::Scalar;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use std::collections::HashMap;
 
@@ -1551,7 +1551,7 @@ impl StandardComposer {
 mod tests {
     use super::*;
     use crate::commitment_scheme::kzg10::PublicParameters;
-    use bls12_381::Scalar as Fr;
+    use dusk_bls12_381::Scalar as Fr;
     use merlin::Transcript;
 
     // Returns a composer with `n` constraints

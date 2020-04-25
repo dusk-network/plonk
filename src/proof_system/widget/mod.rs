@@ -133,7 +133,7 @@ impl PreProcessedPolynomial {
 mod tests {
     use super::*;
     use crate::fft::EvaluationDomain;
-    use bls12_381::{G1Affine, Scalar};
+    use dusk_bls12_381::{G1Affine, Scalar};
 
     #[cfg(feature = "serde")]
     #[test]

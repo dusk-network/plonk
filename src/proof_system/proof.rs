@@ -9,7 +9,7 @@ use crate::commitment_scheme::kzg10::AggregateProof;
 use crate::commitment_scheme::kzg10::{Commitment, VerifierKey};
 use crate::fft::EvaluationDomain;
 use crate::transcript::TranscriptProtocol;
-use bls12_381::{multiscalar_mul::msm_variable_base, G1Affine, Scalar};
+use dusk_bls12_381::{multiscalar_mul::msm_variable_base, G1Affine, Scalar};
 #[cfg(feature = "serde")]
 use serde::{de::Visitor, ser::SerializeStruct, Deserialize, Deserializer, Serialize, Serializer};
 
