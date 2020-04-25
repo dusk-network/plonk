@@ -7,8 +7,8 @@
 //! by performing an O(n log n) FFT over such a domain.
 
 use super::Evaluations;
-use dusk-bls12_381::{Scalar, GENERATOR, ROOT_OF_UNITY, TWO_ADACITY};
 use core::fmt;
+use dusk_bls12_381::{Scalar, GENERATOR, ROOT_OF_UNITY, TWO_ADACITY};
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefMutIterator, ParallelIterator};
 #[cfg(feature = "serde")]
 use serde::{de::Visitor, ser::SerializeStruct, Deserialize, Deserializer, Serialize, Serializer};

@@ -11,7 +11,7 @@ extern crate bincode;
 extern crate merlin;
 extern crate plonk;
 
-use dusk-bls12_381::Scalar;
+use dusk_bls12_381::Scalar;
 use merlin::Transcript;
 use plonk::commitment_scheme::kzg10::PublicParameters;
 use plonk::constraint_system::StandardComposer;

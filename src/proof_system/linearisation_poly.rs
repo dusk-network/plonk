@@ -1,6 +1,6 @@
 use crate::fft::{EvaluationDomain, Polynomial};
 use crate::proof_system::PreProcessedCircuit;
-use dusk-bls12_381::Scalar;
+use dusk_bls12_381::Scalar;
 #[cfg(feature = "serde")]
 use serde::{de::Visitor, ser::SerializeStruct, Deserialize, Deserializer, Serialize, Serializer};
 

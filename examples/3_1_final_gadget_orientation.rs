@@ -6,7 +6,7 @@ extern crate lazy_static;
 extern crate merlin;
 extern crate plonk;
 
-use dusk-bls12_381::Scalar;
+use dusk_bls12_381::Scalar;
 use merlin::Transcript;
 use plonk::commitment_scheme::kzg10::{ProverKey, PublicParameters, VerifierKey};
 use plonk::constraint_system::StandardComposer;

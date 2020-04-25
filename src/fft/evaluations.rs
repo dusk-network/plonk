@@ -2,8 +2,8 @@
 
 use super::domain::EvaluationDomain;
 use super::polynomial::Polynomial;
-use dusk-bls12_381::Scalar;
 use core::ops::{Add, AddAssign, DivAssign, Index, Mul, MulAssign, Sub, SubAssign};
+use dusk_bls12_381::Scalar;
 #[cfg(feature = "serde")]
 use serde::{de::Visitor, ser::SerializeStruct, Deserialize, Deserializer, Serialize, Serializer};
 /// Stores a polynomial in evaluation form.

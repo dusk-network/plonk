@@ -2,7 +2,7 @@ use crate::fft::{EvaluationDomain, Polynomial};
 /// This quotient polynomial can only be used for the standard composer
 /// Each composer will need to implement their own method for computing the quotient polynomial
 use crate::proof_system::PreProcessedCircuit;
-use dusk-bls12_381::Scalar;
+use dusk_bls12_381::Scalar;
 use rayon::prelude::*;
 
 /// Computes the quotient polynomial

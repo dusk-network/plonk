@@ -4,7 +4,7 @@ use super::{
     key::{ProverKey, VerifierKey},
 };
 use crate::util;
-use dusk-bls12_381::{G1Affine, G1Projective, G2Affine, G2Prepared};
+use dusk_bls12_381::{G1Affine, G1Projective, G2Affine, G2Prepared};
 use rand_core::RngCore;
 
 /// The Public Parameters can also be referred to as the Structured Reference String (SRS).
@@ -179,7 +179,7 @@ impl PublicParameters {
 #[cfg(test)]
 mod test {
     use super::*;
-    use dusk-bls12_381::Scalar;
+    use dusk_bls12_381::Scalar;
     #[test]
     fn test_powers_of() {
         let x = Scalar::from(10u64);

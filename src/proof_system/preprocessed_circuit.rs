@@ -169,7 +169,7 @@ mod tests {
     use super::*;
     use crate::fft::{EvaluationDomain, Polynomial};
     use crate::proof_system::widget::PreProcessedPolynomial;
-    use dusk-bls12_381::{G1Affine, Scalar};
+    use dusk_bls12_381::{G1Affine, Scalar};
 
     #[cfg(feature = "serde")]
     #[test]

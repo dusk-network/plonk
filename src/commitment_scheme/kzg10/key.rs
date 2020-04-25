@@ -3,7 +3,7 @@
 //! Verifier keys.
 use super::{errors::Error, AggregateProof, Commitment, Proof};
 use crate::{fft::Polynomial, transcript::TranscriptProtocol, util};
-use dusk-bls12_381::{
+use dusk_bls12_381::{
     multiscalar_mul::msm_variable_base, G1Affine, G1Projective, G2Affine, G2Prepared, Scalar,
 };
 
@@ -332,13 +332,13 @@ impl VerifierKey {
         let inner_b: G2Affine = (self.beta_h - (self.h * point)).into();
         let prepared_inner_b = G2Prepared::from(-inner_b);
 
-        let pairing = dusk-bls12_381::multi_miller_loop(&[
+        let pairing = dusk_bls12_381::multi_miller_loop(&[
             (&inner_a, &self.prepared_h),
             (&proof.commitment_to_witness.0, &prepared_inner_b),
         ])
         .final_exponentiation();
 
-        pairing == dusk-bls12_381::Gt::identity()
+        pairing == dusk_bls12_381::Gt::identity()
     }
 
     /// Checks whether a batch of polynomials evaluated at different points, returned their specified value.
@@ -371,13 +371,13 @@ impl VerifierKey {
         let affine_total_w = G1Affine::from(-total_w);
         let affine_total_c = G1Affine::from(total_c);
 
-        let pairing = dusk-bls12_381::multi_miller_loop(&[
+        let pairing = dusk_bls12_381::multi_miller_loop(&[
             (&affine_total_w, &self.prepared_beta_h),
             (&affine_total_c, &self.prepared_h),
         ])
         .final_exponentiation();
 
-        pairing == dusk-bls12_381::Gt::identity()
+        pairing == dusk_bls12_381::Gt::identity()
     }
 }
 
@@ -566,7 +566,7 @@ mod test {
     #[test]
     fn verifier_key_serde_roundtrip() {
         use bincode;
-        use dusk-bls12_381::G2Prepared;
+        use dusk_bls12_381::G2Prepared;
         let g2_point = G2Affine::generator();
         let g2_prep_point = G2Prepared::from(g2_point);
         let g1_point = G1Affine::generator();
