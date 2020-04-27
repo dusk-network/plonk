@@ -182,7 +182,7 @@ fn main() {
     // this One is able to be changed by any other value keeping the same exact circuit.
     //
     // If that's the case, we cannot use One as a circuit descriptor since we would then need to create
-    // a entirwly new circuit for each different value that we want to use.
+    // a entirely new circuit for each different value that we want to use.
     // So what's the solution?
     //
     // We use that value as a Public Input, which means that it's not defining the circuit but at the same

@@ -2,20 +2,20 @@
 //! of a Trusted Setup, which is universal and updateable.
 //!
 //! This plonk crate comes with a commitment scheme module,
-//! which is already implemented, so users don't need to import
-//! one for any either party for performing tests or even
-//! building the `Proof`s.
+//! which is already implemented, so performing any tests,
+//! for the preprocessing, proving or verifying procedures
+//! which are used in PLONK is automatic.
 //!
-//! To be precise, the commitment scheme implemented used in PLONK,
-//! is the KZG10` polynomial commitment scheme implemented on it.
+//! To be precise, the commitment scheme implemented in PLONK,
+//! is the KZG10` polynomial commitment scheme.
 //! Which apart from its standard fucntions of committing to
 //! polynomials, it allows us to setup "testing" or "debbuging"
 //! Trusted Setups (which are identified as `PublicParameters` by this repo).
 //! With this, end-users are able to perform the Prove&Verify tests
 //! without needing to compute a 'real Trusted Setup'.
 //!
-//! **DO NOT USE** `PublicParameters` as the Trusted Setups in production,
-//! as they require complex Multi-Party computation processes
+//! **DO NOT USE** `PublicParameters::setup()` as the Trusted Setups for
+//! production, as they require complex Multi-Party computation processes
 //! to be instantiated in a secure and correct way.
 //!
 //! ## Why do we care about that?
