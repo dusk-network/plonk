@@ -92,7 +92,7 @@ fn main() {
     fs::write("examples/.prep_circ_2_3.bin", &ser_prep_circ).expect("Unable to write file");
 
     // Now we will build a correct and an incorrect proof to use them in the next
-    // example. This is not needed, but it will generate a few proofs to be tested
+    // example. This is not usually needed, but it will generate a few proofs to be tested
     // later.
 
     // The public input is PUBLIC so we assume that the `Provers` and `Verifiers`

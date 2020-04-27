@@ -114,7 +114,7 @@ fn main() {
     // We just need to do call one function to build a proof
     let proof = start_proving(&inputs, pub_input);
 
-    // Verify it is as easy as
+    // Verify it easily with an assertion
     assert!(verify_proof(&proof, pub_input) == true);
     println!("Proof constructed in the example was succesfully verified!");
 
