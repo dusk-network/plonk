@@ -25,7 +25,7 @@
 //!
 //! In this example we will create a simple circuit:
 //! - We know 4 values A, B, C, D.
-//! - we will prove that this 4 numbers satisfy that `A * B ^ C + D == 1`.
+//! - we will prove that this 4 numbers satisfy that `A + B ^ C + D == 1`.
 //! - We have a public input which is 1.
 //! - The circuit will perform: `((A + B ^ C + D) is bool) and also == 1`
 //!
@@ -178,7 +178,7 @@ fn main() {
         Scalar::zero(),
     );
 
-    // It can happen, that we will not always want to constraint the number to be One, and instead,
+    // It can happen, that we will not always want to constrain the number to be One, and instead,
     // this One is able to be changed by any other value keeping the same exact circuit.
     //
     // If that's the case, we cannot use One as a circuit descriptor since we would then need to create
