@@ -20,6 +20,7 @@ use dusk_plonk::commitment_scheme::kzg10::{PublicParameters, VerifierKey};
 use dusk_plonk::constraint_system::StandardComposer;
 use dusk_plonk::fft::EvaluationDomain;
 use dusk_plonk::proof_system::{PreProcessedCircuit, Proof};
+use failure::Error;
 use merlin::Transcript;
 use std::fs;
 
@@ -118,7 +119,7 @@ fn gadget_builder(composer: &mut StandardComposer, inputs: &[Scalar], final_resu
 fn build_proof(
     prover_composer: &mut StandardComposer,
     prover_transcript: &mut Transcript,
-) -> Proof {
+) -> Result<Proof, Error> {
     // ** Note that we could easily move the following lines to obtain the `PreProcessedCircuit` &
     // `PublicParameters(ck, vk)` inside of a `lazy_static!` implementation which will
     // make everything much more easy.**
@@ -145,13 +146,13 @@ fn build_proof(
     let (prover_key, _) = pub_params
         .trim(2 * prover_composer.circuit_size().next_power_of_two())
         .unwrap();
-    let prep_circ = prover_composer.preprocess(&prover_key, prover_transcript, &eval_domain);
+    let prep_circ = prover_composer.preprocess(&prover_key, prover_transcript, &eval_domain)?;
     // ** Note that we could easily move the previous lines to obtain the `PreProcessedCircuit` &
     // `PublicParameters(ck, vk)` inside of a `lazy_static!` implementation which will
     // make everything much more easy.**
 
     // Now we build the proof with the parameters we generated.
-    prover_composer.prove(&prover_key, &prep_circ, prover_transcript)
+    Ok(prover_composer.prove(&prover_key, &prep_circ, prover_transcript))
 }
 
 // This function could be replaced by a using lazy_static or simply deserializing the values
@@ -159,7 +160,7 @@ fn build_proof(
 fn gen_verifier_params(
     verif_composer: &mut StandardComposer,
     verif_transcript: &mut Transcript,
-) -> (PreProcessedCircuit, VerifierKey) {
+) -> Result<(PreProcessedCircuit, VerifierKey), Error> {
     // This will give us the order of the circuit that we've built (The number of cates/constraints that our circuit has).
     // Note that since we should have our `PreProcessedCircuit` already stored, we will not need to compute this (the size)
     // is already known.
@@ -180,8 +181,8 @@ fn gen_verifier_params(
     let (prover_key, verif_key) = pub_params
         .trim(verif_composer.circuit_size().next_power_of_two())
         .unwrap();
-    let prep_circ = verif_composer.preprocess(&prover_key, verif_transcript, &eval_domain);
-    (prep_circ, verif_key)
+    let prep_circ = verif_composer.preprocess(&prover_key, verif_transcript, &eval_domain)?;
+    Ok((prep_circ, verif_key))
 }
 
 fn verify_proof(
@@ -205,7 +206,7 @@ fn verify_proof(
 
 /// The goal of the main function will simulate the place on your code where you
 /// consistently create proofs and/or verify them.
-fn main() -> () {
+fn main() -> Result<(), Error> {
     //
     //
     // Prover Point of View
@@ -231,7 +232,7 @@ fn main() -> () {
     );
 
     // Generate a `Proof` with the values we used
-    let proof_1 = build_proof(&mut prover_composer, &mut prover_transcript);
+    let proof_1 = build_proof(&mut prover_composer, &mut prover_transcript)?;
     //
     // **We can now build a second proof so easily if we move the code avobe into a function
     // and so, we just have a functions that makes the call with the inputs.**
@@ -269,7 +270,7 @@ fn main() -> () {
     // The following part could be as simple as deserialize data or have a lazy_static reference.
     // We will just call a function that will give us the parametes that we could easily serialize/deserialize.
     let (prep_circ, verif_key) =
-        gen_verifier_params(&mut verifier_composer, &mut verifier_transcript);
+        gen_verifier_params(&mut verifier_composer, &mut verifier_transcript)?;
 
     assert!(verify_proof(
         &proof_1,
@@ -279,4 +280,5 @@ fn main() -> () {
         &-Scalar::one()
     ));
     println!("The proof was succesfully verified!");
+    Ok(())
 }

@@ -16,6 +16,7 @@ use dusk_plonk::commitment_scheme::kzg10::PublicParameters;
 use dusk_plonk::constraint_system::StandardComposer;
 use dusk_plonk::fft::EvaluationDomain;
 use dusk_plonk::proof_system::{PreProcessedCircuit, Proof};
+use failure::Error;
 use merlin::Transcript;
 use std::fs;
 
@@ -47,7 +48,7 @@ fn gadget_builder(composer: &mut StandardComposer, inputs: &[Scalar], final_resu
     composer.add_dummy_constraints();
 }
 
-fn build_prep_circ() -> PreProcessedCircuit {
+fn build_prep_circ() -> Result<PreProcessedCircuit, Error> {
     // Generate a composer & fill it with whatever witnesses (they're not related)
     // to the PreProcessedCircuit structure at all
     let mut composer = StandardComposer::new();
@@ -66,8 +67,7 @@ fn build_prep_circ() -> PreProcessedCircuit {
     let (prover_key, _) = pub_params
         .trim(2 * composer.circuit_size().next_power_of_two())
         .unwrap();
-    let prep_circ = composer.preprocess(&prover_key, &mut transcript, &eval_domain);
-    prep_circ
+    composer.preprocess(&prover_key, &mut transcript, &eval_domain)
 }
 
 fn build_proof(inputs: &[Scalar], final_result: Scalar, prep_circ: &PreProcessedCircuit) -> Proof {
@@ -84,9 +84,9 @@ fn build_proof(inputs: &[Scalar], final_result: Scalar, prep_circ: &PreProcessed
     composer.prove(&prover_key, &prep_circ, &mut transcript)
 }
 
-fn main() {
+fn main() -> Result<(), Error> {
     // Generate the preprocessed circuit & serialize it.
-    let prep_circ = build_prep_circ();
+    let prep_circ = build_prep_circ()?;
 
     let ser_prep_circ = bincode::serialize(&prep_circ).unwrap();
     fs::write("examples/.prep_circ_2_3.bin", &ser_prep_circ).expect("Unable to write file");
@@ -123,4 +123,5 @@ fn main() {
     fs::write("examples/.proof_ko_2_3.bin", &ser_proof_ko).expect("Unable to write file");
 
     println!("Files were written successfully!");
+    Ok(())
 }

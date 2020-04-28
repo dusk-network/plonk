@@ -32,7 +32,7 @@ mod serde_benches {
         let mut transcript = Transcript::new(b"12381");
 
         // Preprocess circuit
-        let preprocessed_circuit = composer.preprocess(&ck, &mut transcript, &domain);
+        let preprocessed_circuit = composer.preprocess(&ck, &mut transcript, &domain).unwrap();
 
         let proof = composer.prove(&ck, &preprocessed_circuit, &mut transcript);
         let proof_ser_data = bincode::serialize(&proof).unwrap();

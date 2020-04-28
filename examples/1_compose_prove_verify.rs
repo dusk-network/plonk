@@ -50,10 +50,11 @@ use dusk_bls12_381::Scalar;
 use dusk_plonk::commitment_scheme::kzg10::PublicParameters;
 use dusk_plonk::constraint_system::StandardComposer;
 use dusk_plonk::fft::EvaluationDomain;
+use failure::Error;
 use merlin::Transcript;
 use std::fs;
 
-fn main() {
+fn main() -> Result<(), Error> {
     //
     //
     // Circuit construction stage
@@ -282,7 +283,8 @@ fn main() {
         .unwrap();
 
     // Now we can finally preprocess the circuit that we've built.
-    let pre_processed_circ = composer.preprocess(&prover_key, &mut prover_transcript, &eval_domain);
+    let pre_processed_circ =
+        composer.preprocess(&prover_key, &mut prover_transcript, &eval_domain)?;
 
     // We could now store our `PreProcessedCircuit` serialized with `bincode`.
     // let ser_prep_cir = bincode::serialize(&pre_processed_circ).unwrap();
@@ -313,4 +315,5 @@ fn main() {
         &vec![zero, zero, zero, zero, zero, zero, zero, zero, zero, zero, zero, zero, -one, -one],
     ));
     println!("Proof verified succesfully!");
+    Ok(())
 }
