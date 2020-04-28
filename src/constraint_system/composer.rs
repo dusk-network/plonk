@@ -12,6 +12,7 @@
 // it is intended to be like this in order to provide
 // maximum performance and minimum circuit sizes.
 #![allow(clippy::too_many_arguments)]
+use super::cs_errors::PreProcessingError;
 use crate::bit_iterator::*;
 use crate::commitment_scheme::kzg10::ProverKey;
 use crate::constraint_system::Variable;
@@ -24,6 +25,7 @@ use crate::proof_system::widget::{ArithmeticWidget, LogicWidget, PermutationWidg
 use crate::proof_system::{proof::Proof, PreProcessedCircuit};
 use crate::transcript::TranscriptProtocol;
 use dusk_bls12_381::Scalar;
+use failure::Error;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use std::collections::HashMap;
 
@@ -85,19 +87,9 @@ impl StandardComposer {
         commit_key: &ProverKey,
         transcript: &mut dyn TranscriptProtocol,
         domain: &EvaluationDomain,
-    ) -> PreProcessedCircuit {
-        let k = self.q_m.len();
-        assert!(self.q_o.len() == k);
-        assert!(self.q_l.len() == k);
-        assert!(self.q_r.len() == k);
-        assert!(self.q_c.len() == k);
-        assert!(self.q_4.len() == k);
-        assert!(self.q_arith.len() == k);
-        assert!(self.q_range.len() == k);
-        assert!(self.q_logic.len() == k);
-        assert!(self.w_l.len() == k);
-        assert!(self.w_r.len() == k);
-        assert!(self.w_o.len() == k);
+    ) -> Result<PreProcessedCircuit, Error> {
+        // Check that all of the wires have the same length.
+        self.check_poly_same_len()?;
 
         //1. Pad circuit to a power of two
         self.pad(domain.size as usize - self.n);
@@ -114,6 +106,7 @@ impl StandardComposer {
         let q_logic_poly = Polynomial::from_coefficients_slice(&domain.ifft(&self.q_logic));
 
         // 2b. Compute 4n evaluations of selector polynomial
+        // XXX: Check this err
         let domain_4n = EvaluationDomain::new(4 * domain.size()).unwrap();
         let q_m_eval_4n =
             Evaluations::from_vec_and_domain(domain_4n.coset_fft(&q_m_poly.coeffs), domain_4n);
@@ -172,6 +165,7 @@ impl StandardComposer {
         let q_range_poly_commit = commit_key.commit(&q_range_poly).unwrap_or_default();
         let q_logic_poly_commit = commit_key.commit(&q_logic_poly).unwrap_or_default();
 
+        // XXX: Check this errors!!
         let left_sigma_poly_commit = commit_key.commit(&left_sigma_poly).unwrap();
         let right_sigma_poly_commit = commit_key.commit(&right_sigma_poly).unwrap();
         let out_sigma_poly_commit = commit_key.commit(&out_sigma_poly).unwrap();
@@ -240,7 +234,7 @@ impl StandardComposer {
             linear_eval_4n,
         );
 
-        PreProcessedCircuit {
+        Ok(PreProcessedCircuit {
             n: self.n,
             arithmetic: arithmetic_widget,
             range: range_widget,
@@ -248,7 +242,7 @@ impl StandardComposer {
             permutation: perm_widget,
             // Compute 4n evaluations for X^n -1
             v_h_coset_4n: domain_4n.compute_vanishing_poly_over_coset(domain.size() as u64),
-        }
+        })
     }
 
     /// Prove will compute the pre-processed polynomials and
@@ -459,6 +453,29 @@ impl StandardComposer {
     /// Returns the number of gates in the circuit
     pub fn circuit_size(&self) -> usize {
         self.n
+    }
+
+    /// Checks that all of the wires of the composer have the same
+    /// length.
+    fn check_poly_same_len(&self) -> Result<(), PreProcessingError> {
+        let k = self.q_m.len();
+
+        if self.q_o.len() == k
+            && self.q_l.len() == k
+            && self.q_r.len() == k
+            && self.q_c.len() == k
+            && self.q_4.len() == k
+            && self.q_arith.len() == k
+            && self.q_range.len() == k
+            && self.q_logic.len() == k
+            && self.w_l.len() == k
+            && self.w_r.len() == k
+            && self.w_o.len() == k
+        {
+            Ok(())
+        } else {
+            Err(PreProcessingError::MissmatchedPolyLen)
+        }
     }
 }
 
@@ -1421,7 +1438,6 @@ impl StandardComposer {
         );
     }
 
-
     /// This function is used to add a blinding factor to the witness polynomials
     pub fn add_dummy_constraints(&mut self) {
         // Add a dummy constraint so that we do not have zero polynomials
@@ -1948,7 +1964,7 @@ mod tests {
             // Preprocess circuit
             let preprocessed_circuit = composer.preprocess(&ck, &mut transcript, &domain);
             (
-                composer.prove(&ck, &preprocessed_circuit, &mut transcript),
+                composer.prove(&ck, &preprocessed_circuit.unwrap(), &mut transcript),
                 composer.public_inputs,
             )
         };
@@ -1967,7 +1983,12 @@ mod tests {
         // Preprocess circuit
         let preprocessed_circuit = composer.preprocess(&ck, &mut transcript, &domain);
         // Verify proof
-        proof.verify(&preprocessed_circuit, &mut transcript, &vk, &public_inputs)
+        proof.verify(
+            &preprocessed_circuit.unwrap(),
+            &mut transcript,
+            &vk,
+            &public_inputs,
+        )
     }
 
     #[test]
