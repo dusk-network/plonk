@@ -10,6 +10,7 @@ use super::fft_errors::{FFTError, FFTErrors};
 use super::Evaluations;
 use core::fmt;
 use dusk_bls12_381::{Scalar, GENERATOR, ROOT_OF_UNITY, TWO_ADACITY};
+use failure::Error;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefMutIterator, ParallelIterator};
 #[cfg(feature = "serde")]
 use serde::{de::Visitor, ser::SerializeStruct, Deserialize, Deserializer, Serialize, Serializer};
@@ -184,16 +185,20 @@ impl<'de> Deserialize<'de> for EvaluationDomain {
 impl EvaluationDomain {
     /// Construct a domain that is large enough for evaluations of a polynomial
     /// having `num_coeffs` coefficients.
-    pub fn new(num_coeffs: usize) -> Result<Self, FFTError> {
+    pub fn new(num_coeffs: usize) -> Result<Self, Error> {
         // Compute the size of our evaluation domain
         let size = num_coeffs.next_power_of_two() as u64;
         let log_size_of_group = size.trailing_zeros();
 
         if log_size_of_group >= TWO_ADACITY {
-            return Err(FFTError(FFTErrors::InvalidEvalDomainSize {
-                log_size_of_group,
-                adacity: TWO_ADACITY,
-            }));
+            return Err(FFTError(
+                FFTErrors::InvalidEvalDomainSize {
+                    log_size_of_group,
+                    adacity: TWO_ADACITY,
+                }
+                .into(),
+            )
+            .into());
         }
 
         // Compute the generator for the multiplicative subgroup.

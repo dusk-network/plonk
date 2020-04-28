@@ -1,5 +1,7 @@
 //! Errors related to the fft module.
 
+use failure::Error;
+
 /// Defines all of the possible FFTError types that we could have when
 /// we are working with the `fft` module.
 #[derive(Fail, Debug)]
@@ -21,4 +23,4 @@ pub enum FFTErrors {
 #[fail(display = "FFT module error")]
 /// Represents an error triggered on any of the FFT module operations
 /// such as `Polynomial` or `EvaluationDomain`
-pub struct FFTError(#[fail(cause)] pub(crate) FFTErrors);
+pub struct FFTError(#[fail(cause)] pub(crate) Error);
