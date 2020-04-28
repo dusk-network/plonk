@@ -106,8 +106,7 @@ impl StandardComposer {
         let q_logic_poly = Polynomial::from_coefficients_slice(&domain.ifft(&self.q_logic));
 
         // 2b. Compute 4n evaluations of selector polynomial
-        // XXX: Check this err
-        let domain_4n = EvaluationDomain::new(4 * domain.size()).unwrap();
+        let domain_4n = EvaluationDomain::new(4 * domain.size())?;
         let q_m_eval_4n =
             Evaluations::from_vec_and_domain(domain_4n.coset_fft(&q_m_poly.coeffs), domain_4n);
         let q_l_eval_4n =
@@ -165,11 +164,10 @@ impl StandardComposer {
         let q_range_poly_commit = commit_key.commit(&q_range_poly).unwrap_or_default();
         let q_logic_poly_commit = commit_key.commit(&q_logic_poly).unwrap_or_default();
 
-        // XXX: Check this errors!!
-        let left_sigma_poly_commit = commit_key.commit(&left_sigma_poly).unwrap();
-        let right_sigma_poly_commit = commit_key.commit(&right_sigma_poly).unwrap();
-        let out_sigma_poly_commit = commit_key.commit(&out_sigma_poly).unwrap();
-        let fourth_sigma_poly_commit = commit_key.commit(&fourth_sigma_poly).unwrap();
+        let left_sigma_poly_commit = commit_key.commit(&left_sigma_poly)?;
+        let right_sigma_poly_commit = commit_key.commit(&right_sigma_poly)?;
+        let out_sigma_poly_commit = commit_key.commit(&out_sigma_poly)?;
+        let fourth_sigma_poly_commit = commit_key.commit(&fourth_sigma_poly)?;
 
         //5. Add polynomial commitments to transcript
         //
@@ -252,8 +250,8 @@ impl StandardComposer {
         commit_key: &ProverKey,
         preprocessed_circuit: &PreProcessedCircuit,
         transcript: &mut dyn TranscriptProtocol,
-    ) -> Proof {
-        let domain = EvaluationDomain::new(self.n).unwrap();
+    ) -> Result<Proof, Error> {
+        let domain = EvaluationDomain::new(self.n)?;
 
         //1. Compute witness Polynomials
         //
@@ -273,10 +271,10 @@ impl StandardComposer {
         let w_4_poly = Polynomial::from_coefficients_vec(domain.ifft(w_4_scalar));
 
         // Commit to witness polynomials
-        let w_l_poly_commit = commit_key.commit(&w_l_poly).unwrap();
-        let w_r_poly_commit = commit_key.commit(&w_r_poly).unwrap();
-        let w_o_poly_commit = commit_key.commit(&w_o_poly).unwrap();
-        let w_4_poly_commit = commit_key.commit(&w_4_poly).unwrap();
+        let w_l_poly_commit = commit_key.commit(&w_l_poly)?;
+        let w_r_poly_commit = commit_key.commit(&w_r_poly)?;
+        let w_o_poly_commit = commit_key.commit(&w_o_poly)?;
+        let w_4_poly_commit = commit_key.commit(&w_4_poly)?;
 
         // Add witness polynomial commitments to transcript
         transcript.append_commitment(b"w_l", &w_l_poly_commit);
@@ -329,16 +327,16 @@ impl StandardComposer {
             (&w_l_poly, &w_r_poly, &w_o_poly, &w_4_poly),
             &pi_poly,
             &(alpha, beta, gamma),
-        );
+        )?;
 
         // Split quotient polynomial into 4 degree `n` polynomials
         let (t_1_poly, t_2_poly, t_3_poly, t_4_poly) = self.split_tx_poly(domain.size(), &t_poly);
 
         // Commit to splitted quotient polynomial
-        let t_1_commit = commit_key.commit(&t_1_poly).unwrap();
-        let t_2_commit = commit_key.commit(&t_2_poly).unwrap();
-        let t_3_commit = commit_key.commit(&t_3_poly).unwrap();
-        let t_4_commit = commit_key.commit(&t_4_poly).unwrap();
+        let t_1_commit = commit_key.commit(&t_1_poly)?;
+        let t_2_commit = commit_key.commit(&t_2_poly)?;
+        let t_3_commit = commit_key.commit(&t_3_poly)?;
+        let t_4_commit = commit_key.commit(&t_4_poly)?;
 
         // Add quotient polynomial commitments to transcript
         transcript.append_commitment(b"t_1", &t_1_commit);
@@ -420,7 +418,7 @@ impl StandardComposer {
             &z_challenge,
             transcript,
         );
-        let w_z_comm = commit_key.commit(&aggregate_witness).unwrap();
+        let w_z_comm = commit_key.commit(&aggregate_witness)?;
 
         // Compute aggregate witness to polynomials evaluated at the shifted evaluation challenge
         let shifted_aggregate_witness = commit_key.compute_aggregate_witness(
@@ -428,10 +426,10 @@ impl StandardComposer {
             &(z_challenge * domain.group_gen),
             transcript,
         );
-        let w_zx_comm = commit_key.commit(&shifted_aggregate_witness).unwrap();
+        let w_zx_comm = commit_key.commit(&shifted_aggregate_witness)?;
 
         // Create Proof
-        Proof {
+        Ok(Proof {
             a_comm: w_l_poly_commit,
             b_comm: w_r_poly_commit,
             c_comm: w_o_poly_commit,
@@ -448,7 +446,7 @@ impl StandardComposer {
             w_zw_comm: w_zx_comm,
 
             evaluations: evaluations.proof,
-        }
+        })
     }
     /// Returns the number of gates in the circuit
     pub fn circuit_size(&self) -> usize {
@@ -1616,22 +1614,22 @@ mod tests {
         assert!(composer.w_o.len() == size);
     }
 
-    #[cfg(feature = "trace")]
+    #[allow(unused_variables)]
     #[test]
     fn test_prove_verify() {
-        let ok = test_gadget(
+        let res = test_gadget(
             |composer| {
                 // do nothing except add the dummy constraints
             },
             200,
         );
-        assert!(ok);
+        assert!(res.is_ok());
     }
 
     #[test]
     fn test_logic_xor_constraint() {
         // Should pass since the XOR result is correct and the bit-num is even.
-        let ok = test_gadget(
+        let res = test_gadget(
             |composer| {
                 let witness_a = composer.add_input(Scalar::from(500u64));
                 let witness_b = composer.add_input(Scalar::from(357u64));
@@ -1645,10 +1643,10 @@ mod tests {
             },
             200,
         );
-        assert!(ok);
+        assert!(res.is_ok());
 
         // Should pass since the AND result is correct even the bit-num is even.
-        let ok = test_gadget(
+        let res = test_gadget(
             |composer| {
                 let witness_a = composer.add_input(Scalar::from(469u64));
                 let witness_b = composer.add_input(Scalar::from(321u64));
@@ -1662,10 +1660,10 @@ mod tests {
             },
             200,
         );
-        assert!(ok);
+        assert!(res.is_ok());
 
         // Should not pass since the XOR result is not correct even the bit-num is even.
-        let ok = test_gadget(
+        let res = test_gadget(
             |composer| {
                 let witness_a = composer.add_input(Scalar::from(139u64));
                 let witness_b = composer.add_input(Scalar::from(33u64));
@@ -1679,14 +1677,14 @@ mod tests {
             },
             200,
         );
-        assert!(!ok);
+        assert!(res.is_err());
     }
 
     #[test]
     #[should_panic]
     fn test_logical_gate_odd_bit_num() {
         // Should fail since the bit-num is odd.
-        let ok = test_gadget(
+        let _ = test_gadget(
             |composer| {
                 let witness_a = composer.add_input(Scalar::from(500u64));
                 let witness_b = composer.add_input(Scalar::from(499u64));
@@ -1696,40 +1694,39 @@ mod tests {
             },
             200,
         );
-        assert!(ok);
     }
 
     #[test]
     fn test_range_constraint() {
         // Should fail as the number is not 32 bits
-        let ok = test_gadget(
+        let res = test_gadget(
             |composer| {
                 let witness = composer.add_input(Scalar::from((u32::max_value() as u64) + 1));
                 composer.range_gate(witness, 32);
             },
             200,
         );
-        assert!(!ok);
+        assert!(res.is_err());
 
         // Should fail as number is greater than 32 bits
-        let ok = test_gadget(
+        let res = test_gadget(
             |composer| {
                 let witness = composer.add_input(Scalar::from(u64::max_value()));
                 composer.range_gate(witness, 32);
             },
             200,
         );
-        assert!(!ok);
+        assert!(res.is_err());
 
         // Should pass as the number is within 34 bits
-        let ok = test_gadget(
+        let res = test_gadget(
             |composer| {
                 let witness = composer.add_input(Scalar::from(2u64.pow(34) - 1));
                 composer.range_gate(witness, 34);
             },
             200,
         );
-        assert!(ok);
+        assert!(res.is_ok());
     }
 
     #[test]
@@ -1747,7 +1744,7 @@ mod tests {
 
     #[test]
     fn test_pi() {
-        let ok = test_gadget(
+        let res = test_gadget(
             |composer| {
                 let var_one = composer.add_input(Fr::one());
 
@@ -1770,12 +1767,12 @@ mod tests {
             },
             200,
         );
-        assert!(ok);
+        assert!(res.is_ok());
     }
 
     #[test]
     fn test_correct_add_mul_gate() {
-        let ok = test_gadget(
+        let res = test_gadget(
             |composer| {
                 // Verify that (4+5+5) * (6+7+7) = 280
                 let four = composer.add_input(Fr::from(4));
@@ -1814,12 +1811,12 @@ mod tests {
             },
             200,
         );
-        assert!(ok);
+        assert!(res.is_ok());
     }
 
     #[test]
     fn test_correct_add_gate() {
-        let ok = test_gadget(
+        let res = test_gadget(
             |composer| {
                 let zero = composer.add_input(Fr::zero());
                 let one = composer.add_input(Fr::one());
@@ -1834,11 +1831,11 @@ mod tests {
             },
             32,
         );
-        assert!(ok)
+        assert!(res.is_ok())
     }
     #[test]
     fn test_correct_big_add_mul_gate() {
-        let ok = test_gadget(
+        let res = test_gadget(
             |composer| {
                 // Verify that (4+5+5) * (6+7+7) + (8*9) = 352
                 let four = composer.add_input(Fr::from(4));
@@ -1875,12 +1872,12 @@ mod tests {
             },
             200,
         );
-        assert!(ok);
+        assert!(res.is_ok());
     }
 
     #[test]
     fn test_incorrect_add_mul_gate() {
-        let ok = test_gadget(
+        let res = test_gadget(
             |composer| {
                 // Verify that (5+5) * (6+7) != 117
                 let five = composer.add_input(Fr::from(5));
@@ -1914,12 +1911,12 @@ mod tests {
             },
             200,
         );
-        assert!(!ok);
+        assert!(res.is_err());
     }
 
     #[test]
     fn test_correct_bool_gate() {
-        let ok = test_gadget(
+        let res = test_gadget(
             |composer| {
                 let zero = composer.add_input(Fr::zero());
                 let one = composer.add_input(Fr::one());
@@ -1929,12 +1926,12 @@ mod tests {
             },
             32,
         );
-        assert!(ok)
+        assert!(res.is_ok())
     }
 
     #[test]
     fn test_incorrect_bool_gate() {
-        let ok = test_gadget(
+        let res = test_gadget(
             |composer| {
                 let zero = composer.add_input(Fr::from(5));
                 let one = composer.add_input(Fr::one());
@@ -1944,10 +1941,10 @@ mod tests {
             },
             32,
         );
-        assert!(!ok)
+        assert!(res.is_err())
     }
 
-    fn test_gadget(gadget: fn(composer: &mut StandardComposer), n: usize) -> bool {
+    fn test_gadget(gadget: fn(composer: &mut StandardComposer), n: usize) -> Result<(), Error> {
         // Common View
         let public_parameters = PublicParameters::setup(2 * n, &mut rand::thread_rng()).unwrap();
         // Provers View
@@ -1955,16 +1952,15 @@ mod tests {
             let mut composer: StandardComposer = add_dummy_composer(7);
             gadget(&mut composer);
 
-            let (ck, _) = public_parameters
-                .trim(2 * composer.circuit_size().next_power_of_two())
-                .unwrap();
-            let domain = EvaluationDomain::new(composer.circuit_size()).unwrap();
+            let (ck, _) =
+                public_parameters.trim(2 * composer.circuit_size().next_power_of_two())?;
+            let domain = EvaluationDomain::new(composer.circuit_size())?;
             let mut transcript = Transcript::new(b"");
 
             // Preprocess circuit
-            let preprocessed_circuit = composer.preprocess(&ck, &mut transcript, &domain);
+            let preprocessed_circuit = composer.preprocess(&ck, &mut transcript, &domain)?;
             (
-                composer.prove(&ck, &preprocessed_circuit.unwrap(), &mut transcript),
+                composer.prove(&ck, &preprocessed_circuit, &mut transcript)?,
                 composer.public_inputs,
             )
         };
@@ -1974,21 +1970,14 @@ mod tests {
         let mut composer: StandardComposer = add_dummy_composer(7);
         gadget(&mut composer);
 
-        let (ck, vk) = public_parameters
-            .trim(composer.circuit_size().next_power_of_two())
-            .unwrap();
-        let domain = EvaluationDomain::new(composer.circuit_size()).unwrap();
+        let (ck, vk) = public_parameters.trim(composer.circuit_size().next_power_of_two())?;
+        let domain = EvaluationDomain::new(composer.circuit_size())?;
         // setup transcript
         let mut transcript = Transcript::new(b"");
         // Preprocess circuit
-        let preprocessed_circuit = composer.preprocess(&ck, &mut transcript, &domain);
+        let preprocessed_circuit = composer.preprocess(&ck, &mut transcript, &domain)?;
         // Verify proof
-        proof.verify(
-            &preprocessed_circuit.unwrap(),
-            &mut transcript,
-            &vk,
-            &public_inputs,
-        )
+        proof.verify(&preprocessed_circuit, &mut transcript, &vk, &public_inputs)
     }
 
     #[test]
