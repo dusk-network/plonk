@@ -11,6 +11,7 @@ use dusk_plonk::commitment_scheme::kzg10::{ProverKey, PublicParameters, Verifier
 use dusk_plonk::constraint_system::StandardComposer;
 use dusk_plonk::fft::EvaluationDomain;
 use dusk_plonk::proof_system::{PreProcessedCircuit, Proof};
+use failure::Error;
 use merlin::Transcript;
 use std::fs;
 
@@ -73,11 +74,14 @@ fn gadget_builder(composer: &mut StandardComposer, inputs: &[Scalar], final_resu
     composer.add_dummy_constraints();
 }
 
-fn elaborate_proof(composer: &mut StandardComposer, transcript: &mut Transcript) -> Proof {
+fn elaborate_proof(
+    composer: &mut StandardComposer,
+    transcript: &mut Transcript,
+) -> Result<Proof, Error> {
     composer.prove(&PROVER_KEY, &PREPROCESSED_CIRCUIT, transcript)
 }
 
-fn verify_proof(proof: &Proof, pub_input: Scalar) -> bool {
+fn verify_proof(proof: &Proof, pub_input: Scalar) -> Result<(), Error> {
     let mut verif_transcript = Transcript::new(b"Gadget-Orientation-Is-Cool");
     let zero = Scalar::zero();
 
@@ -91,14 +95,14 @@ fn verify_proof(proof: &Proof, pub_input: Scalar) -> bool {
     )
 }
 
-fn start_proving(inputs: &[Scalar], final_result: Scalar) -> Proof {
+fn start_proving(inputs: &[Scalar], final_result: Scalar) -> Result<Proof, Error> {
     let mut composer = StandardComposer::new();
     let mut transcript = Transcript::new(b"Gadget-Orientation-Is-Cool");
     gadget_builder(&mut composer, inputs, final_result);
     elaborate_proof(&mut composer, &mut transcript)
 }
 
-fn main() {
+fn main() -> Result<(), Error> {
     // The public input is PUBLIC so we assume that the `Provers` and `Verifiers`
     // already know it.
     let pub_input = -Scalar::one();
@@ -112,10 +116,10 @@ fn main() {
         Scalar::from(8u64),
     ];
     // We just need to do call one function to build a proof
-    let proof = start_proving(&inputs, pub_input);
+    let proof = start_proving(&inputs, pub_input)?;
 
     // Verify it is as easy as
-    assert!(verify_proof(&proof, pub_input) == true);
+    verify_proof(&proof, pub_input)?;
     println!("Proof constructed in the example was succesfully verified!");
 
     //
@@ -130,8 +134,10 @@ fn main() {
         fs::read("examples/.proof_ko_2_3.bin").expect("Missing Proof file \".proof_ko_2_3.bin\"");
     let ko_proof: Proof = bincode::deserialize(&ko_proof_data).unwrap();
 
-    assert!(verify_proof(&ok_proof, pub_input) == true);
+    verify_proof(&ok_proof, pub_input)?;
     println!("OK Proof constructed before was succesfully verified!");
-    assert!(verify_proof(&ko_proof, pub_input) == false);
+    verify_proof(&ko_proof, pub_input)?;
     println!("KO Proof constructed before was succesfully verified unsuccessfully as we expected!");
+
+    Ok(())
 }

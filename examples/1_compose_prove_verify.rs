@@ -303,17 +303,19 @@ fn main() -> Result<(), Error> {
         &prover_key,
         &pre_processed_circ,
         &mut prover_transcript.clone(),
-    );
+    )?;
 
     let zero = Scalar::zero();
     let one = Scalar::one();
     // On this example, since we are using the same composer, we just need to
-    assert!(proof.verify(
+    proof.verify(
         &pre_processed_circ,
         &mut prover_transcript,
         &verifier_key,
-        &vec![zero, zero, zero, zero, zero, zero, zero, zero, zero, zero, zero, zero, -one, -one],
-    ));
+        &vec![
+            zero, zero, zero, zero, zero, zero, zero, zero, zero, zero, zero, zero, -one, -one,
+        ],
+    )?;
     println!("Proof verified succesfully!");
     Ok(())
 }

@@ -59,28 +59,28 @@ fn build_prep_circ() -> Result<PreProcessedCircuit, Error> {
         Scalar::one(),
     );
     let circ_size = composer.circuit_size();
-    let eval_domain = EvaluationDomain::new(circ_size).unwrap();
+    let eval_domain = EvaluationDomain::new(circ_size)?;
     let ser_pub_params = fs::read(&"examples/.public_params.bin")
         .expect("File not found. Run example `0_setup_srs` first please");
-    let pub_params: PublicParameters = bincode::deserialize(&ser_pub_params).unwrap();
+    let pub_params: PublicParameters = bincode::deserialize(&ser_pub_params)?;
     // Derive the `ProverKey` from the `PublicParameters`.
-    let (prover_key, _) = pub_params
-        .trim(2 * composer.circuit_size().next_power_of_two())
-        .unwrap();
+    let (prover_key, _) = pub_params.trim(2 * composer.circuit_size().next_power_of_two())?;
     composer.preprocess(&prover_key, &mut transcript, &eval_domain)
 }
 
-fn build_proof(inputs: &[Scalar], final_result: Scalar, prep_circ: &PreProcessedCircuit) -> Proof {
+fn build_proof(
+    inputs: &[Scalar],
+    final_result: Scalar,
+    prep_circ: &PreProcessedCircuit,
+) -> Result<Proof, Error> {
     let mut composer = StandardComposer::new();
     let mut transcript = Transcript::new(b"Gadget-Orientation-Is-Cool");
     gadget_builder(&mut composer, inputs, final_result);
     let ser_pub_params = fs::read(&"examples/.public_params.bin")
         .expect("File not found. Run example `0_setup_srs` first please");
-    let pub_params: PublicParameters = bincode::deserialize(&ser_pub_params).unwrap();
+    let pub_params: PublicParameters = bincode::deserialize(&ser_pub_params)?;
     // Derive the `ProverKey` from the `PublicParameters`.
-    let (prover_key, _) = pub_params
-        .trim(2 * composer.circuit_size().next_power_of_two())
-        .unwrap();
+    let (prover_key, _) = pub_params.trim(2 * composer.circuit_size().next_power_of_two())?;
     composer.prove(&prover_key, &prep_circ, &mut transcript)
 }
 
@@ -106,7 +106,7 @@ fn main() -> Result<(), Error> {
         Scalar::from(3u64),
         Scalar::from(8u64),
     ];
-    let ok_proof = build_proof(&inputs, pub_input, &prep_circ);
+    let ok_proof = build_proof(&inputs, pub_input, &prep_circ)?;
     let ser_proof_ok = bincode::serialize(&ok_proof).unwrap();
     fs::write("examples/.proof_ok_2_3.bin", &ser_proof_ok).expect("Unable to write file");
 
@@ -118,7 +118,7 @@ fn main() -> Result<(), Error> {
         Scalar::from(9329u64),
     ];
 
-    let ko_proof = build_proof(&bad_inputs, pub_input, &prep_circ);
+    let ko_proof = build_proof(&bad_inputs, pub_input, &prep_circ)?;
     let ser_proof_ko = bincode::serialize(&ko_proof).unwrap();
     fs::write("examples/.proof_ko_2_3.bin", &ser_proof_ko).expect("Unable to write file");
 

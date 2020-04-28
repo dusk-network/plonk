@@ -143,16 +143,15 @@ fn build_proof(
         .expect("File not found. Run example `0_setup_srs` first please");
     let pub_params: PublicParameters = bincode::deserialize(&ser_pub_params).unwrap();
     // Derive the `ProverKey` from the `PublicParameters`.
-    let (prover_key, _) = pub_params
-        .trim(2 * prover_composer.circuit_size().next_power_of_two())
-        .unwrap();
+    let (prover_key, _) =
+        pub_params.trim(2 * prover_composer.circuit_size().next_power_of_two())?;
     let prep_circ = prover_composer.preprocess(&prover_key, prover_transcript, &eval_domain)?;
     // ** Note that we could easily move the previous lines to obtain the `PreProcessedCircuit` &
     // `PublicParameters(ck, vk)` inside of a `lazy_static!` implementation which will
     // make everything much more easy.**
 
     // Now we build the proof with the parameters we generated.
-    Ok(prover_composer.prove(&prover_key, &prep_circ, prover_transcript))
+    Ok(prover_composer.prove(&prover_key, &prep_circ, prover_transcript)?)
 }
 
 // This function could be replaced by a using lazy_static or simply deserializing the values
@@ -178,9 +177,8 @@ fn gen_verifier_params(
         .expect("File not found. Run example `0_setup_srs.rs` first please");
     let pub_params: PublicParameters = bincode::deserialize(&ser_pub_params).unwrap();
     // Derive the `ProverKey` from the `PublicParameters`.
-    let (prover_key, verif_key) = pub_params
-        .trim(verif_composer.circuit_size().next_power_of_two())
-        .unwrap();
+    let (prover_key, verif_key) =
+        pub_params.trim(verif_composer.circuit_size().next_power_of_two())?;
     let prep_circ = verif_composer.preprocess(&prover_key, verif_transcript, &eval_domain)?;
     Ok((prep_circ, verif_key))
 }
@@ -191,7 +189,7 @@ fn verify_proof(
     verif_key: &VerifierKey,
     verif_transcript: &mut Transcript,
     pub_input: &Scalar,
-) -> bool {
+) -> Result<(), Error> {
     let zero = Scalar::zero();
 
     proof.verify(
@@ -272,13 +270,13 @@ fn main() -> Result<(), Error> {
     let (prep_circ, verif_key) =
         gen_verifier_params(&mut verifier_composer, &mut verifier_transcript)?;
 
-    assert!(verify_proof(
+    verify_proof(
         &proof_1,
         &prep_circ,
         &verif_key,
         &mut verifier_transcript,
-        &-Scalar::one()
-    ));
+        &-Scalar::one(),
+    )?;
     println!("The proof was succesfully verified!");
     Ok(())
 }
