@@ -3,6 +3,7 @@
 //! the operations that the `Composer` needs to peform with them.
 pub(crate) mod domain;
 pub(crate) mod evaluations;
+pub(crate) mod fft_errors;
 pub(crate) mod polynomial;
 
 pub use domain::EvaluationDomain;

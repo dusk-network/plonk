@@ -100,6 +100,9 @@ impl Polynomial {
     }
 
     /// Constructs a new polynomial from a list of coefficients.
+    ///
+    /// # Panics
+    /// When the length of the coeffs is zero.
     pub fn from_coefficients_vec(coeffs: Vec<Scalar>) -> Self {
         let mut result = Self { coeffs };
         // While there are zeros at the end of the coefficient vector, pop them off.
