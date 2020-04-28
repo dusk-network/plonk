@@ -1,11 +1,15 @@
 //! Key module contains the ultilities and data structures
 //! that support the generation and usage of Prover and
 //! Verifier keys.
-use super::{errors::Error, AggregateProof, Commitment, Proof};
+use super::{
+    errors::{KZG10Errors, PolyCommitSchemeError},
+    AggregateProof, Commitment, Proof,
+};
 use crate::{fft::Polynomial, transcript::TranscriptProtocol, util};
 use dusk_bls12_381::{
     multiscalar_mul::msm_variable_base, G1Affine, G1Projective, G2Affine, G2Prepared, Scalar,
 };
+use failure::Error;
 
 /// Verifier Key is used to verify claims made about a committed polynomial.
 #[derive(Clone, Debug)]
@@ -210,12 +214,12 @@ impl ProverKey {
         }
         // Check that the truncated degree is not zero
         if truncated_degree == 0 {
-            return Err(Error::TruncatedDegreeIsZero);
+            return Err(PolyCommitSchemeError(KZG10Errors::TruncatedDegreeIsZero.into()).into());
         }
 
         // Check that max degree is less than truncated degree
         if truncated_degree > self.max_degree() {
-            return Err(Error::TruncatedDegreeTooLarge);
+            return Err(PolyCommitSchemeError(KZG10Errors::TruncatedDegreeTooLarge.into()).into());
         }
 
         let truncated_powers = Self {
@@ -325,7 +329,7 @@ impl ProverKey {
 impl VerifierKey {
     /// Checks that a polynomial `p` was evaluated at a point `z` and returned the value specified `v`.
     /// ie. v = p(z).
-    pub fn check(&self, point: Scalar, proof: Proof) -> bool {
+    fn check(&self, point: Scalar, proof: Proof) -> bool {
         let inner_a: G1Affine =
             (proof.commitment_to_polynomial.0 - (self.g * proof.evaluated_point)).into();
 
@@ -347,7 +351,7 @@ impl VerifierKey {
         points: &[Scalar],
         proofs: &[Proof],
         transcript: &mut dyn TranscriptProtocol,
-    ) -> bool {
+    ) -> Result<(), Error> {
         let mut total_c = G1Projective::identity();
         let mut total_w = G1Projective::identity();
 
@@ -377,7 +381,10 @@ impl VerifierKey {
         ])
         .final_exponentiation();
 
-        pairing == dusk_bls12_381::Gt::identity()
+        if pairing != dusk_bls12_381::Gt::identity() {
+            return Err(PolyCommitSchemeError(KZG10Errors::PairingCheckFailure.into()).into());
+        };
+        Ok(())
     }
 }
 
@@ -389,10 +396,10 @@ impl VerifierKey {
 /// Returns an error if any of the above conditions are true.
 fn check_degree_is_within_bounds(max_degree: usize, poly_degree: usize) -> Result<(), Error> {
     if poly_degree == 0 {
-        return Err(Error::PolynomialDegreeIsZero);
+        return Err(PolyCommitSchemeError(KZG10Errors::PolynomialDegreeIsZero.into()).into());
     }
     if poly_degree > max_degree {
-        return Err(Error::PolynomialDegreeTooLarge);
+        return Err(PolyCommitSchemeError(KZG10Errors::PolynomialDegreeTooLarge.into()).into());
     }
     Ok(())
 }
@@ -445,12 +452,13 @@ mod test {
             .unwrap();
         assert!(vk.check(point_b, proof_b));
 
-        let ok = vk.batch_check(
-            &[point_a, point_b],
-            &[proof_a, proof_b],
-            &mut Transcript::new(b""),
-        );
-        assert!(ok);
+        assert!(vk
+            .batch_check(
+                &[point_a, point_b],
+                &[proof_a, proof_b],
+                &mut Transcript::new(b""),
+            )
+            .is_ok());
     }
     #[test]
     fn test_aggregate_witness() {
@@ -528,18 +536,17 @@ mod test {
         };
 
         // Verifier's View
-        let ok = {
-            let mut transcript = Transcript::new(b"agg_batch");
-            let flattened_proof = aggregated_proof.flatten(&mut transcript);
 
-            verifier_key.batch_check(
+        let mut transcript = Transcript::new(b"agg_batch");
+        let flattened_proof = aggregated_proof.flatten(&mut transcript);
+
+        assert!(verifier_key
+            .batch_check(
                 &[point_a, point_b],
                 &[flattened_proof, single_proof],
                 &mut transcript,
             )
-        };
-
-        assert!(ok);
+            .is_ok());
     }
 
     #[cfg(feature = "serde")]
