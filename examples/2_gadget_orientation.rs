@@ -2,7 +2,7 @@
 //! process of creating a circuit, then a proof, and then verify it.
 //!
 //! Now, we will show which is the most optimal way (from our perspective)
-//! to work with plonk and circuits that we want to re-use.
+//! to work with PLONK and circuits that we want to re-use.
 //!
 //! On the previous example, we needed a bunch of code just to create a simple
 //! `Proof` that wasn't even verified by a different `Composer` (the verifier
@@ -42,23 +42,24 @@ fn gadget_builder(composer: &mut StandardComposer, inputs: &[Scalar], final_resu
     // - Get the result from the gate computation itself as a `Variable`
     // representing the output wire of the gate.
     // Since we can get it for free and the constraint will be added independently
-    // of providing the result or not, we will go with the second option.
+    // whether the result is or isn't provided, then we will choose the second
+    // option.
 
     // As the `add` function states, we are indeed adding the following constraint:
-    // `Forces q_l * w_l + q_r * w_r + q_c + PI = w_o(computed by the gate).`
+    // `Forces q_l * w_l + q_r * w_r + q_c + PI = w_o (computed by the gate).`
     let a_plus_b = composer.add(
         // q_l , w_l
         (Scalar::one(), a),
         // q_r, w_r
         (Scalar::one(), b),
         // q_c. If we would like to add Constants as part of the circuit description
-        // (they're not going to change), we can add them here on q_c.
+        // (they're not going to change), we can add them on the q_c selector.
         Scalar::zero(),
         // Public Inputs
         Scalar::zero(),
     );
 
-    // We do the same for `C + D`. This time we will use a width 4 gate just to show how we
+    // We do the same for `C + D`. This time we will use a width-4 gate just to show how we
     // should do it. It's obviously not needed since we only have 2 inputs and 1 output. So
     // with width-3 is enough as we saw in the previous gate.
     let c_plus_d = composer.big_add(
@@ -72,7 +73,7 @@ fn gadget_builder(composer: &mut StandardComposer, inputs: &[Scalar], final_resu
         // zero variables everywhere.
         (Scalar::zero(), composer.zero_var),
         // q_c. If we would like to add Constants as part of the circuit description
-        // (they're not going to change), we can add them here on q_c.
+        // (they're not going to change), we can add them on the q_c selector.
         Scalar::zero(),
         // Public Inputs
         Scalar::zero(),
@@ -86,7 +87,7 @@ fn gadget_builder(composer: &mut StandardComposer, inputs: &[Scalar], final_resu
     // So if we know for example that `A + B & C + D` will never need more than 8 bits for example,
     // we can generate a XOR gate that just does the XOR for 10 bits of both numbers.
     //
-    // On this way, we basically save a lot of gates since a regular `Scalar` has 254 bits which means
+    // By doing this, we basically save a lot of gates since a regular `Scalar` has 254 bits which means
     // 128 gates.
     //
     // Anyway, if you're not sure of what you're doing, we recommend to use 254 bits to be sure that
@@ -122,13 +123,13 @@ fn build_proof(
 ) -> Result<Proof, Error> {
     // ** Note that we could easily move the following lines to obtain the `PreProcessedCircuit` &
     // `PublicParameters(ck, vk)` inside of a `lazy_static!` implementation which will
-    // make everything much more easy.**
+    // make everything much easier.**
     //
-    // Anyway we will do it here to represent it.
+    // Either way, we will do it here for full representation purposes.
     //
-    // This will give us the order of the circuit that we've built (The number of cates/constraints that our circuit has).
-    // Note that since we should have our `PreProcessedCircuit` already stored, we will not need to compute this (the size)
-    // is already known.
+    // This will give us the order of the circuit that we've built (The number of gates/constraints that our circuit has).
+    // Note that since we should have our `PreProcessedCircuit` already stored, we will not need to compute this (the size),
+    // as it is already known.
     let circ_size = prover_composer.circuit_size();
     // The `EvaluationDomain` is built according to the `circuit_size` of our Composer. To generate it we simply do:
     let eval_domain = EvaluationDomain::new(circ_size).unwrap();
@@ -148,21 +149,21 @@ fn build_proof(
     let prep_circ = prover_composer.preprocess(&prover_key, prover_transcript, &eval_domain)?;
     // ** Note that we could easily move the previous lines to obtain the `PreProcessedCircuit` &
     // `PublicParameters(ck, vk)` inside of a `lazy_static!` implementation which will
-    // make everything much more easy.**
+    // make everything much easier.**
 
     // Now we build the proof with the parameters we generated.
     Ok(prover_composer.prove(&prover_key, &prep_circ, prover_transcript)?)
 }
 
 // This function could be replaced by a using lazy_static or simply deserializing the values
-// that we are returning and generating but could be serialized.
+// that we are returning and generating but could also be serialized.
 fn gen_verifier_params(
     verif_composer: &mut StandardComposer,
     verif_transcript: &mut Transcript,
 ) -> Result<(PreProcessedCircuit, VerifierKey), Error> {
     // This will give us the order of the circuit that we've built (The number of cates/constraints that our circuit has).
     // Note that since we should have our `PreProcessedCircuit` already stored, we will not need to compute this (the size)
-    // is already known.
+    // as it is already known.
     let circ_size = verif_composer.circuit_size();
     // The `EvaluationDomain` is built according to the `circuit_size` of our Composer. To generate it we simply do:
     let eval_domain = EvaluationDomain::new(circ_size).unwrap();
@@ -202,7 +203,7 @@ fn verify_proof(
     )
 }
 
-/// The goal of the main function will simulate the place on your code where you
+/// The goal of the main function is to simulate the place within your code where you
 /// consistently create proofs and/or verify them.
 fn main() -> Result<(), Error> {
     //
@@ -232,8 +233,8 @@ fn main() -> Result<(), Error> {
     // Generate a `Proof` with the values we used
     let proof_1 = build_proof(&mut prover_composer, &mut prover_transcript)?;
     //
-    // **We can now build a second proof so easily if we move the code avobe into a function
-    // and so, we just have a functions that makes the call with the inputs.**
+    // **We can now build a second proof so easily if we move the above code into a function,
+    // we just have a functions that makes the call with the inputs.**
 
     //
     //
@@ -249,7 +250,7 @@ fn main() -> Result<(), Error> {
     // with whatever values in it (VERIFY HAS NOTHING TO DO WITH THE INPUTS THAT THE VERIFIER ADDS
     // TO THE COMPOSER THAT HE/SHE GENERATES).
     //
-    // As mentioned avobe, we could just get our `PreProcessedCircuit` by deserializing it from a file.
+    // As mentioned above, we could just get our `PreProcessedCircuit` by deserializing it from a file.
     // Anyway, we will do it explicitly here.
     gadget_builder(
         // Our composer
