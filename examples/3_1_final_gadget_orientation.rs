@@ -118,7 +118,8 @@ fn main() -> Result<(), Error> {
     // We just need to do call one function to build a proof
     let proof = start_proving(&inputs, pub_input)?;
 
-    // Verify it is as easy as
+
+    // Verification
     verify_proof(&proof, pub_input)?;
     println!("Proof constructed in the example was succesfully verified!");
 
