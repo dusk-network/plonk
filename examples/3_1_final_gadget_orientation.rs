@@ -136,8 +136,11 @@ fn main() -> Result<(), Error> {
 
     verify_proof(&ok_proof, pub_input)?;
     println!("OK Proof constructed before was succesfully verified!");
-    verify_proof(&ko_proof, pub_input)?;
-    println!("KO Proof constructed before was succesfully verified unsuccessfully as we expected!");
-
-    Ok(())
+    match verify_proof(&ko_proof, pub_input) {
+        Ok(()) => {
+            println!("KO Proof constructed before was succesfully verified unsuccessfully as we expected!");
+            Ok(())
+        }
+        Err(e) => Err(e),
+    }
 }
