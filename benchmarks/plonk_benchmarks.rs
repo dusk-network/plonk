@@ -34,7 +34,9 @@ mod serde_benches {
         // Preprocess circuit
         let preprocessed_circuit = composer.preprocess(&ck, &mut transcript, &domain).unwrap();
 
-        let proof = composer.prove(&ck, &preprocessed_circuit, &mut transcript);
+        let proof = composer
+            .prove(&ck, &preprocessed_circuit, &mut transcript)
+            .unwrap();
         let proof_ser_data = bincode::serialize(&proof).unwrap();
 
         c.bench_with_input(

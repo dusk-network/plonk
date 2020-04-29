@@ -1,4 +1,3 @@
-use super::proof_system_errors::{ProofError, ProofErrors};
 use crate::fft::{EvaluationDomain, Polynomial};
 use crate::proof_system::PreProcessedCircuit;
 use dusk_bls12_381::Scalar;

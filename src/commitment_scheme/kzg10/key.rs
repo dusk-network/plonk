@@ -327,9 +327,10 @@ impl ProverKey {
 }
 
 impl VerifierKey {
+    #[allow(dead_code)]
     /// Checks that a polynomial `p` was evaluated at a point `z` and returned the value specified `v`.
     /// ie. v = p(z).
-    fn check(&self, point: Scalar, proof: Proof) -> bool {
+    pub(crate) fn check(&self, point: Scalar, proof: Proof) -> bool {
         let inner_a: G1Affine =
             (proof.commitment_to_polynomial.0 - (self.g * proof.evaluated_point)).into();
 
