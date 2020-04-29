@@ -118,7 +118,6 @@ fn main() -> Result<(), Error> {
     // We just need to do call one function to build a proof
     let proof = start_proving(&inputs, pub_input)?;
 
-
     // Verification
     verify_proof(&proof, pub_input)?;
     println!("Proof constructed in the example was succesfully verified!");
@@ -138,10 +137,12 @@ fn main() -> Result<(), Error> {
     verify_proof(&ok_proof, pub_input)?;
     println!("OK Proof constructed before was succesfully verified!");
     match verify_proof(&ko_proof, pub_input) {
-        Ok(()) => {
-            println!("KO Proof constructed before was succesfully verified unsuccessfully as we expected!");
+        Ok(()) => panic!("Incorrect proof has been verified successfully!"),
+        Err(e) => {
+            println!(
+            "KO Proof constructed before was succesfully verified unsuccessfully as we expected!
+            \n{:?}", e);
             Ok(())
         }
-        Err(e) => Err(e),
     }
 }
