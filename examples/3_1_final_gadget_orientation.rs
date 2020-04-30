@@ -1,5 +1,5 @@
 //! To understand the following code and the reasons why everything is done
-//! we strongly reccomend the user to check the previous examples.
+//! we strongly recommend the user to check the previous examples.
 extern crate bincode;
 #[macro_use]
 extern crate lazy_static;
@@ -9,8 +9,7 @@ extern crate merlin;
 use dusk_bls12_381::Scalar;
 use dusk_plonk::commitment_scheme::kzg10::{ProverKey, PublicParameters, VerifierKey};
 use dusk_plonk::constraint_system::StandardComposer;
-use dusk_plonk::fft::EvaluationDomain;
-use dusk_plonk::proof_system::{PreProcessedCircuit, Proof};
+use dusk_plonk::proof_system::{PreProcessedCircuit, Proof, Prover};
 use merlin::Transcript;
 use std::fs;
 
@@ -37,10 +36,6 @@ lazy_static! {
             .unwrap()
             .0;
         prov_key
-    };
-    static ref EVAL_DOMAIN: EvaluationDomain = {
-        let eval = EvaluationDomain::new(CIRCUIT_SIZE).unwrap();
-        eval
     };
 }
 // Define constants we already know.
@@ -73,8 +68,8 @@ fn gadget_builder(composer: &mut StandardComposer, inputs: &[Scalar], final_resu
     composer.add_dummy_constraints();
 }
 
-fn elaborate_proof(composer: &mut StandardComposer, transcript: &mut Transcript) -> Proof {
-    composer.prove(&PROVER_KEY, &PREPROCESSED_CIRCUIT, transcript)
+fn elaborate_proof(prover: &mut Prover) -> Proof {
+    prover.prove_with_preprocessed(&PROVER_KEY, &PREPROCESSED_CIRCUIT)
 }
 
 fn verify_proof(proof: &Proof, pub_input: Scalar) -> bool {
@@ -92,10 +87,9 @@ fn verify_proof(proof: &Proof, pub_input: Scalar) -> bool {
 }
 
 fn start_proving(inputs: &[Scalar], final_result: Scalar) -> Proof {
-    let mut composer = StandardComposer::new();
-    let mut transcript = Transcript::new(b"Gadget-Orientation-Is-Cool");
-    gadget_builder(&mut composer, inputs, final_result);
-    elaborate_proof(&mut composer, &mut transcript)
+    let mut prover = Prover::new(b"Gadget-Orientation-Is-Cool");
+    gadget_builder(prover.mut_cs(), inputs, final_result);
+    elaborate_proof(&mut prover)
 }
 
 fn main() {

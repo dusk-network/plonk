@@ -1,5 +1,5 @@
 //! Ideally we should cleanly abstract away the polynomial commitment scheme
-//! We note that PLONK makes use of the linearisation technique  
+//! We note that PLONK makes use of the linearisation technique
 //! conceived in SONIC [Mary Maller]. This technique implicitly requires the
 //! commitment scheme to be homomorphic. `Merkle Tree like` techniques such as FRI are not homomorphic
 //! and therefore for PLONK to be usable with all commitment schemes without modification, one would need to remove the lineariser

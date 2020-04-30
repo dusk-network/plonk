@@ -14,8 +14,7 @@ extern crate merlin;
 use dusk_bls12_381::Scalar;
 use dusk_plonk::commitment_scheme::kzg10::PublicParameters;
 use dusk_plonk::constraint_system::StandardComposer;
-use dusk_plonk::fft::EvaluationDomain;
-use dusk_plonk::proof_system::{PreProcessedCircuit, Proof};
+use dusk_plonk::proof_system::{PreProcessedCircuit, Proof, Prover};
 use merlin::Transcript;
 use std::fs;
 
@@ -57,8 +56,6 @@ fn build_prep_circ() -> PreProcessedCircuit {
         &[Scalar::one(), Scalar::one(), Scalar::one(), Scalar::one()],
         Scalar::one(),
     );
-    let circ_size = composer.circuit_size();
-    let eval_domain = EvaluationDomain::new(circ_size).unwrap();
     let ser_pub_params = fs::read(&"examples/.public_params.bin")
         .expect("File not found. Run example `0_setup_srs` first please");
     let pub_params: PublicParameters = bincode::deserialize(&ser_pub_params).unwrap();
@@ -66,22 +63,21 @@ fn build_prep_circ() -> PreProcessedCircuit {
     let (prover_key, _) = pub_params
         .trim(2 * composer.circuit_size().next_power_of_two())
         .unwrap();
-    let prep_circ = composer.preprocess(&prover_key, &mut transcript, &eval_domain);
+    let prep_circ = composer.preprocess(&prover_key, &mut transcript);
     prep_circ
 }
 
 fn build_proof(inputs: &[Scalar], final_result: Scalar, prep_circ: &PreProcessedCircuit) -> Proof {
-    let mut composer = StandardComposer::new();
-    let mut transcript = Transcript::new(b"Gadget-Orientation-Is-Cool");
-    gadget_builder(&mut composer, inputs, final_result);
+    let mut prover = Prover::new(b"Gadget-Orientation-Is-Cool");
+    gadget_builder(prover.mut_cs(), inputs, final_result);
     let ser_pub_params = fs::read(&"examples/.public_params.bin")
         .expect("File not found. Run example `0_setup_srs` first please");
     let pub_params: PublicParameters = bincode::deserialize(&ser_pub_params).unwrap();
     // Derive the `ProverKey` from the `PublicParameters`.
     let (prover_key, _) = pub_params
-        .trim(2 * composer.circuit_size().next_power_of_two())
+        .trim(2 * prover.circuit_size().next_power_of_two())
         .unwrap();
-    composer.prove(&prover_key, &prep_circ, &mut transcript)
+    prover.prove_with_preprocessed(&prover_key, &prep_circ)
 }
 
 fn main() {

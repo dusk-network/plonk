@@ -7,7 +7,7 @@
 //! the operations that need to be performed with the witnesses and the Public
 //! Inputs.
 //!
-//! The second step to be able to generate the `Proof`, is to buid a
+//! The second step to be able to generate the `Proof` is to build a
 //! `PreProcessedCircuit` structure, which is a pure definition of the
 //! logic of the circuit we will have already built with the help of the
 //! `StandardComposer`
@@ -48,9 +48,7 @@ extern crate merlin;
 
 use dusk_bls12_381::Scalar;
 use dusk_plonk::commitment_scheme::kzg10::PublicParameters;
-use dusk_plonk::constraint_system::StandardComposer;
-use dusk_plonk::fft::EvaluationDomain;
-use merlin::Transcript;
+use dusk_plonk::proof_system::{Prover, Verifier};
 use std::fs;
 
 fn main() {
@@ -63,7 +61,9 @@ fn main() {
     // First of all, let's create our new composer. If we know the size that it will
     // have, calling `with expected size` can decrease the re-allocs and thus improve
     // the performance.
-    let mut composer = StandardComposer::with_expected_size(1 << 10);
+    let mut prover = Prover::new(b"End-To-End-Example");
+
+    let composer = prover.mut_cs();
 
     // Then we generate our `Scalar` values A, B, C, D that we want to prove,
     // which satisfy the aformentioned properties.
@@ -237,14 +237,14 @@ fn main() {
     // PreProcessing Stage
     //
     //
-    // We've now finished building our circuit. So what's the next step?
-    // We need to preprocess it.
+    // We've now finished building our circuit. So what we do now?
+    // We need to preprocess.
     //
     // Preprocessing the circuit is a step required by the protocol which gives to us a `PreProcessedCircuit`.
     // It is a data structure that holds the commitments to the selector and sigma polynomials.
     //
-    // By doing this, we can see the `PreProcessedCircuit` as a 'circuit-shape descriptor',
-    // since it only stores the commitments that describe the operations that we be performed
+    // By doing this, we can see the `PreProcessedCircuit` as a "circuit-shape descriptor"
+    // since it only stores the commitments that describe the operations that we will perform
     // inside the circuit.
     //
     // Once we have this `PreProcessedCircuit` we can build as many proofs as we want of the same type but with
@@ -254,21 +254,7 @@ fn main() {
     // want to create a new `Proof` of the same type. We can simply set new values for the input variables and then
     // it's done.
     //
-    // To do the preprocessing, we will need to execute three more stages:
-    //
-    // 1. A `merlin::Transcript` which will allow Prover and Verifier to perform the Fiat-Shamir heuristics without having
-    // a direct communication with one another.
-    // That means that both need to initialize the Transcript with the same randomness seed.
-    let mut prover_transcript = Transcript::new(b"End-To-End-Example");
-    // 2. The `EvaluationDomain` on which we are working and performing our evaluations.
-    // Understanding the inner workings are not needed, if you want to get the `EvaluationDomain` over which your
-    // composer is working, you just need to do the following:
-    //
-    // This will give us the order of the circuit that we've built (The number of cates/constraints that our circuit has).
-    let circ_size = composer.circuit_size();
-    // The `EvaluationDomain` is built according to the `circuit_size` of our Composer. To generate it we simply do:
-    let eval_domain = EvaluationDomain::new(circ_size).unwrap();
-    // 3. The Commitment Key `ProverKey` which will allow us to compute the commitments and basically 'hide' our secret values.
+    // 1. The Commitment Key `ProverKey` which will allow us to compute the commitments and basically "hide" our secret values.
     // It is derived from the Trusted Setup `PublicParameters`.
     //
     // What we will do now is basically get the previously generated `PublicParameters` (the testing ones) and derive from them
@@ -284,7 +270,7 @@ fn main() {
         .unwrap();
 
     // Now we can finally preprocess the circuit that we've built.
-    let pre_processed_circ = composer.preprocess(&prover_key, &mut prover_transcript, &eval_domain);
+    prover.preprocess(&prover_key);
 
     // We could now store our `PreProcessedCircuit` serialized with `bincode`.
     // let ser_prep_cir = bincode::serialize(&pre_processed_circ).unwrap();
@@ -299,20 +285,21 @@ fn main() {
     // that we've loaded into our `Composer`.
     //
     // We clone the transcript since we don't want to modify it to allow then the verifier to re-use it.
-    let proof = composer.prove(
-        &prover_key,
-        &pre_processed_circ,
-        &mut prover_transcript.clone(),
-    );
+    let verifier_transcript = prover.preprocessed_transcript.clone();
+
+    let proof = prover.prove(&prover_key);
 
     let zero = Scalar::zero();
     let one = Scalar::one();
-    // For this example, since we are using the same composer, we just need to
-    assert!(proof.verify(
-        &pre_processed_circ,
-        &mut prover_transcript,
-        &verifier_key,
-        &vec![zero, zero, zero, zero, zero, zero, zero, zero, zero, zero, zero, zero, -one, -one],
-    ));
+
+    let mut verifier = Verifier::new(b"End-To-End-Example");
+    verifier.preprocessed_transcript = verifier_transcript;
+    verifier.preprocessed_circuit = prover.preprocessed_circuit;
+
+    let public_inputs = &vec![
+        zero, zero, zero, zero, zero, zero, zero, zero, zero, zero, zero, zero, -one, -one,
+    ];
+
+    assert!(verifier.verify(&proof, &verifier_key, public_inputs));
     println!("Proof verified succesfully!");
 }

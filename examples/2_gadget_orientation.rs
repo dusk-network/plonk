@@ -18,15 +18,13 @@ extern crate merlin;
 use dusk_bls12_381::Scalar;
 use dusk_plonk::commitment_scheme::kzg10::{PublicParameters, VerifierKey};
 use dusk_plonk::constraint_system::StandardComposer;
-use dusk_plonk::fft::EvaluationDomain;
-use dusk_plonk::proof_system::{PreProcessedCircuit, Proof};
-use merlin::Transcript;
+use dusk_plonk::proof_system::{Proof, Prover, Verifier};
 use std::fs;
 
 /// This function will populate our `Composer` adding to it the witness values that we
 /// provide building the example circuit with them.
 ///
-/// This fucntion is intended to be the gadget builder and it can be called by both prover
+/// This function is intended to be the gadget builder and it can be called by both prover
 /// and Verifier to populate a composer and be able to generate a `PreProcessedCircuit`
 /// so then they can prove or verify.
 fn gadget_builder(composer: &mut StandardComposer, inputs: &[Scalar], final_result: Scalar) {
@@ -116,92 +114,58 @@ fn gadget_builder(composer: &mut StandardComposer, inputs: &[Scalar], final_resu
     composer.add_dummy_constraints();
 }
 
-fn build_proof(
-    prover_composer: &mut StandardComposer,
-    prover_transcript: &mut Transcript,
-) -> Proof {
-    // ** Note that we could easily move the following lines to obtain the `PreProcessedCircuit` &
-    // `PublicParameters(ck, vk)` inside of a `lazy_static!` implementation which will
-    // make everything much easier.**
+fn build_proof(prover: &mut Prover) -> Proof {
+    // The Commitment Key allows us to commit to polynomials bounded by a degree `d`.
+    // The commitment Key is derived from the Trusted Setup `PublicParameters`.
     //
-    // Either way, we will do it here for full representation purposes.
     //
-    // This will give us the order of the circuit that we've built (The number of gates/constraints that our circuit has).
-    // Note that since we should have our `PreProcessedCircuit` already stored, we will not need to compute this (the size),
-    // as it is already known.
-    let circ_size = prover_composer.circuit_size();
-    // The `EvaluationDomain` is built according to the `circuit_size` of our Composer. To generate it we simply do:
-    let eval_domain = EvaluationDomain::new(circ_size).unwrap();
-    // The Commitment Key `ProverKey` which will allow us to compute the commitments and basically "hide" our secret values.
-    // It is derived from the Trusted Setup `PublicParameters`.
-    //
-    // What we will do now is basically get the previously generated `PublicParameters` (the testing ones) and derive from them
-    // the `ProverKey`.
-    //
-    // Read serialized pub_params from the file where we stored them on the previous example.
+    // The following example shows how to deserialise the public parameters and use them in a proof.
+    // These parameters were serialised and stored in in the previous example.
     let ser_pub_params = fs::read(&"examples/.public_params.bin")
         .expect("File not found. Run example `0_setup_srs` first please");
     let pub_params: PublicParameters = bincode::deserialize(&ser_pub_params).unwrap();
+
     // Derive the `ProverKey` from the `PublicParameters`.
-    let (prover_key, _) = pub_params
-        .trim(2 * prover_composer.circuit_size().next_power_of_two())
-        .unwrap();
-    let prep_circ = prover_composer.preprocess(&prover_key, prover_transcript, &eval_domain);
-    // ** Note that we could easily move the previous lines to obtain the `PreProcessedCircuit` &
-    // `PublicParameters(ck, vk)` inside of a `lazy_static!` implementation which will
-    // make everything much easier.**
+    let (prover_key, _) = pub_params.trim(2 * prover.circuit_size()).unwrap();
+
+    // Preprocess the circuit
+    prover.preprocess(&prover_key);
 
     // Now we build the proof with the parameters we generated.
-    prover_composer.prove(&prover_key, &prep_circ, prover_transcript)
+    prover.prove(&prover_key)
 }
 
-// This function could be replaced by a using lazy_static or simply deserializing the values
-// that we are returning and generating but could also be serialized.
-fn gen_verifier_params(
-    verif_composer: &mut StandardComposer,
-    verif_transcript: &mut Transcript,
-) -> (PreProcessedCircuit, VerifierKey) {
-    // This will give us the order of the circuit that we've built (The number of gates/constraints that our circuit has).
-    // Note that since we should have our `PreProcessedCircuit` already stored, we will not need to compute this (the size)
-    // as it is already known.
-    let circ_size = verif_composer.circuit_size();
-    // The `EvaluationDomain` is built according to the `circuit_size` of our Composer. To generate it we simply do:
-    let eval_domain = EvaluationDomain::new(circ_size).unwrap();
-    // The Commitment Key `ProverKey` which will allow us to compute the commitments and basically "hide" our secret values.
-    // It is derived from the Trusted Setup `PublicParameters`.
-    //
-    // What we will do now is basically get the previously generated `PublicParameters` (the testing ones) and derive from them
-    // the `ProverKey`.
-    //
-    // Read serialized pub_params from the file where we stored them on the previous example.
+fn generate_verifier_parameters(verifier: &mut Verifier) -> VerifierKey {
+    // The Verifier will deserialise the Public parameters which were serialised and stored
+    // from a previous example and pre-process the circuit.
     let ser_pub_params = fs::read(&"examples/.public_params.bin")
         .expect("File not found. Run example `0_setup_srs.rs` first please");
     let pub_params: PublicParameters = bincode::deserialize(&ser_pub_params).unwrap();
-    // Derive the `ProverKey` from the `PublicParameters`.
+
+    // Derive the Commit and Verifier Key from the `PublicParameters`.
     let (prover_key, verif_key) = pub_params
-        .trim(verif_composer.circuit_size().next_power_of_two())
+        .trim(verifier.circuit_size().next_power_of_two())
         .unwrap();
-    let prep_circ = verif_composer.preprocess(&prover_key, verif_transcript, &eval_domain);
-    (prep_circ, verif_key)
+
+    // Use the commit key to preprocess the circuit
+    verifier.preprocess(&prover_key);
+
+    verif_key
 }
 
 fn verify_proof(
     proof: &Proof,
-    verif_prep_circ: &PreProcessedCircuit,
-    verif_key: &VerifierKey,
-    verif_transcript: &mut Transcript,
+    verifier: &Verifier,
+    verifier_key: &VerifierKey,
     pub_input: &Scalar,
 ) -> bool {
     let zero = Scalar::zero();
 
-    proof.verify(
-        verif_prep_circ,
-        verif_transcript,
-        verif_key,
-        &[
-            zero, zero, zero, zero, zero, zero, zero, zero, zero, zero, zero, zero, *pub_input,
-        ],
-    )
+    let public_inputs = &[
+        zero, zero, zero, zero, zero, zero, zero, zero, zero, zero, zero, zero, *pub_input,
+    ];
+
+    verifier.verify(proof, &verifier_key, public_inputs)
 }
 
 /// The goal of the main function is to simulate the place within your code where you
@@ -209,17 +173,15 @@ fn verify_proof(
 fn main() -> () {
     //
     //
-    // Prover Point of View
+    // Prover's Point of View
     //
     //
-    let mut prover_composer = StandardComposer::new();
-    // Generate a Transcript
-    let mut prover_transcript = Transcript::new(b"Gadget-Orientation-Is-Cool");
+    let mut prover = Prover::new(b"Gadget-Orientation-Is-Cool");
     // Generate one `PreProcessedCircuit` of the circuit we'll be working with and store it
     // so we can always import it from serialized data or whatever on an init function.
     gadget_builder(
         // Our composer
-        &mut prover_composer,
+        prover.mut_cs(),
         // Inputs that the gadget requires to build the circuit with our witness values
         &[
             Scalar::from(4u64),
@@ -231,31 +193,21 @@ fn main() -> () {
         Scalar::one(),
     );
 
-    // Generate a `Proof` with the values we used
-    let proof_1 = build_proof(&mut prover_composer, &mut prover_transcript);
+    // Generate a `Proof` that the gadget is satisfied
+    let proof_1 = build_proof(&mut prover);
     //
-    // **We can now build a second proof so easily if we move the above code into a function,
-    // we just have a functions that makes the call with the inputs.**
+    // One can build another proof using the same circuit, by passing the prover struct through the same gadget with different witness values
 
     //
     //
     // Verifier Point of View
     //
     //
+    let mut verifier = Verifier::new(b"Gadget-Orientation-Is-Cool");
 
-    let mut verifier_composer = StandardComposer::new();
-    // Generate a Transcript
-    let mut verifier_transcript = Transcript::new(b"Gadget-Orientation-Is-Cool");
-    // The verifier needs to have the same `PreProcessedCircuit` (the same vision of)
-    // the circuit that the `Prover` has. So normally, we will just build a `PreprocessedCircuit`
-    // with whatever values in it (VERIFY HAS NOTHING TO DO WITH THE INPUTS THAT THE VERIFIER ADDS
-    // TO THE COMPOSER THAT HE/SHE GENERATES).
-    //
-    // As mentioned above, we could just get our `PreProcessedCircuit` by deserializing it from a file.
-    // Anyway, we will do it explicitly here.
     gadget_builder(
         // Our composer
-        &mut verifier_composer,
+        verifier.mut_cs(),
         // From the verifier perspective, these inputs do not matter at all.
         &[
             Scalar::from(999u64),
@@ -268,15 +220,13 @@ fn main() -> () {
     );
 
     // The following part could be as simple as deserialize data or have a lazy_static reference.
-    // We will just call a function that will give us the parametes that we could easily serialize/deserialize.
-    let (prep_circ, verif_key) =
-        gen_verifier_params(&mut verifier_composer, &mut verifier_transcript);
+    // We will just call a function that will give us the parameters that we could easily serialize/deserialize.
+    let verifier_key = generate_verifier_parameters(&mut verifier);
 
     assert!(verify_proof(
         &proof_1,
-        &prep_circ,
-        &verif_key,
-        &mut verifier_transcript,
+        &verifier,
+        &verifier_key,
         &-Scalar::one()
     ));
     println!("The proof was succesfully verified!");
