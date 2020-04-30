@@ -20,8 +20,8 @@ use crate::fft::{EvaluationDomain, Evaluations, Polynomial};
 use crate::permutation::Permutation;
 use crate::proof_system::widget::{ArithmeticWidget, LogicWidget, PermutationWidget, RangeWidget};
 use crate::proof_system::PreProcessedCircuit;
-use crate::transcript::TranscriptProtocol;
 use dusk_bls12_381::Scalar;
+use merlin::Transcript;
 use std::collections::HashMap;
 
 /// A composer is a circuit builder
@@ -80,7 +80,7 @@ impl StandardComposer {
     pub fn preprocess(
         &mut self,
         commit_key: &ProverKey,
-        transcript: &mut dyn TranscriptProtocol,
+        transcript: &mut Transcript,
     ) -> PreProcessedCircuit {
         let domain = EvaluationDomain::new(self.circuit_size()).unwrap();
 
@@ -175,32 +175,11 @@ impl StandardComposer {
         let out_sigma_poly_commit = commit_key.commit(&out_sigma_poly).unwrap();
         let fourth_sigma_poly_commit = commit_key.commit(&fourth_sigma_poly).unwrap();
 
-        //5. Add polynomial commitments to transcript
-        //
-        transcript.append_commitment(b"q_m", &q_m_poly_commit);
-        transcript.append_commitment(b"q_l", &q_l_poly_commit);
-        transcript.append_commitment(b"q_r", &q_r_poly_commit);
-        transcript.append_commitment(b"q_o", &q_o_poly_commit);
-        transcript.append_commitment(b"q_c", &q_c_poly_commit);
-        transcript.append_commitment(b"q_4", &q_4_poly_commit);
-        transcript.append_commitment(b"q_arith", &q_arith_poly_commit);
-        transcript.append_commitment(b"q_range", &q_range_poly_commit);
-        transcript.append_commitment(b"q_logic", &q_logic_poly_commit);
-
-        transcript.append_commitment(b"left_sigma", &left_sigma_poly_commit);
-        transcript.append_commitment(b"right_sigma", &right_sigma_poly_commit);
-        transcript.append_commitment(b"out_sigma", &out_sigma_poly_commit);
-        transcript.append_commitment(b"fourth_sigma", &fourth_sigma_poly_commit);
-
-        // Append circuit size to transcript
-        transcript.circuit_domain_sep(self.circuit_size() as u64);
-
         let arithmetic_widget = ArithmeticWidget::new((
             (q_m_poly, q_m_poly_commit, Some(q_m_eval_4n)),
             (q_l_poly, q_l_poly_commit, Some(q_l_eval_4n)),
             (q_r_poly, q_r_poly_commit, Some(q_r_eval_4n)),
             (q_o_poly, q_o_poly_commit, Some(q_o_eval_4n)),
-            // XXX: Should try to remove the clones
             (q_c_poly.clone(), q_c_poly_commit, Some(q_c_eval_4n.clone())),
             (q_4_poly, q_4_poly_commit, Some(q_4_eval_4n)),
             (q_arith_poly, q_arith_poly_commit, Some(q_arith_eval_4n)),
@@ -238,7 +217,7 @@ impl StandardComposer {
             linear_eval_4n,
         );
 
-        PreProcessedCircuit {
+        let ppc = PreProcessedCircuit {
             n: self.n,
             arithmetic: arithmetic_widget,
             range: range_widget,
@@ -246,7 +225,12 @@ impl StandardComposer {
             permutation: perm_widget,
             // Compute 4n evaluations for X^n -1
             v_h_coset_4n: domain_4n.compute_vanishing_poly_over_coset(domain.size() as u64),
-        }
+        };
+
+        // Append commitments to transcript
+        ppc.seed_transcript(transcript);
+
+        ppc
     }
 
     /// Returns the number of gates in the circuit

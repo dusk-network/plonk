@@ -1,8 +1,9 @@
 use crate::fft::Evaluations;
 use crate::proof_system::widget::{ArithmeticWidget, LogicWidget, PermutationWidget, RangeWidget};
+use crate::transcript::TranscriptProtocol;
+use merlin::Transcript;
 #[cfg(feature = "serde")]
 use serde::{de::Visitor, ser::SerializeStruct, Deserialize, Deserializer, Serialize, Serializer};
-
 /// `PreProcessedCircuit` is a data structure that holds the commitments to
 /// the selector and sigma polynomials.
 ///
@@ -32,6 +33,28 @@ pub struct PreProcessedCircuit {
     // Note: With this, we can combine all parts of the quotient polynomial in their evaluation phase and
     // divide by the quotient polynomial without having to perform IFFT
     pub(crate) v_h_coset_4n: Evaluations,
+}
+
+impl PreProcessedCircuit {
+    pub(crate) fn seed_transcript(&self, transcript: &mut Transcript) {
+        transcript.append_commitment(b"q_m", &self.arithmetic.q_m.commitment);
+        transcript.append_commitment(b"q_l", &self.arithmetic.q_l.commitment);
+        transcript.append_commitment(b"q_r", &self.arithmetic.q_r.commitment);
+        transcript.append_commitment(b"q_o", &self.arithmetic.q_o.commitment);
+        transcript.append_commitment(b"q_c", &self.arithmetic.q_c.commitment);
+        transcript.append_commitment(b"q_4", &self.arithmetic.q_4.commitment);
+        transcript.append_commitment(b"q_arith", &self.arithmetic.q_arith.commitment);
+        transcript.append_commitment(b"q_range", &self.range.q_range.commitment);
+        transcript.append_commitment(b"q_logic", &self.logic.q_logic.commitment);
+
+        transcript.append_commitment(b"left_sigma", &self.permutation.left_sigma.commitment);
+        transcript.append_commitment(b"right_sigma", &self.permutation.right_sigma.commitment);
+        transcript.append_commitment(b"out_sigma", &self.permutation.out_sigma.commitment);
+        transcript.append_commitment(b"fourth_sigma", &self.permutation.fourth_sigma.commitment);
+
+        // Append circuit size to transcript
+        transcript.circuit_domain_sep(self.n as u64);
+    }
 }
 
 #[cfg(feature = "serde")]

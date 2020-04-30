@@ -122,7 +122,9 @@ impl Prover {
     ) -> Proof {
         let domain = EvaluationDomain::new(self.cs.circuit_size()).unwrap();
 
-        // Clone the transcript so we can do multiple proofs
+        // Since the caller is passing a pre-processed circuit
+        // We assume that the Transcript has been seeded with the preprocessed
+        // Commitments
         let mut transcript = self.preprocessed_transcript.clone();
 
         //1. Compute witness Polynomials
