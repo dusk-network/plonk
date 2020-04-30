@@ -16,7 +16,7 @@ extern crate dusk_plonk;
 extern crate merlin;
 
 use dusk_bls12_381::Scalar;
-use dusk_plonk::commitment_scheme::kzg10::{PublicParameters, VerifierKey};
+use dusk_plonk::commitment_scheme::kzg10::{OpeningKey, PublicParameters};
 use dusk_plonk::constraint_system::StandardComposer;
 use dusk_plonk::proof_system::{Proof, Prover, Verifier};
 use std::fs;
@@ -135,7 +135,7 @@ fn build_proof(prover: &mut Prover) -> Proof {
     prover.prove(&prover_key)
 }
 
-fn generate_verifier_parameters(verifier: &mut Verifier) -> VerifierKey {
+fn generate_verifier_parameters(verifier: &mut Verifier) -> OpeningKey {
     // The Verifier will deserialise the Public parameters which were serialised and stored
     // from a previous example and pre-process the circuit.
     let ser_pub_params = fs::read(&"examples/.public_params.bin")
@@ -156,7 +156,7 @@ fn generate_verifier_parameters(verifier: &mut Verifier) -> VerifierKey {
 fn verify_proof(
     proof: &Proof,
     verifier: &Verifier,
-    verifier_key: &VerifierKey,
+    verifier_key: &OpeningKey,
     pub_input: &Scalar,
 ) -> bool {
     let zero = Scalar::zero();

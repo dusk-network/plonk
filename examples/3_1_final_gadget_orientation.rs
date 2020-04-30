@@ -7,7 +7,7 @@ extern crate dusk_plonk;
 extern crate merlin;
 
 use dusk_bls12_381::Scalar;
-use dusk_plonk::commitment_scheme::kzg10::{ProverKey, PublicParameters, VerifierKey};
+use dusk_plonk::commitment_scheme::kzg10::{CommitKey, OpeningKey, PublicParameters};
 use dusk_plonk::constraint_system::StandardComposer;
 use dusk_plonk::proof_system::{PreProcessedCircuit, Proof, Prover};
 use merlin::Transcript;
@@ -20,22 +20,22 @@ lazy_static! {
         let prep_circ: PreProcessedCircuit = bincode::deserialize(&ser_data).unwrap();
         prep_circ
     };
-    static ref VERIFIER_KEY: VerifierKey = {
+    static ref OPENING_KEY: OpeningKey = {
         let ser_pub_params = fs::read(&"examples/.public_params.bin")
             .expect("File not found. Run example `0_setup_srs.rs` first please");
         let pub_params: PublicParameters = bincode::deserialize(&ser_pub_params).unwrap();
-        let verif_key: VerifierKey = pub_params.trim(CIRCUIT_SIZE.next_power_of_two()).unwrap().1;
-        verif_key
+        let opening_key: OpeningKey = pub_params.trim(CIRCUIT_SIZE.next_power_of_two()).unwrap().1;
+        opening_key
     };
-    static ref PROVER_KEY: ProverKey = {
+    static ref COMMIT_KEY: CommitKey = {
         let ser_pub_params = fs::read(&"examples/.public_params.bin")
             .expect("File not found. Run example `0_setup_srs.rs` first please");
         let pub_params: PublicParameters = bincode::deserialize(&ser_pub_params).unwrap();
-        let prov_key: ProverKey = pub_params
+        let commit_key: CommitKey = pub_params
             .trim(2 * CIRCUIT_SIZE.next_power_of_two())
             .unwrap()
             .0;
-        prov_key
+        commit_key
     };
 }
 // Define constants we already know.
@@ -69,7 +69,7 @@ fn gadget_builder(composer: &mut StandardComposer, inputs: &[Scalar], final_resu
 }
 
 fn elaborate_proof(prover: &mut Prover) -> Proof {
-    prover.prove_with_preprocessed(&PROVER_KEY, &PREPROCESSED_CIRCUIT)
+    prover.prove_with_preprocessed(&COMMIT_KEY, &PREPROCESSED_CIRCUIT)
 }
 
 fn verify_proof(proof: &Proof, pub_input: Scalar) -> bool {
@@ -79,7 +79,7 @@ fn verify_proof(proof: &Proof, pub_input: Scalar) -> bool {
     proof.verify(
         &PREPROCESSED_CIRCUIT,
         &mut verif_transcript,
-        &VERIFIER_KEY,
+        &OPENING_KEY,
         &[
             zero, zero, zero, zero, zero, zero, zero, zero, zero, zero, zero, zero, pub_input,
         ],

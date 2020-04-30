@@ -1,4 +1,4 @@
-use crate::commitment_scheme::kzg10::{ProverKey, VerifierKey};
+use crate::commitment_scheme::kzg10::{CommitKey, OpeningKey};
 use crate::constraint_system::StandardComposer;
 use crate::proof_system::PreProcessedCircuit;
 use crate::proof_system::Proof;
@@ -44,7 +44,7 @@ impl Verifier {
     }
 
     /// Preprocess a proof
-    pub fn preprocess(&mut self, commit_key: &ProverKey) {
+    pub fn preprocess(&mut self, commit_key: &CommitKey) {
         let ppc = self
             .cs
             .preprocess(commit_key, &mut self.preprocessed_transcript);
@@ -62,7 +62,7 @@ impl Verifier {
     pub fn verify(
         &self,
         proof: &Proof,
-        verifier_key: &VerifierKey,
+        opening_key: &OpeningKey,
         public_inputs: &[Scalar],
     ) -> bool {
         let mut cloned_transcript = self.preprocessed_transcript.clone();
@@ -71,7 +71,7 @@ impl Verifier {
         proof.verify(
             preprocessed_circuit,
             &mut cloned_transcript,
-            verifier_key,
+            opening_key,
             public_inputs,
         )
     }
