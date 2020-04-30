@@ -8,14 +8,14 @@
 //! - PublicParameters (was done on example 0 so it's not going to be done here).
 //!
 extern crate bincode;
+extern crate dusk_plonk;
 extern crate merlin;
-extern crate plonk;
 
-use bls12_381::Scalar;
+use dusk_bls12_381::Scalar;
+use dusk_plonk::commitment_scheme::kzg10::PublicParameters;
+use dusk_plonk::constraint_system::StandardComposer;
+use dusk_plonk::proof_system::{PreProcessedCircuit, Proof, Prover};
 use merlin::Transcript;
-use plonk::commitment_scheme::kzg10::PublicParameters;
-use plonk::constraint_system::StandardComposer;
-use plonk::proof_system::{PreProcessedCircuit, Proof, Prover};
 use std::fs;
 
 // To do this, we basically need to import our gadget builder function.
@@ -88,7 +88,7 @@ fn main() {
     fs::write("examples/.prep_circ_2_3.bin", &ser_prep_circ).expect("Unable to write file");
 
     // Now we will build a correct and an incorrect proof to use them in the next
-    // example. This is not needed, but it will generate a few proofs to be tested
+    // example. This is not usually needed, but it will generate a few proofs to be tested
     // later.
 
     // The public input is PUBLIC so we assume that the `Provers` and `Verifiers`

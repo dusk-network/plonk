@@ -1,13 +1,14 @@
 extern crate criterion;
+extern crate dusk_plonk;
 extern crate merlin;
-extern crate plonk;
 
 use bincode;
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
+use dusk_plonk::commitment_scheme::kzg10::PublicParameters;
+use dusk_plonk::constraint_system::StandardComposer;
+use dusk_plonk::fft::EvaluationDomain;
+use dusk_plonk::proof_system::Proof;
 use merlin::Transcript;
-use plonk::commitment_scheme::kzg10::PublicParameters;
-use plonk::constraint_system::standard::{proof::Proof, Composer, StandardComposer};
-use plonk::fft::EvaluationDomain;
 
 mod serde_benches {
     use super::*;

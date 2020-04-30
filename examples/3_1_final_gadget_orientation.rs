@@ -3,14 +3,14 @@
 extern crate bincode;
 #[macro_use]
 extern crate lazy_static;
+extern crate dusk_plonk;
 extern crate merlin;
-extern crate plonk;
 
-use bls12_381::Scalar;
+use dusk_bls12_381::Scalar;
+use dusk_plonk::commitment_scheme::kzg10::{ProverKey, PublicParameters, VerifierKey};
+use dusk_plonk::constraint_system::StandardComposer;
+use dusk_plonk::proof_system::{PreProcessedCircuit, Proof, Prover};
 use merlin::Transcript;
-use plonk::commitment_scheme::kzg10::{ProverKey, PublicParameters, VerifierKey};
-use plonk::constraint_system::StandardComposer;
-use plonk::proof_system::{PreProcessedCircuit, Proof, Prover};
 use std::fs;
 
 lazy_static! {
@@ -108,7 +108,7 @@ fn main() {
     // We just need to do call one function to build a proof
     let proof = start_proving(&inputs, pub_input);
 
-    // Verify it is as easy as
+    // Verify it easily with an assertion
     assert!(verify_proof(&proof, pub_input) == true);
     println!("Proof constructed in the example was succesfully verified!");
 

@@ -2,7 +2,7 @@
 use super::constants::{K1, K2, K3};
 use crate::constraint_system::{Variable, WireData};
 use crate::fft::{EvaluationDomain, Polynomial};
-use bls12_381::Scalar;
+use dusk_bls12_381::Scalar;
 use itertools::izip;
 use rayon::iter::*;
 use std::collections::HashMap;
@@ -607,7 +607,7 @@ impl Permutation {
 mod test {
     use super::*;
     use crate::fft::Polynomial;
-    use bls12_381::Scalar as Fr;
+    use dusk_bls12_381::Scalar as Fr;
 
     #[test]
     fn test_permutation_format() {

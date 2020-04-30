@@ -3,7 +3,7 @@ use crate::constraint_system::{StandardComposer, Variable};
 use crate::fft::{EvaluationDomain, Polynomial};
 use crate::proof_system::{linearisation_poly, proof::Proof, quotient_poly, PreProcessedCircuit};
 use crate::transcript::TranscriptProtocol;
-use bls12_381::Scalar;
+use dusk_bls12_381::Scalar;
 use merlin::Transcript;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 

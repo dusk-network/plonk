@@ -2,7 +2,7 @@
 //! process of creating a circuit, then a proof, and then verify it.
 //!
 //! Now, we will show which is the most optimal way (from our perspective)
-//! to work with plonk and circuits that we want to re-use.
+//! to work with PLONK and circuits that we want to re-use.
 //!
 //! On the previous example, we needed a bunch of code just to create a simple
 //! `Proof` that wasn't even verified by a different `Composer` (the verifier
@@ -12,13 +12,13 @@
 //! to `One` as Public Inputs instead of a circuit descriptor.
 
 extern crate bincode;
+extern crate dusk_plonk;
 extern crate merlin;
-extern crate plonk;
 
-use bls12_381::Scalar;
-use plonk::commitment_scheme::kzg10::{PublicParameters, VerifierKey};
-use plonk::constraint_system::StandardComposer;
-use plonk::proof_system::{Proof, Prover, Verifier};
+use dusk_bls12_381::Scalar;
+use dusk_plonk::commitment_scheme::kzg10::{PublicParameters, VerifierKey};
+use dusk_plonk::constraint_system::StandardComposer;
+use dusk_plonk::proof_system::{Proof, Prover, Verifier};
 use std::fs;
 
 /// This function will populate our `Composer` adding to it the witness values that we
@@ -39,23 +39,24 @@ fn gadget_builder(composer: &mut StandardComposer, inputs: &[Scalar], final_resu
     // - Get the result from the gate computation itself as a `Variable`
     // representing the output wire of the gate.
     // Since we can get it for free and the constraint will be added independently
-    // of providing the result or not, we will go with the second option.
+    // whether the result is or isn't provided, then we will choose the second
+    // option.
 
     // As the `add` function states, we are indeed adding the following constraint:
-    // `Forces q_l * w_l + q_r * w_r + q_c + PI = w_o(computed by the gate).`
+    // `Forces q_l * w_l + q_r * w_r + q_c + PI = w_o (computed by the gate).`
     let a_plus_b = composer.add(
         // q_l , w_l
         (Scalar::one(), a),
         // q_r, w_r
         (Scalar::one(), b),
         // q_c. If we would like to add Constants as part of the circuit description
-        // (they're not going to change), we can add them here on q_c.
+        // (they're not going to change), we can add them on the q_c selector.
         Scalar::zero(),
         // Public Inputs
         Scalar::zero(),
     );
 
-    // We do the same for `C + D`. This time we will use a width 4 gate just to show how we
+    // We do the same for `C + D`. This time we will use a width-4 gate just to show how we
     // should do it. It's obviously not needed since we only have 2 inputs and 1 output. So
     // with width-3 is enough as we saw in the previous gate.
     let c_plus_d = composer.big_add(
@@ -69,7 +70,7 @@ fn gadget_builder(composer: &mut StandardComposer, inputs: &[Scalar], final_resu
         // zero variables everywhere.
         (Scalar::zero(), composer.zero_var),
         // q_c. If we would like to add Constants as part of the circuit description
-        // (they're not going to change), we can add them here on q_c.
+        // (they're not going to change), we can add them on the q_c selector.
         Scalar::zero(),
         // Public Inputs
         Scalar::zero(),
@@ -83,7 +84,7 @@ fn gadget_builder(composer: &mut StandardComposer, inputs: &[Scalar], final_resu
     // So if we know for example that `A + B & C + D` will never need more than 8 bits for example,
     // we can generate a XOR gate that just does the XOR for 10 bits of both numbers.
     //
-    // On this way, we basically save a lot of gates since a regular `Scalar` has 254 bits which means
+    // By doing this, we basically save a lot of gates since a regular `Scalar` has 254 bits which means
     // 128 gates.
     //
     // Anyway, if you're not sure of what you're doing, we recommend to use 254 bits to be sure that
@@ -167,7 +168,7 @@ fn verify_proof(
     verifier.verify(proof, &verifier_key, public_inputs)
 }
 
-/// The goal of the main function will simulate the place on your code where you
+/// The goal of the main function is to simulate the place within your code where you
 /// consistently create proofs and/or verify them.
 fn main() -> () {
     //

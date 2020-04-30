@@ -1,4 +1,6 @@
-# PLONK
+# PLONK [![Build Status](https://travis-ci.com/dusk-network/plonk.svg?branch=master)](https://travis-ci.com/dusk-network/plonk) [![codecov](https://codecov.io/gh/dusk-network/plonk/branch/master/graph/badge.svg)](https://codecov.io/gh/dusk-network/plonk) ![GitHub issues](https://img.shields.io/github/issues-raw/dusk-network/plonk?style=plastic) ![GitHub](https://img.shields.io/github/license/dusk-network/plonk?color=%230E55EF) 
+
+
 
 *This is a pure Rust implementation of the PLONK proving system over BLS12-381*
 

@@ -2,7 +2,7 @@ use crate::commitment_scheme::kzg10::{ProverKey, VerifierKey};
 use crate::constraint_system::StandardComposer;
 use crate::proof_system::PreProcessedCircuit;
 use crate::proof_system::Proof;
-use bls12_381::Scalar;
+use dusk_bls12_381::Scalar;
 use merlin::Transcript;
 
 /// Verifier verifies a proof

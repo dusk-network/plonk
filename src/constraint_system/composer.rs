@@ -21,7 +21,7 @@ use crate::permutation::Permutation;
 use crate::proof_system::widget::{ArithmeticWidget, LogicWidget, PermutationWidget, RangeWidget};
 use crate::proof_system::PreProcessedCircuit;
 use crate::transcript::TranscriptProtocol;
-use bls12_381::Scalar;
+use dusk_bls12_381::Scalar;
 use std::collections::HashMap;
 
 /// A composer is a circuit builder
@@ -1304,7 +1304,7 @@ mod tests {
     use super::*;
     use crate::commitment_scheme::kzg10::PublicParameters;
     use crate::proof_system::{Prover, Verifier};
-    use bls12_381::Scalar as Fr;
+    use dusk_bls12_381::Scalar as Fr;
 
     // Returns a composer with `n` constraints
     fn add_dummy_composer(n: usize) -> StandardComposer {
