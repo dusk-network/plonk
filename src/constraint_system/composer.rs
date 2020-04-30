@@ -13,7 +13,7 @@
 // maximum performance and minimum circuit sizes.
 #![allow(clippy::too_many_arguments)]
 use crate::bit_iterator::*;
-use crate::commitment_scheme::kzg10::ProverKey;
+use crate::commitment_scheme::kzg10::CommitKey;
 
 use crate::constraint_system::{Variable, WireData};
 use crate::fft::{EvaluationDomain, Evaluations, Polynomial};
@@ -79,7 +79,7 @@ impl StandardComposer {
     /// So the verifier can verify a proof made using this circuit
     pub fn preprocess(
         &mut self,
-        commit_key: &ProverKey,
+        commit_key: &CommitKey,
         transcript: &mut Transcript,
     ) -> PreProcessedCircuit {
         let domain = EvaluationDomain::new(self.circuit_size()).unwrap();

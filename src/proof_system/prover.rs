@@ -1,4 +1,4 @@
-use crate::commitment_scheme::kzg10::ProverKey;
+use crate::commitment_scheme::kzg10::CommitKey;
 use crate::constraint_system::{StandardComposer, Variable};
 use crate::fft::{EvaluationDomain, Polynomial};
 use crate::proof_system::{linearisation_poly, proof::Proof, quotient_poly, PreProcessedCircuit};
@@ -25,7 +25,7 @@ impl Prover {
         &mut self.cs
     }
     /// Preprocesses the underlying constraint system
-    pub fn preprocess(&mut self, commit_key: &ProverKey) {
+    pub fn preprocess(&mut self, commit_key: &CommitKey) {
         let ppc = self
             .cs
             .preprocess(commit_key, &mut self.preprocessed_transcript);
@@ -117,7 +117,7 @@ impl Prover {
     /// call `clear_witness`. This is automatically done when `prove` is called
     pub fn prove_with_preprocessed(
         &self,
-        commit_key: &ProverKey,
+        commit_key: &CommitKey,
         preprocessed_circuit: &PreProcessedCircuit,
     ) -> Proof {
         let domain = EvaluationDomain::new(self.cs.circuit_size()).unwrap();
@@ -326,7 +326,7 @@ impl Prover {
     /// Proves a circuit is satisfied, then clears the witness variables
     /// If the circuit is not pre-processed, then the preprocessed circuit will
     /// also be computed
-    pub fn prove(&mut self, commit_key: &ProverKey) -> Proof {
+    pub fn prove(&mut self, commit_key: &CommitKey) -> Proof {
         let preprocessed_circuit: &PreProcessedCircuit;
 
         if self.preprocessed_circuit.is_none() {

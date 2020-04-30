@@ -5,7 +5,7 @@ pub mod key;
 pub mod srs;
 use crate::transcript::TranscriptProtocol;
 use crate::util::powers_of;
-pub use key::{ProverKey, VerifierKey};
+pub use key::{CommitKey, OpeningKey};
 #[cfg(feature = "serde")]
 use serde::{de::Visitor, ser::SerializeStruct, Deserialize, Deserializer, Serialize, Serializer};
 pub use srs::PublicParameters;
