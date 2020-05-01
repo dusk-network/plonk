@@ -84,20 +84,9 @@ impl StandardComposer {
         commit_key: &CommitKey,
         transcript: &mut Transcript,
     ) -> Result<PreProcessedCircuit, Error> {
-        let domain = EvaluationDomain::new(self.circuit_size()).unwrap();
-
-        let k = self.q_m.len();
-        assert!(self.q_o.len() == k);
-        assert!(self.q_l.len() == k);
-        assert!(self.q_r.len() == k);
-        assert!(self.q_c.len() == k);
-        assert!(self.q_4.len() == k);
-        assert!(self.q_arith.len() == k);
-        assert!(self.q_range.len() == k);
-        assert!(self.q_logic.len() == k);
-        assert!(self.w_l.len() == k);
-        assert!(self.w_r.len() == k);
-        assert!(self.w_o.len() == k);
+        let domain = EvaluationDomain::new(self.circuit_size())?;
+        // Check that the lenght of the wires is consistent.
+        self.check_poly_same_len()?;
 
         //1. Pad circuit to a power of two
         self.pad(domain.size as usize - self.n);
@@ -162,15 +151,15 @@ impl StandardComposer {
 
         // 4. Commit to polynomials
         //
-        let q_m_poly_commit = commit_key.commit(&q_m_poly).unwrap_or_default();
-        let q_l_poly_commit = commit_key.commit(&q_l_poly).unwrap_or_default();
-        let q_r_poly_commit = commit_key.commit(&q_r_poly).unwrap_or_default();
-        let q_o_poly_commit = commit_key.commit(&q_o_poly).unwrap_or_default();
-        let q_c_poly_commit = commit_key.commit(&q_c_poly).unwrap_or_default();
-        let q_4_poly_commit = commit_key.commit(&q_4_poly).unwrap_or_default();
-        let q_arith_poly_commit = commit_key.commit(&q_arith_poly).unwrap_or_default();
-        let q_range_poly_commit = commit_key.commit(&q_range_poly).unwrap_or_default();
-        let q_logic_poly_commit = commit_key.commit(&q_logic_poly).unwrap_or_default();
+        let q_m_poly_commit = commit_key.commit(&q_m_poly)?;
+        let q_l_poly_commit = commit_key.commit(&q_l_poly)?;
+        let q_r_poly_commit = commit_key.commit(&q_r_poly)?;
+        let q_o_poly_commit = commit_key.commit(&q_o_poly)?;
+        let q_c_poly_commit = commit_key.commit(&q_c_poly)?;
+        let q_4_poly_commit = commit_key.commit(&q_4_poly)?;
+        let q_arith_poly_commit = commit_key.commit(&q_arith_poly)?;
+        let q_range_poly_commit = commit_key.commit(&q_range_poly)?;
+        let q_logic_poly_commit = commit_key.commit(&q_logic_poly)?;
 
         let left_sigma_poly_commit = commit_key.commit(&left_sigma_poly)?;
         let right_sigma_poly_commit = commit_key.commit(&right_sigma_poly)?;
@@ -1711,7 +1700,7 @@ mod tests {
 
     fn test_gadget(gadget: fn(composer: &mut StandardComposer), n: usize) -> Result<(), Error> {
         // Common View
-        let public_parameters = PublicParameters::setup(2 * n, &mut rand::thread_rng()).unwrap();
+        let public_parameters = PublicParameters::setup(2 * n, &mut rand::thread_rng())?;
         // Provers View
         let (proof, public_inputs) = {
             // Create a prover struct

@@ -483,6 +483,7 @@ fn compute_first_lagrange_evaluation(
     let denom = n_fr * (z_challenge - Scalar::one());
     z_h_eval * denom.invert().unwrap()
 }
+
 #[warn(clippy::needless_range_loop)]
 fn compute_barycentric_eval(
     evaluations: &[Scalar],
