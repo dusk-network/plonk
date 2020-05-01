@@ -3,6 +3,7 @@ use crate::constraint_system::StandardComposer;
 use crate::proof_system::PreProcessedCircuit;
 use crate::proof_system::Proof;
 use dusk_bls12_381::Scalar;
+use failure::Error;
 use merlin::Transcript;
 
 /// Verifier verifies a proof
@@ -44,12 +45,13 @@ impl Verifier {
     }
 
     /// Preprocess a proof
-    pub fn preprocess(&mut self, commit_key: &CommitKey) {
+    pub fn preprocess(&mut self, commit_key: &CommitKey) -> Result<(), Error> {
         let ppc = self
             .cs
-            .preprocess(commit_key, &mut self.preprocessed_transcript);
+            .preprocess(commit_key, &mut self.preprocessed_transcript)?;
 
-        self.preprocessed_circuit = Some(ppc)
+        self.preprocessed_circuit = Some(ppc);
+        Ok(())
     }
 
     /// Keys the transcript with additional seed information
@@ -64,7 +66,7 @@ impl Verifier {
         proof: &Proof,
         opening_key: &OpeningKey,
         public_inputs: &[Scalar],
-    ) -> bool {
+    ) -> Result<(), Error> {
         let mut cloned_transcript = self.preprocessed_transcript.clone();
         let preprocessed_circuit = self.preprocessed_circuit.as_ref().unwrap();
 

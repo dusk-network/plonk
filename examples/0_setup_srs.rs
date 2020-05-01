@@ -33,9 +33,10 @@ extern crate dusk_plonk;
 extern crate rand;
 
 use dusk_plonk::commitment_scheme::kzg10::PublicParameters;
+use failure::Error;
 use std::fs;
 
-fn main() -> () {
+fn main() -> Result<(), Error> {
     // First of all we generate our `PublicParameters` data structure.
     // NOTE that we need to specify the `size` of them.
     //
@@ -49,7 +50,7 @@ fn main() -> () {
     // For this example we will assume that our circuit_size is between 2^10 & 2^11
     // gates, so we will basically use `max_size` as `2^11`.
 
-    let public_params = PublicParameters::setup(1 << 11, &mut rand::thread_rng()).unwrap();
+    let public_params = PublicParameters::setup(1 << 11, &mut rand::thread_rng())?;
 
     // Now that we have our `PublicParameters` generated, we will serialize them so that
     // they can be used for the next examples.
@@ -61,4 +62,5 @@ fn main() -> () {
     let ser_pub_params = bincode::serialize(&public_params).unwrap();
 
     fs::write("examples/.public_params.bin", &ser_pub_params).expect("Unable to write file");
+    Ok(())
 }

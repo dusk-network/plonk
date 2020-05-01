@@ -1,8 +1,9 @@
 use crate::fft::{EvaluationDomain, Polynomial};
-/// This quotient polynomial can only be used for the standard composer
-/// Each composer will need to implement their own method for computing the quotient polynomial
 use crate::proof_system::PreProcessedCircuit;
 use dusk_bls12_381::Scalar;
+/// This quotient polynomial can only be used for the standard composer
+/// Each composer will need to implement their own method for computing the quotient polynomial
+use failure::Error;
 use rayon::prelude::*;
 
 /// Computes the quotient polynomial
@@ -13,9 +14,9 @@ pub(crate) fn compute(
     (w_l_poly, w_r_poly, w_o_poly, w_4_poly): (&Polynomial, &Polynomial, &Polynomial, &Polynomial),
     public_inputs_poly: &Polynomial,
     (alpha, beta, gamma): &(Scalar, Scalar, Scalar),
-) -> Polynomial {
+) -> Result<Polynomial, Error> {
     // Compute 4n eval of z(X)
-    let domain_4n = EvaluationDomain::new(4 * domain.size()).unwrap();
+    let domain_4n = EvaluationDomain::new(4 * domain.size())?;
     let mut z_eval_4n = domain_4n.coset_fft(&z_poly);
     z_eval_4n.push(z_eval_4n[0]);
     z_eval_4n.push(z_eval_4n[1]);
@@ -41,7 +42,7 @@ pub(crate) fn compute(
     w4_eval_4n.push(w4_eval_4n[3]);
 
     let t_1 = compute_circuit_satisfiability_equation(
-        domain,
+        &domain,
         preprocessed_circuit,
         (&wl_eval_4n, &wr_eval_4n, &wo_eval_4n, &w4_eval_4n),
         public_inputs_poly,
@@ -64,7 +65,9 @@ pub(crate) fn compute(
         })
         .collect();
 
-    Polynomial::from_coefficients_vec(domain_4n.coset_ifft(&quotient))
+    Ok(Polynomial::from_coefficients_vec(
+        domain_4n.coset_ifft(&quotient),
+    ))
 }
 
 // Ensures that the circuit is satisfied
@@ -75,7 +78,6 @@ fn compute_circuit_satisfiability_equation(
     pi_poly: &Polynomial,
 ) -> Vec<Scalar> {
     let domain_4n = EvaluationDomain::new(4 * domain.size()).unwrap();
-
     let pi_eval_4n = domain_4n.coset_fft(pi_poly);
 
     let t: Vec<_> = (0..domain_4n.size())
@@ -116,7 +118,6 @@ fn compute_permutation_checks(
     (alpha, beta, gamma): (&Scalar, &Scalar, &Scalar),
 ) -> Vec<Scalar> {
     let domain_4n = EvaluationDomain::new(4 * domain.size()).unwrap();
-
     let l1_poly_alpha = compute_first_lagrange_poly_scaled(domain, alpha.square());
     let l1_alpha_sq_evals = domain_4n.coset_fft(&l1_poly_alpha.coeffs);
 

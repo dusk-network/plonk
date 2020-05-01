@@ -6,9 +6,11 @@
 //! This allows us to perform polynomial operations in O(n)
 //! by performing an O(n log n) FFT over such a domain.
 
+use super::fft_errors::{FFTError, FFTErrors};
 use super::Evaluations;
 use core::fmt;
 use dusk_bls12_381::{Scalar, GENERATOR, ROOT_OF_UNITY, TWO_ADACITY};
+use failure::Error;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefMutIterator, ParallelIterator};
 #[cfg(feature = "serde")]
 use serde::{de::Visitor, ser::SerializeStruct, Deserialize, Deserializer, Serialize, Serializer};
@@ -183,13 +185,20 @@ impl<'de> Deserialize<'de> for EvaluationDomain {
 impl EvaluationDomain {
     /// Construct a domain that is large enough for evaluations of a polynomial
     /// having `num_coeffs` coefficients.
-    pub fn new(num_coeffs: usize) -> Option<Self> {
+    pub fn new(num_coeffs: usize) -> Result<Self, Error> {
         // Compute the size of our evaluation domain
         let size = num_coeffs.next_power_of_two() as u64;
         let log_size_of_group = size.trailing_zeros();
 
         if log_size_of_group >= TWO_ADACITY {
-            return None;
+            return Err(FFTError(
+                FFTErrors::InvalidEvalDomainSize {
+                    log_size_of_group,
+                    adacity: TWO_ADACITY,
+                }
+                .into(),
+            )
+            .into());
         }
 
         // Compute the generator for the multiplicative subgroup.
@@ -202,7 +211,7 @@ impl EvaluationDomain {
         let size_as_field_element = Scalar::from(size);
         let size_inv = size_as_field_element.invert().unwrap();
 
-        Some(EvaluationDomain {
+        Ok(EvaluationDomain {
             size,
             log_size_of_group,
             size_as_field_element,
@@ -384,6 +393,9 @@ impl EvaluationDomain {
     /// Given an index which assumes the first elements of this domain are the
     /// elements of another (sub)domain with size size_s,
     /// this returns the actual index into this domain.
+    ///
+    /// # Panics
+    /// When the index of self is smaller than the other provided.
     pub fn reindex_by_subdomain(&self, other: Self, index: usize) -> usize {
         assert!(self.size() >= other.size());
         // Let this subgroup be G, and the subgroup we're re-indexing by be S.
