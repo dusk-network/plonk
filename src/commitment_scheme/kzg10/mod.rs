@@ -1,5 +1,6 @@
 //! Implementation of the KZG10 polynomial commitment scheme.
 use dusk_bls12_381::{G1Affine, G1Projective, Scalar};
+use merlin::Transcript;
 pub mod errors;
 pub mod key;
 pub mod srs;
@@ -52,7 +53,7 @@ impl AggregateProof {
 
     /// Flattens an `AggregateProof` into a `Proof`.
     /// The transcript must have the same view as the transcript that was used to aggregate the witness in the proving stage.
-    pub fn flatten(&self, transcript: &mut dyn TranscriptProtocol) -> Proof {
+    pub fn flatten(&self, transcript: &mut Transcript) -> Proof {
         let challenge = transcript.challenge_scalar(b"aggregate_witness");
         let powers = powers_of(&challenge, self.commitments_to_polynomials.len() - 1);
 

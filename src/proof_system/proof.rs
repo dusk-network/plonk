@@ -10,6 +10,7 @@ use crate::commitment_scheme::kzg10::{Commitment, OpeningKey};
 use crate::fft::EvaluationDomain;
 use crate::transcript::TranscriptProtocol;
 use dusk_bls12_381::{multiscalar_mul::msm_variable_base, G1Affine, Scalar};
+use merlin::Transcript;
 #[cfg(feature = "serde")]
 use serde::{de::Visitor, ser::SerializeStruct, Deserialize, Deserializer, Serialize, Serializer};
 
@@ -227,7 +228,7 @@ impl Proof {
     pub fn verify(
         &self,
         preprocessed_circuit: &PreProcessedCircuit,
-        transcript: &mut dyn TranscriptProtocol,
+        transcript: &mut Transcript,
         opening_key: &OpeningKey,
         pub_inputs: &[Scalar],
     ) -> bool {
