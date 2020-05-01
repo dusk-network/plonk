@@ -131,8 +131,7 @@ fn main() -> Result<(), Error> {
         Ok(()) => panic!("Incorrect proof has been verified successfully!"),
         Err(e) => {
             println!(
-            "KO Proof constructed before was succesfully verified unsuccessfully as we expected!
-            \n{:?}", e);
+            "KO Proof constructed before was succesfully verified unsuccessfully as we expected! with the following error: {:?}", e);
             Ok(())
         }
     }
