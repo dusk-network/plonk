@@ -151,15 +151,15 @@ impl StandardComposer {
 
         // 4. Commit to polynomials
         //
-        let q_m_poly_commit = commit_key.commit(&q_m_poly)?;
-        let q_l_poly_commit = commit_key.commit(&q_l_poly)?;
-        let q_r_poly_commit = commit_key.commit(&q_r_poly)?;
-        let q_o_poly_commit = commit_key.commit(&q_o_poly)?;
-        let q_c_poly_commit = commit_key.commit(&q_c_poly)?;
-        let q_4_poly_commit = commit_key.commit(&q_4_poly)?;
-        let q_arith_poly_commit = commit_key.commit(&q_arith_poly)?;
-        let q_range_poly_commit = commit_key.commit(&q_range_poly)?;
-        let q_logic_poly_commit = commit_key.commit(&q_logic_poly)?;
+        let q_m_poly_commit = commit_key.commit(&q_m_poly).unwrap_or_default();
+        let q_l_poly_commit = commit_key.commit(&q_l_poly).unwrap_or_default();
+        let q_r_poly_commit = commit_key.commit(&q_r_poly).unwrap_or_default();
+        let q_o_poly_commit = commit_key.commit(&q_o_poly).unwrap_or_default();
+        let q_c_poly_commit = commit_key.commit(&q_c_poly).unwrap_or_default();
+        let q_4_poly_commit = commit_key.commit(&q_4_poly).unwrap_or_default();
+        let q_arith_poly_commit = commit_key.commit(&q_arith_poly).unwrap_or_default();
+        let q_range_poly_commit = commit_key.commit(&q_range_poly).unwrap_or_default();
+        let q_logic_poly_commit = commit_key.commit(&q_logic_poly).unwrap_or_default();
 
         let left_sigma_poly_commit = commit_key.commit(&left_sigma_poly)?;
         let right_sigma_poly_commit = commit_key.commit(&right_sigma_poly)?;
