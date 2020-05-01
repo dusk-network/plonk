@@ -50,7 +50,6 @@ pub(crate) fn compute(
 
     let t_2 = compute_permutation_checks(
         domain,
-        &domain_4n,
         preprocessed_circuit,
         (&wl_eval_4n, &wr_eval_4n, &wo_eval_4n, &w4_eval_4n),
         &z_eval_4n,
@@ -73,11 +72,12 @@ pub(crate) fn compute(
 
 // Ensures that the circuit is satisfied
 fn compute_circuit_satisfiability_equation(
-    domain_4n: &EvaluationDomain,
+    domain: &EvaluationDomain,
     preprocessed_circuit: &PreProcessedCircuit,
     (wl_eval_4n, wr_eval_4n, wo_eval_4n, w4_eval_4n): (&[Scalar], &[Scalar], &[Scalar], &[Scalar]),
     pi_poly: &Polynomial,
 ) -> Vec<Scalar> {
+    let domain_4n = EvaluationDomain::new(4 * domain.size()).unwrap();
     let pi_eval_4n = domain_4n.coset_fft(pi_poly);
 
     let t: Vec<_> = (0..domain_4n.size())
@@ -112,12 +112,12 @@ fn compute_circuit_satisfiability_equation(
 
 fn compute_permutation_checks(
     domain: &EvaluationDomain,
-    domain_4n: &EvaluationDomain,
     preprocessed_circuit: &PreProcessedCircuit,
     (wl_eval_4n, wr_eval_4n, wo_eval_4n, w4_eval_4n): (&[Scalar], &[Scalar], &[Scalar], &[Scalar]),
     z_eval_4n: &[Scalar],
     (alpha, beta, gamma): (&Scalar, &Scalar, &Scalar),
 ) -> Vec<Scalar> {
+    let domain_4n = EvaluationDomain::new(4 * domain.size()).unwrap();
     let l1_poly_alpha = compute_first_lagrange_poly_scaled(domain, alpha.square());
     let l1_alpha_sq_evals = domain_4n.coset_fft(&l1_poly_alpha.coeffs);
 
