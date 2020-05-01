@@ -10,6 +10,7 @@ use dusk_bls12_381::Scalar;
 use dusk_plonk::commitment_scheme::kzg10::{CommitKey, OpeningKey, PublicParameters};
 use dusk_plonk::constraint_system::StandardComposer;
 use dusk_plonk::proof_system::{PreProcessedCircuit, Proof, Prover};
+use failure::Error;
 use merlin::Transcript;
 use std::fs;
 
@@ -68,7 +69,7 @@ fn gadget_builder(composer: &mut StandardComposer, inputs: &[Scalar], final_resu
     composer.add_dummy_constraints();
 }
 
-fn elaborate_proof(prover: &mut Prover) -> Proof {
+fn elaborate_proof(prover: &mut Prover) -> Result<Proof, Error> {
     prover.prove_with_preprocessed(&COMMIT_KEY, &PREPROCESSED_CIRCUIT)
 }
 
@@ -86,7 +87,7 @@ fn verify_proof(proof: &Proof, pub_input: Scalar) -> Result<(), Error> {
     )
 }
 
-fn start_proving(inputs: &[Scalar], final_result: Scalar) -> Proof {
+fn start_proving(inputs: &[Scalar], final_result: Scalar) -> Result<Proof, Error> {
     let mut prover = Prover::new(b"Gadget-Orientation-Is-Cool");
     gadget_builder(prover.mut_cs(), inputs, final_result);
     elaborate_proof(&mut prover)

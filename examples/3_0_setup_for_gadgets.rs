@@ -15,6 +15,7 @@ use dusk_bls12_381::Scalar;
 use dusk_plonk::commitment_scheme::kzg10::PublicParameters;
 use dusk_plonk::constraint_system::StandardComposer;
 use dusk_plonk::proof_system::{PreProcessedCircuit, Proof, Prover};
+use failure::Error;
 use merlin::Transcript;
 use std::fs;
 
@@ -60,23 +61,23 @@ fn build_prep_circ() -> Result<PreProcessedCircuit, Error> {
         .expect("File not found. Run example `0_setup_srs` first please");
     let pub_params: PublicParameters = bincode::deserialize(&ser_pub_params)?;
     // Derive the `ProverKey` from the `PublicParameters`.
-    let (prover_key, _) = pub_params
-        .trim(2 * composer.circuit_size().next_power_of_two())
-        .unwrap();
-    let prep_circ = composer.preprocess(&prover_key, &mut transcript);
-    prep_circ
+    let (prover_key, _) = pub_params.trim(2 * composer.circuit_size().next_power_of_two())?;
+    let prep_circ = composer.preprocess(&prover_key, &mut transcript)?;
+    Ok(prep_circ)
 }
 
-fn build_proof(inputs: &[Scalar], final_result: Scalar, prep_circ: &PreProcessedCircuit) -> Proof {
+fn build_proof(
+    inputs: &[Scalar],
+    final_result: Scalar,
+    prep_circ: &PreProcessedCircuit,
+) -> Result<Proof, Error> {
     let mut prover = Prover::new(b"Gadget-Orientation-Is-Cool");
     gadget_builder(prover.mut_cs(), inputs, final_result);
     let ser_pub_params = fs::read(&"examples/.public_params.bin")
         .expect("File not found. Run example `0_setup_srs` first please");
     let pub_params: PublicParameters = bincode::deserialize(&ser_pub_params)?;
     // Derive the `ProverKey` from the `PublicParameters`.
-    let (prover_key, _) = pub_params
-        .trim(2 * prover.circuit_size().next_power_of_two())
-        .unwrap();
+    let (prover_key, _) = pub_params.trim(2 * prover.circuit_size().next_power_of_two())?;
     prover.prove_with_preprocessed(&prover_key, &prep_circ)
 }
 

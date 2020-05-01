@@ -19,6 +19,7 @@ use dusk_bls12_381::Scalar;
 use dusk_plonk::commitment_scheme::kzg10::{OpeningKey, PublicParameters};
 use dusk_plonk::constraint_system::StandardComposer;
 use dusk_plonk::proof_system::{Proof, Prover, Verifier};
+use failure::Error;
 use std::fs;
 
 /// This function will populate our `Composer` adding to it the witness values that we
@@ -114,7 +115,7 @@ fn gadget_builder(composer: &mut StandardComposer, inputs: &[Scalar], final_resu
     composer.add_dummy_constraints();
 }
 
-fn build_proof(prover: &mut Prover) -> Proof {
+fn build_proof(prover: &mut Prover) -> Result<Proof, Error> {
     // The Commitment Key allows us to commit to polynomials bounded by a degree `d`.
     // The commitment Key is derived from the Trusted Setup `PublicParameters`.
     //
@@ -126,16 +127,16 @@ fn build_proof(prover: &mut Prover) -> Proof {
     let pub_params: PublicParameters = bincode::deserialize(&ser_pub_params).unwrap();
 
     // Derive the `ProverKey` from the `PublicParameters`.
-    let (prover_key, _) = pub_params.trim(2 * prover.circuit_size()).unwrap();
+    let (prover_key, _) = pub_params.trim(2 * prover.circuit_size())?;
 
     // Preprocess the circuit
-    prover.preprocess(&prover_key);
+    prover.preprocess(&prover_key)?;
 
     // Now we build the proof with the parameters we generated.
     prover.prove(&prover_key)
 }
 
-fn generate_verifier_parameters(verifier: &mut Verifier) -> OpeningKey {
+fn generate_verifier_parameters(verifier: &mut Verifier) -> Result<OpeningKey, Error> {
     // The Verifier will deserialise the Public parameters which were serialised and stored
     // from a previous example and pre-process the circuit.
     let ser_pub_params = fs::read(&"examples/.public_params.bin")
@@ -143,14 +144,12 @@ fn generate_verifier_parameters(verifier: &mut Verifier) -> OpeningKey {
     let pub_params: PublicParameters = bincode::deserialize(&ser_pub_params).unwrap();
 
     // Derive the Commit and Verifier Key from the `PublicParameters`.
-    let (prover_key, verif_key) = pub_params
-        .trim(verifier.circuit_size().next_power_of_two())
-        .unwrap();
+    let (prover_key, verif_key) = pub_params.trim(verifier.circuit_size().next_power_of_two())?;
 
     // Use the commit key to preprocess the circuit
-    verifier.preprocess(&prover_key);
+    verifier.preprocess(&prover_key)?;
 
-    verif_key
+    Ok(verif_key)
 }
 
 fn verify_proof(
@@ -194,7 +193,7 @@ fn main() -> Result<(), Error> {
     );
 
     // Generate a `Proof` that the gadget is satisfied
-    let proof_1 = build_proof(&mut prover);
+    let proof_1 = build_proof(&mut prover)?;
     //
     // One can build another proof using the same circuit, by passing the prover struct through the same gadget with different witness values
 
@@ -221,14 +220,9 @@ fn main() -> Result<(), Error> {
 
     // The following part could be as simple as deserialize data or have a lazy_static reference.
     // We will just call a function that will give us the parameters that we could easily serialize/deserialize.
-    let verifier_key = generate_verifier_parameters(&mut verifier);
+    let verifier_key = generate_verifier_parameters(&mut verifier)?;
 
-    verify_proof(
-        &proof_1,
-        &verifier,
-        &verifier_key,
-        &-Scalar::one()
-    ));
+    verify_proof(&proof_1, &verifier, &verifier_key, &-Scalar::one())?;
     println!("The proof was succesfully verified!");
     Ok(())
 }

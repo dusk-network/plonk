@@ -329,7 +329,7 @@ impl CommitKey {
 impl OpeningKey {
     /// Checks that a polynomial `p` was evaluated at a point `z` and returned the value specified `v`.
     /// ie. v = p(z).
-    pub(crate) fn check(&self, point: Scalar, proof: Proof) -> bool {
+    pub fn check(&self, point: Scalar, proof: Proof) -> bool {
         let inner_a: G1Affine =
             (proof.commitment_to_polynomial.0 - (self.g * proof.evaluated_point)).into();
 

@@ -49,6 +49,7 @@ extern crate merlin;
 use dusk_bls12_381::Scalar;
 use dusk_plonk::commitment_scheme::kzg10::PublicParameters;
 use dusk_plonk::proof_system::{Prover, Verifier};
+use failure::Error;
 use std::fs;
 
 fn main() -> Result<(), Error> {
@@ -265,20 +266,14 @@ fn main() -> Result<(), Error> {
         .expect("File not found.\n Run example `0_setup_srs` first please");
     let pub_params: PublicParameters = bincode::deserialize(&ser_pub_params).unwrap();
     // Derive the `ProverKey` from the `PublicParameters`.
-    let (prover_key, verifier_key) = pub_params
-        .trim(composer.circuit_size().next_power_of_two())
-        .unwrap();
+    let (prover_key, verifier_key) =
+        pub_params.trim(composer.circuit_size().next_power_of_two())?;
 
     // Now we can finally preprocess the circuit that we've built.
-<<<<<<< HEAD
-    let pre_processed_circ =
-        composer.preprocess(&prover_key, &mut prover_transcript, &eval_domain)?;
-=======
-    prover.preprocess(&prover_key);
->>>>>>> master
+    prover.preprocess(&prover_key)?;
 
     // We could now store our `PreProcessedCircuit` serialized with `bincode`.
-    // let ser_prep_cir = bincode::serialize(&pre_processed_circ).unwrap();
+    // let ser_prep_cir = bincode::serialize(&prover.preprocessed_circuit.unwrap()).unwrap();
     // We can store the `PreProcessedCircuit` serialized in a file for later use.
     //
     //fs::write("preprocessed_circ.bin", &ser_prep_cir).expect("Unable to write file");
@@ -290,32 +285,13 @@ fn main() -> Result<(), Error> {
     // that we've loaded into our `Composer`.
     //
     // We clone the transcript since we don't want to modify it to allow then the verifier to re-use it.
-<<<<<<< HEAD
-    let proof = composer.prove(
-        &prover_key,
-        &pre_processed_circ,
-        &mut prover_transcript.clone(),
-    )?;
-=======
     let verifier_transcript = prover.preprocessed_transcript.clone();
 
-    let proof = prover.prove(&prover_key);
->>>>>>> master
+    let proof = prover.prove(&prover_key)?;
 
     let zero = Scalar::zero();
     let one = Scalar::one();
 
-<<<<<<< HEAD
-    // For this example, since we are using the same composer, we just need to
-    proof.verify(
-        &pre_processed_circ,
-        &mut prover_transcript,
-        &verifier_key,
-        &vec![
-            zero, zero, zero, zero, zero, zero, zero, zero, zero, zero, zero, zero, -one, -one,
-        ],
-    )?;
-=======
     let mut verifier = Verifier::new(b"End-To-End-Example");
     verifier.preprocessed_transcript = verifier_transcript;
     verifier.preprocessed_circuit = prover.preprocessed_circuit;
@@ -324,8 +300,9 @@ fn main() -> Result<(), Error> {
         zero, zero, zero, zero, zero, zero, zero, zero, zero, zero, zero, zero, -one, -one,
     ];
 
-    assert!(verifier.verify(&proof, &verifier_key, public_inputs));
->>>>>>> master
+    assert!(verifier
+        .verify(&proof, &verifier_key, public_inputs)
+        .is_ok());
     println!("Proof verified succesfully!");
     Ok(())
 }
