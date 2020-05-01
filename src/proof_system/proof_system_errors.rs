@@ -8,6 +8,10 @@ pub enum ProofErrors {
     /// This error occurs when the verification of a `Proof` fails.
     #[fail(display = "proof verification failed")]
     ProofVerificationError,
+    /// This error occurrs when the Prover structure already contains a
+    /// preprocessed circuit inside, but you call preprocess again.
+    #[fail(display = "circuit already preprocessed")]
+    CircuitAlreadyPreprocessed,
 }
 
 #[derive(Debug, Fail)]

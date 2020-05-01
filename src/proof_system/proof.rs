@@ -8,7 +8,7 @@ use super::linearisation_poly::ProofEvaluations;
 use super::proof_system_errors::{ProofError, ProofErrors};
 use super::PreProcessedCircuit;
 use crate::commitment_scheme::kzg10::AggregateProof;
-use crate::commitment_scheme::kzg10::{Commitment, VerifierKey};
+use crate::commitment_scheme::kzg10::{Commitment, OpeningKey};
 use crate::fft::EvaluationDomain;
 use crate::transcript::TranscriptProtocol;
 use dusk_bls12_381::{multiscalar_mul::msm_variable_base, G1Affine, Scalar};
@@ -231,7 +231,7 @@ impl Proof {
         &self,
         preprocessed_circuit: &PreProcessedCircuit,
         transcript: &mut dyn TranscriptProtocol,
-        verifier_key: &VerifierKey,
+        opening_key: &OpeningKey,
         pub_inputs: &[Scalar],
     ) -> Result<(), Error> {
         let domain = EvaluationDomain::new(preprocessed_circuit.n)?;
@@ -360,7 +360,7 @@ impl Proof {
         transcript.append_commitment(b"w_z_w", &self.w_zw_comm);
 
         // Batch check
-        if verifier_key
+        if opening_key
             .batch_check(
                 &[z_challenge, (z_challenge * domain.group_gen)],
                 &[flattened_proof_a, flattened_proof_b],

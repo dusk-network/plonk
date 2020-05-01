@@ -1,6 +1,6 @@
-//! Key module contains the ultilities and data structures
-//! that support the generation and usage of Prover and
-//! Verifier keys.
+//! Key module contains the utilities and data structures
+//! that support the generation and usage of Commit and
+//! Opening keys.
 use super::{
     errors::{KZG10Errors, PolyCommitSchemeError},
     AggregateProof, Commitment, Proof,
@@ -11,9 +11,9 @@ use dusk_bls12_381::{
 };
 use failure::Error;
 
-/// Verifier Key is used to verify claims made about a committed polynomial.
+/// Opening Key is used to verify opening proofs made about a committed polynomial.
 #[derive(Clone, Debug)]
-pub struct VerifierKey {
+pub struct OpeningKey {
     /// The generator of G1.
     pub g: G1Affine,
     /// The generator of G2.
@@ -32,23 +32,23 @@ use serde::{
 };
 
 #[cfg(feature = "serde")]
-impl Serialize for VerifierKey {
+impl Serialize for OpeningKey {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
-        let mut verif_key = serializer.serialize_struct("struct VerifierKey", 5)?;
-        verif_key.serialize_field("g", &self.g)?;
-        verif_key.serialize_field("h", &self.h)?;
-        verif_key.serialize_field("beta_h", &self.beta_h)?;
-        verif_key.serialize_field("prepared_h", &self.prepared_h)?;
-        verif_key.serialize_field("prepared_beta_h", &self.prepared_beta_h)?;
-        verif_key.end()
+        let mut open_key = serializer.serialize_struct("struct OpeningKey", 5)?;
+        open_key.serialize_field("g", &self.g)?;
+        open_key.serialize_field("h", &self.h)?;
+        open_key.serialize_field("beta_h", &self.beta_h)?;
+        open_key.serialize_field("prepared_h", &self.prepared_h)?;
+        open_key.serialize_field("prepared_beta_h", &self.prepared_beta_h)?;
+        open_key.end()
     }
 }
 
 #[cfg(feature = "serde")]
-impl<'de> Deserialize<'de> for VerifierKey {
+impl<'de> Deserialize<'de> for OpeningKey {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
@@ -75,7 +75,7 @@ impl<'de> Deserialize<'de> for VerifierKey {
                         &self,
                         formatter: &mut ::core::fmt::Formatter,
                     ) -> ::core::fmt::Result {
-                        formatter.write_str("struct VerifierKey")
+                        formatter.write_str("struct OpeningKey")
                     }
 
                     fn visit_str<E>(self, value: &str) -> Result<Field, E>
@@ -97,16 +97,16 @@ impl<'de> Deserialize<'de> for VerifierKey {
             }
         }
 
-        struct VerifierKeyVisitor;
+        struct OpeningKeyVisitor;
 
-        impl<'de> Visitor<'de> for VerifierKeyVisitor {
-            type Value = VerifierKey;
+        impl<'de> Visitor<'de> for OpeningKeyVisitor {
+            type Value = OpeningKey;
 
             fn expecting(&self, formatter: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
-                formatter.write_str("struct VerifierKey")
+                formatter.write_str("struct OpeningKey")
             }
 
-            fn visit_seq<V>(self, mut seq: V) -> Result<VerifierKey, V::Error>
+            fn visit_seq<V>(self, mut seq: V) -> Result<OpeningKey, V::Error>
             where
                 V: serde::de::SeqAccess<'de>,
             {
@@ -125,7 +125,7 @@ impl<'de> Deserialize<'de> for VerifierKey {
                 let prepared_beta_h = seq
                     .next_element()?
                     .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
-                Ok(VerifierKey {
+                Ok(OpeningKey {
                     g,
                     h,
                     beta_h,
@@ -136,13 +136,13 @@ impl<'de> Deserialize<'de> for VerifierKey {
         }
 
         const FIELDS: &[&str] = &["g", "h", "beta_h", "prepared_h", "prepared_beta_h"];
-        deserializer.deserialize_struct("VerifierKey", FIELDS, VerifierKeyVisitor)
+        deserializer.deserialize_struct("OpeningKey", FIELDS, OpeningKeyVisitor)
     }
 }
 
-/// Prover key is used to commit to a polynomial which is bounded by the max_degree.
+/// CommitKey is used to commit to a polynomial which is bounded by the max_degree.
 #[derive(Debug)]
-pub struct ProverKey {
+pub struct CommitKey {
     /// Group elements of the form `{ \beta^i G }`, where `i` ranges from 0 to `degree`.
     pub powers_of_g: Vec<G1Affine>,
 }
@@ -151,7 +151,7 @@ pub struct ProverKey {
 use serde::ser::SerializeSeq;
 
 #[cfg(feature = "serde")]
-impl Serialize for ProverKey {
+impl Serialize for CommitKey {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
@@ -165,21 +165,21 @@ impl Serialize for ProverKey {
 }
 
 #[cfg(feature = "serde")]
-impl<'de> Deserialize<'de> for ProverKey {
+impl<'de> Deserialize<'de> for CommitKey {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
     {
-        struct ProverKeyVisitor;
+        struct CommitKeyVisitor;
 
-        impl<'de> Visitor<'de> for ProverKeyVisitor {
-            type Value = ProverKey;
+        impl<'de> Visitor<'de> for CommitKeyVisitor {
+            type Value = CommitKey;
 
             fn expecting(&self, formatter: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
-                formatter.write_str("a prover key with valid powers per points")
+                formatter.write_str("a commit key with valid powers per points")
             }
 
-            fn visit_seq<A>(self, mut seq: A) -> Result<ProverKey, A::Error>
+            fn visit_seq<A>(self, mut seq: A) -> Result<CommitKey, A::Error>
             where
                 A: serde::de::SeqAccess<'de>,
             {
@@ -189,26 +189,26 @@ impl<'de> Deserialize<'de> for ProverKey {
                 while let Some(elem) = seq.next_element()? {
                     powers_vec.push(elem)
                 }
-                Ok(ProverKey {
+                Ok(CommitKey {
                     powers_of_g: powers_vec,
                 })
             }
         }
 
-        deserializer.deserialize_seq(ProverKeyVisitor)
+        deserializer.deserialize_seq(CommitKeyVisitor)
     }
 }
 
-impl ProverKey {
+impl CommitKey {
     /// Returns the maximum degree polynomial that you can commit to.
     pub fn max_degree(&self) -> usize {
         self.powers_of_g.len() - 1
     }
 
-    /// Truncates the prover key to a lower max degree.
+    /// Truncates the commit key to a lower max degree.
     /// Returns an error if the truncated degree is zero or if the truncated degree
-    /// is larger than the max degree of the prover key.
-    pub fn truncate(&self, mut truncated_degree: usize) -> Result<ProverKey, Error> {
+    /// is larger than the max degree of the commit key.
+    pub fn truncate(&self, mut truncated_degree: usize) -> Result<CommitKey, Error> {
         if truncated_degree == 1 {
             truncated_degree += 1;
         }
@@ -235,7 +235,7 @@ impl ProverKey {
 
     /// Commits to a polynomial returning the corresponding `Commitment`.
     ///
-    /// Returns an error if the polynomial's degree is more than the max degree of the prover key.
+    /// Returns an error if the polynomial's degree is more than the max degree of the commit key.
     pub fn commit(&self, polynomial: &Polynomial) -> Result<Commitment, Error> {
         // Check whether we can safely commit to this polynomial
         self.check_commit_degree_is_within_bounds(polynomial.degree())?;
@@ -326,8 +326,7 @@ impl ProverKey {
     }
 }
 
-impl VerifierKey {
-    #[allow(dead_code)]
+impl OpeningKey {
     /// Checks that a polynomial `p` was evaluated at a point `z` and returned the value specified `v`.
     /// ie. v = p(z).
     pub(crate) fn check(&self, point: Scalar, proof: Proof) -> bool {
@@ -411,14 +410,14 @@ mod test {
     use merlin::Transcript;
 
     // Creates a proving key and verifier key based on a specified degree
-    fn setup_test(degree: usize) -> (ProverKey, VerifierKey) {
+    fn setup_test(degree: usize) -> (CommitKey, OpeningKey) {
         let srs = PublicParameters::setup(degree, &mut rand::thread_rng()).unwrap();
         srs.trim(degree).unwrap()
     }
     #[test]
     fn test_basic_commit() {
         let degree = 25;
-        let (proving_key, verifier_key) = setup_test(degree);
+        let (proving_key, opening_key) = setup_test(degree);
         let point = Scalar::from(10);
 
         let poly = Polynomial::rand(degree, &mut rand::thread_rng());
@@ -426,7 +425,7 @@ mod test {
 
         let proof = proving_key.open_single(&poly, &value, &point).unwrap();
 
-        let ok = verifier_key.check(point, proof);
+        let ok = opening_key.check(point, proof);
         assert!(ok);
     }
     #[test]
@@ -464,10 +463,10 @@ mod test {
     #[test]
     fn test_aggregate_witness() {
         let max_degree = 27;
-        let (proving_key, verifier_key) = setup_test(max_degree);
+        let (proving_key, opening_key) = setup_test(max_degree);
         let point = Scalar::from(10);
 
-        // Prover's View
+        // Committer's View
         let aggregated_proof = {
             // Compute secret polynomials and their evaluations
             let poly_a = Polynomial::rand(25, &mut rand::thread_rng());
@@ -492,7 +491,7 @@ mod test {
         // Verifier's View
         let ok = {
             let flattened_proof = aggregated_proof.flatten(&mut Transcript::new(b"agg_flatten"));
-            verifier_key.check(point, flattened_proof)
+            opening_key.check(point, flattened_proof)
         };
 
         assert!(ok);
@@ -501,11 +500,11 @@ mod test {
     #[test]
     fn test_batch_with_aggregation() {
         let max_degree = 28;
-        let (proving_key, verifier_key) = setup_test(max_degree);
+        let (proving_key, opening_key) = setup_test(max_degree);
         let point_a = Scalar::from(10);
         let point_b = Scalar::from(11);
 
-        // Prover's View
+        // Committer's View
         let (aggregated_proof, single_proof) = {
             // Compute secret polynomial and their evaluations
             let poly_a = Polynomial::rand(25, &mut rand::thread_rng());
@@ -537,24 +536,25 @@ mod test {
         };
 
         // Verifier's View
+        let ok = {
+            let mut transcript = Transcript::new(b"agg_batch");
+            let flattened_proof = aggregated_proof.flatten(&mut transcript);
 
-        let mut transcript = Transcript::new(b"agg_batch");
-        let flattened_proof = aggregated_proof.flatten(&mut transcript);
-
-        assert!(verifier_key
-            .batch_check(
+            opening_key.batch_check(
                 &[point_a, point_b],
                 &[flattened_proof, single_proof],
                 &mut transcript,
             )
-            .is_ok());
+        };
+
+        assert!(ok.is_ok());
     }
 
     #[cfg(feature = "serde")]
     #[test]
-    fn prover_key_serde_roundtrip() {
+    fn commit_key_serde_roundtrip() {
         use bincode;
-        let prover_key = ProverKey {
+        let commit_key = CommitKey {
             powers_of_g: vec![
                 G1Affine::generator(),
                 G1Affine::generator(),
@@ -564,33 +564,33 @@ mod test {
                 G1Affine::generator(),
             ],
         };
-        let ser = bincode::serialize(&prover_key).unwrap();
-        let deser: ProverKey = bincode::deserialize(&ser).unwrap();
+        let ser = bincode::serialize(&commit_key).unwrap();
+        let deser: CommitKey = bincode::deserialize(&ser).unwrap();
 
-        assert!(&prover_key.powers_of_g[..] == &deser.powers_of_g[..]);
+        assert!(&commit_key.powers_of_g[..] == &deser.powers_of_g[..]);
     }
 
     #[cfg(feature = "serde")]
     #[test]
-    fn verifier_key_serde_roundtrip() {
+    fn opening_key_serde_roundtrip() {
         use bincode;
         use dusk_bls12_381::G2Prepared;
         let g2_point = G2Affine::generator();
         let g2_prep_point = G2Prepared::from(g2_point);
         let g1_point = G1Affine::generator();
 
-        let verifier_key = VerifierKey {
+        let opening_key = OpeningKey {
             g: g1_point,
             h: g2_point,
             beta_h: g2_point,
             prepared_h: g2_prep_point.clone(),
             prepared_beta_h: g2_prep_point,
         };
-        let ser = bincode::serialize(&verifier_key).unwrap();
-        let deser: VerifierKey = bincode::deserialize(&ser).unwrap();
+        let ser = bincode::serialize(&opening_key).unwrap();
+        let deser: OpeningKey = bincode::deserialize(&ser).unwrap();
 
-        assert!(verifier_key.g == deser.g);
-        assert!(verifier_key.h == deser.h);
-        assert!(verifier_key.beta_h == deser.beta_h);
+        assert!(opening_key.g == deser.g);
+        assert!(opening_key.h == deser.h);
+        assert!(opening_key.beta_h == deser.beta_h);
     }
 }

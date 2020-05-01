@@ -6,17 +6,16 @@
 //! for the preprocessing, proving or verifying procedures
 //! which are used in PLONK is automatic.
 //!
-//! To be precise, the commitment scheme implemented in PLONK,
-//! is the KZG10` polynomial commitment scheme.
-//! Which apart from its standard fucntions of committing to
-//! polynomials, it allows us to setup "testing" or "debbuging"
-//! Trusted Setups (which are identified as `PublicParameters` by this repo).
-//! With this, end-users are able to perform the Prove&Verify tests
-//! without needing to compute a 'real Trusted Setup'.
+//! To be precise, plonk comes with the `KZG10` polynomial
+//! commitment scheme implemented on it. Which appart of other
+//! functionalities allows us to setup "testing" or "debuging"
+//! Trusted Setups (identified as `PublicParameters` by this repo).
+//! With this, end-users are able to perform it's Prove&Verify tests
+//! without needing to compute a "real Trusted Setup".
 //!
-//! **DO NOT USE** `PublicParameters::setup()` as the Trusted Setups for
-//! production, as they require complex Multi-Party computation processes
-//! to be instantiated in a secure and correct way.
+//! **DO NOT USE** `PublicParameters` as you Trusted Setups in production
+//! since they require complex Multi-Party computation processes
+//! to be set up in a secure and correct way.
 //!
 //! ## Why do we care about that?
 //!

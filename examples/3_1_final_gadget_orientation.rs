@@ -1,5 +1,5 @@
 //! To understand the following code and the reasons why everything is done
-//! we strongly reccomend the user to check the previous examples.
+//! we strongly recommend the user to check the previous examples.
 extern crate bincode;
 #[macro_use]
 extern crate lazy_static;
@@ -7,11 +7,9 @@ extern crate dusk_plonk;
 extern crate merlin;
 
 use dusk_bls12_381::Scalar;
-use dusk_plonk::commitment_scheme::kzg10::{ProverKey, PublicParameters, VerifierKey};
+use dusk_plonk::commitment_scheme::kzg10::{CommitKey, OpeningKey, PublicParameters};
 use dusk_plonk::constraint_system::StandardComposer;
-use dusk_plonk::fft::EvaluationDomain;
-use dusk_plonk::proof_system::{PreProcessedCircuit, Proof};
-use failure::Error;
+use dusk_plonk::proof_system::{PreProcessedCircuit, Proof, Prover};
 use merlin::Transcript;
 use std::fs;
 
@@ -22,26 +20,22 @@ lazy_static! {
         let prep_circ: PreProcessedCircuit = bincode::deserialize(&ser_data).unwrap();
         prep_circ
     };
-    static ref VERIFIER_KEY: VerifierKey = {
+    static ref OPENING_KEY: OpeningKey = {
         let ser_pub_params = fs::read(&"examples/.public_params.bin")
             .expect("File not found. Run example `0_setup_srs.rs` first please");
         let pub_params: PublicParameters = bincode::deserialize(&ser_pub_params).unwrap();
-        let verif_key: VerifierKey = pub_params.trim(CIRCUIT_SIZE.next_power_of_two()).unwrap().1;
-        verif_key
+        let opening_key: OpeningKey = pub_params.trim(CIRCUIT_SIZE.next_power_of_two()).unwrap().1;
+        opening_key
     };
-    static ref PROVER_KEY: ProverKey = {
+    static ref COMMIT_KEY: CommitKey = {
         let ser_pub_params = fs::read(&"examples/.public_params.bin")
             .expect("File not found. Run example `0_setup_srs.rs` first please");
         let pub_params: PublicParameters = bincode::deserialize(&ser_pub_params).unwrap();
-        let prov_key: ProverKey = pub_params
+        let commit_key: CommitKey = pub_params
             .trim(2 * CIRCUIT_SIZE.next_power_of_two())
             .unwrap()
             .0;
-        prov_key
-    };
-    static ref EVAL_DOMAIN: EvaluationDomain = {
-        let eval = EvaluationDomain::new(CIRCUIT_SIZE).unwrap();
-        eval
+        commit_key
     };
 }
 // Define constants we already know.
@@ -74,11 +68,8 @@ fn gadget_builder(composer: &mut StandardComposer, inputs: &[Scalar], final_resu
     composer.add_dummy_constraints();
 }
 
-fn elaborate_proof(
-    composer: &mut StandardComposer,
-    transcript: &mut Transcript,
-) -> Result<Proof, Error> {
-    composer.prove(&PROVER_KEY, &PREPROCESSED_CIRCUIT, transcript)
+fn elaborate_proof(prover: &mut Prover) -> Proof {
+    prover.prove_with_preprocessed(&COMMIT_KEY, &PREPROCESSED_CIRCUIT)
 }
 
 fn verify_proof(proof: &Proof, pub_input: Scalar) -> Result<(), Error> {
@@ -88,18 +79,17 @@ fn verify_proof(proof: &Proof, pub_input: Scalar) -> Result<(), Error> {
     proof.verify(
         &PREPROCESSED_CIRCUIT,
         &mut verif_transcript,
-        &VERIFIER_KEY,
+        &OPENING_KEY,
         &[
             zero, zero, zero, zero, zero, zero, zero, zero, zero, zero, zero, zero, pub_input,
         ],
     )
 }
 
-fn start_proving(inputs: &[Scalar], final_result: Scalar) -> Result<Proof, Error> {
-    let mut composer = StandardComposer::new();
-    let mut transcript = Transcript::new(b"Gadget-Orientation-Is-Cool");
-    gadget_builder(&mut composer, inputs, final_result);
-    elaborate_proof(&mut composer, &mut transcript)
+fn start_proving(inputs: &[Scalar], final_result: Scalar) -> Proof {
+    let mut prover = Prover::new(b"Gadget-Orientation-Is-Cool");
+    gadget_builder(prover.mut_cs(), inputs, final_result);
+    elaborate_proof(&mut prover)
 }
 
 fn main() -> Result<(), Error> {
