@@ -42,7 +42,7 @@ pub(crate) fn compute(
     w4_eval_4n.push(w4_eval_4n[3]);
 
     let t_1 = compute_circuit_satisfiability_equation(
-        &domain_4n,
+        &domain,
         preprocessed_circuit,
         (&wl_eval_4n, &wr_eval_4n, &wo_eval_4n, &w4_eval_4n),
         public_inputs_poly,
