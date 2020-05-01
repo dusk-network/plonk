@@ -1,7 +1,8 @@
-//! This module contains the implementation of Dense Polynomials.
+//! This module contains an implementation of a polynomial in coefficient form
+//! Where each coefficient is represented using a position in the underlying vector.
 use super::{EvaluationDomain, Evaluations};
 use crate::util;
-use bls12_381::Scalar;
+use dusk_bls12_381::Scalar;
 use rand::Rng;
 use rayon::iter::{
     IndexedParallelIterator, IntoParallelIterator, IntoParallelRefIterator, ParallelIterator,
@@ -10,7 +11,7 @@ use rayon::iter::{
 use std::ops::{Add, AddAssign, Deref, DerefMut, Mul, Neg, Sub, SubAssign};
 
 #[derive(Debug, Eq, PartialEq, Clone)]
-/// Polynomial represents a Dense Polynomial.
+/// Polynomial represents a polynomial in coeffiient form.
 pub struct Polynomial {
     /// The coefficient of `x^i` is stored at location `i` in `self.coeffs`.
     pub coeffs: Vec<Scalar>,
@@ -99,6 +100,9 @@ impl Polynomial {
     }
 
     /// Constructs a new polynomial from a list of coefficients.
+    ///
+    /// # Panics
+    /// When the length of the coeffs is zero.
     pub fn from_coefficients_vec(coeffs: Vec<Scalar>) -> Self {
         let mut result = Self { coeffs };
         // While there are zeros at the end of the coefficient vector, pop them off.

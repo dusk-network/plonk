@@ -1,21 +1,22 @@
 //! The Public Parameters can also be referred to as the Structured Reference String (SRS).
 use super::{
-    errors::Error,
-    key::{ProverKey, VerifierKey},
+    errors::{KZG10Errors, PolyCommitSchemeError},
+    key::{CommitKey, OpeningKey},
 };
 use crate::util;
-use bls12_381::{G1Affine, G1Projective, G2Affine, G2Prepared};
+use dusk_bls12_381::{G1Affine, G1Projective, G2Affine, G2Prepared};
+use failure::Error;
 use rand_core::RngCore;
 
 /// The Public Parameters can also be referred to as the Structured Reference String (SRS).
 /// It is available to both the prover and verifier and allows the verifier to
-/// efficiently verify claims about polynomials up to and including a configured degree.
+/// efficiently verify and make claims about polynomials up to and including a configured degree.
 #[derive(Debug)]
 pub struct PublicParameters {
     /// Key used to generate proofs for composed circuits.
-    pub commit_key: ProverKey,
+    pub commit_key: CommitKey,
     /// Key used to verify proofs for composed circuits.
-    pub verifier_key: VerifierKey,
+    pub opening_key: OpeningKey,
 }
 
 #[cfg(feature = "serde")]
@@ -29,10 +30,10 @@ impl Serialize for PublicParameters {
     where
         S: Serializer,
     {
-        let mut verif_key = serializer.serialize_struct("struct PublicParameters", 2)?;
-        verif_key.serialize_field("ck", &self.commit_key)?;
-        verif_key.serialize_field("vk", &self.verifier_key)?;
-        verif_key.end()
+        let mut params = serializer.serialize_struct("struct PublicParameters", 2)?;
+        params.serialize_field("ck", &self.commit_key)?;
+        params.serialize_field("vk", &self.opening_key)?;
+        params.end()
     }
 }
 
@@ -96,13 +97,13 @@ impl<'de> Deserialize<'de> for PublicParameters {
                 let commit_key = seq
                     .next_element()?
                     .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
-                let verifier_key = seq
+                let opening_key = seq
                     .next_element()?
                     .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
 
                 Ok(PublicParameters {
                     commit_key,
-                    verifier_key,
+                    opening_key,
                 })
             }
         }
@@ -123,7 +124,7 @@ impl PublicParameters {
     ) -> Result<PublicParameters, Error> {
         // Cannot commit to constants
         if max_degree < 1 {
-            return Err(Error::DegreeIsZero);
+            return Err(PolyCommitSchemeError(KZG10Errors::DegreeIsZero.into()).into());
         }
 
         // Generate the secret scalar beta
@@ -149,10 +150,10 @@ impl PublicParameters {
         let prepared_beta_h = G2Prepared::from(beta_h);
 
         Ok(PublicParameters {
-            commit_key: ProverKey {
+            commit_key: CommitKey {
                 powers_of_g: normalised_g,
             },
-            verifier_key: VerifierKey {
+            opening_key: OpeningKey {
                 g: g.into(),
                 h,
                 beta_h,
@@ -165,10 +166,10 @@ impl PublicParameters {
     /// Trim truncates the prover key to allow the prover to commit to polynomials up to the
     /// and including the truncated degree.
     /// Returns an error if the truncated degree is larger than the public parameters configured degree.
-    pub fn trim(&self, truncated_degree: usize) -> Result<(ProverKey, VerifierKey), Error> {
+    pub fn trim(&self, truncated_degree: usize) -> Result<(CommitKey, OpeningKey), Error> {
         let truncated_prover_key = self.commit_key.truncate(truncated_degree)?;
-        let verifier_key = self.verifier_key.clone();
-        Ok((truncated_prover_key, verifier_key))
+        let opening_key = self.opening_key.clone();
+        Ok((truncated_prover_key, opening_key))
     }
 
     /// Max degree specifies the largest polynomial that this prover key can commit to.
@@ -179,7 +180,7 @@ impl PublicParameters {
 #[cfg(test)]
 mod test {
     use super::*;
-    use bls12_381::Scalar;
+    use dusk_bls12_381::Scalar;
     #[test]
     fn test_powers_of() {
         let x = Scalar::from(10u64);
@@ -205,10 +206,8 @@ mod test {
         let deser: PublicParameters = bincode::deserialize(&ser).unwrap();
 
         assert!(&srs.commit_key.powers_of_g[..] == &deser.commit_key.powers_of_g[..]);
-        assert!(srs.verifier_key.g == deser.verifier_key.g);
-        assert!(srs.verifier_key.h == deser.verifier_key.h);
-        assert!(srs.verifier_key.beta_h == deser.verifier_key.beta_h);
-        // XXX: Missing prepared_beta & prepared_beta_h for VerifierKey
-        // since G2Prepared does not implement PartialEq.
+        assert!(srs.opening_key.g == deser.opening_key.g);
+        assert!(srs.opening_key.h == deser.opening_key.h);
+        assert!(srs.opening_key.beta_h == deser.opening_key.beta_h);
     }
 }

@@ -1,9 +1,9 @@
-//! A polynomial represented in evaluations form.
+//! A polynomial represented in evaluations form over a domain of size 2^n.
 
 use super::domain::EvaluationDomain;
 use super::polynomial::Polynomial;
-use bls12_381::Scalar;
 use core::ops::{Add, AddAssign, DivAssign, Index, Mul, MulAssign, Sub, SubAssign};
+use dusk_bls12_381::Scalar;
 #[cfg(feature = "serde")]
 use serde::{de::Visitor, ser::SerializeStruct, Deserialize, Deserializer, Serialize, Serializer};
 /// Stores a polynomial in evaluation form.

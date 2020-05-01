@@ -1,4 +1,4 @@
-use bls12_381::{G1Affine, G1Projective, G2Affine, G2Projective, Scalar};
+use dusk_bls12_381::{G1Affine, G1Projective, G2Affine, G2Projective, Scalar};
 use rand_core::RngCore;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 

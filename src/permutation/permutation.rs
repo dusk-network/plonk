@@ -2,10 +2,14 @@
 use super::constants::{K1, K2, K3};
 use crate::constraint_system::{Variable, WireData};
 use crate::fft::{EvaluationDomain, Polynomial};
-use bls12_381::Scalar;
+use dusk_bls12_381::Scalar;
 use itertools::izip;
 use rayon::iter::*;
 use std::collections::HashMap;
+
+/// Permutation provides the necessary state information and functions
+/// to create the permutation polynomial. In the literature, Z(X) is the "accumulator",
+/// this is what this codebase calls the permutation polynomial.  
 #[derive(Debug)]
 pub struct Permutation {
     // Maps a variable to the wires that it is associated to
@@ -13,10 +17,11 @@ pub struct Permutation {
 }
 
 impl Permutation {
-    /// Creates a permutation struct which will ultimately create the permutation polynomial
+    /// Creates a permutation struct with an expected capacity of zero
     pub fn new() -> Permutation {
         Permutation::with_capacity(0)
     }
+    /// Creates a permutation struct with an expected capacity of `n`
     pub fn with_capacity(expected_size: usize) -> Permutation {
         Permutation {
             variable_map: HashMap::with_capacity(expected_size),
@@ -147,6 +152,7 @@ impl Permutation {
         lagrange_poly
     }
 
+    /// Computes the sigma polynomials which are used to build the permutation polynomial
     pub fn compute_sigma_polynomials(
         &mut self,
         n: usize,
@@ -601,7 +607,7 @@ impl Permutation {
 mod test {
     use super::*;
     use crate::fft::Polynomial;
-    use bls12_381::Scalar as Fr;
+    use dusk_bls12_381::Scalar as Fr;
 
     #[test]
     fn test_permutation_format() {

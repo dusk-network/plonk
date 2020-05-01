@@ -12,21 +12,18 @@
 // it is intended to be like this in order to provide
 // maximum performance and minimum circuit sizes.
 #![allow(clippy::too_many_arguments)]
-use super::linearisation_poly;
-use super::quotient_poly;
-use super::{proof::Proof, Composer, PreProcessedCircuit};
+use super::cs_errors::PreProcessingError;
 use crate::bit_iterator::*;
-use crate::commitment_scheme::kzg10::ProverKey;
-use crate::constraint_system::widget::{
-    ArithmeticWidget, LogicWidget, PermutationWidget, RangeWidget,
-};
-use crate::constraint_system::Variable;
-use crate::constraint_system::WireData;
+use crate::commitment_scheme::kzg10::CommitKey;
+
+use crate::constraint_system::{Variable, WireData};
 use crate::fft::{EvaluationDomain, Evaluations, Polynomial};
 use crate::permutation::Permutation;
-use crate::transcript::TranscriptProtocol;
-use bls12_381::Scalar;
-use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
+use crate::proof_system::widget::{ArithmeticWidget, LogicWidget, PermutationWidget, RangeWidget};
+use crate::proof_system::PreProcessedCircuit;
+use dusk_bls12_381::Scalar;
+use failure::Error;
+use merlin::Transcript;
 use std::collections::HashMap;
 
 /// A composer is a circuit builder
@@ -58,18 +55,19 @@ pub struct StandardComposer {
     // logic selector
     q_logic: Vec<Scalar>,
 
-    public_inputs: Vec<Scalar>,
+    pub(crate) public_inputs: Vec<Scalar>,
 
     // witness vectors
-    w_l: Vec<Variable>,
-    w_r: Vec<Variable>,
-    w_o: Vec<Variable>,
-    w_4: Vec<Variable>,
+    pub(crate) w_l: Vec<Variable>,
+    pub(crate) w_r: Vec<Variable>,
+    pub(crate) w_o: Vec<Variable>,
+    pub(crate) w_4: Vec<Variable>,
 
-    // We reserve a variable to be zero in the system
-    // This is so that when a gate only uses three, we set the fourth wire to be
-    // the variable that references zero
-    zero_var: Variable,
+    /// A zero variable that is a part of the circuit description.
+    /// We reserve a variable to be zero in the system
+    /// This is so that when a gate only uses three wires, we set the fourth wire to be
+    /// the variable that references zero
+    pub zero_var: Variable,
 
     // These are the actual variable values
     // N.B. They should not be exposed to the end user once added into the composer
@@ -78,27 +76,17 @@ pub struct StandardComposer {
     pub(crate) perm: Permutation,
 }
 
-impl Composer for StandardComposer {
-    // Computes the pre-processed polynomials
-    // So the verifier can verify a proof made using this circuit
-    fn preprocess(
+impl StandardComposer {
+    /// Computes the pre-processed polynomials
+    /// So the verifier can verify a proof made using this circuit
+    pub fn preprocess(
         &mut self,
-        commit_key: &ProverKey,
-        transcript: &mut dyn TranscriptProtocol,
-        domain: &EvaluationDomain,
-    ) -> PreProcessedCircuit {
-        let k = self.q_m.len();
-        assert!(self.q_o.len() == k);
-        assert!(self.q_l.len() == k);
-        assert!(self.q_r.len() == k);
-        assert!(self.q_c.len() == k);
-        assert!(self.q_4.len() == k);
-        assert!(self.q_arith.len() == k);
-        assert!(self.q_range.len() == k);
-        assert!(self.q_logic.len() == k);
-        assert!(self.w_l.len() == k);
-        assert!(self.w_r.len() == k);
-        assert!(self.w_o.len() == k);
+        commit_key: &CommitKey,
+        transcript: &mut Transcript,
+    ) -> Result<PreProcessedCircuit, Error> {
+        let domain = EvaluationDomain::new(self.circuit_size())?;
+        // Check that the lenght of the wires is consistent.
+        self.check_poly_same_len()?;
 
         //1. Pad circuit to a power of two
         self.pad(domain.size as usize - self.n);
@@ -115,7 +103,7 @@ impl Composer for StandardComposer {
         let q_logic_poly = Polynomial::from_coefficients_slice(&domain.ifft(&self.q_logic));
 
         // 2b. Compute 4n evaluations of selector polynomial
-        let domain_4n = EvaluationDomain::new(4 * domain.size()).unwrap();
+        let domain_4n = EvaluationDomain::new(4 * domain.size())?;
         let q_m_eval_4n =
             Evaluations::from_vec_and_domain(domain_4n.coset_fft(&q_m_poly.coeffs), domain_4n);
         let q_l_eval_4n =
@@ -137,7 +125,7 @@ impl Composer for StandardComposer {
 
         // 3. Compute the sigma polynomials
         let (left_sigma_poly, right_sigma_poly, out_sigma_poly, fourth_sigma_poly) =
-            self.perm.compute_sigma_polynomials(self.n, domain);
+            self.perm.compute_sigma_polynomials(self.n, &domain);
 
         // 3a. Compute 4n evaluations of sigma polynomials and the linear polynomial
         let left_sigma_eval_4n = Evaluations::from_vec_and_domain(
@@ -163,47 +151,26 @@ impl Composer for StandardComposer {
 
         // 4. Commit to polynomials
         //
-        let q_m_poly_commit = commit_key.commit(&q_m_poly).unwrap();
-        let q_l_poly_commit = commit_key.commit(&q_l_poly).unwrap();
-        let q_r_poly_commit = commit_key.commit(&q_r_poly).unwrap();
-        let q_o_poly_commit = commit_key.commit(&q_o_poly).unwrap();
-        let q_c_poly_commit = commit_key.commit(&q_c_poly).unwrap();
-        let q_4_poly_commit = commit_key.commit(&q_4_poly).unwrap();
-        let q_arith_poly_commit = commit_key.commit(&q_arith_poly).unwrap();
-        let q_range_poly_commit = commit_key.commit(&q_range_poly).unwrap();
-        let q_logic_poly_commit = commit_key.commit(&q_logic_poly).unwrap();
+        let q_m_poly_commit = commit_key.commit(&q_m_poly).unwrap_or_default();
+        let q_l_poly_commit = commit_key.commit(&q_l_poly).unwrap_or_default();
+        let q_r_poly_commit = commit_key.commit(&q_r_poly).unwrap_or_default();
+        let q_o_poly_commit = commit_key.commit(&q_o_poly).unwrap_or_default();
+        let q_c_poly_commit = commit_key.commit(&q_c_poly).unwrap_or_default();
+        let q_4_poly_commit = commit_key.commit(&q_4_poly).unwrap_or_default();
+        let q_arith_poly_commit = commit_key.commit(&q_arith_poly).unwrap_or_default();
+        let q_range_poly_commit = commit_key.commit(&q_range_poly).unwrap_or_default();
+        let q_logic_poly_commit = commit_key.commit(&q_logic_poly).unwrap_or_default();
 
-        let left_sigma_poly_commit = commit_key.commit(&left_sigma_poly).unwrap();
-        let right_sigma_poly_commit = commit_key.commit(&right_sigma_poly).unwrap();
-        let out_sigma_poly_commit = commit_key.commit(&out_sigma_poly).unwrap();
-        let fourth_sigma_poly_commit = commit_key.commit(&fourth_sigma_poly).unwrap();
-
-        //5. Add polynomial commitments to transcript
-        //
-        transcript.append_commitment(b"q_m", &q_m_poly_commit);
-        transcript.append_commitment(b"q_l", &q_l_poly_commit);
-        transcript.append_commitment(b"q_r", &q_r_poly_commit);
-        transcript.append_commitment(b"q_o", &q_o_poly_commit);
-        transcript.append_commitment(b"q_c", &q_c_poly_commit);
-        transcript.append_commitment(b"q_4", &q_4_poly_commit);
-        transcript.append_commitment(b"q_arith", &q_arith_poly_commit);
-        transcript.append_commitment(b"q_range", &q_range_poly_commit);
-        transcript.append_commitment(b"q_logic", &q_logic_poly_commit);
-
-        transcript.append_commitment(b"left_sigma", &left_sigma_poly_commit);
-        transcript.append_commitment(b"right_sigma", &right_sigma_poly_commit);
-        transcript.append_commitment(b"out_sigma", &out_sigma_poly_commit);
-        transcript.append_commitment(b"fourth_sigma", &fourth_sigma_poly_commit);
-
-        // Append circuit size to transcript
-        transcript.circuit_domain_sep(self.circuit_size() as u64);
+        let left_sigma_poly_commit = commit_key.commit(&left_sigma_poly)?;
+        let right_sigma_poly_commit = commit_key.commit(&right_sigma_poly)?;
+        let out_sigma_poly_commit = commit_key.commit(&out_sigma_poly)?;
+        let fourth_sigma_poly_commit = commit_key.commit(&fourth_sigma_poly)?;
 
         let arithmetic_widget = ArithmeticWidget::new((
             (q_m_poly, q_m_poly_commit, Some(q_m_eval_4n)),
             (q_l_poly, q_l_poly_commit, Some(q_l_eval_4n)),
             (q_r_poly, q_r_poly_commit, Some(q_r_eval_4n)),
             (q_o_poly, q_o_poly_commit, Some(q_o_eval_4n)),
-            // XXX: Should try to remove the clones
             (q_c_poly.clone(), q_c_poly_commit, Some(q_c_eval_4n.clone())),
             (q_4_poly, q_4_poly_commit, Some(q_4_eval_4n)),
             (q_arith_poly, q_arith_poly_commit, Some(q_arith_eval_4n)),
@@ -241,7 +208,7 @@ impl Composer for StandardComposer {
             linear_eval_4n,
         );
 
-        PreProcessedCircuit {
+        let ppc = PreProcessedCircuit {
             n: self.n,
             arithmetic: arithmetic_widget,
             range: range_widget,
@@ -249,216 +216,40 @@ impl Composer for StandardComposer {
             permutation: perm_widget,
             // Compute 4n evaluations for X^n -1
             v_h_coset_4n: domain_4n.compute_vanishing_poly_over_coset(domain.size() as u64),
-        }
+        };
+
+        // Append commitments to transcript
+        ppc.seed_transcript(transcript);
+
+        Ok(ppc)
     }
 
-    // Prove will compute the pre-processed polynomials and
-    // produce a proof
-    fn prove(
-        &mut self,
-        commit_key: &ProverKey,
-        preprocessed_circuit: &PreProcessedCircuit,
-        transcript: &mut dyn TranscriptProtocol,
-    ) -> Proof {
-        let domain = EvaluationDomain::new(self.n).unwrap();
-
-        //1. Compute witness Polynomials
-        //
-        // Convert Variables to Scalars
-        // XXX: Maybe there's no need to allocate `to_scalars` returning &[Scalar].
-        let w_l_scalar = self.to_scalars(&self.w_l);
-        let w_r_scalar = self.to_scalars(&self.w_r);
-        let w_o_scalar = self.to_scalars(&self.w_o);
-        let w_4_scalar = self.to_scalars(&self.w_4);
-
-        // Witnesses are now in evaluation form, convert them to coefficients
-        // So that we may commit to them
-        let w_l_poly = Polynomial::from_coefficients_vec(domain.ifft(&w_l_scalar));
-        let w_r_poly = Polynomial::from_coefficients_vec(domain.ifft(&w_r_scalar));
-        let w_o_poly = Polynomial::from_coefficients_vec(domain.ifft(&w_o_scalar));
-        let w_4_poly = Polynomial::from_coefficients_vec(domain.ifft(&w_4_scalar));
-
-        // Commit to witness polynomials
-        let w_l_poly_commit = commit_key.commit(&w_l_poly).unwrap();
-        let w_r_poly_commit = commit_key.commit(&w_r_poly).unwrap();
-        let w_o_poly_commit = commit_key.commit(&w_o_poly).unwrap();
-        let w_4_poly_commit = commit_key.commit(&w_4_poly).unwrap();
-
-        // Add witness polynomial commitments to transcript
-        transcript.append_commitment(b"w_l", &w_l_poly_commit);
-        transcript.append_commitment(b"w_r", &w_r_poly_commit);
-        transcript.append_commitment(b"w_o", &w_o_poly_commit);
-        transcript.append_commitment(b"w_4", &w_4_poly_commit);
-
-        // 2. Compute permutation polynomial
-        //
-        //
-        // Compute permutation challenges; `beta` and `gamma`
-        let beta = transcript.challenge_scalar(b"beta");
-        transcript.append_scalar(b"beta", &beta);
-        let gamma = transcript.challenge_scalar(b"gamma");
-
-        let z_poly = self.perm.compute_permutation_poly(
-            &domain,
-            &w_l_scalar,
-            &w_r_scalar,
-            &w_o_scalar,
-            &w_4_scalar,
-            &(beta, gamma),
-            (
-                &preprocessed_circuit.permutation.left_sigma.polynomial,
-                &preprocessed_circuit.permutation.right_sigma.polynomial,
-                &preprocessed_circuit.permutation.out_sigma.polynomial,
-                &preprocessed_circuit.permutation.fourth_sigma.polynomial,
-            ),
-        );
-
-        // Commit to permutation polynomial
-        //
-        let z_poly_commit = commit_key.commit(&z_poly).unwrap();
-
-        // Add permutation polynomial commitment to transcript
-        transcript.append_commitment(b"z", &z_poly_commit);
-
-        // 3. Compute public inputs polynomial
-        let pi_poly = Polynomial::from_coefficients_vec(domain.ifft(&self.public_inputs));
-
-        // 4. Compute quotient polynomial
-        //
-        // Compute quotient challenge; `alpha`
-        let alpha = transcript.challenge_scalar(b"alpha");
-
-        let t_poly = quotient_poly::compute(
-            &domain,
-            &preprocessed_circuit,
-            &z_poly,
-            (&w_l_poly, &w_r_poly, &w_o_poly, &w_4_poly),
-            &pi_poly,
-            &(alpha, beta, gamma),
-        );
-
-        // Split quotient polynomial into 4 degree `n` polynomials
-        let (t_1_poly, t_2_poly, t_3_poly, t_4_poly) = self.split_tx_poly(domain.size(), &t_poly);
-
-        // Commit to splitted quotient polynomial
-        let t_1_commit = commit_key.commit(&t_1_poly).unwrap();
-        let t_2_commit = commit_key.commit(&t_2_poly).unwrap();
-        let t_3_commit = commit_key.commit(&t_3_poly).unwrap();
-        let t_4_commit = commit_key.commit(&t_4_poly).unwrap();
-
-        // Add quotient polynomial commitments to transcript
-        transcript.append_commitment(b"t_1", &t_1_commit);
-        transcript.append_commitment(b"t_2", &t_2_commit);
-        transcript.append_commitment(b"t_3", &t_3_commit);
-        transcript.append_commitment(b"t_4", &t_4_commit);
-
-        // 4. Compute linearisation polynomial
-        //
-        // Compute evaluation challenge; `z`
-        let z_challenge = transcript.challenge_scalar(b"z");
-
-        let (lin_poly, evaluations) = linearisation_poly::compute(
-            &domain,
-            &preprocessed_circuit,
-            &(alpha, beta, gamma, z_challenge),
-            &w_l_poly,
-            &w_r_poly,
-            &w_o_poly,
-            &w_4_poly,
-            &t_poly,
-            &z_poly,
-        );
-
-        // Add evaluations to transcript
-        transcript.append_scalar(b"a_eval", &evaluations.proof.a_eval);
-        transcript.append_scalar(b"b_eval", &evaluations.proof.b_eval);
-        transcript.append_scalar(b"c_eval", &evaluations.proof.c_eval);
-        transcript.append_scalar(b"d_eval", &evaluations.proof.d_eval);
-        transcript.append_scalar(b"a_next_eval", &evaluations.proof.a_next_eval);
-        transcript.append_scalar(b"b_next_eval", &evaluations.proof.b_next_eval);
-        transcript.append_scalar(b"d_next_eval", &evaluations.proof.d_next_eval);
-        transcript.append_scalar(b"left_sig_eval", &evaluations.proof.left_sigma_eval);
-        transcript.append_scalar(b"right_sig_eval", &evaluations.proof.right_sigma_eval);
-        transcript.append_scalar(b"out_sig_eval", &evaluations.proof.out_sigma_eval);
-        transcript.append_scalar(b"q_arith_eval", &evaluations.proof.q_arith_eval);
-        transcript.append_scalar(b"q_c_eval", &evaluations.proof.q_c_eval);
-        transcript.append_scalar(b"perm_eval", &evaluations.proof.perm_eval);
-        transcript.append_scalar(b"t_eval", &evaluations.quot_eval);
-        transcript.append_scalar(b"r_eval", &evaluations.proof.lin_poly_eval);
-
-        // 5. Compute Openings using KZG10
-        //
-        // We merge the quotient polynomial using the `z_challenge` so the SRS is linear in the circuit size `n`
-        let quot = Self::compute_quotient_opening_poly(
-            domain.size(),
-            &t_1_poly,
-            &t_2_poly,
-            &t_3_poly,
-            &t_4_poly,
-            &z_challenge,
-        );
-
-        // Compute aggregate witness to polynomials evaluated at the evaluation challenge `z`
-        let aggregate_witness = commit_key.compute_aggregate_witness(
-            &[
-                quot,
-                lin_poly,
-                w_l_poly.clone(),
-                w_r_poly.clone(),
-                w_o_poly,
-                w_4_poly.clone(),
-                preprocessed_circuit
-                    .permutation
-                    .left_sigma
-                    .polynomial
-                    .clone(),
-                preprocessed_circuit
-                    .permutation
-                    .right_sigma
-                    .polynomial
-                    .clone(),
-                preprocessed_circuit
-                    .permutation
-                    .out_sigma
-                    .polynomial
-                    .clone(),
-            ],
-            &z_challenge,
-            transcript,
-        );
-        let w_z_comm = commit_key.commit(&aggregate_witness).unwrap();
-
-        // Compute aggregate witness to polynomials evaluated at the shifted evaluation challenge
-        let shifted_aggregate_witness = commit_key.compute_aggregate_witness(
-            &[z_poly, w_l_poly, w_r_poly, w_4_poly],
-            &(z_challenge * domain.group_gen),
-            transcript,
-        );
-        let w_zx_comm = commit_key.commit(&shifted_aggregate_witness).unwrap();
-
-        // Create Proof
-        Proof {
-            a_comm: w_l_poly_commit,
-            b_comm: w_r_poly_commit,
-            c_comm: w_o_poly_commit,
-            d_comm: w_4_poly_commit,
-
-            z_comm: z_poly_commit,
-
-            t_1_comm: t_1_commit,
-            t_2_comm: t_2_commit,
-            t_3_comm: t_3_commit,
-            t_4_comm: t_4_commit,
-
-            w_z_comm,
-            w_zw_comm: w_zx_comm,
-
-            evaluations: evaluations.proof,
-        }
-    }
-
-    fn circuit_size(&self) -> usize {
+    /// Returns the number of gates in the circuit
+    pub fn circuit_size(&self) -> usize {
         self.n
+    }
+
+    /// Checks that all of the wires of the composer have the same
+    /// length.
+    fn check_poly_same_len(&self) -> Result<(), PreProcessingError> {
+        let k = self.q_m.len();
+
+        if self.q_o.len() == k
+            && self.q_l.len() == k
+            && self.q_r.len() == k
+            && self.q_c.len() == k
+            && self.q_4.len() == k
+            && self.q_arith.len() == k
+            && self.q_range.len() == k
+            && self.q_logic.len() == k
+            && self.w_l.len() == k
+            && self.w_r.len() == k
+            && self.w_o.len() == k
+        {
+            Ok(())
+        } else {
+            Err(PreProcessingError::MissmatchedPolyLen)
+        }
     }
 }
 
@@ -481,19 +272,13 @@ impl StandardComposer {
         StandardComposer::with_expected_size(0)
     }
 
-    /// Split `t(X)` poly into 3 degree `n` polynomials.
-    pub fn split_tx_poly(
-        &self,
-        n: usize,
-        t_x: &Polynomial,
-    ) -> (Polynomial, Polynomial, Polynomial, Polynomial) {
-        (
-            Polynomial::from_coefficients_vec(t_x[0..n].to_vec()),
-            Polynomial::from_coefficients_vec(t_x[n..2 * n].to_vec()),
-            Polynomial::from_coefficients_vec(t_x[2 * n..3 * n].to_vec()),
-            Polynomial::from_coefficients_vec(t_x[3 * n..].to_vec()),
-        )
+    /// Returns the public inputs that the `StandardComposer` has stored until
+    /// the time when this function is called as a `Vec<Scalar>`.
+    #[cfg(feature = "trace")]
+    pub fn public_inputs(&self) -> Vec<Scalar> {
+        self.public_inputs.clone()
     }
+
     /// Fixes a variable in the witness to be a part of the circuit description.
     /// This method is (currently) only used in the following context:
     /// We have gates which only require 3/4 wires,
@@ -512,33 +297,6 @@ impl StandardComposer {
             -value,
             Scalar::zero(),
         );
-    }
-
-    /// Convert variables to their actual witness values.
-    pub(crate) fn to_scalars(&self, vars: &[Variable]) -> Vec<Scalar> {
-        vars.par_iter().map(|var| self.variables[var]).collect()
-    }
-
-    /// Computes the quotient opening polynomial.
-    fn compute_quotient_opening_poly(
-        n: usize,
-        t_1_poly: &Polynomial,
-        t_2_poly: &Polynomial,
-        t_3_poly: &Polynomial,
-        t_4_poly: &Polynomial,
-        z_challenge: &Scalar,
-    ) -> Polynomial {
-        // Compute z^n , z^2n , z^3n
-        let z_n = z_challenge.pow(&[n as u64, 0, 0, 0]);
-        let z_two_n = z_challenge.pow(&[2 * n as u64, 0, 0, 0]);
-        let z_three_n = z_challenge.pow(&[3 * n as u64, 0, 0, 0]);
-
-        let a = t_1_poly;
-        let b = t_2_poly * &z_n;
-        let c = t_3_poly * &z_two_n;
-        let d = t_4_poly * &z_three_n;
-        let abc = &(a + &b) + &c;
-        &abc + &d
     }
 
     /// Creates a new circuit with an expected circuit size.
@@ -1131,7 +889,7 @@ impl StandardComposer {
     ///
     /// ## Panics
     /// This function will panic if the num_bits specified is not even `num_bits % 2 != 0`.
-    pub fn logic_gate(
+    pub(crate) fn logic_gate(
         &mut self,
         a: Variable,
         b: Variable,
@@ -1414,13 +1172,7 @@ impl StandardComposer {
         );
     }
 
-    /// This function should be used in order to avoid having
-    /// `DegreeZero` polynomials since it adds at least one coeff
-    /// different from zero for each selector coefficient.
-    ///
-    /// Using it once if we never use one of the selector polynomials,
-    /// will save us from having `DegreeZeroPolynomial` errors.
-    // XXX: We should have a way to handle this.
+    /// This function is used to add a blinding factor to the witness polynomials
     pub fn add_dummy_constraints(&mut self) {
         // Add a dummy constraint so that we do not have zero polynomials
         self.q_m.push(Scalar::from(1));
@@ -1435,7 +1187,6 @@ impl StandardComposer {
         self.public_inputs.push(Scalar::zero());
         let var_six = self.add_input(Scalar::from(6));
         let var_one = self.add_input(Scalar::from(1));
-        let var_four = self.add_input(Scalar::from(4));
         let var_seven = self.add_input(Scalar::from(7));
         let var_min_twenty = self.add_input(-Scalar::from(20));
         self.w_l.push(var_six);
@@ -1463,143 +1214,17 @@ impl StandardComposer {
         self.perm
             .add_variables_to_map(var_min_twenty, var_six, var_seven, self.zero_var, self.n);
         self.n += 1;
-        //Add another dummy constraint from Q_range
-        // XXX: We should have a way to handle the zero polynomial
-        self.q_m.push(Scalar::zero());
-        self.q_l.push(Scalar::zero());
-        self.q_r.push(Scalar::zero());
-        self.q_o.push(Scalar::zero());
-        self.q_c.push(Scalar::zero());
-        self.q_4.push(Scalar::zero());
-        self.q_arith.push(Scalar::zero());
-        self.q_range.push(Scalar::one());
-        self.q_logic.push(Scalar::zero());
-        self.public_inputs.push(Scalar::zero());
-        self.w_l.push(var_one);
-        self.w_r.push(self.zero_var);
-        self.w_o.push(self.zero_var);
-        self.w_4.push(self.zero_var);
-        self.perm.add_variables_to_map(
-            var_one,
-            self.zero_var,
-            self.zero_var,
-            self.zero_var,
-            self.n,
-        );
-        self.n += 1;
-        // Previous gate will look at the d_next in this gate
-        self.q_m.push(Scalar::zero());
-        self.q_l.push(Scalar::zero());
-        self.q_r.push(Scalar::zero());
-        self.q_o.push(Scalar::zero());
-        self.q_c.push(Scalar::zero());
-        self.q_4.push(Scalar::zero());
-        self.q_arith.push(Scalar::zero());
-        self.q_range.push(Scalar::zero());
-        self.q_logic.push(Scalar::zero());
-        self.public_inputs.push(Scalar::zero());
-        self.w_l.push(self.zero_var);
-        self.w_r.push(self.zero_var);
-        self.w_o.push(self.zero_var);
-        self.w_4.push(var_four);
-        self.perm.add_variables_to_map(
-            self.zero_var,
-            self.zero_var,
-            self.zero_var,
-            var_four,
-            self.n,
-        );
-        self.n += 1;
-
-        //Add another dummy constraint for Q_logic
-        // XXX: We should have a way to handle the zero polynomial
-        self.q_m.push(Scalar::zero());
-        self.q_l.push(Scalar::zero());
-        self.q_r.push(Scalar::zero());
-        self.q_o.push(Scalar::zero());
-        self.q_c.push(-Scalar::one());
-        self.q_4.push(Scalar::zero());
-        self.q_arith.push(Scalar::zero());
-        self.q_range.push(Scalar::zero());
-        self.q_logic.push(-Scalar::one());
-        self.public_inputs.push(Scalar::zero());
-        self.w_l.push(self.zero_var);
-        self.w_r.push(self.zero_var);
-        self.w_o.push(self.zero_var);
-        self.w_4.push(self.zero_var);
-        self.perm.add_variables_to_map(
-            self.zero_var,
-            self.zero_var,
-            self.zero_var,
-            self.zero_var,
-            self.n,
-        );
-        self.n += 1;
-        //Add another dummy constraint for Q_logic
-        // XXX: We should have a way to handle the zero polynomial
-        self.q_m.push(Scalar::zero());
-        self.q_l.push(Scalar::zero());
-        self.q_r.push(Scalar::zero());
-        self.q_o.push(Scalar::zero());
-        self.q_c.push(-Scalar::one());
-        self.q_4.push(Scalar::zero());
-        self.q_arith.push(Scalar::zero());
-        self.q_range.push(Scalar::zero());
-        self.q_logic.push(-Scalar::one());
-        self.public_inputs.push(Scalar::zero());
-        self.w_l.push(self.zero_var);
-        self.w_r.push(self.zero_var);
-        self.w_o.push(self.zero_var);
-        self.w_4.push(self.zero_var);
-        self.perm.add_variables_to_map(
-            self.zero_var,
-            self.zero_var,
-            self.zero_var,
-            self.zero_var,
-            self.n,
-        );
-        self.n += 1;
-        // Add no-op gate
-        self.q_m.push(Scalar::zero());
-        self.q_l.push(Scalar::zero());
-        self.q_r.push(Scalar::zero());
-        self.q_o.push(Scalar::zero());
-        self.q_c.push(Scalar::zero());
-        self.q_4.push(Scalar::zero());
-        self.q_arith.push(Scalar::zero());
-        self.q_range.push(Scalar::zero());
-        self.q_logic.push(Scalar::zero());
-        self.public_inputs.push(Scalar::zero());
-        self.w_l.push(self.zero_var);
-        self.w_r.push(self.zero_var);
-        self.w_o.push(self.zero_var);
-        self.w_4.push(self.zero_var);
-        self.perm.add_variables_to_map(
-            self.zero_var,
-            self.zero_var,
-            self.zero_var,
-            self.zero_var,
-            self.n,
-        );
-        self.n += 1;
     }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::commitment_scheme::kzg10::PublicParameters;
-    use bls12_381::Scalar as Fr;
-    use merlin::Transcript;
 
     /// Utility function that allows to check on the "front-end"
     /// side of the PLONK implementation if the identity polynomial
     /// is satisfied for each one of the `StandardComposer`'s gates.
-    fn check_circuit_satisfied(composer: &StandardComposer) {
-        let w_l = composer.to_scalars(&composer.w_l);
-        let w_r = composer.to_scalars(&composer.w_r);
-        let w_o = composer.to_scalars(&composer.w_o);
-        let w_4 = composer.to_scalars(&composer.w_4);
+    #[cfg(feature = "trace")]
+    pub fn check_circuit_satisfied(&self) {
+        let w_l = self.to_scalars(&self.w_l);
+        let w_r = self.to_scalars(&self.w_r);
+        let w_o = self.to_scalars(&self.w_o);
+        let w_4 = self.to_scalars(&self.w_4);
         // Computes f(f-1)(f-2)(f-3)
         let delta = |f: Scalar| -> Scalar {
             let f_1 = f - Scalar::one();
@@ -1609,25 +1234,46 @@ mod tests {
         };
         let four = Scalar::from(4);
 
-        for i in 0..composer.n {
-            let qm = composer.q_m[i];
-            let ql = composer.q_l[i];
-            let qr = composer.q_r[i];
-            let qo = composer.q_o[i];
-            let qc = composer.q_c[i];
-            let q4 = composer.q_4[i];
-            let qarith = composer.q_arith[i];
-            let qrange = composer.q_range[i];
-            let qlogic = composer.q_logic[i];
-            let pi = composer.public_inputs[i];
+        for i in 0..self.n {
+            let qm = self.q_m[i];
+            let ql = self.q_l[i];
+            let qr = self.q_r[i];
+            let qo = self.q_o[i];
+            let qc = self.q_c[i];
+            let q4 = self.q_4[i];
+            let qarith = self.q_arith[i];
+            let qrange = self.q_range[i];
+            let qlogic = self.q_logic[i];
+            let pi = self.public_inputs[i];
 
             let a = w_l[i];
-            let a_next = w_l[(i + 1) % composer.n];
+            let a_next = w_l[(i + 1) % self.n];
             let b = w_r[i];
-            let b_next = w_r[(i + 1) % composer.n];
+            let b_next = w_r[(i + 1) % self.n];
             let c = w_o[i];
             let d = w_4[i];
-            let d_next = w_4[(i + 1) % composer.n];
+            let d_next = w_4[(i + 1) % self.n];
+            #[cfg(feature = "trace-print")]
+            println!(
+                "--------------------------------------------\n
+            #Gate Index = {}
+            #Selector Polynomials:\n
+            - qm -> {:?}\n
+            - ql -> {:?}\n
+            - qr -> {:?}\n
+            - q4 -> {:?}\n
+            - qo -> {:?}\n
+            - qc -> {:?}\n
+            - q_arith -> {:?}\n
+            - q_range -> {:?}\n
+            - q_logic -> {:?}\n
+            # Witness polynomials:\n
+            - w_l -> {:?}\n
+            - w_r -> {:?}\n
+            - w_o -> {:?}\n
+            - w_4 -> {:?}\n",
+                i, qm, ql, qr, q4, qo, qc, qarith, qrange, qlogic, a, b, c, d
+            );
             let k = qarith * ((qm * a * b) + (ql * a) + (qr * b) + (qo * c) + (q4 * d) + pi + qc)
                 + qlogic
                     * (((delta(a_next - four * a) - delta(b_next - four * b)) * c)
@@ -1649,6 +1295,14 @@ mod tests {
             assert_eq!(k, Scalar::zero(), "Check failed at gate {}", i,);
         }
     }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::commitment_scheme::kzg10::PublicParameters;
+    use crate::proof_system::{Prover, Verifier};
+    use dusk_bls12_381::Scalar as Fr;
 
     // Returns a composer with `n` constraints
     fn add_dummy_composer(n: usize) -> StandardComposer {
@@ -1696,22 +1350,22 @@ mod tests {
         assert!(composer.w_o.len() == size);
     }
 
+    #[allow(unused_variables)]
     #[test]
     fn test_prove_verify() {
-        let ok = test_gadget(
+        let res = test_gadget(
             |composer| {
                 // do nothing except add the dummy constraints
-                check_circuit_satisfied(&composer);
             },
             200,
         );
-        assert!(ok);
+        assert!(res.is_ok());
     }
 
     #[test]
     fn test_logic_xor_constraint() {
         // Should pass since the XOR result is correct and the bit-num is even.
-        let ok = test_gadget(
+        let res = test_gadget(
             |composer| {
                 let witness_a = composer.add_input(Scalar::from(500u64));
                 let witness_b = composer.add_input(Scalar::from(357u64));
@@ -1722,14 +1376,13 @@ mod tests {
                     Scalar::from(500u64 ^ 357u64),
                     Scalar::zero(),
                 );
-                check_circuit_satisfied(composer);
             },
             200,
         );
-        assert!(ok);
+        assert!(res.is_ok());
 
         // Should pass since the AND result is correct even the bit-num is even.
-        let ok = test_gadget(
+        let res = test_gadget(
             |composer| {
                 let witness_a = composer.add_input(Scalar::from(469u64));
                 let witness_b = composer.add_input(Scalar::from(321u64));
@@ -1740,14 +1393,13 @@ mod tests {
                     Scalar::from(469u64 & 321u64),
                     Scalar::zero(),
                 );
-                check_circuit_satisfied(composer);
             },
             200,
         );
-        assert!(ok);
+        assert!(res.is_ok());
 
         // Should not pass since the XOR result is not correct even the bit-num is even.
-        let ok = test_gadget(
+        let res = test_gadget(
             |composer| {
                 let witness_a = composer.add_input(Scalar::from(139u64));
                 let witness_b = composer.add_input(Scalar::from(33u64));
@@ -1761,59 +1413,56 @@ mod tests {
             },
             200,
         );
-        assert!(!ok);
+        assert!(res.is_err());
     }
 
     #[test]
     #[should_panic]
     fn test_logical_gate_odd_bit_num() {
         // Should fail since the bit-num is odd.
-        let ok = test_gadget(
+        let _ = test_gadget(
             |composer| {
                 let witness_a = composer.add_input(Scalar::from(500u64));
                 let witness_b = composer.add_input(Scalar::from(499u64));
                 let xor_res = composer.logic_gate(witness_a, witness_b, 9, true);
                 // Check that the XOR result is indeed what we are expecting.
                 composer.constrain_to_constant(xor_res, Scalar::from(7u64), Scalar::zero());
-                check_circuit_satisfied(composer);
             },
             200,
         );
-        assert!(ok);
     }
 
     #[test]
     fn test_range_constraint() {
         // Should fail as the number is not 32 bits
-        let ok = test_gadget(
+        let res = test_gadget(
             |composer| {
                 let witness = composer.add_input(Scalar::from((u32::max_value() as u64) + 1));
                 composer.range_gate(witness, 32);
             },
             200,
         );
-        assert!(!ok);
+        assert!(res.is_err());
 
         // Should fail as number is greater than 32 bits
-        let ok = test_gadget(
+        let res = test_gadget(
             |composer| {
                 let witness = composer.add_input(Scalar::from(u64::max_value()));
                 composer.range_gate(witness, 32);
             },
             200,
         );
-        assert!(!ok);
+        assert!(res.is_err());
 
         // Should pass as the number is within 34 bits
-        let ok = test_gadget(
+        let res = test_gadget(
             |composer| {
                 let witness = composer.add_input(Scalar::from(2u64.pow(34) - 1));
                 composer.range_gate(witness, 34);
-                check_circuit_satisfied(composer);
             },
             200,
         );
-        assert!(ok);
+        assert!(res.is_ok());
     }
 
     #[test]
@@ -1831,7 +1480,7 @@ mod tests {
 
     #[test]
     fn test_pi() {
-        let ok = test_gadget(
+        let res = test_gadget(
             |composer| {
                 let var_one = composer.add_input(Fr::one());
 
@@ -1854,12 +1503,12 @@ mod tests {
             },
             200,
         );
-        assert!(ok);
+        assert!(res.is_ok());
     }
 
     #[test]
     fn test_correct_add_mul_gate() {
-        let ok = test_gadget(
+        let res = test_gadget(
             |composer| {
                 // Verify that (4+5+5) * (6+7+7) = 280
                 let four = composer.add_input(Fr::from(4));
@@ -1874,8 +1523,6 @@ mod tests {
                     Scalar::zero(),
                     Scalar::zero(),
                 );
-
-                check_circuit_satisfied(composer);
 
                 let twenty = composer.big_add(
                     six.into(),
@@ -1900,12 +1547,12 @@ mod tests {
             },
             200,
         );
-        assert!(ok);
+        assert!(res.is_ok());
     }
 
     #[test]
     fn test_correct_add_gate() {
-        let ok = test_gadget(
+        let res = test_gadget(
             |composer| {
                 let zero = composer.add_input(Fr::zero());
                 let one = composer.add_input(Fr::one());
@@ -1920,11 +1567,11 @@ mod tests {
             },
             32,
         );
-        assert!(ok)
+        assert!(res.is_ok())
     }
     #[test]
     fn test_correct_big_add_mul_gate() {
-        let ok = test_gadget(
+        let res = test_gadget(
             |composer| {
                 // Verify that (4+5+5) * (6+7+7) + (8*9) = 352
                 let four = composer.add_input(Fr::from(4));
@@ -1961,12 +1608,12 @@ mod tests {
             },
             200,
         );
-        assert!(ok);
+        assert!(res.is_ok());
     }
 
     #[test]
     fn test_incorrect_add_mul_gate() {
-        let ok = test_gadget(
+        let res = test_gadget(
             |composer| {
                 // Verify that (5+5) * (6+7) != 117
                 let five = composer.add_input(Fr::from(5));
@@ -2000,12 +1647,12 @@ mod tests {
             },
             200,
         );
-        assert!(!ok);
+        assert!(res.is_err());
     }
 
     #[test]
     fn test_correct_bool_gate() {
-        let ok = test_gadget(
+        let res = test_gadget(
             |composer| {
                 let zero = composer.add_input(Fr::zero());
                 let one = composer.add_input(Fr::one());
@@ -2015,12 +1662,12 @@ mod tests {
             },
             32,
         );
-        assert!(ok)
+        assert!(res.is_ok())
     }
 
     #[test]
     fn test_incorrect_bool_gate() {
-        let ok = test_gadget(
+        let res = test_gadget(
             |composer| {
                 let zero = composer.add_input(Fr::from(5));
                 let one = composer.add_input(Fr::one());
@@ -2030,46 +1677,123 @@ mod tests {
             },
             32,
         );
-        assert!(!ok)
+        assert!(res.is_err())
     }
 
-    fn test_gadget(gadget: fn(composer: &mut StandardComposer), n: usize) -> bool {
+    fn dummy_gadget(n: usize, composer: &mut StandardComposer) {
+        let one = Scalar::one();
+
+        let var_one = composer.add_input(one);
+
+        for _ in 0..n {
+            composer.big_add(
+                var_one.into(),
+                var_one.into(),
+                composer.zero_var.into(),
+                Scalar::zero(),
+                Scalar::zero(),
+            );
+        }
+
+        composer.add_dummy_constraints();
+    }
+
+    fn test_gadget(gadget: fn(composer: &mut StandardComposer), n: usize) -> Result<(), Error> {
         // Common View
-        let public_parameters = PublicParameters::setup(2 * n, &mut rand::thread_rng()).unwrap();
+        let public_parameters = PublicParameters::setup(2 * n, &mut rand::thread_rng())?;
         // Provers View
         let (proof, public_inputs) = {
-            let mut composer: StandardComposer = add_dummy_composer(7);
-            gadget(&mut composer);
+            // Create a prover struct
+            let mut prover = Prover::new(b"demo");
 
-            let (ck, _) = public_parameters
-                .trim(2 * composer.circuit_size().next_power_of_two())
-                .unwrap();
-            let domain = EvaluationDomain::new(composer.circuit_size()).unwrap();
-            let mut transcript = Transcript::new(b"");
+            // Additionally key the transcript
+            prover.key_transcript(b"key", b"additional seed information");
+
+            // Add gadgets
+            dummy_gadget(7, prover.mut_cs());
+            gadget(&mut prover.mut_cs());
+
+            // Commit Key
+            let (ck, _) =
+                public_parameters.trim(2 * prover.cs.circuit_size().next_power_of_two())?;
 
             // Preprocess circuit
-            let preprocessed_circuit = composer.preprocess(&ck, &mut transcript, &domain);
-            (
-                composer.prove(&ck, &preprocessed_circuit, &mut transcript),
-                composer.public_inputs,
-            )
+            prover.preprocess(&ck)?;
+
+            // Once the prove method is called, the public inputs are cleared
+            // So pre-fetch these before calling Prove
+            let public_inputs = prover.cs.public_inputs.clone();
+
+            // Compute Proof
+            (prover.prove(&ck)?, public_inputs)
         };
         // Verifiers view
         //
+        // Create a Verifier object
+        let mut verifier = Verifier::new(b"demo");
 
-        let mut composer: StandardComposer = add_dummy_composer(7);
-        gadget(&mut composer);
+        // Additionally key the transcript
+        verifier.key_transcript(b"key", b"additional seed information");
 
-        let (ck, vk) = public_parameters
-            .trim(composer.circuit_size().next_power_of_two())
-            .unwrap();
-        let domain = EvaluationDomain::new(composer.circuit_size()).unwrap();
-        // setup transcript
-        let mut transcript = Transcript::new(b"");
+        // Add gadgets
+        dummy_gadget(7, verifier.mut_cs());
+        gadget(&mut verifier.mut_cs());
+
+        // Compute Commit and Verifier Key
+        let (ck, vk) = public_parameters.trim(verifier.cs.circuit_size().next_power_of_two())?;
+
         // Preprocess circuit
-        let preprocessed_circuit = composer.preprocess(&ck, &mut transcript, &domain);
+        verifier.preprocess(&ck)?;
+
         // Verify proof
-        proof.verify(&preprocessed_circuit, &mut transcript, &vk, &public_inputs)
+        verifier.verify(&proof, &vk, &public_inputs)
+    }
+
+    #[test]
+    fn test_multiple_proofs() {
+        let public_parameters = PublicParameters::setup(2 * 30, &mut rand::thread_rng()).unwrap();
+
+        // Create a prover struct
+        let mut prover = Prover::new(b"demo");
+
+        // Add gadgets
+        dummy_gadget(10, prover.mut_cs());
+
+        // Commit Key
+        let (ck, _) = public_parameters.trim(2 * 20).unwrap();
+
+        // Preprocess circuit
+        prover.preprocess(&ck).unwrap();
+
+        let public_inputs = prover.cs.public_inputs.clone();
+
+        let mut proofs = Vec::new();
+
+        // Compute multiple proofs
+        for _ in 0..10 {
+            proofs.push(prover.prove(&ck).unwrap());
+
+            // Add another witness instance
+            dummy_gadget(10, prover.mut_cs());
+        }
+
+        // Verifier
+        //
+        let mut verifier = Verifier::new(b"demo");
+
+        // Add gadgets
+        dummy_gadget(10, verifier.mut_cs());
+
+        // Commit and Verifier Key
+        let (ck, vk) = public_parameters.trim(2 * 20).unwrap();
+
+        // Preprocess
+        verifier.preprocess(&ck).unwrap();
+
+        for proof in proofs {
+            let ok = verifier.verify(&proof, &vk, &public_inputs);
+            assert!(ok.is_ok());
+        }
     }
 
     #[test]

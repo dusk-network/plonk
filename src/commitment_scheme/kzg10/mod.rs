@@ -1,11 +1,11 @@
 //! Implementation of the KZG10 polynomial commitment scheme.
-use bls12_381::{G1Affine, G1Projective, Scalar};
+use dusk_bls12_381::{G1Affine, G1Projective, Scalar};
 pub mod errors;
 pub mod key;
 pub mod srs;
 use crate::transcript::TranscriptProtocol;
 use crate::util::powers_of;
-pub use key::{ProverKey, VerifierKey};
+pub use key::{CommitKey, OpeningKey};
 #[cfg(feature = "serde")]
 use serde::{de::Visitor, ser::SerializeStruct, Deserialize, Deserializer, Serialize, Serializer};
 pub use srs::PublicParameters;
@@ -179,6 +179,12 @@ impl Commitment {
     /// `G1Affine` identity point in Bls12_381.
     pub fn empty() -> Self {
         Commitment(G1Affine::identity())
+    }
+}
+
+impl Default for Commitment {
+    fn default() -> Self {
+        Commitment::empty()
     }
 }
 

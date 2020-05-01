@@ -1,6 +1,6 @@
-use crate::constraint_system::standard::PreProcessedCircuit;
 use crate::fft::{EvaluationDomain, Polynomial};
-use bls12_381::Scalar;
+use crate::proof_system::PreProcessedCircuit;
+use dusk_bls12_381::Scalar;
 #[cfg(feature = "serde")]
 use serde::{de::Visitor, ser::SerializeStruct, Deserialize, Deserializer, Serialize, Serializer};
 
