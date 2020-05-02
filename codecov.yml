@@ -1,3 +1,6 @@
+codecov:
+  require_ci_to_pass: yes     # If travis does not pass, no reports will be publlished/updated
+
 coverage:
   range: 80..100
   round: down
