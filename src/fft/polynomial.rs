@@ -1,7 +1,8 @@
-//! This module contains the implementation of Dense Polynomials.
+//! This module contains an implementation of a polynomial in coefficient form
+//! Where each coefficient is represented using a position in the underlying vector.
 use super::{EvaluationDomain, Evaluations};
 use crate::util;
-use bls12_381::Scalar;
+use dusk_bls12_381::Scalar;
 use rand::Rng;
 use rayon::iter::{
     IndexedParallelIterator, IntoParallelIterator, IntoParallelRefIterator, ParallelIterator,
@@ -10,7 +11,7 @@ use rayon::iter::{
 use std::ops::{Add, AddAssign, Deref, DerefMut, Mul, Neg, Sub, SubAssign};
 
 #[derive(Debug, Eq, PartialEq, Clone)]
-/// Polynomial represents a Dense Polynomial.
+/// Polynomial represents a polynomial in coeffiient form.
 pub struct Polynomial {
     /// The coefficient of `x^i` is stored at location `i` in `self.coeffs`.
     pub coeffs: Vec<Scalar>,
@@ -27,6 +28,58 @@ impl Deref for Polynomial {
 impl DerefMut for Polynomial {
     fn deref_mut(&mut self) -> &mut [Scalar] {
         &mut self.coeffs
+    }
+}
+
+#[cfg(feature = "serde")]
+use serde::{
+    self, de::Visitor, ser::SerializeSeq, Deserialize, Deserializer, Serialize, Serializer,
+};
+
+#[cfg(feature = "serde")]
+impl Serialize for Polynomial {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut tup = serializer.serialize_seq(Some(self.len()))?;
+        for coeff in &self.coeffs {
+            tup.serialize_element(&coeff)?;
+        }
+        tup.end()
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<'de> Deserialize<'de> for Polynomial {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        struct PolynomialVisitor;
+
+        impl<'de> Visitor<'de> for PolynomialVisitor {
+            type Value = Polynomial;
+
+            fn expecting(&self, formatter: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+                formatter.write_str("a polynomial with valid scalars")
+            }
+
+            fn visit_seq<A>(self, mut seq: A) -> Result<Polynomial, A::Error>
+            where
+                A: serde::de::SeqAccess<'de>,
+            {
+                let mut scalar_vec = Vec::new();
+                // Visit each element in the inner array and push it onto
+                // the existing vector.
+                while let Some(elem) = seq.next_element()? {
+                    scalar_vec.push(elem)
+                }
+                Ok(Polynomial::from_coefficients_vec(scalar_vec))
+            }
+        }
+
+        deserializer.deserialize_seq(PolynomialVisitor)
     }
 }
 
@@ -47,6 +100,9 @@ impl Polynomial {
     }
 
     /// Constructs a new polynomial from a list of coefficients.
+    ///
+    /// # Panics
+    /// When the length of the coeffs is zero.
     pub fn from_coefficients_vec(coeffs: Vec<Scalar>) -> Self {
         let mut result = Self { coeffs };
         // While there are zeros at the end of the coefficient vector, pop them off.
@@ -317,7 +373,7 @@ impl Polynomial {
         // Reverse the results and use Ruffini's method to compute the quotient
         // The coefficients must be reversed as Ruffini's method
         // starts with the leading coefficient, while Polynomials
-        // are stored in increasing order ie the leading coefficient is the last element
+        // are stored in increasing order i.e. the leading coefficient is the last element
         for coeff in self.coeffs.iter().rev() {
             let t = coeff + k;
             quotient.push(t);
@@ -416,7 +472,7 @@ mod test {
     }
     #[test]
     fn test_ruffini_zero() {
-        // Tests the two situations where zero can be added to Ruffini :
+        // Tests the two situations where zero can be added to Ruffini:
         // (1) Zero polynomial in the divided
         // (2) Zero as the constant term for the polynomial you are dividing by
         // In the first case, we should get zero as the quotient
@@ -439,5 +495,23 @@ mod test {
         let expected_quotient =
             Polynomial::from_coefficients_vec(vec![Scalar::one(), Scalar::one()]);
         assert_eq!(quotient, expected_quotient);
+    }
+
+    #[cfg(feature = "serde")]
+    #[test]
+    fn poly_serialisation_roundtrip() {
+        use bincode;
+        let poly = Polynomial::from_coefficients_slice(&[
+            Scalar::one(),
+            Scalar::one(),
+            Scalar::one(),
+            Scalar::one(),
+            Scalar::one(),
+            Scalar::one(),
+        ]);
+        let ser = bincode::serialize(&poly).unwrap();
+        let deser: Polynomial = bincode::deserialize(&ser).unwrap();
+
+        assert!(&poly.coeffs[..] == &deser.coeffs[..]);
     }
 }

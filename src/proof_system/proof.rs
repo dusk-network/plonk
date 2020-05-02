@@ -3,15 +3,20 @@
 //!
 //! This module contains the implementation of the `StandardComposer`s
 //! `Proof` structure and it's methods.
+
 use super::linearisation_poly::ProofEvaluations;
+use super::proof_system_errors::{ProofError, ProofErrors};
 use super::PreProcessedCircuit;
 use crate::commitment_scheme::kzg10::AggregateProof;
-use crate::commitment_scheme::kzg10::{Commitment, VerifierKey};
-use crate::fft::{EvaluationDomain, Polynomial};
+use crate::commitment_scheme::kzg10::{Commitment, OpeningKey};
+use crate::fft::EvaluationDomain;
 use crate::transcript::TranscriptProtocol;
-use bls12_381::{multiscalar_mul::msm_variable_base, G1Affine, Scalar};
+use dusk_bls12_381::{multiscalar_mul::msm_variable_base, G1Affine, Scalar};
+use failure::Error;
+#[cfg(feature = "serde")]
+use serde::{de::Visitor, ser::SerializeStruct, Deserialize, Deserializer, Serialize, Serializer};
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 /// A Proof is a composition of `Commitments` to the witness, permutation,
 /// quotient, shifted and opening polynomials as well as the
 /// `ProofEvaluations`.
@@ -32,7 +37,6 @@ pub struct Proof {
     /// Commitment to the permutation polynomial.
     pub z_comm: Commitment,
 
-    // XXX: We could explain more here?
     /// Commitment to the quotient polynomial.
     pub t_1_comm: Commitment,
     /// Commitment to the quotient polynomial.
@@ -50,71 +54,189 @@ pub struct Proof {
     pub evaluations: ProofEvaluations,
 }
 
-impl Proof {
-    /// Generates an empty proof with all of the `Commitments` and
-    /// `Evaluations` set to `Default` or zero.
-    pub fn empty() -> Proof {
-        Proof {
-            a_comm: Commitment::empty(),
-            b_comm: Commitment::empty(),
-            c_comm: Commitment::empty(),
-            d_comm: Commitment::empty(),
+#[cfg(feature = "serde")]
+impl Serialize for Proof {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut proof = serializer.serialize_struct("struct Proof", 12)?;
+        proof.serialize_field("a_comm", &self.a_comm)?;
+        proof.serialize_field("b_comm", &self.b_comm)?;
+        proof.serialize_field("c_comm", &self.c_comm)?;
+        proof.serialize_field("d_comm", &self.d_comm)?;
+        proof.serialize_field("z_comm", &self.z_comm)?;
+        proof.serialize_field("t_1_comm", &self.t_1_comm)?;
+        proof.serialize_field("t_2_comm", &self.t_2_comm)?;
+        proof.serialize_field("t_3_comm", &self.t_3_comm)?;
+        proof.serialize_field("t_4_comm", &self.t_4_comm)?;
+        proof.serialize_field("w_z_comm", &self.w_z_comm)?;
+        proof.serialize_field("w_zw_comm", &self.w_zw_comm)?;
+        proof.serialize_field("evaluations", &self.evaluations)?;
+        proof.end()
+    }
+}
 
-            z_comm: Commitment::empty(),
+#[cfg(feature = "serde")]
+impl<'de> Deserialize<'de> for Proof {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        enum Field {
+            Acomm,
+            Bcomm,
+            Ccomm,
+            Dcomm,
+            Zcomm,
+            T1comm,
+            T2comm,
+            T3comm,
+            T4comm,
+            WZcomm,
+            WZWcomm,
+            Evals,
+        };
 
-            t_1_comm: Commitment::empty(),
-            t_2_comm: Commitment::empty(),
-            t_3_comm: Commitment::empty(),
-            t_4_comm: Commitment::empty(),
+        impl<'de> Deserialize<'de> for Field {
+            fn deserialize<D>(deserializer: D) -> Result<Field, D::Error>
+            where
+                D: Deserializer<'de>,
+            {
+                struct FieldVisitor;
 
-            w_z_comm: Commitment::empty(),
-            w_zw_comm: Commitment::empty(),
-            evaluations: ProofEvaluations {
-                a_eval: Scalar::zero(),
-                b_eval: Scalar::zero(),
-                c_eval: Scalar::zero(),
-                d_eval: Scalar::zero(),
-                a_next_eval: Scalar::zero(),
-                b_next_eval: Scalar::zero(),
-                d_next_eval: Scalar::zero(),
-                q_arith_eval: Scalar::zero(),
-                q_c_eval: Scalar::zero(),
+                impl<'de> Visitor<'de> for FieldVisitor {
+                    type Value = Field;
 
-                left_sigma_eval: Scalar::zero(),
-                right_sigma_eval: Scalar::zero(),
-                out_sigma_eval: Scalar::zero(),
+                    fn expecting(
+                        &self,
+                        formatter: &mut ::core::fmt::Formatter,
+                    ) -> ::core::fmt::Result {
+                        formatter.write_str("struct Proof")
+                    }
 
-                lin_poly_eval: Scalar::zero(),
+                    fn visit_str<E>(self, value: &str) -> Result<Field, E>
+                    where
+                        E: serde::de::Error,
+                    {
+                        match value {
+                            "a_comm" => Ok(Field::Acomm),
+                            "b_comm" => Ok(Field::Bcomm),
+                            "c_comm" => Ok(Field::Ccomm),
+                            "d_comm" => Ok(Field::Dcomm),
+                            "z_comm" => Ok(Field::Zcomm),
+                            "t_1_comm" => Ok(Field::T1comm),
+                            "t_2_comm" => Ok(Field::T2comm),
+                            "t_3_comm" => Ok(Field::T3comm),
+                            "t_4_comm" => Ok(Field::T4comm),
+                            "w_z_comm" => Ok(Field::WZcomm),
+                            "w_zw_comm" => Ok(Field::WZWcomm),
+                            "evaluations" => Ok(Field::Evals),
+                            _ => Err(serde::de::Error::unknown_field(value, FIELDS)),
+                        }
+                    }
+                }
 
-                perm_eval: Scalar::zero(),
-            },
+                deserializer.deserialize_identifier(FieldVisitor)
+            }
         }
-    }
 
-    /// Includes the commitments to the witness polynomials for the left,
-    /// right and output wires into the `Proof`.
-    pub fn set_witness_poly_commitments(
-        &mut self,
-        a_comm: &Commitment,
-        b_comm: &Commitment,
-        c_comm: &Commitment,
-    ) {
-        self.a_comm = *a_comm;
-        self.b_comm = *b_comm;
-        self.c_comm = *c_comm;
-    }
+        struct ProofVisitor;
 
+        impl<'de> Visitor<'de> for ProofVisitor {
+            type Value = Proof;
+
+            fn expecting(&self, formatter: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+                formatter.write_str("struct Proof")
+            }
+
+            fn visit_seq<V>(self, mut seq: V) -> Result<Proof, V::Error>
+            where
+                V: serde::de::SeqAccess<'de>,
+            {
+                let a_comm = seq
+                    .next_element()?
+                    .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
+                let b_comm = seq
+                    .next_element()?
+                    .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
+                let c_comm = seq
+                    .next_element()?
+                    .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
+                let d_comm = seq
+                    .next_element()?
+                    .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
+                let z_comm = seq
+                    .next_element()?
+                    .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
+                let t_1_comm = seq
+                    .next_element()?
+                    .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
+                let t_2_comm = seq
+                    .next_element()?
+                    .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
+                let t_3_comm = seq
+                    .next_element()?
+                    .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
+                let t_4_comm = seq
+                    .next_element()?
+                    .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
+                let w_z_comm = seq
+                    .next_element()?
+                    .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
+                let w_zw_comm = seq
+                    .next_element()?
+                    .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
+                let evaluations = seq
+                    .next_element()?
+                    .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
+                Ok(Proof {
+                    a_comm,
+                    b_comm,
+                    c_comm,
+                    d_comm,
+                    z_comm,
+                    t_1_comm,
+                    t_2_comm,
+                    t_3_comm,
+                    t_4_comm,
+                    w_z_comm,
+                    w_zw_comm,
+                    evaluations,
+                })
+            }
+        }
+
+        const FIELDS: &[&str] = &[
+            "a_comm",
+            "b_comm",
+            "c_comm",
+            "d_comm",
+            "z_comm",
+            "t_1_comm",
+            "t_2_comm",
+            "t_3_comm",
+            "t_4_comm",
+            "w_z_comm",
+            "w_zw_comm",
+            "evaluations",
+        ];
+        deserializer.deserialize_struct("Proof", FIELDS, ProofVisitor)
+    }
+}
+
+impl Proof {
     /// Performs the verification of a `Proof` returning a boolean result.
     pub fn verify(
         &self,
         preprocessed_circuit: &PreProcessedCircuit,
         transcript: &mut dyn TranscriptProtocol,
-        verifier_key: &VerifierKey,
+        opening_key: &OpeningKey,
         pub_inputs: &[Scalar],
-    ) -> bool {
-        let domain = EvaluationDomain::new(preprocessed_circuit.n).unwrap();
+    ) -> Result<(), Error> {
+        let domain = EvaluationDomain::new(preprocessed_circuit.n)?;
 
-        // XXX: Check if components are valid
+        // Subgroup checks are done when the proof is deserialised.
 
         // In order for the Verifier and Prover to have the same view in the non-interactive setting
         // Both parties must commit the same elements into the transcript
@@ -146,8 +268,11 @@ impl Proof {
         // Compute evaluation challenge
         let z_challenge = transcript.challenge_scalar(b"z");
 
+        // Compute zero polynomial evaluated at `z_challenge`
+        let z_h_eval = domain.evaluate_vanishing_polynomial(&z_challenge);
+
         // Compute first lagrange polynomial evaluated at `z_challenge`
-        let l1_eval = domain.evaluate_all_lagrange_coefficients(z_challenge)[0];
+        let l1_eval = compute_first_lagrange_evaluation(&domain, &z_h_eval, &z_challenge);
 
         // Compute quotient polynomial evaluated at `z_challenge`
         let t_eval = self.compute_quotient_evaluation(
@@ -157,6 +282,7 @@ impl Proof {
             &beta,
             &gamma,
             &z_challenge,
+            &z_h_eval,
             &l1_eval,
             &self.evaluations.perm_eval,
         );
@@ -234,11 +360,17 @@ impl Proof {
         transcript.append_commitment(b"w_z_w", &self.w_zw_comm);
 
         // Batch check
-        verifier_key.batch_check(
-            &[z_challenge, (z_challenge * domain.group_gen)],
-            &[flattened_proof_a, flattened_proof_b],
-            transcript,
-        )
+        if opening_key
+            .batch_check(
+                &[z_challenge, (z_challenge * domain.group_gen)],
+                &[flattened_proof_a, flattened_proof_b],
+                transcript,
+            )
+            .is_err()
+        {
+            return Err(ProofError(ProofErrors::ProofVerificationError.into()).into());
+        }
+        Ok(())
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -250,15 +382,12 @@ impl Proof {
         beta: &Scalar,
         gamma: &Scalar,
         z_challenge: &Scalar,
+        z_h_eval: &Scalar,
         l1_eval: &Scalar,
         z_hat_eval: &Scalar,
     ) -> Scalar {
-        // Compute zero polynomial evaluated at `z_challenge`
-        let z_h_eval = domain.evaluate_vanishing_polynomial(z_challenge);
-
         // Compute the public input polynomial evaluated at `z_challenge`
-        let pi_poly = Polynomial::from_coefficients_vec(domain.ifft(&pub_inputs));
-        let pi_eval = pi_poly.evaluate(z_challenge);
+        let pi_eval = compute_barycentric_eval(pub_inputs, z_challenge, domain);
 
         let alpha_sq = alpha.square();
 
@@ -342,5 +471,115 @@ impl Proof {
             );
 
         Commitment::from_projective(msm_variable_base(&points, &scalars))
+    }
+}
+
+fn compute_first_lagrange_evaluation(
+    domain: &EvaluationDomain,
+    z_h_eval: &Scalar,
+    z_challenge: &Scalar,
+) -> Scalar {
+    let n_fr = Scalar::from(domain.size() as u64);
+    let denom = n_fr * (z_challenge - Scalar::one());
+    z_h_eval * denom.invert().unwrap()
+}
+
+#[warn(clippy::needless_range_loop)]
+fn compute_barycentric_eval(
+    evaluations: &[Scalar],
+    point: &Scalar,
+    domain: &EvaluationDomain,
+) -> Scalar {
+    use crate::util::batch_inversion;
+    use rayon::iter::IntoParallelIterator;
+    use rayon::prelude::*;
+
+    let numerator = (point.pow(&[domain.size() as u64, 0, 0, 0]) - Scalar::one()) * domain.size_inv;
+
+    // Indices with non-zero evaluations
+    let non_zero_evaluations: Vec<usize> = (0..evaluations.len())
+        .into_par_iter()
+        .filter(|&i| {
+            let evaluation = &evaluations[i];
+            evaluation != &Scalar::zero()
+        })
+        .collect();
+
+    // Only compute the denominators with non-zero evaluations
+    let mut denominators: Vec<Scalar> = (0..non_zero_evaluations.len())
+        .into_par_iter()
+        .map(|i| {
+            // index of non-zero evaluation
+            let index = non_zero_evaluations[i];
+
+            (domain.group_gen_inv.pow(&[index as u64, 0, 0, 0]) * point) - Scalar::one()
+        })
+        .collect();
+    batch_inversion(&mut denominators);
+
+    let result: Scalar = (0..non_zero_evaluations.len())
+        .into_par_iter()
+        .map(|i| {
+            let eval_index = non_zero_evaluations[i];
+            let eval = evaluations[eval_index];
+
+            denominators[i] * eval
+        })
+        .sum();
+
+    result * numerator
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[cfg(feature = "serde")]
+    #[test]
+    fn proof_serde_roundtrip() {
+        use bincode;
+        let comm = Commitment::empty();
+        let one = Scalar::one();
+
+        // Build directly the widget since there's not any `new()` impl
+        // dor any other check and correctness methodology for the inputs.
+        let proof_evals = ProofEvaluations {
+            a_eval: one,
+            b_eval: one,
+            c_eval: one,
+            d_eval: one,
+            a_next_eval: one,
+            b_next_eval: one,
+            d_next_eval: one,
+            q_arith_eval: one,
+            q_c_eval: one,
+            left_sigma_eval: one,
+            right_sigma_eval: one,
+            out_sigma_eval: one,
+            lin_poly_eval: one,
+            perm_eval: one,
+        };
+
+        // Build directly the widget since there's not any `new()` impl
+        // dor any other check and correctness methodology for the inputs.
+        let proof = Proof {
+            a_comm: comm,
+            b_comm: comm,
+            c_comm: comm,
+            d_comm: comm,
+            z_comm: comm,
+            t_1_comm: comm,
+            t_2_comm: comm,
+            t_3_comm: comm,
+            t_4_comm: comm,
+            w_z_comm: comm,
+            w_zw_comm: comm,
+            evaluations: proof_evals,
+        };
+
+        // Roundtrip with evals
+        let ser = bincode::serialize(&proof).unwrap();
+        let deser: Proof = bincode::deserialize(&ser).unwrap();
+        assert_eq!(proof, deser);
     }
 }

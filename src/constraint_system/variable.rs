@@ -1,5 +1,6 @@
-//! This module holds XXXX
-use bls12_381::Scalar;
+//! This module holds the components needed in the Constraint System.
+//! The two components used are Variables and Wires.
+use dusk_bls12_381::Scalar;
 
 /// The value is a reference to the actual value that was added to the constraint system
 #[derive(Debug, Eq, PartialEq, Clone, Copy, Hash)]
