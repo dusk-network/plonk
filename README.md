@@ -131,7 +131,7 @@ fn main() -> Result<(), Error> {
 
     //
     //
-    // We can also asume that we just recieve `Proof`s on a serialized manner that have been
+    // We can also assume that we just recieve `Proof`s on a serialized manner that have been
     // sent through the network.
     let ok_proof_data =
         fs::read("examples/.proof_ok_2_3.bin").expect("Missing Proof file \".proof_ok_2_3.bin\"");
