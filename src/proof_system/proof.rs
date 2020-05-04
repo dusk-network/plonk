@@ -3,13 +3,16 @@
 //!
 //! This module contains the implementation of the `StandardComposer`s
 //! `Proof` structure and it's methods.
+
 use super::linearisation_poly::ProofEvaluations;
+use super::proof_system_errors::{ProofError, ProofErrors};
 use super::PreProcessedCircuit;
 use crate::commitment_scheme::kzg10::AggregateProof;
 use crate::commitment_scheme::kzg10::{Commitment, OpeningKey};
 use crate::fft::EvaluationDomain;
 use crate::transcript::TranscriptProtocol;
 use dusk_bls12_381::{multiscalar_mul::msm_variable_base, G1Affine, Scalar};
+use failure::Error;
 use merlin::Transcript;
 #[cfg(feature = "serde")]
 use serde::{de::Visitor, ser::SerializeStruct, Deserialize, Deserializer, Serialize, Serializer};
@@ -231,10 +234,10 @@ impl Proof {
         transcript: &mut Transcript,
         opening_key: &OpeningKey,
         pub_inputs: &[Scalar],
-    ) -> bool {
-        let domain = EvaluationDomain::new(preprocessed_circuit.n).unwrap();
+    ) -> Result<(), Error> {
+        let domain = EvaluationDomain::new(preprocessed_circuit.n)?;
 
-        // subgroup checks are done when the proof is deserialised.
+        // Subgroup checks are done when the proof is deserialised.
 
         // In order for the Verifier and Prover to have the same view in the non-interactive setting
         // Both parties must commit the same elements into the transcript
@@ -358,11 +361,17 @@ impl Proof {
         transcript.append_commitment(b"w_z_w", &self.w_zw_comm);
 
         // Batch check
-        opening_key.batch_check(
-            &[z_challenge, (z_challenge * domain.group_gen)],
-            &[flattened_proof_a, flattened_proof_b],
-            transcript,
-        )
+        if opening_key
+            .batch_check(
+                &[z_challenge, (z_challenge * domain.group_gen)],
+                &[flattened_proof_a, flattened_proof_b],
+                transcript,
+            )
+            .is_err()
+        {
+            return Err(ProofError(ProofErrors::ProofVerificationError.into()).into());
+        }
+        Ok(())
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -475,6 +484,7 @@ fn compute_first_lagrange_evaluation(
     let denom = n_fr * (z_challenge - Scalar::one());
     z_h_eval * denom.invert().unwrap()
 }
+
 #[warn(clippy::needless_range_loop)]
 fn compute_barycentric_eval(
     evaluations: &[Scalar],

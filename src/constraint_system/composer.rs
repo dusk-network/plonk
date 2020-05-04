@@ -12,6 +12,7 @@
 // it is intended to be like this in order to provide
 // maximum performance and minimum circuit sizes.
 #![allow(clippy::too_many_arguments)]
+use super::cs_errors::PreProcessingError;
 use crate::bit_iterator::*;
 use crate::commitment_scheme::kzg10::CommitKey;
 
@@ -21,6 +22,7 @@ use crate::permutation::Permutation;
 use crate::proof_system::widget::{ArithmeticWidget, LogicWidget, PermutationWidget, RangeWidget};
 use crate::proof_system::PreProcessedCircuit;
 use dusk_bls12_381::Scalar;
+use failure::Error;
 use merlin::Transcript;
 use std::collections::HashMap;
 
@@ -81,21 +83,10 @@ impl StandardComposer {
         &mut self,
         commit_key: &CommitKey,
         transcript: &mut Transcript,
-    ) -> PreProcessedCircuit {
-        let domain = EvaluationDomain::new(self.circuit_size()).unwrap();
-
-        let k = self.q_m.len();
-        assert!(self.q_o.len() == k);
-        assert!(self.q_l.len() == k);
-        assert!(self.q_r.len() == k);
-        assert!(self.q_c.len() == k);
-        assert!(self.q_4.len() == k);
-        assert!(self.q_arith.len() == k);
-        assert!(self.q_range.len() == k);
-        assert!(self.q_logic.len() == k);
-        assert!(self.w_l.len() == k);
-        assert!(self.w_r.len() == k);
-        assert!(self.w_o.len() == k);
+    ) -> Result<PreProcessedCircuit, Error> {
+        let domain = EvaluationDomain::new(self.circuit_size())?;
+        // Check that the lenght of the wires is consistent.
+        self.check_poly_same_len()?;
 
         //1. Pad circuit to a power of two
         self.pad(domain.size as usize - self.n);
@@ -112,7 +103,7 @@ impl StandardComposer {
         let q_logic_poly = Polynomial::from_coefficients_slice(&domain.ifft(&self.q_logic));
 
         // 2b. Compute 4n evaluations of selector polynomial
-        let domain_4n = EvaluationDomain::new(4 * domain.size()).unwrap();
+        let domain_4n = EvaluationDomain::new(4 * domain.size())?;
         let q_m_eval_4n =
             Evaluations::from_vec_and_domain(domain_4n.coset_fft(&q_m_poly.coeffs), domain_4n);
         let q_l_eval_4n =
@@ -170,10 +161,10 @@ impl StandardComposer {
         let q_range_poly_commit = commit_key.commit(&q_range_poly).unwrap_or_default();
         let q_logic_poly_commit = commit_key.commit(&q_logic_poly).unwrap_or_default();
 
-        let left_sigma_poly_commit = commit_key.commit(&left_sigma_poly).unwrap();
-        let right_sigma_poly_commit = commit_key.commit(&right_sigma_poly).unwrap();
-        let out_sigma_poly_commit = commit_key.commit(&out_sigma_poly).unwrap();
-        let fourth_sigma_poly_commit = commit_key.commit(&fourth_sigma_poly).unwrap();
+        let left_sigma_poly_commit = commit_key.commit(&left_sigma_poly)?;
+        let right_sigma_poly_commit = commit_key.commit(&right_sigma_poly)?;
+        let out_sigma_poly_commit = commit_key.commit(&out_sigma_poly)?;
+        let fourth_sigma_poly_commit = commit_key.commit(&fourth_sigma_poly)?;
 
         let arithmetic_widget = ArithmeticWidget::new((
             (q_m_poly, q_m_poly_commit, Some(q_m_eval_4n)),
@@ -230,12 +221,35 @@ impl StandardComposer {
         // Append commitments to transcript
         ppc.seed_transcript(transcript);
 
-        ppc
+        Ok(ppc)
     }
 
     /// Returns the number of gates in the circuit
     pub fn circuit_size(&self) -> usize {
         self.n
+    }
+
+    /// Checks that all of the wires of the composer have the same
+    /// length.
+    fn check_poly_same_len(&self) -> Result<(), PreProcessingError> {
+        let k = self.q_m.len();
+
+        if self.q_o.len() == k
+            && self.q_l.len() == k
+            && self.q_r.len() == k
+            && self.q_c.len() == k
+            && self.q_4.len() == k
+            && self.q_arith.len() == k
+            && self.q_range.len() == k
+            && self.q_logic.len() == k
+            && self.w_l.len() == k
+            && self.w_r.len() == k
+            && self.w_o.len() == k
+        {
+            Ok(())
+        } else {
+            Err(PreProcessingError::MissmatchedPolyLen)
+        }
     }
 }
 
@@ -1336,22 +1350,22 @@ mod tests {
         assert!(composer.w_o.len() == size);
     }
 
-    #[cfg(feature = "trace")]
+    #[allow(unused_variables)]
     #[test]
     fn test_prove_verify() {
-        let ok = test_gadget(
+        let res = test_gadget(
             |composer| {
                 // do nothing except add the dummy constraints
             },
             200,
         );
-        assert!(ok);
+        assert!(res.is_ok());
     }
 
     #[test]
     fn test_logic_xor_constraint() {
         // Should pass since the XOR result is correct and the bit-num is even.
-        let ok = test_gadget(
+        let res = test_gadget(
             |composer| {
                 let witness_a = composer.add_input(Scalar::from(500u64));
                 let witness_b = composer.add_input(Scalar::from(357u64));
@@ -1365,10 +1379,10 @@ mod tests {
             },
             200,
         );
-        assert!(ok);
+        assert!(res.is_ok());
 
         // Should pass since the AND result is correct even the bit-num is even.
-        let ok = test_gadget(
+        let res = test_gadget(
             |composer| {
                 let witness_a = composer.add_input(Scalar::from(469u64));
                 let witness_b = composer.add_input(Scalar::from(321u64));
@@ -1382,10 +1396,10 @@ mod tests {
             },
             200,
         );
-        assert!(ok);
+        assert!(res.is_ok());
 
         // Should not pass since the XOR result is not correct even the bit-num is even.
-        let ok = test_gadget(
+        let res = test_gadget(
             |composer| {
                 let witness_a = composer.add_input(Scalar::from(139u64));
                 let witness_b = composer.add_input(Scalar::from(33u64));
@@ -1399,14 +1413,14 @@ mod tests {
             },
             200,
         );
-        assert!(!ok);
+        assert!(res.is_err());
     }
 
     #[test]
     #[should_panic]
     fn test_logical_gate_odd_bit_num() {
         // Should fail since the bit-num is odd.
-        let ok = test_gadget(
+        let _ = test_gadget(
             |composer| {
                 let witness_a = composer.add_input(Scalar::from(500u64));
                 let witness_b = composer.add_input(Scalar::from(499u64));
@@ -1416,40 +1430,39 @@ mod tests {
             },
             200,
         );
-        assert!(ok);
     }
 
     #[test]
     fn test_range_constraint() {
         // Should fail as the number is not 32 bits
-        let ok = test_gadget(
+        let res = test_gadget(
             |composer| {
                 let witness = composer.add_input(Scalar::from((u32::max_value() as u64) + 1));
                 composer.range_gate(witness, 32);
             },
             200,
         );
-        assert!(!ok);
+        assert!(res.is_err());
 
         // Should fail as number is greater than 32 bits
-        let ok = test_gadget(
+        let res = test_gadget(
             |composer| {
                 let witness = composer.add_input(Scalar::from(u64::max_value()));
                 composer.range_gate(witness, 32);
             },
             200,
         );
-        assert!(!ok);
+        assert!(res.is_err());
 
         // Should pass as the number is within 34 bits
-        let ok = test_gadget(
+        let res = test_gadget(
             |composer| {
                 let witness = composer.add_input(Scalar::from(2u64.pow(34) - 1));
                 composer.range_gate(witness, 34);
             },
             200,
         );
-        assert!(ok);
+        assert!(res.is_ok());
     }
 
     #[test]
@@ -1467,7 +1480,7 @@ mod tests {
 
     #[test]
     fn test_pi() {
-        let ok = test_gadget(
+        let res = test_gadget(
             |composer| {
                 let var_one = composer.add_input(Fr::one());
 
@@ -1490,12 +1503,12 @@ mod tests {
             },
             200,
         );
-        assert!(ok);
+        assert!(res.is_ok());
     }
 
     #[test]
     fn test_correct_add_mul_gate() {
-        let ok = test_gadget(
+        let res = test_gadget(
             |composer| {
                 // Verify that (4+5+5) * (6+7+7) = 280
                 let four = composer.add_input(Fr::from(4));
@@ -1534,12 +1547,12 @@ mod tests {
             },
             200,
         );
-        assert!(ok);
+        assert!(res.is_ok());
     }
 
     #[test]
     fn test_correct_add_gate() {
-        let ok = test_gadget(
+        let res = test_gadget(
             |composer| {
                 let zero = composer.add_input(Fr::zero());
                 let one = composer.add_input(Fr::one());
@@ -1554,11 +1567,11 @@ mod tests {
             },
             32,
         );
-        assert!(ok)
+        assert!(res.is_ok())
     }
     #[test]
     fn test_correct_big_add_mul_gate() {
-        let ok = test_gadget(
+        let res = test_gadget(
             |composer| {
                 // Verify that (4+5+5) * (6+7+7) + (8*9) = 352
                 let four = composer.add_input(Fr::from(4));
@@ -1595,12 +1608,12 @@ mod tests {
             },
             200,
         );
-        assert!(ok);
+        assert!(res.is_ok());
     }
 
     #[test]
     fn test_incorrect_add_mul_gate() {
-        let ok = test_gadget(
+        let res = test_gadget(
             |composer| {
                 // Verify that (5+5) * (6+7) != 117
                 let five = composer.add_input(Fr::from(5));
@@ -1634,12 +1647,12 @@ mod tests {
             },
             200,
         );
-        assert!(!ok);
+        assert!(res.is_err());
     }
 
     #[test]
     fn test_correct_bool_gate() {
-        let ok = test_gadget(
+        let res = test_gadget(
             |composer| {
                 let zero = composer.add_input(Fr::zero());
                 let one = composer.add_input(Fr::one());
@@ -1649,12 +1662,12 @@ mod tests {
             },
             32,
         );
-        assert!(ok)
+        assert!(res.is_ok())
     }
 
     #[test]
     fn test_incorrect_bool_gate() {
-        let ok = test_gadget(
+        let res = test_gadget(
             |composer| {
                 let zero = composer.add_input(Fr::from(5));
                 let one = composer.add_input(Fr::one());
@@ -1664,7 +1677,7 @@ mod tests {
             },
             32,
         );
-        assert!(!ok)
+        assert!(res.is_err())
     }
 
     fn dummy_gadget(n: usize, composer: &mut StandardComposer) {
@@ -1685,9 +1698,9 @@ mod tests {
         composer.add_dummy_constraints();
     }
 
-    fn test_gadget(gadget: fn(composer: &mut StandardComposer), n: usize) -> bool {
+    fn test_gadget(gadget: fn(composer: &mut StandardComposer), n: usize) -> Result<(), Error> {
         // Common View
-        let public_parameters = PublicParameters::setup(2 * n, &mut rand::thread_rng()).unwrap();
+        let public_parameters = PublicParameters::setup(2 * n, &mut rand::thread_rng())?;
         // Provers View
         let (proof, public_inputs) = {
             // Create a prover struct
@@ -1701,19 +1714,18 @@ mod tests {
             gadget(&mut prover.mut_cs());
 
             // Commit Key
-            let (ck, _) = public_parameters
-                .trim(2 * prover.cs.circuit_size().next_power_of_two())
-                .unwrap();
+            let (ck, _) =
+                public_parameters.trim(2 * prover.cs.circuit_size().next_power_of_two())?;
 
             // Preprocess circuit
-            prover.preprocess(&ck);
+            prover.preprocess(&ck)?;
 
             // Once the prove method is called, the public inputs are cleared
             // So pre-fetch these before calling Prove
             let public_inputs = prover.cs.public_inputs.clone();
 
             // Compute Proof
-            (prover.prove(&ck), public_inputs)
+            (prover.prove(&ck)?, public_inputs)
         };
         // Verifiers view
         //
@@ -1728,12 +1740,10 @@ mod tests {
         gadget(&mut verifier.mut_cs());
 
         // Compute Commit and Verifier Key
-        let (ck, vk) = public_parameters
-            .trim(verifier.cs.circuit_size().next_power_of_two())
-            .unwrap();
+        let (ck, vk) = public_parameters.trim(verifier.cs.circuit_size().next_power_of_two())?;
 
         // Preprocess circuit
-        verifier.preprocess(&ck);
+        verifier.preprocess(&ck)?;
 
         // Verify proof
         verifier.verify(&proof, &vk, &public_inputs)
@@ -1753,7 +1763,7 @@ mod tests {
         let (ck, _) = public_parameters.trim(2 * 20).unwrap();
 
         // Preprocess circuit
-        prover.preprocess(&ck);
+        prover.preprocess(&ck).unwrap();
 
         let public_inputs = prover.cs.public_inputs.clone();
 
@@ -1761,7 +1771,7 @@ mod tests {
 
         // Compute multiple proofs
         for _ in 0..10 {
-            proofs.push(prover.prove(&ck));
+            proofs.push(prover.prove(&ck).unwrap());
 
             // Add another witness instance
             dummy_gadget(10, prover.mut_cs());
@@ -1778,11 +1788,11 @@ mod tests {
         let (ck, vk) = public_parameters.trim(2 * 20).unwrap();
 
         // Preprocess
-        verifier.preprocess(&ck);
+        verifier.preprocess(&ck).unwrap();
 
         for proof in proofs {
             let ok = verifier.verify(&proof, &vk, &public_inputs);
-            assert!(ok);
+            assert!(ok.is_ok());
         }
     }
 

@@ -49,9 +49,10 @@ extern crate merlin;
 use dusk_bls12_381::Scalar;
 use dusk_plonk::commitment_scheme::kzg10::PublicParameters;
 use dusk_plonk::proof_system::{Prover, Verifier};
+use failure::Error;
 use std::fs;
 
-fn main() {
+fn main() -> Result<(), Error> {
     //
     //
     // Circuit construction stage
@@ -265,15 +266,14 @@ fn main() {
         .expect("File not found.\n Run example `0_setup_srs` first please");
     let pub_params: PublicParameters = bincode::deserialize(&ser_pub_params).unwrap();
     // Derive the `ProverKey` from the `PublicParameters`.
-    let (prover_key, verifier_key) = pub_params
-        .trim(composer.circuit_size().next_power_of_two())
-        .unwrap();
+    let (prover_key, verifier_key) =
+        pub_params.trim(composer.circuit_size().next_power_of_two())?;
 
     // Now we can finally preprocess the circuit that we've built.
-    prover.preprocess(&prover_key);
+    prover.preprocess(&prover_key)?;
 
     // We could now store our `PreProcessedCircuit` serialized with `bincode`.
-    // let ser_prep_cir = bincode::serialize(&pre_processed_circ).unwrap();
+    // let ser_prep_cir = bincode::serialize(&prover.preprocessed_circuit.unwrap()).unwrap();
     // We can store the `PreProcessedCircuit` serialized in a file for later use.
     //
     //fs::write("preprocessed_circ.bin", &ser_prep_cir).expect("Unable to write file");
@@ -287,7 +287,7 @@ fn main() {
     // We clone the transcript since we don't want to modify it to allow then the verifier to re-use it.
     let verifier_transcript = prover.preprocessed_transcript.clone();
 
-    let proof = prover.prove(&prover_key);
+    let proof = prover.prove(&prover_key)?;
 
     let zero = Scalar::zero();
     let one = Scalar::one();
@@ -300,6 +300,9 @@ fn main() {
         zero, zero, zero, zero, zero, zero, zero, zero, zero, zero, zero, zero, -one, -one,
     ];
 
-    assert!(verifier.verify(&proof, &verifier_key, public_inputs));
+    assert!(verifier
+        .verify(&proof, &verifier_key, public_inputs)
+        .is_ok());
     println!("Proof verified succesfully!");
+    Ok(())
 }
