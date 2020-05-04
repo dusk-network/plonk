@@ -1170,7 +1170,7 @@ impl StandardComposer {
         // The point Q will be used as the accumulator where the rounds
         // will deposit the result.
         // Q is the output point for (x,y).
-        let mut Q = AffinePoint:is_one();
+        let mut Q = AffinePoint::one();
         // Allocate accumulator variables
         let mut wnaf_accum = Scalar::zero();
         let four = Scalar::from(4u64);
