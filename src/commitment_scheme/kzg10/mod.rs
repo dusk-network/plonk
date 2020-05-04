@@ -1,14 +1,18 @@
 //! Implementation of the KZG10 polynomial commitment scheme.
-use dusk_bls12_381::{G1Affine, G1Projective, Scalar};
 pub mod errors;
 pub mod key;
 pub mod srs;
+
+pub use key::{CommitKey, OpeningKey};
+pub use srs::PublicParameters;
+
 use crate::transcript::TranscriptProtocol;
 use crate::util::powers_of;
-pub use key::{CommitKey, OpeningKey};
+use dusk_bls12_381::{G1Affine, G1Projective, Scalar};
+use merlin::Transcript;
+
 #[cfg(feature = "serde")]
 use serde::{de::Visitor, ser::SerializeStruct, Deserialize, Deserializer, Serialize, Serializer};
-pub use srs::PublicParameters;
 
 #[derive(Copy, Clone, Debug)]
 /// Proof that a polynomial `p` was correctly evaluated at a point `z`
@@ -52,7 +56,7 @@ impl AggregateProof {
 
     /// Flattens an `AggregateProof` into a `Proof`.
     /// The transcript must have the same view as the transcript that was used to aggregate the witness in the proving stage.
-    pub fn flatten(&self, transcript: &mut dyn TranscriptProtocol) -> Proof {
+    pub fn flatten(&self, transcript: &mut Transcript) -> Proof {
         let challenge = transcript.challenge_scalar(b"aggregate_witness");
         let powers = powers_of(&challenge, self.commitments_to_polynomials.len() - 1);
 
