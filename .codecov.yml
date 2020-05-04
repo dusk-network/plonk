@@ -1,6 +1,3 @@
-codecov:
-  require_ci_to_pass: yes     # If travis does not pass, no reports will be publlished/updated
-
 coverage:
   range: 80..100
   round: down
@@ -16,6 +13,3 @@ coverage:
         threshold: 5           # allowed to drop X% and still result in a "success" commit status
         if_not_found: success  # if parent is not found report status as success, error, or failure
         if_ci_failed: error    # if ci fails report status as success, error, or failure
-    patch:
-      default:
-        enabled: no
