@@ -7,17 +7,16 @@
 use super::linearisation_poly::ProofEvaluations;
 use super::proof_system_errors::{ProofError, ProofErrors};
 use super::PreProcessedCircuit;
-use crate::commitment_scheme::kzg10::AggregateProof;
-use crate::commitment_scheme::kzg10::{Commitment, OpeningKey};
+use crate::commitment_scheme::kzg10::{AggregateProof, Commitment, OpeningKey};
 use crate::fft::EvaluationDomain;
 use crate::transcript::TranscriptProtocol;
 use dusk_bls12_381::{multiscalar_mul::msm_variable_base, G1Affine, Scalar};
 use failure::Error;
 use merlin::Transcript;
+
 #[cfg(feature = "serde")]
 use serde::{de::Visitor, ser::SerializeStruct, Deserialize, Deserializer, Serialize, Serializer};
 
-#[derive(Debug, Eq, PartialEq)]
 /// A Proof is a composition of `Commitments` to the witness, permutation,
 /// quotient, shifted and opening polynomials as well as the
 /// `ProofEvaluations`.
@@ -25,6 +24,7 @@ use serde::{de::Visitor, ser::SerializeStruct, Deserialize, Deserializer, Serial
 /// It's main goal is to have a `verify()` method attached which contains the
 /// logic of the operations that the `Verifier` will need to do in order to
 /// formally verify the `Proof`.
+#[derive(Debug, Eq, PartialEq)]
 pub struct Proof {
     /// Commitment to the witness polynomial for the left wires.
     pub a_comm: Commitment,
