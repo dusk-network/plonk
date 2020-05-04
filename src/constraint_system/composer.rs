@@ -25,6 +25,8 @@ use dusk_bls12_381::Scalar;
 use failure::Error;
 use jubjub::Fq;
 use jubjub::Fr;
+use jubjub::AffinePoint;
+use jubjub::AffineNielsPoint;
 use merlin::Transcript;
 use std::collections::HashMap;
 
@@ -1159,14 +1161,16 @@ impl StandardComposer {
     }
 
     /// XXX: Doc this.
-    pub fn fix_base_mul(&mut self, scalar: &Fr) -> () {
+    pub fn scalar_mul(&mut self, scalar: &Fr) -> () {
         // Get the JubJub Scalar in w-3 WNAF form
+        // Then work from the most siginificant bit 
+        // by flipping the result.
         let mut w_naf_scalar = scalar.compute_windowed_naf(3u8).to_vec();
         w_naf_scalar.reverse();
-        // The point T will be used as the accumulator where the rounds
+        // The point Q will be used as the accumulator where the rounds
         // will deposit the result.
         // Q is the output point for (x,y).
-        let mut Q = jubjub::Fq::zero();
+        let mut Q = AffinePoint:is_one();
         // Allocate accumulator variables
         let mut wnaf_accum = Scalar::zero();
         let four = Scalar::from(4u64);
@@ -1182,7 +1186,7 @@ impl StandardComposer {
             };
             // Accumulated wnaf scalar value to be pushed.
             wnaf_accum += wnaf_as_scalar;
-            Q = Fq::from(Fq::from(Q).double());
+            Q = AffinePoint::from(AffinePoint::from(Q).double());
 
             // Here we need to pick a point from the ODD_BASEPOINT_MULTIPLES_TABLE according to
             // the actual w_naf_term and then add it to Q.
@@ -1190,7 +1194,24 @@ impl StandardComposer {
             // Once this is done we need to place each term of points and the accumulator
             // on it's corresponding wire/selector.
         }
+
+        {
+            self.w_l.a: Variable
+            self.w_r.b: Variable,
+            self.w_o.c: Variable,
+            self.w_l.d: Variable,
+            self.q_l: Scalar,
+            self.q_r: Scalar,
+            self.q_ecc: Scalar,
+            self.q_o: Scalar
+        
+            self.
+        }
     }
+
+    
+
+    
 
     /// Asserts that two variables are the same
     // XXX: Instead of wasting a gate, we can use the permutation polynomial to do this
