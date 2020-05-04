@@ -10,6 +10,7 @@ use dusk_bls12_381::{
     multiscalar_mul::msm_variable_base, G1Affine, G1Projective, G2Affine, G2Prepared, Scalar,
 };
 use failure::Error;
+use merlin::Transcript;
 
 /// Opening Key is used to verify opening proofs made about a committed polynomial.
 #[derive(Clone, Debug)]
@@ -263,7 +264,7 @@ impl CommitKey {
         &self,
         polynomials: &[Polynomial],
         point: &Scalar,
-        transcript: &mut dyn TranscriptProtocol,
+        transcript: &mut Transcript,
     ) -> Polynomial {
         let challenge = transcript.challenge_scalar(b"aggregate_witness");
         let powers = util::powers_of(&challenge, polynomials.len() - 1);
@@ -303,7 +304,7 @@ impl CommitKey {
         polynomials: &[Polynomial],
         evaluations: Vec<Scalar>,
         point: &Scalar,
-        transcript: &mut dyn TranscriptProtocol,
+        transcript: &mut Transcript,
     ) -> Result<AggregateProof, Error> {
         // Commit to polynomials
         let mut polynomial_commitments = Vec::with_capacity(polynomials.len());
@@ -350,7 +351,7 @@ impl OpeningKey {
         &self,
         points: &[Scalar],
         proofs: &[Proof],
-        transcript: &mut dyn TranscriptProtocol,
+        transcript: &mut Transcript,
     ) -> Result<(), Error> {
         let mut total_c = G1Projective::identity();
         let mut total_w = G1Projective::identity();
