@@ -23,10 +23,10 @@ use crate::proof_system::widget::{ArithmeticWidget, LogicWidget, PermutationWidg
 use crate::proof_system::PreProcessedCircuit;
 use dusk_bls12_381::Scalar;
 use failure::Error;
+use jubjub::AffineNielsPoint;
+use jubjub::AffinePoint;
 use jubjub::Fq;
 use jubjub::Fr;
-use jubjub::AffinePoint;
-use jubjub::AffineNielsPoint;
 use merlin::Transcript;
 use std::collections::HashMap;
 
@@ -58,6 +58,8 @@ pub struct StandardComposer {
     q_range: Vec<Scalar>,
     // logic selector
     q_logic: Vec<Scalar>,
+    // ecc selector
+    q_ecc: Vec<Scalar>,
 
     pub(crate) public_inputs: Vec<Scalar>,
 
@@ -320,6 +322,7 @@ impl StandardComposer {
             q_arith: Vec::with_capacity(expected_size),
             q_range: Vec::with_capacity(expected_size),
             q_logic: Vec::with_capacity(expected_size),
+            q_ecc: Vec::with_capacity(expected_size),
             public_inputs: Vec::with_capacity(expected_size),
 
             w_l: Vec::with_capacity(expected_size),
@@ -1161,57 +1164,26 @@ impl StandardComposer {
     }
 
     /// XXX: Doc this.
-    pub fn scalar_mul(&mut self, scalar: &Fr) -> () {
-        // Get the JubJub Scalar in w-3 WNAF form
-        // Then work from the most siginificant bit 
-        // by flipping the result.
-        let mut w_naf_scalar = scalar.compute_windowed_naf(3u8).to_vec();
-        w_naf_scalar.reverse();
-        // The point Q will be used as the accumulator where the rounds
-        // will deposit the result.
-        // Q is the output point for (x,y).
-        let mut Q = AffinePoint::one();
-        // Allocate accumulator variables
-        let mut wnaf_accum = Scalar::zero();
-        let four = Scalar::from(4u64);
-
-        // We iterate over the w_naf terms.
-        for wnaf_term in w_naf_scalar {
-            wnaf_accum *= four;
-            let wnaf_as_scalar = match (wnaf_term > 0i8, wnaf_term < 0i8, wnaf_term == 0i8) {
-                (true, false, false) => Scalar::from(wnaf_term as u64),
-                (false, true, false) => Scalar::zero(),
-                (false, false, true) => -Scalar::from(wnaf_term.abs() as u64),
-                (_, _, _) => unreachable!(),
-            };
-            // Accumulated wnaf scalar value to be pushed.
-            wnaf_accum += wnaf_as_scalar;
-            Q = AffinePoint::from(AffinePoint::from(Q).double());
-
-            // Here we need to pick a point from the ODD_BASEPOINT_MULTIPLES_TABLE according to
-            // the actual w_naf_term and then add it to Q.
-            //
-            // Once this is done we need to place each term of points and the accumulator
-            // on it's corresponding wire/selector.
-        }
-
-        {
-            self.w_l.a: Variable
-            self.w_r.b: Variable,
-            self.w_o.c: Variable,
-            self.w_l.d: Variable,
-            self.q_l: Scalar,
-            self.q_r: Scalar,
-            self.q_ecc: Scalar,
-            self.q_o: Scalar
-        
-            self.
-        }
+    pub fn scalar_mul_gate(
+        &mut self,
+        a: Variable,
+        b: Variable,
+        c: Variable,
+        d: Variable,
+        q_l: Scalar,
+        q_r: Scalar,
+        q_o: Scalar,
+        q_ecc: Scalar,
+    ) -> () {
+        self.w_l.push(a);
+        self.w_r.push(b);
+        self.w_o.push(c);
+        self.w_4.push(d);
+        self.q_l.push(q_l);
+        self.q_r.push(q_r);
+        self.q_o.push(q_o);
+        self.q_ecc.push(q_ecc);
     }
-
-    
-
-    
 
     /// Asserts that two variables are the same
     // XXX: Instead of wasting a gate, we can use the permutation polynomial to do this
