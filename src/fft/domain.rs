@@ -6,15 +6,18 @@
 //! This allows us to perform polynomial operations in O(n)
 //! by performing an O(n log n) FFT over such a domain.
 
-use super::fft_errors::{FFTError, FFTErrors};
-use super::Evaluations;
+use super::{
+    fft_errors::{FFTError, FFTErrors},
+    Evaluations,
+};
 use core::fmt;
 use dusk_bls12_381::{Scalar, GENERATOR, ROOT_OF_UNITY, TWO_ADACITY};
 use failure::Error;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefMutIterator, ParallelIterator};
+use std::ops::MulAssign;
+
 #[cfg(feature = "serde")]
 use serde::{de::Visitor, ser::SerializeStruct, Deserialize, Deserializer, Serialize, Serializer};
-use std::ops::MulAssign;
 
 /// Defines a domain over which finite field (I)FFTs can be performed. Works
 /// only for fields that have a large multiplicative subgroup of size that is

@@ -1,10 +1,11 @@
 use crate::fft::{EvaluationDomain, Polynomial};
 use crate::proof_system::PreProcessedCircuit;
 use dusk_bls12_381::Scalar;
-/// This quotient polynomial can only be used for the standard composer
-/// Each composer will need to implement their own method for computing the quotient polynomial
 use failure::Error;
 use rayon::prelude::*;
+
+/// This quotient polynomial can only be used for the standard composer
+/// Each composer will need to implement their own method for computing the quotient polynomial
 
 /// Computes the quotient polynomial
 pub(crate) fn compute(

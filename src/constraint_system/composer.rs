@@ -12,6 +12,7 @@
 // it is intended to be like this in order to provide
 // maximum performance and minimum circuit sizes.
 #![allow(clippy::too_many_arguments)]
+
 use super::cs_errors::PreProcessingError;
 use crate::bit_iterator::*;
 use crate::commitment_scheme::kzg10::CommitKey;
@@ -19,8 +20,10 @@ use crate::commitment_scheme::kzg10::CommitKey;
 use crate::constraint_system::{Variable, WireData};
 use crate::fft::{EvaluationDomain, Evaluations, Polynomial};
 use crate::permutation::Permutation;
-use crate::proof_system::widget::{ArithmeticWidget, LogicWidget, PermutationWidget, RangeWidget};
-use crate::proof_system::PreProcessedCircuit;
+use crate::proof_system::{
+    widget::{ArithmeticWidget, LogicWidget, PermutationWidget, RangeWidget},
+    PreProcessedCircuit,
+};
 use dusk_bls12_381::Scalar;
 use failure::Error;
 use jubjub::AffineNielsPoint;
@@ -1799,7 +1802,7 @@ mod tests {
         let mut proofs = Vec::new();
 
         // Compute multiple proofs
-        for _ in 0..10 {
+        for _ in 0..3 {
             proofs.push(prover.prove(&ck).unwrap());
 
             // Add another witness instance
