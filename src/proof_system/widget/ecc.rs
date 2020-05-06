@@ -29,7 +29,8 @@ fn basepoint_mul(&self, scalar: &fr) -> AffinePoint {
         let wnaf_as_scalar = match (wnaf_term > 0i8, wnaf_term < 0i8, wnaf_term == 0i8) {
             (true, false, false) => Fr::from(wnaf_term as u64),
             (false, true, false) => Fr::zero(),
-            (false, false, true) => -Fr::from(wnaf_term.abs() as u64),
+            (false, false, tr
+                ue) => -Fr::from(wnaf_term.abs() as u64),
             (_, _, _) => unreachable!(),
         };
         
@@ -52,7 +53,7 @@ fn basepoint_mul(&self, scalar: &fr) -> AffinePoint {
     if i == 0 {
 
     } else {
-        
+
     }
 }
 

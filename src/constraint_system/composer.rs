@@ -1166,43 +1166,56 @@ impl StandardComposer {
         self.logic_gate(a, b, num_bits, false)
     }
 
-    /// TODO: doc this
-    pub fn scalar_mul_gate(
-        &mut self,
-        a: Variable,
-        b: Variable,
-        c: Variable,
-        d: Variable,
-        q_l: Scalar,
-        q_r: Scalar,
-        q_o: Scalar,
-        q_ecc: Scalar,
-    ) -> () {
-        self.perm.add_variable_to_map(a, WireData::Left(self.n));
-        self.perm.add_variable_to_map(b, WireData::Right(self.n));
-        self.perm
-            .add_variable_to_map(c, WireData::Output(self.n - 1));
-        self.perm.add_variable_to_map(d, WireData::Fourth(self.n));
-        // Push the variables to their actual wire vector storage
-        self.w_l.push(a);
-        self.w_r.push(b);
-        self.w_o.push(c);
-        self.w_4.push(d);
+    pub fn scalar_mul_gate(&self, scalar: Fr, point: Fq) {
+        self.q_r.push(scalar.Y);
+        self.q_l.push(scalar.X);
+        
+        // Accumulator point
+        let mut accum = point.clone();
+        // Get scalar in correct format
+        // [i8; 256]
+        let wnaf_scalar = scalar.compute_windowed_naf(3u8).to_vec();
+        // [point, identity, 3*point]
+        let table = vec![point, Fq::zero(), point * Fq::from(3 as u64)];
+        for coeff in wnaf_scalar {
+            accum = accum + accum;
 
-        //Gate index
-        self.n += 1;
-        // Ensure gate is padded to 0, as output wire starts
-        // on behind the other three.
+            let point_to_add = match (coeff > 0i8, coeff < 0i8, coeff == 0i8) {
+                (true, false, false) => table[(coeff - 1) as usize],
+                (false, true, false) => -table[(coeff.abs() - 1) as usize],
+                (false, false, true) => Fq::zero(),
+                _ => unreachable!(),
+            };
 
-        self.perm
-            .add_variable_to_map(self.zero_var, WireData::Output(self.n - 1));
-        self.w_o.push(self.zero_var);
+            accum = accum + point_to_add;
 
-        self.q_l.push(q_l);
-        self.q_r.push(q_r);
-        self.q_o.push(q_o);
-        self.q_ecc.push(q_ecc);
+            self.q_m.push(Scalar::zero());
+            self.q_arith.push(Scalar::zero());
+
+            self.q_o.push(accum.X);
+            self.q_ecc.push(accum.Y);
+
+            self.q_range.push(Scalar::zero());
+            self.q_c.push(Scalar::zero());
+            self.q_logic.push(Scalar::zero());
+            self.q_4.push(Scalar::zero());
+
+            self.add_input(accum.X);
+            self.perm.add_variable_to_map(a, WireData::Left(self.n));
+            self.w_l.push(self.zero_var);
+            self.perm.add_variable_to_map(b, WireData::Right(self.n));
+            self.w_r.push(self.zero_var);
+            self.perm.add_variable_to_map(c, WireData::Output(self.n));
+            self.w_o.push(self.zero_var);
+            self.perm.add_variable_to_map(d, WireData::Fourth(self.n));
+            self.w_4.push(self.zero_var);
+
+            // Increment gate index
+            self.n += 1l;
+        }
     }
+
+
 
     /// Asserts that two variables are the same
     // XXX: Instead of wasting a gate, we can use the permutation polynomial to do this
