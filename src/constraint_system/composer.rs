@@ -1166,7 +1166,7 @@ impl StandardComposer {
         self.logic_gate(a, b, num_bits, false)
     }
 
-    /// XXX: Doc this.
+    /// TODO: doc this
     pub fn scalar_mul_gate(
         &mut self,
         a: Variable,
@@ -1178,10 +1178,26 @@ impl StandardComposer {
         q_o: Scalar,
         q_ecc: Scalar,
     ) -> () {
+        self.perm.add_variable_to_map(a, WireData::Left(self.n));
+        self.perm.add_variable_to_map(b, WireData::Right(self.n));
+        self.perm
+            .add_variable_to_map(c, WireData::Output(self.n - 1));
+        self.perm.add_variable_to_map(d, WireData::Fourth(self.n));
+        // Push the variables to their actual wire vector storage
         self.w_l.push(a);
         self.w_r.push(b);
         self.w_o.push(c);
         self.w_4.push(d);
+
+        //Gate index
+        self.n += 1;
+        // Ensure gate is padded to 0, as output wire starts
+        // on behind the other three.
+
+        self.perm
+            .add_variable_to_map(self.zero_var, WireData::Output(self.n - 1));
+        self.w_o.push(self.zero_var);
+
         self.q_l.push(q_l);
         self.q_r.push(q_r);
         self.q_o.push(q_o);
