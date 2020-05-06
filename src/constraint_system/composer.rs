@@ -26,7 +26,6 @@ use crate::proof_system::{
 };
 use dusk_bls12_381::Scalar;
 use failure::Error;
-use jubjub::AffineNielsPoint;
 use jubjub::AffinePoint;
 use jubjub::Fq;
 use jubjub::Fr;
@@ -1166,24 +1165,31 @@ impl StandardComposer {
         self.logic_gate(a, b, num_bits, false)
     }
 
-    pub fn scalar_mul_gate(&self, scalar: Fr, point: Fq) {
-        self.q_r.push(scalar.Y);
-        self.q_l.push(scalar.X);
-        
+    pub fn scalar_mul_gate(
+        &self,
+        scalar: Fr,
+        point: AffinePoint,
+        a: Variable,
+        b: Variable,
+        c: Variable,
+        d: variable,
+    ) {
+        self.q_r.push(point.u);
+        self.q_l.push(point.v);
         // Accumulator point
         let mut accum = point.clone();
         // Get scalar in correct format
         // [i8; 256]
         let wnaf_scalar = scalar.compute_windowed_naf(3u8).to_vec();
         // [point, identity, 3*point]
-        let table = vec![point, Fq::zero(), point * Fq::from(3 as u64)];
+        let table = vec![point, AffinePoint::identity(), point * Fq::from(3 as u64)];
         for coeff in wnaf_scalar {
             accum = accum + accum;
 
             let point_to_add = match (coeff > 0i8, coeff < 0i8, coeff == 0i8) {
                 (true, false, false) => table[(coeff - 1) as usize],
                 (false, true, false) => -table[(coeff.abs() - 1) as usize],
-                (false, false, true) => Fq::zero(),
+                (false, false, true) => AffinePoint::identity(),
                 _ => unreachable!(),
             };
 
@@ -1192,15 +1198,15 @@ impl StandardComposer {
             self.q_m.push(Scalar::zero());
             self.q_arith.push(Scalar::zero());
 
-            self.q_o.push(accum.X);
-            self.q_ecc.push(accum.Y);
+            self.q_o.push(accum.u);
+            self.q_ecc.push(accum.v);
 
             self.q_range.push(Scalar::zero());
             self.q_c.push(Scalar::zero());
             self.q_logic.push(Scalar::zero());
             self.q_4.push(Scalar::zero());
 
-            self.add_input(accum.X);
+            self.add_input(accum);
             self.perm.add_variable_to_map(a, WireData::Left(self.n));
             self.w_l.push(self.zero_var);
             self.perm.add_variable_to_map(b, WireData::Right(self.n));
@@ -1211,11 +1217,9 @@ impl StandardComposer {
             self.w_4.push(self.zero_var);
 
             // Increment gate index
-            self.n += 1l;
+            self.n += 1;
         }
     }
-
-
 
     /// Asserts that two variables are the same
     // XXX: Instead of wasting a gate, we can use the permutation polynomial to do this
