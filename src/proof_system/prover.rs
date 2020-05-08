@@ -199,6 +199,8 @@ impl Prover {
         //
         // Compute quotient challenge; `alpha`
         let alpha = transcript.challenge_scalar(b"alpha");
+        let range_sep_challenge = transcript.challenge_scalar(b"range separation challenge");
+        let logic_sep_challenge = transcript.challenge_scalar(b"logic separation challenge");
 
         let t_poly = quotient_poly::compute(
             &domain,
@@ -206,7 +208,7 @@ impl Prover {
             &z_poly,
             (&w_l_poly, &w_r_poly, &w_o_poly, &w_4_poly),
             &pi_poly,
-            &(alpha, beta, gamma),
+            &(alpha, beta, gamma, range_sep_challenge, logic_sep_challenge),
         )?;
 
         // Split quotient polynomial into 4 degree `n` polynomials
@@ -232,7 +234,14 @@ impl Prover {
         let (lin_poly, evaluations) = linearisation_poly::compute(
             &domain,
             &preprocessed_circuit,
-            &(alpha, beta, gamma, z_challenge),
+            &(
+                alpha,
+                beta,
+                gamma,
+                range_sep_challenge,
+                logic_sep_challenge,
+                z_challenge,
+            ),
             &w_l_poly,
             &w_r_poly,
             &w_o_poly,

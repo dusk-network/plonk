@@ -238,7 +238,14 @@ impl<'de> Deserialize<'de> for ProofEvaluations {
 pub fn compute(
     domain: &EvaluationDomain,
     preprocessed_circuit: &PreProcessedCircuit,
-    (alpha, beta, gamma, z_challenge): &(Scalar, Scalar, Scalar, Scalar),
+    (alpha, beta, gamma, range_separation_challenge, logic_separation_challenge, z_challenge): &(
+        Scalar,
+        Scalar,
+        Scalar,
+        Scalar,
+        Scalar,
+        Scalar,
+    ),
     w_l_poly: &Polynomial,
     w_r_poly: &Polynomial,
     w_o_poly: &Polynomial,
@@ -284,6 +291,7 @@ pub fn compute(
     let perm_eval = z_poly.evaluate(&(z_challenge * domain.group_gen));
 
     let f_1 = compute_circuit_satisfiability(
+        (range_separation_challenge, logic_separation_challenge),
         &a_eval,
         &b_eval,
         &c_eval,
@@ -336,6 +344,7 @@ pub fn compute(
 
 #[allow(clippy::too_many_arguments)]
 fn compute_circuit_satisfiability(
+    (range_separation_challenge, logic_separation_challenge): (&Scalar, &Scalar),
     a_eval: &Scalar,
     b_eval: &Scalar,
     c_eval: &Scalar,
@@ -356,13 +365,16 @@ fn compute_circuit_satisfiability(
     );
 
     let b = preprocessed_circuit.range.compute_linearisation(
+        range_separation_challenge,
         a_eval,
         b_eval,
         c_eval,
         d_eval,
         &d_next_eval,
     );
+
     let c = preprocessed_circuit.logic.compute_linearisation(
+        logic_separation_challenge,
         a_eval,
         a_next_eval,
         b_eval,
@@ -372,6 +384,7 @@ fn compute_circuit_satisfiability(
         d_next_eval,
         q_c_eval,
     );
+
     &(&a + &b) + &c
 }
 

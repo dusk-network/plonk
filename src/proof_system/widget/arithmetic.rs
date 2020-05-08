@@ -240,6 +240,7 @@ impl ArithmeticWidget {
         evaluations: &ProofEvaluations,
     ) {
         let q_arith_eval = evaluations.q_arith_eval;
+
         scalars.push(evaluations.a_eval * evaluations.b_eval * q_arith_eval);
         points.push(self.q_m.commitment.0);
 
