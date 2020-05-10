@@ -1171,8 +1171,6 @@ impl StandardComposer {
         point: AffinePoint,
         a: Variable,
         b: Variable,
-        c: Variable,
-        d: Variable,
     ) {
         self.q_r.push(point.u);
         self.q_l.push(point.v);
