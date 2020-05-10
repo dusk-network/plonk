@@ -1,5 +1,7 @@
 use crate::fft::Evaluations;
-use crate::proof_system::widget::{ArithmeticWidget, LogicWidget, PermutationWidget, RangeWidget};
+use crate::proof_system::widget::{
+    ArithmeticWidget, ECCWidget, LogicWidget, PermutationWidget, RangeWidget,
+};
 use crate::transcript::TranscriptProtocol;
 use merlin::Transcript;
 #[cfg(feature = "serde")]
@@ -27,6 +29,9 @@ pub struct PreProcessedCircuit {
     /// related to the sigmas and also stores the linear
     /// evaluations.
     pub permutation: PermutationWidget,
+    /// Holds the polynomials, commitments and evaluations
+    /// of all of the ecc_constraint gates.
+    pub ecc: ECCWidget,
 
     // Pre-processes the 4n Evaluations for the vanishing polynomial, so they do not
     // need to be computed at the proving stage.
