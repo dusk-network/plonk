@@ -259,6 +259,8 @@ impl Proof {
 
         // Compute quotient challenge
         let alpha = transcript.challenge_scalar(b"alpha");
+        let range_sep_challenge = transcript.challenge_scalar(b"range separation challenge");
+        let logic_sep_challenge = transcript.challenge_scalar(b"logic separation challenge");
 
         // Add commitment to quotient polynomial to transcript
         transcript.append_commitment(b"t_1", &self.t_1_comm);
@@ -314,6 +316,7 @@ impl Proof {
             &alpha,
             &beta,
             &gamma,
+            (&range_sep_challenge, &logic_sep_challenge),
             &z_challenge,
             l1_eval,
             &preprocessed_circuit,
@@ -391,7 +394,6 @@ impl Proof {
         let pi_eval = compute_barycentric_eval(pub_inputs, z_challenge, domain);
 
         let alpha_sq = alpha.square();
-
         // r + PI(z)
         let a = self.evaluations.lin_poly_eval + pi_eval;
 
@@ -431,11 +433,13 @@ impl Proof {
     }
 
     // Commitment to [r]_1
+    #[allow(clippy::too_many_arguments)]
     fn compute_linearisation_commitment(
         &self,
         alpha: &Scalar,
         beta: &Scalar,
         gamma: &Scalar,
+        (range_sep_challenge, logic_sep_challenge): (&Scalar, &Scalar),
         z_challenge: &Scalar,
         l1_eval: Scalar,
         preprocessed_circuit: &PreProcessedCircuit,
@@ -448,12 +452,14 @@ impl Proof {
             .compute_linearisation_commitment(&mut scalars, &mut points, &self.evaluations);
 
         preprocessed_circuit.range.compute_linearisation_commitment(
+            &range_sep_challenge,
             &mut scalars,
             &mut points,
             &self.evaluations,
         );
 
         preprocessed_circuit.logic.compute_linearisation_commitment(
+            &logic_sep_challenge,
             &mut scalars,
             &mut points,
             &self.evaluations,
