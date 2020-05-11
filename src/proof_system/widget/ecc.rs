@@ -112,7 +112,7 @@ pub(crate) fn compute_quotient_i(
     let kappa_8 = kappa_7 * kappa;
     let kappa_9 = kappa_8 * kappa;
 
-    let acc_input = 4 * w_4_i;
+    let acc_input = four * w_4_i;
     let accum = w_4_i_next - acc_input;
 
     let accum_sqr = accum.square();
@@ -141,13 +141,15 @@ pub(crate) fn compute_quotient_i(
 
     let y_alpha = coeff_3 * accum;
     
-    // Check for consistency in the accumulating x_value 
+    // Check for consistency in the  x_value 
 
-    let x_alpha_mins_x_one = w_o_i_next - w_l_i; 
+    let x_alpha_minus_x_one = w_o_i_next - w_l_i; 
 
     let 
 
+    // Check for consistency in the y_value 
 
+    let a_1 = 
 
 }
    
