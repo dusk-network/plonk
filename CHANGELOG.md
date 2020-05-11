@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Prover and Verifier abstraction @kevaundray
 - Error handling and custom errors @CPerezz
+- Add prelude file @CPerezz
+- Add identity separation challenge to each identity. @kevaundray
 ## 
 
 
