@@ -19,5 +19,93 @@ need for a copy check in
 in SNARK schemes. This is 
 crucial in our zk-SNARK
 scheme, to ensure the 
-correctness of wires as
-well as 
+correctness of wires and 
+allow us to express circuits
+with less differing vectors 
+per polynomial. 
+
+PLONK uses an argument to check 
+the correctness of a shuffle in 
+its proving algorithm. This allows 
+for the checking of individual 
+wires rather than entire sets. 
+In principle, PLONK can compare sets 
+of polynomials for equality by 
+comparing an `n` degree polynomial 
+with the same `n` degree polynomial 
+where some elements have been 
+rotated. 
+
+Given a set of wire values, at a 
+particular position, we can create 
+a mapping for these wires into a 
+new position with a permuatation. 
+
+For example: 
+Given initial wire values, 
+1,2,3,4,5 each occupying 
+their respective positions
+A,B,C,D,E
+
+\begin{aligned}
+
+// +-----+-----+-----+-----+-----+
+// |  A  |  B  |  C  |  D  |  E  |
+// +-----+-----+-----+-----+-----+
+// |  1  |  2  |  3  |  4  |  5  |
+// +-----+-----+-----+-----+-----+
+
+\end{aligned}
+
+If we then have a mapping of:
+
+\begin{aligned}
+
+\\[
+\mathbf{a}(1) = 5
+\mathbf{a}(2) = 2
+\mathbf{a}(3) = 3
+\mathbf{a}(4) = 1
+\mathbf{a}(5) = 4
+\\]
+
+\end{aligned}
+
+Which gives a second, permutuated row, 
+of:
+
+\begin{aligned}
+
+// +-----+-----+-----+-----+-----+
+// |  A  |  B  |  C  |  D  |  E  |
+// +-----+-----+-----+-----+-----+
+// |  1  |  2  |  3  |  4  |  5  |
+// +-----+-----+-----+-----+-----+
+// |  3  |  5  |  1  |  4  |  2  |
+// +-----+-----+-----+-----+-----+
+
+\end{aligned}
+
+We can form equations of polynomials 
+to compare the wire values at each 
+position. As it possible to falsify
+proofs, by having the sum of the 
+equation arguments equal - without 
+having the identities between the
+monomials hold - therefore, two random 
+constants are introduced to the 
+equation. 
+
+The first is Beta, which is mutiplied
+by the wire index and the second is 
+gamma, which is derived from the prime 
+field. 
+
+To isolate the terms, for better evaluation,
+we are also capable of describing each wire
+as a type. For this example, we will say 
+wires A & B = type 1\\, wires C & D = type 2\\
+and wire E = type 3.
+
+
+Formulating this into type 
