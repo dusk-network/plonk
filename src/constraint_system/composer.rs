@@ -25,6 +25,7 @@ use crate::proof_system::{
     PreProcessedCircuit,
 };
 use dusk_bls12_381::Scalar;
+use dusk_bls12_381::GENERATOR;
 use failure::Error;
 use jubjub::AffinePoint;
 use jubjub::Fq;
@@ -1165,22 +1166,41 @@ impl StandardComposer {
         self.logic_gate(a, b, num_bits, false)
     }
 
+    // Creates an add gate for specific bases. This function will add an X-coordinate into
+    // an accumulator for each round of scalar multiplication.
     pub fn scalar_mul_gate(
         &self,
-        scalar: Fr,
-        point: AffinePoint,
+        scalar: Fq,
         a: Variable,
         b: Variable,
-    ) {
-        self.q_r.push(point.u);
-        self.q_l.push(point.v);
+        c: Variable,
+        d: Variable,
+    ) -> () {
+        // When the round needs to be initiated, we have a memory structure, where
+        // some constants will be calculated and fixed bsed on given generators, impl.
+        // * +-----+-----+-----+-----+
+        // * |  A  |  B  |  C  |  D  |
+        // * +-----+-----+-----+-----+
+        // * | a0  | b0  | w1  | c0  |
+        // * | a1  | b1  | w2  | c1  |
+        // * | a2  | b2  | w3  | c2  |
+        // * |  :  |  :  |  :  |  :  |
+        // * | an  | bn  | wn  | cn  |
+        // * +-----+-----+-----+-----+
+        // To give some clarity on what needs to be assigned to each wire,
+        // we have w_l = x-coordinate, w_r = y-coordinate, w_o = add-in-x-coordinate
+        // and w_4 = accumulator.
         // Accumulator point
-        let mut accum = point.clone();
+        let mut accum = scalar.clone();
         // Get scalar in correct format
         // [i8; 256]
         let wnaf_scalar = scalar.compute_windowed_naf(3u8).to_vec();
         // [point, identity, 3*point]
-        let table = vec![point, AffinePoint::identity(), point * Fq::from(3 as u64)];
+        let table = vec![
+            point,
+            AffinePoint::identity(),
+            GENERATOR * Fq::from(3 as u64),
+        ];
         for coeff in wnaf_scalar {
             accum = accum + accum;
 
@@ -1190,6 +1210,15 @@ impl StandardComposer {
                 (false, false, true) => AffinePoint::identity(),
                 _ => unreachable!(),
             };
+
+            // Now that we have our scalar in the NAF form, we need to precompute our look up table.
+            // This is done to provide the potential add-in-x-coordinate's at each round. As only 1
+            // and 3 are possible, the ladder look up function will be a 2 bit output. The 2 resulting 
+            // output coordinates, along with their negative y-cooridinate counterparts, will be the 
+            // 4 coordinates, which the add-in-x-coordinate is derived from. 
+
+            fn generate_lookup_table(G: GENERATOR, a: scalar) -> AffinePoint
+
 
             accum = accum + point_to_add;
 
