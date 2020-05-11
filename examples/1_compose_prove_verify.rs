@@ -46,9 +46,7 @@ extern crate bincode;
 extern crate dusk_plonk;
 extern crate merlin;
 
-use dusk_bls12_381::Scalar;
-use dusk_plonk::commitment_scheme::kzg10::PublicParameters;
-use dusk_plonk::proof_system::{Prover, Verifier};
+use dusk_plonk::prelude::*;
 use failure::Error;
 use std::fs;
 

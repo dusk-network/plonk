@@ -14,7 +14,9 @@ pub enum FFTErrors {
         log_size_of_group, adacity
     )]
     InvalidEvalDomainSize {
+        /// Log size of the group
         log_size_of_group: u32,
+        /// Two adacity generated
         adacity: u32,
     },
 }
