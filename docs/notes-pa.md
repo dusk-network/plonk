@@ -108,4 +108,61 @@ wires A & B = type 1\\, wires C & D = type 2\\
 and wire E = type 3.
 
 
-Formulating this into type 
+Formulating this an expression of the 
+unpermutated polynomials, is as 
+follows:
+
+\begin{aligned}
+\\[
+    Z\_1\\\\ 
+    =\\\\ 
+(1\\+   \beta +\gamma)
+(1\\+ 2*\beta +\gamma)
+(2\\+ 3*\beta +\gamma)
+(2\\+ 4*\beta +\gamma)
+(3\\+ 5*\beta +\gamma)
+\\]
+
+\end{aligned}
+
+The permutated polynomials 
+then become:
+
+\begin{aligned}
+\\[
+    Z\_2\\\\ 
+    =\\\\ 
+(2\\+ 3*\beta +\gamma)
+(3\\+ 5*\beta +\gamma)
+(1\\+   \beta +\gamma)
+(2\\+ 4*\beta +\gamma)
+(1\\+ 2*\beta +\gamma)
+\\]
+
+\end{aligned}
+
+So now we have Z\_1,2\\, in the 
+form of:
+
+\begin{aligned}
+
+\\[ 
+    Z\_{i} = w\_{i} + \beta\_{i} + \gamma
+\\]
+
+\end{aligned}
+
+To check this permutation, 
+we are able to simply
+divide a rotated syntax of 
+the products by one another. 
+The requirement for this 
+rotation stems from the 
+evaluation domain used in 
+PLONK. Even still, the 
+priniciple of checking the 
+division between these two 
+Z\\ polynomials for a `0`
+value is enough to determine 
+the equality, or lack of, 
+between them.
