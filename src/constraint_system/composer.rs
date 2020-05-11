@@ -1175,9 +1175,14 @@ impl StandardComposer {
         b: Variable,
         c: Variable,
         d: Variable,
+        num_bits: usize,
     ) -> () {
+        // Since we work on base4, we need to guarantee that we have an even
+        // number of bits representing the greatest input.
+        assert_eq!(num_bits & 1, 0);
+
         // When the round needs to be initiated, we have a memory structure, where
-        // some constants will be calculated and fixed bsed on given generators, impl.
+        // some constants will be calculated and fixed based on given generators, impl.
         // * +-----+-----+-----+-----+
         // * |  A  |  B  |  C  |  D  |
         // * +-----+-----+-----+-----+
@@ -1194,16 +1199,11 @@ impl StandardComposer {
         let mut accum = scalar.clone();
         // Get scalar in correct format
         // [i8; 256]
-        let wnaf_scalar = scalar.compute_windowed_naf(3u8).to_vec();
-        // [point, identity, 3*point]
-        let table = vec![
-            point,
-            AffinePoint::identity(),
-            GENERATOR * Fq::from(3 as u64),
-        ];
+        let wnaf_scalar = Scalar.compute_windowed_naf(3u8).to_vec();
+        wnaf_scalar.reverse();
+        // [point, 3*point]
+        let table = vec![GENERATOR, GENERATOR * Scalar::from(3 as u64)];
         for coeff in wnaf_scalar {
-            accum = accum + accum;
-
             let point_to_add = match (coeff > 0i8, coeff < 0i8, coeff == 0i8) {
                 (true, false, false) => table[(coeff - 1) as usize],
                 (false, true, false) => -table[(coeff.abs() - 1) as usize],
@@ -1213,27 +1213,15 @@ impl StandardComposer {
 
             // Now that we have our scalar in the NAF form, we need to precompute our look up table.
             // This is done to provide the potential add-in-x-coordinate's at each round. As only 1
-            // and 3 are possible, the ladder look up function will be a 2 bit output. The 2 resulting 
-            // output coordinates, along with their negative y-cooridinate counterparts, will be the 
-            // 4 coordinates, which the add-in-x-coordinate is derived from. 
-
-            fn generate_lookup_table(G: GENERATOR, a: scalar) -> AffinePoint
-
-
-            accum = accum + point_to_add;
-
-            self.q_m.push(Scalar::zero());
-            self.q_arith.push(Scalar::zero());
-
-            self.q_o.push(accum.u);
-            self.q_ecc.push(accum.v);
+            // and 3 are possible, the ladder look up function will be a 2 bit output. The 2 resulting
+            // output coordinates, along with their negative y-coordinate counterparts, will be the
+            // 4 coordinates, which the add-in-x-coordinate is derived from.
 
             self.q_range.push(Scalar::zero());
             self.q_c.push(Scalar::zero());
             self.q_logic.push(Scalar::zero());
             self.q_4.push(Scalar::zero());
 
-            self.add_input(accum);
             self.perm.add_variable_to_map(a, WireData::Left(self.n));
             self.w_l.push(self.zero_var);
             self.perm.add_variable_to_map(b, WireData::Right(self.n));
