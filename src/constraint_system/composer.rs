@@ -1171,10 +1171,10 @@ impl StandardComposer {
     pub fn scalar_mul_gate(
         &self,
         scalar: Fq,
-        a: Variable,
-        b: Variable,
-        c: Variable,
-        d: Variable,
+        a: Scalar,
+        b: Scalar,
+        c: Scalar,
+        d: Scalar,
         num_bits: usize,
     ) -> () {
         // Since we work on base4, we need to guarantee that we have an even
@@ -1195,14 +1195,31 @@ impl StandardComposer {
         // To give some clarity on what needs to be assigned to each wire,
         // we have w_l = x-coordinate, w_r = y-coordinate, w_o = add-in-x-coordinate
         // and w_4 = accumulator.
+        let var_a = self.add_input(a);
+        let var_b = self.add_input(b);
+        let var_c = self.add_input(c);
+        let var_d = self.add_input(d);
+
+        self.perm.add_variable_to_map(var_a, WireData::Left(self.n));
+        self.perm
+            .add_variable_to_map(var_b, WireData::Right(self.n));
+        self.perm
+            .add_variable_to_map(var_c, WireData::Fourth(self.n));
+        self.perm.add_variable_to_map(var_d, WireData::Left(self.n));
+        self.w_l.push(var_a);
+        self.w_r.push(var_b);
+        self.w_4.push(var_c);
+        self.w_4.push(var_d);
+
+        self.n += 1;
         // Accumulator point
         let mut accum = scalar.clone();
         // Get scalar in correct format
         // [i8; 256]
-        let wnaf_scalar = Scalar.compute_windowed_naf(3u8).to_vec();
+        let wnaf_scalar = scalar.compute_windowed_naf(3u8).to_vec();
         wnaf_scalar.reverse();
         // [point, 3*point]
-        let table = vec![GENERATOR, GENERATOR * Scalar::from(3 as u64)];
+        let table = vec![GENERATOR, GENERATOR * wnaf_scalar::from(3 as u64)];
         for coeff in wnaf_scalar {
             let point_to_add = match (coeff > 0i8, coeff < 0i8, coeff == 0i8) {
                 (true, false, false) => table[(coeff - 1) as usize],
@@ -1222,13 +1239,16 @@ impl StandardComposer {
             self.q_logic.push(Scalar::zero());
             self.q_4.push(Scalar::zero());
 
-            self.perm.add_variable_to_map(a, WireData::Left(self.n));
+            self.perm.add_variable_to_map(var_a, WireData::Left(self.n));
             self.w_l.push(self.zero_var);
-            self.perm.add_variable_to_map(b, WireData::Right(self.n));
+            self.perm
+                .add_variable_to_map(var_b, WireData::Right(self.n));
             self.w_r.push(self.zero_var);
-            self.perm.add_variable_to_map(c, WireData::Output(self.n));
+            self.perm
+                .add_variable_to_map(var_c, WireData::Output(self.n));
             self.w_o.push(self.zero_var);
-            self.perm.add_variable_to_map(d, WireData::Fourth(self.n));
+            self.perm
+                .add_variable_to_map(var_d, WireData::Fourth(self.n));
             self.w_4.push(self.zero_var);
 
             // Increment gate index
