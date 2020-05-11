@@ -1,7 +1,6 @@
 use crate::commitment_scheme::kzg10::{CommitKey, OpeningKey};
 use crate::constraint_system::StandardComposer;
-use crate::proof_system::PreProcessedCircuit;
-use crate::proof_system::Proof;
+use crate::proof_system::{PreProcessedCircuit, Proof};
 use dusk_bls12_381::Scalar;
 use failure::Error;
 use merlin::Transcript;
