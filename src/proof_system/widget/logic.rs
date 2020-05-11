@@ -113,6 +113,7 @@ impl LogicWidget {
     pub(crate) fn compute_quotient_i(
         &self,
         index: usize,
+        logic_separation_challenge: &Scalar,
         w_l_i: &Scalar,
         w_l_i_next: &Scalar,
         w_r_i: &Scalar,
@@ -126,26 +127,31 @@ impl LogicWidget {
         let q_logic_i = &self.q_logic.evaluations.as_ref().unwrap()[index];
         let q_c_i = &self.q_c.evaluations.as_ref().unwrap()[index];
 
+        let kappa = logic_separation_challenge.square();
+        let kappa_sq = kappa.square();
+        let kappa_cu = kappa_sq * kappa;
+        let kappa_qu = kappa_cu * kappa;
+
         let a = w_l_i_next - four * w_l_i;
         let c_0 = delta(a);
 
         let b = w_r_i_next - four * w_r_i;
-        let c_1 = delta(b);
+        let c_1 = delta(b) * kappa;
 
         let d = w_4_i_next - four * w_4_i;
-        let c_2 = delta(d);
+        let c_2 = delta(d) * kappa_sq;
 
         let w = w_o_i;
+        let c_3 = (w - a * b) * kappa_cu;
 
-        let c_3 = w - a * b;
+        let c_4 = delta_xor_and(&a, &b, w, &d, &q_c_i) * kappa_qu;
 
-        let c_4 = delta_xor_and(&a, &b, w, &d, &q_c_i);
-
-        q_logic_i * (c_3 + c_0 + c_1 + c_2 + c_4)
+        q_logic_i * (c_3 + c_0 + c_1 + c_2 + c_4) * logic_separation_challenge
     }
 
     pub(crate) fn compute_linearisation(
         &self,
+        logic_separation_challenge: &Scalar,
         a_eval: &Scalar,
         a_next_eval: &Scalar,
         b_eval: &Scalar,
@@ -156,50 +162,60 @@ impl LogicWidget {
         q_c_eval: &Scalar,
     ) -> Polynomial {
         let four = Scalar::from(4);
-
         let q_logic_poly = &self.q_logic.polynomial;
+
+        let kappa = logic_separation_challenge.square();
+        let kappa_sq = kappa.square();
+        let kappa_cu = kappa_sq * kappa;
+        let kappa_qu = kappa_cu * kappa;
 
         let a = a_next_eval - four * a_eval;
         let c_0 = delta(a);
 
         let b = b_next_eval - four * b_eval;
-        let c_1 = delta(b);
+        let c_1 = delta(b) * kappa;
 
         let d = d_next_eval - four * d_eval;
-        let c_2 = delta(d);
+        let c_2 = delta(d) * kappa_sq;
 
         let w = c_eval;
+        let c_3 = (w - a * b) * kappa_cu;
 
-        let c_3 = w - a * b;
+        let c_4 = delta_xor_and(&a, &b, w, &d, &q_c_eval) * kappa_qu;
 
-        let c_4 = delta_xor_and(&a, &b, w, &d, &q_c_eval);
+        let t = (c_0 + c_1 + c_2 + c_3 + c_4) * logic_separation_challenge;
 
-        q_logic_poly * &(c_0 + c_1 + c_2 + c_3 + c_4)
+        q_logic_poly * &t
     }
 
     pub(crate) fn compute_linearisation_commitment(
         &self,
+        logic_separation_challenge: &Scalar,
         scalars: &mut Vec<Scalar>,
         points: &mut Vec<G1Affine>,
         evaluations: &ProofEvaluations,
     ) {
         let four = Scalar::from(4);
 
+        let kappa = logic_separation_challenge.square();
+        let kappa_sq = kappa.square();
+        let kappa_cu = kappa_sq * kappa;
+        let kappa_qu = kappa_cu * kappa;
+
         let a = evaluations.a_next_eval - four * evaluations.a_eval;
         let c_0 = delta(a);
 
         let b = evaluations.b_next_eval - four * evaluations.b_eval;
-        let c_1 = delta(b);
+        let c_1 = delta(b) * kappa;
 
         let d = evaluations.d_next_eval - four * evaluations.d_eval;
-        let c_2 = delta(d);
+        let c_2 = delta(d) * kappa_sq;
 
         let w = evaluations.c_eval;
+        let c_3 = (w - a * b) * kappa_cu;
 
-        let c_3 = w - a * b;
-
-        let c_4 = delta_xor_and(&a, &b, &w, &d, &evaluations.q_c_eval);
-        scalars.push(c_0 + c_1 + c_2 + c_3 + c_4);
+        let c_4 = delta_xor_and(&a, &b, &w, &d, &evaluations.q_c_eval) * kappa_qu;
+        scalars.push((c_0 + c_1 + c_2 + c_3 + c_4) * logic_separation_challenge);
         points.push(self.q_logic.commitment.0);
     }
 }
