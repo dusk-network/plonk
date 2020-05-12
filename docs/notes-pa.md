@@ -6,43 +6,47 @@ Permutation argument
 ==============
 
 Within PLONK, the permutation 
-polynomials are used to form 
-arugments about the proving 
-scheme. 
+polynomials are used to compare 
+arguments about the proving 
+scheme.  
 
-These arguments are used to 
-check samples of elements, 
-against the original ones. 
+These arguments are 
+checking that wire values, 
+within the circuit, are
+being correctly copied. 
 As is noted in other parts
 of the docs, there is the 
 need for a copy check in 
 in SNARK schemes. This is 
 crucial in our zk-SNARK
 scheme, to ensure the 
-correctness of wires and 
-allow us to express circuits
-with less differing vectors 
-per polynomial. 
+correctness of wires when 
+bundling similar wires, 
+and for ensuring values are
+travelling the correct way
+along wires.
 
 PLONK uses an argument to check 
 the correctness of a shuffle in 
-its proving algorithm. This allows 
-for the checking of individual 
-wires rather than entire sets. 
+its proving algorithm. This is 
+essentially showin that the 
+products of polynomials are 
+the same, despite the ordering 
+being constructed differently.
 In principle, PLONK can compare sets 
 of polynomials for equality by 
-comparing an `n` degree polynomial 
-with the same `n` degree polynomial 
-where some elements have been 
-rotated. 
+comparing `n` number of polynomials 
+with the same `n` number of polynomials 
+, where the elements have been 
+shuffled. 
 
-Given a set of wire values, at a 
+Given a set of  values, at a 
 particular position, we can create 
-a mapping for these wires into a 
-new position with a permuatation. 
+a mapping for the initial index into a 
+new position, with a permutation. 
 
 For example: 
-Given initial wire values, 
+Given initial values, 
 1,2,3,4,5 each occupying 
 their respective positions
 A,B,C,D,E
@@ -93,13 +97,13 @@ proofs, by having the sum of the
 equation arguments equal - without 
 having the identities between the
 monomials hold - therefore, two random 
-constants are introduced to the 
+challenges are introduced to the 
 equation. 
 
 The first is Beta, which is mutiplied
-by the wire index and the second is 
-gamma, which is derived from the prime 
-field. 
+by the index and the second is 
+gamma. Both of which, are taken from 
+the prime field. 
 
 To isolate the terms, for better evaluation,
 we are also capable of describing each wire
@@ -154,15 +158,11 @@ form of:
 
 To check this permutation, 
 we are able to simply
-divide a rotated syntax of 
-the products by one another. 
-The requirement for this 
-rotation stems from the 
-evaluation domain used in 
-PLONK. Even still, the 
-priniciple of checking the 
-division between these two 
-Z\\ polynomials for a `0`
-value is enough to determine 
-the equality, or lack of, 
-between them.
+divide a the polynomial by 
+its shuffled counterpart.
+The priniciple of checking 
+the division between these 
+two Z\\ polynomials for an 
+evalutaion of `1`, is enough 
+to determine the equality, 
+or lack of, between them.

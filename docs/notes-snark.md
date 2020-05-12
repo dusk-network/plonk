@@ -1,4 +1,4 @@
-3This module contains the methodology of how
+This module contains the methodology of how
 zk-SNARKS are constructed.
 
 SNARKs

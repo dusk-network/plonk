@@ -7,11 +7,7 @@ Permutation polynomials
 
 A permutation polynomial is bijective 
 function which describes a permutation, 
-of a group of elements. These functions 
-are commonly denoted as polynomial 
-functions when the elements they 
-contain, as well as the mapping itself,
-is over a finite field. 
+of a group of elements. 
 
 The purpose of constructing these 
 polynomials is often for analysis,
@@ -20,7 +16,7 @@ A permutated set is a different
 linear arrangement of elements. 
 
 The linearity of these is how 
-permuatations differ from other 
+permutations differ from other 
 means of selection from a set. 
 
 For example: 
@@ -30,7 +26,7 @@ For example:
 \end{aligned}
 
 is a number set which can have 
-only six permuatations, namely:
+only six permutations, namely:
 
 \begin{aligned}
 {1,2,3}
@@ -41,9 +37,9 @@ only six permuatations, namely:
 {3,1,2}
 \end{aligned}
 
-This example satisifes the two 
+This example satisfies the two 
 main properties which define set
-permuatations:
+permutations:
 
 1. The number of permutations is at most 
 n! for n elements. 
@@ -53,7 +49,7 @@ itself.
 
 These basic properties are used in 
 the construction of zero knowledge 
-proofs and when the inividual 
+proofs and when the individual 
 permutations are described, they 
 are often compounded into 
 polynomials which describe these many
