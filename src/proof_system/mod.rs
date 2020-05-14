@@ -1,5 +1,6 @@
 //! proving system
 
+pub(crate) mod challenger;
 pub(crate) mod linearisation_poly;
 pub(crate) mod preprocessed_circuit;
 pub(crate) mod proof;
