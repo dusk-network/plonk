@@ -2,11 +2,11 @@
 use super::constants::{K1, K2, K3};
 use crate::constraint_system::{Variable, WireData};
 use crate::fft::{EvaluationDomain, Polynomial};
+use crate::proof_system::challenger::{Challenger, Challenges};
 use dusk_bls12_381::Scalar;
 use itertools::izip;
 use rayon::iter::*;
 use std::collections::HashMap;
-
 /// Permutation provides the necessary state information and functions
 /// to create the permutation polynomial. In the literature, Z(X) is the "accumulator",
 /// this is what this codebase calls the permutation polynomial.  
@@ -192,7 +192,7 @@ impl Permutation {
         w_r: &[Scalar],
         w_o: &[Scalar],
         w_4: &[Scalar],
-        (beta, gamma): &(Scalar, Scalar),
+        challenger: &mut Challenger,
         (left_sigma_poly, right_sigma_poly, out_sigma_poly, fourth_sigma_poly): (
             &Polynomial,
             &Polynomial,
@@ -200,14 +200,17 @@ impl Permutation {
             &Polynomial,
         ),
     ) -> Polynomial {
+        let beta = challenger.cached_challenge(Challenges::Beta);
+        let gamma = challenger.cached_challenge(Challenges::Gamma);
+
         let z_evaluations = self.compute_fast_permutation_poly(
             domain,
             w_l,
             w_r,
             w_o,
             w_4,
-            beta,
-            gamma,
+            &beta,
+            &gamma,
             (
                 left_sigma_poly,
                 right_sigma_poly,
