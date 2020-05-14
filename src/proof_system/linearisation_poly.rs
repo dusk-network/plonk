@@ -1,9 +1,9 @@
 use crate::fft::{EvaluationDomain, Polynomial};
+use crate::proof_system::challenger::{Challenger, Challenges};
 use crate::proof_system::PreProcessedCircuit;
 use dusk_bls12_381::Scalar;
 #[cfg(feature = "serde")]
 use serde::{de::Visitor, ser::SerializeStruct, Deserialize, Deserializer, Serialize, Serializer};
-
 /// Evaluations at points `z` or and `z * root of unity`
 pub struct Evaluations {
     pub proof: ProofEvaluations,
@@ -238,14 +238,7 @@ impl<'de> Deserialize<'de> for ProofEvaluations {
 pub fn compute(
     domain: &EvaluationDomain,
     preprocessed_circuit: &PreProcessedCircuit,
-    (alpha, beta, gamma, range_separation_challenge, logic_separation_challenge, z_challenge): &(
-        Scalar,
-        Scalar,
-        Scalar,
-        Scalar,
-        Scalar,
-        Scalar,
-    ),
+    challenger: &Challenger,
     w_l_poly: &Polynomial,
     w_r_poly: &Polynomial,
     w_o_poly: &Polynomial,
@@ -253,37 +246,44 @@ pub fn compute(
     t_x_poly: &Polynomial,
     z_poly: &Polynomial,
 ) -> (Polynomial, Evaluations) {
+    let alpha = challenger.cached_challenge(Challenges::Alpha);
+    let beta = challenger.cached_challenge(Challenges::Beta);
+    let gamma = challenger.cached_challenge(Challenges::Gamma);
+    let range_separation_challenge = challenger.cached_challenge(Challenges::RangeSeparation);
+    let logic_separation_challenge = challenger.cached_challenge(Challenges::LogicSeparation);
+    let z_challenge = challenger.cached_challenge(Challenges::Evaluation);
+
     // Compute evaluations
-    let quot_eval = t_x_poly.evaluate(z_challenge);
-    let a_eval = w_l_poly.evaluate(z_challenge);
-    let b_eval = w_r_poly.evaluate(z_challenge);
-    let c_eval = w_o_poly.evaluate(z_challenge);
-    let d_eval = w_4_poly.evaluate(z_challenge);
+    let quot_eval = t_x_poly.evaluate(&z_challenge);
+    let a_eval = w_l_poly.evaluate(&z_challenge);
+    let b_eval = w_r_poly.evaluate(&z_challenge);
+    let c_eval = w_o_poly.evaluate(&z_challenge);
+    let d_eval = w_4_poly.evaluate(&z_challenge);
     let left_sigma_eval = preprocessed_circuit
         .permutation
         .left_sigma
         .polynomial
-        .evaluate(z_challenge);
+        .evaluate(&z_challenge);
     let right_sigma_eval = preprocessed_circuit
         .permutation
         .right_sigma
         .polynomial
-        .evaluate(z_challenge);
+        .evaluate(&z_challenge);
     let out_sigma_eval = preprocessed_circuit
         .permutation
         .out_sigma
         .polynomial
-        .evaluate(z_challenge);
+        .evaluate(&z_challenge);
     let q_arith_eval = preprocessed_circuit
         .arithmetic
         .q_arith
         .polynomial
-        .evaluate(z_challenge);
+        .evaluate(&z_challenge);
     let q_c_eval = preprocessed_circuit
         .logic
         .q_c
         .polynomial
-        .evaluate(z_challenge);
+        .evaluate(&z_challenge);
 
     let a_next_eval = w_l_poly.evaluate(&(z_challenge * domain.group_gen));
     let b_next_eval = w_r_poly.evaluate(&(z_challenge * domain.group_gen));
@@ -291,7 +291,7 @@ pub fn compute(
     let perm_eval = z_poly.evaluate(&(z_challenge * domain.group_gen));
 
     let f_1 = compute_circuit_satisfiability(
-        (range_separation_challenge, logic_separation_challenge),
+        (&range_separation_challenge, &logic_separation_challenge),
         &a_eval,
         &b_eval,
         &c_eval,
@@ -305,8 +305,8 @@ pub fn compute(
     );
 
     let f_2 = preprocessed_circuit.permutation.compute_linearisation(
-        z_challenge,
-        (alpha, beta, gamma),
+        &z_challenge,
+        (&alpha, &beta, &gamma),
         (&a_eval, &b_eval, &c_eval, &d_eval),
         (&left_sigma_eval, &right_sigma_eval, &out_sigma_eval),
         &perm_eval,
@@ -316,7 +316,7 @@ pub fn compute(
     let lin_poly = &f_1 + &f_2;
 
     // Evaluate linearisation polynomial at z_challenge
-    let lin_poly_eval = lin_poly.evaluate(z_challenge);
+    let lin_poly_eval = lin_poly.evaluate(&z_challenge);
 
     (
         lin_poly,
