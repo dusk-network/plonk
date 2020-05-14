@@ -9,11 +9,10 @@ use super::proof_system_errors::{ProofError, ProofErrors};
 use super::PreProcessedCircuit;
 use crate::commitment_scheme::kzg10::{AggregateProof, Commitment, OpeningKey};
 use crate::fft::EvaluationDomain;
-use crate::transcript::TranscriptProtocol;
+use crate::proof_system::challenger::{Challenger, Challenges, Commitments, Evaluations};
 use dusk_bls12_381::{multiscalar_mul::msm_variable_base, G1Affine, Scalar};
 use failure::Error;
 use merlin::Transcript;
-
 #[cfg(feature = "serde")]
 use serde::{de::Visitor, ser::SerializeStruct, Deserialize, Deserializer, Serialize, Serializer};
 
@@ -245,35 +244,38 @@ impl Proof {
         // that the prover added into the transcript, hence generating the same challenges
         //
         // Add commitment to witness polynomials to transcript
-        transcript.append_commitment(b"w_l", &self.a_comm);
-        transcript.append_commitment(b"w_r", &self.b_comm);
-        transcript.append_commitment(b"w_o", &self.c_comm);
-        transcript.append_commitment(b"w_4", &self.d_comm);
+
+        let mut challenger = Challenger::from(transcript.clone());
+
+        challenger.append_commitment(Commitments::LeftWitness, &self.a_comm);
+        challenger.append_commitment(Commitments::RightWitness, &self.b_comm);
+        challenger.append_commitment(Commitments::OutWitness, &self.c_comm);
+        challenger.append_commitment(Commitments::FourthWitness, &self.d_comm);
 
         // Compute beta and gamma challenges
-        let beta = transcript.challenge_scalar(b"beta");
-        transcript.append_scalar(b"beta", &beta);
-        let gamma = transcript.challenge_scalar(b"gamma");
+        let beta = challenger.compute_challenge(Challenges::Beta);
+        challenger.append_challenge(Challenges::Beta);
+        let gamma = challenger.compute_challenge(Challenges::Gamma);
+
         // Add commitment to permutation polynomial to transcript
-        transcript.append_commitment(b"z", &self.z_comm);
+        challenger.append_commitment(Commitments::Permutation, &self.z_comm);
 
         // Compute quotient challenge
-        let alpha = transcript.challenge_scalar(b"alpha");
-        let range_sep_challenge = transcript.challenge_scalar(b"range separation challenge");
-        let logic_sep_challenge = transcript.challenge_scalar(b"logic separation challenge");
+        let alpha = challenger.compute_challenge(Challenges::Alpha);
+        let range_separation_challenge = challenger.compute_challenge(Challenges::RangeSeparation);
+        let logic_separation_challenge = challenger.compute_challenge(Challenges::LogicSeparation);
 
         // Add commitment to quotient polynomial to transcript
-        transcript.append_commitment(b"t_1", &self.t_1_comm);
-        transcript.append_commitment(b"t_2", &self.t_2_comm);
-        transcript.append_commitment(b"t_3", &self.t_3_comm);
-        transcript.append_commitment(b"t_4", &self.t_4_comm);
+        challenger.append_commitment(Commitments::QuotientPoly1, &self.t_1_comm);
+        challenger.append_commitment(Commitments::QuotientPoly2, &self.t_2_comm);
+        challenger.append_commitment(Commitments::QuotientPoly3, &self.t_3_comm);
+        challenger.append_commitment(Commitments::QuotientPoly4, &self.t_4_comm);
 
         // Compute evaluation challenge
-        let z_challenge = transcript.challenge_scalar(b"z");
+        let z_challenge = challenger.compute_challenge(Challenges::Evaluation);
 
         // Compute zero polynomial evaluated at `z_challenge`
         let z_h_eval = domain.evaluate_vanishing_polynomial(&z_challenge);
-
         // Compute first lagrange polynomial evaluated at `z_challenge`
         let l1_eval = compute_first_lagrange_evaluation(&domain, &z_h_eval, &z_challenge);
 
@@ -295,28 +297,19 @@ impl Proof {
         let t_comm = self.compute_quotient_commitment(&z_challenge, domain.size());
 
         // Add evaluations to transcript
-        transcript.append_scalar(b"a_eval", &self.evaluations.a_eval);
-        transcript.append_scalar(b"b_eval", &self.evaluations.b_eval);
-        transcript.append_scalar(b"c_eval", &self.evaluations.c_eval);
-        transcript.append_scalar(b"d_eval", &self.evaluations.d_eval);
-        transcript.append_scalar(b"a_next_eval", &self.evaluations.a_next_eval);
-        transcript.append_scalar(b"b_next_eval", &self.evaluations.b_next_eval);
-        transcript.append_scalar(b"d_next_eval", &self.evaluations.d_next_eval);
-        transcript.append_scalar(b"left_sig_eval", &self.evaluations.left_sigma_eval);
-        transcript.append_scalar(b"right_sig_eval", &self.evaluations.right_sigma_eval);
-        transcript.append_scalar(b"out_sig_eval", &self.evaluations.out_sigma_eval);
-        transcript.append_scalar(b"q_arith_eval", &self.evaluations.q_arith_eval);
-        transcript.append_scalar(b"q_c_eval", &self.evaluations.q_c_eval);
-        transcript.append_scalar(b"perm_eval", &self.evaluations.perm_eval);
-        transcript.append_scalar(b"t_eval", &t_eval);
-        transcript.append_scalar(b"r_eval", &self.evaluations.lin_poly_eval);
+        challenger.append_evaluations(&self.evaluations);
+        challenger.append_scalar(Evaluations::Quotient, &t_eval);
+
+        let aggregation_challenge = challenger.compute_challenge(Challenges::Aggregation);
+        let shifted_aggregation_challenge =
+            challenger.compute_challenge(Challenges::ShiftedAggregation);
 
         // Compute linearisation commitment
         let r_comm = self.compute_linearisation_commitment(
             &alpha,
             &beta,
             &gamma,
-            (&range_sep_challenge, &logic_sep_challenge),
+            (&range_separation_challenge, &logic_separation_challenge),
             &z_challenge,
             l1_eval,
             &preprocessed_circuit,
@@ -349,7 +342,7 @@ impl Proof {
             preprocessed_circuit.permutation.out_sigma.commitment,
         ));
         // Flatten proof with opening challenge
-        let flattened_proof_a = aggregate_proof.flatten(transcript);
+        let flattened_proof_a = aggregate_proof.flatten(aggregation_challenge);
 
         // Compose the shifted aggregate proof
         let mut shifted_aggregate_proof = AggregateProof::with_witness(self.w_zw_comm);
@@ -357,18 +350,19 @@ impl Proof {
         shifted_aggregate_proof.add_part((self.evaluations.a_next_eval, self.a_comm));
         shifted_aggregate_proof.add_part((self.evaluations.b_next_eval, self.b_comm));
         shifted_aggregate_proof.add_part((self.evaluations.d_next_eval, self.d_comm));
-        let flattened_proof_b = shifted_aggregate_proof.flatten(transcript);
+        let flattened_proof_b = shifted_aggregate_proof.flatten(shifted_aggregation_challenge);
 
-        // Add commitment to openings to transcript
-        transcript.append_commitment(b"w_z", &self.w_z_comm);
-        transcript.append_commitment(b"w_z_w", &self.w_zw_comm);
+        // Add commitment to openings to transcript and generate batch challenge
+        challenger.append_commitment(Commitments::Opening, &self.w_z_comm);
+        challenger.append_commitment(Commitments::ShiftedOpening, &self.w_zw_comm);
+        let batch_challenge = challenger.compute_challenge(Challenges::Batch);
 
         // Batch check
         if opening_key
             .batch_check(
                 &[z_challenge, (z_challenge * domain.group_gen)],
                 &[flattened_proof_a, flattened_proof_b],
-                transcript,
+                batch_challenge,
             )
             .is_err()
         {
