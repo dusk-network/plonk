@@ -1,9 +1,9 @@
 use crate::fft::{EvaluationDomain, Polynomial};
+use crate::proof_system::challenger::{Challenger, Challenges};
 use crate::proof_system::PreProcessedCircuit;
 use dusk_bls12_381::Scalar;
 use failure::Error;
 use rayon::prelude::*;
-
 /// This quotient polynomial can only be used for the standard composer
 /// Each composer will need to implement their own method for computing the quotient polynomial
 
@@ -14,14 +14,15 @@ pub(crate) fn compute(
     z_poly: &Polynomial,
     (w_l_poly, w_r_poly, w_o_poly, w_4_poly): (&Polynomial, &Polynomial, &Polynomial, &Polynomial),
     public_inputs_poly: &Polynomial,
-    (alpha, beta, gamma, range_challenge, logic_challenge): &(
-        Scalar,
-        Scalar,
-        Scalar,
-        Scalar,
-        Scalar,
-    ),
+    challenger: &Challenger,
 ) -> Result<Polynomial, Error> {
+    // Fetch challenges
+    let alpha = challenger.cached_challenge(Challenges::Alpha);
+    let beta = challenger.cached_challenge(Challenges::Beta);
+    let gamma = challenger.cached_challenge(Challenges::Gamma);
+    let range_challenge = challenger.cached_challenge(Challenges::RangeSeparation);
+    let logic_challenge = challenger.cached_challenge(Challenges::LogicSeparation);
+
     // Compute 4n eval of z(X)
     let domain_4n = EvaluationDomain::new(4 * domain.size())?;
     let mut z_eval_4n = domain_4n.coset_fft(&z_poly);
@@ -50,7 +51,7 @@ pub(crate) fn compute(
 
     let t_1 = compute_circuit_satisfiability_equation(
         &domain,
-        (range_challenge, logic_challenge),
+        (&range_challenge, &logic_challenge),
         preprocessed_circuit,
         (&wl_eval_4n, &wr_eval_4n, &wo_eval_4n, &w4_eval_4n),
         public_inputs_poly,
@@ -61,7 +62,7 @@ pub(crate) fn compute(
         preprocessed_circuit,
         (&wl_eval_4n, &wr_eval_4n, &wo_eval_4n, &w4_eval_4n),
         &z_eval_4n,
-        (alpha, beta, gamma),
+        (&alpha, &beta, &gamma),
     );
 
     let quotient: Vec<_> = (0..domain_4n.size())
