@@ -233,7 +233,7 @@ impl Prover {
         let (lin_poly, evaluations) = linearisation_poly::compute(
             &domain,
             &preprocessed_circuit,
-            &mut challenger,
+            &challenger,
             &w_l_poly,
             &w_r_poly,
             &w_o_poly,

@@ -29,7 +29,7 @@ pub(crate) enum Challenges {
 }
 
 impl Challenges {
-    fn to_string(&self) -> &'static [u8] {
+    fn to_string(self) -> &'static [u8] {
         match self {
             Challenges::Alpha => b"alpha",
             Challenges::Beta => b"beta",
