@@ -17,9 +17,14 @@ pub struct LadderValues{
 
 impl Default for LadderValues {
     pub fn default() -> Self {
+        let one = G1Affine::generator();
+            let three = G1Affine::generator() * 3;
+
+            
+
         LadderValues{
-            one: G1Affine::generator(),
-            three: G1Affine::generator() * 3,
+            one,
+            three,
         }
     }
 }

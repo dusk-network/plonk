@@ -1186,11 +1186,11 @@ impl StandardComposer {
         // * +-----+-----+-----+-----+
         // * |  A  |  B  |  C  |  D  |
         // * +-----+-----+-----+-----+
-        // * | a0  | b0  | w1  | c0  |
-        // * | a1  | b1  | w2  | c1  |
-        // * | a2  | b2  | w3  | c2  |
+        // * | x0  | y0  | xa0 | a0  |
+        // * | x1  | y1  | xa1 | a1  |
+        // * | x2  | y2  | xa2 | a2  |
         // * |  :  |  :  |  :  |  :  |
-        // * | an  | bn  | wn  | cn  |
+        // * | xn  | yn  | xan | an  |
         // * +-----+-----+-----+-----+
         // To give some clarity on what needs to be assigned to each wire,
         // we have w_l = x-coordinate, w_r = y-coordinate, w_o = add-in-x-coordinate
