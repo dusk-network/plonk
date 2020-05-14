@@ -5,12 +5,11 @@ use super::{
     errors::{KZG10Errors, PolyCommitSchemeError},
     AggregateProof, Commitment, Proof,
 };
-use crate::{fft::Polynomial, transcript::TranscriptProtocol, util};
+use crate::{fft::Polynomial, util};
 use dusk_bls12_381::{
     multiscalar_mul::msm_variable_base, G1Affine, G1Projective, G2Affine, G2Prepared, Scalar,
 };
 use failure::Error;
-use merlin::Transcript;
 
 /// Opening Key is used to verify opening proofs made about a committed polynomial.
 #[derive(Clone, Debug)]
@@ -264,10 +263,9 @@ impl CommitKey {
         &self,
         polynomials: &[Polynomial],
         point: &Scalar,
-        transcript: &mut Transcript,
+        aggregate_challenge: Scalar,
     ) -> Polynomial {
-        let challenge = transcript.challenge_scalar(b"aggregate_witness");
-        let powers = util::powers_of(&challenge, polynomials.len() - 1);
+        let powers = util::powers_of(&aggregate_challenge, polynomials.len() - 1);
 
         assert_eq!(powers.len(), polynomials.len());
 
@@ -304,7 +302,7 @@ impl CommitKey {
         polynomials: &[Polynomial],
         evaluations: Vec<Scalar>,
         point: &Scalar,
-        transcript: &mut Transcript,
+        aggregate_challenge: Scalar,
     ) -> Result<AggregateProof, Error> {
         // Commit to polynomials
         let mut polynomial_commitments = Vec::with_capacity(polynomials.len());
@@ -313,7 +311,7 @@ impl CommitKey {
         }
 
         // Compute the aggregate witness for polynomials
-        let witness_poly = self.compute_aggregate_witness(polynomials, point, transcript);
+        let witness_poly = self.compute_aggregate_witness(polynomials, point, aggregate_challenge);
 
         // Commit to witness polynomial
         let witness_commitment = self.commit(&witness_poly)?;
@@ -351,13 +349,12 @@ impl OpeningKey {
         &self,
         points: &[Scalar],
         proofs: &[Proof],
-        transcript: &mut Transcript,
+        batch_challenge: Scalar,
     ) -> Result<(), Error> {
         let mut total_c = G1Projective::identity();
         let mut total_w = G1Projective::identity();
 
-        let challenge = transcript.challenge_scalar(b"batch"); // XXX: Verifier can add their own randomness at this point
-        let powers = util::powers_of(&challenge, proofs.len() - 1);
+        let powers = util::powers_of(&batch_challenge, proofs.len() - 1);
         // Instead of multiplying g and gamma_g in each turn, we simply accumulate
         // their coefficients and perform a final multiplication at the end.
         let mut g_multiplier = Scalar::zero();
@@ -408,7 +405,6 @@ fn check_degree_is_within_bounds(max_degree: usize, poly_degree: usize) -> Resul
 mod test {
     use super::super::srs::*;
     use super::*;
-    use merlin::Transcript;
 
     // Creates a proving key and verifier key based on a specified degree
     fn setup_test(degree: usize) -> (CommitKey, OpeningKey) {
@@ -436,6 +432,7 @@ mod test {
 
         let point_a = Scalar::from(10);
         let point_b = Scalar::from(11);
+        let batch_challenge = Scalar::from(987);
 
         // Compute secret polynomial a
         let poly_a = Polynomial::rand(degree, &mut rand::thread_rng());
@@ -454,11 +451,7 @@ mod test {
         assert!(vk.check(point_b, proof_b));
 
         assert!(vk
-            .batch_check(
-                &[point_a, point_b],
-                &[proof_a, proof_b],
-                &mut Transcript::new(b""),
-            )
+            .batch_check(&[point_a, point_b], &[proof_a, proof_b], batch_challenge,)
             .is_ok());
     }
     #[test]
@@ -466,6 +459,7 @@ mod test {
         let max_degree = 27;
         let (proving_key, opening_key) = setup_test(max_degree);
         let point = Scalar::from(10);
+        let aggregation_challenge = Scalar::from(987);
 
         // Committer's View
         let aggregated_proof = {
@@ -484,14 +478,14 @@ mod test {
                     &[poly_a, poly_b, poly_c],
                     vec![poly_a_eval, poly_b_eval, poly_c_eval],
                     &point,
-                    &mut Transcript::new(b"agg_flatten"),
+                    aggregation_challenge,
                 )
                 .unwrap()
         };
 
         // Verifier's View
         let ok = {
-            let flattened_proof = aggregated_proof.flatten(&mut Transcript::new(b"agg_flatten"));
+            let flattened_proof = aggregated_proof.flatten(aggregation_challenge);
             opening_key.check(point, flattened_proof)
         };
 
@@ -504,6 +498,8 @@ mod test {
         let (proving_key, opening_key) = setup_test(max_degree);
         let point_a = Scalar::from(10);
         let point_b = Scalar::from(11);
+        let batch_challenge = Scalar::from(123);
+        let aggregation_challenge = Scalar::from(456);
 
         // Committer's View
         let (aggregated_proof, single_proof) = {
@@ -525,7 +521,7 @@ mod test {
                     &[poly_a, poly_b, poly_c],
                     vec![poly_a_eval, poly_b_eval, poly_c_eval],
                     &point_a,
-                    &mut Transcript::new(b"agg_batch"),
+                    aggregation_challenge,
                 )
                 .unwrap();
 
@@ -538,13 +534,12 @@ mod test {
 
         // Verifier's View
         let ok = {
-            let mut transcript = Transcript::new(b"agg_batch");
-            let flattened_proof = aggregated_proof.flatten(&mut transcript);
+            let flattened_proof = aggregated_proof.flatten(aggregation_challenge);
 
             opening_key.batch_check(
                 &[point_a, point_b],
                 &[flattened_proof, single_proof],
-                &mut transcript,
+                batch_challenge,
             )
         };
 

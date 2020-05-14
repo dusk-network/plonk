@@ -6,10 +6,8 @@ pub mod srs;
 pub use key::{CommitKey, OpeningKey};
 pub use srs::PublicParameters;
 
-use crate::transcript::TranscriptProtocol;
 use crate::util::powers_of;
 use dusk_bls12_381::{G1Affine, G1Projective, Scalar};
-use merlin::Transcript;
 
 #[cfg(feature = "serde")]
 use serde::{de::Visitor, ser::SerializeStruct, Deserialize, Deserializer, Serialize, Serializer};
@@ -56,9 +54,11 @@ impl AggregateProof {
 
     /// Flattens an `AggregateProof` into a `Proof`.
     /// The transcript must have the same view as the transcript that was used to aggregate the witness in the proving stage.
-    pub fn flatten(&self, transcript: &mut Transcript) -> Proof {
-        let challenge = transcript.challenge_scalar(b"aggregate_witness");
-        let powers = powers_of(&challenge, self.commitments_to_polynomials.len() - 1);
+    pub fn flatten(&self, aggregation_challenge: Scalar) -> Proof {
+        let powers = powers_of(
+            &aggregation_challenge,
+            self.commitments_to_polynomials.len() - 1,
+        );
 
         // Flattened polynomial commitments using challenge
         let flattened_poly_commitments: G1Projective = self
@@ -183,6 +183,11 @@ impl Commitment {
     /// `G1Affine` identity point in Bls12_381.
     pub fn empty() -> Self {
         Commitment(G1Affine::identity())
+    }
+
+    /// Returns the Commitment as a compressed G1 Point
+    pub fn to_bytes(&self) -> [u8; 48] {
+        self.0.to_compressed()
     }
 }
 
