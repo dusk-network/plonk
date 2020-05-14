@@ -2,13 +2,12 @@ use super::proof_system_errors::{ProofError, ProofErrors};
 use crate::commitment_scheme::kzg10::CommitKey;
 use crate::constraint_system::{StandardComposer, Variable};
 use crate::fft::{EvaluationDomain, Polynomial};
+use crate::proof_system::challenger::{Challenger, Challenges, Commitments, Evaluations};
 use crate::proof_system::{linearisation_poly, proof::Proof, quotient_poly, PreProcessedCircuit};
-use crate::transcript::TranscriptProtocol;
 use dusk_bls12_381::Scalar;
 use failure::Error;
 use merlin::Transcript;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
-
 /// Prover composes a circuit and builds a proof
 #[allow(missing_debug_implementations)]
 pub struct Prover {
@@ -131,7 +130,7 @@ impl Prover {
         // Since the caller is passing a pre-processed circuit
         // We assume that the Transcript has been seeded with the preprocessed
         // Commitments
-        let mut transcript = self.preprocessed_transcript.clone();
+        let mut challenger = Challenger::from(self.preprocessed_transcript.clone());
 
         //1. Compute witness Polynomials
         //
@@ -157,18 +156,18 @@ impl Prover {
         let w_4_poly_commit = commit_key.commit(&w_4_poly)?;
 
         // Add witness polynomial commitments to transcript
-        transcript.append_commitment(b"w_l", &w_l_poly_commit);
-        transcript.append_commitment(b"w_r", &w_r_poly_commit);
-        transcript.append_commitment(b"w_o", &w_o_poly_commit);
-        transcript.append_commitment(b"w_4", &w_4_poly_commit);
+        challenger.append_commitment(Commitments::LeftWitness, &w_l_poly_commit);
+        challenger.append_commitment(Commitments::RightWitness, &w_r_poly_commit);
+        challenger.append_commitment(Commitments::OutWitness, &w_o_poly_commit);
+        challenger.append_commitment(Commitments::FourthWitness, &w_4_poly_commit);
 
         // 2. Compute permutation polynomial
         //
         //
         // Compute permutation challenges; `beta` and `gamma`
-        let beta = transcript.challenge_scalar(b"beta");
-        transcript.append_scalar(b"beta", &beta);
-        let gamma = transcript.challenge_scalar(b"gamma");
+        challenger.compute_challenge(Challenges::Beta);
+        challenger.append_challenge(Challenges::Beta);
+        challenger.compute_challenge(Challenges::Gamma);
 
         let z_poly = self.cs.perm.compute_permutation_poly(
             &domain,
@@ -176,7 +175,7 @@ impl Prover {
             &w_r_scalar,
             &w_o_scalar,
             &w_4_scalar,
-            &(beta, gamma),
+            &mut challenger,
             (
                 &preprocessed_circuit.permutation.left_sigma.polynomial,
                 &preprocessed_circuit.permutation.right_sigma.polynomial,
@@ -190,7 +189,7 @@ impl Prover {
         let z_poly_commit = commit_key.commit(&z_poly)?;
 
         // Add permutation polynomial commitment to transcript
-        transcript.append_commitment(b"z", &z_poly_commit);
+        challenger.append_commitment(Commitments::Permutation, &z_poly_commit);
 
         // 3. Compute public inputs polynomial
         let pi_poly = Polynomial::from_coefficients_vec(domain.ifft(&self.cs.public_inputs));
@@ -198,9 +197,9 @@ impl Prover {
         // 4. Compute quotient polynomial
         //
         // Compute quotient challenge; `alpha`
-        let alpha = transcript.challenge_scalar(b"alpha");
-        let range_sep_challenge = transcript.challenge_scalar(b"range separation challenge");
-        let logic_sep_challenge = transcript.challenge_scalar(b"logic separation challenge");
+        challenger.compute_challenge(Challenges::Alpha);
+        challenger.compute_challenge(Challenges::RangeSeparation);
+        challenger.compute_challenge(Challenges::LogicSeparation);
 
         let t_poly = quotient_poly::compute(
             &domain,
@@ -208,7 +207,7 @@ impl Prover {
             &z_poly,
             (&w_l_poly, &w_r_poly, &w_o_poly, &w_4_poly),
             &pi_poly,
-            &(alpha, beta, gamma, range_sep_challenge, logic_sep_challenge),
+            &challenger,
         )?;
 
         // Split quotient polynomial into 4 degree `n` polynomials
@@ -221,27 +220,20 @@ impl Prover {
         let t_4_commit = commit_key.commit(&t_4_poly)?;
 
         // Add quotient polynomial commitments to transcript
-        transcript.append_commitment(b"t_1", &t_1_commit);
-        transcript.append_commitment(b"t_2", &t_2_commit);
-        transcript.append_commitment(b"t_3", &t_3_commit);
-        transcript.append_commitment(b"t_4", &t_4_commit);
+        challenger.append_commitment(Commitments::QuotientPoly1, &t_1_commit);
+        challenger.append_commitment(Commitments::QuotientPoly2, &t_2_commit);
+        challenger.append_commitment(Commitments::QuotientPoly3, &t_3_commit);
+        challenger.append_commitment(Commitments::QuotientPoly4, &t_4_commit);
 
         // 4. Compute linearisation polynomial
         //
         // Compute evaluation challenge; `z`
-        let z_challenge = transcript.challenge_scalar(b"z");
+        let z_challenge = challenger.compute_challenge(Challenges::Evaluation);
 
         let (lin_poly, evaluations) = linearisation_poly::compute(
             &domain,
             &preprocessed_circuit,
-            &(
-                alpha,
-                beta,
-                gamma,
-                range_sep_challenge,
-                logic_sep_challenge,
-                z_challenge,
-            ),
+            &mut challenger,
             &w_l_poly,
             &w_r_poly,
             &w_o_poly,
@@ -251,21 +243,8 @@ impl Prover {
         );
 
         // Add evaluations to transcript
-        transcript.append_scalar(b"a_eval", &evaluations.proof.a_eval);
-        transcript.append_scalar(b"b_eval", &evaluations.proof.b_eval);
-        transcript.append_scalar(b"c_eval", &evaluations.proof.c_eval);
-        transcript.append_scalar(b"d_eval", &evaluations.proof.d_eval);
-        transcript.append_scalar(b"a_next_eval", &evaluations.proof.a_next_eval);
-        transcript.append_scalar(b"b_next_eval", &evaluations.proof.b_next_eval);
-        transcript.append_scalar(b"d_next_eval", &evaluations.proof.d_next_eval);
-        transcript.append_scalar(b"left_sig_eval", &evaluations.proof.left_sigma_eval);
-        transcript.append_scalar(b"right_sig_eval", &evaluations.proof.right_sigma_eval);
-        transcript.append_scalar(b"out_sig_eval", &evaluations.proof.out_sigma_eval);
-        transcript.append_scalar(b"q_arith_eval", &evaluations.proof.q_arith_eval);
-        transcript.append_scalar(b"q_c_eval", &evaluations.proof.q_c_eval);
-        transcript.append_scalar(b"perm_eval", &evaluations.proof.perm_eval);
-        transcript.append_scalar(b"t_eval", &evaluations.quot_eval);
-        transcript.append_scalar(b"r_eval", &evaluations.proof.lin_poly_eval);
+        challenger.append_evaluations(&evaluations.proof);
+        challenger.append_scalar(Evaluations::Quotient, &evaluations.quot_eval);
 
         // 5. Compute Openings using KZG10
         //
@@ -280,6 +259,10 @@ impl Prover {
         );
 
         // Compute aggregate witness to polynomials evaluated at the evaluation challenge `z`
+        let aggregation_challenge = challenger.compute_challenge(Challenges::Aggregation);
+        let shifted_aggregation_challenge =
+            challenger.compute_challenge(Challenges::ShiftedAggregation);
+
         let aggregate_witness = commit_key.compute_aggregate_witness(
             &[
                 quot,
@@ -305,7 +288,7 @@ impl Prover {
                     .clone(),
             ],
             &z_challenge,
-            &mut transcript,
+            aggregation_challenge,
         );
         let w_z_comm = commit_key.commit(&aggregate_witness)?;
 
@@ -313,7 +296,7 @@ impl Prover {
         let shifted_aggregate_witness = commit_key.compute_aggregate_witness(
             &[z_poly, w_l_poly, w_r_poly, w_4_poly],
             &(z_challenge * domain.group_gen),
-            &mut transcript,
+            shifted_aggregation_challenge,
         );
         let w_zx_comm = commit_key.commit(&shifted_aggregate_witness)?;
 
