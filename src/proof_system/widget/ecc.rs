@@ -5,8 +5,11 @@
 // For the scalar base operations we need to
 // build a look up table, where we can find
 // the values of particular indexes in 
-
+#![allow(clippy::too_many_arguments)]
 use super::PreProcessedPolynomial;
+use crate::commitment_scheme::kzg10::Commitment;
+use crate::fft::{Evaluations, Polynomial};
+use crate::proof_system::linearisation_poly::ProofEvaluations;
 use jubjub::Fq;
 use jubjub::Fr;
 use jubjub::AffinePoint;
@@ -150,8 +153,9 @@ pub(crate) fn compute_quotient_i(
     // Check for consistency in the y_value 
 
     let a_1 = 
-
 }
+
+ 
    
 
 

@@ -29,7 +29,7 @@ use dusk_bls12_381::GENERATOR;
 use failure::Error;
 use jubjub::AffinePoint;
 use jubjub::Fq;
-use jubjub::Fr;
+use jubjub::fr;
 use merlin::Transcript;
 use std::collections::HashMap;
 
@@ -223,6 +223,7 @@ impl StandardComposer {
             range: range_widget,
             logic: logic_widget,
             permutation: perm_widget,
+            ecc: ecc_widget,
             // Compute 4n evaluations for X^n -1
             v_h_coset_4n: domain_4n.compute_vanishing_poly_over_coset(domain.size() as u64),
         };
@@ -1168,7 +1169,7 @@ impl StandardComposer {
 
     // Creates an add gate for specific bases. This function will add an X-coordinate into
     // an accumulator for each round of scalar multiplication.
-    pub fn scalar_mul_gate(
+    pub fn fixed_base_add(
         &self,
         scalar: Fq,
         a: Scalar,
@@ -1186,7 +1187,6 @@ impl StandardComposer {
         // * +-----+-----+-----+-----+
         // * |  A  |  B  |  C  |  D  |
         // * +-----+-----+-----+-----+
-        // * | x0  | y0  | xa0 | a0  |
         // * | x1  | y1  | xa1 | a1  |
         // * | x2  | y2  | xa2 | a2  |
         // * |  :  |  :  |  :  |  :  |
@@ -1213,43 +1213,27 @@ impl StandardComposer {
 
         self.n += 1;
         // Accumulator point
-        let mut accum = scalar.clone();
-        // Get scalar in correct format
-        // [i8; 256]
-        let wnaf_scalar = scalar.compute_windowed_naf(3u8).to_vec();
-        wnaf_scalar.reverse();
-        // [point, 3*point]
-        let table = vec![GENERATOR, GENERATOR * wnaf_scalar::from(3 as u64)];
-        for coeff in wnaf_scalar {
-            let point_to_add = match (coeff > 0i8, coeff < 0i8, coeff == 0i8) {
-                (true, false, false) => table[(coeff - 1) as usize],
-                (false, true, false) => -table[(coeff.abs() - 1) as usize],
-                (false, false, true) => AffinePoint::identity(),
-                _ => unreachable!(),
-            };
+        let mut left_accumulator = Scalar::zero();
+        let mut right_accumulator = Scalar::zero();
+        let mut out_accumulator = Scalar::zero();
+        let mut four_accumulator = Scalar();
+        
+        self.q_range.push(Scalar::zero());
+        self.q_c.push(Scalar::zero());
+        self.q_logic.push(Scalar::zero());
+        self.q_4.push(Scalar::zero());
 
-            // Now that we have our scalar in the NAF form, we need to precompute our look up table.
-            // This is done to provide the potential add-in-x-coordinate's at each round. As only 1
-            // and 3 are possible, the ladder look up function will be a 2 bit output. The 2 resulting
-            // output coordinates, along with their negative y-coordinate counterparts, will be the
-            // 4 coordinates, which the add-in-x-coordinate is derived from.
-
-            self.q_range.push(Scalar::zero());
-            self.q_c.push(Scalar::zero());
-            self.q_logic.push(Scalar::zero());
-            self.q_4.push(Scalar::zero());
-
-            self.perm.add_variable_to_map(var_a, WireData::Left(self.n));
-            self.w_l.push(self.zero_var);
-            self.perm
-                .add_variable_to_map(var_b, WireData::Right(self.n));
-            self.w_r.push(self.zero_var);
-            self.perm
-                .add_variable_to_map(var_c, WireData::Output(self.n));
-            self.w_o.push(self.zero_var);
-            self.perm
-                .add_variable_to_map(var_d, WireData::Fourth(self.n));
-            self.w_4.push(self.zero_var);
+        self.perm.add_variable_to_map(var_a, WireData::Left(self.n));
+        self.w_l.push(self.zero_var);
+        self.perm
+            .add_variable_to_map(var_b, WireData::Right(self.n));
+        self.w_r.push(self.zero_var);
+        self.perm
+        .add_variable_to_map(var_c, WireData::Output(self.n));
+        self.w_o.push(self.zero_var);
+        self.perm
+            .add_variable_to_map(var_d, WireData::Fourth(self.n));
+        self.w_4.push(self.zero_var);
 
             // Increment gate index
             self.n += 1;
@@ -1272,6 +1256,26 @@ impl StandardComposer {
         );
     }
 
+    pub fn fixed_base_add_with_inital(
+        &self,
+        scalar: Fq,
+        a: Scalar,
+        b: Scalar,
+        c: Scalar,
+        d: Scalar,
+        num_bits: usize,
+    ) -> () {
+        
+        // * +-----+-----+-----+-----+
+        // * |  A  |  B  |  C  |  D  |
+        // * +-----+-----+-----+-----+
+        // * | x0  | y0  | xa0 | a0  |
+        // * | x1  | y1  | xa1 | a1  |
+        // * | x2  | y2  | xa2 | a2  |
+        // * |  :  |  :  |  :  |  :  |
+        // * | xn  | yn  | xan | an  |
+        // * +-----+-----+-----+-----+
+    }
     /// This function is used to add a blinding factor to the witness polynomials
     pub fn add_dummy_constraints(&mut self) {
         // Add a dummy constraint so that we do not have zero polynomials
