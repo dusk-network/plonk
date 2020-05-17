@@ -21,15 +21,15 @@ in SNARK schemes. This is
 crucial in our zk-SNARK
 scheme, to ensure the 
 correctness of wires when 
-bundling similar wires, 
-and for ensuring values are
-travelling the correct way
-along wires.
+bundling similar wires 
+together.
 
-PLONK uses an argument to check 
-the correctness of a shuffle in 
-its proving algorithm. This is 
-essentially showin that the 
+PLONK checks the correctness 
+of a shuffle in its proving 
+algorithm, by comparing the 
+permutations of polynomials 
+to the originals. This is 
+essentially showing that the 
 products of polynomials are 
 the same, despite the ordering 
 being constructed differently.
@@ -158,11 +158,11 @@ form of:
 
 To check this permutation, 
 we are able to simply
-divide a the polynomial by 
+divide the polynomial by 
 its shuffled counterpart.
-The priniciple of checking 
+The principle of checking 
 the division between these 
 two Z\\ polynomials for an 
-evalutaion of `1`, is enough 
+evaluation of `1`, is enough 
 to determine the equality, 
 or lack of, between them.

@@ -5,7 +5,7 @@ of the permutation polynomial evaluations.
 Permutation polynomials
 ======================
 
-A permutation polynomial is bijective 
+A permutation polynomial is a bijective 
 function which describes a permutation, 
 of a group of elements. 
 
@@ -49,8 +49,8 @@ itself.
 
 These basic properties are used in 
 the construction of zero knowledge 
-proofs and when the individual 
-permutations are described, they 
-are often compounded into 
-polynomials which describe these many
-functions as polynomials over sets.
+proofs. Where the relationships 
+between groups is used to prove 
+changes in the sets of polynomials.
+
+
