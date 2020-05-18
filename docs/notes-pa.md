@@ -24,14 +24,18 @@ correctness of wires when
 bundling similar wires 
 together.
 
-PLONK checks the correctness 
-of a shuffle in its proving 
-algorithm, by comparing the 
-permutations of polynomials 
-to the originals. This is 
-essentially showing that the 
-products of polynomials are 
-the same, despite the ordering 
+
+
+The properties of a permutation 
+polynomial are used in this proving 
+scheme, as PLONK checks the 
+correctness of a shuffle in 
+its proving algorithm, by 
+comparing the permutations 
+of polynomials to the originals.
+This is essentially showing 
+that the products of polynomials
+are the same, despite the ordering 
 being constructed differently.
 In principle, PLONK can compare sets 
 of polynomials for equality by 
@@ -40,12 +44,17 @@ with the same `n` number of polynomials
 , where the elements have been 
 shuffled. 
 
+
 Given a set of  values, at a 
 particular position, we can create 
 a mapping for the initial index into a 
 new position, with a permutation. 
 
-For example: 
+To understand how these polynomials
+work in stand alone setting, we 
+give the below example. 
+
+
 Given initial values, 
 1,2,3,4,5 each occupying 
 their respective positions
@@ -91,8 +100,8 @@ of:
 \end{aligned}
 
 We can form equations of polynomials 
-to compare the wire values at each 
-position. As it possible to falsify
+to compare the values at each 
+indice. As it possible to falsify
 proofs, by having the sum of the 
 equation arguments equal - without 
 having the identities between the
@@ -105,22 +114,24 @@ by the index and the second is
 gamma. Both of which, are taken from 
 the prime field. 
 
-To isolate the terms, for better evaluation,
-we are also capable of describing each wire
-as a type. For this example, we will say 
-wires A & B = type 1\\, wires C & D = type 2\\
-and wire E = type 3.
+To isolate the terms, for better evaluation
+of the permutation, we are also capable 
+of describing each indice as a type.
+For this example, we will say 
+values in column A & B = type 1\\, 
+columms C & D = type 2\\
+and column E = type 3.
 
 
-Formulating this an expression of the 
-unpermutated polynomials, is as 
+Formulating this as an expression of 
+the unpermutated polynomials, is as 
 follows:
 
 \begin{aligned}
 \\[
     Z\_1\\\\ 
     =\\\\ 
-(1\\+   \beta +\gamma)
+(1\\+ 1*\beta +\gamma)
 (1\\+ 2*\beta +\gamma)
 (2\\+ 3*\beta +\gamma)
 (2\\+ 4*\beta +\gamma)
@@ -138,7 +149,7 @@ then become:
     =\\\\ 
 (2\\+ 3*\beta +\gamma)
 (3\\+ 5*\beta +\gamma)
-(1\\+   \beta +\gamma)
+(1\\+ 1*\beta +\gamma)
 (2\\+ 4*\beta +\gamma)
 (1\\+ 2*\beta +\gamma)
 \\]
