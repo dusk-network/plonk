@@ -120,6 +120,14 @@ accums.push(accum_1);
             let accum = 4*accums[i.0-1] + (wnaf_scalar[wnaf_scalar.len()-i.0] as usize);
             accums.push(accum);
         }
+
+        let x_beta = g_i.get_x();
+        let y_beta = g_i.get_y();
+        let x_gamma = 3_g_i.get_x();
+        let y_gamma = 3_g_i.get_y();
+        let y_beta_neg = g_i_neg.get_y();
+        let y_gamma_neg = 3_g_i_neg.get_y();
+        
     }
 
     gi_points
