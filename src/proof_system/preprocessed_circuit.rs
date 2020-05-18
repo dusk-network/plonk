@@ -1,7 +1,5 @@
 use crate::fft::Evaluations;
-use crate::proof_system::widget::{
-    ArithmeticWidget, ECCWidget, LogicWidget, PermutationWidget, RangeWidget,
-};
+use crate::proof_system::widget::{ArithmeticWidget, LogicWidget, PermutationWidget, RangeWidget};
 use crate::transcript::TranscriptProtocol;
 use merlin::Transcript;
 #[cfg(feature = "serde")]
@@ -31,8 +29,7 @@ pub struct PreProcessedCircuit {
     pub permutation: PermutationWidget,
     /// Holds the polynomials, commitments and evaluations
     /// of all of the ecc_constraint gates.
-    pub ecc: ECCWidget,
-
+    /// pub ecc: ECCWidget,
     // Pre-processes the 4n Evaluations for the vanishing polynomial, so they do not
     // need to be computed at the proving stage.
     // Note: With this, we can combine all parts of the quotient polynomial in their evaluation phase and
@@ -51,8 +48,7 @@ impl PreProcessedCircuit {
         transcript.append_commitment(b"q_arith", &self.arithmetic.q_arith.commitment);
         transcript.append_commitment(b"q_range", &self.range.q_range.commitment);
         transcript.append_commitment(b"q_logic", &self.logic.q_logic.commitment);
-        transcript.append_commitment(b"q_ecc", &self.ecc.q_ecc.commitment);
-
+        ///transcript.append_commitment(b"q_ecc", &self.ecc.q_ecc.commitment);
         transcript.append_commitment(b"left_sigma", &self.permutation.left_sigma.commitment);
         transcript.append_commitment(b"right_sigma", &self.permutation.right_sigma.commitment);
         transcript.append_commitment(b"out_sigma", &self.permutation.out_sigma.commitment);
@@ -169,7 +165,7 @@ impl<'de> Deserialize<'de> for PreProcessedCircuit {
                     logic: logic_widg,
                     range: range_widg,
                     permutation: perm_widg,
-                    ecc: ecc_widg,
+                    ///ecc: ecc_widg,
                     v_h_coset_4n,
                 })
             }

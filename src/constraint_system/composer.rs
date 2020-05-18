@@ -29,7 +29,7 @@ use dusk_bls12_381::GENERATOR;
 use failure::Error;
 use jubjub::AffinePoint;
 use jubjub::Fq;
-use jubjub::fr;
+use jubjub::Fr;
 use merlin::Transcript;
 use std::collections::HashMap;
 
@@ -81,6 +81,8 @@ pub struct StandardComposer {
     // These are the actual variable values
     // N.B. They should not be exposed to the end user once added into the composer
     pub(crate) variables: HashMap<Variable, Scalar>,
+
+    pub(crate) jubjub_variables: HashMap<Variable, Fr>,
 
     pub(crate) perm: Permutation,
 }
@@ -217,13 +219,17 @@ impl StandardComposer {
             linear_eval_4n,
         );
 
+        // let ecc_widget = ECCWidget{
+        //     q_ecc:
+        // };
+
         let ppc = PreProcessedCircuit {
             n: self.n,
             arithmetic: arithmetic_widget,
             range: range_widget,
             logic: logic_widget,
             permutation: perm_widget,
-            ecc: ecc_widget,
+            // ecc: ecc_widget,
             // Compute 4n evaluations for X^n -1
             v_h_coset_4n: domain_4n.compute_vanishing_poly_over_coset(domain.size() as u64),
         };
@@ -337,6 +343,7 @@ impl StandardComposer {
             zero_var: Variable(0),
 
             variables: HashMap::with_capacity(expected_size),
+            jubjub_variables: HashMap::with_capacity(expected_size),
 
             perm: Permutation::new(),
         };
@@ -387,6 +394,18 @@ impl StandardComposer {
         // The composer now links the Scalar to the Variable returned from the Permutation
         self.variables.insert(var, s);
 
+        var
+    }
+
+    /// Add Input first calls the `Permutation` struct
+    /// to generate and allocate a new variable `var`.
+    /// The composer then links the Variable to the Scalar
+    /// and returns the Variable for use in the system.
+    pub fn add_jubjub_input(&mut self, s: Fr) -> Variable {
+        // Get a new Variable from the permutation
+        let var = self.perm.new_variable();
+        // The composer now links the Scalar to the Variable returned from the Permutation
+        self.jubjub_variables.insert(var, s);
         var
     }
 
@@ -1167,15 +1186,15 @@ impl StandardComposer {
         self.logic_gate(a, b, num_bits, false)
     }
 
-    // Creates an add gate for specific bases. This function will add an X-coordinate into
-    // an accumulator for each round of scalar multiplication.
+    /// Creates an add gate for specific bases. This function will add an X-coordinate into
+    /// an accumulator for each round of scalar multiplication.
     pub fn fixed_base_add(
-        &self,
-        scalar: Fq,
-        a: Scalar,
-        b: Scalar,
-        c: Scalar,
-        d: Scalar,
+        &mut self,
+        scalar: Fr,
+        a: Fr,
+        b: Fr,
+        c: Fr,
+        d: Fr,
         num_bits: usize,
     ) -> () {
         // Since we work on base4, we need to guarantee that we have an even
@@ -1195,10 +1214,10 @@ impl StandardComposer {
         // To give some clarity on what needs to be assigned to each wire,
         // we have w_l = x-coordinate, w_r = y-coordinate, w_o = add-in-x-coordinate
         // and w_4 = accumulator.
-        let var_a = self.add_input(a);
-        let var_b = self.add_input(b);
-        let var_c = self.add_input(c);
-        let var_d = self.add_input(d);
+        let var_a = self.add_jubjub_input(a);
+        let var_b = self.add_jubjub_input(b);
+        let var_c = self.add_jubjub_input(c);
+        let var_d = self.add_jubjub_input(d);
 
         self.perm.add_variable_to_map(var_a, WireData::Left(self.n));
         self.perm
@@ -1216,8 +1235,7 @@ impl StandardComposer {
         let mut left_accumulator = Scalar::zero();
         let mut right_accumulator = Scalar::zero();
         let mut out_accumulator = Scalar::zero();
-        let mut four_accumulator = Scalar();
-        
+        let mut four_accumulator = Scalar::zero();
         self.q_range.push(Scalar::zero());
         self.q_c.push(Scalar::zero());
         self.q_logic.push(Scalar::zero());
@@ -1229,15 +1247,14 @@ impl StandardComposer {
             .add_variable_to_map(var_b, WireData::Right(self.n));
         self.w_r.push(self.zero_var);
         self.perm
-        .add_variable_to_map(var_c, WireData::Output(self.n));
+            .add_variable_to_map(var_c, WireData::Output(self.n));
         self.w_o.push(self.zero_var);
         self.perm
             .add_variable_to_map(var_d, WireData::Fourth(self.n));
         self.w_4.push(self.zero_var);
 
-            // Increment gate index
-            self.n += 1;
-        }
+        // Increment gate index
+        self.n += 1;
     }
 
     /// Asserts that two variables are the same
@@ -1256,6 +1273,7 @@ impl StandardComposer {
         );
     }
 
+    /// TODO: doc this
     pub fn fixed_base_add_with_inital(
         &self,
         scalar: Fq,
@@ -1265,7 +1283,6 @@ impl StandardComposer {
         d: Scalar,
         num_bits: usize,
     ) -> () {
-        
         // * +-----+-----+-----+-----+
         // * |  A  |  B  |  C  |  D  |
         // * +-----+-----+-----+-----+
