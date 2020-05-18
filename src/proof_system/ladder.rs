@@ -5,6 +5,7 @@
 
 use jubjub::Fr;
 use jubjub::AffinePoint;
+use
 
 pub struct LadderValues{
     pub one: AffinePoint,
@@ -41,10 +42,11 @@ pub fn fixed_base_ladder() -> [AffinePoint; 4] {
     let ladder = [AffinePoint::generator(); 4];
     let g = AffinePoint::generator();
 
-    let 2g = g.double();
+    let g2 = g.double();
 
-    let 3g = 2g + g;
+    let g3 = 2g + g;
 
+    ladder[0] = g;
     ladder[1] = 3g;
     ladder[2] = g.neg();
     ladder[3] = 3g.neg();

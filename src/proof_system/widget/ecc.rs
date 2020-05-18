@@ -155,6 +155,8 @@ pub(crate) fn compute_quotient_i(
     let a_1 = 
 }
 
+
+
  
    
 
@@ -171,3 +173,6 @@ pub(crate) fn compute_quotient_i(
         d_next_eval: &Scalar,
         q_c_eval: &Scalar,
     ) -> Polynomial (){}
+
+
+fn delta 
