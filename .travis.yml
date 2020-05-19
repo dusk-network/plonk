@@ -7,7 +7,7 @@ os:
 before_install:
   - sudo apt-get update
 
-# Inclide needed packages
+# Include needed packages
 addons:
   apt:
     packages:
@@ -36,12 +36,6 @@ matrix:
       ## Build & test in debug mode so codecov can take the data required
       - cargo build
       - cargo test
-      ## Compile & run the examples of the crate
-      - cargo run --example 0_setup_srs --release
-      - cargo run --example 1_compose_prove_verify --release
-      - cargo run --example 2_gadget_orientation --release
-      - cargo run --example 3_0_setup_for_gadgets --release
-      - cargo run --example 3_1_final_gadget_orientation --release
 
   - rust: beta
     install:
