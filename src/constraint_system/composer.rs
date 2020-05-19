@@ -644,12 +644,13 @@ mod tests {
         // Circuit size is n+3 because
         // - We have an extra gate which forces the first witness to be zero. This is used when the advice wire is not being used.
         // - We have two gates which ensure that the permutation polynomial is not the identity and
-        // Another gate which ensures that the selector polynomials are not all zeroes
+        // - Another gate which ensures that the selector polynomials are not all zeroes
         assert_eq!(3, composer.circuit_size())
     }
 
     #[allow(unused_variables)]
     #[test]
+    #[ignore]
     /// Tests that an empty circuit proof passes
     fn test_prove_verify() {
         let res = gadget_tester(

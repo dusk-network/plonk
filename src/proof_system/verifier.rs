@@ -13,7 +13,9 @@ pub struct Verifier {
 
     pub(crate) cs: StandardComposer,
     /// Store the messages exchanged during the preprocessing stage
-    /// This is copied each time, we make a proof
+    /// This is copied each time, we make a proof, so that we can use the same verifier to
+    /// Verify multiple proofs from the same circuit. If this is not copied, then the verification procedure will modify
+    /// the transcript, making it unusable for future proofs.
     pub preprocessed_transcript: Transcript,
 }
 
