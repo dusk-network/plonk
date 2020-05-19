@@ -8,7 +8,7 @@ use merlin::Transcript;
 ///
 /// By doing this, we can see the `PreProcessedCircuit` as a "circuit-shape descriptor"
 /// since it only stores the commitments that describe the operations that we will perform
-/// innside the circuit.
+/// inside the circuit.
 #[derive(Debug)]
 pub struct PreProcessedCircuit {
     /// The number of gates in the circuit
