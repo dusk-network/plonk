@@ -229,6 +229,8 @@ impl StandardComposer {
                 logic: logic_prover_key,
                 range: range_prover_key,
                 permutation: permutation_prover_key,
+                // Compute 4n evaluations for X^n -1
+                v_h_coset_4n: domain_4n.compute_vanishing_poly_over_coset(domain.size() as u64),
             },
             verifier_key: widget::VerifierKey {
                 arithmetic: arithmetic_verifier_key,
@@ -236,8 +238,6 @@ impl StandardComposer {
                 range: range_verifier_key,
                 permutation: permutation_verifier_key,
             },
-            // Compute 4n evaluations for X^n -1
-            v_h_coset_4n: domain_4n.compute_vanishing_poly_over_coset(domain.size() as u64),
         };
 
         // Append commitments to transcript

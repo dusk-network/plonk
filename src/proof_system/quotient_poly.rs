@@ -68,7 +68,7 @@ pub(crate) fn compute(
         .into_par_iter()
         .map(|i| {
             let numerator = t_1[i] + t_2[i];
-            let denominator = preprocessed_circuit.v_h_coset_4n()[i];
+            let denominator = preprocessed_circuit.prover_key.v_h_coset_4n()[i];
             numerator * denominator.invert().unwrap()
         })
         .collect();

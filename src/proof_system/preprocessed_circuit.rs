@@ -1,4 +1,3 @@
-use crate::fft::Evaluations;
 use crate::proof_system::widget::{ProverKey, VerifierKey};
 use crate::transcript::TranscriptProtocol;
 use merlin::Transcript;
@@ -17,12 +16,6 @@ pub struct PreProcessedCircuit {
     pub prover_key: ProverKey,
     /// Verifier Keys for a TurboPlonk circuit
     pub verifier_key: VerifierKey,
-
-    // Pre-processes the 4n Evaluations for the vanishing polynomial, so they do not
-    // need to be computed at the proving stage.
-    // Note: With this, we can combine all parts of the quotient polynomial in their evaluation phase and
-    // divide by the quotient polynomial without having to perform IFFT
-    pub(crate) v_h_coset_4n: Evaluations,
 }
 
 impl PreProcessedCircuit {
@@ -44,11 +37,5 @@ impl PreProcessedCircuit {
 
         // Append circuit size to transcript
         transcript.circuit_domain_sep(self.n as u64);
-    }
-}
-
-impl PreProcessedCircuit {
-    pub(crate) fn v_h_coset_4n(&self) -> &Evaluations {
-        &self.v_h_coset_4n
     }
 }
