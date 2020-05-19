@@ -102,10 +102,11 @@ fn compute_circuit_satisfiability_equation(
             let pi = &pi_eval_4n[i];
 
             let a = preprocessed_circuit
+                .prover_key
                 .arithmetic
                 .compute_quotient_i(i, wl, wr, wo, w4);
 
-            let b = preprocessed_circuit.range.compute_quotient_i(
+            let b = preprocessed_circuit.prover_key.range.compute_quotient_i(
                 i,
                 range_challenge,
                 wl,
@@ -115,7 +116,7 @@ fn compute_circuit_satisfiability_equation(
                 w4_next,
             );
 
-            let c = preprocessed_circuit.logic.compute_quotient_i(
+            let c = preprocessed_circuit.prover_key.logic.compute_quotient_i(
                 i,
                 logic_challenge,
                 &wl,
@@ -147,19 +148,22 @@ fn compute_permutation_checks(
     let t: Vec<_> = (0..domain_4n.size())
         .into_par_iter()
         .map(|i| {
-            preprocessed_circuit.permutation.compute_quotient_i(
-                i,
-                &wl_eval_4n[i],
-                &wr_eval_4n[i],
-                &wo_eval_4n[i],
-                &w4_eval_4n[i],
-                &z_eval_4n[i],
-                &z_eval_4n[i + 4],
-                &alpha,
-                &l1_alpha_sq_evals[i],
-                &beta,
-                &gamma,
-            )
+            preprocessed_circuit
+                .prover_key
+                .permutation
+                .compute_quotient_i(
+                    i,
+                    &wl_eval_4n[i],
+                    &wr_eval_4n[i],
+                    &wo_eval_4n[i],
+                    &w4_eval_4n[i],
+                    &z_eval_4n[i],
+                    &z_eval_4n[i + 4],
+                    &alpha,
+                    &l1_alpha_sq_evals[i],
+                    &beta,
+                    &gamma,
+                )
         })
         .collect();
     t

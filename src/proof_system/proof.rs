@@ -338,15 +338,15 @@ impl Proof {
         aggregate_proof.add_part((self.evaluations.d_eval, self.d_comm));
         aggregate_proof.add_part((
             self.evaluations.left_sigma_eval,
-            preprocessed_circuit.permutation.left_sigma.commitment,
+            preprocessed_circuit.verifier_key.permutation.left_sigma,
         ));
         aggregate_proof.add_part((
             self.evaluations.right_sigma_eval,
-            preprocessed_circuit.permutation.right_sigma.commitment,
+            preprocessed_circuit.verifier_key.permutation.right_sigma,
         ));
         aggregate_proof.add_part((
             self.evaluations.out_sigma_eval,
-            preprocessed_circuit.permutation.out_sigma.commitment,
+            preprocessed_circuit.verifier_key.permutation.out_sigma,
         ));
         // Flatten proof with opening challenge
         let flattened_proof_a = aggregate_proof.flatten(transcript);
@@ -448,24 +448,32 @@ impl Proof {
         let mut points: Vec<G1Affine> = Vec::with_capacity(6);
 
         preprocessed_circuit
+            .verifier_key
             .arithmetic
             .compute_linearisation_commitment(&mut scalars, &mut points, &self.evaluations);
 
-        preprocessed_circuit.range.compute_linearisation_commitment(
-            &range_sep_challenge,
-            &mut scalars,
-            &mut points,
-            &self.evaluations,
-        );
-
-        preprocessed_circuit.logic.compute_linearisation_commitment(
-            &logic_sep_challenge,
-            &mut scalars,
-            &mut points,
-            &self.evaluations,
-        );
+        preprocessed_circuit
+            .verifier_key
+            .range
+            .compute_linearisation_commitment(
+                &range_sep_challenge,
+                &mut scalars,
+                &mut points,
+                &self.evaluations,
+            );
 
         preprocessed_circuit
+            .verifier_key
+            .logic
+            .compute_linearisation_commitment(
+                &logic_sep_challenge,
+                &mut scalars,
+                &mut points,
+                &self.evaluations,
+            );
+
+        preprocessed_circuit
+            .verifier_key
             .permutation
             .compute_linearisation_commitment(
                 &mut scalars,
