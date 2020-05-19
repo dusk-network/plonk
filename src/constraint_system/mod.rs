@@ -6,13 +6,16 @@ pub(crate) mod composer;
 pub(crate) mod cs_errors;
 pub(crate) mod variable;
 
-// XXX : Put all of these in a composer folder
-pub(crate) mod arithmetic;
-pub(crate) mod boolean;
+/// Simple Arithmetic gates
+pub mod arithmetic;
+/// Boolean gate
+pub mod boolean;
 #[cfg(test)]
 pub(crate) mod helper;
-pub(crate) mod logic;
-pub(crate) mod range;
+/// XOR and AND gates
+pub mod logic;
+/// Range gate
+pub mod range;
 
 pub use composer::StandardComposer;
 pub use variable::{Variable, WireData};
