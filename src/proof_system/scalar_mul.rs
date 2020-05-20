@@ -4,8 +4,7 @@
 
 
 use jubjub::Fr;
-use jubjub::AffinePoint;
-use
+use jubjub::{AffinePoint, GENERATOR};
 
 pub struct LadderValues{
     pub one: AffinePoint,
@@ -18,8 +17,8 @@ pub struct LadderValues{
 
 impl Default for LadderValues {
     fn default() -> Self {
-        let one = AffinePoint::generator();
-        let three = AffinePoint::generator() * 3;
+        let one = GENERATOR;
+        let three = GENERATOR + GENERATOR + GENERATOR;
 
 
 
@@ -36,13 +35,13 @@ impl Default for LadderValues {
 
 /// For the purpose of the fixed base add gate, we will be using 
 /// the absolute value of scalars written in the window NAF form. 
-/// This means, the quad input which the generator is multiplied
+/// This means, the quad input which the GENERATOR is multiplied
 /// by can only be 1 or 3. 
 pub fn fixed_base_ladder() -> [AffinePoint; 4] {
-    let ladder = [AffinePoint::generator(); 4];
-    let g = AffinePoint::generator();
+    let ladder = [GENERATOR; 4];
+    let g = GENERATOR;
 
-    let g2 = g.double();
+    let g2 = g + g;
 
     let g3 = 2g + g;
 
@@ -55,7 +54,7 @@ pub fn fixed_base_ladder() -> [AffinePoint; 4] {
     ladder
 }
 
-pub fn round_generator(s: Fr) -> [AffinePoint; 2] {
+pub fn round_GENERATOR(s: Fr) -> [AffinePoint; 2] {
 
 }
 
@@ -67,7 +66,7 @@ pub fn scalar_mul(scalar: Fr, point: AffinePoint) -> Vec<(AffinePoint, AffinePoi
 let wnaf_scalar = scalar.compute_windowed_naf(3u8).to_vec();
         wnaf_scalar.reverse();
         // [point, 3 * point]
-        let table = vec![AffinePoint::generator(), AffinePoint::generator() * wnaf_scalar::from(3 as u64)];
+        let table = vec![GENERATOR, GENERATOR * wnaf_scalar::from(3 as u64)];
         for coeff in wnaf_scalar {
             let point_to_add = match (coeff > 0i8, coeff < 0i8, coeff == 0i8) {
                 (true, false, false) => table[(coeff - 1) as usize],
@@ -82,9 +81,9 @@ let wnaf_scalar = scalar.compute_windowed_naf(3u8).to_vec();
         
     let mut t = 0;
     
-    let b = AffinePoint;
+    let b = GENERATOR;
     
-    inital_point = b * t;
+    let initial = b * t;
 
     if scalar.is_even() {
         t = (4 as usize).pow((wnaf_scalar.len() + 1) as u32);    
@@ -100,7 +99,7 @@ let accum_1 = t/((4 as usize).pow(wnaf_scalar.len()-1)) + wnaf_scalar[wnaf_scala
 accums.push(accum_0);
 accums.push(accum_1);
 
-// pub fn compute_gi_muls(generator: AffinePoint, wnaf_scalar: Vec<u8>) -> Vec<(AffinePoint, AffinePoint)> {
+// pub fn compute_gi_muls(GENERATOR: AffinePoint, wnaf_scalar: Vec<u8>) -> Vec<(AffinePoint, AffinePoint)> {
     let mut gi_points: Vec<(AffinePoint, AffinePoint, AffinePoint, AffinePoint)> = vec![];
     for i in wnaf_scalar.iter().enumerate() {
         if i.0 == 0 {
@@ -110,9 +109,9 @@ accums.push(accum_1);
                 t = (4 as usize).pow(wnaf_scalar.len() as u32);
             }
         }
-        let g_i = AffinePoint::generator() * (4 as usize).pow((wnaf_scalar.len()-i.0) as u32);
+        let g_i = AffinePoint::GENERATOR() * (4 as usize).pow((wnaf_scalar.len()-i.0) as u32);
         let g_i_neg = g_i.neg();
-        let 3_g_i = 3*g_i;
+        let 3_g_i = 3 * g_i;
         let 3_g_i_neg = 3_g_i.neg();
         gi_points.push((g_i, g_i_neg, 3_g_i, 3_g_i_neg));
 
@@ -144,8 +143,8 @@ accums.push(accum_1);
 #[test]
 fn test_ladder() {
     let ladder = fixed_base_ladder();
-    assert_eq!(ladder[0], G1Affine::generator());
-    assert_eq!(ladder[1], 3 * G1Affine::generator());
+    assert_eq!(ladder[0], G1Affine::GENERATOR());
+    assert_eq!(ladder[1], 3 * G1Affine::GENERATOR());
 }
 
 #[test]
