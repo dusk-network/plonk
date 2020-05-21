@@ -236,9 +236,6 @@ impl ScalarMulWidget {
 
 }
 
-
-
-
 /// The polynomial identity to be evaluated, will check that the
 /// initialiser has been done correctly and check that the accumulating 
 /// values are correct. 
