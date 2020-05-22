@@ -48,7 +48,7 @@ impl PreProcessedCircuit {
         transcript.append_commitment(b"q_arith", &self.arithmetic.q_arith.commitment);
         transcript.append_commitment(b"q_range", &self.range.q_range.commitment);
         transcript.append_commitment(b"q_logic", &self.logic.q_logic.commitment);
-        ///transcript.append_commitment(b"q_ecc", &self.ecc.q_ecc.commitment);
+        //transcript.append_commitment(b"q_ecc", &self.ecc.q_ecc.commitment);
         transcript.append_commitment(b"left_sigma", &self.permutation.left_sigma.commitment);
         transcript.append_commitment(b"right_sigma", &self.permutation.right_sigma.commitment);
         transcript.append_commitment(b"out_sigma", &self.permutation.out_sigma.commitment);
