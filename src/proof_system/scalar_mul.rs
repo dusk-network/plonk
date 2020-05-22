@@ -1,13 +1,15 @@
 //!  This file will create the ladder for the implementation of the ECC gate.
-//!  Given a point and a scalar, split into quads, the functions returns 
+//!  Given a point and a scalar, split into quads, the functions returns
 //!  a new field element.
 
-
+// TODO: use dusk-bls12_381
+use crate::constraint_system::{StandardComposer, WireData};
+use core::ops::Neg;
+use dusk_bls12_381::Scalar;
 use jubjub::Fr;
 use jubjub::{AffinePoint, ExtendedPoint, GENERATOR};
-use core::ops::Neg;
 
-pub struct LadderValues{
+pub struct LadderValues {
     pub one: AffinePoint,
     pub three: AffinePoint,
     pub q_x_1: Fr,
@@ -22,7 +24,7 @@ impl Default for LadderValues {
         let two = ExtendedPoint::from(GENERATOR) + ExtendedPoint::from(GENERATOR);
         let term = two + ExtendedPoint::from(GENERATOR);
         let three = AffinePoint::from(term);
-        LadderValues{
+        LadderValues {
             one,
             three,
             q_x_1: Fr::zero(),
@@ -33,12 +35,12 @@ impl Default for LadderValues {
     }
 }
 
-/// For the purpose of the fixed base add gate, we will be using 
-/// the absolute value of scalars written in the window NAF form. 
+/// For the purpose of the fixed base add gate, we will be using
+/// the absolute value of scalars written in the window NAF form.
 /// This means, the quad input which the GENERATOR is multiplied
-/// by can only be 1 or 3. 
+/// by can only be 1 or 3.
 pub fn fixed_base_ladder() -> [AffinePoint; 4] {
-    let ladder = [GENERATOR; 4];
+    let mut ladder = [GENERATOR; 4];
     let g = GENERATOR;
 
     let g2 = ExtendedPoint::from(GENERATOR) + ExtendedPoint::from(GENERATOR);
@@ -46,95 +48,122 @@ pub fn fixed_base_ladder() -> [AffinePoint; 4] {
 
     let g3 = AffinePoint::from(g_term);
 
-    let g_neg = ExtendedPoint::from(GENERATOR).neg();
-
     ladder[0] = g;
     ladder[1] = g3;
     ladder[2] = g.neg();
     ladder[3] = g3.neg();
 
-
     ladder
 }
 
-pub fn round_GENERATOR(s: Fr) -> [AffinePoint; 2] {
-
-}
-
-pub fn scalar_mul(scalar: Fr, point: AffinePoint) -> Vec<(AffinePoint, AffinePoint)> {
-
-
-// Get scalar in correct format
-// [i8; 256]
-let wnaf_scalar = scalar.compute_windowed_naf(3u8).to_vec();
-        wnaf_scalar.reverse();
-        // [point, 3 * point]
-        let table = vec![GENERATOR, GENERATOR * wnaf_scalar::from(3 as u64)];
-        for coeff in wnaf_scalar {
-            let point_to_add = match (coeff > 0i8, coeff < 0i8, coeff == 0i8) {
-                (true, false, false) => table[(coeff - 1) as usize],
-                (false, true, false) => -table[(coeff.abs() - 1) as usize],
-                (false, false, true) => AffinePoint::identity(),
-                _ => unreachable!(),
-            };
-            
-        }
-
-// pub fn compute_initialiser(t: scalar, AffinePoint) -> AffinePoint {
-        
-    let mut t = 0;
-    
-    let b = GENERATOR;
-    
-    let initial = b * t;
-
-    if scalar.is_even() {
-        t = (4 as usize).pow((wnaf_scalar.len() + 1) as u32);    
-    } else {
-        t = (4 as usize).pow(wnaf_scalar.len() as u32);
+pub fn scalar_mul(
+    scalar: Fr,
+    composer: StandardComposer,
+) -> Vec<(AffinePoint, AffinePoint, AffinePoint, AffinePoint)> {
+    // Get scalar in correct format
+    // [i8; 256]
+    let mut wnaf_scalar = scalar.compute_windowed_naf(3u8).to_vec();
+    wnaf_scalar.reverse();
+    // [point, 3 * point]
+    let table = vec![
+        GENERATOR,
+        AffinePoint::from(ExtendedPoint::from(GENERATOR) * Fr::from(3 as u64)),
+    ];
+    for coeff in wnaf_scalar.iter() {
+        let point_to_add = match (*coeff > 0i8, *coeff < 0i8, *coeff == 0i8) {
+            (true, false, false) => table[(*coeff - 1) as usize],
+            (false, true, false) => -table[((*coeff).abs() - 1) as usize],
+            (false, false, true) => AffinePoint::identity(),
+            _ => unreachable!(),
+        };
     }
 
-    let accums: Vec<usize> = vec![];
+    let mut t = Fr::zero();
+    let b = ExtendedPoint::from(GENERATOR);
+    let wnaf_len = wnaf_scalar.len();
 
-let accum_0 = t/((4 as usize).pow(wnaf_scalar.len() as u32));
-let accum_1 = t/((4 as usize).pow(wnaf_scalar.len()-1)) + wnaf_scalar[wnaf_scalar.len()-1];
+    if scalar.is_even() {
+        t = Fr::from((4 as usize).pow((wnaf_scalar.len() + 1) as u32) as u64);
+    } else {
+        t = Fr::from((4 as usize).pow(wnaf_scalar.len() as u32) as u64);
+    }
 
-accums.push(accum_0);
-accums.push(accum_1);
+    let initial = AffinePoint::from(b * t);
 
-// pub fn compute_gi_muls(GENERATOR: AffinePoint, wnaf_scalar: Vec<u8>) -> Vec<(AffinePoint, AffinePoint)> {
+    let mut accums: Vec<Fr> = vec![];
+
+    let mut accum_0 = t;
+    let mut accum_1 = t;
+    accum_0.divn(((4 as usize).pow(wnaf_scalar.len() as u32)) as u32);
+    accum_1.divn(
+        (((4 as usize).pow((wnaf_scalar.len() - 1) as u32))
+            + (wnaf_scalar[wnaf_scalar.len() - 1] as usize)) as u32,
+    );
+
+    accums.push(accum_0);
+    accums.push(accum_1);
+
     let mut gi_points: Vec<(AffinePoint, AffinePoint, AffinePoint, AffinePoint)> = vec![];
     for i in wnaf_scalar.iter().enumerate() {
-        if i.0 == 0 {
-            if scalar.is_even() {
-                t = (4 as usize).pow((wnaf_scalar.len() + 1) as u32);    
-            } else {
-                t = (4 as usize).pow(wnaf_scalar.len() as u32);
-            }
-        }
-        let g_i = GENERATOR * (4 as usize).pow((wnaf_scalar.len()-i.0) as u32);
+        let g_i = ExtendedPoint::from(GENERATOR)
+            * Fr::from((4 as usize).pow((wnaf_scalar.len() - i.0) as u32) as u64);
         let g_i_neg = g_i.neg();
-        let 3_g_i = 3 * g_i;
-        let 3_g_i_neg = 3_g_i.neg();
-        gi_points.push((g_i, g_i_neg, 3_g_i, 3_g_i_neg));
+        let g_i_3 = g_i * Fr::from(3 as u64);
+        let g_i_neg_3 = g_i_3.neg();
+        gi_points.push((
+            AffinePoint::from(g_i),
+            AffinePoint::from(g_i_neg),
+            AffinePoint::from(g_i_3),
+            AffinePoint::from(g_i_neg_3),
+        ));
 
         if i.0 > 1 {
-            let accum = 4*accums[i.0-1] + (wnaf_scalar[wnaf_scalar.len()-i.0] as usize);
+            let accum = Fr::from(4 as u64) * accums[i.0 - 1]
+                + Fr::from(wnaf_scalar[wnaf_scalar.len() - i.0] as u64);
             accums.push(accum);
         }
 
-        let x_beta = g_i.get_x();
-        let y_beta = g_i.get_y();
-        let x_gamma = 3_g_i.get_x();
-        let y_gamma = 3_g_i.get_y();
-        let y_beta_neg = g_i_neg.get_y();
-        let y_gamma_neg = 3_g_i_neg.get_y();
-        
+        let g_i_affine = AffinePoint::from(g_i);
+        let g_i_3_affine = AffinePoint::from(g_i_3);
+        let g_i_neg_affine = AffinePoint::from(g_i_neg);
+        let g_i_3_neg_affine = AffinePoint::from(g_i_neg_3);
+        let x_beta = g_i_affine.get_x();
+        let y_beta = g_i_affine.get_y();
+        let x_gamma = g_i_3_affine.get_x();
+        let y_gamma = g_i_3_affine.get_y();
+        let y_beta_neg = g_i_neg_affine.get_y();
+        let y_gamma_neg = g_i_3_neg_affine.get_y();
+
+        let mut x_alpha = Fr::zero();
+
+        if i.0 == 0 {
+            x_alpha = x_beta;
+        } else if i.0 == 1 {
+            x_alpha = x_gamma;
+        } else {
+        }
+
+        if i.0 == 0 {
+            composer.fixed_base_add_with_initial(
+                point_to_add.get_x(),
+                point_to_add.get_y(),
+                x_alpha,
+                accums[i.0],
+                256,
+            )
+        } else {
+            composer.fixed_base_add(
+                point_to_add.get_x(),
+                point_to_add.get_y(),
+                x_alpha,
+                accums[i.0],
+                256,
+            )
+        }
     }
 
     gi_points
 }
-
 
 // Now that we have our scalar in the NAF form, we need to precompute our look up table.
 // This is done to provide the potential add-in-x-coordinate's at each round. As only 1
@@ -142,24 +171,22 @@ accums.push(accum_1);
 // output coordinates, along with their negative y-coordinate counterparts, will be the
 // 4 coordinates, which the add-in-x-coordinate is derived from.
 
-
 #[test]
 fn test_ladder() {
     let ladder = fixed_base_ladder();
-    assert_eq!(ladder[0], G1Affine::GENERATOR());
-    assert_eq!(ladder[1], 3 * G1Affine::GENERATOR());
+    assert_eq!(ladder[0], GENERATOR);
+    assert_eq!(
+        ladder[1],
+        AffinePoint::from(ExtendedPoint::from(GENERATOR) * Fr::from(3 as u64))
+    );
 }
 
 #[test]
 fn test_scalar_mul() {
-    let AffinePoint = point
-    let AffinePoint.x = 9599346063476877603959045752087700136767736221838581394374215807052943515113 
-    let AffinePoint.y = 2862382881649072392874176093266892593007690675622305830399263887872941817677
-                        
+    let point = GENERATOR;
+    let gen_x = point.get_x();
+    let gen_y = point.get_y();
     let scalar = Fr::from(31);
-    
-    
+
     assert_eq!(scalar_mul(scalar, point), 6749237362536748595030987654329305826145364798328171542537485058472526649593, 435472901526383203736325467483956216236323421376357876155393487519030193845 )
-
-
 }
