@@ -4,7 +4,8 @@
 
 
 use jubjub::Fr;
-use jubjub::{AffinePoint, GENERATOR};
+use jubjub::{AffinePoint, ExtendedPoint, GENERATOR};
+use core::ops::Neg;
 
 pub struct LadderValues{
     pub one: AffinePoint,
@@ -18,10 +19,9 @@ pub struct LadderValues{
 impl Default for LadderValues {
     fn default() -> Self {
         let one = GENERATOR;
-        let three = GENERATOR + GENERATOR + GENERATOR;
-
-
-
+        let two = ExtendedPoint::from(GENERATOR) + ExtendedPoint::from(GENERATOR);
+        let term = two + ExtendedPoint::from(GENERATOR);
+        let three = AffinePoint::from(term);
         LadderValues{
             one,
             three,
@@ -41,14 +41,17 @@ pub fn fixed_base_ladder() -> [AffinePoint; 4] {
     let ladder = [GENERATOR; 4];
     let g = GENERATOR;
 
-    let g2 = g + g;
+    let g2 = ExtendedPoint::from(GENERATOR) + ExtendedPoint::from(GENERATOR);
+    let g_term = g2 + ExtendedPoint::from(GENERATOR);
 
-    let g3 = 2g + g;
+    let g3 = AffinePoint::from(g_term);
+
+    let g_neg = ExtendedPoint::from(GENERATOR).neg();
 
     ladder[0] = g;
-    ladder[1] = 3g;
+    ladder[1] = g3;
     ladder[2] = g.neg();
-    ladder[3] = 3g.neg();
+    ladder[3] = g3.neg();
 
 
     ladder
@@ -109,7 +112,7 @@ accums.push(accum_1);
                 t = (4 as usize).pow(wnaf_scalar.len() as u32);
             }
         }
-        let g_i = AffinePoint::GENERATOR() * (4 as usize).pow((wnaf_scalar.len()-i.0) as u32);
+        let g_i = GENERATOR * (4 as usize).pow((wnaf_scalar.len()-i.0) as u32);
         let g_i_neg = g_i.neg();
         let 3_g_i = 3 * g_i;
         let 3_g_i_neg = 3_g_i.neg();
