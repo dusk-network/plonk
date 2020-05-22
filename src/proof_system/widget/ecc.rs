@@ -135,7 +135,7 @@ impl ScalarMulWidget {
     ) -> Fr {
     
         let q_ecc_i = &self.q_ecc.evaluations.as_ref().unwrap()[index];
-        let q_o_i = &self.q_o.evaluations.as_ref().unwrap()[index];
+        let q_c_i = &self.q_o.evaluations.as_ref().unwrap()[index];
         
         let four = Scalar::from(4);
         let nine = Scalar::from(9);
@@ -222,6 +222,7 @@ impl ScalarMulWidget {
     
     pub(crate) fn compute_linearisation(
             &self,
+            ecc_consistency_challenge: &Scalar,
             a_eval: &Scalar,
             a_next_eval: &Scalar,
             b_eval: &Scalar,
@@ -230,7 +231,91 @@ impl ScalarMulWidget {
             d_eval: &Scalar,
             d_next_eval: &Scalar,
             q_c_eval: &Scalar,
-        ) -> Polynomial (){}
+        ) -> Polynomial{
+
+
+            let q_ecc_i = &self.q_ecc.evaluations.as_ref().unwrap()[index];
+            let q_c_i = &self.q_o.evaluations.as_ref().unwrap()[index];
+            
+        
+            let kappa = ecc_consistency_challenge.square();
+            let kappa_2 = kappa.square();
+            let kappa_3 = kappa_2 * kappa;
+            let kappa_4 = kappa_3 * kappa;
+            let kappa_5 = kappa_4 * kappa;
+            let kappa_6 = kappa_5 * kappa;
+            let kappa_7 = kappa_6 * kappa;
+            let kappa_8 = kappa_7 * kappa;
+        
+            /// Compute the accumulator which tracks the current 
+            /// rounds scalar multiplier, which is depedent on the 
+            /// input bit
+            let acc_input = four * w_4_i;
+            let accum = w_4_i_next - acc_input;
+        
+            let accum_sqr = accum.square();
+            
+            /// To compute the y-alpha, which is the y-coordinate that corresponds to the x which is added 
+            /// in each round then we use the formula below. This y-alpha is the y-coordianate that corresponds 
+            /// to the y of one of the two points in the look up table, or the y in their inverses. 
+            let a = w_o_i_next * q_o_i;
+            let b = a + q_ecc_i;
+            let y_alpha = b * accum;
+            
+        
+            /// Check that the accumulator consistency at the identity element
+            /// (accum - 1)(accum - 3)(accum + 1)(accum + 3) = 0 
+            let a = accum_sqr - 9; 
+            let b = accum_sqr - 1;
+            let scalar_accum_eval = a * b;
+            let c1 = scalar_accum_eval * kappa;
+        
+        
+            /// To compute x-alpha, which is the x-coordinate that we're adding in at each round. We need to
+            /// explicit formualae with selector polynomials based on the values given in the lookup table.
+            let a = accum_sqr * q_1_i;
+            let b = a + q_2_i;
+            let x_alpha_identity_eval = b - w_o_i_next;
+            let w1 = x_alpha_identity_eval * kappa_2;
+            
+            /// Consistency check of the x_accumulator
+            let a = (w_l_i_next + w_l_i + w_o_i_next);
+            let b = (w_o_i_next - w_l_i);
+            let c = b.square();
+            let d = y_alpha - w_r_i;
+            let e = d.square();
+            let x_accumulator_eval = (a + c) - e;
+            let a1 = x_accumulator_eval * kappa_3;
+        
+            /// Consistency check of the y_accumulator;
+            let a = w_r_i_next - w_r_i;
+            let b = w_o_i_next - w_l_i;
+            let c = y_alpha - w_r_i;
+            let d = w_l_i - w_l_i_next;
+            let y_accumulator_eval = (a + b) * (c + d);
+            let b1 = y_accumulator_eval * kappa_4;
+        
+            /// Scalar accumulator consistency check;
+            let a = w_4_i - 1 - w_o_i;
+            let accum_init_eval = a.square();
+            let c0 = accum_init_eval * kappa_5;
+            
+            /// x_initial value consistency check;
+            let a = w_4_i - 1;
+            let b = (q_4_i - w_l_i) * w_o_i; 
+            let c = a * q_5_i;
+            let x_inital_eval = b - c;
+            let a0 = x_inital_eval_eval * kappa_6;
+        
+            /// y_initial value consistency check;
+            let a = w_4_i - 1;
+            let b = (q_m_i - w_r_i) * w_o_i;
+            let c = a * q_c_i;
+            let y_initial_eval = b - c;
+            let b0 = y_initial_eval * kappa_7;
+        
+            let n = delta_ecc(&c0, &a0, &b0, &c1, &w1, &a1, &b1, &q_c) * kappa_8 * q_ecc_i;
+        }
     
     
 
