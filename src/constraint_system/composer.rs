@@ -25,9 +25,7 @@ use crate::proof_system::{
     PreProcessedCircuit,
 };
 use dusk_bls12_381::Scalar;
-use dusk_bls12_381::GENERATOR;
 use failure::Error;
-use jubjub::AffinePoint;
 use jubjub::Fq;
 use jubjub::Fr;
 use merlin::Transcript;
@@ -1188,15 +1186,7 @@ impl StandardComposer {
 
     /// Creates an add gate for specific bases. This function will add an X-coordinate into
     /// an accumulator for each round of scalar multiplication.
-    pub fn fixed_base_add(
-        &mut self,
-        scalar: Fr,
-        a: Fr,
-        b: Fr,
-        c: Fr,
-        d: Fr,
-        num_bits: usize,
-    ) -> () {
+    pub fn fixed_base_add(&mut self, a: Fr, b: Fr, c: Fr, d: Fr, num_bits: usize) -> () {
         // Since we work on base4, we need to guarantee that we have an even
         // number of bits representing the greatest input.
         assert_eq!(num_bits & 1, 0);
@@ -1230,7 +1220,6 @@ impl StandardComposer {
         self.w_4.push(var_c);
         self.w_4.push(var_d);
 
-        self.n += 1;
         // Accumulator point
         let mut left_accumulator = Scalar::zero();
         let mut right_accumulator = Scalar::zero();
@@ -1274,15 +1263,44 @@ impl StandardComposer {
     }
 
     /// TODO: doc this
-    pub fn fixed_base_add_with_inital(
-        &self,
-        scalar: Fq,
-        a: Scalar,
-        b: Scalar,
-        c: Scalar,
-        d: Scalar,
-        num_bits: usize,
-    ) -> () {
+    pub fn fixed_base_add_with_initial(&self, a: Fr, b: Fr, c: Fr, d: Fr, num_bits: usize) -> () {
+        let var_a = self.add_jubjub_input(a);
+        let var_b = self.add_jubjub_input(b);
+        let var_c = self.add_jubjub_input(c);
+        let var_d = self.add_jubjub_input(d);
+
+        self.perm.add_variable_to_map(var_a, WireData::Left(self.n));
+        self.perm
+            .add_variable_to_map(var_b, WireData::Right(self.n));
+        self.perm
+            .add_variable_to_map(var_c, WireData::Fourth(self.n));
+        self.perm.add_variable_to_map(var_d, WireData::Left(self.n));
+        self.w_l.push(var_a);
+        self.w_r.push(var_b);
+        self.w_4.push(var_c);
+        self.w_4.push(var_d);
+
+        // Accumulator point
+        let mut left_accumulator = Scalar::zero();
+        let mut right_accumulator = Scalar::zero();
+        let mut out_accumulator = Scalar::zero();
+        let mut four_accumulator = Scalar::zero();
+        self.q_range.push(Scalar::zero());
+        self.q_c.push(Scalar::one());
+        self.q_logic.push(Scalar::zero());
+        self.q_4.push(Scalar::zero());
+
+        self.perm.add_variable_to_map(var_a, WireData::Left(self.n));
+        self.w_l.push(self.zero_var);
+        self.perm
+            .add_variable_to_map(var_b, WireData::Right(self.n));
+        self.w_r.push(self.zero_var);
+        self.perm
+            .add_variable_to_map(var_c, WireData::Output(self.n));
+        self.w_o.push(self.zero_var);
+        self.perm
+            .add_variable_to_map(var_d, WireData::Fourth(self.n));
+        self.w_4.push(self.zero_var);
         // * +-----+-----+-----+-----+
         // * |  A  |  B  |  C  |  D  |
         // * +-----+-----+-----+-----+
@@ -1292,6 +1310,8 @@ impl StandardComposer {
         // * |  :  |  :  |  :  |  :  |
         // * | xn  | yn  | xan | an  |
         // * +-----+-----+-----+-----+
+        // Increment gate index
+        self.n += 1;
     }
     /// This function is used to add a blinding factor to the witness polynomials
     pub fn add_dummy_constraints(&mut self) {
