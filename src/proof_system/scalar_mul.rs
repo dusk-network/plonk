@@ -3,7 +3,7 @@
 //!  a new field element.
 
 // TODO: use dusk-bls12_381
-use crate::constraint_system::{StandardComposer, WireData};
+use crate::constraint_system::{StandardComposer, Variable};
 use core::ops::Neg;
 use dusk_bls12_381::Scalar;
 use jubjub::Fr;
@@ -56,10 +56,7 @@ pub fn fixed_base_ladder() -> [AffinePoint; 4] {
     ladder
 }
 
-pub fn scalar_mul(
-    scalar: Fr,
-    composer: StandardComposer,
-) -> Vec<(AffinePoint, AffinePoint, AffinePoint, AffinePoint)> {
+pub fn scalar_mul(scalar: Fr, composer: &mut StandardComposer) -> Variable {
     // Get scalar in correct format
     // [i8; 256]
     let mut wnaf_scalar = scalar.compute_windowed_naf(3u8).to_vec();
@@ -117,6 +114,14 @@ pub fn scalar_mul(
             AffinePoint::from(g_i_neg_3),
         ));
 
+        // TODO: check for correctness
+        let point_to_add = match (*i.1 > 0i8, *i.1 < 0i8, *i.1 == 0i8) {
+            (true, false, false) => table[(*i.1 - 1) as usize],
+            (false, true, false) => -table[((*i.1).abs() - 1) as usize],
+            (false, false, true) => AffinePoint::identity(),
+            _ => unreachable!(),
+        };
+
         if i.0 > 1 {
             let accum = Fr::from(4 as u64) * accums[i.0 - 1]
                 + Fr::from(wnaf_scalar[wnaf_scalar.len() - i.0] as u64);
@@ -127,12 +132,13 @@ pub fn scalar_mul(
         let g_i_3_affine = AffinePoint::from(g_i_3);
         let g_i_neg_affine = AffinePoint::from(g_i_neg);
         let g_i_3_neg_affine = AffinePoint::from(g_i_neg_3);
-        let x_beta = g_i_affine.get_x();
-        let y_beta = g_i_affine.get_y();
-        let x_gamma = g_i_3_affine.get_x();
-        let y_gamma = g_i_3_affine.get_y();
-        let y_beta_neg = g_i_neg_affine.get_y();
-        let y_gamma_neg = g_i_3_neg_affine.get_y();
+        // TODO: fix this
+        let x_beta = Fr::from_bytes(&g_i_affine.get_x().to_bytes()).unwrap();
+        let y_beta = Fr::from_bytes(&g_i_affine.get_y().to_bytes()).unwrap();
+        let x_gamma = Fr::from_bytes(&g_i_3_affine.get_x().to_bytes()).unwrap();
+        let y_gamma = Fr::from_bytes(&g_i_3_affine.get_y().to_bytes()).unwrap();
+        let y_beta_neg = Fr::from_bytes(&g_i_neg_affine.get_y().to_bytes()).unwrap();
+        let y_gamma_neg = Fr::from_bytes(&g_i_3_neg_affine.get_y().to_bytes()).unwrap();
 
         let mut x_alpha = Fr::zero();
 
@@ -144,25 +150,45 @@ pub fn scalar_mul(
         }
 
         if i.0 == 0 {
+            // TODO: remove Fr unwraps
             composer.fixed_base_add_with_initial(
-                point_to_add.get_x(),
-                point_to_add.get_y(),
+                Fr::from_bytes(&point_to_add.get_x().to_bytes()).unwrap(),
+                Fr::from_bytes(&point_to_add.get_y().to_bytes()).unwrap(),
                 x_alpha,
                 accums[i.0],
                 256,
-            )
-        } else {
+            );
+        } else if i.0 < wnaf_scalar.len() - 1 {
             composer.fixed_base_add(
-                point_to_add.get_x(),
-                point_to_add.get_y(),
+                Fr::from_bytes(&point_to_add.get_x().to_bytes()).unwrap(),
+                Fr::from_bytes(&point_to_add.get_y().to_bytes()).unwrap(),
                 x_alpha,
                 accums[i.0],
                 256,
-            )
+            );
+        } else {
+            let var_a = composer
+                .add_jubjub_input(Fr::from_bytes(&point_to_add.get_x().to_bytes()).unwrap());
+            let var_b = composer
+                .add_jubjub_input(Fr::from_bytes(&point_to_add.get_y().to_bytes()).unwrap());
+            let var_c = composer.add_jubjub_input(x_alpha);
+            let var_d = composer.add_jubjub_input(accums[i.0]);
+            composer.big_add_gate(
+                var_a,
+                var_b,
+                var_c,
+                var_d,
+                Scalar::zero(),
+                Scalar::zero(),
+                Scalar::zero(),
+                Scalar::zero(),
+                Scalar::zero(),
+                Scalar::zero(),
+            );
         }
     }
 
-    gi_points
+    composer.w_o[composer.w_o.len() - 1]
 }
 
 // Now that we have our scalar in the NAF form, we need to precompute our look up table.
@@ -183,10 +209,12 @@ fn test_ladder() {
 
 #[test]
 fn test_scalar_mul() {
+    let mut composer = StandardComposer::default();
     let point = GENERATOR;
     let gen_x = point.get_x();
     let gen_y = point.get_y();
-    let scalar = Fr::from(31);
+    let scalar = Fr::from(31 as u64);
 
-    assert_eq!(scalar_mul(scalar, point), 6749237362536748595030987654329305826145364798328171542537485058472526649593, 435472901526383203736325467483956216236323421376357876155393487519030193845 )
+    // TODO: what do we need to check?
+    // assert_eq!(scalar_mul(scalar, &mut composer), 6749237362536748595030987654329305826145364798328171542537485058472526649593, 435472901526383203736325467483956216236323421376357876155393487519030193845 )
 }

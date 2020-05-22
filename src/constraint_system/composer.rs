@@ -1263,7 +1263,14 @@ impl StandardComposer {
     }
 
     /// TODO: doc this
-    pub fn fixed_base_add_with_initial(&self, a: Fr, b: Fr, c: Fr, d: Fr, num_bits: usize) -> () {
+    pub fn fixed_base_add_with_initial(
+        &mut self,
+        a: Fr,
+        b: Fr,
+        c: Fr,
+        d: Fr,
+        num_bits: usize,
+    ) -> () {
         let var_a = self.add_jubjub_input(a);
         let var_b = self.add_jubjub_input(b);
         let var_c = self.add_jubjub_input(c);
