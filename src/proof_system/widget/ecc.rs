@@ -106,12 +106,12 @@ impl<'de> Deserialize<'de> for LogicWidget {
     }
 }
 
-impl ScalarMulWidget {
+impl ECCWidget {
     pub(crate) fn new(
         q_c: (Polynomial, Commitment, Option<Evaluations>),
         q_ecc: (Polynomial, Commitment, Option<Evaluations>),
-    ) -> ScalarMulWidget {
-        ScalarMulWidget {
+    ) -> ECCWidget {
+        ECCWidget {
             q_c: PreProcessedPolynomial::new(q_ecc),
             q_ecc: PreProcessedPolynomial::new(q_ecc),
         }
