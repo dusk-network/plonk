@@ -26,7 +26,6 @@ use crate::proof_system::{
 };
 use dusk_bls12_381::Scalar;
 use failure::Error;
-use jubjub::Fq;
 use jubjub::Fr;
 use merlin::Transcript;
 use std::collections::HashMap;
@@ -1186,7 +1185,7 @@ impl StandardComposer {
 
     /// Creates an add gate for specific bases. This function will add an X-coordinate into
     /// an accumulator for each round of scalar multiplication.
-    pub fn fixed_base_add(&mut self, a: Fr, b: Fr, c: Fr, d: Fr, num_bits: usize) -> () {
+    pub fn fixed_base_add(&mut self, a: Fr, b: Fr, c: Fr, d: Fr, num_bits: usize) {
         // Since we work on base4, we need to guarantee that we have an even
         // number of bits representing the greatest input.
         assert_eq!(num_bits & 1, 0);
@@ -1263,14 +1262,7 @@ impl StandardComposer {
     }
 
     /// TODO: doc this
-    pub fn fixed_base_add_with_initial(
-        &mut self,
-        a: Fr,
-        b: Fr,
-        c: Fr,
-        d: Fr,
-        num_bits: usize,
-    ) -> () {
+    pub fn fixed_base_add_with_initial(&mut self, a: Fr, b: Fr, c: Fr, d: Fr, num_bits: usize) {
         let var_a = self.add_jubjub_input(a);
         let var_b = self.add_jubjub_input(b);
         let var_c = self.add_jubjub_input(c);
