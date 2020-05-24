@@ -1219,11 +1219,6 @@ impl StandardComposer {
         self.w_4.push(var_c);
         self.w_4.push(var_d);
 
-        // Accumulator point
-        let mut left_accumulator = Scalar::zero();
-        let mut right_accumulator = Scalar::zero();
-        let mut out_accumulator = Scalar::zero();
-        let mut four_accumulator = Scalar::zero();
         self.q_range.push(Scalar::zero());
         self.q_c.push(Scalar::zero());
         self.q_logic.push(Scalar::zero());
@@ -1262,7 +1257,7 @@ impl StandardComposer {
     }
 
     /// TODO: doc this
-    pub fn fixed_base_add_with_initial(&mut self, a: Fr, b: Fr, c: Fr, d: Fr, num_bits: usize) {
+    pub fn fixed_base_add_with_initial(&mut self, a: Fr, b: Fr, c: Fr, d: Fr) {
         let var_a = self.add_jubjub_input(a);
         let var_b = self.add_jubjub_input(b);
         let var_c = self.add_jubjub_input(c);
@@ -1280,10 +1275,6 @@ impl StandardComposer {
         self.w_4.push(var_d);
 
         // Accumulator point
-        let mut left_accumulator = Scalar::zero();
-        let mut right_accumulator = Scalar::zero();
-        let mut out_accumulator = Scalar::zero();
-        let mut four_accumulator = Scalar::zero();
         self.q_range.push(Scalar::zero());
         self.q_c.push(Scalar::one());
         self.q_logic.push(Scalar::zero());
