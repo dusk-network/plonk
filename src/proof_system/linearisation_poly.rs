@@ -1,5 +1,5 @@
 use crate::fft::{EvaluationDomain, Polynomial};
-use crate::proof_system::PreProcessedCircuit;
+use crate::proof_system::widget::ProverKey;
 use dusk_bls12_381::Scalar;
 #[cfg(feature = "serde")]
 use serde::{de::Visitor, ser::SerializeStruct, Deserialize, Deserializer, Serialize, Serializer};
@@ -237,7 +237,7 @@ impl<'de> Deserialize<'de> for ProofEvaluations {
 /// Compute the linearisation polynomial
 pub fn compute(
     domain: &EvaluationDomain,
-    preprocessed_circuit: &PreProcessedCircuit,
+    prover_key: &ProverKey,
     (alpha, beta, gamma, range_separation_challenge, logic_separation_challenge, z_challenge): &(
         Scalar,
         Scalar,
@@ -259,36 +259,11 @@ pub fn compute(
     let b_eval = w_r_poly.evaluate(z_challenge);
     let c_eval = w_o_poly.evaluate(z_challenge);
     let d_eval = w_4_poly.evaluate(z_challenge);
-    let left_sigma_eval = preprocessed_circuit
-        .prover_key
-        .permutation
-        .left_sigma
-        .0
-        .evaluate(z_challenge);
-    let right_sigma_eval = preprocessed_circuit
-        .prover_key
-        .permutation
-        .right_sigma
-        .0
-        .evaluate(z_challenge);
-    let out_sigma_eval = preprocessed_circuit
-        .prover_key
-        .permutation
-        .out_sigma
-        .0
-        .evaluate(z_challenge);
-    let q_arith_eval = preprocessed_circuit
-        .prover_key
-        .arithmetic
-        .q_arith
-        .0
-        .evaluate(z_challenge);
-    let q_c_eval = preprocessed_circuit
-        .prover_key
-        .logic
-        .q_c
-        .0
-        .evaluate(z_challenge);
+    let left_sigma_eval = prover_key.permutation.left_sigma.0.evaluate(z_challenge);
+    let right_sigma_eval = prover_key.permutation.right_sigma.0.evaluate(z_challenge);
+    let out_sigma_eval = prover_key.permutation.out_sigma.0.evaluate(z_challenge);
+    let q_arith_eval = prover_key.arithmetic.q_arith.0.evaluate(z_challenge);
+    let q_c_eval = prover_key.logic.q_c.0.evaluate(z_challenge);
 
     let a_next_eval = w_l_poly.evaluate(&(z_challenge * domain.group_gen));
     let b_next_eval = w_r_poly.evaluate(&(z_challenge * domain.group_gen));
@@ -306,20 +281,17 @@ pub fn compute(
         &d_next_eval,
         &q_arith_eval,
         &q_c_eval,
-        preprocessed_circuit,
+        prover_key,
     );
 
-    let f_2 = preprocessed_circuit
-        .prover_key
-        .permutation
-        .compute_linearisation(
-            z_challenge,
-            (alpha, beta, gamma),
-            (&a_eval, &b_eval, &c_eval, &d_eval),
-            (&left_sigma_eval, &right_sigma_eval, &out_sigma_eval),
-            &perm_eval,
-            z_poly,
-        );
+    let f_2 = prover_key.permutation.compute_linearisation(
+        z_challenge,
+        (alpha, beta, gamma),
+        (&a_eval, &b_eval, &c_eval, &d_eval),
+        (&left_sigma_eval, &right_sigma_eval, &out_sigma_eval),
+        &perm_eval,
+        z_poly,
+    );
 
     let lin_poly = &f_1 + &f_2;
 
@@ -362,14 +334,14 @@ fn compute_circuit_satisfiability(
     d_next_eval: &Scalar,
     q_arith_eval: &Scalar,
     q_c_eval: &Scalar,
-    preprocessed_circuit: &PreProcessedCircuit,
+    prover_key: &ProverKey,
 ) -> Polynomial {
-    let a = preprocessed_circuit
-        .prover_key
-        .arithmetic
-        .compute_linearisation(a_eval, b_eval, c_eval, d_eval, q_arith_eval);
+    let a =
+        prover_key
+            .arithmetic
+            .compute_linearisation(a_eval, b_eval, c_eval, d_eval, q_arith_eval);
 
-    let b = preprocessed_circuit.prover_key.range.compute_linearisation(
+    let b = prover_key.range.compute_linearisation(
         range_separation_challenge,
         a_eval,
         b_eval,
@@ -378,7 +350,7 @@ fn compute_circuit_satisfiability(
         &d_next_eval,
     );
 
-    let c = preprocessed_circuit.prover_key.logic.compute_linearisation(
+    let c = prover_key.logic.compute_linearisation(
         logic_separation_challenge,
         a_eval,
         a_next_eval,

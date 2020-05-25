@@ -15,11 +15,12 @@
 
 use super::cs_errors::PreProcessingError;
 use crate::commitment_scheme::kzg10::CommitKey;
+use crate::constraint_system::SelectorPolynomials;
 
 use crate::constraint_system::Variable;
 use crate::fft::{EvaluationDomain, Evaluations, Polynomial};
 use crate::permutation::Permutation;
-use crate::proof_system::{widget, PreProcessedCircuit};
+use crate::proof_system::widget;
 use dusk_bls12_381::Scalar;
 use failure::Error;
 use merlin::Transcript;
@@ -76,21 +77,122 @@ pub struct StandardComposer {
 }
 
 impl StandardComposer {
-    /// Computes the pre-processed polynomials
-    /// So the verifier can verify a proof made using this circuit
-    pub fn preprocess(
+    /// These are the parts of preprocessing that the prover must compute
+    /// Although the prover does not need the verification key, he must compute the commitments
+    /// in order to seed the transcript, allowing both the prover and verifier to have the same view
+    pub fn preprocess_prover(
         &mut self,
         commit_key: &CommitKey,
         transcript: &mut Transcript,
-    ) -> Result<PreProcessedCircuit, Error> {
+    ) -> Result<widget::ProverKey, Error> {
+        let (_, selectors, domain) = self.preprocess_shared(commit_key, transcript)?;
+
+        let domain_4n = EvaluationDomain::new(4 * domain.size())?;
+        let q_m_eval_4n =
+            Evaluations::from_vec_and_domain(domain_4n.coset_fft(&selectors.q_m), domain_4n);
+        let q_l_eval_4n =
+            Evaluations::from_vec_and_domain(domain_4n.coset_fft(&selectors.q_l), domain_4n);
+        let q_r_eval_4n =
+            Evaluations::from_vec_and_domain(domain_4n.coset_fft(&selectors.q_r), domain_4n);
+        let q_o_eval_4n =
+            Evaluations::from_vec_and_domain(domain_4n.coset_fft(&selectors.q_o), domain_4n);
+        let q_c_eval_4n =
+            Evaluations::from_vec_and_domain(domain_4n.coset_fft(&selectors.q_c), domain_4n);
+        let q_4_eval_4n =
+            Evaluations::from_vec_and_domain(domain_4n.coset_fft(&selectors.q_4), domain_4n);
+        let q_arith_eval_4n =
+            Evaluations::from_vec_and_domain(domain_4n.coset_fft(&selectors.q_arith), domain_4n);
+        let q_range_eval_4n =
+            Evaluations::from_vec_and_domain(domain_4n.coset_fft(&selectors.q_range), domain_4n);
+        let q_logic_eval_4n =
+            Evaluations::from_vec_and_domain(domain_4n.coset_fft(&selectors.q_logic), domain_4n);
+
+        let left_sigma_eval_4n =
+            Evaluations::from_vec_and_domain(domain_4n.coset_fft(&selectors.left_sigma), domain_4n);
+        let right_sigma_eval_4n = Evaluations::from_vec_and_domain(
+            domain_4n.coset_fft(&selectors.right_sigma),
+            domain_4n,
+        );
+        let out_sigma_eval_4n =
+            Evaluations::from_vec_and_domain(domain_4n.coset_fft(&selectors.out_sigma), domain_4n);
+        let fourth_sigma_eval_4n = Evaluations::from_vec_and_domain(
+            domain_4n.coset_fft(&selectors.fourth_sigma),
+            domain_4n,
+        );
+        // XXX: Remove this and compute it on the fly
+        let linear_eval_4n = Evaluations::from_vec_and_domain(
+            domain_4n.coset_fft(&[Scalar::zero(), Scalar::one()]),
+            domain_4n,
+        );
+
+        // Prover Key for arithmetic circuits
+        let arithmetic_prover_key = widget::arithmetic::ProverKey {
+            q_m: (selectors.q_m, q_m_eval_4n),
+            q_l: (selectors.q_l, q_l_eval_4n),
+            q_r: (selectors.q_r, q_r_eval_4n),
+            q_o: (selectors.q_o, q_o_eval_4n),
+            q_c: (selectors.q_c.clone(), q_c_eval_4n.clone()),
+            q_4: (selectors.q_4, q_4_eval_4n),
+            q_arith: (selectors.q_arith, q_arith_eval_4n),
+        };
+
+        // Prover Key for range circuits
+        let range_prover_key = widget::range::ProverKey {
+            q_range: (selectors.q_range, q_range_eval_4n),
+        };
+
+        // Prover Key for logic circuits
+        let logic_prover_key = widget::logic::ProverKey {
+            q_c: (selectors.q_c, q_c_eval_4n),
+            q_logic: (selectors.q_logic, q_logic_eval_4n),
+        };
+
+        // Prover Key for permutation argument
+        let permutation_prover_key = widget::permutation::ProverKey {
+            left_sigma: (selectors.left_sigma, left_sigma_eval_4n),
+            right_sigma: (selectors.right_sigma, right_sigma_eval_4n),
+            out_sigma: (selectors.out_sigma, out_sigma_eval_4n),
+            fourth_sigma: (selectors.fourth_sigma, fourth_sigma_eval_4n),
+            linear_evaluations: linear_eval_4n,
+        };
+
+        let prover_key = widget::ProverKey {
+            arithmetic: arithmetic_prover_key,
+            logic: logic_prover_key,
+            range: range_prover_key,
+            permutation: permutation_prover_key,
+            // Compute 4n evaluations for X^n -1
+            v_h_coset_4n: domain_4n.compute_vanishing_poly_over_coset(domain.size() as u64),
+        };
+
+        Ok(prover_key)
+    }
+    /// The verifier only requires the commitments in order to verify a proof
+    /// We can therefore speed up preprocessing for the verifier by skipping the FFTs
+    /// needed to compute the 4n evaluations
+    pub fn preprocess_verifier(
+        &mut self,
+        commit_key: &CommitKey,
+        transcript: &mut Transcript,
+    ) -> Result<widget::VerifierKey, Error> {
+        let (verifier_key, _, _) = self.preprocess_shared(commit_key, transcript)?;
+        Ok(verifier_key)
+    }
+    // Both the prover and verifier must perform IFFTs on the selector polynomials and permutation polynomials
+    // In order to commit to them and have the same transcript view
+    fn preprocess_shared(
+        &mut self,
+        commit_key: &CommitKey,
+        transcript: &mut Transcript,
+    ) -> Result<(widget::VerifierKey, SelectorPolynomials, EvaluationDomain), Error> {
         let domain = EvaluationDomain::new(self.circuit_size())?;
+
         // Check that the length of the wires is consistent.
         self.check_poly_same_len()?;
 
-        //1. Pad circuit to a power of two
+        // 1. Pad circuit to a power of two
         self.pad(domain.size as usize - self.n);
 
-        // 2a. Convert selector evaluations to selector coefficients
         let q_m_poly = Polynomial::from_coefficients_slice(&domain.ifft(&self.q_m));
         let q_l_poly = Polynomial::from_coefficients_slice(&domain.ifft(&self.q_l));
         let q_r_poly = Polynomial::from_coefficients_slice(&domain.ifft(&self.q_r));
@@ -101,55 +203,10 @@ impl StandardComposer {
         let q_range_poly = Polynomial::from_coefficients_slice(&domain.ifft(&self.q_range));
         let q_logic_poly = Polynomial::from_coefficients_slice(&domain.ifft(&self.q_logic));
 
-        // 2b. Compute 4n evaluations of selector polynomial
-        let domain_4n = EvaluationDomain::new(4 * domain.size())?;
-        let q_m_eval_4n =
-            Evaluations::from_vec_and_domain(domain_4n.coset_fft(&q_m_poly.coeffs), domain_4n);
-        let q_l_eval_4n =
-            Evaluations::from_vec_and_domain(domain_4n.coset_fft(&q_l_poly.coeffs), domain_4n);
-        let q_r_eval_4n =
-            Evaluations::from_vec_and_domain(domain_4n.coset_fft(&q_r_poly.coeffs), domain_4n);
-        let q_o_eval_4n =
-            Evaluations::from_vec_and_domain(domain_4n.coset_fft(&q_o_poly.coeffs), domain_4n);
-        let q_c_eval_4n =
-            Evaluations::from_vec_and_domain(domain_4n.coset_fft(&q_c_poly.coeffs), domain_4n);
-        let q_4_eval_4n =
-            Evaluations::from_vec_and_domain(domain_4n.coset_fft(&q_4_poly.coeffs), domain_4n);
-        let q_arith_eval_4n =
-            Evaluations::from_vec_and_domain(domain_4n.coset_fft(&q_arith_poly.coeffs), domain_4n);
-        let q_range_eval_4n =
-            Evaluations::from_vec_and_domain(domain_4n.coset_fft(&q_range_poly.coeffs), domain_4n);
-        let q_logic_eval_4n =
-            Evaluations::from_vec_and_domain(domain_4n.coset_fft(&q_logic_poly.coeffs), domain_4n);
-
-        // 3. Compute the sigma polynomials
+        // 2. Compute the sigma polynomials
         let (left_sigma_poly, right_sigma_poly, out_sigma_poly, fourth_sigma_poly) =
             self.perm.compute_sigma_polynomials(self.n, &domain);
 
-        // 3a. Compute 4n evaluations of sigma polynomials and the linear polynomial
-        let left_sigma_eval_4n = Evaluations::from_vec_and_domain(
-            domain_4n.coset_fft(&left_sigma_poly.coeffs),
-            domain_4n,
-        );
-        let right_sigma_eval_4n = Evaluations::from_vec_and_domain(
-            domain_4n.coset_fft(&right_sigma_poly.coeffs),
-            domain_4n,
-        );
-        let out_sigma_eval_4n = Evaluations::from_vec_and_domain(
-            domain_4n.coset_fft(&out_sigma_poly.coeffs),
-            domain_4n,
-        );
-        let fourth_sigma_eval_4n = Evaluations::from_vec_and_domain(
-            domain_4n.coset_fft(&fourth_sigma_poly.coeffs),
-            domain_4n,
-        );
-        let linear_eval_4n = Evaluations::from_vec_and_domain(
-            domain_4n.coset_fft(&[Scalar::zero(), Scalar::one()]),
-            domain_4n,
-        );
-
-        // 4. Commit to polynomials
-        //
         let q_m_poly_commit = commit_key.commit(&q_m_poly).unwrap_or_default();
         let q_l_poly_commit = commit_key.commit(&q_l_poly).unwrap_or_default();
         let q_r_poly_commit = commit_key.commit(&q_r_poly).unwrap_or_default();
@@ -165,16 +222,6 @@ impl StandardComposer {
         let out_sigma_poly_commit = commit_key.commit(&out_sigma_poly)?;
         let fourth_sigma_poly_commit = commit_key.commit(&fourth_sigma_poly)?;
 
-        // Prover Key for arithmetic circuits
-        let arithmetic_prover_key = widget::arithmetic::ProverKey {
-            q_m: (q_m_poly, q_m_eval_4n),
-            q_l: (q_l_poly, q_l_eval_4n),
-            q_r: (q_r_poly, q_r_eval_4n),
-            q_o: (q_o_poly, q_o_eval_4n),
-            q_c: (q_c_poly.clone(), q_c_eval_4n.clone()),
-            q_4: (q_4_poly, q_4_eval_4n),
-            q_arith: (q_arith_poly, q_arith_eval_4n),
-        };
         // Verifier Key for arithmetic circuits
         let arithmetic_verifier_key = widget::arithmetic::VerifierKey {
             q_m: q_m_poly_commit,
@@ -185,34 +232,14 @@ impl StandardComposer {
             q_4: q_4_poly_commit,
             q_arith: q_arith_poly_commit,
         };
-
-        // Prover Key for range circuits
-        let range_prover_key = widget::range::ProverKey {
-            q_range: (q_range_poly, q_range_eval_4n),
-        };
         // Verifier Key for range circuits
         let range_verifier_key = widget::range::VerifierKey {
             q_range: q_range_poly_commit,
-        };
-
-        // Prover Key for logic circuits
-        let logic_prover_key = widget::logic::ProverKey {
-            q_c: (q_c_poly, q_c_eval_4n),
-            q_logic: (q_logic_poly, q_logic_eval_4n),
         };
         // Verifier Key for logic circuits
         let logic_verifier_key = widget::logic::VerifierKey {
             q_c: q_c_poly_commit,
             q_logic: q_logic_poly_commit,
-        };
-
-        // Prover Key for permutation argument
-        let permutation_prover_key = widget::permutation::ProverKey {
-            left_sigma: (left_sigma_poly, left_sigma_eval_4n),
-            right_sigma: (right_sigma_poly, right_sigma_eval_4n),
-            out_sigma: (out_sigma_poly, out_sigma_eval_4n),
-            fourth_sigma: (fourth_sigma_poly, fourth_sigma_eval_4n),
-            linear_evaluations: linear_eval_4n,
         };
         // Verifier Key for permutation argument
         let permutation_verifier_key = widget::permutation::VerifierKey {
@@ -222,28 +249,34 @@ impl StandardComposer {
             fourth_sigma: fourth_sigma_poly_commit,
         };
 
-        let ppc = PreProcessedCircuit {
-            n: self.n,
-            prover_key: widget::ProverKey {
-                arithmetic: arithmetic_prover_key,
-                logic: logic_prover_key,
-                range: range_prover_key,
-                permutation: permutation_prover_key,
-                // Compute 4n evaluations for X^n -1
-                v_h_coset_4n: domain_4n.compute_vanishing_poly_over_coset(domain.size() as u64),
-            },
-            verifier_key: widget::VerifierKey {
-                arithmetic: arithmetic_verifier_key,
-                logic: logic_verifier_key,
-                range: range_verifier_key,
-                permutation: permutation_verifier_key,
-            },
+        let verifier_key = widget::VerifierKey {
+            n: self.circuit_size(),
+            arithmetic: arithmetic_verifier_key,
+            logic: logic_verifier_key,
+            range: range_verifier_key,
+            permutation: permutation_verifier_key,
         };
 
-        // Append commitments to transcript
-        ppc.seed_transcript(transcript);
+        let selectors = SelectorPolynomials {
+            q_m: q_m_poly,
+            q_l: q_l_poly,
+            q_r: q_r_poly,
+            q_o: q_o_poly,
+            q_c: q_c_poly,
+            q_4: q_4_poly,
+            q_arith: q_arith_poly,
+            q_range: q_range_poly,
+            q_logic: q_logic_poly,
+            left_sigma: left_sigma_poly,
+            right_sigma: right_sigma_poly,
+            out_sigma: out_sigma_poly,
+            fourth_sigma: fourth_sigma_poly,
+        };
 
-        Ok(ppc)
+        // Add the circuit description to the transcript
+        verifier_key.seed_transcript(transcript);
+
+        Ok((verifier_key, selectors, domain))
     }
 
     /// Returns the number of gates in the circuit

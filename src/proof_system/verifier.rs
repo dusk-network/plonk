@@ -1,15 +1,15 @@
 use crate::commitment_scheme::kzg10::{CommitKey, OpeningKey};
 use crate::constraint_system::StandardComposer;
-use crate::proof_system::{PreProcessedCircuit, Proof};
+use crate::proof_system::widget::VerifierKey;
+use crate::proof_system::Proof;
 use dusk_bls12_381::Scalar;
 use failure::Error;
 use merlin::Transcript;
-
 /// Verifier verifies a proof
 #[allow(missing_debug_implementations)]
 pub struct Verifier {
-    /// Preprocessed circuit
-    pub preprocessed_circuit: Option<PreProcessedCircuit>,
+    /// VerificationKey which is used to verify a specific PLONK circuit
+    pub verifier_key: Option<VerifierKey>,
 
     pub(crate) cs: StandardComposer,
     /// Store the messages exchanged during the preprocessing stage
@@ -29,7 +29,7 @@ impl Verifier {
     /// Creates a new verifier object
     pub fn new(label: &'static [u8]) -> Verifier {
         Verifier {
-            preprocessed_circuit: None,
+            verifier_key: None,
             cs: StandardComposer::new(),
             preprocessed_transcript: Transcript::new(label),
         }
@@ -47,11 +47,11 @@ impl Verifier {
 
     /// Preprocess a proof
     pub fn preprocess(&mut self, commit_key: &CommitKey) -> Result<(), Error> {
-        let ppc = self
+        let vk = self
             .cs
-            .preprocess(commit_key, &mut self.preprocessed_transcript)?;
+            .preprocess_verifier(commit_key, &mut self.preprocessed_transcript)?;
 
-        self.preprocessed_circuit = Some(ppc);
+        self.verifier_key = Some(vk);
         Ok(())
     }
 
@@ -69,10 +69,10 @@ impl Verifier {
         public_inputs: &[Scalar],
     ) -> Result<(), Error> {
         let mut cloned_transcript = self.preprocessed_transcript.clone();
-        let preprocessed_circuit = self.preprocessed_circuit.as_ref().unwrap();
+        let verifier_key = self.verifier_key.as_ref().unwrap();
 
         proof.verify(
-            preprocessed_circuit,
+            verifier_key,
             &mut cloned_transcript,
             opening_key,
             public_inputs,

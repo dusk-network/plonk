@@ -1,5 +1,5 @@
 use crate::fft::{EvaluationDomain, Polynomial};
-use crate::proof_system::PreProcessedCircuit;
+use crate::proof_system::widget::ProverKey;
 use dusk_bls12_381::Scalar;
 use failure::Error;
 use rayon::prelude::*;
@@ -10,7 +10,7 @@ use rayon::prelude::*;
 /// Computes the quotient polynomial
 pub(crate) fn compute(
     domain: &EvaluationDomain,
-    preprocessed_circuit: &PreProcessedCircuit,
+    prover_key: &ProverKey,
     z_poly: &Polynomial,
     (w_l_poly, w_r_poly, w_o_poly, w_4_poly): (&Polynomial, &Polynomial, &Polynomial, &Polynomial),
     public_inputs_poly: &Polynomial,
@@ -51,14 +51,14 @@ pub(crate) fn compute(
     let t_1 = compute_circuit_satisfiability_equation(
         &domain,
         (range_challenge, logic_challenge),
-        preprocessed_circuit,
+        prover_key,
         (&wl_eval_4n, &wr_eval_4n, &wo_eval_4n, &w4_eval_4n),
         public_inputs_poly,
     );
 
     let t_2 = compute_permutation_checks(
         domain,
-        preprocessed_circuit,
+        prover_key,
         (&wl_eval_4n, &wr_eval_4n, &wo_eval_4n, &w4_eval_4n),
         &z_eval_4n,
         (alpha, beta, gamma),
@@ -68,7 +68,7 @@ pub(crate) fn compute(
         .into_par_iter()
         .map(|i| {
             let numerator = t_1[i] + t_2[i];
-            let denominator = preprocessed_circuit.prover_key.v_h_coset_4n()[i];
+            let denominator = prover_key.v_h_coset_4n()[i];
             numerator * denominator.invert().unwrap()
         })
         .collect();
@@ -82,7 +82,7 @@ pub(crate) fn compute(
 fn compute_circuit_satisfiability_equation(
     domain: &EvaluationDomain,
     (range_challenge, logic_challenge): (&Scalar, &Scalar),
-    preprocessed_circuit: &PreProcessedCircuit,
+    prover_key: &ProverKey,
     (wl_eval_4n, wr_eval_4n, wo_eval_4n, w4_eval_4n): (&[Scalar], &[Scalar], &[Scalar], &[Scalar]),
     pi_poly: &Polynomial,
 ) -> Vec<Scalar> {
@@ -101,22 +101,14 @@ fn compute_circuit_satisfiability_equation(
             let w4_next = &w4_eval_4n[i + 4];
             let pi = &pi_eval_4n[i];
 
-            let a = preprocessed_circuit
-                .prover_key
-                .arithmetic
-                .compute_quotient_i(i, wl, wr, wo, w4);
+            let a = prover_key.arithmetic.compute_quotient_i(i, wl, wr, wo, w4);
 
-            let b = preprocessed_circuit.prover_key.range.compute_quotient_i(
-                i,
-                range_challenge,
-                wl,
-                wr,
-                wo,
-                w4,
-                w4_next,
-            );
+            let b =
+                prover_key
+                    .range
+                    .compute_quotient_i(i, range_challenge, wl, wr, wo, w4, w4_next);
 
-            let c = preprocessed_circuit.prover_key.logic.compute_quotient_i(
+            let c = prover_key.logic.compute_quotient_i(
                 i,
                 logic_challenge,
                 &wl,
@@ -136,7 +128,7 @@ fn compute_circuit_satisfiability_equation(
 
 fn compute_permutation_checks(
     domain: &EvaluationDomain,
-    preprocessed_circuit: &PreProcessedCircuit,
+    prover_key: &ProverKey,
     (wl_eval_4n, wr_eval_4n, wo_eval_4n, w4_eval_4n): (&[Scalar], &[Scalar], &[Scalar], &[Scalar]),
     z_eval_4n: &[Scalar],
     (alpha, beta, gamma): (&Scalar, &Scalar, &Scalar),
@@ -148,22 +140,19 @@ fn compute_permutation_checks(
     let t: Vec<_> = (0..domain_4n.size())
         .into_par_iter()
         .map(|i| {
-            preprocessed_circuit
-                .prover_key
-                .permutation
-                .compute_quotient_i(
-                    i,
-                    &wl_eval_4n[i],
-                    &wr_eval_4n[i],
-                    &wo_eval_4n[i],
-                    &w4_eval_4n[i],
-                    &z_eval_4n[i],
-                    &z_eval_4n[i + 4],
-                    &alpha,
-                    &l1_alpha_sq_evals[i],
-                    &beta,
-                    &gamma,
-                )
+            prover_key.permutation.compute_quotient_i(
+                i,
+                &wl_eval_4n[i],
+                &wr_eval_4n[i],
+                &wo_eval_4n[i],
+                &w4_eval_4n[i],
+                &z_eval_4n[i],
+                &z_eval_4n[i + 4],
+                &alpha,
+                &l1_alpha_sq_evals[i],
+                &beta,
+                &gamma,
+            )
         })
         .collect();
     t

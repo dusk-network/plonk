@@ -9,7 +9,10 @@ pub use crate::commitment_scheme::kzg10::{
     PublicParameters,
 };
 pub use crate::constraint_system::{StandardComposer, Variable};
-pub use crate::proof_system::{PreProcessedCircuit, Proof, Prover, Verifier};
+pub use crate::proof_system::{
+    widget::{ProverKey, VerifierKey},
+    Proof, Prover, Verifier,
+};
 // Re-export dusk-bls12_381 Scalar type
 pub use dusk_bls12_381::Scalar;
 
