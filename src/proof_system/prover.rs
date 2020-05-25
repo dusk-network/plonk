@@ -13,7 +13,7 @@ use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 /// Prover composes a circuit and builds a proof
 #[allow(missing_debug_implementations)]
 pub struct Prover {
-    /// Preprocessed circuit
+    /// ProverKey which is used to create proofs about a specific PLONK circuit
     pub prover_key: Option<ProverKey>,
 
     pub(crate) cs: StandardComposer,
