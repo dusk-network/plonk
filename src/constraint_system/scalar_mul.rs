@@ -2,7 +2,7 @@
 //!  Given a point and a scalar, split into quads, the functions returns
 //!  a new field element.
 
-// TODO: use dusk-bls12_381
+// TODO: REMOVE THE UNECESSARY FUCNTIONS WITHIN THIS LIBRARY
 use crate::constraint_system::{StandardComposer, Variable};
 use core::ops::Neg;
 use dusk_bls12_381::Scalar;
@@ -35,10 +35,6 @@ impl Default for LadderValues {
     }
 }
 
-/// For the purpose of the fixed base add gate, we will be using
-/// the absolute value of scalars written in the window NAF form.
-/// This means, the quad input which the GENERATOR is multiplied
-/// by can only be 1 or 3.
 pub fn fixed_base_ladder() -> [AffinePoint; 4] {
     let mut ladder = [GENERATOR; 4];
     let g = GENERATOR;
@@ -56,16 +52,31 @@ pub fn fixed_base_ladder() -> [AffinePoint; 4] {
     ladder
 }
 
+/// For the purpose of the fixed base add gate, we will be using
+/// value of scalars written in the window NAF form. When a scalar w-NAF 
+/// is evaluated as a w-NAF array, it can only contain values: 1, 3, -1 
+/// or -3.
+/// This calculation for the points within the 'fixed base ladder'
+/// differs depending on the index of the w-NAF that we're evaluating.
+/// The fixed generator point, g, becomes gi, based on the formula:
+/// gi = 4^(n-i)*g. `n` here is the number of elements in the w-NAF
+/// array, where the max is 256. `i` is the round that is currently
+/// being evaluated; where `i` starts at `0` and goes up to n-1.
 pub fn scalar_mul(scalar: Fr, composer: &mut StandardComposer) -> Variable {
     // Get scalar in correct format
     // [i8; 256]
     let mut wnaf_scalar = scalar.compute_windowed_naf(3u8).to_vec();
     wnaf_scalar.reverse();
 
+    // This is where the accumulator is set.
     let mut t = Fr::zero();
     let b = ExtendedPoint::from(GENERATOR);
     let wnaf_len = wnaf_scalar.len();
-
+    
+    The initial values
+    // The initial x and y values, aka the offset, differ depending on the 
+    // the conditional sign of the scalar. This is either (4^n + 1) * g, or 
+    // (4^n) * g.
     if scalar.is_even() {
         t = Fr::from((4 as usize).pow((wnaf_scalar.len() + 1) as u32) as u64);
     } else {
@@ -74,6 +85,8 @@ pub fn scalar_mul(scalar: Fr, composer: &mut StandardComposer) -> Variable {
 
     let mut accums: Vec<Fr> = vec![];
 
+    // The initial accumulator values, aka the offset, differs depending on the 
+    // the conditional sign of the scalar. This is either 1 or (1+1)/4^n. 
     let mut accum_0 = t;
     let mut accum_1 = t;
     accum_0.divn(((4 as usize).pow(wnaf_scalar.len() as u32)) as u32);
@@ -85,6 +98,8 @@ pub fn scalar_mul(scalar: Fr, composer: &mut StandardComposer) -> Variable {
     accums.push(accum_0);
     accums.push(accum_1);
 
+    // Using gi from the function description above, we compute 
+    // -gi, 3gi & -3gi. 
     let mut mul_points: Vec<ExtendedPoint> = vec![];
     for i in wnaf_scalar.iter().enumerate() {
         let g_i = ExtendedPoint::from(GENERATOR)
@@ -98,7 +113,13 @@ pub fn scalar_mul(scalar: Fr, composer: &mut StandardComposer) -> Variable {
         let g_i_neg_affine = AffinePoint::from(g_i_neg);
         let g_i_3_neg_affine = AffinePoint::from(g_i_neg_3);
 
-        // TODO: check for correctness
+        // Now that we have 4 potential points, and thus 8 coordinates/
+        // scalar, we need to choose which one we add to our current round.
+        // 
+        // If the actual value, at round i, is negative, then we need to select
+        // from the negated points. If not, then we use the positive points.
+        // If the value actual value, at round i, was 1 or -1, then we use 3 times 
+        // the point. Otherwise, use the point itself.
         let point_to_add = match (*i.1 > 0i8, *i.1 < 0i8, *i.1 == 0i8) {
             (true, false, false) => {
                 if *i.1 == 1i8 {
@@ -129,7 +150,9 @@ pub fn scalar_mul(scalar: Fr, composer: &mut StandardComposer) -> Variable {
                 + Fr::from(wnaf_scalar[wnaf_scalar.len() - i.0] as u64);
             accums.push(accum);
         }
-
+        
+        // Here, the x-alpha of the point which is chosen to be added in
+        // is set, as it will become the output wire programme memory.
         let mut x_alpha = Fr::zero();
 
         if *i.1 % 2 == 0 {
@@ -138,6 +161,9 @@ pub fn scalar_mul(scalar: Fr, composer: &mut StandardComposer) -> Variable {
             x_alpha = Fr::from_bytes(&g_i_3_affine.get_x().to_bytes()).unwrap();
         }
 
+        // Depending on the round, or we call the different gates,
+        // from the composer and push the wires to accordingly in 
+        // the programme memory.
         if i.0 == 0 {
             // TODO: remove Fr unwraps
             composer.fixed_base_add_with_initial(
