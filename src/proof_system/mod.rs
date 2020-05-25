@@ -6,7 +6,6 @@ pub(crate) mod proof;
 pub(crate) mod proof_system_errors;
 pub(crate) mod prover;
 pub(crate) mod quotient_poly;
-pub(crate) mod scalar_mul;
 pub(crate) mod verifier;
 pub(crate) mod widget;
 
