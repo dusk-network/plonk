@@ -109,6 +109,7 @@ impl StandardComposer {
         let q_arith_poly = Polynomial::from_coefficients_slice(&domain.ifft(&self.q_arith));
         let q_range_poly = Polynomial::from_coefficients_slice(&domain.ifft(&self.q_range));
         let q_logic_poly = Polynomial::from_coefficients_slice(&domain.ifft(&self.q_logic));
+        // let q_ecc_poly = Polynomial::from_coefficients_slice(&domain.ifft(&self.q_ecc);
 
         // 2b. Compute 4n evaluations of selector polynomial
         let domain_4n = EvaluationDomain::new(4 * domain.size())?;
@@ -130,7 +131,8 @@ impl StandardComposer {
             Evaluations::from_vec_and_domain(domain_4n.coset_fft(&q_range_poly.coeffs), domain_4n);
         let q_logic_eval_4n =
             Evaluations::from_vec_and_domain(domain_4n.coset_fft(&q_logic_poly.coeffs), domain_4n);
-
+        // let q_ecc_eval_4n =
+        //     Evaluations::from_vec_and_domain(domain_4n.coset_fft(&q_ecc_poly.coeffs), domain_4n);
         // 3. Compute the sigma polynomials
         let (left_sigma_poly, right_sigma_poly, out_sigma_poly, fourth_sigma_poly) =
             self.perm.compute_sigma_polynomials(self.n, &domain);
@@ -168,6 +170,7 @@ impl StandardComposer {
         let q_arith_poly_commit = commit_key.commit(&q_arith_poly).unwrap_or_default();
         let q_range_poly_commit = commit_key.commit(&q_range_poly).unwrap_or_default();
         let q_logic_poly_commit = commit_key.commit(&q_logic_poly).unwrap_or_default();
+        // let q_ecc_poly_commit = commit_key.commit(&q_ecc_poly).unwrap_or_default();
 
         let left_sigma_poly_commit = commit_key.commit(&left_sigma_poly)?;
         let right_sigma_poly_commit = commit_key.commit(&right_sigma_poly)?;
@@ -216,9 +219,9 @@ impl StandardComposer {
             linear_eval_4n,
         );
 
-        // let ecc_widget = ECCWidget{
-        //     q_ecc:
-        // };
+        // let logic_widget = ECC::new(
+        //     (q_c_poly, q_c_poly_commit, Some(q_c_eval_4n)),
+        //     (q_ecc_poly, q_ecc_poly_commit, Some(q_ecc_eval_4n)),
 
         let ppc = PreProcessedCircuit {
             n: self.n,
@@ -255,6 +258,7 @@ impl StandardComposer {
             && self.q_arith.len() == k
             && self.q_range.len() == k
             && self.q_logic.len() == k
+            // && self.q_ecc.len() == k
             && self.w_l.len() == k
             && self.w_r.len() == k
             && self.w_o.len() == k
@@ -372,6 +376,7 @@ impl StandardComposer {
         self.q_arith.extend(zeroes_scalar.iter());
         self.q_range.extend(zeroes_scalar.iter());
         self.q_logic.extend(zeroes_scalar.iter());
+        self.q_ecc.extend(zeroes_scalar.iter());
 
         self.w_l.extend(zeroes_var.iter());
         self.w_r.extend(zeroes_var.iter());
@@ -1190,8 +1195,8 @@ impl StandardComposer {
         // number of bits representing the greatest input.
         assert_eq!(num_bits & 1, 0);
 
-        // When the round needs to be initiated, we have a memory structure, where
-        // some constants will be calculated and fixed based on given generators, impl.
+        // We have a memory structure, where some constants will be
+        // calculated and fixed based on given generators, impl.
         // * +-----+-----+-----+-----+
         // * |  A  |  B  |  C  |  D  |
         // * +-----+-----+-----+-----+
@@ -1223,6 +1228,7 @@ impl StandardComposer {
         self.q_c.push(Scalar::zero());
         self.q_logic.push(Scalar::zero());
         self.q_4.push(Scalar::zero());
+        self.q_ecc.push(Scalar::one());
 
         self.perm.add_variable_to_map(var_a, WireData::Left(self.n));
         self.w_l.push(self.zero_var);
@@ -1240,23 +1246,9 @@ impl StandardComposer {
         self.n += 1;
     }
 
-    /// Asserts that two variables are the same
-    // XXX: Instead of wasting a gate, we can use the permutation polynomial to do this
-    pub fn assert_equal(&mut self, a: Variable, b: Variable) {
-        self.poly_gate(
-            a,
-            b,
-            self.zero_var,
-            Scalar::zero(),
-            Scalar::one(),
-            -Scalar::one(),
-            Scalar::zero(),
-            Scalar::zero(),
-            Scalar::zero(),
-        );
-    }
-
-    /// TODO: doc this
+    /// This function is called in the scalar_mul.rs file
+    /// and is only used when pushing the initaliser values
+    /// of the w-NAF scalar to the wires.
     pub fn fixed_base_add_with_initial(&mut self, a: Fr, b: Fr, c: Fr, d: Fr) {
         let var_a = self.add_jubjub_input(a);
         let var_b = self.add_jubjub_input(b);
@@ -1279,6 +1271,7 @@ impl StandardComposer {
         self.q_c.push(Scalar::one());
         self.q_logic.push(Scalar::zero());
         self.q_4.push(Scalar::zero());
+        self.q_ecc.push(Scalar::one());
 
         self.perm.add_variable_to_map(var_a, WireData::Left(self.n));
         self.w_l.push(self.zero_var);
@@ -1303,6 +1296,23 @@ impl StandardComposer {
         // Increment gate index
         self.n += 1;
     }
+
+    /// Asserts that two variables are the same
+    // XXX: Instead of wasting a gate, we can use the permutation polynomial to do this
+    pub fn assert_equal(&mut self, a: Variable, b: Variable) {
+        self.poly_gate(
+            a,
+            b,
+            self.zero_var,
+            Scalar::zero(),
+            Scalar::one(),
+            -Scalar::one(),
+            Scalar::zero(),
+            Scalar::zero(),
+            Scalar::zero(),
+        );
+    }
+
     /// This function is used to add a blinding factor to the witness polynomials
     pub fn add_dummy_constraints(&mut self) {
         // Add a dummy constraint so that we do not have zero polynomials
