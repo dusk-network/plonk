@@ -178,10 +178,10 @@ impl Prover {
             &w_4_scalar,
             &(beta, gamma),
             (
-                &preprocessed_circuit.permutation.left_sigma.polynomial,
-                &preprocessed_circuit.permutation.right_sigma.polynomial,
-                &preprocessed_circuit.permutation.out_sigma.polynomial,
-                &preprocessed_circuit.permutation.fourth_sigma.polynomial,
+                &preprocessed_circuit.prover_key.permutation.left_sigma.0,
+                &preprocessed_circuit.prover_key.permutation.right_sigma.0,
+                &preprocessed_circuit.prover_key.permutation.out_sigma.0,
+                &preprocessed_circuit.prover_key.permutation.fourth_sigma.0,
             ),
         );
 
@@ -289,19 +289,22 @@ impl Prover {
                 w_o_poly,
                 w_4_poly.clone(),
                 preprocessed_circuit
+                    .prover_key
                     .permutation
                     .left_sigma
-                    .polynomial
+                    .0
                     .clone(),
                 preprocessed_circuit
+                    .prover_key
                     .permutation
                     .right_sigma
-                    .polynomial
+                    .0
                     .clone(),
                 preprocessed_circuit
+                    .prover_key
                     .permutation
                     .out_sigma
-                    .polynomial
+                    .0
                     .clone(),
             ],
             &z_challenge,

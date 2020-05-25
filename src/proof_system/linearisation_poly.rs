@@ -260,29 +260,34 @@ pub fn compute(
     let c_eval = w_o_poly.evaluate(z_challenge);
     let d_eval = w_4_poly.evaluate(z_challenge);
     let left_sigma_eval = preprocessed_circuit
+        .prover_key
         .permutation
         .left_sigma
-        .polynomial
+        .0
         .evaluate(z_challenge);
     let right_sigma_eval = preprocessed_circuit
+        .prover_key
         .permutation
         .right_sigma
-        .polynomial
+        .0
         .evaluate(z_challenge);
     let out_sigma_eval = preprocessed_circuit
+        .prover_key
         .permutation
         .out_sigma
-        .polynomial
+        .0
         .evaluate(z_challenge);
     let q_arith_eval = preprocessed_circuit
+        .prover_key
         .arithmetic
         .q_arith
-        .polynomial
+        .0
         .evaluate(z_challenge);
     let q_c_eval = preprocessed_circuit
+        .prover_key
         .logic
         .q_c
-        .polynomial
+        .0
         .evaluate(z_challenge);
 
     let a_next_eval = w_l_poly.evaluate(&(z_challenge * domain.group_gen));
@@ -304,14 +309,17 @@ pub fn compute(
         preprocessed_circuit,
     );
 
-    let f_2 = preprocessed_circuit.permutation.compute_linearisation(
-        z_challenge,
-        (alpha, beta, gamma),
-        (&a_eval, &b_eval, &c_eval, &d_eval),
-        (&left_sigma_eval, &right_sigma_eval, &out_sigma_eval),
-        &perm_eval,
-        z_poly,
-    );
+    let f_2 = preprocessed_circuit
+        .prover_key
+        .permutation
+        .compute_linearisation(
+            z_challenge,
+            (alpha, beta, gamma),
+            (&a_eval, &b_eval, &c_eval, &d_eval),
+            (&left_sigma_eval, &right_sigma_eval, &out_sigma_eval),
+            &perm_eval,
+            z_poly,
+        );
 
     let lin_poly = &f_1 + &f_2;
 
@@ -356,15 +364,12 @@ fn compute_circuit_satisfiability(
     q_c_eval: &Scalar,
     preprocessed_circuit: &PreProcessedCircuit,
 ) -> Polynomial {
-    let a = preprocessed_circuit.arithmetic.compute_linearisation(
-        a_eval,
-        b_eval,
-        c_eval,
-        d_eval,
-        q_arith_eval,
-    );
+    let a = preprocessed_circuit
+        .prover_key
+        .arithmetic
+        .compute_linearisation(a_eval, b_eval, c_eval, d_eval, q_arith_eval);
 
-    let b = preprocessed_circuit.range.compute_linearisation(
+    let b = preprocessed_circuit.prover_key.range.compute_linearisation(
         range_separation_challenge,
         a_eval,
         b_eval,
@@ -373,7 +378,7 @@ fn compute_circuit_satisfiability(
         &d_next_eval,
     );
 
-    let c = preprocessed_circuit.logic.compute_linearisation(
+    let c = preprocessed_circuit.prover_key.logic.compute_linearisation(
         logic_separation_challenge,
         a_eval,
         a_next_eval,
