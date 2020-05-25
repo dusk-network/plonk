@@ -1,10 +1,8 @@
 use super::StandardComposer;
 use crate::commitment_scheme::kzg10::PublicParameters;
 use crate::proof_system::{Prover, Verifier};
-use failure::Error;
-
-use crate::constraint_system::arithmetic;
 use dusk_bls12_381::Scalar;
+use failure::Error;
 
 /// Adds dummy constraints using arithmetic gates
 pub(crate) fn dummy_gadget(n: usize, composer: &mut StandardComposer) {
@@ -13,8 +11,7 @@ pub(crate) fn dummy_gadget(n: usize, composer: &mut StandardComposer) {
     let var_one = composer.add_input(one);
 
     for _ in 0..n {
-        arithmetic::big_add(
-            composer,
+        composer.big_add(
             var_one.into(),
             var_one.into(),
             None,
