@@ -6,9 +6,9 @@
 
 use super::linearisation_poly::ProofEvaluations;
 use super::proof_system_errors::{ProofError, ProofErrors};
-use super::PreProcessedCircuit;
 use crate::commitment_scheme::kzg10::{AggregateProof, Commitment, OpeningKey};
 use crate::fft::EvaluationDomain;
+use crate::proof_system::widget::VerifierKey;
 use crate::transcript::TranscriptProtocol;
 use dusk_bls12_381::{multiscalar_mul::msm_variable_base, G1Affine, Scalar};
 use failure::Error;
@@ -56,12 +56,12 @@ impl Proof {
     /// Performs the verification of a `Proof` returning a boolean result.
     pub fn verify(
         &self,
-        preprocessed_circuit: &PreProcessedCircuit,
+        verifier_key: &VerifierKey,
         transcript: &mut Transcript,
         opening_key: &OpeningKey,
         pub_inputs: &[Scalar],
     ) -> Result<(), Error> {
-        let domain = EvaluationDomain::new(preprocessed_circuit.n)?;
+        let domain = EvaluationDomain::new(verifier_key.n)?;
 
         // Subgroup checks are done when the proof is deserialised.
 
@@ -145,7 +145,7 @@ impl Proof {
             (&range_sep_challenge, &logic_sep_challenge),
             &z_challenge,
             l1_eval,
-            &preprocessed_circuit,
+            &verifier_key,
         );
 
         // Commitment Scheme
@@ -164,15 +164,15 @@ impl Proof {
         aggregate_proof.add_part((self.evaluations.d_eval, self.d_comm));
         aggregate_proof.add_part((
             self.evaluations.left_sigma_eval,
-            preprocessed_circuit.verifier_key.permutation.left_sigma,
+            verifier_key.permutation.left_sigma,
         ));
         aggregate_proof.add_part((
             self.evaluations.right_sigma_eval,
-            preprocessed_circuit.verifier_key.permutation.right_sigma,
+            verifier_key.permutation.right_sigma,
         ));
         aggregate_proof.add_part((
             self.evaluations.out_sigma_eval,
-            preprocessed_circuit.verifier_key.permutation.out_sigma,
+            verifier_key.permutation.out_sigma,
         ));
         // Flatten proof with opening challenge
         let flattened_proof_a = aggregate_proof.flatten(transcript);
@@ -268,48 +268,40 @@ impl Proof {
         (range_sep_challenge, logic_sep_challenge): (&Scalar, &Scalar),
         z_challenge: &Scalar,
         l1_eval: Scalar,
-        preprocessed_circuit: &PreProcessedCircuit,
+        verifier_key: &VerifierKey,
     ) -> Commitment {
         let mut scalars: Vec<_> = Vec::with_capacity(6);
         let mut points: Vec<G1Affine> = Vec::with_capacity(6);
 
-        preprocessed_circuit
-            .verifier_key
-            .arithmetic
-            .compute_linearisation_commitment(&mut scalars, &mut points, &self.evaluations);
+        verifier_key.arithmetic.compute_linearisation_commitment(
+            &mut scalars,
+            &mut points,
+            &self.evaluations,
+        );
 
-        preprocessed_circuit
-            .verifier_key
-            .range
-            .compute_linearisation_commitment(
-                &range_sep_challenge,
-                &mut scalars,
-                &mut points,
-                &self.evaluations,
-            );
+        verifier_key.range.compute_linearisation_commitment(
+            &range_sep_challenge,
+            &mut scalars,
+            &mut points,
+            &self.evaluations,
+        );
 
-        preprocessed_circuit
-            .verifier_key
-            .logic
-            .compute_linearisation_commitment(
-                &logic_sep_challenge,
-                &mut scalars,
-                &mut points,
-                &self.evaluations,
-            );
+        verifier_key.logic.compute_linearisation_commitment(
+            &logic_sep_challenge,
+            &mut scalars,
+            &mut points,
+            &self.evaluations,
+        );
 
-        preprocessed_circuit
-            .verifier_key
-            .permutation
-            .compute_linearisation_commitment(
-                &mut scalars,
-                &mut points,
-                &self.evaluations,
-                z_challenge,
-                (alpha, beta, gamma),
-                &l1_eval,
-                self.z_comm.0,
-            );
+        verifier_key.permutation.compute_linearisation_commitment(
+            &mut scalars,
+            &mut points,
+            &self.evaluations,
+            z_challenge,
+            (alpha, beta, gamma),
+            &l1_eval,
+            self.z_comm.0,
+        );
 
         Commitment::from_projective(msm_variable_base(&points, &scalars))
     }

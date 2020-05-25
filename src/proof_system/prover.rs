@@ -2,7 +2,8 @@ use super::proof_system_errors::{ProofError, ProofErrors};
 use crate::commitment_scheme::kzg10::CommitKey;
 use crate::constraint_system::{StandardComposer, Variable};
 use crate::fft::{EvaluationDomain, Polynomial};
-use crate::proof_system::{linearisation_poly, proof::Proof, quotient_poly, PreProcessedCircuit};
+use crate::proof_system::widget::ProverKey;
+use crate::proof_system::{linearisation_poly, proof::Proof, quotient_poly};
 use crate::transcript::TranscriptProtocol;
 use dusk_bls12_381::Scalar;
 use failure::Error;
@@ -12,8 +13,8 @@ use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 /// Prover composes a circuit and builds a proof
 #[allow(missing_debug_implementations)]
 pub struct Prover {
-    /// Preprocessed circuit
-    pub preprocessed_circuit: Option<PreProcessedCircuit>,
+    /// ProverKey which is used to create proofs about a specific PLONK circuit
+    pub prover_key: Option<ProverKey>,
 
     pub(crate) cs: StandardComposer,
     /// Store the messages exchanged during the preprocessing stage
@@ -28,13 +29,13 @@ impl Prover {
     }
     /// Preprocesses the underlying constraint system
     pub fn preprocess(&mut self, commit_key: &CommitKey) -> Result<(), Error> {
-        if self.preprocessed_circuit.is_some() {
+        if self.prover_key.is_some() {
             return Err(ProofError(ProofErrors::CircuitAlreadyPreprocessed.into()).into());
         }
-        let ppc = self
+        let pk = self
             .cs
-            .preprocess(commit_key, &mut self.preprocessed_transcript)?;
-        self.preprocessed_circuit = Some(ppc);
+            .preprocess_prover(commit_key, &mut self.preprocessed_transcript)?;
+        self.prover_key = Some(pk);
         Ok(())
     }
 }
@@ -49,7 +50,7 @@ impl Prover {
     /// Creates a new prover object
     pub fn new(label: &'static [u8]) -> Prover {
         Prover {
-            preprocessed_circuit: None,
+            prover_key: None,
             cs: StandardComposer::new(),
             preprocessed_transcript: Transcript::new(label),
         }
@@ -108,7 +109,7 @@ impl Prover {
     /// make a proof regarding a different circuit.
     pub fn clear(&mut self) {
         self.clear_witness();
-        self.preprocessed_circuit = None;
+        self.prover_key = None;
         self.preprocessed_transcript = Transcript::new(b"plonk");
     }
 
@@ -124,7 +125,7 @@ impl Prover {
     pub fn prove_with_preprocessed(
         &self,
         commit_key: &CommitKey,
-        preprocessed_circuit: &PreProcessedCircuit,
+        prover_key: &ProverKey,
     ) -> Result<Proof, Error> {
         let domain = EvaluationDomain::new(self.cs.circuit_size())?;
 
@@ -178,10 +179,10 @@ impl Prover {
             &w_4_scalar,
             &(beta, gamma),
             (
-                &preprocessed_circuit.prover_key.permutation.left_sigma.0,
-                &preprocessed_circuit.prover_key.permutation.right_sigma.0,
-                &preprocessed_circuit.prover_key.permutation.out_sigma.0,
-                &preprocessed_circuit.prover_key.permutation.fourth_sigma.0,
+                &prover_key.permutation.left_sigma.0,
+                &prover_key.permutation.right_sigma.0,
+                &prover_key.permutation.out_sigma.0,
+                &prover_key.permutation.fourth_sigma.0,
             ),
         );
 
@@ -204,7 +205,7 @@ impl Prover {
 
         let t_poly = quotient_poly::compute(
             &domain,
-            &preprocessed_circuit,
+            &prover_key,
             &z_poly,
             (&w_l_poly, &w_r_poly, &w_o_poly, &w_4_poly),
             &pi_poly,
@@ -233,7 +234,7 @@ impl Prover {
 
         let (lin_poly, evaluations) = linearisation_poly::compute(
             &domain,
-            &preprocessed_circuit,
+            &prover_key,
             &(
                 alpha,
                 beta,
@@ -288,24 +289,9 @@ impl Prover {
                 w_r_poly.clone(),
                 w_o_poly,
                 w_4_poly.clone(),
-                preprocessed_circuit
-                    .prover_key
-                    .permutation
-                    .left_sigma
-                    .0
-                    .clone(),
-                preprocessed_circuit
-                    .prover_key
-                    .permutation
-                    .right_sigma
-                    .0
-                    .clone(),
-                preprocessed_circuit
-                    .prover_key
-                    .permutation
-                    .out_sigma
-                    .0
-                    .clone(),
+                prover_key.permutation.left_sigma.0.clone(),
+                prover_key.permutation.right_sigma.0.clone(),
+                prover_key.permutation.out_sigma.0.clone(),
             ],
             &z_challenge,
             &mut transcript,
@@ -345,20 +331,20 @@ impl Prover {
     /// If the circuit is not pre-processed, then the preprocessed circuit will
     /// also be computed
     pub fn prove(&mut self, commit_key: &CommitKey) -> Result<Proof, Error> {
-        let preprocessed_circuit: &PreProcessedCircuit;
+        let prover_key: &ProverKey;
 
-        if self.preprocessed_circuit.is_none() {
+        if self.prover_key.is_none() {
             // Preprocess circuit
-            let preprocessed_circuit = self
+            let prover_key = self
                 .cs
-                .preprocess(commit_key, &mut self.preprocessed_transcript)?;
+                .preprocess_prover(commit_key, &mut self.preprocessed_transcript)?;
             // Store preprocessed circuit and transcript in the Prover
-            self.preprocessed_circuit = Some(preprocessed_circuit);
+            self.prover_key = Some(prover_key);
         }
 
-        preprocessed_circuit = self.preprocessed_circuit.as_ref().unwrap();
+        prover_key = self.prover_key.as_ref().unwrap();
 
-        let proof = self.prove_with_preprocessed(commit_key, preprocessed_circuit)?;
+        let proof = self.prove_with_preprocessed(commit_key, prover_key)?;
 
         // Clear witness and reset composer variables
         self.clear_witness();
