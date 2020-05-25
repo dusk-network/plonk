@@ -34,19 +34,11 @@ itertools = "0.8.2"
 rand_chacha = "0.2"
 rayon = "1.3.0"
 failure = "0.1.7"
-serde = {version = "1.0.106", features = ["derive"], optional = true} 
 
 [dev-dependencies]
-criterion = "0.3.0"
 rand = "0.7.0"
-bincode = "1.2.1"
-lazy_static = "1.4.0"
 
-# Criterion benchmarks
-[[bench]]
-path = "./benchmarks/plonk_benchmarks.rs"
-name = "plonk_benchmarks"
-harness = false
+
 
 [package.metadata.docs.rs]
 rustdoc-args = [
@@ -56,6 +48,5 @@ rustdoc-args = [
 
 [features]
 nightly = []
-default = ["serde"]
 trace = []
 trace-print = ["trace"]
