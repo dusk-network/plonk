@@ -3,6 +3,27 @@ use crate::commitment_scheme::kzg10::PublicParameters;
 use crate::proof_system::{Prover, Verifier};
 use failure::Error;
 
+use crate::constraint_system::arithmetic;
+use dusk_bls12_381::Scalar;
+
+/// Adds dummy constraints using arithmetic gates
+pub(crate) fn dummy_gadget(n: usize, composer: &mut StandardComposer) {
+    let one = Scalar::one();
+
+    let var_one = composer.add_input(one);
+
+    for _ in 0..n {
+        arithmetic::big_add(
+            composer,
+            var_one.into(),
+            var_one.into(),
+            None,
+            Scalar::zero(),
+            Scalar::zero(),
+        );
+    }
+}
+
 /// Takes a generic gadget function with no auxillary input and
 /// tests whether it passes an end-to-end test
 pub(crate) fn gadget_tester(

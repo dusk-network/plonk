@@ -1,6 +1,7 @@
 //! proving system
 
 pub(crate) mod linearisation_poly;
+mod preprocess;
 
 /// Represents a PLONK Proof
 pub mod proof;
