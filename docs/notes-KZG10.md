@@ -1,4 +1,4 @@
-In this module we show how and why the KZG10 
+In this module we show how, and why, the KZG10 
 polynomial commitment scheme has been implemented
 for this PLONK implementation.
 
@@ -8,7 +8,7 @@ KZG10 Commitments
 PLONK can be constructed with different 
 commitment schemes and does not requre solely
 homomorphic commitments. However, this library
-implemnts only homomorphic commitments for two 
+implements only homomorphic commitments for two 
 reasons. One is their useful properties when 
 given encrypted values, and the second is the 
 requirements of the linearisation technique in
@@ -31,7 +31,7 @@ created by Kate, Zaverucha and Goldberg.
 A deep explanation on how this particular commitment 
 scheme operates can be found [here][kzg10_paper] 
 in the original paper.
-Aside from the compatability wiht the chosen 
+Aside from the compatibility wiht the chosen 
 linearisation technique, there are multiple 
 benefits of using the KZG10 commitment scheme
 in the PLONK. The first is that it allow
@@ -39,7 +39,7 @@ us to have constant size commitments; the witness
 of the evaluations is a single group element. 
 The cost of these commitments is also constant 
 irrespective of the number of evaluations, 
-so we are able to employ with a low overhead cost.
+so we are able to employ them with a low overhead cost.
 
 
 
@@ -58,8 +58,8 @@ to perform operations on the already encrypted values
 and have the evaluation be indistinguishable from the 
 evaluation of operations performed on the decrypted values.
 In terms of Kate commitments, we are able to take two
-commitment messages \\({\mathbf m\_{1}}\\) and \\({\mathbf m\_{2}}\\), 
-and know there is a an efficient product operation 
+commitment messages, \\({\mathbf m\_{1}}\\) and \\({\mathbf m\_{2}}\\), 
+and know there is an efficient product operation 
 for them both which equates to a commitment 
  \\({(\mathbf m\_{1}}, {\mathbf m\_{2}})\\). 
 For example:

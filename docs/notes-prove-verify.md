@@ -91,7 +91,7 @@ PLONK also uses 'copy
 constraints', which are used to 
 associate wires, which have 
 equality, from the entire circuit.
-These constriants are checked 
+These constraints are checked 
 with a permutation argument. 
 In essence, this checks that 
 wires are not repeated by using 
@@ -102,7 +102,7 @@ the permutation [notes](notes-pa).
 
 After the constraints
 are made, they are formatted into a 
-system of mumerical equations, 
+system of numerical equations, 
 which in PLONK are reduced to a 
 small amount of polynomial 
 equations which are capable of 
@@ -111,7 +111,7 @@ PLONK allows us to combine the
 two gate equations by describing 
 their relationship relative to 
 the role in the circuit.
-PLONK also has constant, which
+PLONK also has constants, which
 are denoted as 'Q'. These 
 values will change for each 
 programme. The shape of 
@@ -139,7 +139,7 @@ a reduced form as:
 \\]
 This can be used for both
 addition and multiplication
-gates, where there values 
+gates, where their values 
 can be provided by the user 
 depending on the circuit 
 composition. 
@@ -188,14 +188,14 @@ Which results in:
 With this format, there is 
 a specific method used to 
 convert all the equations 
-into polynomials form.
+into polynomial form.
 Basically, in order to
 bundle
 these together, PLONK can 
 take sets of equations and 
 turn them into one single 
 equation over polynomials. 
-This is called the evalutaion 
+This is called the evaluation 
 form. We are then able to 
 use Lagrangian interpolation
 to convert to coefficient form. 
@@ -305,7 +305,7 @@ given data set which imposes 'n'
 constraints and computes 
 an exact fitting solution. 
 
-Linear Algebra dictates that interpolation polynomial ought 
+Linear Algebra dictates that the interpolation polynomial ought 
 to be formed from the system \\({\mathbf A}(x)\\) = 
 \\({\mathbf b}\\), 
 where \\({\mathbf b}\_i\\) = 
@@ -324,7 +324,7 @@ and
 \\({\mathbf P}\_j(x\_i) = x^{j}\\). 
 Where \\(i \in 0,1,...,n\\). The basis 
 \\(1,x,...,x^{n}\\)
-of the space of polynomials, degree n+1 is valled the *monomial 
+of the space of polynomials, degree n+1 is called the *monomial 
 basis*, and the corresponding matrix A is called the *Vandermode
 matrix* for the points \\(x\_{0},x\_{1}...,x\_{n}\\). 
 
