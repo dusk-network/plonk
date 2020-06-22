@@ -27,79 +27,106 @@ commitment.
 
 In a game of players P and V:
 
-1. P\\ writes down message b\\ on a piece of paper
-2. P\\ places the message in a box and locks it using a padlock 
-3. P\\ gives the locked box and key to V\\ 
+1. \\(P\\) writes down message \\(b\\) on a piece of paper
+2. \\(P\\) places the message in a box and locks it using a padlock 
+3. \\(P\\) gives the locked box and key to \\(V\\) 
 
-From the above game, it can been that V\\ is able to 
-open the box, and see the committed message. P\\ is 
+From the above game, it can been that \\(V\\) is able to 
+open the box, and see the committed message. \\(P\\) is 
 unable to change the value after giving the 
-box to V\\, thus the message is *binding*. As V\\ 
+box to \\(V\\), thus the message is *binding*. As \\(V\\) 
 is unable to see the commitment prior to opening 
 the box, the commitment is also *hiding*. 
 
-Committment schemes are defined by a P\\ time 
-public key ($pk$) generation algorithm $G$. The 
-input is 1^$l$, where $l$ is the security parameter 
+Committment schemes are defined by a \\(P\\) time 
+public key *pk* generation algorithm \\(G\\). The 
+input is \\(1^{l}\\), where \\({\mathbb l}\\) is the security parameter 
 that directly relates to the length of the string. 
-There is an outputted $pk$, which is the public key 
+There is an outputted *pk*, which is the public key 
 of the commitment scheme. In practice, the protocol 
 is ran like this:
 
-1. P\\ or V\\ executes $G$ to return $pk$, as a string, 
+1. \\(P\\) or \\(V\\) executes \\(G\\) to return *pk*, as a string, 
 and sends it to the other party.
 2. To make the commitment, the recieving party calculates 
-a random *r* from {0,1}^l and computes the commitment C 
-\gets commit\_pk{r\\,b\\}. 
-3. The commit is opened - r\\ and b\\ are revealed and 
-V\\ checks that the commitment, C, satisfies 
-C=commit\_pk{r\\,b\\}.
+a random *r* from \\(({0,1})^{l}\\) and computes the commitment, 
+\\(C\\):
 
-The property of having either P\\ *or* V\\ running the 
+\\[
+\begin{aligned}
+\operatorname{Commitment}(b,r) 
+\end{aligned}
+\\]
+
+ 
+3. The commit is opened, meaning \\(b\\) & \\(r\\) are revealed and 
+\\(V\\) checks that the commitment, \\(C\\), satisfies 
+\\[
+\begin{aligned}
+\operatorname{Commitment}(b,r) 
+\end{aligned}
+\\]
+
+The property of having either \\(P\\) *or* \\(V\\) running the 
 algorithm affects the type of commitment scheme and the 
 satisfied requirements. With respect to the *hiding* and 
 *binding* properties, this commitment can be constructed
  in two different ways.
 
-When V\\ generates the public key and send it to P\\, 
+When \\(V\\) generates the public key and send it to \\(P\\), 
 then the *binding* is computational and the *hiding* is 
 unconditional. The *computational binding* in this commitment 
 scheme, means the chance of being able to change the 
 commitment are negligible. The *unconditional hiding* 
 means that a commitment to b reveals no information about b. 
 
-When P\\ generates the public key and sends it to V\\, then 
+When \\(P\\) generates the public key and sends it to \\(V\\), then 
 the *binding* is unconditional and the *hiding* is computational. 
-The *unconditional binding* describes how P\\ is unable to 
-]change the committment value after it has been commited to. 
-The *computational hiding* means the probablilty of V\\ being 
+The *unconditional binding* describes how \\(P\\) is unable to 
+change the commitment value after it has been commited to. 
+The *computational hiding* means the probablilty of \\(V\\) being 
 able to guess the commitment value is negligible. 
 
 
 Polynomial commitment schemes can be defined in the following way:
 
-*Unconditional binding*
-\begin{aligned}
-Let {\mathbb{G}} be a group of prime order *p* \\\\
-Let{\mathbf{g}}, {\mathbf{h}} generators of \mathbb{G}\\\\
-such that {\mathbf{g}}, {\mathbf{h}}  &\in {\mathbb G}\\\\
-A commmiter can commit to message {\mathbf{m}}\\\\
-Where {\mathbf{m}}  &\in\_{R} {\mathbb Z\_{p}\\\\
-Commit as C\_{g} (\mathbf{m}) = \mathbf{g}^{\mathbf{m}}\\\\
-\end{aligned}
 
-*Unconditional hiding*
-\begin{aligned}
-Let {\mathbb{G}} be a group of prime order *p* \\\\
-Let{\mathbf{g}}, {\mathbf{h}} generators of \mathbb{G}\\\\
-such that {\mathbf{g}}, {\mathbf{h}}  &\in {\mathbb G}\\\\
-Choose a random {\mathbf{r}} &\in {\mathbb Z\_{p}}\\\\
-C\_{g,h} (\mathbf{m}, \mathbf{r}) = 
-\mathbf{g}^{\mathbf{m}}\mathbf{h}^{\mathbf{r}}\\\\
-\end{aligned}
 
-The above equations are generic to using short strings, 
-as values to commit to a polynomial and generate an evaluated 
+Let \\({\mathbb G}\\) be a group of prime order *p*. 
+Let \\({\mathbb g}\\) and \\({\mathbb h}\\) be generators of \\({\mathbb G}\\),
+such that:
+\\[
+\begin{aligned}
+{\mathbf{g}}, {\mathbf{h}}  &\in {\mathbb G}
+\end{aligned}
+\\]
+
+Either \\({\mathbf g}\\) or \\({\mathbf h}\\) are used to produce 
+*pk*, which is has a commitment appened to it by the committer. 
+
+This commitment is equal to message \\({\mathbb m}\\),
+where:
+\\[
+\begin{aligned} 
+{\mathbf{m}}  &\in\ {\mathbb Z\_{p}},
+\end{aligned}
+\\]
+
+The commitment which is made once these variables are derived, is:
+
+\\[
+\begin{aligned}
+\operatorname{Commitment}\_{pk}(b,r) = 
+{\mathbf{g}^{r}} 
+\cdot 
+{\mathbf{h}^{b}}
+\end{aligned}
+\\]
+
+
+
+The above equation is generic to using short strings, 
+as values, to commit to a polynomial and generate an evaluated 
 value. 
 
 
