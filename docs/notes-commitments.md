@@ -60,7 +60,7 @@ a random *r* from \\(({0,1})^{l}\\) and computes the commitment,
 
  
 3. The commit is opened, meaning \\(b\\) & \\(r\\) are revealed and 
-\\(V\\) checks that the commitment, \\(C\\), satisfies 
+\\(V\\) checks that the commitment, \\(C\\), satisfies: 
 \\[
 \begin{aligned}
 \operatorname{Commitment}(b,r) 
