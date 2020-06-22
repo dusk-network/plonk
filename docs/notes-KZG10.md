@@ -47,26 +47,33 @@ so we are able to employ with a low overhead cost.
 
 This commitment is used to commit to a polynomial,
 from a given structured reference string (SRS),
-\phi by means of a bilinear pairing group.
-Where {\mathbf{G_1}} and {\mathbf{G_2}} and groups 
-two different pairing curves with generators {\mathbf{G}}
-&\in {\mathbf{G_1}} and {\mathbf{G}} &\in {\mathbf{G_2}}, 
-respectively. 
+\\(\varPhi\\), by means of a bilinear pairing group.
+Where \\({\mathbb G\_{1}}\\) and \\({\mathbb G\_{2}}\\) and groups 
+two different pairing curves with generators \\({\mathbf g\_{1}}
+\in {\mathbb G\_{1}}\\) and \\({\mathbf g\_{2}}
+\in {\mathbb G\_{2}}\\).
 
 These commitments are homomorphic, which enables us 
 to perform operations on the already encrypted values 
 and have the evaluation be indistinguishable from the 
 evaluation of operations performed on the decrypted values.
 In terms of Kate commitments, we are able to take two
-commitment messages {\mathbf{m_1}} and {\mathbf{m_2}}, 
+commitment messages \\({\mathbf m\_{1}}\\) and \\({\mathbf m\_{2}}\\), 
 and know there is a an efficient product operation 
 for them both which equates to a commitment 
- {\mathbf{m_1}}, {\mathbf{m_2}}.
-i.e.
+ \\({(\mathbf m\_{1}}, {\mathbf m\_{2}})\\). 
+For example:
+\\[
 \begin{aligned}
-\C{\mathbf{m_1}} \cdot \C{\mathbf{m_2}} \equiv 
-\C({\mathbf{m_1}} \bigotimes {\mathbf{m_2}})
+\operatorname{Commitment}({\mathbf{m}}\_{1}) 
+\cdot
+\operatorname{Commitment}({\mathbf{m}}\_{2}) 
+\equiv 
+{\mathbf{m}}\_{1} 
+\bigotimes 
+{\mathbf{m}}\_{2} 
 \end{aligned}
+\\]
 
 
 
