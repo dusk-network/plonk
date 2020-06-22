@@ -1,4 +1,4 @@
-//! This is an extension over the [Merlin Transcript](merlin::Transcript)
+//! This is an extension over the [Merlin Transcript](https://docs.rs/merlin/1.0.3/merlin/struct.Transcript.html)
 //! which adds a few extra functionalities.
 use crate::commitment_scheme::kzg10::Commitment;
 use dusk_bls12_381::Scalar;
