@@ -11,7 +11,7 @@ The following section explains the workings of PLONK components:
 
 
 
-This section explains how elements of the aggregated PLONK work protocol works
+This section explains how elements of the aggregated PLONK protocol work
 and some of the unique features in this library:
 
 * [Prover and Verify algorithms](prove_verify/index.html)

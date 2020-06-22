@@ -24,9 +24,9 @@ of a program. We will also show
 how SNARKs satisfy the fundamental
 properties of zero knowledge. Namely:
 Completeness, Soundess and Zero 
-Knowledge. Completeness is the
-verifier convinced that the claims
-from the prover are true. Soundess
+Knowledge. Completeness means that the
+verifier is convinced that the claims
+from the prover are true. Soundness
 means that if the information is 
 false, then the prover cannot 
 convince the verifier otherwise.
@@ -38,7 +38,7 @@ claim itself.
 To construct their proofs, SNARKS
 convert an arithmetic circuit into
 an algebraic expression of polynomials. 
-The arithemtic circuit here, is a mapping,
+The arithmetic circuit here, is a mapping,
 performed by a system of 
 wires and gates, where the outputs 
 are inputs which have passed through 
@@ -52,7 +52,7 @@ For SNARK circuits, the prover will
 select gates, 
 e.g. 
 
-*Multiplication gates* are represented 
+*Multiplication gates* which are represented 
 with two input wires to the gate, 
 and one product wire, such that:
 
@@ -113,7 +113,7 @@ checked at varying values.
 This step involves checks for
 the values at specified 
 indices. Additionally, the 
-indice values that are being
+index values that are being
 checked at are not numbers, 
 but are instead polynomials.
 This polynomial is computed 
@@ -190,12 +190,12 @@ often referred to as the
 'target polynomial'. The 
 added benefit of having this
 checked in polynomial form, 
-is that even with a large 
+is that even with large 
 polynomials, the identity
 between the two will hold 
 at most points if the identity
 holds between the polynomials. 
-Which means the check can between 
+Which means that the check between 
 the two can be performed at
 randomly chosen points to 
 verify the proof.
@@ -215,7 +215,7 @@ the *witness*, to the equation
 \\({\mathbf B}(z)\\) - 
 \\({\mathbf C}(z)\\)
 
-Then the prover completes the 
+Then, the prover completes the 
 divisibility check between \\({\mathbf P}(z)\\)
 and \\({\mathbf Z\_z}\\). This way, the
 verifier can be sure that the 
@@ -226,7 +226,7 @@ also contain a 'bilinear pairing',
 which is referring to the fields 
 which are used throughout the 
 protocol. However, in detail 
-explanations of these are a out 
+explanations of these are out 
 of scope for these docs, more 
 information on the role pairing
 cryptography has within SNARK 
