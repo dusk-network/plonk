@@ -216,7 +216,7 @@ the *witness*, to the equation
 \\({\mathbf C}(z)\\)
 
 Then the prover completes the 
-divisibility check between P(z)
+divisibility check between \\({\mathbf P}(z)\\)
 and \\({\mathbf Z\_z}\\). This way, the
 verifier can be sure that the 
 prover knows the *witness* value. 
