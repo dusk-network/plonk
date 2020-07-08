@@ -350,18 +350,17 @@ mod tests {
                 let scalar = JubJubScalar::from(100u64);
                 let bls_scalar = BlsScalar::from_bytes(&scalar.to_bytes()).unwrap();
                 let secret_scalar = composer.add_input(bls_scalar);
-                // Fails because we are not multiplying by the GENERATOR
+                // Fails because we are not multiplying by the GENERATOR, it is double
 
                 let double_gen = ExtendedPoint::from(GENERATOR).double();
 
                 let expected_point: AffinePoint = (double_gen * scalar).into();
-                let expected_x = composer.add_input(expected_point.get_x());
-                let expected_y = composer.add_input(expected_point.get_y());
 
                 let point_scalar =
                     fixed_based_scalar_mul(composer, secret_scalar, GENERATOR.into());
-                composer.assert_equal(expected_x, point_scalar.base_x);
-                composer.assert_equal(expected_y, point_scalar.base_y);
+
+                composer
+                    .assert_equal_point((point_scalar.base_x, point_scalar.base_y), expected_point);
             },
             600,
         );
