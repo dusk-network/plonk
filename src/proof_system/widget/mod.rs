@@ -1,4 +1,5 @@
 pub mod arithmetic;
+pub mod ecc;
 pub mod logic;
 pub mod permutation;
 pub mod range;
@@ -15,6 +16,8 @@ pub struct ProverKey {
     pub logic: logic::ProverKey,
     /// ProverKey for range gate
     pub range: range::ProverKey,
+    /// ProverKey for ecc gate
+    pub ecc: ecc::ProverKey,
     /// ProverKey for permutation checks
     pub permutation: permutation::ProverKey,
     // Pre-processes the 4n Evaluations for the vanishing polynomial, so they do not
@@ -35,6 +38,8 @@ pub struct VerifierKey {
     pub logic: logic::VerifierKey,
     /// VerifierKey for range gates
     pub range: range::VerifierKey,
+    /// VerifierKey for ecc gates
+    pub ecc: ecc::VerifierKey,
     /// VerifierKey for permutation checks
     pub permutation: permutation::VerifierKey,
 }

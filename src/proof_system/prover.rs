@@ -202,6 +202,7 @@ impl Prover {
         let alpha = transcript.challenge_scalar(b"alpha");
         let range_sep_challenge = transcript.challenge_scalar(b"range separation challenge");
         let logic_sep_challenge = transcript.challenge_scalar(b"logic separation challenge");
+        let ecc_sep_challenge = transcript.challenge_scalar(b"ecc separation challenge");
 
         let t_poly = quotient_poly::compute(
             &domain,
@@ -209,7 +210,14 @@ impl Prover {
             &z_poly,
             (&w_l_poly, &w_r_poly, &w_o_poly, &w_4_poly),
             &pi_poly,
-            &(alpha, beta, gamma, range_sep_challenge, logic_sep_challenge),
+            &(
+                alpha,
+                beta,
+                gamma,
+                range_sep_challenge,
+                logic_sep_challenge,
+                ecc_sep_challenge,
+            ),
         )?;
 
         // Split quotient polynomial into 4 degree `n` polynomials
@@ -241,6 +249,7 @@ impl Prover {
                 gamma,
                 range_sep_challenge,
                 logic_sep_challenge,
+                ecc_sep_challenge,
                 z_challenge,
             ),
             &w_l_poly,
@@ -264,6 +273,8 @@ impl Prover {
         transcript.append_scalar(b"out_sig_eval", &evaluations.proof.out_sigma_eval);
         transcript.append_scalar(b"q_arith_eval", &evaluations.proof.q_arith_eval);
         transcript.append_scalar(b"q_c_eval", &evaluations.proof.q_c_eval);
+        transcript.append_scalar(b"q_l_eval", &evaluations.proof.q_l_eval);
+        transcript.append_scalar(b"q_r_eval", &evaluations.proof.q_r_eval);
         transcript.append_scalar(b"perm_eval", &evaluations.proof.perm_eval);
         transcript.append_scalar(b"t_eval", &evaluations.quot_eval);
         transcript.append_scalar(b"r_eval", &evaluations.proof.lin_poly_eval);
