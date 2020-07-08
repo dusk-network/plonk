@@ -1,3 +1,4 @@
+use super::{check_bit_consistency, edwards_d, extract_bit};
 use crate::fft::{Evaluations, Polynomial};
 use dusk_bls12_381::Scalar;
 
@@ -27,7 +28,6 @@ impl ProverKey {
         let kappa = ecc_separation_challenge.square();
         let kappa_sq = kappa.square();
         let kappa_cu = kappa_sq * kappa;
-        let kappa_qu = kappa_cu * kappa;
 
         let x_beta = &self.q_l.1[index];
         let y_beta = &self.q_r.1[index];
@@ -53,24 +53,23 @@ impl ProverKey {
         let x_alpha = bit * x_beta;
 
         // xy_alpha consistency check
-        let xy_consistency = (x_alpha * y_alpha) - xy_alpha;
+        // XXX: If xy_alpha is not correct, then the group law does not hold.
+        // This check seems to increase the quotient degree, so it may be possible remove it
+        // let xy_consistency = (x_alpha * y_alpha - xy_alpha) * kappa;
 
         // x accumulator consistency check
         let x_3 = acc_x_next;
         let lhs = x_3 + (x_3 * xy_alpha * acc_x * acc_y * edwards_d());
         let rhs = (acc_x * y_alpha) + (acc_y * x_alpha);
-        let x_acc_consistency = lhs - rhs;
+        let x_acc_consistency = (lhs - rhs) * kappa_sq;
 
         // y accumulator consistency check
         let y_3 = acc_y_next;
         let lhs = y_3 - (y_3 * xy_alpha * acc_x * acc_y * edwards_d());
         let rhs = (acc_y * y_alpha) + (acc_x * x_alpha);
-        let y_acc_consistency = lhs - rhs;
+        let y_acc_consistency = (lhs - rhs) * kappa_cu;
 
-        let identity = bit_consistency * kappa
-            + xy_consistency * kappa_sq
-            + x_acc_consistency * kappa_cu
-            + y_acc_consistency * kappa_qu;
+        let identity = bit_consistency + x_acc_consistency + y_acc_consistency;
 
         identity * q_ecc_i * ecc_separation_challenge
     }
@@ -94,9 +93,8 @@ impl ProverKey {
         let kappa = ecc_separation_challenge.square();
         let kappa_sq = kappa.square();
         let kappa_cu = kappa_sq * kappa;
-        let kappa_qu = kappa_cu * kappa;
 
-        let x_beta_poly = q_l_eval;
+        let x_beta_eval = q_l_eval;
         let y_beta_eval = q_r_eval;
 
         let acc_x = a_eval;
@@ -111,48 +109,31 @@ impl ProverKey {
         let bit = extract_bit(accumulated_bit, accumulated_bit_next);
 
         // Check bit consistency
-        let bit_consistency = check_bit_consistency(bit) * kappa;
+        let bit_consistency = check_bit_consistency(bit);
 
-        let y_alpha = (bit.square() * (y_beta_eval - Scalar::one())) + Scalar::one();
+        let y_alpha = bit.square() * (y_beta_eval - Scalar::one()) + Scalar::one();
 
-        let x_alpha = x_beta_poly * bit;
+        let x_alpha = x_beta_eval * bit;
 
         // xy_alpha consistency check
-        let xy_consistency = ((x_alpha * y_alpha) - xy_alpha) * kappa_sq;
+        // XXX: If xy_alpha is not correct, then the group law does not hold.
+        // This check seems to increase the quotient degree, so it may be possible remove it
+        // let xy_consistency = (x_alpha * y_alpha - xy_alpha) * kappa;
 
         // x accumulator consistency check
         let x_3 = acc_x_next;
         let lhs = x_3 + (x_3 * xy_alpha * acc_x * acc_y * edwards_d());
         let rhs = (x_alpha * acc_y) + (y_alpha * acc_x);
-        let x_acc_consistency = (lhs - rhs) * kappa_cu;
+        let x_acc_consistency = (lhs - rhs) * kappa_sq;
 
         // y accumulator consistency check
         let y_3 = acc_y_next;
         let lhs = y_3 - (y_3 * xy_alpha * acc_x * acc_y * edwards_d());
         let rhs = (x_alpha * acc_x) + (y_alpha * acc_y);
-        let y_acc_consistency = (lhs - rhs) * kappa_qu;
+        let y_acc_consistency = (lhs - rhs) * kappa_cu;
 
-        let a = xy_consistency + bit_consistency + x_acc_consistency + y_acc_consistency;
+        let a = bit_consistency + x_acc_consistency + y_acc_consistency;
 
         q_ecc_poly * &(a * ecc_separation_challenge)
     }
-}
-
-// Bits are accumulated in base2. So we use d(Xw) - 2d(X) to extract the base2 bit
-fn extract_bit(curr_acc: &Scalar, next_acc: &Scalar) -> Scalar {
-    // Next - 2 * current
-    next_acc - (curr_acc + curr_acc)
-}
-
-use jubjub::Fq;
-fn edwards_d() -> Fq {
-    let num = Fq::from(10240);
-    let den = Fq::from(10241);
-    -(num * den.invert().unwrap())
-}
-
-// Ensures that the bit is either +1, -1 or 0
-fn check_bit_consistency(bit: Scalar) -> Scalar {
-    let one = Scalar::one();
-    bit * (bit - one) * (bit + one)
 }
