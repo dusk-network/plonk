@@ -2,28 +2,8 @@ use crate::constraint_system::StandardComposer;
 use crate::constraint_system::Variable;
 use dusk_bls12_381::Scalar;
 
-/// Fixed group add weierstrass
-// #[derive(Debug, Clone, Copy)]
-// pub struct FixedGroupAddQuad {
-//     pub a: Variable,
-//     pub b: Variable,
-//     pub c: Variable,
-//     pub d: Variable,
-//     pub q_x_1: Scalar,
-//     pub q_x_2: Scalar,
-//     pub q_y_1: Scalar,
-//     pub q_y_2: Scalar,
-// }
-/// Fixed group add with init wierstrass
-// #[derive(Debug, Clone, Copy)]
-// pub struct FixedGroupInitQuad {
-//     pub q_x_1: Scalar,
-//     pub q_x_2: Scalar,
-//     pub q_y_1: Scalar,
-//     pub q_y_2: Scalar,
-// }
-
 #[derive(Debug, Clone, Copy)]
+/// Contains all of the components needed to verify that a bit scalar multiplication was computed correctly
 pub struct WnafRound {
     /// This is the accumulated x coordinate point that we wish to add (so far.. depends on where you are in the scalar mul)
     /// it is linked to the wnaf entry, so must not be revealed
@@ -60,7 +40,7 @@ impl StandardComposer {
 
         self.q_c.push(Scalar::zero());
         self.q_o.push(Scalar::zero());
-        self.q_ecc.push(Scalar::zero());
+        self.q_ecc.push(Scalar::one());
 
         self.q_m.push(Scalar::zero());
         self.q_4.push(Scalar::zero());
@@ -80,57 +60,17 @@ impl StandardComposer {
 
         self.n += 1;
     }
-    // Fixed group addition of a jubjub point
-    // pub fn fixed_group_add(&mut self, add_quad: FixedGroupAddQuad) {
-    //     self.w_l.push(add_quad.a);
-    //     self.w_r.push(add_quad.b);
-    //     self.w_o.push(add_quad.c);
-    //     self.w_4.push(add_quad.d);
 
-    //     self.q_l.push(add_quad.q_x_1);
-    //     self.q_r.push(add_quad.q_x_2);
-    //     self.q_o.push(add_quad.q_y_1);
-    //     self.q_ecc.push(add_quad.q_y_2);
+    /// Asserts that a witness point (Variable, Variable) is equal to a known public point
+    pub fn assert_equal_point(
+        &mut self,
+        witness_point: (Variable, Variable),
+        public_point: jubjub::AffinePoint,
+    ) {
+        let witness_x = witness_point.0;
+        let witness_y = witness_point.1;
 
-    //     self.q_m.push(Scalar::zero());
-    //     self.q_c.push(Scalar::zero());
-    //     self.q_4.push(Scalar::zero());
-    //     self.q_arith.push(Scalar::zero());
-    //     self.q_range.push(Scalar::zero());
-    //     self.q_logic.push(Scalar::zero());
-
-    //     self.public_inputs.push(Scalar::zero());
-
-    //     self.perm
-    //         .add_variables_to_map(add_quad.a, add_quad.b, add_quad.c, add_quad.d, self.n);
-
-    //     self.n += 1;
-    // }
-    // Group add with init
-    // pub fn fixed_group_add_init(&mut self, add_quad: FixedGroupAddQuad, init: FixedGroupInitQuad) {
-    //     self.w_l.push(add_quad.a);
-    //     self.w_r.push(add_quad.b);
-    //     self.w_o.push(add_quad.c);
-    //     self.w_4.push(add_quad.d);
-
-    //     self.q_l.push(add_quad.q_x_1);
-    //     self.q_r.push(add_quad.q_x_2);
-    //     self.q_o.push(add_quad.q_y_1);
-    //     self.q_ecc.push(add_quad.q_y_2);
-
-    //     self.q_4.push(init.q_x_1);
-    //     self.q_m.push(init.q_y_1);
-    //     self.q_c.push(init.q_y_2);
-
-    //     self.q_arith.push(Scalar::zero());
-    //     self.q_range.push(Scalar::zero());
-    //     self.q_logic.push(Scalar::zero());
-
-    //     self.public_inputs.push(Scalar::zero());
-
-    //     self.perm
-    //         .add_variables_to_map(add_quad.a, add_quad.b, add_quad.c, add_quad.d, self.n);
-
-    //     self.n += 1;
-    // }
+        self.constrain_to_constant(witness_x, Scalar::zero(), -public_point.get_x());
+        self.constrain_to_constant(witness_y, Scalar::zero(), -public_point.get_y());
+    }
 }
