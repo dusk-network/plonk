@@ -14,6 +14,8 @@ pub mod boolean;
 pub(crate) mod helper;
 /// XOR and AND gates
 pub mod logic;
+/// Scalar multiplication gate
+pub mod pedersen;
 /// Range gate
 pub mod range;
 
