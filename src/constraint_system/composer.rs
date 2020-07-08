@@ -288,6 +288,7 @@ impl StandardComposer {
         self.q_arith.push(Scalar::one());
         self.q_range.push(Scalar::zero());
         self.q_logic.push(Scalar::zero());
+        self.q_ecc.push(Scalar::zero());
         self.public_inputs.push(Scalar::zero());
         self.w_l.push(var_min_twenty);
         self.w_r.push(var_six);
@@ -304,10 +305,26 @@ impl StandardComposer {
     /// XXX: This is messy and will be removed in a later PR.
     #[cfg(feature = "trace")]
     pub fn check_circuit_satisfied(&self) {
-        let w_l = self.to_scalars(&self.w_l);
-        let w_r = self.to_scalars(&self.w_r);
-        let w_o = self.to_scalars(&self.w_o);
-        let w_4 = self.to_scalars(&self.w_4);
+        let w_l: Vec<&Scalar> = self
+            .w_l
+            .iter()
+            .map(|w_l_i| self.variables.get(&w_l_i).unwrap())
+            .collect();
+        let w_r: Vec<&Scalar> = self
+            .w_r
+            .iter()
+            .map(|w_r_i| self.variables.get(&w_r_i).unwrap())
+            .collect();
+        let w_o: Vec<&Scalar> = self
+            .w_o
+            .iter()
+            .map(|w_o_i| self.variables.get(&w_o_i).unwrap())
+            .collect();
+        let w_4: Vec<&Scalar> = self
+            .w_4
+            .iter()
+            .map(|w_4_i| self.variables.get(&w_4_i).unwrap())
+            .collect();
         // Computes f(f-1)(f-2)(f-3)
         let delta = |f: Scalar| -> Scalar {
             let f_1 = f - Scalar::one();
@@ -316,7 +333,6 @@ impl StandardComposer {
             f * f_1 * f_2 * f_3
         };
         let four = Scalar::from(4);
-
         for i in 0..self.n {
             let qm = self.q_m[i];
             let ql = self.q_l[i];

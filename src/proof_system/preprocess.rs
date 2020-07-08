@@ -49,6 +49,7 @@ impl StandardComposer {
         self.q_arith.extend(zeroes_scalar.iter());
         self.q_range.extend(zeroes_scalar.iter());
         self.q_logic.extend(zeroes_scalar.iter());
+        self.q_ecc.extend(zeroes_scalar.iter());
 
         self.w_l.extend(zeroes_var.iter());
         self.w_r.extend(zeroes_var.iter());
@@ -70,6 +71,7 @@ impl StandardComposer {
             && self.q_arith.len() == k
             && self.q_range.len() == k
             && self.q_logic.len() == k
+            && self.q_ecc.len() == k
             && self.w_l.len() == k
             && self.w_r.len() == k
             && self.w_o.len() == k
