@@ -42,11 +42,8 @@ pub(crate) fn compute(
     wr_eval_4n.push(wr_eval_4n[1]);
     wr_eval_4n.push(wr_eval_4n[2]);
     wr_eval_4n.push(wr_eval_4n[3]);
-    let mut wo_eval_4n = domain_4n.coset_fft(&w_o_poly);
-    wo_eval_4n.push(wo_eval_4n[0]);
-    wo_eval_4n.push(wo_eval_4n[1]);
-    wo_eval_4n.push(wo_eval_4n[2]);
-    wo_eval_4n.push(wo_eval_4n[3]);
+    let wo_eval_4n = domain_4n.coset_fft(&w_o_poly);
+
     let mut w4_eval_4n = domain_4n.coset_fft(&w_4_poly);
     w4_eval_4n.push(w4_eval_4n[0]);
     w4_eval_4n.push(w4_eval_4n[1]);
