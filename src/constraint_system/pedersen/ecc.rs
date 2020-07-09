@@ -1,3 +1,4 @@
+use super::Point;
 use crate::constraint_system::StandardComposer;
 use crate::constraint_system::Variable;
 use dusk_bls12_381::Scalar;
@@ -29,14 +30,14 @@ pub struct WnafRound {
 
 impl StandardComposer {
     /// Fixed group addition of a jubjub point
-    pub fn new_fixed_group_add(&mut self, add_quad: WnafRound) {
-        self.w_l.push(add_quad.acc_x);
-        self.w_r.push(add_quad.acc_y);
-        self.w_o.push(add_quad.xy_alpha);
-        self.w_4.push(add_quad.accumulated_bit);
+    pub fn new_fixed_group_add(&mut self, wnaf_round: WnafRound) {
+        self.w_l.push(wnaf_round.acc_x);
+        self.w_r.push(wnaf_round.acc_y);
+        self.w_o.push(wnaf_round.xy_alpha);
+        self.w_4.push(wnaf_round.accumulated_bit);
 
-        self.q_l.push(add_quad.x_beta);
-        self.q_r.push(add_quad.y_beta);
+        self.q_l.push(wnaf_round.x_beta);
+        self.q_r.push(wnaf_round.y_beta);
 
         self.q_c.push(Scalar::zero());
         self.q_o.push(Scalar::zero());
@@ -51,26 +52,19 @@ impl StandardComposer {
         self.public_inputs.push(Scalar::zero());
 
         self.perm.add_variables_to_map(
-            add_quad.acc_x,
-            add_quad.acc_y,
-            add_quad.xy_alpha,
-            add_quad.accumulated_bit,
+            wnaf_round.acc_x,
+            wnaf_round.acc_y,
+            wnaf_round.xy_alpha,
+            wnaf_round.accumulated_bit,
             self.n,
         );
 
         self.n += 1;
     }
 
-    /// Asserts that a witness point (Variable, Variable) is equal to a known public point
-    pub fn assert_equal_point(
-        &mut self,
-        witness_point: (Variable, Variable),
-        public_point: jubjub::AffinePoint,
-    ) {
-        let witness_x = witness_point.0;
-        let witness_y = witness_point.1;
-
-        self.constrain_to_constant(witness_x, Scalar::zero(), -public_point.get_x());
-        self.constrain_to_constant(witness_y, Scalar::zero(), -public_point.get_y());
+    /// Asserts that a point in the circuit is equal to a known public point
+    pub fn assert_equal_point(&mut self, point: Point, public_point: jubjub::AffinePoint) {
+        self.constrain_to_constant(point.x, Scalar::zero(), -public_point.get_x());
+        self.constrain_to_constant(point.y, Scalar::zero(), -public_point.get_y());
     }
 }

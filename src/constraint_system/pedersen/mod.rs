@@ -8,12 +8,23 @@ use ecc::WnafRound;
 use jubjub::Fr as JubJubScalar;
 use jubjub::{AffinePoint, ExtendedPoint};
 
+/// Represents a JubJub point in the circuit
+#[derive(Debug)]
+pub struct Point {
+    x: Variable,
+    y: Variable,
+}
 /// The result of a scalar multiplication
 #[derive(Debug)]
 pub struct PointScalar {
-    base_x: Variable,
-    base_y: Variable,
+    point: Point,
     scalar: Variable,
+}
+
+impl From<PointScalar> for Point {
+    fn from(ps: PointScalar) -> Point {
+        ps.point
+    }
 }
 
 fn compute_wnaf_point_multiples(generator: ExtendedPoint, num_bits: usize) -> Vec<AffinePoint> {
@@ -34,16 +45,12 @@ fn edwards_d() -> Fq {
 }
 
 /// Adds two curve points together
-pub fn curve_addition(
-    composer: &mut StandardComposer,
-    point_a: (Variable, Variable),
-    point_b: (Variable, Variable),
-) -> (Variable, Variable) {
-    let x1 = point_a.0;
-    let y1 = point_a.1;
+pub fn curve_addition(composer: &mut StandardComposer, point_a: Point, point_b: Point) -> Point {
+    let x1 = point_a.x;
+    let y1 = point_a.y;
 
-    let x2 = point_b.0;
-    let y2 = point_b.1;
+    let x2 = point_b.x;
+    let y2 = point_b.y;
 
     // x1 * y2
     let x1_y2 = composer.mul(
@@ -174,11 +181,11 @@ pub fn curve_addition(
         BlsScalar::zero(),
     );
 
-    (x_3, y_3)
+    Point { x: x_3, y: y_3 }
 }
 
-/// Computes a Scalar multiplication with the input scalar and the fixed generator
-pub fn fixed_based_scalar_mul(
+/// Computes a Scalar multiplication with the input scalar and a chosen generator
+pub fn scalar_mul(
     composer: &mut StandardComposer,
     jubjub_scalar: Variable,
     generator: ExtendedPoint,
@@ -285,8 +292,7 @@ pub fn fixed_based_scalar_mul(
     composer.assert_equal(last_accumulated_bit, jubjub_scalar);
 
     PointScalar {
-        base_x: acc_x,
-        base_y: acc_y,
+        point: Point { x: acc_x, y: acc_y },
         scalar: last_accumulated_bit,
     }
 }
@@ -311,11 +317,9 @@ mod tests {
 
                 let expected_point: AffinePoint = (ExtendedPoint::from(GENERATOR) * scalar).into();
 
-                let point_scalar =
-                    fixed_based_scalar_mul(composer, secret_scalar, GENERATOR.into());
+                let point_scalar = scalar_mul(composer, secret_scalar, GENERATOR.into());
 
-                composer
-                    .assert_equal_point((point_scalar.base_x, point_scalar.base_y), expected_point);
+                composer.assert_equal_point(point_scalar.into(), expected_point);
             },
             600,
         );
@@ -333,11 +337,9 @@ mod tests {
 
                 let expected_point: AffinePoint = (ExtendedPoint::from(GENERATOR) * scalar).into();
 
-                let point_scalar =
-                    fixed_based_scalar_mul(composer, secret_scalar, GENERATOR.into());
+                let point_scalar = scalar_mul(composer, secret_scalar, GENERATOR.into());
 
-                composer
-                    .assert_equal_point((point_scalar.base_x, point_scalar.base_y), expected_point);
+                composer.assert_equal_point(point_scalar.into(), expected_point);
             },
             600,
         );
@@ -356,11 +358,9 @@ mod tests {
 
                 let expected_point: AffinePoint = (double_gen * scalar).into();
 
-                let point_scalar =
-                    fixed_based_scalar_mul(composer, secret_scalar, GENERATOR.into());
+                let point_scalar = scalar_mul(composer, secret_scalar, GENERATOR.into());
 
-                composer
-                    .assert_equal_point((point_scalar.base_x, point_scalar.base_y), expected_point);
+                composer.assert_equal_point(point_scalar.into(), expected_point);
             },
             600,
         );
@@ -381,14 +381,17 @@ mod tests {
 
                 let var_point_a_x = composer.add_input(affine_point_a.get_x());
                 let var_point_a_y = composer.add_input(affine_point_a.get_y());
+                let point_a = Point {
+                    x: var_point_a_x,
+                    y: var_point_a_y,
+                };
                 let var_point_b_x = composer.add_input(affine_point_b.get_x());
                 let var_point_b_y = composer.add_input(affine_point_b.get_y());
-
-                let new_point = curve_addition(
-                    composer,
-                    (var_point_a_x, var_point_a_y),
-                    (var_point_b_x, var_point_b_y),
-                );
+                let point_b = Point {
+                    x: var_point_b_x,
+                    y: var_point_b_y,
+                };
+                let new_point = curve_addition(composer, point_a, point_b);
 
                 composer.assert_equal_point(new_point, affine_expected_point);
             },
@@ -424,18 +427,17 @@ mod tests {
                 // - One curve addition
                 //
                 // Scalar multiplications
-                let aG = fixed_based_scalar_mul(composer, secret_scalar_a, point_a);
-                let bH = fixed_based_scalar_mul(composer, secret_scalar_b, point_b);
+                let aG = scalar_mul(composer, secret_scalar_a, point_a);
+                let bH = scalar_mul(composer, secret_scalar_b, point_b);
 
                 // Depending on the context, one can check if the resulting aG and bH are as expected
                 //
-                composer.constrain_to_constant(aG.base_x, BlsScalar::zero(), -c_a.get_x());
-                composer.constrain_to_constant(aG.base_y, BlsScalar::zero(), -c_a.get_y());
-                composer.constrain_to_constant(bH.base_x, BlsScalar::zero(), -c_b.get_x());
-                composer.constrain_to_constant(bH.base_y, BlsScalar::zero(), -c_b.get_y());
+                composer.constrain_to_constant(aG.point.x, BlsScalar::zero(), -c_a.get_x());
+                composer.constrain_to_constant(aG.point.y, BlsScalar::zero(), -c_a.get_y());
+                composer.constrain_to_constant(bH.point.x, BlsScalar::zero(), -c_b.get_x());
+                composer.constrain_to_constant(bH.point.y, BlsScalar::zero(), -c_b.get_y());
                 // Curve addition
-                let commitment =
-                    curve_addition(composer, (aG.base_x, aG.base_y), (bH.base_x, bH.base_y));
+                let commitment = curve_addition(composer, aG.into(), bH.into());
 
                 // Add final constraints to ensure that the commitment that we computed is equal to the public point
                 composer.assert_equal_point(commitment, expected_point);
