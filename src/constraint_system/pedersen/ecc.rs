@@ -16,16 +16,17 @@ pub struct WnafRound {
     /// For all intents and purposes, you can think of this as the secret bit
     pub accumulated_bit: Variable,
 
-    /// This is the multiplication of x_\alpha * y_\alpha * d
+    /// This is the multiplication of x_\alpha * y_\alpha
     /// we need this as a distinct wire, so that the degree of the polynomial does not go over 4
     pub xy_alpha: Variable,
-
     /// This is the possible x co-ordinate of the wnaf point we are going to add
     /// Actual x-co-ordinate = b_i * x_\beta
     pub x_beta: Scalar,
     /// This is the possible y co-ordinate of the wnaf point we are going to add
     /// Actual y coordinate = (b_i)^2 [y_\beta -1] + 1
     pub y_beta: Scalar,
+    /// This is the multiplication of x_\beta * y_\beta
+    pub xy_beta: Scalar,
 }
 
 impl StandardComposer {
@@ -39,7 +40,7 @@ impl StandardComposer {
         self.q_l.push(wnaf_round.x_beta);
         self.q_r.push(wnaf_round.y_beta);
 
-        self.q_c.push(Scalar::zero());
+        self.q_c.push(wnaf_round.xy_beta);
         self.q_o.push(Scalar::zero());
         self.q_ecc.push(Scalar::one());
 

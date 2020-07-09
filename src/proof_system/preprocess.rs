@@ -149,7 +149,7 @@ impl StandardComposer {
 
         // Prover Key for logic circuits
         let logic_prover_key = widget::logic::ProverKey {
-            q_c: (selectors.q_c, q_c_eval_4n),
+            q_c: (selectors.q_c.clone(), q_c_eval_4n.clone()),
             q_logic: (selectors.q_logic, q_logic_eval_4n),
         };
 
@@ -157,6 +157,7 @@ impl StandardComposer {
         let ecc_prover_key = widget::ecc::ProverKey {
             q_l: (selectors.q_l, q_l_eval_4n),
             q_r: (selectors.q_r, q_r_eval_4n),
+            q_c: (selectors.q_c, q_c_eval_4n),
             q_ecc: (selectors.q_ecc, q_ecc_eval_4n),
         };
 

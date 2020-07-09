@@ -205,6 +205,7 @@ fn compute_circuit_satisfiability(
         d_next_eval,
         q_l_eval,
         q_r_eval,
+        q_c_eval,
     );
 
     let mut linearisation_poly = &a + &b;

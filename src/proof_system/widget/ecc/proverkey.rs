@@ -6,6 +6,7 @@ use dusk_bls12_381::Scalar;
 pub struct ProverKey {
     pub q_l: (Polynomial, Evaluations),
     pub q_r: (Polynomial, Evaluations),
+    pub q_c: (Polynomial, Evaluations),
     pub q_ecc: (Polynomial, Evaluations),
 }
 
@@ -24,6 +25,7 @@ impl ProverKey {
         w_4_i_next: &Scalar, // accumulated_bit_next
     ) -> Scalar {
         let q_ecc_i = &self.q_ecc.1[index];
+        let q_c_i = &self.q_c.1[index];
 
         let kappa = ecc_separation_challenge.square();
         let kappa_sq = kappa.square();
@@ -53,9 +55,7 @@ impl ProverKey {
         let x_alpha = bit * x_beta;
 
         // xy_alpha consistency check
-        // XXX: If xy_alpha is not correct, then the group law does not hold.
-        // This check seems to increase the quotient degree, so it may be possible remove it
-        // let xy_consistency = (x_alpha * y_alpha - xy_alpha) * kappa;
+        let xy_consistency = ((bit * q_c_i) - xy_alpha) * kappa;
 
         // x accumulator consistency check
         let x_3 = acc_x_next;
@@ -69,7 +69,7 @@ impl ProverKey {
         let rhs = (acc_y * y_alpha) + (acc_x * x_alpha);
         let y_acc_consistency = (lhs - rhs) * kappa_cu;
 
-        let identity = bit_consistency + x_acc_consistency + y_acc_consistency;
+        let identity = bit_consistency + x_acc_consistency + y_acc_consistency + xy_consistency;
 
         identity * q_ecc_i * ecc_separation_challenge
     }
@@ -87,6 +87,7 @@ impl ProverKey {
         d_next_eval: &Scalar,
         q_l_eval: &Scalar,
         q_r_eval: &Scalar,
+        q_c_eval: &Scalar,
     ) -> Polynomial {
         let q_ecc_poly = &self.q_ecc.0;
 
@@ -116,9 +117,7 @@ impl ProverKey {
         let x_alpha = x_beta_eval * bit;
 
         // xy_alpha consistency check
-        // XXX: If xy_alpha is not correct, then the group law does not hold.
-        // This check seems to increase the quotient degree, so it may be possible remove it
-        // let xy_consistency = (x_alpha * y_alpha - xy_alpha) * kappa;
+        let xy_consistency = ((bit * q_c_eval) - xy_alpha) * kappa;
 
         // x accumulator consistency check
         let x_3 = acc_x_next;
@@ -132,7 +131,7 @@ impl ProverKey {
         let rhs = (x_alpha * acc_x) + (y_alpha * acc_y);
         let y_acc_consistency = (lhs - rhs) * kappa_cu;
 
-        let a = bit_consistency + x_acc_consistency + y_acc_consistency;
+        let a = bit_consistency + x_acc_consistency + y_acc_consistency + xy_consistency;
 
         q_ecc_poly * &(a * ecc_separation_challenge)
     }

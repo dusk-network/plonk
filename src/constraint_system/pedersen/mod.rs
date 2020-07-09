@@ -256,6 +256,8 @@ pub fn scalar_mul(
 
         let xy_alpha = composer.add_input(xy_alphas[i]);
 
+        let xy_beta = x_beta * y_beta;
+
         let wnaf_round = WnafRound {
             acc_x,
             acc_y,
@@ -263,6 +265,7 @@ pub fn scalar_mul(
             xy_alpha,
             x_beta,
             y_beta,
+            xy_beta,
         };
 
         composer.new_fixed_group_add(wnaf_round);

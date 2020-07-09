@@ -43,9 +43,7 @@ impl VerifierKey {
         let x_alpha = x_beta_poly * bit;
 
         // xy_alpha consistency check
-        // XXX: If xy_alpha is not correct, then the group law does not hold.
-        // This check seems to increase the quotient degree, so it may be possible remove it
-        // let xy_consistency = ((x_alpha * y_alpha) - xy_alpha) * kappa;
+        let xy_consistency = ((bit * evaluations.q_c_eval) - xy_alpha) * kappa;
 
         // x accumulator consistency check
         let x_3 = acc_x_next;
@@ -59,7 +57,7 @@ impl VerifierKey {
         let rhs = (x_alpha * acc_x) + (y_alpha * acc_y);
         let y_acc_consistency = (lhs - rhs) * kappa_cu;
 
-        let a = bit_consistency + x_acc_consistency + y_acc_consistency;
+        let a = bit_consistency + x_acc_consistency + y_acc_consistency + xy_consistency;
 
         scalars.push(a * ecc_separation_challenge);
         points.push(self.q_ecc.0);
