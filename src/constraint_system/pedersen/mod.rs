@@ -9,13 +9,13 @@ use jubjub::Fr as JubJubScalar;
 use jubjub::{AffinePoint, ExtendedPoint};
 
 /// Represents a JubJub point in the circuit
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct Point {
     x: Variable,
     y: Variable,
 }
 /// The result of a scalar multiplication
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct PointScalar {
     point: Point,
     scalar: Variable,
@@ -322,7 +322,7 @@ mod tests {
 
                 let point_scalar = scalar_mul(composer, secret_scalar, GENERATOR.into());
 
-                composer.assert_equal_point(point_scalar.into(), expected_point);
+                composer.assert_equal_public_point(point_scalar.into(), expected_point);
             },
             600,
         );
@@ -342,7 +342,7 @@ mod tests {
 
                 let point_scalar = scalar_mul(composer, secret_scalar, GENERATOR.into());
 
-                composer.assert_equal_point(point_scalar.into(), expected_point);
+                composer.assert_equal_public_point(point_scalar.into(), expected_point);
             },
             600,
         );
@@ -363,7 +363,7 @@ mod tests {
 
                 let point_scalar = scalar_mul(composer, secret_scalar, GENERATOR.into());
 
-                composer.assert_equal_point(point_scalar.into(), expected_point);
+                composer.assert_equal_public_point(point_scalar.into(), expected_point);
             },
             600,
         );
@@ -396,7 +396,7 @@ mod tests {
                 };
                 let new_point = curve_addition(composer, point_a, point_b);
 
-                composer.assert_equal_point(new_point, affine_expected_point);
+                composer.assert_equal_public_point(new_point, affine_expected_point);
             },
             600,
         );
@@ -435,17 +435,59 @@ mod tests {
 
                 // Depending on the context, one can check if the resulting aG and bH are as expected
                 //
-                composer.constrain_to_constant(aG.point.x, BlsScalar::zero(), -c_a.get_x());
-                composer.constrain_to_constant(aG.point.y, BlsScalar::zero(), -c_a.get_y());
-                composer.constrain_to_constant(bH.point.x, BlsScalar::zero(), -c_b.get_x());
-                composer.constrain_to_constant(bH.point.y, BlsScalar::zero(), -c_b.get_y());
+                composer.assert_equal_public_point(aG.into(), c_a);
+                composer.assert_equal_public_point(bH.into(), c_b);
+
                 // Curve addition
                 let commitment = curve_addition(composer, aG.into(), bH.into());
 
                 // Add final constraints to ensure that the commitment that we computed is equal to the public point
-                composer.assert_equal_point(commitment, expected_point);
+                composer.assert_equal_public_point(commitment, expected_point);
             },
             1024,
+        );
+        assert!(res.is_ok());
+    }
+    #[test]
+    #[allow(non_snake_case)]
+    fn test_pedersen_balance() {
+        let res = gadget_tester(
+            |composer| {
+                // First component
+                let scalar_a = JubJubScalar::from(25u64);
+                let bls_scalar_a = BlsScalar::from_bytes(&scalar_a.to_bytes()).unwrap();
+                let secret_scalar_a = composer.add_input(bls_scalar_a);
+                // Second component
+                let scalar_b = JubJubScalar::from(30u64);
+                let bls_scalar_b = BlsScalar::from_bytes(&scalar_b.to_bytes()).unwrap();
+                let secret_scalar_b = composer.add_input(bls_scalar_b);
+                // Third component
+                let scalar_c = JubJubScalar::from(10u64);
+                let bls_scalar_c = BlsScalar::from_bytes(&scalar_c.to_bytes()).unwrap();
+                let secret_scalar_c = composer.add_input(bls_scalar_c);
+                // Fourth component
+                let scalar_d = JubJubScalar::from(45u64);
+                let bls_scalar_d = BlsScalar::from_bytes(&scalar_d.to_bytes()).unwrap();
+                let secret_scalar_d = composer.add_input(bls_scalar_d);
+
+                let gen = ExtendedPoint::from(GENERATOR);
+                let expected_lhs: AffinePoint = (gen * (scalar_a + scalar_b)).into();
+                let expected_rhs: AffinePoint = (gen * (scalar_c + scalar_d)).into();
+
+                let P1 = scalar_mul(composer, secret_scalar_a, gen);
+                let P2 = scalar_mul(composer, secret_scalar_b, gen);
+                let P3 = scalar_mul(composer, secret_scalar_c, gen);
+                let P4 = scalar_mul(composer, secret_scalar_d, gen);
+
+                let commitment_a = curve_addition(composer, P1.into(), P2.into());
+                let commitment_b = curve_addition(composer, P3.into(), P4.into());
+
+                composer.assert_equal_point(commitment_a, commitment_b);
+
+                composer.assert_equal_public_point(commitment_a, expected_lhs);
+                composer.assert_equal_public_point(commitment_b, expected_rhs);
+            },
+            2048,
         );
         assert!(res.is_ok());
     }
