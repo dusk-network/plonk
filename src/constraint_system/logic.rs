@@ -248,13 +248,22 @@ impl StandardComposer {
         // x & ((1 << num_bits +1) -1) == [0..num_quads] accumulated sums of x.
         //
         // We could also check that the last gates wire coefficients match the
-        // original values introduced in the function.
+        // original values introduced in the function taking into account the bitnum
+        // specified on the fn call parameters.
         // This can be done with an `assert_equal` constraint gate or simply
         // by taking the values behind the n'th variables of `w_l` & `w_r` and
         // checking that they're equal to the original ones behind the variables
         // sent through the function parameters.
-        assert_eq!(self.variables[&a], self.variables[&self.w_l[self.n - 1]]);
-        assert_eq!(self.variables[&b], self.variables[&self.w_r[self.n - 1]]);
+        assert_eq!(
+            self.variables[&a]
+                & (Scalar::from(2u64).pow(&[(num_bits) as u64, 0, 0, 0]) - Scalar::one()),
+            self.variables[&self.w_l[self.n - 1]]
+        );
+        assert_eq!(
+            self.variables[&b]
+                & (Scalar::from(2u64).pow(&[(num_bits) as u64, 0, 0, 0]) - Scalar::one()),
+            self.variables[&self.w_r[self.n - 1]]
+        );
 
         // Once the inputs are checked against the accumulated additions,
         // we can safely return the resulting variable of the gate computation
@@ -337,6 +346,19 @@ mod tests {
                     Scalar::from(139u64 & 33u64),
                     Scalar::zero(),
                 );
+            },
+            200,
+        );
+        assert!(res.is_err());
+
+        // Should pass even the bitnum is less than the number bit-size
+        let res = gadget_tester(
+            |composer| {
+                let witness_a = composer.add_input(Scalar::from(256u64));
+                let witness_b = composer.add_input(Scalar::from(235u64));
+                let xor_res = composer.xor_gate(witness_a, witness_b, 2);
+                // Check that the XOR result is indeed what we are expecting.
+                composer.constrain_to_constant(xor_res, Scalar::from(256 ^ 235), Scalar::zero());
             },
             200,
         );
