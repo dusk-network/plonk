@@ -3,11 +3,11 @@ pub mod ecc;
 
 use crate::constraint_system::variable::Variable;
 use crate::constraint_system::StandardComposer;
+use crate::edwards_d;
 use dusk_bls12_381::Scalar as BlsScalar;
 use ecc::WnafRound;
 use jubjub::Fr as JubJubScalar;
 use jubjub::{AffinePoint, ExtendedPoint};
-
 /// Represents a JubJub point in the circuit
 #[derive(Debug, Clone, Copy)]
 pub struct Point {
@@ -28,6 +28,8 @@ impl From<PointScalar> for Point {
 }
 
 fn compute_wnaf_point_multiples(generator: ExtendedPoint, num_bits: usize) -> Vec<AffinePoint> {
+    assert!(generator.is_prime_order().unwrap_u8() == 1);
+
     let mut multiples = vec![ExtendedPoint::default(); num_bits];
     multiples[0] = generator;
     for i in 1..num_bits {
@@ -35,13 +37,6 @@ fn compute_wnaf_point_multiples(generator: ExtendedPoint, num_bits: usize) -> Ve
     }
 
     jubjub::batch_normalize(&mut multiples).collect()
-}
-
-use jubjub::Fq;
-fn edwards_d() -> Fq {
-    let num = Fq::from(10240);
-    let den = Fq::from(10241);
-    -(num * den.invert().unwrap())
 }
 
 /// Adds two curve points together
@@ -326,7 +321,6 @@ mod tests {
             },
             600,
         );
-
         assert!(res.is_ok());
     }
 
