@@ -5,7 +5,7 @@ use dusk_bls12_381::Scalar;
 
 #[derive(Debug, Clone, Copy)]
 /// Contains all of the components needed to verify that a bit scalar multiplication was computed correctly
-pub struct WnafRound {
+pub(crate) struct WnafRound {
     /// This is the accumulated x coordinate point that we wish to add (so far.. depends on where you are in the scalar mul)
     /// it is linked to the wnaf entry, so must not be revealed
     pub acc_x: Variable,
@@ -31,7 +31,7 @@ pub struct WnafRound {
 
 impl StandardComposer {
     /// Fixed group addition of a jubjub point
-    pub fn new_fixed_group_add(&mut self, wnaf_round: WnafRound) {
+    pub(crate) fn new_fixed_group_add(&mut self, wnaf_round: WnafRound) {
         self.w_l.push(wnaf_round.acc_x);
         self.w_r.push(wnaf_round.acc_y);
         self.w_o.push(wnaf_round.xy_alpha);

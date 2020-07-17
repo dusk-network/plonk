@@ -1,13 +1,12 @@
-/// ECC gate
-pub mod ecc;
+/// Gates related to the ECC
+pub mod gates;
 
-use crate::constraint_system::variable::Variable;
-use crate::constraint_system::StandardComposer;
+use crate::constraint_system::{variable::Variable, StandardComposer};
 use crate::edwards_d;
 use dusk_bls12_381::Scalar as BlsScalar;
-use ecc::WnafRound;
-use jubjub::Fr as JubJubScalar;
-use jubjub::{AffinePoint, ExtendedPoint};
+use gates::WnafRound;
+use jubjub::{AffinePoint, ExtendedPoint, Fr as JubJubScalar};
+
 /// Represents a JubJub point in the circuit
 #[derive(Debug, Clone, Copy)]
 pub struct Point {
