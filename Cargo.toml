@@ -23,7 +23,6 @@ exclude = [
 license = "MPL-2.0"
 edition = "2018"
 
-
 [dependencies]
 merlin = "2.0.0"
 rand = "0.7.2"
