@@ -81,6 +81,3 @@ pub mod notes {
     #[doc(include = "../docs/notes-KZG10.md")]
     pub mod kzg10_docs {}
 }
-
-/// Bls12_381 Scalar structure used by plonk.
-pub use dusk_bls12_381::Scalar;
