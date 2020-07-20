@@ -81,11 +81,3 @@ pub mod notes {
     #[doc(include = "../docs/notes-KZG10.md")]
     pub mod kzg10_docs {}
 }
-
-use jubjub::Fq;
-
-fn edwards_d() -> Fq {
-    let num = Fq::from(10240);
-    let den = Fq::from(10241);
-    -(num * den.invert().unwrap())
-}

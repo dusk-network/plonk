@@ -2,10 +2,9 @@
 pub mod gates;
 
 use crate::constraint_system::{variable::Variable, StandardComposer};
-use crate::edwards_d;
 use dusk_bls12_381::Scalar as BlsScalar;
+use dusk_jubjub::{AffinePoint, ExtendedPoint, Fr as JubJubScalar, EDWARDS_D};
 use gates::WnafRound;
-use jubjub::{AffinePoint, ExtendedPoint, Fr as JubJubScalar};
 
 /// Represents a JubJub point in the circuit
 #[derive(Debug, Clone, Copy)]
@@ -35,7 +34,7 @@ fn compute_wnaf_point_multiples(generator: ExtendedPoint, num_bits: usize) -> Ve
         multiples[i] = multiples[i - 1].double();
     }
 
-    jubjub::batch_normalize(&mut multiples).collect()
+    dusk_jubjub::batch_normalize(&mut multiples).collect()
 }
 
 /// Adds two curve points together
@@ -80,7 +79,7 @@ pub fn curve_addition(composer: &mut StandardComposer, point_a: Point, point_b: 
     );
     // d x1x2 * y1y2
     let d_x1_x2_y1_y2 = composer.mul(
-        edwards_d(),
+        EDWARDS_D,
         x1_x2,
         y1_y2,
         BlsScalar::zero(),
@@ -298,7 +297,7 @@ pub fn scalar_mul(
 mod tests {
     use super::super::helper::*;
     use super::*;
-    use jubjub::GENERATOR;
+    use dusk_jubjub::GENERATOR;
     #[test]
     fn test_ecc_constraint() {
         let res = gadget_tester(

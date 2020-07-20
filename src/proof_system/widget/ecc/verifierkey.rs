@@ -1,7 +1,8 @@
-use super::{check_bit_consistency, edwards_d, extract_bit};
+use super::{check_bit_consistency, extract_bit};
 use crate::commitment_scheme::kzg10::Commitment;
 use crate::proof_system::linearisation_poly::ProofEvaluations;
 use dusk_bls12_381::{G1Affine, Scalar};
+use dusk_jubjub::EDWARDS_D;
 #[derive(Debug)]
 pub struct VerifierKey {
     pub q_l: Commitment,
@@ -47,13 +48,13 @@ impl VerifierKey {
 
         // x accumulator consistency check
         let x_3 = acc_x_next;
-        let lhs = x_3 + (x_3 * xy_alpha * acc_x * acc_y * edwards_d());
+        let lhs = x_3 + (x_3 * xy_alpha * acc_x * acc_y * EDWARDS_D);
         let rhs = (x_alpha * acc_y) + (y_alpha * acc_x);
         let x_acc_consistency = (lhs - rhs) * kappa_sq;
 
         // y accumulator consistency check
         let y_3 = acc_y_next;
-        let lhs = y_3 - (y_3 * xy_alpha * acc_x * acc_y * edwards_d());
+        let lhs = y_3 - (y_3 * xy_alpha * acc_x * acc_y * EDWARDS_D);
         let rhs = (x_alpha * acc_x) + (y_alpha * acc_y);
         let y_acc_consistency = (lhs - rhs) * kappa_cu;
 

@@ -64,7 +64,11 @@ impl StandardComposer {
     }
 
     /// Asserts that a point in the circuit is equal to a known public point
-    pub fn assert_equal_public_point(&mut self, point: Point, public_point: jubjub::AffinePoint) {
+    pub fn assert_equal_public_point(
+        &mut self,
+        point: Point,
+        public_point: dusk_jubjub::AffinePoint,
+    ) {
         self.constrain_to_constant(point.x, Scalar::zero(), -public_point.get_x());
         self.constrain_to_constant(point.y, Scalar::zero(), -public_point.get_y());
     }
