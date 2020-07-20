@@ -13,8 +13,12 @@ pub use crate::proof_system::{
     widget::{ProverKey, VerifierKey},
     Proof, Prover, Verifier,
 };
-// Re-export dusk-bls12_381 Scalar type
-pub use dusk_bls12_381::Scalar;
+
+/// Re-exported `dusk-bls12_381::Scalar`.
+pub use dusk_bls12_381::Scalar as BlsScalar;
+
+/// Re-exported `dusk-jubjub::Scalar`.
+pub use dusk_jubjub::Fr as JubJubScalar;
 
 /// Collection of errors that the library exposes/uses.
 pub mod plonk_errors {
