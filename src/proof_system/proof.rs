@@ -87,6 +87,7 @@ impl Proof {
         let alpha = transcript.challenge_scalar(b"alpha");
         let range_sep_challenge = transcript.challenge_scalar(b"range separation challenge");
         let logic_sep_challenge = transcript.challenge_scalar(b"logic separation challenge");
+        let ecc_sep_challenge = transcript.challenge_scalar(b"ecc separation challenge");
 
         // Add commitment to quotient polynomial to transcript
         transcript.append_commitment(b"t_1", &self.t_1_comm);
@@ -133,6 +134,8 @@ impl Proof {
         transcript.append_scalar(b"out_sig_eval", &self.evaluations.out_sigma_eval);
         transcript.append_scalar(b"q_arith_eval", &self.evaluations.q_arith_eval);
         transcript.append_scalar(b"q_c_eval", &self.evaluations.q_c_eval);
+        transcript.append_scalar(b"q_l_eval", &self.evaluations.q_l_eval);
+        transcript.append_scalar(b"q_r_eval", &self.evaluations.q_r_eval);
         transcript.append_scalar(b"perm_eval", &self.evaluations.perm_eval);
         transcript.append_scalar(b"t_eval", &t_eval);
         transcript.append_scalar(b"r_eval", &self.evaluations.lin_poly_eval);
@@ -142,7 +145,11 @@ impl Proof {
             &alpha,
             &beta,
             &gamma,
-            (&range_sep_challenge, &logic_sep_challenge),
+            (
+                &range_sep_challenge,
+                &logic_sep_challenge,
+                &ecc_sep_challenge,
+            ),
             &z_challenge,
             l1_eval,
             &verifier_key,
@@ -265,7 +272,7 @@ impl Proof {
         alpha: &Scalar,
         beta: &Scalar,
         gamma: &Scalar,
-        (range_sep_challenge, logic_sep_challenge): (&Scalar, &Scalar),
+        (range_sep_challenge, logic_sep_challenge, ecc_sep_challenge): (&Scalar, &Scalar, &Scalar),
         z_challenge: &Scalar,
         l1_eval: Scalar,
         verifier_key: &VerifierKey,
@@ -288,6 +295,13 @@ impl Proof {
 
         verifier_key.logic.compute_linearisation_commitment(
             &logic_sep_challenge,
+            &mut scalars,
+            &mut points,
+            &self.evaluations,
+        );
+
+        verifier_key.ecc.compute_linearisation_commitment(
+            &ecc_sep_challenge,
             &mut scalars,
             &mut points,
             &self.evaluations,

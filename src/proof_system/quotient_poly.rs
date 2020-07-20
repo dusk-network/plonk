@@ -14,7 +14,8 @@ pub(crate) fn compute(
     z_poly: &Polynomial,
     (w_l_poly, w_r_poly, w_o_poly, w_4_poly): (&Polynomial, &Polynomial, &Polynomial, &Polynomial),
     public_inputs_poly: &Polynomial,
-    (alpha, beta, gamma, range_challenge, logic_challenge): &(
+    (alpha, beta, gamma, range_challenge, logic_challenge, ecc_challenge): &(
+        Scalar,
         Scalar,
         Scalar,
         Scalar,
@@ -42,6 +43,7 @@ pub(crate) fn compute(
     wr_eval_4n.push(wr_eval_4n[2]);
     wr_eval_4n.push(wr_eval_4n[3]);
     let wo_eval_4n = domain_4n.coset_fft(&w_o_poly);
+
     let mut w4_eval_4n = domain_4n.coset_fft(&w_4_poly);
     w4_eval_4n.push(w4_eval_4n[0]);
     w4_eval_4n.push(w4_eval_4n[1]);
@@ -50,7 +52,7 @@ pub(crate) fn compute(
 
     let t_1 = compute_circuit_satisfiability_equation(
         &domain,
-        (range_challenge, logic_challenge),
+        (range_challenge, logic_challenge, ecc_challenge),
         prover_key,
         (&wl_eval_4n, &wr_eval_4n, &wo_eval_4n, &w4_eval_4n),
         public_inputs_poly,
@@ -81,7 +83,7 @@ pub(crate) fn compute(
 // Ensures that the circuit is satisfied
 fn compute_circuit_satisfiability_equation(
     domain: &EvaluationDomain,
-    (range_challenge, logic_challenge): (&Scalar, &Scalar),
+    (range_challenge, logic_challenge, ecc_challenge): (&Scalar, &Scalar, &Scalar),
     prover_key: &ProverKey,
     (wl_eval_4n, wr_eval_4n, wo_eval_4n, w4_eval_4n): (&[Scalar], &[Scalar], &[Scalar], &[Scalar]),
     pi_poly: &Polynomial,
@@ -120,7 +122,19 @@ fn compute_circuit_satisfiability_equation(
                 &w4_next,
             );
 
-            (a + pi) + b + c
+            let d = prover_key.ecc.compute_quotient_i(
+                i,
+                ecc_challenge,
+                &wl,
+                &wl_next,
+                &wr,
+                &wr_next,
+                &wo,
+                &w4,
+                &w4_next,
+            );
+
+            (a + pi) + b + c + d
         })
         .collect();
     t

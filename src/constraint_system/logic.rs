@@ -200,7 +200,7 @@ impl StandardComposer {
 
         // Now the wire values are set for each gate, indexed and mapped in the
         // `variable_map` inside of the `Permutation` struct.
-        // Now we just need to extend the selector polynomials with the appropiate
+        // Now we just need to extend the selector polynomials with the appropriate
         // coefficients to form complete logic gates.
         for _ in 0..num_quads {
             self.q_m.push(Scalar::zero());
@@ -210,6 +210,7 @@ impl StandardComposer {
             self.q_o.push(Scalar::zero());
             self.q_4.push(Scalar::zero());
             self.q_range.push(Scalar::zero());
+            self.q_ecc.push(Scalar::zero());
             match is_xor_gate {
                 true => {
                     self.q_c.push(-Scalar::one());
@@ -229,6 +230,8 @@ impl StandardComposer {
         self.q_o.push(Scalar::zero());
         self.q_4.push(Scalar::zero());
         self.q_range.push(Scalar::zero());
+        self.q_ecc.push(Scalar::zero());
+
         self.q_c.push(Scalar::zero());
         self.q_logic.push(Scalar::zero());
 

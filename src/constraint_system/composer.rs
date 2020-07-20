@@ -46,6 +46,8 @@ pub struct StandardComposer {
     pub(crate) q_range: Vec<Scalar>,
     // logic selector
     pub(crate) q_logic: Vec<Scalar>,
+    // ecc selector
+    pub(crate) q_ecc: Vec<Scalar>,
 
     pub(crate) public_inputs: Vec<Scalar>,
 
@@ -100,7 +102,7 @@ impl StandardComposer {
     /// We must assign the fourth value to another value, we then fix this value to be zero.
     /// However, the verifier needs to be able to verify that this value is also zero.
     /// We therefore must make this zero value a part of the circuit description of every circuit.
-    fn add_witness_to_circuit_description(&mut self, var: Variable, value: Scalar) {
+    pub fn add_witness_to_circuit_description(&mut self, var: Variable, value: Scalar) {
         self.poly_gate(
             var,
             var,
@@ -131,6 +133,7 @@ impl StandardComposer {
             q_arith: Vec::with_capacity(expected_size),
             q_range: Vec::with_capacity(expected_size),
             q_logic: Vec::with_capacity(expected_size),
+            q_ecc: Vec::with_capacity(expected_size),
             public_inputs: Vec::with_capacity(expected_size),
 
             w_l: Vec::with_capacity(expected_size),
@@ -205,6 +208,7 @@ impl StandardComposer {
 
         self.q_range.push(Scalar::zero());
         self.q_logic.push(Scalar::zero());
+        self.q_ecc.push(Scalar::zero());
 
         self.public_inputs.push(pi);
 
@@ -261,6 +265,7 @@ impl StandardComposer {
         self.q_arith.push(Scalar::one());
         self.q_range.push(Scalar::zero());
         self.q_logic.push(Scalar::zero());
+        self.q_ecc.push(Scalar::zero());
         self.public_inputs.push(Scalar::zero());
         let var_six = self.add_input(Scalar::from(6));
         let var_one = self.add_input(Scalar::from(1));
@@ -283,6 +288,7 @@ impl StandardComposer {
         self.q_arith.push(Scalar::one());
         self.q_range.push(Scalar::zero());
         self.q_logic.push(Scalar::zero());
+        self.q_ecc.push(Scalar::zero());
         self.public_inputs.push(Scalar::zero());
         self.w_l.push(var_min_twenty);
         self.w_r.push(var_six);
@@ -299,10 +305,26 @@ impl StandardComposer {
     /// XXX: This is messy and will be removed in a later PR.
     #[cfg(feature = "trace")]
     pub fn check_circuit_satisfied(&self) {
-        let w_l = self.to_scalars(&self.w_l);
-        let w_r = self.to_scalars(&self.w_r);
-        let w_o = self.to_scalars(&self.w_o);
-        let w_4 = self.to_scalars(&self.w_4);
+        let w_l: Vec<&Scalar> = self
+            .w_l
+            .iter()
+            .map(|w_l_i| self.variables.get(&w_l_i).unwrap())
+            .collect();
+        let w_r: Vec<&Scalar> = self
+            .w_r
+            .iter()
+            .map(|w_r_i| self.variables.get(&w_r_i).unwrap())
+            .collect();
+        let w_o: Vec<&Scalar> = self
+            .w_o
+            .iter()
+            .map(|w_o_i| self.variables.get(&w_o_i).unwrap())
+            .collect();
+        let w_4: Vec<&Scalar> = self
+            .w_4
+            .iter()
+            .map(|w_4_i| self.variables.get(&w_4_i).unwrap())
+            .collect();
         // Computes f(f-1)(f-2)(f-3)
         let delta = |f: Scalar| -> Scalar {
             let f_1 = f - Scalar::one();
@@ -311,7 +333,6 @@ impl StandardComposer {
             f * f_1 * f_2 * f_3
         };
         let four = Scalar::from(4);
-
         for i in 0..self.n {
             let qm = self.q_m[i];
             let ql = self.q_l[i];
@@ -322,6 +343,7 @@ impl StandardComposer {
             let qarith = self.q_arith[i];
             let qrange = self.q_range[i];
             let qlogic = self.q_logic[i];
+            let qecc = self.q_ecc[i];
             let pi = self.public_inputs[i];
 
             let a = w_l[i];
@@ -345,12 +367,13 @@ impl StandardComposer {
             - q_arith -> {:?}\n
             - q_range -> {:?}\n
             - q_logic -> {:?}\n
+            - q_ecc -> {:?}\n
             # Witness polynomials:\n
             - w_l -> {:?}\n
             - w_r -> {:?}\n
             - w_o -> {:?}\n
             - w_4 -> {:?}\n",
-                i, qm, ql, qr, q4, qo, qc, qarith, qrange, qlogic, a, b, c, d
+                i, qm, ql, qr, q4, qo, qc, qarith, qrange, qlogic, qecc, a, b, c, d
             );
             let k = qarith * ((qm * a * b) + (ql * a) + (qr * b) + (qo * c) + (q4 * d) + pi + qc)
                 + qlogic
