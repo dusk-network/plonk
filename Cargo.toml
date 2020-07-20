@@ -1,6 +1,6 @@
 [package]
 name = "dusk-plonk"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Kevaundray Wedderburn <kevtheappdev@gmail.com>",
            "Luke Pearson <luke@dusk.network>", 
            "CPerezz <carlos@dusk.network>"] 
@@ -16,8 +16,6 @@ exclude = [
     "Cargo.lock",
     "**/examples",
     "benchmarks/",
-    "CHANGELOG.md",
-    "CONTRIBUTING.md",
     ".travis.yml"
 ]
 license = "MPL-2.0"
