@@ -54,7 +54,7 @@ pub struct Proof {
 
 impl Proof {
     /// Performs the verification of a `Proof` returning a boolean result.
-    pub fn verify(
+    pub(crate) fn verify(
         &self,
         verifier_key: &VerifierKey,
         transcript: &mut Transcript,
