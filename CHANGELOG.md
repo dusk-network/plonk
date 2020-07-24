@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Method to create constrained witness values. @CPerezz
+
+### Changed
+- Visibility of the `Proof::verify()` fn to `pub(crate)`. @CPerezz
  
 
 ## [0.2.0] - 20-07-20
