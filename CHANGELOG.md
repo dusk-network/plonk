@@ -10,7 +10,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 
-## [0.2.1] - 24-07-20
+
+## [0.2.2] - 25-07-20
+
+### Added
+- Method to create constrained witness values. @CPerezz
+
+### Changed
+- Visibility of the `Proof::verify()` fn to `pub(crate)`. @CPerezz
+- Changed `dusk-jubjub` version to `v0.3.3` since `v0.3.2` was yanked.
+
+## [0.2.1] - 24-07-20 [yanked]
 
 ### Added
 - Method to create constrained witness values. @CPerezz
