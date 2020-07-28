@@ -11,6 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+## [0.2.3] - 28-07-20
+
+### Changed
+- Changed `dusk-jubjub` version to `v0.3.4` to update dhke generation.
+
 ## [0.2.2] - 25-07-20
 
 ### Added
