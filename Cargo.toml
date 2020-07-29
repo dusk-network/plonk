@@ -1,6 +1,6 @@
 [package]
 name = "dusk-plonk"
-version = "0.2.3"
+version = "0.2.4"
 authors = ["Kevaundray Wedderburn <kevtheappdev@gmail.com>",
            "Luke Pearson <luke@dusk.network>", 
            "CPerezz <carlos@dusk.network>"] 
@@ -31,7 +31,7 @@ itertools = "0.8.2"
 rand_chacha = "0.2"
 rayon = "1.3.0"
 failure = "0.1.7"
-dusk-jubjub = "0.3.4"
+dusk-jubjub = "0.3.5"
 
 [dev-dependencies]
 rand = "0.7.0"
