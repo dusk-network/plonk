@@ -11,6 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+## [0.2.4] - 29-07-20
+
+### Changed
+- Changed `dusk-jubjub` version to `v0.3.5` to fix Fr random gen.
+
 ## [0.2.3] - 28-07-20
 
 ### Changed
