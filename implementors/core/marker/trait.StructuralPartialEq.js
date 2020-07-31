@@ -1,0 +1,3 @@
+(function() {var implementors = {};
+implementors["dusk_plonk"] = [{"text":"impl StructuralPartialEq for Commitment","synthetic":false,"types":[]},{"text":"impl StructuralPartialEq for Variable","synthetic":false,"types":[]},{"text":"impl StructuralPartialEq for WireData","synthetic":false,"types":[]},{"text":"impl StructuralPartialEq for EvaluationDomain","synthetic":false,"types":[]},{"text":"impl StructuralPartialEq for Evaluations","synthetic":false,"types":[]},{"text":"impl StructuralPartialEq for Polynomial","synthetic":false,"types":[]},{"text":"impl StructuralPartialEq for Proof","synthetic":false,"types":[]}];
+if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

@@ -1,0 +1,351 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="API documentation for the Rust `prove_verify` mod in crate `dusk_plonk`."><meta name="keywords" content="rust, rustlang, rust-lang, prove_verify"><title>dusk_plonk::notes::prove_verify - Rust</title><link rel="stylesheet" type="text/css" href="../../../normalize.css"><link rel="stylesheet" type="text/css" href="../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../../light.css"  id="themeStyle"><link rel="stylesheet" type="text/css" href="../../../dark.css" disabled ><link rel="stylesheet" type="text/css" href="../../../ayu.css" disabled ><script src="../../../storage.js"></script><noscript><link rel="stylesheet" href="../../../noscript.css"></noscript><link rel="shortcut icon" href="https://dusk.network/lib/img/favicon-16x16.png"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/katex.min.css"
+    integrity="sha384-9eLZqc9ds8eNjO3TmqPeYcDj8n+Qfa4nuSiGYa6DjLNcv9BtN69ZIulL9+8CqC9Y" crossorigin="anonymous">
+<script src="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/katex.min.js"
+    integrity="sha384-K3vbOmF2BtaVai+Qk37uypf7VrgBubhQreNQe9aGsz9lB63dIFiQVlJbr92dw2Lx"
+    crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/contrib/auto-render.min.js"
+    integrity="sha384-kmZOZB5ObwgQnS/DuDg6TScgOiWWBiVt0plIRkZCmE6rDZGrEOQeHM5PcHi+nyqe"
+    crossorigin="anonymous"></script>
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        renderMathInElement(document.body, {
+            delimiters: [
+                { left: "$$", right: "$$", display: true },
+                { left: "\\(", right: "\\)", display: false },
+                { left: "$", right: "$", display: false },
+                { left: "\\[", right: "\\]", display: true }
+            ]
+        });
+    });
+</script>
+<style type="text/css">#crate-search{background-image:url("../../../down-arrow.svg");}</style></head><body class="rustdoc mod"><!--[if lte IE 8]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu">&#9776;</div><a href='../../../dusk_plonk/index.html'><div class='logo-container'><img src='https://lh3.googleusercontent.com/SmwswGxtgIANTbDrCOn5EKcRBnVdHjmYsHYxLq2HZNXWCQ9-fZyaea-bNgdX9eR0XGSqiMFi=w128-h128-e365' alt='logo'></div></a><p class='location'>Module prove_verify</p><div class="sidebar-elems"><p class='location'><a href='../../index.html'>dusk_plonk</a>::<wbr><a href='../index.html'>notes</a></p><script>window.sidebarCurrent = {name: 'prove_verify', ty: 'mod', relpath: '../'};</script><script defer src="../sidebar-items.js"></script></div></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!"><img src="../../../brush.svg" width="18" alt="Pick another theme!"></button><div id="theme-choices"></div></div><script src="../../../theme.js"></script><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" disabled autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><a id="settings-menu" href="../../../settings.html"><img src="../../../wheel.svg" width="18" alt="Change settings"></a></div></form></nav><section id="main" class="content"><h1 class='fqn'><span class='out-of-band'><span id='render-detail'><a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">[<span class='inner'>&#x2212;</span>]</a></span><a class='srclink' href='../../../src/dusk_plonk/lib.rs.html#76' title='goto source code'>[src]</a></span><span class='in-band'>Module <a href='../../index.html'>dusk_plonk</a>::<wbr><a href='../index.html'>notes</a>::<wbr><a class="mod" href=''>prove_verify</a></span></h1><div class='docblock'><p>This module contains the notes on 
+how the prover algorithm is 
+constructed for PLONK.</p>
+<h1 id="plonk-proof-construction" class="section-header"><a href="#plonk-proof-construction">PLONK proof construction</a></h1>
+<p>Following on from the generic
+SNARK construction, 
+here we will give the set up
+of a PLONK proof and show 
+which steps need to be satisfied
+to utilise the protocol.</p>
+<p>First we will explain the 
+derivation and simplification 
+of the arithmetic circuits. </p>
+<p>PLONK uses both gate constraints 
+and copy constraints, to collect 
+like expressions. Using the same
+example of:</p>
+<p>\[
+\begin{aligned}
+\mathbf{W}_L 
+\cdot 
+\mathbf{W}_R = 
+\mathbf{W}_O,
+\end{aligned}
+\]</p>
+<p>We can express multiples of the 
+same wires in or out of the same 
+gate, with the above equation.</p>
+<p>Thus we have 'ith' gates, so the 
+index from left or right across 
+the circuit is mitigated for 
+wires which are equal. </p>
+<p>For example, in the two equations:</p>
+<p>\[
+\begin{aligned}
+\mathbf{A}_{1} 
+\circ 
+X 
+\cdot 
+\mathbf{B}_{1} 
+\circ 
+X^2 
+= \mathbf{C}_{1}
+\end{aligned}
+\]
+and 
+\[
+\begin{aligned}
+\mathbf{A}_{2} 
+\circ 
+X^2 
+\cdot 
+\mathbf{B}_{2} 
+\circ 
+X 
+= \mathbf{C}_{2}
+\end{aligned}
+\]</p>
+<p>We can state the equalities that: 
+\[
+\begin{aligned} 
+\mathbf{A}_{1} = \mathbf{B}_{2} \\
+&amp;\\
+\mathbf{B}_{1} = \mathbf{A}_{2} \\
+\end{aligned}
+\]</p>
+<p>These are examples of constraints 
+collected in PLONK. Which is done
+the same for addition gates, except
+the gate constrain satisfies:</p>
+<p>\[
+\begin{aligned}
+\mathbf{W}_L + \mathbf{W}_R = \mathbf{W}_O
+\end{aligned}
+\]</p>
+<p>PLONK also uses 'copy
+constraints', which are used to 
+associate wires, which have 
+equality, from the entire circuit.
+These constraints are checked 
+with a permutation argument. 
+In essence, this checks that 
+wires are not repeated by using 
+randomness given by the verifier. </p>
+<p>This process is better explained in 
+the permutation <a href="notes-pa">notes</a>.</p>
+<p>After the constraints
+are made, they are formatted into a 
+system of numerical equations, 
+which in PLONK are reduced to a 
+small amount of polynomial 
+equations which are capable of 
+representing the constraints.
+PLONK allows us to combine the
+two gate equations by describing 
+their relationship relative to 
+the role in the circuit.
+PLONK also has constants, which
+are denoted as 'Q'. These 
+values will change for each 
+programme. The shape of 
+the circuit is defined by
+these values. When they are 
+combined with the gate 
+equations, we get the 
+polynomial equation for 
+a reduced form as:</p>
+<p>\[
+\\ \mathbf{L} = left 
+\\ \mathbf{R} = right 
+\\ \mathbf{O} = output 
+\\ \mathbf{M} = multiplication 
+\\ \mathbf{C} = constants 
+\]</p>
+<p>\[ 
+\mathbf{Q}_L \cdot \mathbb{a}_i +
+\mathbf{Q}_R \cdot \mathbb{b}_i +
+\mathbf{Q}_0 \cdot \mathbb{c}_i +
+\mathbf{Q}_M \cdot \mathbb{a}_i\mathbb{b}_i +
+\mathbf{Q}_C = 0
+\]
+This can be used for both
+addition and multiplication
+gates, where their values 
+can be provided by the user 
+depending on the circuit 
+composition. 
+For an addition gate, 
+we derive it as follows:</p>
+<p>\[
+\begin{aligned}
+\mathbf{Q}_L = 1, 
+\mathbf{Q}_R = 1, 
+\mathbf{Q}_0 = -1, 
+\mathbf{Q}_M = 0, 
+\mathbf{Q}_C = 1
+\end{aligned}
+\]</p>
+<p>Which results in:
+\[ 
+\mathbb{a}_{i} +
+\mathbb{b}_{i} -
+\mathbb{c}_{i} = 0
+\]</p>
+<p>For a multiplication gate, 
+we derive it as follows:</p>
+<p>\[
+\begin{aligned}
+\mathbf{Q}_L = 0, 
+\mathbf{Q}_R = 0, 
+\mathbf{Q}_0 = -1, 
+\mathbf{Q}_M = 1, 
+\mathbf{Q}_C = 0
+\end{aligned}
+\]</p>
+<p>Which results in:
+\[ 
+\mathbb{a}_{i} 
+\cdot
+\mathbb{b}_{i} -
+\mathbb{c}_{i} = 0
+\]</p>
+<p>With this format, there is 
+a specific method used to 
+convert all the equations 
+into polynomial form.
+Basically, in order to
+bundle
+these together, PLONK can 
+take sets of equations and 
+turn them into one single 
+equation over polynomials. 
+This is called the evaluation 
+form. We are then able to 
+use Lagrangian interpolation
+to convert to coefficient form. 
+The only thing this interpolation 
+is doing,
+is allowing us to evaluate a
+functions over specific points,
+for 'x' values, where the target
+polynomial is equal to '1' or 
+'0'.</p>
+<p>With these specific bases, we
+can derive the relation between 
+all sets of equations into one 
+single polynomial equation,
+where we have a vector of inputs
+to each gate type:
+\[
+\begin{aligned}
+\mathbf{Q}_L(x) \cdot a(x) +
+\mathbf{Q}_R(x) \cdot b(x) +
+\mathbf{Q}_0(x) \cdot c(x) +
+\mathbf{Q}_M(x) \cdot a(x)b(x) +
+\mathbf{Q}_C(x) =
+0
+\end{aligned}
+\]</p>
+<p>The utility for this in PLONK, 
+as a univeral SNARK, is that 
+any operation or relationship 
+that holds with the inputted 
+vectors, will also hold over 
+the polynomial.</p>
+<p>In order to check this in PLONK, 
+a 'vanishing polynomial' is 
+introduced. Which is just a 
+polynomial equal to zero for
+all the points we evaluate at.
+So this means that the vectors
+will be divisible by this vanishing
+polynomial, if the expression we 
+check does indeed hold. </p>
+<p>To summarise what the PLONK
+proof must satisfy:</p>
+<p>The generation of copy and 
+gate constraints where the 
+former are representative 
+of permuted wires. Generate 
+all of the polynomials to<br />
+be checked against the 
+vanishing polynomials.
+Take all of the wire values
+and convert them into three
+polynomials, \({\mathbf A}(z)\), 
+\({\mathbf B}(z)\), 
+\({\mathbf C}(z)\). 
+Check the polynomials at 
+some random \({\mathbf Z_z}\), by making
+commitments and checking 
+the evaluation form. 
+Then commit all evalution 
+polynomials forms for the 
+verfier. </p>
+<h1 id="lagrangian-polynomials" class="section-header"><a href="#lagrangian-polynomials">Lagrangian polynomials</a></h1>
+<p>The use of polynomials in the 
+PLONK proving scheme refers
+to specific evaluation domains,
+named Lagrangian polynomials,<br />
+based on interpolation of two 
+functions of particular group
+elements. The following section 
+gives a more comprehensive
+understanding to the way in 
+which these polynomials are 
+formed, given certain inputs. </p>
+<p>Langrangian polynomials are 
+introduced as a means of 
+constructing continous 
+functions
+from discrete data. With alternative 
+polynomial constructions, discrete 
+data sets can be approximated; 
+Langrangian polynomials, 
+however, 
+form a solution that fits data exactly.
+This is achieved through <em>interpolation</em>, 
+which finds a linear combination of 'n' 
+inputted functions with respect to a 
+given data set which imposes 'n' 
+constraints and computes 
+an exact fitting solution. </p>
+<p>Linear Algebra dictates that the interpolation polynomial ought 
+to be formed from the system \({\mathbf A}(x)\) = 
+\({\mathbf b}\), 
+where \({\mathbf b}_i\) = 
+\({\mathbf y}_i\), i = 0,...,n 
+and the entries of 
+\({\mathbf A}(x)\)
+are defined by \({\mathbf a}_{ij}\) = 
+\({\mathbf P}(x_{i})\),
+and \(i,j \in 0,....,n,\) 
+Additionally, the used points for the 
+interpolation are 
+\(x_{0},x_{1}...,x_{n}\), 
+from which the data points
+\(y_{0},y_{1}...,y_{n}\), are obtained, 
+and 
+\({\mathbf P}_j(x_i) = x^{j}\). 
+Where \(i \in 0,1,...,n\). The basis 
+\(1,x,...,x^{n}\)
+of the space of polynomials, degree n+1 is called the <em>monomial 
+basis</em>, and the corresponding matrix A is called the <em>Vandermode
+matrix</em> for the points \(x_{0},x_{1}...,x_{n}\). </p>
+<p><em>Langrangian interpolation</em>, however, has the matrix A, as the identity 
+matrix. 
+This stems from writing the interpolating polynomial as:</p>
+<p>\[
+\begin{aligned}
+\mathbf{p}_n(x) = \sum_{j=0}^{n} y_i\mathbb{L}_n,j(x)
+\end{aligned}
+\]</p>
+<p>The polynomials \({\mathbb L}_n\) and<br />
+\(j(x)\) = 0,...,n are interpolations
+of the points \(x_{0},x_{1}...,x_{n}\). They are commonly called the 
+<em>Lagrangian polynomials</em>.
+They are wriiten in the form:</p>
+<p>\[
+\begin{aligned}
+\mathbb{L}_n,j(x) = 
+\prod_{m=0}^{k} 
+\frac{(x-x_{m})}
+{(x_{j}-x_{m})}
+\end{aligned}
+\]</p>
+<p>the unique solution polynomial of degree 'n' that satisfies this 
+\[
+\begin{aligned}
+\mathbf{P}_n(x_j)
+\end{aligned}
+\]</p>
+<p>where
+\[
+\begin{aligned}
+i,j = \mathbb{f}(x_j), \mathbb{j} = 0,1,...1,n
+\end{aligned}
+\]</p>
+<p>This polynomial, \({\mathbf P}_n(x_j)\) 
+is called the <em>interpolating
+polynomial</em> of \(\mathbb{f}(x)\). </p>
+<p>To understand these as an expanded product argument, it can be written as</p>
+<p>Given a set of k + 1 data points</p>
+<p><a href="https://wikimedia.org/api/rest_v1/media/math/render/svg/5e4f064b4751bb32d87cc829aca1b2b2f38d4a6d">data points</a></p>
+<p>where no two<br />
+<a href="https://wikimedia.org/api/rest_v1/media/math/render/svg/5db47cb3d2f9496205a17a6856c91c1d3d363ccd">x_j</a> are the same, 
+the interpolation polynomial in the Lagrange form is a linear combination</p>
+<p><a href="https://wikimedia.org/api/rest_v1/media/math/render/svg/d07f3378ff7718c345e5d3d4a57d3053190226a0">Lagrange polynomial</a></p>
+<p>of Lagrange basis polynomials.
+<a href="https://wikimedia.org/api/rest_v1/media/math/render/svg/6e2c3a2ab16a8723c0446de6a30da839198fb04b">Basis Polynomial</a></p>
+</div></section><section id="search" class="content hidden"></section><section class="footer"></section><script>window.rootPath = "../../../";window.currentCrate = "dusk_plonk";</script><script src="../../../main.js"></script><script defer src="../../../search-index.js"></script></body></html>

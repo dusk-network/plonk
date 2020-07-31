@@ -1,0 +1,52 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="API documentation for the Rust `notes` mod in crate `dusk_plonk`."><meta name="keywords" content="rust, rustlang, rust-lang, notes"><title>dusk_plonk::notes - Rust</title><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../light.css"  id="themeStyle"><link rel="stylesheet" type="text/css" href="../../dark.css" disabled ><link rel="stylesheet" type="text/css" href="../../ayu.css" disabled ><script src="../../storage.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="shortcut icon" href="https://dusk.network/lib/img/favicon-16x16.png"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/katex.min.css"
+    integrity="sha384-9eLZqc9ds8eNjO3TmqPeYcDj8n+Qfa4nuSiGYa6DjLNcv9BtN69ZIulL9+8CqC9Y" crossorigin="anonymous">
+<script src="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/katex.min.js"
+    integrity="sha384-K3vbOmF2BtaVai+Qk37uypf7VrgBubhQreNQe9aGsz9lB63dIFiQVlJbr92dw2Lx"
+    crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/contrib/auto-render.min.js"
+    integrity="sha384-kmZOZB5ObwgQnS/DuDg6TScgOiWWBiVt0plIRkZCmE6rDZGrEOQeHM5PcHi+nyqe"
+    crossorigin="anonymous"></script>
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        renderMathInElement(document.body, {
+            delimiters: [
+                { left: "$$", right: "$$", display: true },
+                { left: "\\(", right: "\\)", display: false },
+                { left: "$", right: "$", display: false },
+                { left: "\\[", right: "\\]", display: true }
+            ]
+        });
+    });
+</script>
+<style type="text/css">#crate-search{background-image:url("../../down-arrow.svg");}</style></head><body class="rustdoc mod"><!--[if lte IE 8]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu">&#9776;</div><a href='../../dusk_plonk/index.html'><div class='logo-container'><img src='https://lh3.googleusercontent.com/SmwswGxtgIANTbDrCOn5EKcRBnVdHjmYsHYxLq2HZNXWCQ9-fZyaea-bNgdX9eR0XGSqiMFi=w128-h128-e365' alt='logo'></div></a><p class='location'>Module notes</p><div class="sidebar-elems"><div class="block items"><ul><li><a href="#modules">Modules</a></li></ul></div><p class='location'><a href='../index.html'>dusk_plonk</a></p><script>window.sidebarCurrent = {name: 'notes', ty: 'mod', relpath: '../'};</script><script defer src="../sidebar-items.js"></script></div></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!"><img src="../../brush.svg" width="18" alt="Pick another theme!"></button><div id="theme-choices"></div></div><script src="../../theme.js"></script><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" disabled autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><a id="settings-menu" href="../../settings.html"><img src="../../wheel.svg" width="18" alt="Change settings"></a></div></form></nav><section id="main" class="content"><h1 class='fqn'><span class='out-of-band'><span id='render-detail'><a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">[<span class='inner'>&#x2212;</span>]</a></span><a class='srclink' href='../../src/dusk_plonk/lib.rs.html#64-83' title='goto source code'>[src]</a></span><span class='in-band'>Module <a href='../index.html'>dusk_plonk</a>::<wbr><a class="mod" href=''>notes</a></span></h1><div class='docblock'><p>This module is a self contained file which explains
+how PLONK and its protocol components work in our library.</p>
+<h1 id="table-of-contents" class="section-header"><a href="#table-of-contents">Table of Contents</a></h1>
+<p>The following section explains the workings of PLONK components:</p>
+<ul>
+<li><a href="commitment_schemes/index.html">Commitment schemes</a></li>
+<li><a href="snark_construction/index.html">Proof construction components</a></li>
+<li><a href="permutation_arguments/index.html">Permutation polynomials</a></li>
+</ul>
+<p>This section explains how elements of the aggregated PLONK protocol work
+and some of the unique features in this library:</p>
+<ul>
+<li><a href="prove_verify/index.html">Prover and Verify algorithms</a></li>
+<li><a href="unbalanced_perm_args/index.html">Unbalanced permutation arguments</a></li>
+<li><a href="kzg10_docs/index.html">KZG10 commitment scheme</a></li>
+</ul>
+</div><h2 id='modules' class='section-header'><a href="#modules">Modules</a></h2>
+<table><tr class='module-item'><td><a class="mod" href="commitment_schemes/index.html" title='dusk_plonk::notes::commitment_schemes mod'>commitment_schemes</a></td><td class='docblock-short'><p>This module explains the inner workings of
+commitment schemes. </p>
+</td></tr><tr class='module-item'><td><a class="mod" href="kzg10_docs/index.html" title='dusk_plonk::notes::kzg10_docs mod'>kzg10_docs</a></td><td class='docblock-short'><p>In this module we show how, and why, the KZG10 
+polynomial commitment scheme has been implemented
+for this PLONK implementation.</p>
+</td></tr><tr class='module-item'><td><a class="mod" href="permutation_arguments/index.html" title='dusk_plonk::notes::permutation_arguments mod'>permutation_arguments</a></td><td class='docblock-short'><p>Contained within this module are the notes on 
+how the permutation argument is formed.</p>
+</td></tr><tr class='module-item'><td><a class="mod" href="prove_verify/index.html" title='dusk_plonk::notes::prove_verify mod'>prove_verify</a></td><td class='docblock-short'><p>This module contains the notes on 
+how the prover algorithm is 
+constructed for PLONK.</p>
+</td></tr><tr class='module-item'><td><a class="mod" href="snark_construction/index.html" title='dusk_plonk::notes::snark_construction mod'>snark_construction</a></td><td class='docblock-short'><p>This module contains the methodology of how
+zk-SNARKS are constructed.</p>
+</td></tr><tr class='module-item'><td><a class="mod" href="unbalanced_perm_args/index.html" title='dusk_plonk::notes::unbalanced_perm_args mod'>unbalanced_perm_args</a></td><td class='docblock-short'><p>Contained within this module are the notes on 
+how the permutation argument is formed.</p>
+</td></tr></table></section><section id="search" class="content hidden"></section><section class="footer"></section><script>window.rootPath = "../../";window.currentCrate = "dusk_plonk";</script><script src="../../main.js"></script><script defer src="../../search-index.js"></script></body></html>

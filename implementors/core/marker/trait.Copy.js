@@ -1,0 +1,3 @@
+(function() {var implementors = {};
+implementors["dusk_plonk"] = [{"text":"impl Copy for Proof","synthetic":false,"types":[]},{"text":"impl Copy for Commitment","synthetic":false,"types":[]},{"text":"impl Copy for Variable","synthetic":false,"types":[]},{"text":"impl Copy for WireData","synthetic":false,"types":[]},{"text":"impl Copy for Point","synthetic":false,"types":[]},{"text":"impl Copy for PointScalar","synthetic":false,"types":[]},{"text":"impl Copy for EvaluationDomain","synthetic":false,"types":[]}];
+if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

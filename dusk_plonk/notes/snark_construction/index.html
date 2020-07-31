@@ -1,0 +1,225 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="API documentation for the Rust `snark_construction` mod in crate `dusk_plonk`."><meta name="keywords" content="rust, rustlang, rust-lang, snark_construction"><title>dusk_plonk::notes::snark_construction - Rust</title><link rel="stylesheet" type="text/css" href="../../../normalize.css"><link rel="stylesheet" type="text/css" href="../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../../light.css"  id="themeStyle"><link rel="stylesheet" type="text/css" href="../../../dark.css" disabled ><link rel="stylesheet" type="text/css" href="../../../ayu.css" disabled ><script src="../../../storage.js"></script><noscript><link rel="stylesheet" href="../../../noscript.css"></noscript><link rel="shortcut icon" href="https://dusk.network/lib/img/favicon-16x16.png"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/katex.min.css"
+    integrity="sha384-9eLZqc9ds8eNjO3TmqPeYcDj8n+Qfa4nuSiGYa6DjLNcv9BtN69ZIulL9+8CqC9Y" crossorigin="anonymous">
+<script src="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/katex.min.js"
+    integrity="sha384-K3vbOmF2BtaVai+Qk37uypf7VrgBubhQreNQe9aGsz9lB63dIFiQVlJbr92dw2Lx"
+    crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/contrib/auto-render.min.js"
+    integrity="sha384-kmZOZB5ObwgQnS/DuDg6TScgOiWWBiVt0plIRkZCmE6rDZGrEOQeHM5PcHi+nyqe"
+    crossorigin="anonymous"></script>
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        renderMathInElement(document.body, {
+            delimiters: [
+                { left: "$$", right: "$$", display: true },
+                { left: "\\(", right: "\\)", display: false },
+                { left: "$", right: "$", display: false },
+                { left: "\\[", right: "\\]", display: true }
+            ]
+        });
+    });
+</script>
+<style type="text/css">#crate-search{background-image:url("../../../down-arrow.svg");}</style></head><body class="rustdoc mod"><!--[if lte IE 8]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu">&#9776;</div><a href='../../../dusk_plonk/index.html'><div class='logo-container'><img src='https://lh3.googleusercontent.com/SmwswGxtgIANTbDrCOn5EKcRBnVdHjmYsHYxLq2HZNXWCQ9-fZyaea-bNgdX9eR0XGSqiMFi=w128-h128-e365' alt='logo'></div></a><p class='location'>Module snark_construction</p><div class="sidebar-elems"><p class='location'><a href='../../index.html'>dusk_plonk</a>::<wbr><a href='../index.html'>notes</a></p><script>window.sidebarCurrent = {name: 'snark_construction', ty: 'mod', relpath: '../'};</script><script defer src="../sidebar-items.js"></script></div></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!"><img src="../../../brush.svg" width="18" alt="Pick another theme!"></button><div id="theme-choices"></div></div><script src="../../../theme.js"></script><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" disabled autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><a id="settings-menu" href="../../../settings.html"><img src="../../../wheel.svg" width="18" alt="Change settings"></a></div></form></nav><section id="main" class="content"><h1 class='fqn'><span class='out-of-band'><span id='render-detail'><a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">[<span class='inner'>&#x2212;</span>]</a></span><a class='srclink' href='../../../src/dusk_plonk/lib.rs.html#73' title='goto source code'>[src]</a></span><span class='in-band'>Module <a href='../../index.html'>dusk_plonk</a>::<wbr><a href='../index.html'>notes</a>::<wbr><a class="mod" href=''>snark_construction</a></span></h1><div class='docblock'><p>This module contains the methodology of how
+zk-SNARKS are constructed.</p>
+<h1 id="snarks" class="section-header"><a href="#snarks">SNARKs</a></h1>
+<p>These notes will 
+show an abstraction on the construction 
+of SNARKs by showing the mathematical 
+steps involved. </p>
+<p>ZK-SNARK stands for Zero-Knowledge 
+Succinct Non-Interactive ARgument of
+Knowledge. Implementing a SNARK 
+protocol allows us to prove that a
+presented statement is true without
+revealing anything other than the 
+statement itself. </p>
+<p>The type of SNARK we will focus on
+will be one with a pre-processing 
+stage. This means that the inputs 
+to our SNARK system is an output
+of a program. We will also show 
+how SNARKs satisfy the fundamental
+properties of zero knowledge. Namely:
+Completeness, Soundess and Zero 
+Knowledge. Completeness means that the
+verifier is convinced that the claims
+from the prover are true. Soundness
+means that if the information is 
+false, then the prover cannot 
+convince the verifier otherwise.
+Zero knowledge means that the 
+proof should reveal nothing 
+other than the statement or 
+claim itself.</p>
+<p>To construct their proofs, SNARKS
+convert an arithmetic circuit into
+an algebraic expression of polynomials. 
+The arithmetic circuit here, is a mapping,
+performed by a system of 
+wires and gates, where the outputs 
+are inputs which have passed through 
+the circuit. The input for this is 
+standardly assumed to be a computer 
+program and those used in the zero 
+knowledge fields tend to have a large
+number of operations.</p>
+<p>For SNARK circuits, the prover will 
+select gates, 
+e.g. </p>
+<p><em>Multiplication gates</em> which are represented 
+with two input wires to the gate, 
+and one product wire, such that:</p>
+<p>\({\mathbb W_{L}}\) \(\cdot\) \({\mathbb W_{R}}\) = \({\mathbb W_{O}}\),</p>
+<p>Where:</p>
+<ul>
+<li>\({\mathbb W_{L}}\) is representative of the left input wire to the gate</li>
+<li>\({\mathbb W_{R}}\) is representative of the right input wire to the gate</li>
+<li>\({\mathbb W_{O}}\) is representative of the output wire of the gate</li>
+</ul>
+<p>The variables rely upon another 
+set of contraints when inside 
+the circuit. These are the gate 
+constants: \({\mathbb a_{L}}\), \({\mathbb a_{R}}\), \({\mathbb a_{O}}\),</p>
+<p>Where:</p>
+<ul>
+<li>\({\mathbb a_{L}}\) is the left input to the gate </li>
+<li>\({\mathbb a_{R}}\) is the right input to the gate</li>
+<li>\({\mathbb a_{O}}\) is the output of the gate</li>
+</ul>
+<p>The wires values can be seen as 
+the weights to each of the inputs.</p>
+<p>They are constrained as:</p>
+<p>\[
+\begin{aligned}
+\mathbf{{W}}_{L} \cdot \mathbf{a}_{L} +
+\mathbf{{W}}_{R} \cdot \mathbf{a}_{R}  -
+\mathbf{{W}}_{O} \cdot \mathbf{a}_{O}  =
+0
+\end{aligned}
+\]</p>
+<p>When a program is chosen, the operations 
+are expressed in terms of circuits, like
+the one above. </p>
+<p>Many programmes and their computations
+have a large range of operations,
+so the number of these gates they 
+need to construct can be very 
+large. Therefore, we use a 
+technique called a 'Quadratic 
+Arithmetic Programme' (QAP)
+, to bundle the constraints
+together. For example, 
+many wires may be of the same
+value and rather than 
+computing them differently 
+for each programme, they can 
+be collected together and 
+the constraint can be 
+checked at varying values. 
+This step involves checks for
+the values at specified 
+indices. Additionally, the 
+index values that are being
+checked at are not numbers, 
+but are instead polynomials.
+This polynomial is computed 
+by the QAP from the input 
+vectors. This QAP is intended 
+to give the prover the necessary
+'tools' to derive these polynomials
+for a proof, from a given
+arithmetic circuit.</p>
+<p>Following on from the example
+above, we can show a QAP being
+constructed from an 'n' number 
+of multiplication gates. The 
+inputs to the gates will be 
+a vector of polynomials, all 
+evaluated for indice value at
+some polynomial of their reduced
+form, \({\mathbf Z_p}\),</p>
+<p>Let the left input polynomial be: </p>
+<p>\[
+\begin{aligned}
+\vec{A} = (A_{i}(z))_{i=0}^{n}\\
+\end{aligned}
+\]</p>
+<p>Let the right input polynomial be: </p>
+<p>\[
+\begin{aligned}
+\vec{B} = (B_{i}(z))_{i=0}^{n}\\ 
+\end{aligned}
+\]</p>
+<p>Let the outputs polynomial be: </p>
+<p>\[
+\begin{aligned}
+\vec{C} = (C_{i}(z))_{i=0}^{n}\\ 
+\end{aligned}
+\]</p>
+<p>The coefficients of these
+polynomials are inside 
+some <a href="https://web.stanford.edu/class/ee392d/Chap7.pdf">finite field</a>
+, which also contains the 
+polynomial \({\mathbf Z_z}\).
+As a result, it can be checked
+that the \({\mathbf Z_z}\) divides
+the multiplication gates
+polynomial.</p>
+<p>This is done by first constructing the full polynomial:</p>
+<p>\[
+\begin{aligned}
+\mathbf{P}(z) = 
+\mathbf{A}(z) * 
+\mathbf{B}(z) - 
+\mathbf{C}(z)
+\end{aligned}
+\]
+When the above equation is 
+constructed by the prover,
+the verifier can check claims
+by checking the divisibility 
+of \({\mathbf P}(z)\) by
+\({\mathbf Z_z}\). This 
+\({\mathbf Z_z}\) polynomial is 
+often referred to as the 
+'target polynomial'. The 
+added benefit of having this
+checked in polynomial form, 
+is that even with large 
+polynomials, the identity
+between the two will hold 
+at most points if the identity
+holds between the polynomials. 
+Which means that the check between 
+the two can be performed at
+randomly chosen points to 
+verify the proof.</p>
+<p>In order to turn a given QAP
+into a zk-SNARK, a prover must 
+rely upon a third party. Which 
+is more commonly known as 'a 
+trusted set up'. The trusted
+set up constructs the polynomial
+\({\mathbf Z_z}\). The prover then 
+commits the vector values along 
+with their secret input, known as 
+the <em>witness</em>, to the equation
+\({\mathbf P}(z)\) = 
+\({\mathbf A}(z)\) *
+\({\mathbf B}(z)\) - 
+\({\mathbf C}(z)\)</p>
+<p>Then, the prover completes the 
+divisibility check between \({\mathbf P}(z)\)
+and \({\mathbf Z_z}\). This way, the
+verifier can be sure that the 
+prover knows the <em>witness</em> value. </p>
+<p>The inner workings of the SNARK
+also contain a 'bilinear pairing', 
+which is referring to the fields 
+which are used throughout the 
+protocol. However, in detail 
+explanations of these are out 
+of scope for these docs, more 
+information on the role pairing
+cryptography has within SNARK 
+construction can be found <a href="https://eprint.iacr.org/2016/260.pdf">here</a>. </p>
+</div></section><section id="search" class="content hidden"></section><section class="footer"></section><script>window.rootPath = "../../../";window.currentCrate = "dusk_plonk";</script><script src="../../../main.js"></script><script defer src="../../../search-index.js"></script></body></html>

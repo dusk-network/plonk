@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["Proof","A Proof is a composition of `Commitments` to the witness, permutation, quotient, shifted and opening polynomials as well as the `ProofEvaluations`."]]});

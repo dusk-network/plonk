@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["CommitKey","CommitKey is used to commit to a polynomial which is bounded by the max_degree."],["OpeningKey","Opening Key is used to verify opening proofs made about a committed polynomial."]]});

@@ -1,0 +1,84 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="API documentation for the Rust `kzg10_docs` mod in crate `dusk_plonk`."><meta name="keywords" content="rust, rustlang, rust-lang, kzg10_docs"><title>dusk_plonk::notes::kzg10_docs - Rust</title><link rel="stylesheet" type="text/css" href="../../../normalize.css"><link rel="stylesheet" type="text/css" href="../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../../light.css"  id="themeStyle"><link rel="stylesheet" type="text/css" href="../../../dark.css" disabled ><link rel="stylesheet" type="text/css" href="../../../ayu.css" disabled ><script src="../../../storage.js"></script><noscript><link rel="stylesheet" href="../../../noscript.css"></noscript><link rel="shortcut icon" href="https://dusk.network/lib/img/favicon-16x16.png"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/katex.min.css"
+    integrity="sha384-9eLZqc9ds8eNjO3TmqPeYcDj8n+Qfa4nuSiGYa6DjLNcv9BtN69ZIulL9+8CqC9Y" crossorigin="anonymous">
+<script src="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/katex.min.js"
+    integrity="sha384-K3vbOmF2BtaVai+Qk37uypf7VrgBubhQreNQe9aGsz9lB63dIFiQVlJbr92dw2Lx"
+    crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/contrib/auto-render.min.js"
+    integrity="sha384-kmZOZB5ObwgQnS/DuDg6TScgOiWWBiVt0plIRkZCmE6rDZGrEOQeHM5PcHi+nyqe"
+    crossorigin="anonymous"></script>
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        renderMathInElement(document.body, {
+            delimiters: [
+                { left: "$$", right: "$$", display: true },
+                { left: "\\(", right: "\\)", display: false },
+                { left: "$", right: "$", display: false },
+                { left: "\\[", right: "\\]", display: true }
+            ]
+        });
+    });
+</script>
+<style type="text/css">#crate-search{background-image:url("../../../down-arrow.svg");}</style></head><body class="rustdoc mod"><!--[if lte IE 8]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu">&#9776;</div><a href='../../../dusk_plonk/index.html'><div class='logo-container'><img src='https://lh3.googleusercontent.com/SmwswGxtgIANTbDrCOn5EKcRBnVdHjmYsHYxLq2HZNXWCQ9-fZyaea-bNgdX9eR0XGSqiMFi=w128-h128-e365' alt='logo'></div></a><p class='location'>Module kzg10_docs</p><div class="sidebar-elems"><p class='location'><a href='../../index.html'>dusk_plonk</a>::<wbr><a href='../index.html'>notes</a></p><script>window.sidebarCurrent = {name: 'kzg10_docs', ty: 'mod', relpath: '../'};</script><script defer src="../sidebar-items.js"></script></div></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!"><img src="../../../brush.svg" width="18" alt="Pick another theme!"></button><div id="theme-choices"></div></div><script src="../../../theme.js"></script><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" disabled autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><a id="settings-menu" href="../../../settings.html"><img src="../../../wheel.svg" width="18" alt="Change settings"></a></div></form></nav><section id="main" class="content"><h1 class='fqn'><span class='out-of-band'><span id='render-detail'><a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">[<span class='inner'>&#x2212;</span>]</a></span><a class='srclink' href='../../../src/dusk_plonk/lib.rs.html#82' title='goto source code'>[src]</a></span><span class='in-band'>Module <a href='../../index.html'>dusk_plonk</a>::<wbr><a href='../index.html'>notes</a>::<wbr><a class="mod" href=''>kzg10_docs</a></span></h1><div class='docblock'><p>In this module we show how, and why, the KZG10 
+polynomial commitment scheme has been implemented
+for this PLONK implementation.</p>
+<h1 id="kzg10-commitments" class="section-header"><a href="#kzg10-commitments">KZG10 Commitments</a></h1>
+<p>PLONK can be constructed with different 
+commitment schemes and does not requre solely
+homomorphic commitments. However, this library
+implements only homomorphic commitments for two 
+reasons. One is their useful properties when 
+given encrypted values, and the second is the 
+requirements of the linearisation technique in
+PLONK.</p>
+<p>PLONK makes use of the linearisation technique, 
+originally conceived in the SONIC <a href="https://eprint.iacr.org/2019/099.pdf">paper</a>. 
+This technique requires the 
+the commitment scheme to be homomorphic. 
+The use of this lineariser in the PLONK 
+protocol prevents us from being able to 
+use merkle tree like techniques, such as 
+the <a href="https://drops.dagstuhl.de/opus/volltexte/2018/9018/pdf/LIPIcs-ICALP-2018-14.pdf">FRI</a> protocol. </p>
+<p>We use 'KZG10 commitments', often called 'Kate' 
+commitments refers to the commitments scheme 
+created by Kate, Zaverucha and Goldberg. 
+A deep explanation on how this particular commitment 
+scheme operates can be found <a href="https://www.iacr.org/archive/asiacrypt2010/6477178/6477178.pdf">here</a> 
+in the original paper.
+Aside from the compatibility wiht the chosen 
+linearisation technique, there are multiple 
+benefits of using the KZG10 commitment scheme
+in the PLONK. The first is that it allow
+us to have constant size commitments; the witness 
+of the evaluations is a single group element. 
+The cost of these commitments is also constant 
+irrespective of the number of evaluations, 
+so we are able to employ them with a low overhead cost.</p>
+<p>This commitment is used to commit to a polynomial,
+from a given structured reference string (SRS),
+\(\varPhi\), by means of a bilinear pairing group.
+Where \({\mathbb G_{1}}\) and \({\mathbb G_{2}}\) and groups 
+two different pairing curves with generators \({\mathbf g_{1}}
+\in {\mathbb G_{1}}\) and \({\mathbf g_{2}}
+\in {\mathbb G_{2}}\).</p>
+<p>These commitments are homomorphic, which enables us 
+to perform operations on the already encrypted values 
+and have the evaluation be indistinguishable from the 
+evaluation of operations performed on the decrypted values.
+In terms of Kate commitments, we are able to take two
+commitment messages, \({\mathbf m_{1}}\) and \({\mathbf m_{2}}\), 
+and know there is an efficient product operation 
+for them both which equates to a commitment 
+\({(\mathbf m_{1}}, {\mathbf m_{2}})\). 
+For example:
+\[
+\begin{aligned}
+\operatorname{Commitment}({\mathbf{m}}_{1}) 
+\cdot
+\operatorname{Commitment}({\mathbf{m}}_{2}) 
+\equiv 
+{\mathbf{m}}_{1} 
+\bigotimes 
+{\mathbf{m}}_{2} 
+\end{aligned}
+\]</p>
+</div></section><section id="search" class="content hidden"></section><section class="footer"></section><script>window.rootPath = "../../../";window.currentCrate = "dusk_plonk";</script><script src="../../../main.js"></script><script defer src="../../../search-index.js"></script></body></html>

@@ -1,0 +1,3 @@
+(function() {var implementors = {};
+implementors["dusk_plonk"] = [{"text":"impl&lt;'a, 'b&gt; Add&lt;&amp;'a Evaluations&gt; for &amp;'b Evaluations","synthetic":false,"types":[]},{"text":"impl&lt;'a, 'b&gt; Add&lt;&amp;'a Polynomial&gt; for &amp;'b Polynomial","synthetic":false,"types":[]},{"text":"impl&lt;'a, 'b&gt; Add&lt;&amp;'a Scalar&gt; for &amp;'b Polynomial","synthetic":false,"types":[]}];
+if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

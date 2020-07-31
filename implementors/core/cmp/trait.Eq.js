@@ -1,0 +1,3 @@
+(function() {var implementors = {};
+implementors["dusk_plonk"] = [{"text":"impl Eq for Commitment","synthetic":false,"types":[]},{"text":"impl Eq for Variable","synthetic":false,"types":[]},{"text":"impl Eq for WireData","synthetic":false,"types":[]},{"text":"impl Eq for EvaluationDomain","synthetic":false,"types":[]},{"text":"impl Eq for Evaluations","synthetic":false,"types":[]},{"text":"impl Eq for Polynomial","synthetic":false,"types":[]},{"text":"impl Eq for Proof","synthetic":false,"types":[]}];
+if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

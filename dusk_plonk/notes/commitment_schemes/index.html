@@ -1,0 +1,129 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="API documentation for the Rust `commitment_schemes` mod in crate `dusk_plonk`."><meta name="keywords" content="rust, rustlang, rust-lang, commitment_schemes"><title>dusk_plonk::notes::commitment_schemes - Rust</title><link rel="stylesheet" type="text/css" href="../../../normalize.css"><link rel="stylesheet" type="text/css" href="../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../../light.css"  id="themeStyle"><link rel="stylesheet" type="text/css" href="../../../dark.css" disabled ><link rel="stylesheet" type="text/css" href="../../../ayu.css" disabled ><script src="../../../storage.js"></script><noscript><link rel="stylesheet" href="../../../noscript.css"></noscript><link rel="shortcut icon" href="https://dusk.network/lib/img/favicon-16x16.png"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/katex.min.css"
+    integrity="sha384-9eLZqc9ds8eNjO3TmqPeYcDj8n+Qfa4nuSiGYa6DjLNcv9BtN69ZIulL9+8CqC9Y" crossorigin="anonymous">
+<script src="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/katex.min.js"
+    integrity="sha384-K3vbOmF2BtaVai+Qk37uypf7VrgBubhQreNQe9aGsz9lB63dIFiQVlJbr92dw2Lx"
+    crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/contrib/auto-render.min.js"
+    integrity="sha384-kmZOZB5ObwgQnS/DuDg6TScgOiWWBiVt0plIRkZCmE6rDZGrEOQeHM5PcHi+nyqe"
+    crossorigin="anonymous"></script>
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        renderMathInElement(document.body, {
+            delimiters: [
+                { left: "$$", right: "$$", display: true },
+                { left: "\\(", right: "\\)", display: false },
+                { left: "$", right: "$", display: false },
+                { left: "\\[", right: "\\]", display: true }
+            ]
+        });
+    });
+</script>
+<style type="text/css">#crate-search{background-image:url("../../../down-arrow.svg");}</style></head><body class="rustdoc mod"><!--[if lte IE 8]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu">&#9776;</div><a href='../../../dusk_plonk/index.html'><div class='logo-container'><img src='https://lh3.googleusercontent.com/SmwswGxtgIANTbDrCOn5EKcRBnVdHjmYsHYxLq2HZNXWCQ9-fZyaea-bNgdX9eR0XGSqiMFi=w128-h128-e365' alt='logo'></div></a><p class='location'>Module commitment_schemes</p><div class="sidebar-elems"><p class='location'><a href='../../index.html'>dusk_plonk</a>::<wbr><a href='../index.html'>notes</a></p><script>window.sidebarCurrent = {name: 'commitment_schemes', ty: 'mod', relpath: '../'};</script><script defer src="../sidebar-items.js"></script></div></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!"><img src="../../../brush.svg" width="18" alt="Pick another theme!"></button><div id="theme-choices"></div></div><script src="../../../theme.js"></script><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" disabled autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><a id="settings-menu" href="../../../settings.html"><img src="../../../wheel.svg" width="18" alt="Change settings"></a></div></form></nav><section id="main" class="content"><h1 class='fqn'><span class='out-of-band'><span id='render-detail'><a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">[<span class='inner'>&#x2212;</span>]</a></span><a class='srclink' href='../../../src/dusk_plonk/lib.rs.html#67' title='goto source code'>[src]</a></span><span class='in-band'>Module <a href='../../index.html'>dusk_plonk</a>::<wbr><a href='../index.html'>notes</a>::<wbr><a class="mod" href=''>commitment_schemes</a></span></h1><div class='docblock'><p>This module explains the inner workings of
+commitment schemes. </p>
+<h1 id="commitment-schemes" class="section-header"><a href="#commitment-schemes">Commitment schemes</a></h1>
+<p>To employ a commitment scheme, is simply to select a value 
+from a finite set and commit to the value such that the 
+new 'committed' value cannot be changed. 
+Commitment schemes are used in cryptography, 
+oft in conjuction with zero knowlegde proofs to 
+allow a prover to commit to a polynomial, with values
+represented by a short reference string. This is 
+then used by verifiers to confirm or deny the claims 
+made by the orginal committing party. With this process, 
+the commitment, which the committer publishes, is bound, 
+meaning it cannot be changed. This process is called <em>binding</em>. 
+Additionally, the prover is able to make this commitment 
+without revaling it - this is called <em>hiding</em>. After
+the commitment has been made, a prover is able to 
+reveal the committed message to a verifier so that 
+the message can be compared, for consistency, with the 
+commitment.</p>
+<p><em>Generic Example</em></p>
+<p>In a game of players P and V:</p>
+<ol>
+<li>\(P\) writes down message \(b\) on a piece of paper</li>
+<li>\(P\) places the message in a box and locks it using a padlock </li>
+<li>\(P\) gives the locked box and key to \(V\) </li>
+</ol>
+<p>From the above game, it can been that \(V\) is able to 
+open the box, and see the committed message. \(P\) is 
+unable to change the value after giving the 
+box to \(V\), thus the message is <em>binding</em>. As \(V\) 
+is unable to see the commitment prior to opening 
+the box, the commitment is also <em>hiding</em>. </p>
+<p>Commitment schemes are defined by a \(P\) time 
+public key <em>pk</em> generation algorithm \(G\). The 
+input is \(1^{l}\), where \({\mathbb l}\) is the security parameter 
+that directly relates to the length of the string. 
+There is an outputted <em>pk</em>, which is the public key 
+of the commitment scheme. In practice, the protocol 
+is ran like this:</p>
+<ol>
+<li>\(P\) or \(V\) executes \(G\) to return <em>pk</em>, as a string, 
+and sends it to the other party.</li>
+<li>To make the commitment, the recieving party calculates 
+a random <em>r</em> from \(({0,1})^{l}\) and computes the commitment, 
+\(C\):</li>
+</ol>
+<p>\[
+\begin{aligned}
+\operatorname{Commitment}(b,r) 
+\end{aligned}
+\]</p>
+<ol start="3">
+<li>The commitment is opened, meaning \(b\) &amp; \(r\) are revealed and 
+\(V\) checks that the commitment, \(C\), satisfies: 
+\[
+\begin{aligned}
+\operatorname{Commitment}(b,r) 
+\end{aligned}
+\]</li>
+</ol>
+<p>The property of having either \(P\) <em>or</em> \(V\) running the 
+algorithm affects the type of commitment scheme and the 
+satisfied requirements. With respect to the <em>hiding</em> and 
+<em>binding</em> properties, this commitment can be constructed
+in two different ways.</p>
+<p>When \(V\) generates the public key and sends it to \(P\), 
+then the <em>binding</em> is computational and the <em>hiding</em> is 
+unconditional. The <em>computational binding</em> in this commitment 
+scheme, means the chance of being able to change the 
+commitment is negligible. The <em>unconditional hiding</em> 
+means that a commitment to b reveals no information about b. </p>
+<p>When \(P\) generates the public key and sends it to \(V\), then 
+the <em>binding</em> is unconditional and the <em>hiding</em> is computational. 
+The <em>unconditional binding</em> describes how \(P\) is unable to 
+change the commitment value after it has been commited to. 
+The <em>computational hiding</em> means the probability of \(V\) being 
+able to guess the commitment value is negligible. </p>
+<p>Polynomial commitment schemes can be defined in the following way:</p>
+<p>Let \({\mathbb G}\) be a group of prime order <em>p</em>. 
+Let \({\mathbb g}\) and \({\mathbb h}\) be generators of \({\mathbb G}\),
+such that:
+\[
+\begin{aligned}
+{\mathbf{g}}, {\mathbf{h}}  &amp;\in {\mathbb G}
+\end{aligned}
+\]</p>
+<p>Either \({\mathbf g}\) or \({\mathbf h}\) are used to produce 
+<em>pk</em>, which has a commitment appended to it by the committer. </p>
+<p>This commitment is equal to message \({\mathbb m}\),
+where:
+\[
+\begin{aligned} 
+{\mathbf{m}}  &amp;\in\ {\mathbb Z_{p}},
+\end{aligned}
+\]</p>
+<p>The commitment which is made once these variables are derived, is:</p>
+<p>\[
+\begin{aligned}
+\operatorname{Commitment}_{pk}(b,r) = 
+{\mathbf{g}^{r}} 
+\cdot 
+{\mathbf{h}^{b}}
+\end{aligned}
+\]</p>
+<p>The above equation is generic to using short strings, 
+as values, to commit to a polynomial and generate an evaluated 
+value. </p>
+</div></section><section id="search" class="content hidden"></section><section class="footer"></section><script>window.rootPath = "../../../";window.currentCrate = "dusk_plonk";</script><script src="../../../main.js"></script><script defer src="../../../search-index.js"></script></body></html>

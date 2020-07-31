@@ -1,0 +1,1 @@
+initSidebarItems({"enum":[["KZG10Errors","Represents an error in the PublicParameters creation and or modification."]],"struct":[["PolyCommitSchemeError","Represents an error triggered on any of the Polynomial Commitment Scheme functions."]]});

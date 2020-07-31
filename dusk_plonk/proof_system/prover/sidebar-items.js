@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["Prover","Prover composes a circuit and builds a proof"]]});

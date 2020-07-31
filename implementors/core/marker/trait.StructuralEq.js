@@ -1,0 +1,3 @@
+(function() {var implementors = {};
+implementors["dusk_plonk"] = [{"text":"impl StructuralEq for Commitment","synthetic":false,"types":[]},{"text":"impl StructuralEq for Variable","synthetic":false,"types":[]},{"text":"impl StructuralEq for WireData","synthetic":false,"types":[]},{"text":"impl StructuralEq for EvaluationDomain","synthetic":false,"types":[]},{"text":"impl StructuralEq for Evaluations","synthetic":false,"types":[]},{"text":"impl StructuralEq for Polynomial","synthetic":false,"types":[]},{"text":"impl StructuralEq for Proof","synthetic":false,"types":[]}];
+if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

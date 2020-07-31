@@ -1,0 +1,67 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="API documentation for the Rust `dusk_plonk` crate."><meta name="keywords" content="rust, rustlang, rust-lang, dusk_plonk"><title>dusk_plonk - Rust</title><link rel="stylesheet" type="text/css" href="../normalize.css"><link rel="stylesheet" type="text/css" href="../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../light.css"  id="themeStyle"><link rel="stylesheet" type="text/css" href="../dark.css" disabled ><link rel="stylesheet" type="text/css" href="../ayu.css" disabled ><script src="../storage.js"></script><noscript><link rel="stylesheet" href="../noscript.css"></noscript><link rel="shortcut icon" href="https://dusk.network/lib/img/favicon-16x16.png"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/katex.min.css"
+    integrity="sha384-9eLZqc9ds8eNjO3TmqPeYcDj8n+Qfa4nuSiGYa6DjLNcv9BtN69ZIulL9+8CqC9Y" crossorigin="anonymous">
+<script src="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/katex.min.js"
+    integrity="sha384-K3vbOmF2BtaVai+Qk37uypf7VrgBubhQreNQe9aGsz9lB63dIFiQVlJbr92dw2Lx"
+    crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/contrib/auto-render.min.js"
+    integrity="sha384-kmZOZB5ObwgQnS/DuDg6TScgOiWWBiVt0plIRkZCmE6rDZGrEOQeHM5PcHi+nyqe"
+    crossorigin="anonymous"></script>
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        renderMathInElement(document.body, {
+            delimiters: [
+                { left: "$$", right: "$$", display: true },
+                { left: "\\(", right: "\\)", display: false },
+                { left: "$", right: "$", display: false },
+                { left: "\\[", right: "\\]", display: true }
+            ]
+        });
+    });
+</script>
+<style type="text/css">#crate-search{background-image:url("../down-arrow.svg");}</style></head><body class="rustdoc mod"><!--[if lte IE 8]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu">&#9776;</div><a href='../dusk_plonk/index.html'><div class='logo-container'><img src='https://lh3.googleusercontent.com/SmwswGxtgIANTbDrCOn5EKcRBnVdHjmYsHYxLq2HZNXWCQ9-fZyaea-bNgdX9eR0XGSqiMFi=w128-h128-e365' alt='logo'></div></a><p class='location'>Crate dusk_plonk</p><div class='block version'><p>Version 0.2.5</p></div><div class="sidebar-elems"><a id='all-types' href='all.html'><p>See all dusk_plonk's items</p></a><div class="block items"><ul><li><a href="#reexports">Re-exports</a></li><li><a href="#modules">Modules</a></li></ul></div><p class='location'></p><script>window.sidebarCurrent = {name: 'dusk_plonk', ty: 'mod', relpath: '../'};</script></div></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!"><img src="../brush.svg" width="18" alt="Pick another theme!"></button><div id="theme-choices"></div></div><script src="../theme.js"></script><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" disabled autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><a id="settings-menu" href="../settings.html"><img src="../wheel.svg" width="18" alt="Change settings"></a></div></form></nav><section id="main" class="content"><h1 class='fqn'><span class='out-of-band'><span id='render-detail'><a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">[<span class='inner'>&#x2212;</span>]</a></span><a class='srclink' href='../src/dusk_plonk/lib.rs.html#1-89' title='goto source code'>[src]</a></span><span class='in-band'>Crate <a class="mod" href=''>dusk_plonk</a></span></h1><div class='docblock'><a href="https://codecov.io/gh/dusk-network/plonk">
+  <img src="https://codecov.io/gh/dusk-network/plonk/branch/master/graph/badge.svg" />
+</a>
+ <a href="https://travis-ci.com/dusk-network/plonk">
+ <img src="https://travis-ci.com/dusk-network/plonk.svg?branch=master" />
+ </a>
+ <a href="https://github.com/dusk-network/plonk">
+ <img alt="GitHub issues" src="https://img.shields.io/github/issues-raw/dusk-network/plonk?style=plastic">
+ </a>
+ <a href="https://github.com/dusk-network/plonk/blob/master/LICENSE">
+ <img alt="GitHub" src="https://img.shields.io/github/license/dusk-network/plonk?color=%230E55EF">
+ </a>
+<p>Permutations over Lagrange-bases for Oecumenical Noninteractive
+arguments of Knowledge (PLONK) is a zero knowledge proof system.</p>
+<p>This protocol was created by:</p>
+<ul>
+<li>Ariel Gabizon (Protocol Labs),</li>
+<li>Zachary J. Williamson (Aztec Protocol)</li>
+<li>Oana Ciobotaru</li>
+</ul>
+<p>This crate contains a pure-rust implementation done by the <a href="dusk.network">DuskNetwork team</a>
+of this algorithm using as a reference implementation this one done
+by the creators of the protocol:</p>
+<p><a href="https://github.com/AztecProtocol/barretenberg/blob/master/barretenberg/src/aztec/plonk/">https://github.com/AztecProtocol/barretenberg/blob/master/barretenberg/src/aztec/plonk/</a></p>
+<p>If you want to see library usage examples, please check:
+<a href="https://github.com/dusk-network/plonk/tree/v0.1.0/examples">https://github.com/dusk-network/plonk/tree/v0.1.0/examples</a></p>
+</div><h2 id='reexports' class='section-header'><a href="#reexports">Re-exports</a></h2>
+<table><tr><td><code>pub use dusk_bls12_381 as bls12_381;</code></td></tr><tr><td><code>pub use dusk_jubjub as jubjub;</code></td></tr></table><h2 id='modules' class='section-header'><a href="#modules">Modules</a></h2>
+<table><tr class='module-item'><td><a class="mod" href="commitment_scheme/index.html" title='dusk_plonk::commitment_scheme mod'>commitment_scheme</a></td><td class='docblock-short'><p>Ideally we should cleanly abstract away the polynomial commitment scheme
+We note that PLONK makes use of the linearisation technique
+conceived in SONIC [Mary Maller]. This technique implicitly requires the
+commitment scheme to be homomorphic. <code>Merkle Tree like</code> techniques such as FRI are not homomorphic
+and therefore for PLONK to be usable with all commitment schemes without modification, one would need to remove the lineariser</p>
+</td></tr><tr class='module-item'><td><a class="mod" href="constraint_system/index.html" title='dusk_plonk::constraint_system mod'>constraint_system</a></td><td class='docblock-short'><p>The constraint System module stores the implementation
+of the PLONK Standard Composer, as well as the circuit
+tools and abstractions, used by the Composer to generate,
+build, preprocess circuits.</p>
+</td></tr><tr class='module-item'><td><a class="mod" href="fft/index.html" title='dusk_plonk::fft mod'>fft</a></td><td class='docblock-short'><p>FFT module contains the tools needed by the Composer backend
+to know and use the logic behind Polynomials. As well as
+the operations that the <code>Composer</code> needs to peform with them.</p>
+</td></tr><tr class='module-item'><td><a class="mod" href="notes/index.html" title='dusk_plonk::notes mod'>notes</a></td><td class='docblock-short'><p>This module is a self contained file which explains
+how PLONK and its protocol components work in our library.</p>
+</td></tr><tr class='module-item'><td><a class="mod" href="prelude/index.html" title='dusk_plonk::prelude mod'>prelude</a></td><td class='docblock-short'><p>Collection of functions needed to use plonk library.</p>
+</td></tr><tr class='module-item'><td><a class="mod" href="proof_system/index.html" title='dusk_plonk::proof_system mod'>proof_system</a></td><td class='docblock-short'><p>proving system</p>
+</td></tr><tr class='module-item'><td><a class="mod" href="transcript/index.html" title='dusk_plonk::transcript mod'>transcript</a></td><td class='docblock-short'><p>This is an extension over the <a href="https://docs.rs/merlin/1.0.3/merlin/struct.Transcript.html">Merlin Transcript</a>
+which adds a few extra functionalities.</p>
+</td></tr></table></section><section id="search" class="content hidden"></section><section class="footer"></section><script>window.rootPath = "../";window.currentCrate = "dusk_plonk";</script><script src="../main.js"></script><script defer src="../search-index.js"></script></body></html>

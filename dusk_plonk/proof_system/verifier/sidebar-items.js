@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["Verifier","Verifier verifies a proof"]]});

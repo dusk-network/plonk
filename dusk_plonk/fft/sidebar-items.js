@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["EvaluationDomain","Defines a domain over which finite field (I)FFTs can be performed. Works only for fields that have a large multiplicative subgroup of size that is a power-of-2."],["Evaluations","Stores a polynomial in evaluation form."],["Polynomial","Polynomial represents a polynomial in coeffiient form."]]});

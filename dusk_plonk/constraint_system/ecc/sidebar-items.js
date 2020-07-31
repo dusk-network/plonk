@@ -1,0 +1,1 @@
+initSidebarItems({"fn":[["curve_addition","Adds two curve points together"],["scalar_mul","Computes a Scalar multiplication with the input scalar and a chosen generator"]],"mod":[["gates","Gates related to the ECC"]],"struct":[["Point","Represents a JubJub point in the circuit"],["PointScalar","The result of a scalar multiplication"]]});

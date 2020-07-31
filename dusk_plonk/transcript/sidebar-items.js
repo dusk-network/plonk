@@ -1,0 +1,1 @@
+initSidebarItems({"trait":[["TranscriptProtocol","Transcript adds an abstraction over the Merlin transcript For convenience"]]});

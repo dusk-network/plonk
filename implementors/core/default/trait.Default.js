@@ -1,0 +1,3 @@
+(function() {var implementors = {};
+implementors["dusk_plonk"] = [{"text":"impl Default for Commitment","synthetic":false,"types":[]},{"text":"impl Default for StandardComposer","synthetic":false,"types":[]},{"text":"impl Default for Prover","synthetic":false,"types":[]},{"text":"impl Default for Verifier","synthetic":false,"types":[]}];
+if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()
