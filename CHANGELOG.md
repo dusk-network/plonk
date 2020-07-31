@@ -11,6 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+## [0.2.5] - 31-07-20
+
+### Changed
+- ECC Point from `ecc:scalar_mul` should have its attributes exposed.
+
 ## [0.2.4] - 29-07-20
 
 ### Changed

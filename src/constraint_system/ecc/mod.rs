@@ -12,11 +12,36 @@ pub struct Point {
     x: Variable,
     y: Variable,
 }
+
+impl Point {
+    /// Return the X coordinate of the point
+    pub fn x(&self) -> &Variable {
+        &self.x
+    }
+
+    /// Return the Y coordinate of the point
+    pub fn y(&self) -> &Variable {
+        &self.y
+    }
+}
+
 /// The result of a scalar multiplication
 #[derive(Debug, Clone, Copy)]
 pub struct PointScalar {
     point: Point,
     scalar: Variable,
+}
+
+impl PointScalar {
+    /// Return the generated point
+    pub fn point(&self) -> &Point {
+        &self.point
+    }
+
+    /// Return the internal scalar
+    pub fn scalar(&self) -> &Variable {
+        &self.scalar
+    }
 }
 
 impl From<PointScalar> for Point {
