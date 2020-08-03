@@ -49,7 +49,8 @@ pub struct StandardComposer {
     // ecc selector
     pub(crate) q_ecc: Vec<Scalar>,
 
-    pub(crate) public_inputs: Vec<Scalar>,
+    /// Public inputs vector
+    pub public_inputs: Vec<Scalar>,
 
     // witness vectors
     pub(crate) w_l: Vec<Variable>,
