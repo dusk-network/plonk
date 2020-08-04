@@ -6,8 +6,8 @@ use crate::constraint_system::StandardComposer;
 
 use crate::fft::{EvaluationDomain, Evaluations, Polynomial};
 use crate::proof_system::widget;
+use anyhow::{Error, Result};
 use dusk_bls12_381::Scalar;
-use failure::Error;
 use merlin::Transcript;
 
 /// Struct that contains all of the selector and permutation polynomials in PLONK
@@ -78,7 +78,7 @@ impl StandardComposer {
         {
             Ok(())
         } else {
-            Err(PreProcessingError::MissmatchedPolyLen)
+            Err(PreProcessingError::MissmatchedPolyLen.into())
         }
     }
     /// These are the parts of preprocessing that the prover must compute
