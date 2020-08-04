@@ -78,7 +78,7 @@ impl StandardComposer {
         {
             Ok(())
         } else {
-            Err(PreProcessingError::MissmatchedPolyLen.into())
+            Err(PreProcessingError::MismatchedPolyLen.into())
         }
     }
     /// These are the parts of preprocessing that the prover must compute
