@@ -3,7 +3,7 @@
 //! Opening keys.
 use super::{errors::KZG10Errors, AggregateProof, Commitment, Proof};
 use crate::{fft::Polynomial, transcript::TranscriptProtocol, util};
-use anyhow::{Context, Error, Result};
+use anyhow::{Error, Result};
 use dusk_bls12_381::{
     multiscalar_mul::msm_variable_base, G1Affine, G1Projective, G2Affine, G2Prepared, Scalar,
 };

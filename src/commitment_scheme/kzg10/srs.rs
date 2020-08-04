@@ -1,11 +1,11 @@
 //! The Public Parameters can also be referred to as the Structured Reference String (SRS).
 use super::{
-    errors::{KZG10Errors, PolyCommitSchemeError},
+    errors::KZG10Errors,
     key::{CommitKey, OpeningKey},
 };
 use crate::util;
+use anyhow::{Error, Result};
 use dusk_bls12_381::{G1Affine, G1Projective, G2Affine, G2Prepared};
-use failure::Error;
 use rand_core::RngCore;
 
 /// The Public Parameters can also be referred to as the Structured Reference String (SRS).
@@ -30,7 +30,7 @@ impl PublicParameters {
     ) -> Result<PublicParameters, Error> {
         // Cannot commit to constants
         if max_degree < 1 {
-            return Err(PolyCommitSchemeError(KZG10Errors::DegreeIsZero.into()).into());
+            return Err(KZG10Errors::DegreeIsZero.into());
         }
 
         // Generate the secret scalar beta
