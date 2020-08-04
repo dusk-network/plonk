@@ -1,7 +1,7 @@
 use crate::fft::{EvaluationDomain, Polynomial};
 use crate::proof_system::widget::ProverKey;
+use anyhow::{Error, Result};
 use dusk_bls12_381::Scalar;
-use failure::Error;
 use rayon::prelude::*;
 
 /// This quotient polynomial can only be used for the standard composer

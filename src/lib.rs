@@ -56,9 +56,6 @@ pub mod proof_system;
 pub mod transcript;
 mod util;
 
-#[macro_use]
-extern crate failure;
-
 #[cfg(feature = "nightly")]
 #[doc(include = "../docs/notes-intro.md")]
 pub mod notes {

@@ -22,8 +22,8 @@ pub use dusk_jubjub::Fr as JubJubScalar;
 
 /// Collection of errors that the library exposes/uses.
 pub mod plonk_errors {
-    pub use crate::commitment_scheme::kzg10::errors::{KZG10Errors, PolyCommitSchemeError};
-    pub use crate::constraint_system::cs_errors::{PreProcessingError, ProvingError};
-    pub use crate::fft::fft_errors::{FFTError, FFTErrors};
-    pub use crate::proof_system::proof_system_errors::{ProofError, ProofErrors};
+    pub use crate::commitment_scheme::kzg10::errors::KZG10Errors;
+    pub use crate::constraint_system::cs_errors::PreProcessingError;
+    pub use crate::fft::fft_errors::FFTErrors;
+    pub use crate::proof_system::proof_system_errors::ProofErrors;
 }

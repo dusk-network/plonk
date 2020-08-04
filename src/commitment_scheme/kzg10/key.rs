@@ -1,15 +1,12 @@
 //! Key module contains the utilities and data structures
 //! that support the generation and usage of Commit and
 //! Opening keys.
-use super::{
-    errors::{KZG10Errors, PolyCommitSchemeError},
-    AggregateProof, Commitment, Proof,
-};
+use super::{errors::KZG10Errors, AggregateProof, Commitment, Proof};
 use crate::{fft::Polynomial, transcript::TranscriptProtocol, util};
+use anyhow::{Error, Result};
 use dusk_bls12_381::{
     multiscalar_mul::msm_variable_base, G1Affine, G1Projective, G2Affine, G2Prepared, Scalar,
 };
-use failure::Error;
 use merlin::Transcript;
 
 /// Opening Key is used to verify opening proofs made about a committed polynomial.
@@ -49,12 +46,12 @@ impl CommitKey {
         }
         // Check that the truncated degree is not zero
         if truncated_degree == 0 {
-            return Err(PolyCommitSchemeError(KZG10Errors::TruncatedDegreeIsZero.into()).into());
+            return Err(KZG10Errors::TruncatedDegreeIsZero.into());
         }
 
         // Check that max degree is less than truncated degree
         if truncated_degree > self.max_degree() {
-            return Err(PolyCommitSchemeError(KZG10Errors::TruncatedDegreeTooLarge.into()).into());
+            return Err(KZG10Errors::TruncatedDegreeTooLarge.into());
         }
 
         let truncated_powers = Self {
@@ -217,7 +214,7 @@ impl OpeningKey {
         .final_exponentiation();
 
         if pairing != dusk_bls12_381::Gt::identity() {
-            return Err(PolyCommitSchemeError(KZG10Errors::PairingCheckFailure.into()).into());
+            return Err(KZG10Errors::PairingCheckFailure.into());
         };
         Ok(())
     }
@@ -231,10 +228,10 @@ impl OpeningKey {
 /// Returns an error if any of the above conditions are true.
 fn check_degree_is_within_bounds(max_degree: usize, poly_degree: usize) -> Result<(), Error> {
     if poly_degree == 0 {
-        return Err(PolyCommitSchemeError(KZG10Errors::PolynomialDegreeIsZero.into()).into());
+        return Err(KZG10Errors::PolynomialDegreeIsZero.into());
     }
     if poly_degree > max_degree {
-        return Err(PolyCommitSchemeError(KZG10Errors::PolynomialDegreeTooLarge.into()).into());
+        return Err(KZG10Errors::PolynomialDegreeTooLarge.into());
     }
     Ok(())
 }
