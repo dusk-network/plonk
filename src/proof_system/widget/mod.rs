@@ -8,6 +8,8 @@ use crate::fft::Evaluations;
 use crate::transcript::TranscriptProtocol;
 use anyhow::{Error, Result};
 use merlin::Transcript;
+use serde::de::Visitor;
+use serde::{self, Deserialize, Deserializer, Serialize, Serializer};
 
 /// PLONK circuit proving key
 #[derive(Debug, PartialEq, Eq)]
@@ -47,6 +49,9 @@ pub struct VerifierKey {
     /// VerifierKey for permutation checks
     pub permutation: permutation::VerifierKey,
 }
+
+impl_serde!(ProverKey);
+impl_serde!(VerifierKey);
 
 impl VerifierKey {
     /// Serialises a VerifierKey to bytes

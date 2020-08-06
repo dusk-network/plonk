@@ -13,6 +13,8 @@ use crate::transcript::TranscriptProtocol;
 use anyhow::{Error, Result};
 use dusk_bls12_381::{multiscalar_mul::msm_variable_base, G1Affine, Scalar};
 use merlin::Transcript;
+use serde::de::Visitor;
+use serde::{self, Deserialize, Deserializer, Serialize, Serializer};
 
 /// A Proof is a composition of `Commitments` to the witness, permutation,
 /// quotient, shifted and opening polynomials as well as the
@@ -51,6 +53,8 @@ pub struct Proof {
     /// Subset of all of the evaluations added to the proof.
     pub evaluations: ProofEvaluations,
 }
+
+impl_serde!(Proof);
 
 impl Proof {
     /// Serialises a Proof struct
