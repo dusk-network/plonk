@@ -53,6 +53,7 @@ pub mod fft;
 mod permutation;
 pub mod prelude;
 pub mod proof_system;
+mod serialisation;
 pub mod transcript;
 mod util;
 
