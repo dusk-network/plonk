@@ -53,6 +53,70 @@ pub struct Proof {
 }
 
 impl Proof {
+    /// Serialises a Proof struct
+    pub fn to_bytes(&self) -> Vec<u8> {
+        use crate::serialisation::write_commitment;
+
+        let mut bytes = Vec::with_capacity(Proof::serialised_size());
+
+        write_commitment(&self.a_comm, &mut bytes);
+        write_commitment(&self.b_comm, &mut bytes);
+        write_commitment(&self.c_comm, &mut bytes);
+        write_commitment(&self.d_comm, &mut bytes);
+        write_commitment(&self.z_comm, &mut bytes);
+        write_commitment(&self.t_1_comm, &mut bytes);
+        write_commitment(&self.t_2_comm, &mut bytes);
+        write_commitment(&self.t_3_comm, &mut bytes);
+        write_commitment(&self.t_4_comm, &mut bytes);
+        write_commitment(&self.w_z_comm, &mut bytes);
+        write_commitment(&self.w_zw_comm, &mut bytes);
+
+        bytes.extend(self.evaluations.to_bytes());
+
+        bytes
+    }
+    /// Deserialises a Proof struct
+    pub fn from_bytes(bytes: &[u8]) -> Proof {
+        use crate::serialisation::read_commitment;
+
+        assert_eq!(bytes.len(), Proof::serialised_size());
+
+        let (a_comm, rest) = read_commitment(bytes);
+        let (b_comm, rest) = read_commitment(rest);
+        let (c_comm, rest) = read_commitment(rest);
+        let (d_comm, rest) = read_commitment(rest);
+        let (z_comm, rest) = read_commitment(rest);
+        let (t_1_comm, rest) = read_commitment(rest);
+        let (t_2_comm, rest) = read_commitment(rest);
+        let (t_3_comm, rest) = read_commitment(rest);
+        let (t_4_comm, rest) = read_commitment(rest);
+        let (w_z_comm, rest) = read_commitment(rest);
+        let (w_zw_comm, rest) = read_commitment(rest);
+
+        let evaluations = ProofEvaluations::from_bytes(rest);
+
+        Proof {
+            a_comm,
+            b_comm,
+            c_comm,
+            d_comm,
+            z_comm,
+            t_1_comm,
+            t_2_comm,
+            t_3_comm,
+            t_4_comm,
+            w_z_comm,
+            w_zw_comm,
+            evaluations,
+        }
+    }
+
+    const fn serialised_size() -> usize {
+        const NUM_COMMITMENTS: usize = 11;
+        const COMMITMENT_SIZE: usize = 48;
+        (NUM_COMMITMENTS * COMMITMENT_SIZE) + ProofEvaluations::serialised_size()
+    }
+
     /// Performs the verification of a `Proof` returning a boolean result.
     pub(crate) fn verify(
         &self,
@@ -375,4 +439,46 @@ fn compute_barycentric_eval(
         .sum();
 
     result * numerator
+}
+#[cfg(test)]
+mod test {
+    use super::*;
+    #[test]
+    fn test_serialise_deserialise_proof() {
+        let proof = Proof {
+            a_comm: Commitment::default(),
+            b_comm: Commitment::default(),
+            c_comm: Commitment::default(),
+            d_comm: Commitment::default(),
+            z_comm: Commitment::default(),
+            t_1_comm: Commitment::default(),
+            t_2_comm: Commitment::default(),
+            t_3_comm: Commitment::default(),
+            t_4_comm: Commitment::default(),
+            w_z_comm: Commitment::default(),
+            w_zw_comm: Commitment::default(),
+            evaluations: ProofEvaluations {
+                a_eval: Scalar::random(&mut rand::thread_rng()),
+                b_eval: Scalar::random(&mut rand::thread_rng()),
+                c_eval: Scalar::random(&mut rand::thread_rng()),
+                d_eval: Scalar::random(&mut rand::thread_rng()),
+                a_next_eval: Scalar::random(&mut rand::thread_rng()),
+                b_next_eval: Scalar::random(&mut rand::thread_rng()),
+                d_next_eval: Scalar::random(&mut rand::thread_rng()),
+                q_arith_eval: Scalar::random(&mut rand::thread_rng()),
+                q_c_eval: Scalar::random(&mut rand::thread_rng()),
+                q_l_eval: Scalar::random(&mut rand::thread_rng()),
+                q_r_eval: Scalar::random(&mut rand::thread_rng()),
+                left_sigma_eval: Scalar::random(&mut rand::thread_rng()),
+                right_sigma_eval: Scalar::random(&mut rand::thread_rng()),
+                out_sigma_eval: Scalar::random(&mut rand::thread_rng()),
+                lin_poly_eval: Scalar::random(&mut rand::thread_rng()),
+                perm_eval: Scalar::random(&mut rand::thread_rng()),
+            },
+        };
+
+        let proof_bytes = proof.to_bytes();
+        let got_proof = Proof::from_bytes(&proof_bytes);
+        assert_eq!(got_proof, proof);
+    }
 }

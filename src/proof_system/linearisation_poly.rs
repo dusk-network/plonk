@@ -48,6 +48,84 @@ pub struct ProofEvaluations {
     pub perm_eval: Scalar,
 }
 
+impl ProofEvaluations {
+    /// Serialises a Proof Evaluation struct to bytes
+    pub fn to_bytes(&self) -> Vec<u8> {
+        use crate::serialisation::write_scalar;
+
+        let mut bytes = Vec::with_capacity(ProofEvaluations::serialised_size());
+
+        write_scalar(&self.a_eval, &mut bytes);
+        write_scalar(&self.b_eval, &mut bytes);
+        write_scalar(&self.c_eval, &mut bytes);
+        write_scalar(&self.d_eval, &mut bytes);
+        write_scalar(&self.a_next_eval, &mut bytes);
+        write_scalar(&self.b_next_eval, &mut bytes);
+        write_scalar(&self.d_next_eval, &mut bytes);
+        write_scalar(&self.q_arith_eval, &mut bytes);
+        write_scalar(&self.q_c_eval, &mut bytes);
+        write_scalar(&self.q_l_eval, &mut bytes);
+        write_scalar(&self.q_r_eval, &mut bytes);
+        write_scalar(&self.left_sigma_eval, &mut bytes);
+        write_scalar(&self.right_sigma_eval, &mut bytes);
+        write_scalar(&self.out_sigma_eval, &mut bytes);
+        write_scalar(&self.lin_poly_eval, &mut bytes);
+        write_scalar(&self.perm_eval, &mut bytes);
+
+        bytes
+    }
+    /// Deserialises a slice of bytes into a proof Evaluation struct
+    pub fn from_bytes(bytes: &[u8]) -> ProofEvaluations {
+        use crate::serialisation::read_scalar;
+
+        assert_eq!(bytes.len(), ProofEvaluations::serialised_size());
+
+        let (a_eval, rest) = read_scalar(bytes);
+        let (b_eval, rest) = read_scalar(rest);
+        let (c_eval, rest) = read_scalar(rest);
+        let (d_eval, rest) = read_scalar(rest);
+        let (a_next_eval, rest) = read_scalar(rest);
+        let (b_next_eval, rest) = read_scalar(rest);
+        let (d_next_eval, rest) = read_scalar(rest);
+        let (q_arith_eval, rest) = read_scalar(rest);
+        let (q_c_eval, rest) = read_scalar(rest);
+        let (q_l_eval, rest) = read_scalar(rest);
+        let (q_r_eval, rest) = read_scalar(rest);
+        let (left_sigma_eval, rest) = read_scalar(rest);
+        let (right_sigma_eval, rest) = read_scalar(rest);
+        let (out_sigma_eval, rest) = read_scalar(rest);
+        let (lin_poly_eval, rest) = read_scalar(rest);
+        let (perm_eval, rest) = read_scalar(rest);
+
+        assert_eq!(rest.len(), 0);
+
+        ProofEvaluations {
+            a_eval,
+            b_eval,
+            c_eval,
+            d_eval,
+            a_next_eval,
+            b_next_eval,
+            d_next_eval,
+            q_arith_eval,
+            q_c_eval,
+            q_l_eval,
+            q_r_eval,
+            left_sigma_eval,
+            right_sigma_eval,
+            out_sigma_eval,
+            lin_poly_eval,
+            perm_eval,
+        }
+    }
+
+    pub(crate) const fn serialised_size() -> usize {
+        const NUM_SCALARS: usize = 16;
+        const SCALAR_SIZE: usize = 32;
+        NUM_SCALARS * SCALAR_SIZE
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
 /// Compute the linearisation polynomial
 pub fn compute(
