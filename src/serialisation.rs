@@ -115,7 +115,7 @@ pub fn read_scalars(bytes: &[u8]) -> Result<(Vec<Scalar>, &[u8]), Error> {
     Ok((poly_vec, bytes))
 }
 /// Writes a Vector of scalars into a mutable slice
-pub fn write_scalars(val: &Vec<Scalar>, bytes: &mut Vec<u8>) {
+pub fn write_scalars(val: &[Scalar], bytes: &mut Vec<u8>) {
     let num_scalars = val.len() as u64;
     write_u64(num_scalars, bytes);
 
