@@ -6,6 +6,7 @@ pub mod range;
 
 use crate::fft::Evaluations;
 use crate::transcript::TranscriptProtocol;
+use anyhow::{Error, Result};
 use merlin::Transcript;
 
 /// PLONK circuit proving key
@@ -86,33 +87,31 @@ impl VerifierKey {
         bytes
     }
     /// Deserialise a slice of bytes into a VerifierKey
-    pub fn from_bytes(bytes: &[u8]) -> VerifierKey {
+    pub fn from_bytes(bytes: &[u8]) -> Result<VerifierKey, Error> {
         use crate::serialisation::{read_commitment, read_u64};
 
         assert_eq!(bytes.len(), VerifierKey::serialised_size());
 
-        let (n, rest) = read_u64(bytes);
+        let (n, rest) = read_u64(bytes)?;
 
-        let (q_m, rest) = read_commitment(rest);
-        let (q_l, rest) = read_commitment(rest);
-        let (q_r, rest) = read_commitment(rest);
-        let (q_o, rest) = read_commitment(rest);
-        let (q_4, rest) = read_commitment(rest);
-        let (q_c, rest) = read_commitment(rest);
-        let (q_arith, rest) = read_commitment(rest);
+        let (q_m, rest) = read_commitment(rest)?;
+        let (q_l, rest) = read_commitment(rest)?;
+        let (q_r, rest) = read_commitment(rest)?;
+        let (q_o, rest) = read_commitment(rest)?;
+        let (q_4, rest) = read_commitment(rest)?;
+        let (q_c, rest) = read_commitment(rest)?;
+        let (q_arith, rest) = read_commitment(rest)?;
 
-        let (q_logic, rest) = read_commitment(rest);
+        let (q_logic, rest) = read_commitment(rest)?;
 
-        let (q_range, rest) = read_commitment(rest);
+        let (q_range, rest) = read_commitment(rest)?;
 
-        let (q_ecc, rest) = read_commitment(rest);
+        let (q_ecc, rest) = read_commitment(rest)?;
 
-        let (left_sigma, rest) = read_commitment(rest);
-        let (right_sigma, rest) = read_commitment(rest);
-        let (out_sigma, rest) = read_commitment(rest);
-        let (fourth_sigma, rest) = read_commitment(rest);
-
-        assert_eq!(rest.len(), 0);
+        let (left_sigma, rest) = read_commitment(rest)?;
+        let (right_sigma, rest) = read_commitment(rest)?;
+        let (out_sigma, rest) = read_commitment(rest)?;
+        let (fourth_sigma, _) = read_commitment(rest)?;
 
         let arithmetic = arithmetic::VerifierKey {
             q_m,
@@ -134,14 +133,15 @@ impl VerifierKey {
             fourth_sigma,
         };
 
-        VerifierKey {
+        let verifier_key = VerifierKey {
             n: n as usize,
             arithmetic,
             logic,
             range,
             ecc,
             permutation,
-        }
+        };
+        Ok(verifier_key)
     }
 
     const fn serialised_size() -> usize {
@@ -235,71 +235,70 @@ impl ProverKey {
         bytes
     }
     /// Deserialises a slice of bytes into a ProverKey
-    pub fn from_bytes(bytes: &[u8]) -> ProverKey {
+    pub fn from_bytes(bytes: &[u8]) -> Result<ProverKey, Error> {
         use crate::serialisation::{read_evaluations, read_polynomial, read_u64};
 
-        let (n, rest) = read_u64(bytes);
+        let (n, rest) = read_u64(bytes)?;
         let domain = crate::fft::EvaluationDomain::new((4 * n) as usize).unwrap();
 
-        let (q_m_poly, rest) = read_polynomial(&rest);
-        let (q_m_evals, rest) = read_evaluations(domain.clone(), &rest);
+        let (q_m_poly, rest) = read_polynomial(&rest)?;
+        let (q_m_evals, rest) = read_evaluations(domain.clone(), &rest)?;
         let q_m = (q_m_poly, q_m_evals);
 
-        let (q_l_poly, rest) = read_polynomial(&rest);
-        let (q_l_evals, rest) = read_evaluations(domain.clone(), &rest);
+        let (q_l_poly, rest) = read_polynomial(&rest)?;
+        let (q_l_evals, rest) = read_evaluations(domain.clone(), &rest)?;
         let q_l = (q_l_poly, q_l_evals);
 
-        let (q_r_poly, rest) = read_polynomial(&rest);
-        let (q_r_evals, rest) = read_evaluations(domain.clone(), &rest);
+        let (q_r_poly, rest) = read_polynomial(&rest)?;
+        let (q_r_evals, rest) = read_evaluations(domain.clone(), &rest)?;
         let q_r = (q_r_poly, q_r_evals);
 
-        let (q_o_poly, rest) = read_polynomial(&rest);
-        let (q_o_evals, rest) = read_evaluations(domain.clone(), &rest);
+        let (q_o_poly, rest) = read_polynomial(&rest)?;
+        let (q_o_evals, rest) = read_evaluations(domain.clone(), &rest)?;
         let q_o = (q_o_poly, q_o_evals);
 
-        let (q_4_poly, rest) = read_polynomial(&rest);
-        let (q_4_evals, rest) = read_evaluations(domain.clone(), &rest);
+        let (q_4_poly, rest) = read_polynomial(&rest)?;
+        let (q_4_evals, rest) = read_evaluations(domain.clone(), &rest)?;
         let q_4 = (q_4_poly, q_4_evals);
 
-        let (q_c_poly, rest) = read_polynomial(&rest);
-        let (q_c_evals, rest) = read_evaluations(domain.clone(), &rest);
+        let (q_c_poly, rest) = read_polynomial(&rest)?;
+        let (q_c_evals, rest) = read_evaluations(domain.clone(), &rest)?;
         let q_c = (q_c_poly, q_c_evals);
 
-        let (q_arith_poly, rest) = read_polynomial(&rest);
-        let (q_arith_evals, rest) = read_evaluations(domain.clone(), &rest);
+        let (q_arith_poly, rest) = read_polynomial(&rest)?;
+        let (q_arith_evals, rest) = read_evaluations(domain.clone(), &rest)?;
         let q_arith = (q_arith_poly, q_arith_evals);
 
-        let (q_logic_poly, rest) = read_polynomial(&rest);
-        let (q_logic_evals, rest) = read_evaluations(domain.clone(), &rest);
+        let (q_logic_poly, rest) = read_polynomial(&rest)?;
+        let (q_logic_evals, rest) = read_evaluations(domain.clone(), &rest)?;
         let q_logic = (q_logic_poly, q_logic_evals);
 
-        let (q_range_poly, rest) = read_polynomial(&rest);
-        let (q_range_evals, rest) = read_evaluations(domain.clone(), &rest);
+        let (q_range_poly, rest) = read_polynomial(&rest)?;
+        let (q_range_evals, rest) = read_evaluations(domain.clone(), &rest)?;
         let q_range = (q_range_poly, q_range_evals);
 
-        let (q_ecc_poly, rest) = read_polynomial(&rest);
-        let (q_ecc_evals, rest) = read_evaluations(domain.clone(), &rest);
+        let (q_ecc_poly, rest) = read_polynomial(&rest)?;
+        let (q_ecc_evals, rest) = read_evaluations(domain.clone(), &rest)?;
         let q_ecc = (q_ecc_poly, q_ecc_evals);
 
-        let (left_sigma_poly, rest) = read_polynomial(&rest);
-        let (left_sigma_evals, rest) = read_evaluations(domain.clone(), &rest);
+        let (left_sigma_poly, rest) = read_polynomial(&rest)?;
+        let (left_sigma_evals, rest) = read_evaluations(domain.clone(), &rest)?;
         let left_sigma = (left_sigma_poly, left_sigma_evals);
 
-        let (right_sigma_poly, rest) = read_polynomial(&rest);
-        let (right_sigma_evals, rest) = read_evaluations(domain.clone(), &rest);
+        let (right_sigma_poly, rest) = read_polynomial(&rest)?;
+        let (right_sigma_evals, rest) = read_evaluations(domain.clone(), &rest)?;
         let right_sigma = (right_sigma_poly, right_sigma_evals);
 
-        let (out_sigma_poly, rest) = read_polynomial(&rest);
-        let (out_sigma_evals, rest) = read_evaluations(domain.clone(), &rest);
+        let (out_sigma_poly, rest) = read_polynomial(&rest)?;
+        let (out_sigma_evals, rest) = read_evaluations(domain.clone(), &rest)?;
         let out_sigma = (out_sigma_poly, out_sigma_evals);
 
-        let (fourth_sigma_poly, rest) = read_polynomial(&rest);
-        let (fourth_sigma_evals, rest) = read_evaluations(domain.clone(), &rest);
+        let (fourth_sigma_poly, rest) = read_polynomial(&rest)?;
+        let (fourth_sigma_evals, rest) = read_evaluations(domain.clone(), &rest)?;
         let fourth_sigma = (fourth_sigma_poly, fourth_sigma_evals);
-        let (linear_evaluations, rest) = read_evaluations(domain.clone(), rest);
+        let (linear_evaluations, rest) = read_evaluations(domain.clone(), rest)?;
 
-        let (v_h_coset_4n, rest) = read_evaluations(domain, rest);
-        assert_eq!(rest.len(), 0);
+        let (v_h_coset_4n, rest) = read_evaluations(domain, rest)?;
 
         let arithmetic = arithmetic::ProverKey {
             q_m,
@@ -333,7 +332,7 @@ impl ProverKey {
             linear_evaluations,
         };
 
-        ProverKey {
+        let prover_key = ProverKey {
             n: n as usize,
             arithmetic,
             logic,
@@ -341,7 +340,9 @@ impl ProverKey {
             ecc,
             permutation,
             v_h_coset_4n,
-        }
+        };
+
+        Ok(prover_key)
     }
 
     fn serialised_size(n: usize) -> usize {
@@ -451,7 +452,7 @@ mod test {
         };
 
         let prover_key_bytes = prover_key.to_bytes();
-        let pk = ProverKey::from_bytes(&prover_key_bytes);
+        let pk = ProverKey::from_bytes(&prover_key_bytes).unwrap();
 
         assert_eq!(pk, prover_key);
     }
@@ -515,7 +516,7 @@ mod test {
         };
 
         let verifier_key_bytes = verifier_key.to_bytes();
-        let got = VerifierKey::from_bytes(&verifier_key_bytes);
+        let got = VerifierKey::from_bytes(&verifier_key_bytes).unwrap();
 
         assert_eq!(got, verifier_key);
     }

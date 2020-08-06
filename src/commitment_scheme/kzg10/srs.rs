@@ -62,16 +62,19 @@ impl PublicParameters {
     }
 
     /// Deserialise a slice of bytes into a Public Parameter struct
-    pub fn from_bytes(bytes: &[u8]) -> PublicParameters {
+    pub fn from_bytes(bytes: &[u8]) -> Result<PublicParameters, Error> {
         let opening_key_bytes = &bytes[0..OpeningKey::serialised_size()];
         let commit_key_bytes = &bytes[OpeningKey::serialised_size()..];
-        let opening_key = OpeningKey::from_bytes(opening_key_bytes);
-        let commit_key = CommitKey::from_bytes(commit_key_bytes);
 
-        PublicParameters {
+        let opening_key = OpeningKey::from_bytes(opening_key_bytes)?;
+        let commit_key = CommitKey::from_bytes(commit_key_bytes)?;
+
+        let pp = PublicParameters {
             opening_key,
             commit_key,
-        }
+        };
+
+        Ok(pp)
     }
 
     /// Serialises a Public Parameter struct into a slice of bytes
@@ -118,7 +121,7 @@ mod test {
     fn test_serialise_deserialise_public_parameter() {
         let pp = PublicParameters::setup(100, &mut rand::thread_rng()).unwrap();
 
-        let got_pp = PublicParameters::from_bytes(&pp.to_bytes());
+        let got_pp = PublicParameters::from_bytes(&pp.to_bytes()).unwrap();
 
         assert_eq!(got_pp.commit_key.powers_of_g, pp.commit_key.powers_of_g);
 

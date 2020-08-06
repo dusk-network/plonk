@@ -76,26 +76,24 @@ impl Proof {
         bytes
     }
     /// Deserialises a Proof struct
-    pub fn from_bytes(bytes: &[u8]) -> Proof {
+    pub fn from_bytes(bytes: &[u8]) -> Result<Proof, Error> {
         use crate::serialisation::read_commitment;
 
-        assert_eq!(bytes.len(), Proof::serialised_size());
-
-        let (a_comm, rest) = read_commitment(bytes);
-        let (b_comm, rest) = read_commitment(rest);
-        let (c_comm, rest) = read_commitment(rest);
-        let (d_comm, rest) = read_commitment(rest);
-        let (z_comm, rest) = read_commitment(rest);
-        let (t_1_comm, rest) = read_commitment(rest);
-        let (t_2_comm, rest) = read_commitment(rest);
-        let (t_3_comm, rest) = read_commitment(rest);
-        let (t_4_comm, rest) = read_commitment(rest);
-        let (w_z_comm, rest) = read_commitment(rest);
-        let (w_zw_comm, rest) = read_commitment(rest);
+        let (a_comm, rest) = read_commitment(bytes)?;
+        let (b_comm, rest) = read_commitment(rest)?;
+        let (c_comm, rest) = read_commitment(rest)?;
+        let (d_comm, rest) = read_commitment(rest)?;
+        let (z_comm, rest) = read_commitment(rest)?;
+        let (t_1_comm, rest) = read_commitment(rest)?;
+        let (t_2_comm, rest) = read_commitment(rest)?;
+        let (t_3_comm, rest) = read_commitment(rest)?;
+        let (t_4_comm, rest) = read_commitment(rest)?;
+        let (w_z_comm, rest) = read_commitment(rest)?;
+        let (w_zw_comm, rest) = read_commitment(rest)?;
 
         let evaluations = ProofEvaluations::from_bytes(rest);
 
-        Proof {
+        let proof = Proof {
             a_comm,
             b_comm,
             c_comm,
@@ -107,8 +105,9 @@ impl Proof {
             t_4_comm,
             w_z_comm,
             w_zw_comm,
-            evaluations,
-        }
+            evaluations: evaluations?,
+        };
+        Ok(proof)
     }
 
     const fn serialised_size() -> usize {
@@ -478,7 +477,7 @@ mod test {
         };
 
         let proof_bytes = proof.to_bytes();
-        let got_proof = Proof::from_bytes(&proof_bytes);
+        let got_proof = Proof::from_bytes(&proof_bytes).unwrap();
         assert_eq!(got_proof, proof);
     }
 }

@@ -48,21 +48,21 @@ impl CommitKey {
     }
 
     /// Deserialises a bytes slice to a Commitment Key
-    pub fn from_bytes(bytes: &[u8]) -> CommitKey {
+    pub fn from_bytes(bytes: &[u8]) -> Result<CommitKey, Error> {
         use crate::serialisation::{read_g1_affine, read_u64};
 
-        let (num_points, rest) = read_u64(&bytes);
+        let (num_points, rest) = read_u64(&bytes)?;
 
         let mut powers_of_g = Vec::with_capacity(num_points as usize);
 
         let mut remaining: &[u8] = &rest;
         for _ in 0..num_points {
-            let (point, rest) = read_g1_affine(remaining);
+            let (point, rest) = read_g1_affine(remaining)?;
             powers_of_g.push(point);
             remaining = rest;
         }
 
-        CommitKey { powers_of_g }
+        Ok(CommitKey { powers_of_g })
     }
 
     /// Returns the maximum degree polynomial that you can commit to.
@@ -225,15 +225,14 @@ impl OpeningKey {
     }
 
     /// Deserialises a byte slice into an Opening Key
-    pub fn from_bytes(bytes: &[u8]) -> OpeningKey {
+    pub fn from_bytes(bytes: &[u8]) -> Result<OpeningKey, Error> {
         use crate::serialisation::{read_g1_affine, read_g2_affine};
 
-        let (g, rest) = read_g1_affine(&bytes);
-        let (h, rest) = read_g2_affine(&rest);
-        let (beta_h, rest) = read_g2_affine(&rest);
-        assert_eq!(rest.len(), 0);
+        let (g, rest) = read_g1_affine(&bytes)?;
+        let (h, rest) = read_g2_affine(&rest)?;
+        let (beta_h, rest) = read_g2_affine(&rest)?;
 
-        OpeningKey::new(g, h, beta_h)
+        Ok(OpeningKey::new(g, h, beta_h))
     }
 
     /// Checks that a polynomial `p` was evaluated at a point `z` and returned the value specified `v`.

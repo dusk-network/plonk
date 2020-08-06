@@ -1,7 +1,7 @@
 use crate::fft::{EvaluationDomain, Polynomial};
 use crate::proof_system::widget::ProverKey;
+use anyhow::{Error, Result};
 use dusk_bls12_381::Scalar;
-
 /// Evaluations at points `z` or and `z * root of unity`
 pub struct Evaluations {
     pub proof: ProofEvaluations,
@@ -75,31 +75,31 @@ impl ProofEvaluations {
         bytes
     }
     /// Deserialises a slice of bytes into a proof Evaluation struct
-    pub fn from_bytes(bytes: &[u8]) -> ProofEvaluations {
-        use crate::serialisation::read_scalar;
+    pub fn from_bytes(bytes: &[u8]) -> Result<ProofEvaluations, Error> {
+        use crate::serialisation::{read_scalar, SerialisationErrors};
 
-        assert_eq!(bytes.len(), ProofEvaluations::serialised_size());
+        if bytes.len() != ProofEvaluations::serialised_size() {
+            return Err(SerialisationErrors::NotEnoughBytes.into());
+        }
 
-        let (a_eval, rest) = read_scalar(bytes);
-        let (b_eval, rest) = read_scalar(rest);
-        let (c_eval, rest) = read_scalar(rest);
-        let (d_eval, rest) = read_scalar(rest);
-        let (a_next_eval, rest) = read_scalar(rest);
-        let (b_next_eval, rest) = read_scalar(rest);
-        let (d_next_eval, rest) = read_scalar(rest);
-        let (q_arith_eval, rest) = read_scalar(rest);
-        let (q_c_eval, rest) = read_scalar(rest);
-        let (q_l_eval, rest) = read_scalar(rest);
-        let (q_r_eval, rest) = read_scalar(rest);
-        let (left_sigma_eval, rest) = read_scalar(rest);
-        let (right_sigma_eval, rest) = read_scalar(rest);
-        let (out_sigma_eval, rest) = read_scalar(rest);
-        let (lin_poly_eval, rest) = read_scalar(rest);
-        let (perm_eval, rest) = read_scalar(rest);
+        let (a_eval, rest) = read_scalar(bytes)?;
+        let (b_eval, rest) = read_scalar(rest)?;
+        let (c_eval, rest) = read_scalar(rest)?;
+        let (d_eval, rest) = read_scalar(rest)?;
+        let (a_next_eval, rest) = read_scalar(rest)?;
+        let (b_next_eval, rest) = read_scalar(rest)?;
+        let (d_next_eval, rest) = read_scalar(rest)?;
+        let (q_arith_eval, rest) = read_scalar(rest)?;
+        let (q_c_eval, rest) = read_scalar(rest)?;
+        let (q_l_eval, rest) = read_scalar(rest)?;
+        let (q_r_eval, rest) = read_scalar(rest)?;
+        let (left_sigma_eval, rest) = read_scalar(rest)?;
+        let (right_sigma_eval, rest) = read_scalar(rest)?;
+        let (out_sigma_eval, rest) = read_scalar(rest)?;
+        let (lin_poly_eval, rest) = read_scalar(rest)?;
+        let (perm_eval, rest) = read_scalar(rest)?;
 
-        assert_eq!(rest.len(), 0);
-
-        ProofEvaluations {
+        let proof_evals = ProofEvaluations {
             a_eval,
             b_eval,
             c_eval,
@@ -116,7 +116,8 @@ impl ProofEvaluations {
             out_sigma_eval,
             lin_poly_eval,
             perm_eval,
-        }
+        };
+        Ok(proof_evals)
     }
 
     pub(crate) const fn serialised_size() -> usize {
