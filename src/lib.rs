@@ -46,6 +46,9 @@
 #![deny(missing_docs)]
 #![deny(unsafe_code)]
 
+#[macro_use]
+mod macros;
+
 mod bit_iterator;
 pub mod commitment_scheme;
 pub mod constraint_system;
