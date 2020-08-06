@@ -6,13 +6,10 @@
 //! This allows us to perform polynomial operations in O(n)
 //! by performing an O(n log n) FFT over such a domain.
 
-use super::{
-    fft_errors::{FFTError, FFTErrors},
-    Evaluations,
-};
+use super::{fft_errors::FFTErrors, Evaluations};
+use anyhow::{Error, Result};
 use core::fmt;
 use dusk_bls12_381::{Scalar, GENERATOR, ROOT_OF_UNITY, TWO_ADACITY};
-use failure::Error;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefMutIterator, ParallelIterator};
 use std::ops::MulAssign;
 
@@ -52,13 +49,10 @@ impl EvaluationDomain {
         let log_size_of_group = size.trailing_zeros();
 
         if log_size_of_group >= TWO_ADACITY {
-            return Err(FFTError(
-                FFTErrors::InvalidEvalDomainSize {
-                    log_size_of_group,
-                    adacity: TWO_ADACITY,
-                }
-                .into(),
-            )
+            return Err(FFTErrors::InvalidEvalDomainSize {
+                log_size_of_group,
+                adacity: TWO_ADACITY,
+            }
             .into());
         }
 

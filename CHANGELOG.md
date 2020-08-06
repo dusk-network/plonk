@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `Anyhow` & `thiserror` for error handling support.
+
+### Removed
+- `failure` for error support since has been deprecated.
+
 ## [0.2.6] - 03-08-20
 
 ### Changed

@@ -1,8 +1,8 @@
 use super::StandardComposer;
 use crate::commitment_scheme::kzg10::PublicParameters;
 use crate::proof_system::{Prover, Verifier};
+use anyhow::{Error, Result};
 use dusk_bls12_381::Scalar;
-use failure::Error;
 
 /// Adds dummy constraints using arithmetic gates
 pub(crate) fn dummy_gadget(n: usize, composer: &mut StandardComposer) {

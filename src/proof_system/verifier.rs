@@ -2,8 +2,8 @@ use crate::commitment_scheme::kzg10::{CommitKey, OpeningKey};
 use crate::constraint_system::StandardComposer;
 use crate::proof_system::widget::VerifierKey;
 use crate::proof_system::Proof;
+use anyhow::{Error, Result};
 use dusk_bls12_381::Scalar;
-use failure::Error;
 use merlin::Transcript;
 /// Verifier verifies a proof
 #[allow(missing_debug_implementations)]

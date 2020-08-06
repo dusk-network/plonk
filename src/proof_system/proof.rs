@@ -5,13 +5,13 @@
 //! `Proof` structure and it's methods.
 
 use super::linearisation_poly::ProofEvaluations;
-use super::proof_system_errors::{ProofError, ProofErrors};
+use super::proof_system_errors::ProofErrors;
 use crate::commitment_scheme::kzg10::{AggregateProof, Commitment, OpeningKey};
 use crate::fft::EvaluationDomain;
 use crate::proof_system::widget::VerifierKey;
 use crate::transcript::TranscriptProtocol;
+use anyhow::{Error, Result};
 use dusk_bls12_381::{multiscalar_mul::msm_variable_base, G1Affine, Scalar};
-use failure::Error;
 use merlin::Transcript;
 
 /// A Proof is a composition of `Commitments` to the witness, permutation,
@@ -269,7 +269,7 @@ impl Proof {
             )
             .is_err()
         {
-            return Err(ProofError(ProofErrors::ProofVerificationError.into()).into());
+            return Err(ProofErrors::ProofVerificationError.into());
         }
         Ok(())
     }
