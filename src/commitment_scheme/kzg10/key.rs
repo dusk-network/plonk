@@ -35,6 +35,39 @@ pub struct CommitKey {
 }
 
 impl CommitKey {
+    /// Serialises the commitment Key to a byte slice
+    pub fn to_bytes(&self) -> Vec<u8> {
+        use crate::serialisation::{write_g1_affine, write_u64};
+
+        let mut bytes = Vec::with_capacity(self.powers_of_g.len() * 48);
+
+        write_u64(self.powers_of_g.len() as u64, &mut bytes);
+
+        for point in self.powers_of_g.iter() {
+            write_g1_affine(point, &mut bytes);
+        }
+
+        bytes
+    }
+
+    /// Deserialises a bytes slice to a Commitment Key
+    pub fn from_bytes(bytes: &[u8]) -> CommitKey {
+        use crate::serialisation::{read_g1_affine, read_u64};
+
+        let (num_points, rest) = read_u64(&bytes);
+
+        let mut powers_of_g = Vec::with_capacity(num_points as usize);
+
+        let mut remaining: &[u8] = &rest;
+        for _ in 0..num_points {
+            let (point, rest) = read_g1_affine(remaining);
+            powers_of_g.push(point);
+            remaining = rest;
+        }
+
+        CommitKey { powers_of_g }
+    }
+
     /// Returns the maximum degree polynomial that you can commit to.
     pub fn max_degree(&self) -> usize {
         self.powers_of_g.len() - 1
@@ -162,6 +195,50 @@ impl CommitKey {
 }
 
 impl OpeningKey {
+    pub(crate) fn new(g: G1Affine, h: G2Affine, beta_h: G2Affine) -> OpeningKey {
+        let prepared_h: G2Prepared = G2Prepared::from(h);
+        let prepared_beta_h = G2Prepared::from(beta_h);
+        OpeningKey {
+            g,
+            h,
+            beta_h,
+            prepared_beta_h,
+            prepared_h,
+        }
+    }
+    /// Serialises an Opening Key to bytes
+    pub fn to_bytes(&self) -> Vec<u8> {
+        use crate::serialisation::{write_g1_affine, write_g2_affine};
+        let mut bytes = Vec::with_capacity(OpeningKey::serialised_size());
+
+        write_g1_affine(&self.g, &mut bytes);
+        write_g2_affine(&self.h, &mut bytes);
+        write_g2_affine(&self.beta_h, &mut bytes);
+
+        bytes
+    }
+
+    pub(crate) fn serialised_size() -> usize {
+        const NUM_G2: usize = 2;
+        const NUM_G1: usize = 1;
+        const G1_SIZE: usize = 48;
+        const G2_SIZE: usize = 96;
+
+        NUM_G1 * G1_SIZE + NUM_G2 * G2_SIZE
+    }
+
+    /// Deserialises a byte slice into an Opening Key
+    pub fn from_bytes(bytes: &[u8]) -> OpeningKey {
+        use crate::serialisation::{read_g1_affine, read_g2_affine};
+
+        let (g, rest) = read_g1_affine(&bytes);
+        let (h, rest) = read_g2_affine(&rest);
+        let (beta_h, rest) = read_g2_affine(&rest);
+        assert_eq!(rest.len(), 0);
+
+        OpeningKey::new(g, h, beta_h)
+    }
+
     /// Checks that a polynomial `p` was evaluated at a point `z` and returned the value specified `v`.
     /// ie. v = p(z).
     pub fn check(&self, point: Scalar, proof: Proof) -> bool {
