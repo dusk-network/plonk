@@ -171,6 +171,7 @@ impl StandardComposer {
         };
 
         let prover_key = widget::ProverKey {
+            n: domain.size(),
             arithmetic: arithmetic_prover_key,
             logic: logic_prover_key,
             range: range_prover_key,
