@@ -150,6 +150,7 @@ pub fn write_evaluations(val: &Evaluations, bytes: &mut Vec<u8>) {
     write_scalars(&val.evals, bytes)
 }
 
+#[cfg(test)]
 mod test {
     use super::*;
     #[test]

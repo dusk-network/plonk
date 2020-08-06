@@ -230,7 +230,7 @@ impl OpeningKey {
 
         let (g, rest) = read_g1_affine(&bytes)?;
         let (h, rest) = read_g2_affine(&rest)?;
-        let (beta_h, rest) = read_g2_affine(&rest)?;
+        let (beta_h, _) = read_g2_affine(&rest)?;
 
         Ok(OpeningKey::new(g, h, beta_h))
     }

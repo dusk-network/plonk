@@ -97,7 +97,7 @@ impl ProofEvaluations {
         let (right_sigma_eval, rest) = read_scalar(rest)?;
         let (out_sigma_eval, rest) = read_scalar(rest)?;
         let (lin_poly_eval, rest) = read_scalar(rest)?;
-        let (perm_eval, rest) = read_scalar(rest)?;
+        let (perm_eval, _) = read_scalar(rest)?;
 
         let proof_evals = ProofEvaluations {
             a_eval,

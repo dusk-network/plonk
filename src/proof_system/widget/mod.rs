@@ -298,7 +298,7 @@ impl ProverKey {
         let fourth_sigma = (fourth_sigma_poly, fourth_sigma_evals);
         let (linear_evaluations, rest) = read_evaluations(domain.clone(), rest)?;
 
-        let (v_h_coset_4n, rest) = read_evaluations(domain, rest)?;
+        let (v_h_coset_4n, _) = read_evaluations(domain, rest)?;
 
         let arithmetic = arithmetic::ProverKey {
             q_m,
