@@ -6,10 +6,16 @@ pub mod range;
 
 use crate::fft::Evaluations;
 use crate::transcript::TranscriptProtocol;
+use anyhow::{Error, Result};
 use merlin::Transcript;
+use serde::de::Visitor;
+use serde::{self, Deserialize, Deserializer, Serialize, Serializer};
+
 /// PLONK circuit proving key
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct ProverKey {
+    /// Circuit size
+    pub n: usize,
     /// ProverKey for arithmetic gate
     pub arithmetic: arithmetic::ProverKey,
     /// ProverKey for logic gate
@@ -28,7 +34,7 @@ pub struct ProverKey {
 }
 
 /// PLONK circuit verification key
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct VerifierKey {
     /// Circuit size
     pub n: usize,
@@ -44,7 +50,112 @@ pub struct VerifierKey {
     pub permutation: permutation::VerifierKey,
 }
 
+impl_serde!(ProverKey);
+impl_serde!(VerifierKey);
+
 impl VerifierKey {
+    /// Serialises a VerifierKey to bytes
+    pub fn to_bytes(&self) -> Vec<u8> {
+        use crate::serialisation::{write_commitment, write_u64};
+
+        let mut bytes = Vec::with_capacity(VerifierKey::serialised_size());
+
+        // Circuit size
+        // Assuming that circuits will not exceed 2^64 we cast `usize` to `u64`
+        write_u64(self.n as u64, &mut bytes);
+
+        // Arithmetic
+
+        write_commitment(&self.arithmetic.q_m, &mut bytes);
+        write_commitment(&self.arithmetic.q_l, &mut bytes);
+        write_commitment(&self.arithmetic.q_r, &mut bytes);
+        write_commitment(&self.arithmetic.q_o, &mut bytes);
+        write_commitment(&self.arithmetic.q_4, &mut bytes);
+        write_commitment(&self.arithmetic.q_c, &mut bytes);
+        write_commitment(&self.arithmetic.q_arith, &mut bytes);
+
+        // Logic
+        write_commitment(&self.logic.q_logic, &mut bytes);
+
+        // Range
+        write_commitment(&self.range.q_range, &mut bytes);
+
+        // ECC
+        write_commitment(&self.ecc.q_ecc, &mut bytes);
+
+        // Perm
+        write_commitment(&self.permutation.left_sigma, &mut bytes);
+        write_commitment(&self.permutation.right_sigma, &mut bytes);
+        write_commitment(&self.permutation.out_sigma, &mut bytes);
+        write_commitment(&self.permutation.fourth_sigma, &mut bytes);
+
+        bytes
+    }
+    /// Deserialise a slice of bytes into a VerifierKey
+    pub fn from_bytes(bytes: &[u8]) -> Result<VerifierKey, Error> {
+        use crate::serialisation::{read_commitment, read_u64};
+
+        assert_eq!(bytes.len(), VerifierKey::serialised_size());
+
+        let (n, rest) = read_u64(bytes)?;
+
+        let (q_m, rest) = read_commitment(rest)?;
+        let (q_l, rest) = read_commitment(rest)?;
+        let (q_r, rest) = read_commitment(rest)?;
+        let (q_o, rest) = read_commitment(rest)?;
+        let (q_4, rest) = read_commitment(rest)?;
+        let (q_c, rest) = read_commitment(rest)?;
+        let (q_arith, rest) = read_commitment(rest)?;
+
+        let (q_logic, rest) = read_commitment(rest)?;
+
+        let (q_range, rest) = read_commitment(rest)?;
+
+        let (q_ecc, rest) = read_commitment(rest)?;
+
+        let (left_sigma, rest) = read_commitment(rest)?;
+        let (right_sigma, rest) = read_commitment(rest)?;
+        let (out_sigma, rest) = read_commitment(rest)?;
+        let (fourth_sigma, _) = read_commitment(rest)?;
+
+        let arithmetic = arithmetic::VerifierKey {
+            q_m,
+            q_l,
+            q_r,
+            q_o,
+            q_4,
+            q_c,
+            q_arith,
+        };
+        let logic = logic::VerifierKey { q_c, q_logic };
+        let range = range::VerifierKey { q_range };
+        let ecc = ecc::VerifierKey { q_ecc, q_l, q_r };
+
+        let permutation = permutation::VerifierKey {
+            left_sigma,
+            right_sigma,
+            out_sigma,
+            fourth_sigma,
+        };
+
+        let verifier_key = VerifierKey {
+            n: n as usize,
+            arithmetic,
+            logic,
+            range,
+            ecc,
+            permutation,
+        };
+        Ok(verifier_key)
+    }
+
+    const fn serialised_size() -> usize {
+        const N_SIZE: usize = 8;
+        const NUM_COMMITMENTS: usize = 14;
+        const COMMITMENT_SIZE: usize = 48;
+        N_SIZE + NUM_COMMITMENTS * COMMITMENT_SIZE
+    }
+
     /// Adds the circuit description to the transcript
     pub(crate) fn seed_transcript(&self, transcript: &mut Transcript) {
         transcript.append_commitment(b"q_m", &self.arithmetic.q_m);
@@ -68,7 +179,350 @@ impl VerifierKey {
 }
 
 impl ProverKey {
+    /// Serialises a ProverKey struct into bytes
+    pub fn to_bytes(&self) -> Vec<u8> {
+        use crate::serialisation::{write_evaluations, write_polynomial, write_u64};
+
+        let mut bytes = Vec::with_capacity(ProverKey::serialised_size(self.n));
+
+        write_u64(self.n as u64, &mut bytes);
+
+        // Arithmetic
+        write_polynomial(&self.arithmetic.q_m.0, &mut bytes);
+        write_evaluations(&self.arithmetic.q_m.1, &mut bytes);
+
+        write_polynomial(&self.arithmetic.q_l.0, &mut bytes);
+        write_evaluations(&self.arithmetic.q_l.1, &mut bytes);
+
+        write_polynomial(&self.arithmetic.q_r.0, &mut bytes);
+        write_evaluations(&self.arithmetic.q_r.1, &mut bytes);
+
+        write_polynomial(&self.arithmetic.q_o.0, &mut bytes);
+        write_evaluations(&self.arithmetic.q_o.1, &mut bytes);
+
+        write_polynomial(&self.arithmetic.q_4.0, &mut bytes);
+        write_evaluations(&self.arithmetic.q_4.1, &mut bytes);
+
+        write_polynomial(&self.arithmetic.q_c.0, &mut bytes);
+        write_evaluations(&self.arithmetic.q_c.1, &mut bytes);
+
+        write_polynomial(&self.arithmetic.q_arith.0, &mut bytes);
+        write_evaluations(&self.arithmetic.q_arith.1, &mut bytes);
+
+        // Logic
+        write_polynomial(&self.logic.q_logic.0, &mut bytes);
+        write_evaluations(&self.logic.q_logic.1, &mut bytes);
+
+        // Range
+        write_polynomial(&self.range.q_range.0, &mut bytes);
+        write_evaluations(&self.range.q_range.1, &mut bytes);
+
+        // ECC
+        write_polynomial(&self.ecc.q_ecc.0, &mut bytes);
+        write_evaluations(&self.ecc.q_ecc.1, &mut bytes);
+
+        // Permutation
+        write_polynomial(&self.permutation.left_sigma.0, &mut bytes);
+        write_evaluations(&self.permutation.left_sigma.1, &mut bytes);
+
+        write_polynomial(&self.permutation.right_sigma.0, &mut bytes);
+        write_evaluations(&self.permutation.right_sigma.1, &mut bytes);
+
+        write_polynomial(&self.permutation.out_sigma.0, &mut bytes);
+        write_evaluations(&self.permutation.out_sigma.1, &mut bytes);
+
+        write_polynomial(&self.permutation.fourth_sigma.0, &mut bytes);
+        write_evaluations(&self.permutation.fourth_sigma.1, &mut bytes);
+        write_evaluations(&self.permutation.linear_evaluations, &mut bytes);
+
+        write_evaluations(&self.v_h_coset_4n, &mut bytes);
+
+        bytes
+    }
+    /// Deserialises a slice of bytes into a ProverKey
+    pub fn from_bytes(bytes: &[u8]) -> Result<ProverKey, Error> {
+        use crate::serialisation::{read_evaluations, read_polynomial, read_u64};
+
+        let (n, rest) = read_u64(bytes)?;
+        let domain = crate::fft::EvaluationDomain::new((4 * n) as usize).unwrap();
+
+        let (q_m_poly, rest) = read_polynomial(&rest)?;
+        let (q_m_evals, rest) = read_evaluations(domain, &rest)?;
+        let q_m = (q_m_poly, q_m_evals);
+
+        let (q_l_poly, rest) = read_polynomial(&rest)?;
+        let (q_l_evals, rest) = read_evaluations(domain, &rest)?;
+        let q_l = (q_l_poly, q_l_evals);
+
+        let (q_r_poly, rest) = read_polynomial(&rest)?;
+        let (q_r_evals, rest) = read_evaluations(domain, &rest)?;
+        let q_r = (q_r_poly, q_r_evals);
+
+        let (q_o_poly, rest) = read_polynomial(&rest)?;
+        let (q_o_evals, rest) = read_evaluations(domain, &rest)?;
+        let q_o = (q_o_poly, q_o_evals);
+
+        let (q_4_poly, rest) = read_polynomial(&rest)?;
+        let (q_4_evals, rest) = read_evaluations(domain, &rest)?;
+        let q_4 = (q_4_poly, q_4_evals);
+
+        let (q_c_poly, rest) = read_polynomial(&rest)?;
+        let (q_c_evals, rest) = read_evaluations(domain, &rest)?;
+        let q_c = (q_c_poly, q_c_evals);
+
+        let (q_arith_poly, rest) = read_polynomial(&rest)?;
+        let (q_arith_evals, rest) = read_evaluations(domain, &rest)?;
+        let q_arith = (q_arith_poly, q_arith_evals);
+
+        let (q_logic_poly, rest) = read_polynomial(&rest)?;
+        let (q_logic_evals, rest) = read_evaluations(domain, &rest)?;
+        let q_logic = (q_logic_poly, q_logic_evals);
+
+        let (q_range_poly, rest) = read_polynomial(&rest)?;
+        let (q_range_evals, rest) = read_evaluations(domain, &rest)?;
+        let q_range = (q_range_poly, q_range_evals);
+
+        let (q_ecc_poly, rest) = read_polynomial(&rest)?;
+        let (q_ecc_evals, rest) = read_evaluations(domain, &rest)?;
+        let q_ecc = (q_ecc_poly, q_ecc_evals);
+
+        let (left_sigma_poly, rest) = read_polynomial(&rest)?;
+        let (left_sigma_evals, rest) = read_evaluations(domain, &rest)?;
+        let left_sigma = (left_sigma_poly, left_sigma_evals);
+
+        let (right_sigma_poly, rest) = read_polynomial(&rest)?;
+        let (right_sigma_evals, rest) = read_evaluations(domain, &rest)?;
+        let right_sigma = (right_sigma_poly, right_sigma_evals);
+
+        let (out_sigma_poly, rest) = read_polynomial(&rest)?;
+        let (out_sigma_evals, rest) = read_evaluations(domain, &rest)?;
+        let out_sigma = (out_sigma_poly, out_sigma_evals);
+
+        let (fourth_sigma_poly, rest) = read_polynomial(&rest)?;
+        let (fourth_sigma_evals, rest) = read_evaluations(domain, &rest)?;
+        let fourth_sigma = (fourth_sigma_poly, fourth_sigma_evals);
+        let (linear_evaluations, rest) = read_evaluations(domain, rest)?;
+
+        let (v_h_coset_4n, _) = read_evaluations(domain, rest)?;
+
+        let arithmetic = arithmetic::ProverKey {
+            q_m,
+            q_l: q_l.clone(),
+            q_r: q_r.clone(),
+            q_o,
+            q_c: q_c.clone(),
+            q_4,
+            q_arith,
+        };
+
+        let logic = logic::ProverKey {
+            q_logic,
+            q_c: q_c.clone(),
+        };
+
+        let range = range::ProverKey { q_range };
+
+        let ecc = ecc::ProverKey {
+            q_ecc,
+            q_l,
+            q_r,
+            q_c,
+        };
+
+        let permutation = permutation::ProverKey {
+            left_sigma,
+            right_sigma,
+            out_sigma,
+            fourth_sigma,
+            linear_evaluations,
+        };
+
+        let prover_key = ProverKey {
+            n: n as usize,
+            arithmetic,
+            logic,
+            range,
+            ecc,
+            permutation,
+            v_h_coset_4n,
+        };
+
+        Ok(prover_key)
+    }
+
+    fn serialised_size(n: usize) -> usize {
+        const SIZE_SCALAR: usize = 32;
+
+        const NUM_POLYNOMIALS: usize = 15;
+        let num_poly_scalars = n;
+
+        const NUM_EVALUATIONS: usize = 16;
+        let num_eval_scalars = 4 * n;
+
+        (NUM_POLYNOMIALS * num_poly_scalars * SIZE_SCALAR)
+            + (NUM_EVALUATIONS * num_eval_scalars * SIZE_SCALAR)
+    }
+
     pub(crate) fn v_h_coset_4n(&self) -> &Evaluations {
         &self.v_h_coset_4n
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::fft::{EvaluationDomain, Polynomial};
+    use dusk_bls12_381::Scalar;
+
+    fn rand_poly_eval(n: usize) -> (Polynomial, Evaluations) {
+        let polynomial = Polynomial::rand(n, &mut rand::thread_rng());
+        (polynomial, rand_evaluations(n))
+    }
+
+    fn rand_evaluations(n: usize) -> Evaluations {
+        let domain = EvaluationDomain::new(4 * n).unwrap();
+        let values: Vec<_> = (0..4 * n)
+            .map(|_| Scalar::random(&mut rand::thread_rng()))
+            .collect();
+        let evaluations = Evaluations::from_vec_and_domain(values, domain);
+        evaluations
+    }
+
+    #[test]
+    fn test_serialise_deserialise_prover_key() {
+        let n = 2usize.pow(5);
+
+        let q_m = rand_poly_eval(n);
+        let q_l = rand_poly_eval(n);
+        let q_r = rand_poly_eval(n);
+        let q_o = rand_poly_eval(n);
+        let q_c = rand_poly_eval(n);
+        let q_4 = rand_poly_eval(n);
+        let q_arith = rand_poly_eval(n);
+
+        let q_logic = rand_poly_eval(n);
+
+        let q_range = rand_poly_eval(n);
+
+        let q_ecc = rand_poly_eval(n);
+
+        let left_sigma = rand_poly_eval(n);
+        let right_sigma = rand_poly_eval(n);
+        let out_sigma = rand_poly_eval(n);
+        let fourth_sigma = rand_poly_eval(n);
+        let linear_evaluations = rand_evaluations(n);
+
+        let v_h_coset_4n = rand_evaluations(n);
+
+        let arithmetic = arithmetic::ProverKey {
+            q_m,
+            q_l: q_l.clone(),
+            q_r: q_r.clone(),
+            q_o,
+            q_c: q_c.clone(),
+            q_4,
+            q_arith,
+        };
+
+        let logic = logic::ProverKey {
+            q_logic,
+            q_c: q_c.clone(),
+        };
+
+        let range = range::ProverKey { q_range };
+
+        let ecc = ecc::ProverKey {
+            q_ecc,
+            q_l,
+            q_r,
+            q_c,
+        };
+
+        let permutation = permutation::ProverKey {
+            left_sigma,
+            right_sigma,
+            out_sigma,
+            fourth_sigma,
+            linear_evaluations,
+        };
+
+        let prover_key = ProverKey {
+            arithmetic,
+            logic,
+            ecc,
+            range,
+            permutation,
+            v_h_coset_4n,
+            n,
+        };
+
+        let prover_key_bytes = prover_key.to_bytes();
+        let pk = ProverKey::from_bytes(&prover_key_bytes).unwrap();
+
+        assert_eq!(pk, prover_key);
+    }
+
+    #[test]
+    fn test_serialise_deserialise_verifier_key() {
+        use crate::commitment_scheme::kzg10::Commitment;
+        use dusk_bls12_381::G1Affine;
+
+        let n = 2usize.pow(5);
+
+        let q_m = Commitment::from_affine(G1Affine::generator());
+        let q_l = Commitment::from_affine(G1Affine::generator());
+        let q_r = Commitment::from_affine(G1Affine::generator());
+        let q_o = Commitment::from_affine(G1Affine::generator());
+        let q_c = Commitment::from_affine(G1Affine::generator());
+        let q_4 = Commitment::from_affine(G1Affine::generator());
+        let q_arith = Commitment::from_affine(G1Affine::generator());
+
+        let q_range = Commitment::from_affine(G1Affine::generator());
+
+        let q_ecc = Commitment::from_affine(G1Affine::generator());
+
+        let q_logic = Commitment::from_affine(G1Affine::generator());
+
+        let left_sigma = Commitment::from_affine(G1Affine::generator());
+        let right_sigma = Commitment::from_affine(G1Affine::generator());
+        let out_sigma = Commitment::from_affine(G1Affine::generator());
+        let fourth_sigma = Commitment::from_affine(G1Affine::generator());
+
+        let arithmetic = arithmetic::VerifierKey {
+            q_m,
+            q_l,
+            q_r,
+            q_o,
+            q_c,
+            q_4,
+            q_arith,
+        };
+
+        let logic = logic::VerifierKey { q_logic, q_c };
+
+        let range = range::VerifierKey { q_range };
+
+        let ecc = ecc::VerifierKey { q_ecc, q_l, q_r };
+
+        let permutation = permutation::VerifierKey {
+            left_sigma,
+            right_sigma,
+            out_sigma,
+            fourth_sigma,
+        };
+
+        let verifier_key = VerifierKey {
+            n,
+            arithmetic,
+            logic,
+            range,
+            ecc,
+            permutation,
+        };
+
+        let verifier_key_bytes = verifier_key.to_bytes();
+        let got = VerifierKey::from_bytes(&verifier_key_bytes).unwrap();
+
+        assert_eq!(got, verifier_key);
     }
 }

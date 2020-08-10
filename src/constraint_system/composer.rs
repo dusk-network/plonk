@@ -173,21 +173,6 @@ impl StandardComposer {
         var
     }
 
-    /// Adds the passed `BlsScalar` to the Constraint System as a
-    /// witness value and constraints it to be equal to the value that
-    /// was sent.
-    ///
-    /// This makes easier to work with Public Inputs, since they can just be
-    /// used as witnesses constrained to a fixed value.
-    pub fn add_constant_witness(&mut self, s: Scalar) -> Variable {
-        // Allocate and link the Variable and the Scalar values in the
-        // `Permutation` struct.
-        let var = self.add_input(s);
-        // We constraint the witness to be equal to a certain constant value.
-        self.constrain_to_constant(var, s, Scalar::zero());
-        var
-    }
-
     /// Adds a width-3 poly gate.
     /// This gate gives total freedom to the end user to implement the corresponding
     /// circuits in the most optimized way possible because the under has access to the
