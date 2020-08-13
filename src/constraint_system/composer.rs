@@ -98,23 +98,10 @@ impl StandardComposer {
     }
 
     /// Fixes a variable in the witness to be a part of the circuit description.
-    /// This method is (currently) only used in the following context:
-    /// We have gates which only require 3/4 wires,
-    /// We must assign the fourth value to another value, we then fix this value to be zero.
-    /// However, the verifier needs to be able to verify that this value is also zero.
-    /// We therefore must make this zero value a part of the circuit description of every circuit.
-    pub fn add_witness_to_circuit_description(&mut self, var: Variable, value: Scalar) {
-        self.poly_gate(
-            var,
-            var,
-            var,
-            Scalar::zero(),
-            Scalar::one(),
-            Scalar::zero(),
-            Scalar::zero(),
-            -value,
-            Scalar::zero(),
-        );
+    pub fn add_witness_to_circuit_description(&mut self, value: Scalar) -> Variable {
+        let var = self.add_input(value);
+        self.constrain_to_constant(var, value, Scalar::zero());
+        var
     }
 
     /// Creates a new circuit with an expected circuit size.
@@ -150,9 +137,7 @@ impl StandardComposer {
         };
 
         // Reserve the first variable to be zero
-        let zero_var = composer.add_input(Scalar::zero());
-        composer.add_witness_to_circuit_description(zero_var, Scalar::zero());
-        composer.zero_var = zero_var;
+        composer.zero_var = composer.add_witness_to_circuit_description(Scalar::zero());
 
         // Add dummy constraints
         composer.add_dummy_constraints();
