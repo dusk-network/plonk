@@ -16,8 +16,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Anyhow` & `thiserror` for error handling support.
 - Serialisation methods for the crate public structures &
 `serde` support.
-- dusk-jubjub version updated to 0.3.6
-- Update `add_witness_to_circuit_description` fn sig (#282, #284)
 
 ### Removed
 - `failure` for error support since has been deprecated.
@@ -25,7 +23,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - `add_witness_to_circuit_description` requires now just to send
 a `Scalar` and returns a constant & constrained witness `Variable`.
-
+- Update `add_witness_to_circuit_description` fn sig (#282, #284)
+- dusk-jubjub version updated to 0.3.6
 
 ## [0.2.6] - 03-08-20
 
