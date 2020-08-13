@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Serialisation methods for the crate public structures &
 `serde` support.
 - dusk-jubjub version updated to 0.3.6
+- Update `add_witness_to_circuit_description` fn sig (#282, #284)
 
 ### Removed
 - `failure` for error support since has been deprecated.
