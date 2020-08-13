@@ -9,10 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+
+## [0.2.7] - 13-08-20
+
 ### Added
 - `Anyhow` & `thiserror` for error handling support.
 - Serialisation methods for the crate public structures &
 `serde` support.
+- dusk-jubjub version updated to 0.3.6
 
 ### Removed
 - `failure` for error support since has been deprecated.
