@@ -17,6 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - `failure` for error support since has been deprecated.
 
+### Changed
+- `add_witness_to_circuit_description` requires now just to send
+a `Scalar` and returns a constant & constrained witness `Variable`.
+
 
 ## [0.2.6] - 03-08-20
 
