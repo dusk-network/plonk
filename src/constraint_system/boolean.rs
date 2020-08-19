@@ -25,7 +25,8 @@ impl StandardComposer {
 
         self.q_range.push(Scalar::zero());
         self.q_logic.push(Scalar::zero());
-        self.q_ecc.push(Scalar::zero());
+        self.q_fixed_base.push(Scalar::zero());
+        self.q_curve_add.push(Scalar::zero());
 
         self.public_inputs.push(Scalar::zero());
 

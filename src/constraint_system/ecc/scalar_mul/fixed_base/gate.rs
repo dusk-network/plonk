@@ -1,4 +1,3 @@
-use super::Point;
 use crate::constraint_system::StandardComposer;
 use crate::constraint_system::Variable;
 use dusk_bls12_381::Scalar;
@@ -31,7 +30,7 @@ pub(crate) struct WnafRound {
 
 impl StandardComposer {
     /// Fixed group addition of a jubjub point
-    pub(crate) fn new_fixed_group_add(&mut self, wnaf_round: WnafRound) {
+    pub(crate) fn fixed_group_add(&mut self, wnaf_round: WnafRound) {
         self.w_l.push(wnaf_round.acc_x);
         self.w_r.push(wnaf_round.acc_y);
         self.w_o.push(wnaf_round.xy_alpha);
@@ -42,7 +41,8 @@ impl StandardComposer {
 
         self.q_c.push(wnaf_round.xy_beta);
         self.q_o.push(Scalar::zero());
-        self.q_ecc.push(Scalar::one());
+        self.q_fixed_base.push(Scalar::one());
+        self.q_curve_add.push(Scalar::zero());
 
         self.q_m.push(Scalar::zero());
         self.q_4.push(Scalar::zero());
@@ -61,20 +61,5 @@ impl StandardComposer {
         );
 
         self.n += 1;
-    }
-
-    /// Asserts that a point in the circuit is equal to a known public point
-    pub fn assert_equal_public_point(
-        &mut self,
-        point: Point,
-        public_point: dusk_jubjub::AffinePoint,
-    ) {
-        self.constrain_to_constant(point.x, Scalar::zero(), -public_point.get_x());
-        self.constrain_to_constant(point.y, Scalar::zero(), -public_point.get_y());
-    }
-    /// Asserts that a point in the circuit is equal to another point in the circuit
-    pub fn assert_equal_point(&mut self, point_a: Point, point_b: Point) {
-        self.assert_equal(point_a.x, point_b.x);
-        self.assert_equal(point_a.y, point_b.y);
     }
 }
