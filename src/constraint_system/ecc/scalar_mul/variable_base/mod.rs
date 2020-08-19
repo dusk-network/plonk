@@ -9,7 +9,7 @@ pub fn variable_base_scalar_mul(
     point: Point,
 ) -> PointScalar {
     // Turn scalar into bits
-    let raw_bls_scalar = composer.variables.get(&jubjub_var).unwrap().clone();
+    let raw_bls_scalar = *composer.variables.get(&jubjub_var).unwrap();
     let scalar_bits_var = scalar_decomposition(composer, jubjub_var, raw_bls_scalar);
 
     let identity = Point::identity(composer);
@@ -68,14 +68,12 @@ fn conditional_select(
     );
 
     // [ (1 - bit) * b ] + [ bit * a ]
-    let choice = composer.add(
+    composer.add(
         (Scalar::one(), one_min_bit_choice_b),
         (Scalar::one(), bit_times_a),
         Scalar::zero(),
         Scalar::zero(),
-    );
-
-    choice
+    )
 }
 
 fn scalar_decomposition(
@@ -90,13 +88,12 @@ fn scalar_decomposition(
     let scalar_bits_var: Vec<Variable> = scalar_bits
         .iter()
         .map(|bit| {
-            let var = composer.add_input(Scalar::from(*bit as u64));
-            var
+            composer.add_input(Scalar::from(*bit as u64))
         })
         .collect();
 
     // Take the first 252 bits
-    let scalar_bits_var = scalar_bits_var[0..252].to_vec().clone();
+    let scalar_bits_var = scalar_bits_var[0..252].to_vec();
 
     // Now ensure that the bits correctly accumulate to the witness given
     let mut accumulator_var = composer.zero_var;
@@ -114,8 +111,7 @@ fn scalar_decomposition(
 
         accumulator_var = composer.add(q_l_a, q_r_b, q_c, pi);
 
-        accumulator_scalar =
-            accumulator_scalar + &two_pow * &Scalar::from(scalar_bits[power] as u64);
+        accumulator_scalar += two_pow * Scalar::from(scalar_bits[power] as u64);
     }
     composer.assert_equal(accumulator_var, witness_var);
 
