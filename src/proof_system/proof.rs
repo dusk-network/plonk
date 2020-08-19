@@ -374,6 +374,15 @@ impl Proof {
             &self.evaluations,
         );
 
+        verifier_key
+            .curve_addition
+            .compute_linearisation_commitment(
+                &ecc_sep_challenge,
+                &mut scalars,
+                &mut points,
+                &self.evaluations,
+            );
+
         verifier_key.permutation.compute_linearisation_commitment(
             &mut scalars,
             &mut points,

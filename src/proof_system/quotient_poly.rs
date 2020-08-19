@@ -134,7 +134,19 @@ fn compute_circuit_satisfiability_equation(
                 &w4_next,
             );
 
-            (a + pi) + b + c + d
+            let e = prover_key.curve_addition.compute_quotient_i(
+                i,
+                ecc_challenge,
+                &wl,
+                &wl_next,
+                &wr,
+                &wr_next,
+                &wo,
+                &w4,
+                &w4_next,
+            );
+
+            (a + pi) + b + c + d + e
         })
         .collect();
     t

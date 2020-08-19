@@ -8,7 +8,7 @@ use dusk_jubjub::EDWARDS_D;
 pub struct VerifierKey {
     pub q_l: Commitment,
     pub q_r: Commitment,
-    pub q_ecc: Commitment,
+    pub q_fixed_base: Commitment,
 }
 
 impl VerifierKey {
@@ -62,6 +62,6 @@ impl VerifierKey {
         let a = bit_consistency + x_acc_consistency + y_acc_consistency + xy_consistency;
 
         scalars.push(a * ecc_separation_challenge);
-        points.push(self.q_ecc.0);
+        points.push(self.q_fixed_base.0);
     }
 }

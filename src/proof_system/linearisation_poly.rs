@@ -287,9 +287,21 @@ fn compute_circuit_satisfiability(
         q_c_eval,
     );
 
+    let e = prover_key.curve_addition.compute_linearisation(
+        ecc_separation_challenge,
+        a_eval,
+        a_next_eval,
+        b_eval,
+        b_next_eval,
+        c_eval,
+        d_eval,
+        d_next_eval,
+    );
+
     let mut linearisation_poly = &a + &b;
     linearisation_poly += &c;
     linearisation_poly += &d;
+    linearisation_poly += &e;
 
     linearisation_poly
 }
