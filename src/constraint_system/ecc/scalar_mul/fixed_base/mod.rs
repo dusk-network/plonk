@@ -1,11 +1,10 @@
-/// Gates related to fixed base scalar multiplication
-pub mod gate;
+
 
 use crate::constraint_system::ecc::{Point, PointScalar};
 use crate::constraint_system::{variable::Variable, StandardComposer};
 use dusk_bls12_381::Scalar as BlsScalar;
 use dusk_jubjub::{AffinePoint, ExtendedPoint, Fr as JubJubScalar};
-use gate::WnafRound;
+use crate::constraint_system::ecc::curve_addition::fixed_base_gate::WnafRound;
 
 fn compute_wnaf_point_multiples(generator: ExtendedPoint, num_bits: usize) -> Vec<AffinePoint> {
     assert!(generator.is_prime_order().unwrap_u8() == 1);
@@ -73,6 +72,7 @@ pub fn scalar_mul(
     }
 
     for i in 0..num_bits {
+
         let acc_x = composer.add_input(point_acc[i].get_x());
         let acc_y = composer.add_input(point_acc[i].get_y());
 
@@ -139,7 +139,8 @@ pub fn scalar_mul(
 mod tests {
     use super::*;
     use crate::constraint_system::helper::*;
-    use dusk_jubjub::GENERATOR;
+    use dusk_jubjub::{GENERATOR};
+
     #[test]
     fn test_ecc_constraint() {
         let res = gadget_tester(

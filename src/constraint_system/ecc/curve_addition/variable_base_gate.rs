@@ -1,9 +1,12 @@
 use crate::constraint_system::ecc::Point;
 use crate::constraint_system::StandardComposer;
 use dusk_bls12_381::Scalar;
+use dusk_jubjub::{AffinePoint, ExtendedPoint};
 
 impl Point {
-    /// Adds two curve points together using the curve addition gate
+    /// Adds two curve points together using a curve addition gate
+    /// Note that since the points are not fixed the generator is not a part of the 
+    /// circuit description, however it is less efficient for a program width of 4.
     pub fn fast_add(&self, composer: &mut StandardComposer, point_b: Point) -> Point {
         // In order to verify that two points were correctly added
         // without going over a degree 4 polynomial, we will need
@@ -21,8 +24,12 @@ impl Point {
         let x_2_scalar = composer.variables.get(&x_2).unwrap();
         let y_2_scalar = composer.variables.get(&y_2).unwrap();
 
-        let (x_3_scalar, y_3_scalar) =
-            compute_x_3(*x_1_scalar, *y_1_scalar, *x_2_scalar, *y_2_scalar);
+        let p1 = AffinePoint::from_raw_unchecked(*x_1_scalar, *y_1_scalar);
+        let p2 = AffinePoint::from_raw_unchecked(*x_2_scalar, *y_2_scalar);
+    
+        let point: AffinePoint = (ExtendedPoint::from(p1) + p2).into();
+        let x_3_scalar = point.get_x();
+        let y_3_scalar = point.get_y();
 
         let x1_scalar_y2_scalar = x_1_scalar * y_2_scalar;
 
@@ -64,11 +71,11 @@ impl Point {
             .q_logic
             .append(&mut vec![Scalar::zero(), Scalar::zero()]);
         composer
-            .q_fixed_base
+            .q_fixed_group_add
             .append(&mut vec![Scalar::zero(), Scalar::zero()]);
 
-        composer.q_curve_add.push(Scalar::one());
-        composer.q_curve_add.push(Scalar::zero());
+        composer.q_variable_group_add.push(Scalar::one());
+        composer.q_variable_group_add.push(Scalar::zero());
 
         composer
             .public_inputs
@@ -88,29 +95,6 @@ impl Point {
     }
 }
 
-// XXX: JubJub does not allow us to create a point from X and Y
-// So we do curve addition manually here
-fn compute_x_3(x_1: Scalar, y_1: Scalar, x_2: Scalar, y_2: Scalar) -> (Scalar, Scalar) {
-    use dusk_jubjub::EDWARDS_D;
-
-    let x1_y2 = x_1 * y_2;
-    let x2_y1 = x_2 * y_1;
-    let x1_x2 = x_1 * x_2;
-    let y1_y2 = y_1 * y_2;
-
-    let k = EDWARDS_D * x1_y2 * x2_y1;
-
-    let x3_num = x1_y2 + x2_y1;
-    let x3_den = (Scalar::one() + k).invert().unwrap_or(Scalar::zero());
-    let x3 = x3_num * x3_den;
-
-    let y3_num = y1_y2 + x1_x2;
-    let y3_den = (Scalar::one() - k).invert().unwrap_or(Scalar::zero());
-    let y3 = y3_num * y3_den;
-
-    (x3, y3)
-}
-
 #[cfg(test)]
 mod test {
     use super::*;
@@ -127,12 +111,12 @@ mod test {
                 let y = composer.add_input(GENERATOR.get_y());
                 let point_a = Point { x, y };
                 let point_b = Point { x, y };
-
+            
                 let point = point_a.fast_add(composer, point_b);
                 let point2 = point_a.slow_add(composer, point_b);
-
+            
                 composer.assert_equal_point(point, point2);
-
+            
                 composer.assert_equal_public_point(point.into(), expected_point);
             },
             2000,

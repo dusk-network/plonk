@@ -85,10 +85,10 @@ impl VerifierKey {
         write_commitment(&self.range.q_range, &mut bytes);
 
         // Fixed base scalar mul
-        write_commitment(&self.ecc.q_fixed_base, &mut bytes);
+        write_commitment(&self.ecc.q_fixed_group_add, &mut bytes);
 
         // Curve addition
-        write_commitment(&self.curve_addition.q_curve_add, &mut bytes);
+        write_commitment(&self.curve_addition.q_variable_group_add, &mut bytes);
 
         // Perm
         write_commitment(&self.permutation.left_sigma, &mut bytes);
@@ -118,9 +118,9 @@ impl VerifierKey {
 
         let (q_range, rest) = read_commitment(rest)?;
 
-        let (q_fixed_base, rest) = read_commitment(rest)?;
+        let (q_fixed_group_add, rest) = read_commitment(rest)?;
 
-        let (q_curve_add, rest) = read_commitment(rest)?;
+        let (q_variable_group_add, rest) = read_commitment(rest)?;
 
         let (left_sigma, rest) = read_commitment(rest)?;
         let (right_sigma, rest) = read_commitment(rest)?;
@@ -139,12 +139,12 @@ impl VerifierKey {
         let logic = logic::VerifierKey { q_c, q_logic };
         let range = range::VerifierKey { q_range };
         let ecc = ecc::scalar_mul::fixed_base::VerifierKey {
-            q_fixed_base,
+            q_fixed_group_add,
             q_l,
             q_r,
         };
 
-        let curve_addition = ecc::curve_addition::VerifierKey { q_curve_add };
+        let curve_addition = ecc::curve_addition::VerifierKey { q_variable_group_add };
 
         let permutation = permutation::VerifierKey {
             left_sigma,
@@ -183,8 +183,8 @@ impl VerifierKey {
         transcript.append_commitment(b"q_arith", &self.arithmetic.q_arith);
         transcript.append_commitment(b"q_range", &self.range.q_range);
         transcript.append_commitment(b"q_logic", &self.logic.q_logic);
-        transcript.append_commitment(b"q_curve_add", &self.curve_addition.q_curve_add);
-        transcript.append_commitment(b"q_fixed_base", &self.ecc.q_fixed_base);
+        transcript.append_commitment(b"q_variable_group_add", &self.curve_addition.q_variable_group_add);
+        transcript.append_commitment(b"q_fixed_group_add", &self.ecc.q_fixed_group_add);
 
         transcript.append_commitment(b"left_sigma", &self.permutation.left_sigma);
         transcript.append_commitment(b"right_sigma", &self.permutation.right_sigma);
@@ -236,12 +236,12 @@ impl ProverKey {
         write_evaluations(&self.range.q_range.1, &mut bytes);
 
         // Scalar multiplication
-        write_polynomial(&self.ecc.q_fixed_base.0, &mut bytes);
-        write_evaluations(&self.ecc.q_fixed_base.1, &mut bytes);
+        write_polynomial(&self.ecc.q_fixed_group_add.0, &mut bytes);
+        write_evaluations(&self.ecc.q_fixed_group_add.1, &mut bytes);
 
         // Curve addition
-        write_polynomial(&self.curve_addition.q_curve_add.0, &mut bytes);
-        write_evaluations(&self.curve_addition.q_curve_add.1, &mut bytes);
+        write_polynomial(&self.curve_addition.q_variable_group_add.0, &mut bytes);
+        write_evaluations(&self.curve_addition.q_variable_group_add.1, &mut bytes);
 
         // Permutation
         write_polynomial(&self.permutation.left_sigma.0, &mut bytes);
@@ -304,13 +304,13 @@ impl ProverKey {
         let (q_range_evals, rest) = read_evaluations(domain, &rest)?;
         let q_range = (q_range_poly, q_range_evals);
 
-        let (q_fixed_base_poly, rest) = read_polynomial(&rest)?;
-        let (q_fixed_base_evals, rest) = read_evaluations(domain, &rest)?;
-        let q_fixed_base = (q_fixed_base_poly, q_fixed_base_evals);
+        let (q_fixed_group_add_poly, rest) = read_polynomial(&rest)?;
+        let (q_fixed_group_add_evals, rest) = read_evaluations(domain, &rest)?;
+        let q_fixed_group_add = (q_fixed_group_add_poly, q_fixed_group_add_evals);
 
-        let (q_curve_add_poly, rest) = read_polynomial(&rest)?;
-        let (q_curve_add_evals, rest) = read_evaluations(domain, &rest)?;
-        let q_curve_add = (q_curve_add_poly, q_curve_add_evals);
+        let (q_variable_group_add_poly, rest) = read_polynomial(&rest)?;
+        let (q_variable_group_add_evals, rest) = read_evaluations(domain, &rest)?;
+        let q_variable_group_add = (q_variable_group_add_poly, q_variable_group_add_evals);
 
         let (left_sigma_poly, rest) = read_polynomial(&rest)?;
         let (left_sigma_evals, rest) = read_evaluations(domain, &rest)?;
@@ -349,7 +349,7 @@ impl ProverKey {
         let range = range::ProverKey { q_range };
 
         let ecc = ecc::scalar_mul::fixed_base::ProverKey {
-            q_fixed_base,
+            q_fixed_group_add,
             q_l,
             q_r,
             q_c,
@@ -363,7 +363,7 @@ impl ProverKey {
             linear_evaluations,
         };
 
-        let curve_addition = ecc::curve_addition::ProverKey { q_curve_add };
+        let curve_addition = ecc::curve_addition::ProverKey { q_variable_group_add };
 
         let prover_key = ProverKey {
             n: n as usize,
@@ -433,9 +433,9 @@ mod test {
 
         let q_range = rand_poly_eval(n);
 
-        let q_fixed_base = rand_poly_eval(n);
+        let q_fixed_group_add = rand_poly_eval(n);
 
-        let q_curve_add = rand_poly_eval(n);
+        let q_variable_group_add = rand_poly_eval(n);
 
         let left_sigma = rand_poly_eval(n);
         let right_sigma = rand_poly_eval(n);
@@ -463,7 +463,7 @@ mod test {
         let range = range::ProverKey { q_range };
 
         let ecc = ecc::scalar_mul::fixed_base::ProverKey {
-            q_fixed_base,
+            q_fixed_group_add,
             q_l,
             q_r,
             q_c,
@@ -477,7 +477,7 @@ mod test {
             linear_evaluations,
         };
 
-        let curve_addition = ecc::curve_addition::ProverKey { q_curve_add };
+        let curve_addition = ecc::curve_addition::ProverKey { q_variable_group_add };
 
         let prover_key = ProverKey {
             arithmetic,
@@ -513,8 +513,8 @@ mod test {
 
         let q_range = Commitment::from_affine(G1Affine::generator());
 
-        let q_fixed_base = Commitment::from_affine(G1Affine::generator());
-        let q_curve_add = Commitment::from_affine(G1Affine::generator());
+        let q_fixed_group_add = Commitment::from_affine(G1Affine::generator());
+        let q_variable_group_add = Commitment::from_affine(G1Affine::generator());
 
         let q_logic = Commitment::from_affine(G1Affine::generator());
 
@@ -538,11 +538,11 @@ mod test {
         let range = range::VerifierKey { q_range };
 
         let ecc = ecc::scalar_mul::fixed_base::VerifierKey {
-            q_fixed_base,
+            q_fixed_group_add,
             q_l,
             q_r,
         };
-        let curve_addition = ecc::curve_addition::VerifierKey { q_curve_add };
+        let curve_addition = ecc::curve_addition::VerifierKey { q_variable_group_add };
 
         let permutation = permutation::VerifierKey {
             left_sigma,

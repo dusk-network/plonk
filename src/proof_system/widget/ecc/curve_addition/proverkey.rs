@@ -4,7 +4,7 @@ use dusk_jubjub::EDWARDS_D;
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct ProverKey {
-    pub q_curve_add: (Polynomial, Evaluations),
+    pub q_variable_group_add: (Polynomial, Evaluations),
 }
 
 impl ProverKey {
@@ -21,7 +21,7 @@ impl ProverKey {
         w_4_i: &Scalar,      // y_2
         w_4_i_next: &Scalar, // x_1 * y_2
     ) -> Scalar {
-        let q_curve_add_i = &self.q_curve_add.1[index];
+        let q_variable_group_add_i = &self.q_variable_group_add.1[index];
 
         let kappa = curve_add_separation_challenge.square();
 
@@ -54,7 +54,7 @@ impl ProverKey {
 
         let identity = xy_consistency + x3_consistency + y3_consistency;
 
-        identity * q_curve_add_i * curve_add_separation_challenge
+        identity * q_variable_group_add_i * curve_add_separation_challenge
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -69,7 +69,7 @@ impl ProverKey {
         d_eval: &Scalar,
         d_next_eval: &Scalar,
     ) -> Polynomial {
-        let q_curve_add_poly = &self.q_curve_add.0;
+        let q_variable_group_add_poly = &self.q_variable_group_add.0;
 
         let kappa = curve_add_separation_challenge.square();
 
@@ -102,6 +102,6 @@ impl ProverKey {
 
         let identity = xy_consistency + x3_consistency + y3_consistency;
 
-        q_curve_add_poly * &(identity * curve_add_separation_challenge)
+        q_variable_group_add_poly * &(identity * curve_add_separation_challenge)
     }
 }

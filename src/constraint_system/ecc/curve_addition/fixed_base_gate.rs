@@ -41,8 +41,8 @@ impl StandardComposer {
 
         self.q_c.push(wnaf_round.xy_beta);
         self.q_o.push(Scalar::zero());
-        self.q_fixed_base.push(Scalar::one());
-        self.q_curve_add.push(Scalar::zero());
+        self.q_fixed_group_add.push(Scalar::one());
+        self.q_variable_group_add.push(Scalar::zero());
 
         self.q_m.push(Scalar::zero());
         self.q_4.push(Scalar::zero());

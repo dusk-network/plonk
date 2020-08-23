@@ -5,7 +5,7 @@ use dusk_jubjub::EDWARDS_D;
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct VerifierKey {
-    pub q_curve_add: Commitment,
+    pub q_variable_group_add: Commitment,
 }
 
 impl VerifierKey {
@@ -48,6 +48,6 @@ impl VerifierKey {
         let identity = xy_consistency + x3_consistency + y3_consistency;
 
         scalars.push(identity * curve_add_separation_challenge);
-        points.push(self.q_curve_add.0);
+        points.push(self.q_variable_group_add.0);
     }
 }

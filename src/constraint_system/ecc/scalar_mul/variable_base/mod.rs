@@ -87,9 +87,7 @@ fn scalar_decomposition(
     // Add all the bits into the composer
     let scalar_bits_var: Vec<Variable> = scalar_bits
         .iter()
-        .map(|bit| {
-            composer.add_input(Scalar::from(*bit as u64))
-        })
+        .map(|bit| composer.add_input(Scalar::from(*bit as u64)))
         .collect();
 
     // Take the first 252 bits
@@ -153,14 +151,14 @@ mod tests {
                 let point = Point::from_private_affine(composer, GENERATOR);
 
                 let point_scalar = variable_base_scalar_mul(composer, secret_scalar, point);
-                
+
                 composer.assert_equal_public_point(point_scalar.into(), expected_point);
             },
             4096,
         );
         assert!(res.is_ok());
     }
-    
+
     #[test]
     fn test_conditional_select() {
         let res = gadget_tester(

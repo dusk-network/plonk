@@ -46,12 +46,10 @@ pub struct StandardComposer {
     pub(crate) q_range: Vec<Scalar>,
     // Logic selector
     pub(crate) q_logic: Vec<Scalar>,
-    // Fixed base scalar multiplication selector
-    // XXX: This is not strictly correct, the gate is a fixed_group_add
-    pub(crate) q_fixed_base: Vec<Scalar>,
-    // Curve addition selector
-    // XXX: Similarly, this shouls be variable_group_add
-    pub(crate) q_curve_add: Vec<Scalar>,
+    // Fixed base group addition selector
+    pub(crate) q_fixed_group_add: Vec<Scalar>,
+    // Variable base group addition selector
+    pub(crate) q_variable_group_add: Vec<Scalar>,
 
     /// Public inputs vector
     pub public_inputs: Vec<Scalar>,
@@ -125,8 +123,8 @@ impl StandardComposer {
             q_arith: Vec::with_capacity(expected_size),
             q_range: Vec::with_capacity(expected_size),
             q_logic: Vec::with_capacity(expected_size),
-            q_fixed_base: Vec::with_capacity(expected_size),
-            q_curve_add: Vec::with_capacity(expected_size),
+            q_fixed_group_add: Vec::with_capacity(expected_size),
+            q_variable_group_add: Vec::with_capacity(expected_size),
             public_inputs: Vec::with_capacity(expected_size),
 
             w_l: Vec::with_capacity(expected_size),
@@ -199,8 +197,8 @@ impl StandardComposer {
 
         self.q_range.push(Scalar::zero());
         self.q_logic.push(Scalar::zero());
-        self.q_fixed_base.push(Scalar::zero());
-        self.q_curve_add.push(Scalar::zero());
+        self.q_fixed_group_add.push(Scalar::zero());
+        self.q_variable_group_add.push(Scalar::zero());
 
         self.public_inputs.push(pi);
 
@@ -257,8 +255,8 @@ impl StandardComposer {
         self.q_arith.push(Scalar::one());
         self.q_range.push(Scalar::zero());
         self.q_logic.push(Scalar::zero());
-        self.q_fixed_base.push(Scalar::zero());
-        self.q_curve_add.push(Scalar::zero());
+        self.q_fixed_group_add.push(Scalar::zero());
+        self.q_variable_group_add.push(Scalar::zero());
         self.public_inputs.push(Scalar::zero());
         let var_six = self.add_input(Scalar::from(6));
         let var_one = self.add_input(Scalar::from(1));
@@ -281,8 +279,8 @@ impl StandardComposer {
         self.q_arith.push(Scalar::one());
         self.q_range.push(Scalar::zero());
         self.q_logic.push(Scalar::zero());
-        self.q_fixed_base.push(Scalar::zero());
-        self.q_curve_add.push(Scalar::zero());
+        self.q_fixed_group_add.push(Scalar::zero());
+        self.q_variable_group_add.push(Scalar::zero());
         self.public_inputs.push(Scalar::zero());
         self.w_l.push(var_min_twenty);
         self.w_r.push(var_six);
@@ -337,8 +335,8 @@ impl StandardComposer {
             let qarith = self.q_arith[i];
             let qrange = self.q_range[i];
             let qlogic = self.q_logic[i];
-            let qecc = self.q_fixed_base[i];
-            let qecc = self.q_curve_add[i];
+            let qecc = self.q_fixed_group_add[i];
+            let qecc = self.q_variable_group_add[i];
             let pi = self.public_inputs[i];
 
             let a = w_l[i];
@@ -362,8 +360,8 @@ impl StandardComposer {
             - q_arith -> {:?}\n
             - q_range -> {:?}\n
             - q_logic -> {:?}\n
-            - q_fixed_base -> {:?}\n
-            - q_curve_add -> {:?}\n
+            - q_fixed_group_add -> {:?}\n
+            - q_variable_group_add -> {:?}\n
             # Witness polynomials:\n
             - w_l -> {:?}\n
             - w_r -> {:?}\n

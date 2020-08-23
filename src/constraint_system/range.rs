@@ -136,8 +136,8 @@ impl StandardComposer {
         self.q_c.extend(zeros.iter());
         self.q_arith.extend(zeros.iter());
         self.q_4.extend(zeros.iter());
-        self.q_fixed_base.extend(zeros.iter());
-        self.q_curve_add.extend(zeros.iter());
+        self.q_fixed_group_add.extend(zeros.iter());
+        self.q_variable_group_add.extend(zeros.iter());
         self.q_range.extend(ones.iter());
         self.q_logic.extend(zeros.iter());
         self.public_inputs.extend(zeros.iter());

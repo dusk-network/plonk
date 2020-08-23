@@ -27,7 +27,6 @@ impl Point {
 
     /// Returns an identity point
     pub fn identity(composer: &mut StandardComposer) -> Point {
-        
         let one = composer.add_witness_to_circuit_description(Scalar::one());
         Point {
             x: composer.zero_var,
