@@ -335,8 +335,8 @@ impl StandardComposer {
             let qarith = self.q_arith[i];
             let qrange = self.q_range[i];
             let qlogic = self.q_logic[i];
-            let qecc = self.q_fixed_group_add[i];
-            let qecc = self.q_variable_group_add[i];
+            let qfixed = self.q_fixed_group_add[i];
+            let qvar = self.q_variable_group_add[i];
             let pi = self.public_inputs[i];
 
             let a = w_l[i];
@@ -367,7 +367,7 @@ impl StandardComposer {
             - w_r -> {:?}\n
             - w_o -> {:?}\n
             - w_4 -> {:?}\n",
-                i, qm, ql, qr, q4, qo, qc, qarith, qrange, qlogic, qecc, a, b, c, d
+                i, qm, ql, qr, q4, qo, qc, qarith, qrange, qlogic, qfixed,qvar ,a, b, c, d
             );
             let k = qarith * ((qm * a * b) + (ql * a) + (qr * b) + (qo * c) + (q4 * d) + pi + qc)
                 + qlogic
