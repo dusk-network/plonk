@@ -5,7 +5,7 @@ use dusk_jubjub::{AffinePoint, ExtendedPoint};
 
 impl Point {
     /// Adds two curve points together using a curve addition gate
-    /// Note that since the points are not fixed the generator is not a part of the 
+    /// Note that since the points are not fixed the generator is not a part of the
     /// circuit description, however it is less efficient for a program width of 4.
     pub fn fast_add(&self, composer: &mut StandardComposer, point_b: Point) -> Point {
         // In order to verify that two points were correctly added
@@ -26,7 +26,7 @@ impl Point {
 
         let p1 = AffinePoint::from_raw_unchecked(*x_1_scalar, *y_1_scalar);
         let p2 = AffinePoint::from_raw_unchecked(*x_2_scalar, *y_2_scalar);
-    
+
         let point: AffinePoint = (ExtendedPoint::from(p1) + p2).into();
         let x_3_scalar = point.get_x();
         let y_3_scalar = point.get_y();
@@ -111,12 +111,12 @@ mod test {
                 let y = composer.add_input(GENERATOR.get_y());
                 let point_a = Point { x, y };
                 let point_b = Point { x, y };
-            
+
                 let point = point_a.fast_add(composer, point_b);
                 let point2 = point_a.slow_add(composer, point_b);
-            
+
                 composer.assert_equal_point(point, point2);
-            
+
                 composer.assert_equal_public_point(point.into(), expected_point);
             },
             2000,
