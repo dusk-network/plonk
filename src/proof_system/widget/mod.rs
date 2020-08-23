@@ -144,7 +144,9 @@ impl VerifierKey {
             q_r,
         };
 
-        let curve_addition = ecc::curve_addition::VerifierKey { q_variable_group_add };
+        let curve_addition = ecc::curve_addition::VerifierKey {
+            q_variable_group_add,
+        };
 
         let permutation = permutation::VerifierKey {
             left_sigma,
@@ -183,7 +185,10 @@ impl VerifierKey {
         transcript.append_commitment(b"q_arith", &self.arithmetic.q_arith);
         transcript.append_commitment(b"q_range", &self.range.q_range);
         transcript.append_commitment(b"q_logic", &self.logic.q_logic);
-        transcript.append_commitment(b"q_variable_group_add", &self.curve_addition.q_variable_group_add);
+        transcript.append_commitment(
+            b"q_variable_group_add",
+            &self.curve_addition.q_variable_group_add,
+        );
         transcript.append_commitment(b"q_fixed_group_add", &self.ecc.q_fixed_group_add);
 
         transcript.append_commitment(b"left_sigma", &self.permutation.left_sigma);
@@ -363,7 +368,9 @@ impl ProverKey {
             linear_evaluations,
         };
 
-        let curve_addition = ecc::curve_addition::ProverKey { q_variable_group_add };
+        let curve_addition = ecc::curve_addition::ProverKey {
+            q_variable_group_add,
+        };
 
         let prover_key = ProverKey {
             n: n as usize,
@@ -477,7 +484,9 @@ mod test {
             linear_evaluations,
         };
 
-        let curve_addition = ecc::curve_addition::ProverKey { q_variable_group_add };
+        let curve_addition = ecc::curve_addition::ProverKey {
+            q_variable_group_add,
+        };
 
         let prover_key = ProverKey {
             arithmetic,
@@ -542,7 +551,9 @@ mod test {
             q_l,
             q_r,
         };
-        let curve_addition = ecc::curve_addition::VerifierKey { q_variable_group_add };
+        let curve_addition = ecc::curve_addition::VerifierKey {
+            q_variable_group_add,
+        };
 
         let permutation = permutation::VerifierKey {
             left_sigma,
