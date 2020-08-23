@@ -17,7 +17,7 @@ pub fn variable_base_scalar_mul(
 
     for bit in scalar_bits_var.into_iter().rev() {
         result = result.fast_add(composer, result);
-        let point_to_add = conditional_select_point(composer, bit, point, identity);
+        let point_to_add = conditional_select_identity(composer, bit, point);
         result = result.fast_add(composer, point_to_add);
     }
 
@@ -27,53 +27,56 @@ pub fn variable_base_scalar_mul(
     }
 }
 
-// If bit == 1 choose point_a, if bit == 0 choose point_b
-fn conditional_select_point(
+/// If bit == 0, then return zero else return value
+/// This is the polynomial f(x) = x * a
+/// Where x is the bit
+fn conditional_select_zero(
     composer: &mut StandardComposer,
     bit: Variable,
-    point_a: Point,
-    point_b: Point,
-) -> Point {
-    let x = conditional_select(composer, bit, *point_a.x(), *point_b.x());
-    let y = conditional_select(composer, bit, *point_a.y(), *point_b.y());
+    value: Variable,
+) -> Variable {
+    // returns bit * value
+    composer.mul(Scalar::one(), bit, value, Scalar::zero(), Scalar::zero())
+}
+/// If bit == 0, then return 1 else return value
+/// This is the polynomial f(x) = 1 - x + xa
+/// Where x is the bit
+fn conditional_select_one(
+    composer: &mut StandardComposer,
+    bit: Variable,
+    value: Variable,
+) -> Variable {
+    let value_scalar = composer.variables.get(&value).unwrap();
+    let bit_scalar = composer.variables.get(&bit).unwrap();
 
-    Point { x, y }
+    let f_x_scalar = Scalar::one() - bit_scalar + (bit_scalar * value_scalar);
+    let f_x = composer.add_input(f_x_scalar);
+
+    composer.poly_gate(
+        bit,
+        value,
+        f_x,
+        Scalar::one(),
+        -Scalar::one(),
+        Scalar::zero(),
+        -Scalar::one(),
+        Scalar::one(),
+        Scalar::zero(),
+    );
+
+    f_x
 }
 
-// If bit == 1 choose choice_a, if bit == 0 choose choice_b
-fn conditional_select(
+// If bit == 0 choose identity, if bit == 1 choose point_b
+fn conditional_select_identity(
     composer: &mut StandardComposer,
     bit: Variable,
-    choice_a: Variable,
-    choice_b: Variable,
-) -> Variable {
-    // bit * choice_a
-    let bit_times_a = composer.mul(Scalar::one(), bit, choice_a, Scalar::zero(), Scalar::zero());
+    point_b: Point,
+) -> Point {
+    let x = conditional_select_zero(composer, bit, *point_b.x());
+    let y = conditional_select_one(composer, bit, *point_b.y());
 
-    // 1 - bit
-    let one_min_bit = composer.add(
-        (-Scalar::one(), bit),
-        (Scalar::zero(), composer.zero_var),
-        Scalar::one(),
-        Scalar::zero(),
-    );
-
-    // (1 - bit) * b
-    let one_min_bit_choice_b = composer.mul(
-        Scalar::one(),
-        one_min_bit,
-        choice_b,
-        Scalar::zero(),
-        Scalar::zero(),
-    );
-
-    // [ (1 - bit) * b ] + [ bit * a ]
-    composer.add(
-        (Scalar::one(), one_min_bit_choice_b),
-        (Scalar::one(), bit_times_a),
-        Scalar::zero(),
-        Scalar::zero(),
-    )
+    Point { x, y }
 }
 
 fn scalar_decomposition(
@@ -155,51 +158,6 @@ mod tests {
                 composer.assert_equal_public_point(point_scalar.into(), expected_point);
             },
             4096,
-        );
-        assert!(res.is_ok());
-    }
-
-    #[test]
-    fn test_conditional_select() {
-        let res = gadget_tester(
-            |composer| {
-                let bit_1 = composer.add_input(Scalar::one());
-                let bit_0 = composer.add_input(Scalar::zero());
-
-                let choice_a = composer.add_input(Scalar::from(10u64));
-                let choice_b = composer.add_input(Scalar::from(20u64));
-
-                let choice = conditional_select(composer, bit_1, choice_a, choice_b);
-                composer.assert_equal(choice, choice_a);
-
-                let choice = conditional_select(composer, bit_0, choice_a, choice_b);
-                composer.assert_equal(choice, choice_b);
-            },
-            32,
-        );
-        assert!(res.is_ok());
-    }
-    #[test]
-    fn test_conditional_select_point() {
-        let res = gadget_tester(
-            |composer| {
-                let bit_1 = composer.add_input(Scalar::one());
-                let bit_0 = composer.add_input(Scalar::zero());
-
-                let point_a = Point::identity(composer);
-                let point_b = Point {
-                    x: composer.add_input(Scalar::from(10u64)),
-                    y: composer.add_input(Scalar::from(20u64)),
-                };
-
-                let choice = conditional_select_point(composer, bit_1, point_a, point_b);
-
-                composer.assert_equal_point(point_a, choice);
-
-                let choice = conditional_select_point(composer, bit_0, point_a, point_b);
-                composer.assert_equal_point(point_b, choice);
-            },
-            32,
         );
         assert!(res.is_ok());
     }

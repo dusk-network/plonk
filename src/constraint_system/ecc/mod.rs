@@ -56,6 +56,22 @@ impl Point {
 
         point
     }
+
+    /// Conditionally selects a Point based on an input bit
+    /// If:
+    ///     bit == 1 => self,
+    ///     bit == 0 => point_b,
+    pub fn conditional_select(
+        &self,
+        composer: &mut StandardComposer,
+        bit: Variable,
+        point_b: Point,
+    ) -> Point {
+        let x = composer.conditional_select(bit, *self.x(), *point_b.x());
+        let y = composer.conditional_select(bit, *self.y(), *point_b.y());
+
+        Point { x, y }
+    }
 }
 
 /// The result of a scalar multiplication
@@ -86,7 +102,7 @@ impl From<PointScalar> for Point {
 impl Point {
     /// Adds two curve points together
     pub fn add(&self, composer: &mut StandardComposer, point_b: Point) -> Point {
-        self.slow_add(composer, point_b)
+        self.fast_add(composer, point_b)
     }
 
     /// Adds two curve points together using arithmetic gates
@@ -216,5 +232,36 @@ impl StandardComposer {
     pub fn assert_equal_point(&mut self, point_a: Point, point_b: Point) {
         self.assert_equal(point_a.x, point_b.x);
         self.assert_equal(point_b.y, point_b.y);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::constraint_system::helper::*;
+
+    #[test]
+    fn test_conditional_select_point() {
+        let res = gadget_tester(
+            |composer| {
+                let bit_1 = composer.add_input(Scalar::one());
+                let bit_0 = composer.add_input(Scalar::zero());
+
+                let point_a = Point::identity(composer);
+                let point_b = Point {
+                    x: composer.add_input(Scalar::from(10u64)),
+                    y: composer.add_input(Scalar::from(20u64)),
+                };
+
+                let choice = point_a.conditional_select(composer, bit_1, point_b);
+
+                composer.assert_equal_point(point_a, choice);
+
+                let choice = point_a.conditional_select(composer, bit_0, point_b);
+                composer.assert_equal_point(point_b, choice);
+            },
+            32,
+        );
+        assert!(res.is_ok());
     }
 }
