@@ -154,8 +154,7 @@ impl Proof {
         let alpha = transcript.challenge_scalar(b"alpha");
         let range_sep_challenge = transcript.challenge_scalar(b"range separation challenge");
         let logic_sep_challenge = transcript.challenge_scalar(b"logic separation challenge");
-        let fixed_base_sep_challenge = transcript.challenge_scalar(b"fixed base separation challenge");
-        let var_base_sep_challenge = transcript.challenge_scalar(b"variable base separation challenge");
+        let ecc_sep_challenge = transcript.challenge_scalar(b"ecc separation challenge");
 
         // Add commitment to quotient polynomial to transcript
         transcript.append_commitment(b"t_1", &self.t_1_comm);
@@ -216,8 +215,7 @@ impl Proof {
             (
                 &range_sep_challenge,
                 &logic_sep_challenge,
-                &fixed_base_sep_challenge,
-                &var_base_sep_challenge,
+                &ecc_sep_challenge,
             ),
             &z_challenge,
             l1_eval,
@@ -341,7 +339,7 @@ impl Proof {
         alpha: &Scalar,
         beta: &Scalar,
         gamma: &Scalar,
-        (range_sep_challenge, logic_sep_challenge, fixed_base_sep_challenge,var_base_sep_challenge): (&Scalar, &Scalar, &Scalar,&Scalar),
+        (range_sep_challenge, logic_sep_challenge, ecc_sep_challenge): (&Scalar, &Scalar, &Scalar),
         z_challenge: &Scalar,
         l1_eval: Scalar,
         verifier_key: &VerifierKey,
@@ -369,21 +367,12 @@ impl Proof {
             &self.evaluations,
         );
 
-        verifier_key.fixed_base.compute_linearisation_commitment(
-            &fixed_base_sep_challenge,
+        verifier_key.ecc.compute_linearisation_commitment(
+            &ecc_sep_challenge,
             &mut scalars,
             &mut points,
             &self.evaluations,
         );
-
-        verifier_key
-            .variable_base
-            .compute_linearisation_commitment(
-                &var_base_sep_challenge,
-                &mut scalars,
-                &mut points,
-                &self.evaluations,
-            );
 
         verifier_key.permutation.compute_linearisation_commitment(
             &mut scalars,
