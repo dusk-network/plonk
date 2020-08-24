@@ -202,8 +202,10 @@ impl Prover {
         let alpha = transcript.challenge_scalar(b"alpha");
         let range_sep_challenge = transcript.challenge_scalar(b"range separation challenge");
         let logic_sep_challenge = transcript.challenge_scalar(b"logic separation challenge");
-        let fixed_base_sep_challenge = transcript.challenge_scalar(b"fixed base separation challenge");
-        let var_base_sep_challenge = transcript.challenge_scalar(b"variable base separation challenge");
+        let fixed_base_sep_challenge =
+            transcript.challenge_scalar(b"fixed base separation challenge");
+        let var_base_sep_challenge =
+            transcript.challenge_scalar(b"variable base separation challenge");
 
         let t_poly = quotient_poly::compute(
             &domain,

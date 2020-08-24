@@ -141,7 +141,16 @@ pub fn compute(
         fixed_base_separation_challenge,
         var_base_separation_challenge,
         z_challenge,
-    ): &(Scalar, Scalar, Scalar, Scalar, Scalar, Scalar, Scalar,Scalar),
+    ): &(
+        Scalar,
+        Scalar,
+        Scalar,
+        Scalar,
+        Scalar,
+        Scalar,
+        Scalar,
+        Scalar,
+    ),
     w_l_poly: &Polynomial,
     w_r_poly: &Polynomial,
     w_o_poly: &Polynomial,
@@ -231,12 +240,12 @@ pub fn compute(
 
 #[allow(clippy::too_many_arguments)]
 fn compute_circuit_satisfiability(
-    (range_separation_challenge, logic_separation_challenge, fixed_base_separation_challenge,var_base_separation_challenge): (
-        &Scalar,
-        &Scalar,
-        &Scalar,
-        &Scalar,
-    ),
+    (
+        range_separation_challenge,
+        logic_separation_challenge,
+        fixed_base_separation_challenge,
+        var_base_separation_challenge,
+    ): (&Scalar, &Scalar, &Scalar, &Scalar),
     a_eval: &Scalar,
     b_eval: &Scalar,
     c_eval: &Scalar,
