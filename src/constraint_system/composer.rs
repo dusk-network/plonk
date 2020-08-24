@@ -34,25 +34,27 @@ pub struct StandardComposer {
     pub(crate) q_l: Vec<Scalar>,
     // Right wire selector
     pub(crate) q_r: Vec<Scalar>,
-    // output wire selector
+    // Output wire selector
     pub(crate) q_o: Vec<Scalar>,
-    // fourth wire selector
+    // Fourth wire selector
     pub(crate) q_4: Vec<Scalar>,
-    // constant wire selector
+    // Constant wire selector
     pub(crate) q_c: Vec<Scalar>,
-    // arithmetic wire selector
+    // Arithmetic wire selector
     pub(crate) q_arith: Vec<Scalar>,
-    // range selector
+    // Range selector
     pub(crate) q_range: Vec<Scalar>,
-    // logic selector
+    // Logic selector
     pub(crate) q_logic: Vec<Scalar>,
-    // ecc selector
-    pub(crate) q_ecc: Vec<Scalar>,
+    // Fixed base group addition selector
+    pub(crate) q_fixed_group_add: Vec<Scalar>,
+    // Variable base group addition selector
+    pub(crate) q_variable_group_add: Vec<Scalar>,
 
     /// Public inputs vector
     pub public_inputs: Vec<Scalar>,
 
-    // witness vectors
+    // Witness vectors
     pub(crate) w_l: Vec<Variable>,
     pub(crate) w_r: Vec<Variable>,
     pub(crate) w_o: Vec<Variable>,
@@ -121,7 +123,8 @@ impl StandardComposer {
             q_arith: Vec::with_capacity(expected_size),
             q_range: Vec::with_capacity(expected_size),
             q_logic: Vec::with_capacity(expected_size),
-            q_ecc: Vec::with_capacity(expected_size),
+            q_fixed_group_add: Vec::with_capacity(expected_size),
+            q_variable_group_add: Vec::with_capacity(expected_size),
             public_inputs: Vec::with_capacity(expected_size),
 
             w_l: Vec::with_capacity(expected_size),
@@ -194,7 +197,8 @@ impl StandardComposer {
 
         self.q_range.push(Scalar::zero());
         self.q_logic.push(Scalar::zero());
-        self.q_ecc.push(Scalar::zero());
+        self.q_fixed_group_add.push(Scalar::zero());
+        self.q_variable_group_add.push(Scalar::zero());
 
         self.public_inputs.push(pi);
 
@@ -237,6 +241,45 @@ impl StandardComposer {
         );
     }
 
+    /// Conditionally selects a Variable based on an input bit
+    /// If:
+    ///     bit == 1 => choice_a,
+    ///     bit == 0 => choice_b,
+    pub fn conditional_select(
+        &mut self,
+        bit: Variable,
+        choice_a: Variable,
+        choice_b: Variable,
+    ) -> Variable {
+        // bit * choice_a
+        let bit_times_a = self.mul(Scalar::one(), bit, choice_a, Scalar::zero(), Scalar::zero());
+
+        // 1 - bit
+        let one_min_bit = self.add(
+            (-Scalar::one(), bit),
+            (Scalar::zero(), self.zero_var),
+            Scalar::one(),
+            Scalar::zero(),
+        );
+
+        // (1 - bit) * b
+        let one_min_bit_choice_b = self.mul(
+            Scalar::one(),
+            one_min_bit,
+            choice_b,
+            Scalar::zero(),
+            Scalar::zero(),
+        );
+
+        // [ (1 - bit) * b ] + [ bit * a ]
+        self.add(
+            (Scalar::one(), one_min_bit_choice_b),
+            (Scalar::one(), bit_times_a),
+            Scalar::zero(),
+            Scalar::zero(),
+        )
+    }
+
     /// This function is used to add a blinding factor to the witness polynomials
     /// XXX: Split this into two separate functions and document
     /// XXX: We could add another section to add random witness variables, with selector polynomials all zero
@@ -251,7 +294,8 @@ impl StandardComposer {
         self.q_arith.push(Scalar::one());
         self.q_range.push(Scalar::zero());
         self.q_logic.push(Scalar::zero());
-        self.q_ecc.push(Scalar::zero());
+        self.q_fixed_group_add.push(Scalar::zero());
+        self.q_variable_group_add.push(Scalar::zero());
         self.public_inputs.push(Scalar::zero());
         let var_six = self.add_input(Scalar::from(6));
         let var_one = self.add_input(Scalar::from(1));
@@ -274,7 +318,8 @@ impl StandardComposer {
         self.q_arith.push(Scalar::one());
         self.q_range.push(Scalar::zero());
         self.q_logic.push(Scalar::zero());
-        self.q_ecc.push(Scalar::zero());
+        self.q_fixed_group_add.push(Scalar::zero());
+        self.q_variable_group_add.push(Scalar::zero());
         self.public_inputs.push(Scalar::zero());
         self.w_l.push(var_min_twenty);
         self.w_r.push(var_six);
@@ -329,7 +374,8 @@ impl StandardComposer {
             let qarith = self.q_arith[i];
             let qrange = self.q_range[i];
             let qlogic = self.q_logic[i];
-            let qecc = self.q_ecc[i];
+            let qfixed = self.q_fixed_group_add[i];
+            let qvar = self.q_variable_group_add[i];
             let pi = self.public_inputs[i];
 
             let a = w_l[i];
@@ -353,13 +399,14 @@ impl StandardComposer {
             - q_arith -> {:?}\n
             - q_range -> {:?}\n
             - q_logic -> {:?}\n
-            - q_ecc -> {:?}\n
+            - q_fixed_group_add -> {:?}\n
+            - q_variable_group_add -> {:?}\n
             # Witness polynomials:\n
             - w_l -> {:?}\n
             - w_r -> {:?}\n
             - w_o -> {:?}\n
             - w_4 -> {:?}\n",
-                i, qm, ql, qr, q4, qo, qc, qarith, qrange, qlogic, qecc, a, b, c, d
+                i, qm, ql, qr, q4, qo, qc, qarith, qrange, qlogic, qfixed, qvar, a, b, c, d
             );
             let k = qarith * ((qm * a * b) + (ql * a) + (qr * b) + (qo * c) + (q4 * d) + pi + qc)
                 + qlogic
@@ -412,6 +459,27 @@ mod tests {
                 // do nothing except add the dummy constraints
             },
             200,
+        );
+        assert!(res.is_ok());
+    }
+
+    #[test]
+    fn test_conditional_select() {
+        let res = gadget_tester(
+            |composer| {
+                let bit_1 = composer.add_input(Scalar::one());
+                let bit_0 = composer.add_input(Scalar::zero());
+
+                let choice_a = composer.add_input(Scalar::from(10u64));
+                let choice_b = composer.add_input(Scalar::from(20u64));
+
+                let choice = composer.conditional_select(bit_1, choice_a, choice_b);
+                composer.assert_equal(choice, choice_a);
+
+                let choice = composer.conditional_select(bit_0, choice_a, choice_b);
+                composer.assert_equal(choice, choice_b);
+            },
+            32,
         );
         assert!(res.is_ok());
     }
