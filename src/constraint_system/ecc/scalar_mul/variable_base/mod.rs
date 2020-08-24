@@ -2,28 +2,26 @@ use crate::constraint_system::ecc::{Point, PointScalar};
 use crate::constraint_system::{variable::Variable, StandardComposer};
 use dusk_bls12_381::Scalar;
 
-/// Computes a Scalar multiplication with the input scalar and a chosen generator
-pub fn variable_base_scalar_mul(
-    composer: &mut StandardComposer,
-    jubjub_var: Variable,
-    point: Point,
-) -> PointScalar {
-    // Turn scalar into bits
-    let raw_bls_scalar = *composer.variables.get(&jubjub_var).unwrap();
-    let scalar_bits_var = scalar_decomposition(composer, jubjub_var, raw_bls_scalar);
+impl StandardComposer {
+    /// Computes a Scalar multiplication with the input scalar and a chosen generator
+    pub fn variable_base_scalar_mul(&mut self, jubjub_var: Variable, point: Point) -> PointScalar {
+        // Turn scalar into bits
+        let raw_bls_scalar = *self.variables.get(&jubjub_var).unwrap();
+        let scalar_bits_var = scalar_decomposition(self, jubjub_var, raw_bls_scalar);
 
-    let identity = Point::identity(composer);
-    let mut result = identity;
+        let identity = Point::identity(self);
+        let mut result = identity;
 
-    for bit in scalar_bits_var.into_iter().rev() {
-        result = result.fast_add(composer, result);
-        let point_to_add = conditional_select_identity(composer, bit, point);
-        result = result.fast_add(composer, point_to_add);
-    }
+        for bit in scalar_bits_var.into_iter().rev() {
+            result = result.fast_add(self, result);
+            let point_to_add = conditional_select_identity(self, bit, point);
+            result = result.fast_add(self, point_to_add);
+        }
 
-    PointScalar {
-        point: result,
-        scalar: jubjub_var,
+        PointScalar {
+            point: result,
+            scalar: jubjub_var,
+        }
     }
 }
 
@@ -153,7 +151,7 @@ mod tests {
 
                 let point = Point::from_private_affine(composer, GENERATOR);
 
-                let point_scalar = variable_base_scalar_mul(composer, secret_scalar, point);
+                let point_scalar = composer.variable_base_scalar_mul(secret_scalar, point);
 
                 composer.assert_equal_public_point(point_scalar.into(), expected_point);
             },
