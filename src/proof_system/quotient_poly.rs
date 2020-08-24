@@ -14,8 +14,7 @@ pub(crate) fn compute(
     z_poly: &Polynomial,
     (w_l_poly, w_r_poly, w_o_poly, w_4_poly): (&Polynomial, &Polynomial, &Polynomial, &Polynomial),
     public_inputs_poly: &Polynomial,
-    (alpha, beta, gamma, range_challenge, logic_challenge, fixed_base_challenge,var_base_challenge): &(
-        Scalar,
+    (alpha, beta, gamma, range_challenge, logic_challenge, ecc_challenge): &(
         Scalar,
         Scalar,
         Scalar,
@@ -53,7 +52,7 @@ pub(crate) fn compute(
 
     let t_1 = compute_circuit_satisfiability_equation(
         &domain,
-        (range_challenge, logic_challenge, fixed_base_challenge,var_base_challenge),
+        (range_challenge, logic_challenge, ecc_challenge),
         prover_key,
         (&wl_eval_4n, &wr_eval_4n, &wo_eval_4n, &w4_eval_4n),
         public_inputs_poly,
@@ -84,7 +83,7 @@ pub(crate) fn compute(
 // Ensures that the circuit is satisfied
 fn compute_circuit_satisfiability_equation(
     domain: &EvaluationDomain,
-    (range_challenge, logic_challenge, fixed_base_challenge,var_base_challenge): (&Scalar, &Scalar, &Scalar,&Scalar),
+    (range_challenge, logic_challenge, ecc_challenge): (&Scalar, &Scalar, &Scalar),
     prover_key: &ProverKey,
     (wl_eval_4n, wr_eval_4n, wo_eval_4n, w4_eval_4n): (&[Scalar], &[Scalar], &[Scalar], &[Scalar]),
     pi_poly: &Polynomial,
@@ -123,9 +122,9 @@ fn compute_circuit_satisfiability_equation(
                 &w4_next,
             );
 
-            let d = prover_key.fixed_base.compute_quotient_i(
+            let d = prover_key.ecc.compute_quotient_i(
                 i,
-                fixed_base_challenge,
+                ecc_challenge,
                 &wl,
                 &wl_next,
                 &wr,
@@ -135,19 +134,7 @@ fn compute_circuit_satisfiability_equation(
                 &w4_next,
             );
 
-            let e = prover_key.variable_base.compute_quotient_i(
-                i,
-                var_base_challenge,
-                &wl,
-                &wl_next,
-                &wr,
-                &wr_next,
-                &wo,
-                &w4,
-                &w4_next,
-            );
-
-            (a + pi) + b + c + d + e
+            (a + pi) + b + c + d
         })
         .collect();
     t

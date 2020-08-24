@@ -210,8 +210,7 @@ impl StandardComposer {
             self.q_o.push(Scalar::zero());
             self.q_4.push(Scalar::zero());
             self.q_range.push(Scalar::zero());
-            self.q_fixed_group_add.push(Scalar::zero());
-            self.q_variable_group_add.push(Scalar::zero());
+            self.q_ecc.push(Scalar::zero());
             match is_xor_gate {
                 true => {
                     self.q_c.push(-Scalar::one());
@@ -231,8 +230,7 @@ impl StandardComposer {
         self.q_o.push(Scalar::zero());
         self.q_4.push(Scalar::zero());
         self.q_range.push(Scalar::zero());
-        self.q_fixed_group_add.push(Scalar::zero());
-        self.q_variable_group_add.push(Scalar::zero());
+        self.q_ecc.push(Scalar::zero());
 
         self.q_c.push(Scalar::zero());
         self.q_logic.push(Scalar::zero());
