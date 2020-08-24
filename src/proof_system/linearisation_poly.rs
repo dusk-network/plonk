@@ -138,9 +138,10 @@ pub fn compute(
         gamma,
         range_separation_challenge,
         logic_separation_challenge,
-        ecc_separation_challenge,
+        fixed_base_separation_challenge,
+        var_base_separation_challenge,
         z_challenge,
-    ): &(Scalar, Scalar, Scalar, Scalar, Scalar, Scalar, Scalar),
+    ): &(Scalar, Scalar, Scalar, Scalar, Scalar, Scalar, Scalar,Scalar),
     w_l_poly: &Polynomial,
     w_r_poly: &Polynomial,
     w_o_poly: &Polynomial,
@@ -159,8 +160,8 @@ pub fn compute(
     let out_sigma_eval = prover_key.permutation.out_sigma.0.evaluate(z_challenge);
     let q_arith_eval = prover_key.arithmetic.q_arith.0.evaluate(z_challenge);
     let q_c_eval = prover_key.logic.q_c.0.evaluate(z_challenge);
-    let q_l_eval = prover_key.ecc.q_l.0.evaluate(z_challenge);
-    let q_r_eval = prover_key.ecc.q_r.0.evaluate(z_challenge);
+    let q_l_eval = prover_key.fixed_base.q_l.0.evaluate(z_challenge);
+    let q_r_eval = prover_key.fixed_base.q_r.0.evaluate(z_challenge);
 
     let a_next_eval = w_l_poly.evaluate(&(z_challenge * domain.group_gen));
     let b_next_eval = w_r_poly.evaluate(&(z_challenge * domain.group_gen));
@@ -171,7 +172,8 @@ pub fn compute(
         (
             range_separation_challenge,
             logic_separation_challenge,
-            ecc_separation_challenge,
+            fixed_base_separation_challenge,
+            var_base_separation_challenge,
         ),
         &a_eval,
         &b_eval,
@@ -229,7 +231,8 @@ pub fn compute(
 
 #[allow(clippy::too_many_arguments)]
 fn compute_circuit_satisfiability(
-    (range_separation_challenge, logic_separation_challenge, ecc_separation_challenge): (
+    (range_separation_challenge, logic_separation_challenge, fixed_base_separation_challenge,var_base_separation_challenge): (
+        &Scalar,
         &Scalar,
         &Scalar,
         &Scalar,
@@ -273,8 +276,8 @@ fn compute_circuit_satisfiability(
         q_c_eval,
     );
 
-    let d = prover_key.ecc.compute_linearisation(
-        ecc_separation_challenge,
+    let d = prover_key.fixed_base.compute_linearisation(
+        fixed_base_separation_challenge,
         a_eval,
         a_next_eval,
         b_eval,
@@ -287,9 +290,21 @@ fn compute_circuit_satisfiability(
         q_c_eval,
     );
 
+    let e = prover_key.variable_base.compute_linearisation(
+        var_base_separation_challenge,
+        a_eval,
+        a_next_eval,
+        b_eval,
+        b_next_eval,
+        c_eval,
+        d_eval,
+        d_next_eval,
+    );
+
     let mut linearisation_poly = &a + &b;
     linearisation_poly += &c;
     linearisation_poly += &d;
+    linearisation_poly += &e;
 
     linearisation_poly
 }
