@@ -190,8 +190,8 @@ impl StandardComposer {
             logic: logic_prover_key,
             range: range_prover_key,
             permutation: permutation_prover_key,
-            curve_addition: curve_addition_prover_key,
-            ecc: ecc_prover_key,
+            variable_base: curve_addition_prover_key,
+            fixed_base: ecc_prover_key,
             // Compute 4n evaluations for X^n -1
             v_h_coset_4n: domain_4n.compute_vanishing_poly_over_coset(domain.size() as u64),
         };
@@ -305,8 +305,8 @@ impl StandardComposer {
             arithmetic: arithmetic_verifier_key,
             logic: logic_verifier_key,
             range: range_verifier_key,
-            ecc: ecc_verifier_key,
-            curve_addition: curve_addition_verifier_key,
+            fixed_base: ecc_verifier_key,
+            variable_base: curve_addition_verifier_key,
             permutation: permutation_verifier_key,
         };
 
