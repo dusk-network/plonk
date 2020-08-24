@@ -1,6 +1,6 @@
 use super::proof_system_errors::ProofErrors;
 use crate::commitment_scheme::kzg10::CommitKey;
-use crate::constraint_system::{StandardComposer, Variable};
+use crate::constraint_system::{TurboComposer, Variable};
 use crate::fft::{EvaluationDomain, Polynomial};
 use crate::proof_system::widget::ProverKey;
 use crate::proof_system::{linearisation_poly, proof::Proof, quotient_poly};
@@ -16,7 +16,7 @@ pub struct Prover {
     /// ProverKey which is used to create proofs about a specific PLONK circuit
     pub prover_key: Option<ProverKey>,
 
-    pub(crate) cs: StandardComposer,
+    pub(crate) cs: TurboComposer,
     /// Store the messages exchanged during the preprocessing stage
     /// This is copied each time, we make a proof
     pub preprocessed_transcript: Transcript,
@@ -24,7 +24,7 @@ pub struct Prover {
 
 impl Prover {
     /// Returns a mutable copy of the underlying composer
-    pub fn mut_cs(&mut self) -> &mut StandardComposer {
+    pub fn mut_cs(&mut self) -> &mut TurboComposer {
         &mut self.cs
     }
     /// Preprocesses the underlying constraint system
@@ -51,7 +51,7 @@ impl Prover {
     pub fn new(label: &'static [u8]) -> Prover {
         Prover {
             prover_key: None,
-            cs: StandardComposer::new(),
+            cs: TurboComposer::new(),
             preprocessed_transcript: Transcript::new(label),
         }
     }
@@ -101,7 +101,7 @@ impl Prover {
     /// Resets the witnesses in the prover object.
     /// This function is used when the user wants to make multiple proofs with the same circuit.
     pub fn clear_witness(&mut self) {
-        self.cs = StandardComposer::new();
+        self.cs = TurboComposer::new();
     }
 
     /// Clears all data in the Prover

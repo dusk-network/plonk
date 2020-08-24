@@ -1,10 +1,10 @@
 use crate::constraint_system::ecc::{Point, PointScalar};
-use crate::constraint_system::{variable::Variable, StandardComposer};
+use crate::constraint_system::{variable::Variable, TurboComposer};
 use dusk_bls12_381::Scalar;
 
 /// Computes a Scalar multiplication with the input scalar and a chosen generator
 pub fn variable_base_scalar_mul(
-    composer: &mut StandardComposer,
+    composer: &mut TurboComposer,
     jubjub_var: Variable,
     point: Point,
 ) -> PointScalar {
@@ -31,7 +31,7 @@ pub fn variable_base_scalar_mul(
 /// This is the polynomial f(x) = x * a
 /// Where x is the bit
 fn conditional_select_zero(
-    composer: &mut StandardComposer,
+    composer: &mut TurboComposer,
     bit: Variable,
     value: Variable,
 ) -> Variable {
@@ -42,7 +42,7 @@ fn conditional_select_zero(
 /// This is the polynomial f(x) = 1 - x + xa
 /// Where x is the bit
 fn conditional_select_one(
-    composer: &mut StandardComposer,
+    composer: &mut TurboComposer,
     bit: Variable,
     value: Variable,
 ) -> Variable {
@@ -69,7 +69,7 @@ fn conditional_select_one(
 
 // If bit == 0 choose identity, if bit == 1 choose point_b
 fn conditional_select_identity(
-    composer: &mut StandardComposer,
+    composer: &mut TurboComposer,
     bit: Variable,
     point_b: Point,
 ) -> Point {
@@ -80,7 +80,7 @@ fn conditional_select_identity(
 }
 
 fn scalar_decomposition(
-    composer: &mut StandardComposer,
+    composer: &mut TurboComposer,
     witness_var: Variable,
     witness_scalar: Scalar,
 ) -> Vec<Variable> {

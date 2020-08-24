@@ -19,5 +19,5 @@ pub mod logic;
 /// Range gate
 pub mod range;
 
-pub use composer::StandardComposer;
+pub use composer::TurboComposer;
 pub use variable::{Variable, WireData};

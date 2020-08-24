@@ -1,7 +1,7 @@
 //! A Proof stores the commitments to all of the elements that
 //! are needed to univocally identify a prove of some statement.
 //!
-//! This module contains the implementation of the `StandardComposer`s
+//! This module contains the implementation of the `TurboComposer`s
 //! `Proof` structure and it's methods.
 
 use super::linearisation_poly::ProofEvaluations;

@@ -1,7 +1,7 @@
 //! The `Composer` is a Trait that is actually defining some kind of
 //! Circuit Builder for PLONK.
 //!
-//! In that sense, here we have the implementation of the `StandardComposer`
+//! In that sense, here we have the implementation of the `TurboComposer`
 //! which has been designed in order to provide the maximum amount of performance
 //! while having a big scope in utility terms.
 //!
@@ -20,9 +20,9 @@ use std::collections::HashMap;
 
 /// A composer is a circuit builder
 /// and will dictate how a circuit is built
-/// We will have a default Composer called `StandardComposer`
+/// We will have a default Composer called `TurboComposer`
 #[derive(Debug)]
-pub struct StandardComposer {
+pub struct TurboComposer {
     // n represents the number of arithmetic gates in the circuit
     pub(crate) n: usize,
 
@@ -73,21 +73,21 @@ pub struct StandardComposer {
     pub(crate) perm: Permutation,
 }
 
-impl StandardComposer {
+impl TurboComposer {
     /// Returns the number of gates in the circuit
     pub fn circuit_size(&self) -> usize {
         self.n
     }
 }
 
-impl Default for StandardComposer {
+impl Default for TurboComposer {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl StandardComposer {
-    /// Generates a new empty `StandardComposer` with all of it's fields
+impl TurboComposer {
+    /// Generates a new empty `TurboComposer` with all of it's fields
     /// set to hold an initial capacity of 0.
     ///
     /// # Warning
@@ -96,7 +96,7 @@ impl StandardComposer {
     /// holds `Vec` for every polynomial, and these will need to be re-allocated
     /// each time the circuit grows considerably.
     pub fn new() -> Self {
-        StandardComposer::with_expected_size(0)
+        TurboComposer::with_expected_size(0)
     }
 
     /// Fixes a variable in the witness to be a part of the circuit description.
@@ -111,7 +111,7 @@ impl StandardComposer {
     /// since the `Vec`s will already have an appropriate allocation at the
     /// beginning of the composing stage.
     pub fn with_expected_size(expected_size: usize) -> Self {
-        let mut composer = StandardComposer {
+        let mut composer = TurboComposer {
             n: 0,
 
             q_m: Vec::with_capacity(expected_size),
@@ -332,7 +332,7 @@ impl StandardComposer {
 
     /// Utility function that allows to check on the "front-end"
     /// side of the PLONK implementation if the identity polynomial
-    /// is satisfied for each one of the `StandardComposer`'s gates.
+    /// is satisfied for each one of the `TurboComposer`'s gates.
     /// XXX: This is messy and will be removed in a later PR.
     #[cfg(feature = "trace")]
     pub fn check_circuit_satisfied(&self) {
@@ -441,7 +441,7 @@ mod tests {
     #[test]
     /// Tests that a circuit initially has 3 gates
     fn test_initial_circuit_size() {
-        let composer: StandardComposer = StandardComposer::new();
+        let composer: TurboComposer = TurboComposer::new();
         // Circuit size is n+3 because
         // - We have an extra gate which forces the first witness to be zero. This is used when the advice wire is not being used.
         // - We have two gates which ensure that the permutation polynomial is not the identity and

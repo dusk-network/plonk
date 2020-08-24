@@ -1,5 +1,5 @@
 use crate::constraint_system::ecc::Point;
-use crate::constraint_system::StandardComposer;
+use crate::constraint_system::TurboComposer;
 use dusk_bls12_381::Scalar;
 use dusk_jubjub::{AffinePoint, ExtendedPoint};
 
@@ -7,7 +7,7 @@ impl Point {
     /// Adds two curve points together using a curve addition gate
     /// Note that since the points are not fixed the generator is not a part of the
     /// circuit description, however it is less efficient for a program width of 4.
-    pub fn fast_add(&self, composer: &mut StandardComposer, point_b: Point) -> Point {
+    pub fn fast_add(&self, composer: &mut TurboComposer, point_b: Point) -> Point {
         // In order to verify that two points were correctly added
         // without going over a degree 4 polynomial, we will need
         // x_1, y_1, x_2, y_2

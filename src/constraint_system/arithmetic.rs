@@ -1,10 +1,10 @@
 #![allow(clippy::too_many_arguments)]
 
-use crate::constraint_system::StandardComposer;
+use crate::constraint_system::TurboComposer;
 use crate::constraint_system::Variable;
 use dusk_bls12_381::Scalar;
 
-impl StandardComposer {
+impl TurboComposer {
     /// Adds a width-3 add gate to the circuit, linking the addition of the
     /// provided inputs, scaled by the selector coefficients with the output
     /// provided.

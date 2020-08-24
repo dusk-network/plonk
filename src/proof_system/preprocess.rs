@@ -2,7 +2,7 @@
 
 use crate::commitment_scheme::kzg10::CommitKey;
 use crate::constraint_system::cs_errors::PreProcessingError;
-use crate::constraint_system::StandardComposer;
+use crate::constraint_system::TurboComposer;
 
 use crate::fft::{EvaluationDomain, Evaluations, Polynomial};
 use crate::proof_system::widget;
@@ -30,7 +30,7 @@ pub(crate) struct SelectorPolynomials {
     fourth_sigma: Polynomial,
 }
 
-impl StandardComposer {
+impl TurboComposer {
     /// Pads the circuit to the next power of two
     /// `diff` is the difference between circuit size and next power of two.
     fn pad(&mut self, diff: usize) {
@@ -343,7 +343,7 @@ mod test {
     /// Tests that the circuit gets padded to the correct length
     /// XXX: We can do this test without dummy_gadget method
     fn test_pad() {
-        let mut composer: StandardComposer = StandardComposer::new();
+        let mut composer: TurboComposer = TurboComposer::new();
         dummy_gadget(100, &mut composer);
 
         // Pad the circuit to next power of two

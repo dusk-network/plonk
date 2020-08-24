@@ -1,6 +1,6 @@
 use crate::constraint_system::ecc::curve_addition::fixed_base_gate::WnafRound;
 use crate::constraint_system::ecc::{Point, PointScalar};
-use crate::constraint_system::{variable::Variable, StandardComposer};
+use crate::constraint_system::{variable::Variable, TurboComposer};
 use dusk_bls12_381::Scalar as BlsScalar;
 use dusk_jubjub::{AffinePoint, ExtendedPoint, Fr as JubJubScalar};
 
@@ -18,7 +18,7 @@ fn compute_wnaf_point_multiples(generator: ExtendedPoint, num_bits: usize) -> Ve
 
 /// Computes a Scalar multiplication with the input scalar and a chosen generator
 pub fn scalar_mul(
-    composer: &mut StandardComposer,
+    composer: &mut TurboComposer,
     jubjub_scalar: Variable,
     generator: ExtendedPoint,
 ) -> PointScalar {

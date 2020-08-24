@@ -8,7 +8,7 @@ pub use crate::commitment_scheme::kzg10::{
     key::{CommitKey, OpeningKey},
     PublicParameters,
 };
-pub use crate::constraint_system::{StandardComposer, Variable};
+pub use crate::constraint_system::{TurboComposer, Variable};
 pub use crate::proof_system::{
     widget::{ProverKey, VerifierKey},
     Proof, Prover, Verifier,

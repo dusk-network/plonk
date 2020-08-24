@@ -3,7 +3,7 @@ pub mod curve_addition;
 /// Gates related to scalar multiplication
 pub mod scalar_mul;
 
-use crate::constraint_system::{variable::Variable, StandardComposer};
+use crate::constraint_system::{variable::Variable, TurboComposer};
 use dusk_bls12_381::Scalar;
 use dusk_jubjub::EDWARDS_D;
 
@@ -26,7 +26,7 @@ impl Point {
     }
 
     /// Returns an identity point
-    pub fn identity(composer: &mut StandardComposer) -> Point {
+    pub fn identity(composer: &mut TurboComposer) -> Point {
         let one = composer.add_witness_to_circuit_description(Scalar::one());
         Point {
             x: composer.zero_var,
@@ -37,7 +37,7 @@ impl Point {
     /// Converts an AffinePoint into a constraint system Point
     /// without constraining the values
     pub fn from_private_affine(
-        composer: &mut StandardComposer,
+        composer: &mut TurboComposer,
         affine: dusk_jubjub::AffinePoint,
     ) -> Point {
         let x = composer.add_input(affine.get_x());
@@ -47,7 +47,7 @@ impl Point {
     /// Converts an AffinePoint into a constraint system Point
     /// without constraining the values
     pub fn from_public_affine(
-        composer: &mut StandardComposer,
+        composer: &mut TurboComposer,
         affine: dusk_jubjub::AffinePoint,
     ) -> Point {
         let point = Point::from_private_affine(composer, affine);
@@ -63,7 +63,7 @@ impl Point {
     ///     bit == 0 => point_b,
     pub fn conditional_select(
         &self,
-        composer: &mut StandardComposer,
+        composer: &mut TurboComposer,
         bit: Variable,
         point_b: Point,
     ) -> Point {
@@ -101,12 +101,12 @@ impl From<PointScalar> for Point {
 
 impl Point {
     /// Adds two curve points together
-    pub fn add(&self, composer: &mut StandardComposer, point_b: Point) -> Point {
+    pub fn add(&self, composer: &mut TurboComposer, point_b: Point) -> Point {
         self.fast_add(composer, point_b)
     }
 
     /// Adds two curve points together using arithmetic gates
-    pub fn slow_add(&self, composer: &mut StandardComposer, point_b: Point) -> Point {
+    pub fn slow_add(&self, composer: &mut TurboComposer, point_b: Point) -> Point {
         let x1 = self.x;
         let y1 = self.y;
 
@@ -218,7 +218,7 @@ impl Point {
 
 // XXX: Should we put these as methods on the point struct instead?
 // Rationale, they only apply to points, whereas methods on the composer apply generally to Variables
-impl StandardComposer {
+impl TurboComposer {
     /// Asserts that a point in the circuit is equal to a known public point
     pub fn assert_equal_public_point(
         &mut self,

@@ -1,15 +1,15 @@
 use crate::bit_iterator::*;
-use crate::constraint_system::StandardComposer;
+use crate::constraint_system::TurboComposer;
 use crate::constraint_system::{Variable, WireData};
 use dusk_bls12_381::Scalar;
 
-impl StandardComposer {
+impl TurboComposer {
     /// Adds a range-constraint gate that checks and constrains a
     /// `Variable` to be inside of the range [0,num_bits].
     pub fn range_gate(&mut self, witness: Variable, num_bits: usize) {
         // Adds `variable` into the appropriate witness position
         // based on the accumulator number a_i
-        let add_wire = |composer: &mut StandardComposer, i: usize, variable: Variable| {
+        let add_wire = |composer: &mut TurboComposer, i: usize, variable: Variable| {
             // Since four quads can fit into one gate, the gate index does not change for every four wires
             let gate_index = composer.circuit_size() + (i / 4);
 
