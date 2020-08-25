@@ -10,7 +10,7 @@ pub(crate) mod variable;
 pub mod arithmetic;
 /// Boolean gate
 pub mod boolean;
-/// Elliptic Curve Crypto gates
+/// Scalar multiplication gate
 pub mod ecc;
 #[cfg(test)]
 pub(crate) mod helper;

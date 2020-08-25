@@ -22,8 +22,7 @@ pub(crate) struct SelectorPolynomials {
     q_arith: Polynomial,
     q_range: Polynomial,
     q_logic: Polynomial,
-    q_fixed_group_add: Polynomial,
-    q_variable_group_add: Polynomial,
+    q_ecc: Polynomial,
     left_sigma: Polynomial,
     right_sigma: Polynomial,
     out_sigma: Polynomial,
@@ -50,8 +49,7 @@ impl StandardComposer {
         self.q_arith.extend(zeroes_scalar.iter());
         self.q_range.extend(zeroes_scalar.iter());
         self.q_logic.extend(zeroes_scalar.iter());
-        self.q_fixed_group_add.extend(zeroes_scalar.iter());
-        self.q_variable_group_add.extend(zeroes_scalar.iter());
+        self.q_ecc.extend(zeroes_scalar.iter());
 
         self.w_l.extend(zeroes_var.iter());
         self.w_r.extend(zeroes_var.iter());
@@ -73,8 +71,7 @@ impl StandardComposer {
             && self.q_arith.len() == k
             && self.q_range.len() == k
             && self.q_logic.len() == k
-            && self.q_fixed_group_add.len() == k
-            && self.q_variable_group_add.len() == k
+            && self.q_ecc.len() == k
             && self.w_l.len() == k
             && self.w_r.len() == k
             && self.w_o.len() == k
@@ -113,14 +110,8 @@ impl StandardComposer {
             Evaluations::from_vec_and_domain(domain_4n.coset_fft(&selectors.q_range), domain_4n);
         let q_logic_eval_4n =
             Evaluations::from_vec_and_domain(domain_4n.coset_fft(&selectors.q_logic), domain_4n);
-        let q_fixed_group_add_eval_4n = Evaluations::from_vec_and_domain(
-            domain_4n.coset_fft(&selectors.q_fixed_group_add),
-            domain_4n,
-        );
-        let q_variable_group_add_eval_4n = Evaluations::from_vec_and_domain(
-            domain_4n.coset_fft(&selectors.q_variable_group_add),
-            domain_4n,
-        );
+        let q_ecc_eval_4n =
+            Evaluations::from_vec_and_domain(domain_4n.coset_fft(&selectors.q_ecc), domain_4n);
 
         let left_sigma_eval_4n =
             Evaluations::from_vec_and_domain(domain_4n.coset_fft(&selectors.left_sigma), domain_4n);
@@ -163,11 +154,11 @@ impl StandardComposer {
         };
 
         // Prover Key for ecc circuits
-        let ecc_prover_key = widget::ecc::scalar_mul::fixed_base::ProverKey {
+        let ecc_prover_key = widget::ecc::ProverKey {
             q_l: (selectors.q_l, q_l_eval_4n),
             q_r: (selectors.q_r, q_r_eval_4n),
             q_c: (selectors.q_c, q_c_eval_4n),
-            q_fixed_group_add: (selectors.q_fixed_group_add, q_fixed_group_add_eval_4n),
+            q_ecc: (selectors.q_ecc, q_ecc_eval_4n),
         };
 
         // Prover Key for permutation argument
@@ -179,19 +170,13 @@ impl StandardComposer {
             linear_evaluations: linear_eval_4n,
         };
 
-        // Prover Key for curve addition
-        let curve_addition_prover_key = widget::ecc::curve_addition::ProverKey {
-            q_variable_group_add: (selectors.q_variable_group_add, q_variable_group_add_eval_4n),
-        };
-
         let prover_key = widget::ProverKey {
             n: domain.size(),
             arithmetic: arithmetic_prover_key,
             logic: logic_prover_key,
             range: range_prover_key,
             permutation: permutation_prover_key,
-            variable_base: curve_addition_prover_key,
-            fixed_base: ecc_prover_key,
+            ecc: ecc_prover_key,
             // Compute 4n evaluations for X^n -1
             v_h_coset_4n: domain_4n.compute_vanishing_poly_over_coset(domain.size() as u64),
         };
@@ -233,10 +218,7 @@ impl StandardComposer {
         let q_arith_poly = Polynomial::from_coefficients_slice(&domain.ifft(&self.q_arith));
         let q_range_poly = Polynomial::from_coefficients_slice(&domain.ifft(&self.q_range));
         let q_logic_poly = Polynomial::from_coefficients_slice(&domain.ifft(&self.q_logic));
-        let q_fixed_group_add_poly =
-            Polynomial::from_coefficients_slice(&domain.ifft(&self.q_fixed_group_add));
-        let q_variable_group_add_poly =
-            Polynomial::from_coefficients_slice(&domain.ifft(&self.q_variable_group_add));
+        let q_ecc_poly = Polynomial::from_coefficients_slice(&domain.ifft(&self.q_ecc));
 
         // 2. Compute the sigma polynomials
         let (left_sigma_poly, right_sigma_poly, out_sigma_poly, fourth_sigma_poly) =
@@ -251,12 +233,7 @@ impl StandardComposer {
         let q_arith_poly_commit = commit_key.commit(&q_arith_poly).unwrap_or_default();
         let q_range_poly_commit = commit_key.commit(&q_range_poly).unwrap_or_default();
         let q_logic_poly_commit = commit_key.commit(&q_logic_poly).unwrap_or_default();
-        let q_fixed_group_add_poly_commit = commit_key
-            .commit(&q_fixed_group_add_poly)
-            .unwrap_or_default();
-        let q_variable_group_add_poly_commit = commit_key
-            .commit(&q_variable_group_add_poly)
-            .unwrap_or_default();
+        let q_ecc_poly_commit = commit_key.commit(&q_ecc_poly).unwrap_or_default();
 
         let left_sigma_poly_commit = commit_key.commit(&left_sigma_poly)?;
         let right_sigma_poly_commit = commit_key.commit(&right_sigma_poly)?;
@@ -283,14 +260,10 @@ impl StandardComposer {
             q_logic: q_logic_poly_commit,
         };
         // Verifier Key for ecc circuits
-        let ecc_verifier_key = widget::ecc::scalar_mul::fixed_base::VerifierKey {
+        let ecc_verifier_key = widget::ecc::VerifierKey {
             q_l: q_l_poly_commit,
             q_r: q_r_poly_commit,
-            q_fixed_group_add: q_fixed_group_add_poly_commit,
-        };
-        // Verifier Key for curve addition circuits
-        let curve_addition_verifier_key = widget::ecc::curve_addition::VerifierKey {
-            q_variable_group_add: q_variable_group_add_poly_commit,
+            q_ecc: q_ecc_poly_commit,
         };
         // Verifier Key for permutation argument
         let permutation_verifier_key = widget::permutation::VerifierKey {
@@ -305,8 +278,7 @@ impl StandardComposer {
             arithmetic: arithmetic_verifier_key,
             logic: logic_verifier_key,
             range: range_verifier_key,
-            fixed_base: ecc_verifier_key,
-            variable_base: curve_addition_verifier_key,
+            ecc: ecc_verifier_key,
             permutation: permutation_verifier_key,
         };
 
@@ -320,8 +292,7 @@ impl StandardComposer {
             q_arith: q_arith_poly,
             q_range: q_range_poly,
             q_logic: q_logic_poly,
-            q_fixed_group_add: q_fixed_group_add_poly,
-            q_variable_group_add: q_variable_group_add_poly,
+            q_ecc: q_ecc_poly,
             left_sigma: left_sigma_poly,
             right_sigma: right_sigma_poly,
             out_sigma: out_sigma_poly,
@@ -360,8 +331,6 @@ mod test {
         assert!(composer.q_arith.len() == size);
         assert!(composer.q_range.len() == size);
         assert!(composer.q_logic.len() == size);
-        assert!(composer.q_fixed_group_add.len() == size);
-        assert!(composer.q_variable_group_add.len() == size);
         assert!(composer.w_l.len() == size);
         assert!(composer.w_r.len() == size);
         assert!(composer.w_o.len() == size);
