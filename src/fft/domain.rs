@@ -299,27 +299,8 @@ impl EvaluationDomain {
     }
 }
 
-#[cfg(feature = "parallel")]
-fn best_fft(a: &mut [Scalar], omega: Scalar, log_n: u32) {
-    fn log2_floor(num: usize) -> u32 {
-        assert!(num > 0);
-        let mut pow = 0;
-        while (1 << (pow + 1)) <= num {
-            pow += 1;
-        }
-        pow
-    }
 
-    let num_cpus = rayon::current_num_threads();
-    let log_cpus = log2_floor(num_cpus);
-    if log_n <= log_cpus {
-        serial_fft(a, omega, log_n);
-    } else {
-        parallel_fft(a, omega, log_n, log_cpus);
-    }
-}
 
-#[cfg(not(feature = "parallel"))]
 fn best_fft(a: &mut [Scalar], omega: Scalar, log_n: u32) {
     serial_fft(a, omega, log_n)
 }
@@ -369,41 +350,6 @@ pub(crate) fn serial_fft(a: &mut [Scalar], omega: Scalar, log_n: u32) {
     }
 }
 
-#[cfg(feature = "parallel")]
-pub(crate) fn parallel_fft(a: &mut [Scalar], omega: Scalar, log_n: u32, log_cpus: u32) {
-    assert!(log_n >= log_cpus);
-
-    let num_cpus = 1 << log_cpus;
-    let log_new_n = log_n - log_cpus;
-    let mut tmp = vec![vec![F::zero(); 1 << log_new_n]; num_cpus];
-    let new_omega = omega.pow(&[num_cpus as u64]);
-
-    tmp.par_iter_mut().enumerate().for_each(|(j, tmp)| {
-        // Shuffle into a sub-FFT
-        let omega_j = omega.pow(&[j as u64]);
-        let omega_step = omega.pow(&[(j as u64) << log_new_n]);
-
-        let mut elt = F::one();
-        for i in 0..(1 << log_new_n) {
-            for s in 0..num_cpus {
-                let idx = (i + (s << log_new_n)) % (1 << log_n);
-                let mut t = a[idx];
-                t *= &elt;
-                tmp[i] += &t;
-                elt *= &omega_step;
-            }
-            elt *= &omega_j;
-        }
-
-        // Perform sub-FFT
-        serial_fft(tmp, new_omega, log_new_n);
-    });
-
-    let mask = (1 << log_cpus) - 1;
-    a.iter_mut()
-        .enumerate()
-        .for_each(|(i, a)| *a = tmp[i & mask][i >> log_cpus]);
-}
 
 /// An iterator over the elements of the domain.
 #[derive(Debug)]
