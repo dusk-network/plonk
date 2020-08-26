@@ -65,7 +65,8 @@ impl StandardComposer {
         self.q_arith.push(Scalar::one());
         self.q_range.push(Scalar::zero());
         self.q_logic.push(Scalar::zero());
-        self.q_ecc.push(Scalar::zero());
+        self.q_fixed_group_add.push(Scalar::zero());
+        self.q_variable_group_add.push(Scalar::zero());
 
         self.public_inputs.push(pi);
 
@@ -141,7 +142,8 @@ impl StandardComposer {
 
         self.q_range.push(Scalar::zero());
         self.q_logic.push(Scalar::zero());
-        self.q_ecc.push(Scalar::zero());
+        self.q_fixed_group_add.push(Scalar::zero());
+        self.q_variable_group_add.push(Scalar::zero());
 
         self.public_inputs.push(pi);
 
