@@ -101,7 +101,7 @@ fn scalar_decomposition(
     for (power, bit) in scalar_bits_var.iter().enumerate() {
         composer.boolean_gate(*bit);
 
-        let two_pow = Scalar::from(2).pow(&[power as u64, 0, 0, 0]);
+        let two_pow = Scalar::pow_of_2(power as u64);
 
         let q_l_a = (two_pow, *bit);
         let q_r_b = (Scalar::one(), accumulator_var);
