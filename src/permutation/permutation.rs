@@ -1,3 +1,6 @@
+// Copyright (c) DUSK NETWORK. All rights reserved.
+// Licensed under the MPL 2.0 license. See LICENSE file in the project root for details.
+
 #![allow(clippy::too_many_arguments)]
 use super::constants::{K1, K2, K3};
 use crate::constraint_system::{Variable, WireData};
@@ -1025,7 +1028,8 @@ mod test {
             let rhs = z_eval * current_identity_perm_product;
             assert_eq!(
                 lhs, rhs,
-                "check failed at index: {}\'n lhs is : {:?} \n rhs is :{:?}",
+                "check failed at index: {}\'n lhs is : {:?} 
+ rhs is :{:?}",
                 i, lhs, rhs
             );
         }

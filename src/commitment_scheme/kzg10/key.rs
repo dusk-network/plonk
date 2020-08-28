@@ -1,3 +1,6 @@
+// Copyright (c) DUSK NETWORK. All rights reserved.
+// Licensed under the MPL 2.0 license. See LICENSE file in the project root for details.
+
 //! Key module contains the utilities and data structures
 //! that support the generation and usage of Commit and
 //! Opening keys.
@@ -16,18 +19,18 @@ pub struct OpeningKey {
     pub g: G1Affine,
     /// The generator of G2.
     pub h: G2Affine,
-    /// \beta times the above generator of G2.
+    /// eta times the above generator of G2.
     pub beta_h: G2Affine,
     /// The generator of G2, prepared for use in pairings.
     pub prepared_h: G2Prepared,
-    /// \beta times the above generator of G2, prepared for use in pairings.
+    /// eta times the above generator of G2, prepared for use in pairings.
     pub prepared_beta_h: G2Prepared,
 }
 
 /// CommitKey is used to commit to a polynomial which is bounded by the max_degree.
 #[derive(Debug)]
 pub struct CommitKey {
-    /// Group elements of the form `{ \beta^i G }`, where `i` ranges from 0 to `degree`.
+    /// Group elements of the form `{ eta^i G }`, where `i` ranges from 0 to `degree`.
     pub powers_of_g: Vec<G1Affine>,
 }
 

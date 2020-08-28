@@ -1,3 +1,6 @@
+// Copyright (c) DUSK NETWORK. All rights reserved.
+// Licensed under the MPL 2.0 license. See LICENSE file in the project root for details.
+
 //! Code taken from zcash repo and generalised as we do not have access to the limbs
 use std::mem;
 

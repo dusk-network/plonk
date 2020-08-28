@@ -1,3 +1,6 @@
+// Copyright (c) DUSK NETWORK. All rights reserved.
+// Licensed under the MPL 2.0 license. See LICENSE file in the project root for details.
+
 //! The `Composer` is a Trait that is actually defining some kind of
 //! Circuit Builder for PLONK.
 //!
@@ -387,25 +390,43 @@ impl StandardComposer {
             let d_next = w_4[(i + 1) % self.n];
             #[cfg(feature = "trace-print")]
             println!(
-                "--------------------------------------------\n
+                "--------------------------------------------
+
             #Gate Index = {}
-            #Selector Polynomials:\n
-            - qm -> {:?}\n
-            - ql -> {:?}\n
-            - qr -> {:?}\n
-            - q4 -> {:?}\n
-            - qo -> {:?}\n
-            - qc -> {:?}\n
-            - q_arith -> {:?}\n
-            - q_range -> {:?}\n
-            - q_logic -> {:?}\n
-            - q_fixed_group_add -> {:?}\n
-            - q_variable_group_add -> {:?}\n
-            # Witness polynomials:\n
-            - w_l -> {:?}\n
-            - w_r -> {:?}\n
-            - w_o -> {:?}\n
-            - w_4 -> {:?}\n",
+            #Selector Polynomials:
+
+            - qm -> {:?}
+
+            - ql -> {:?}
+
+            - qr -> {:?}
+
+            - q4 -> {:?}
+
+            - qo -> {:?}
+
+            - qc -> {:?}
+
+            - q_arith -> {:?}
+
+            - q_range -> {:?}
+
+            - q_logic -> {:?}
+
+            - q_fixed_group_add -> {:?}
+
+            - q_variable_group_add -> {:?}
+
+            # Witness polynomials:
+
+            - w_l -> {:?}
+
+            - w_r -> {:?}
+
+            - w_o -> {:?}
+
+            - w_4 -> {:?}
+",
                 i, qm, ql, qr, q4, qo, qc, qarith, qrange, qlogic, qfixed, qvar, a, b, c, d
             );
             let k = qarith * ((qm * a * b) + (ql * a) + (qr * b) + (qo * c) + (q4 * d) + pi + qc)

@@ -1,3 +1,6 @@
+// Copyright (c) DUSK NETWORK. All rights reserved.
+// Licensed under the MPL 2.0 license. See LICENSE file in the project root for details.
+
 use dusk_bls12_381::Scalar;
 
 /// Constants used in the permutation argument to ensure that the wire subsets are disjoint.

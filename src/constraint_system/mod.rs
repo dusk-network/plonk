@@ -1,3 +1,6 @@
+// Copyright (c) DUSK NETWORK. All rights reserved.
+// Licensed under the MPL 2.0 license. See LICENSE file in the project root for details.
+
 //! The constraint System module stores the implementation
 //! of the PLONK Standard Composer, as well as the circuit
 //! tools and abstractions, used by the Composer to generate,

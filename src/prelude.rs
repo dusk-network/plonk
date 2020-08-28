@@ -1,3 +1,6 @@
+// Copyright (c) DUSK NETWORK. All rights reserved.
+// Licensed under the MPL 2.0 license. See LICENSE file in the project root for details.
+
 //! Collection of functions needed to use plonk library.
 //!
 //! Use this as the only import that you need to interact

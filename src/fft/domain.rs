@@ -1,3 +1,6 @@
+// Copyright (c) DUSK NETWORK. All rights reserved.
+// Licensed under the MPL 2.0 license. See LICENSE file in the project root for details.
+
 //! In pairing-based SNARKs like GM17, we need to calculate
 //! a quotient polynomial over a target polynomial with roots
 //! at distinct points associated with each constraint of the

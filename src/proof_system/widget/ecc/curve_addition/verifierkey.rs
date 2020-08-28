@@ -1,3 +1,6 @@
+// Copyright (c) DUSK NETWORK. All rights reserved.
+// Licensed under the MPL 2.0 license. See LICENSE file in the project root for details.
+
 use crate::commitment_scheme::kzg10::Commitment;
 use crate::proof_system::linearisation_poly::ProofEvaluations;
 use dusk_bls12_381::{G1Affine, Scalar};
