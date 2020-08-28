@@ -18,16 +18,16 @@ pub(crate) struct WnafRound {
     /// For all intents and purposes, you can think of this as the secret bit
     pub accumulated_bit: Variable,
 
-    /// This is the multiplication of x_lpha * y_lpha
+    /// This is the multiplication of x_\alpha * y_\alpha
     /// we need this as a distinct wire, so that the degree of the polynomial does not go over 4
     pub xy_alpha: Variable,
     /// This is the possible x co-ordinate of the wnaf point we are going to add
-    /// Actual x-co-ordinate = b_i * x_eta
+    /// Actual x-co-ordinate = b_i * x_\beta
     pub x_beta: Scalar,
     /// This is the possible y co-ordinate of the wnaf point we are going to add
-    /// Actual y coordinate = (b_i)^2 [y_eta -1] + 1
+    /// Actual y coordinate = (b_i)^2 [y_\beta -1] + 1
     pub y_beta: Scalar,
-    /// This is the multiplication of x_eta * y_eta
+    /// This is the multiplication of x_\beta * y_\beta
     pub xy_beta: Scalar,
 }
 

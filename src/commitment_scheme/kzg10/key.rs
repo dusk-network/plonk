@@ -19,18 +19,18 @@ pub struct OpeningKey {
     pub g: G1Affine,
     /// The generator of G2.
     pub h: G2Affine,
-    /// eta times the above generator of G2.
+    /// \beta times the above generator of G2.
     pub beta_h: G2Affine,
     /// The generator of G2, prepared for use in pairings.
     pub prepared_h: G2Prepared,
-    /// eta times the above generator of G2, prepared for use in pairings.
+    /// \beta times the above generator of G2, prepared for use in pairings.
     pub prepared_beta_h: G2Prepared,
 }
 
 /// CommitKey is used to commit to a polynomial which is bounded by the max_degree.
 #[derive(Debug)]
 pub struct CommitKey {
-    /// Group elements of the form `{ eta^i G }`, where `i` ranges from 0 to `degree`.
+    /// Group elements of the form `{ \beta^i G }`, where `i` ranges from 0 to `degree`.
     pub powers_of_g: Vec<G1Affine>,
 }
 
