@@ -1028,8 +1028,7 @@ mod test {
             let rhs = z_eval * current_identity_perm_product;
             assert_eq!(
                 lhs, rhs,
-                "check failed at index: {}\'n lhs is : {:?} 
- rhs is :{:?}",
+                "check failed at index: {}\'n lhs is : {:?} \n rhs is :{:?}",
                 i, lhs, rhs
             );
         }
