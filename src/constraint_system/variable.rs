@@ -1,3 +1,6 @@
+// Copyright (c) DUSK NETWORK. All rights reserved.
+// Licensed under the MPL 2.0 license. See LICENSE file in the project root for details.
+
 //! This module holds the components needed in the Constraint System.
 //! The two components used are Variables and Wires.
 use dusk_bls12_381::Scalar;

@@ -1,3 +1,6 @@
+// Copyright (c) DUSK NETWORK. All rights reserved.
+// Licensed under the MPL 2.0 license. See LICENSE file in the project root for details.
+
 //! This module contains an implementation of a polynomial in coefficient form
 //! Where each coefficient is represented using a position in the underlying vector.
 use super::{EvaluationDomain, Evaluations};

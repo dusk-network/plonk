@@ -1,3 +1,6 @@
+// Copyright (c) DUSK NETWORK. All rights reserved.
+// Licensed under the MPL 2.0 license. See LICENSE file in the project root for details.
+
 //! Implementation of the KZG10 polynomial commitment scheme.
 pub mod errors;
 pub mod key;

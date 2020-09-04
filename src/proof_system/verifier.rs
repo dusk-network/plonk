@@ -1,3 +1,6 @@
+// Copyright (c) DUSK NETWORK. All rights reserved.
+// Licensed under the MPL 2.0 license. See LICENSE file in the project root for details.
+
 use crate::commitment_scheme::kzg10::{CommitKey, OpeningKey};
 use crate::constraint_system::StandardComposer;
 use crate::proof_system::widget::VerifierKey;
