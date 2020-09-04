@@ -1,3 +1,6 @@
+// Copyright (c) DUSK NETWORK. All rights reserved.
+// Licensed under the MPL 2.0 license. See LICENSE file in the project root for details.
+
 #![allow(clippy::too_many_arguments)]
 use crate::fft::{EvaluationDomain, Evaluations, Polynomial};
 use crate::permutation::constants::{K1, K2, K3};

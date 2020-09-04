@@ -1,3 +1,6 @@
+// Copyright (c) DUSK NETWORK. All rights reserved.
+// Licensed under the MPL 2.0 license. See LICENSE file in the project root for details.
+
 //! Ideally we should cleanly abstract away the polynomial commitment scheme
 //! We note that PLONK makes use of the linearisation technique
 //! conceived in SONIC [Mary Maller]. This technique implicitly requires the

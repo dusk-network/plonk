@@ -1,3 +1,6 @@
+// Copyright (c) DUSK NETWORK. All rights reserved.
+// Licensed under the MPL 2.0 license. See LICENSE file in the project root for details.
+
 //! This is an extension over the [Merlin Transcript](https://docs.rs/merlin/1.0.3/merlin/struct.Transcript.html)
 //! which adds a few extra functionalities.
 use crate::commitment_scheme::kzg10::Commitment;

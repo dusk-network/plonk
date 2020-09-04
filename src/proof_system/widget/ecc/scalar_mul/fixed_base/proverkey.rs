@@ -1,3 +1,6 @@
+// Copyright (c) DUSK NETWORK. All rights reserved.
+// Licensed under the MPL 2.0 license. See LICENSE file in the project root for details.
+
 use super::{check_bit_consistency, extract_bit};
 use crate::fft::{Evaluations, Polynomial};
 use dusk_bls12_381::Scalar;

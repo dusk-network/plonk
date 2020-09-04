@@ -1,3 +1,6 @@
+// Copyright (c) DUSK NETWORK. All rights reserved.
+// Licensed under the MPL 2.0 license. See LICENSE file in the project root for details.
+
 //! The Public Parameters can also be referred to as the Structured Reference String (SRS).
 use super::{
     errors::KZG10Errors,

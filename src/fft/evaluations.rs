@@ -1,3 +1,6 @@
+// Copyright (c) DUSK NETWORK. All rights reserved.
+// Licensed under the MPL 2.0 license. See LICENSE file in the project root for details.
+
 //! A polynomial represented in evaluations form over a domain of size 2^n.
 
 use super::domain::EvaluationDomain;
