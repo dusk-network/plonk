@@ -19,3 +19,4 @@ pub(crate) mod widget;
 pub use proof::Proof;
 pub use prover::Prover;
 pub use verifier::Verifier;
+pub use widget::{ProverKey, VerifierKey};
