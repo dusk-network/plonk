@@ -10,17 +10,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 
+## [0.2.9] - 11-09-20
+
+### Added
+- Added `ProverKey` & `Verifierkey` to the public API as exported types.
+
+### Changed
+- Use `dusk-bls12_381 v0.1.4`. 
+- Use `dusk-jubjub v0.3.8`. 
+
 ## [0.2.8] - 25-08-20
 
 ### Added
-
 - Add a `variable_base_scalar_mul` method using a variable base curve add gate.
 
-### Removed
-
-
 ### Changed
-
 - `ecc::scalar_mul` now named fixed_base_scalar_mul
 
 
