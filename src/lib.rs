@@ -53,6 +53,7 @@
 mod macros;
 
 mod bit_iterator;
+pub mod circuit_builder;
 pub mod commitment_scheme;
 pub mod constraint_system;
 pub mod fft;
