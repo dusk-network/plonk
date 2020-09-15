@@ -4,19 +4,33 @@ use crate::commitment_scheme::kzg10::PublicParameters;
 use crate::constraint_system::{StandardComposer, Variable};
 use anyhow::{Error, Result};
 use dusk_bls12_381::Scalar as BlsScalar;
+use dusk_jubjub::{AffinePoint as JubJubAffine, Scalar as JubJubScalar};
 use std::io;
 
+/// Circuit inputs
+#[derive(Debug, Clone, Copy)]
+pub struct CircuitInputs<'a> {
+    bls_scalars: &'a [BlsScalar],
+    jubjub_scalars: &'a [JubJubScalar],
+    jubjub_affines: &'a [JubJubAffine],
+}
 /// Circuit representation for a gadget with all of the tools that it
 /// should implement.
-pub trait Circuit
+pub trait Circuit<'a, 'b>
 where
+    'b: 'a,
     Self: Sized,
 {
+    /// Generate a new Circuit instance setting up it's compilation parameters.
+    fn new(inputs: CircuitInputs<'b>) -> Self;
     /// Gadget implementation used to fill the composer.
-    //fn gadget(composer: &mut StandardComposer)
+    fn gadget(
+        composer: &mut StandardComposer,
+        inputs: CircuitInputs,
+    ) -> Result<Vec<(usize, &'static str)>, Error>;
     /// Compiles the circuit by using a function that returns a `Result`
     /// with the `ProverKey`, `VerifierKey` and the public inputs vector.
-    fn compile_circuit(pub_params: &PublicParameters) -> Result<Self, Error>;
+    fn compile_circuit(&mut self, pub_params: &PublicParameters) -> Result<(), Error>;
 
     /// Generate a function that will be able to setup the public inputs for the
     /// upcomming circuit generations & verifications.
@@ -41,75 +55,77 @@ mod tests {
     // 2) a <= 2^6
     // 3) b <= 2^5
     // 4) a * b = d where D is a PI
-    pub struct TestCircuit {
-        prover_key: ProverKey,
-        verifier_key: VerifierKey,
-        /*pi_constructor: &'a Vec<(usize, &'a str)>,*/
+    pub struct TestCircuit<'a, 'b>
+    where
+        'b: 'a,
+    {
+        compile_params: CircuitInputs<'b>,
+        prover_key: Option<ProverKey>,
+        verifier_key: Option<VerifierKey>,
+        pi_constructor: Option<Vec<(usize, &'a str)>>,
     }
 
-    impl Circuit for TestCircuit {
-        fn compile_circuit(pub_params: &PublicParameters) -> Result<Self, Error> {
-            let test_circuit_gadget = |composer: &mut StandardComposer,
-                                       a: BlsScalar,
-                                       b: BlsScalar,
-                                       c: BlsScalar,
-                                       d: BlsScalar|
-             -> Vec<(usize, &str)> {
-                let mut pi = Vec::new();
-                let a = composer.add_input(a);
-                let b = composer.add_input(b);
-                // Make first constraint a + b = c
-                composer.poly_gate(
-                    a,
-                    b,
-                    composer.zero_var,
-                    BlsScalar::zero(),
-                    BlsScalar::one(),
-                    BlsScalar::one(),
-                    BlsScalar::one(),
-                    BlsScalar::zero(),
-                    -c,
-                );
-                pi.push((composer.circuit_size(), "Public input called \"C\""));
-                // Check that a and b are in range
-                composer.range_gate(a, 1 << 6);
-                composer.range_gate(b, 1 << 5);
-                // Make second constraint a * b = d
-                composer.poly_gate(
-                    a,
-                    b,
-                    composer.zero_var,
-                    BlsScalar::one(),
-                    BlsScalar::zero(),
-                    BlsScalar::zero(),
-                    BlsScalar::one(),
-                    BlsScalar::zero(),
-                    -d,
-                );
-                pi.push((composer.circuit_size(), "Public input called \"D\""));
-                pi
-            };
+    impl<'a, 'b> Circuit<'a, 'b> for TestCircuit<'a, 'b> {
+        fn new(params: CircuitInputs<'b>) -> Self {
+            Self {
+                compile_params: params,
+                prover_key: None,
+                verifier_key: None,
+                pi_constructor: None,
+            }
+        }
+        fn gadget(
+            composer: &mut StandardComposer,
+            inputs: CircuitInputs,
+        ) -> Result<Vec<(usize, &'static str)>, Error> {
+            let mut pi = Vec::new();
+            let a = composer.add_input(inputs.bls_scalars[0]);
+            let b = composer.add_input(inputs.bls_scalars[1]);
+            // Make first constraint a + b = c
+            composer.poly_gate(
+                a,
+                b,
+                composer.zero_var,
+                BlsScalar::zero(),
+                BlsScalar::one(),
+                BlsScalar::one(),
+                BlsScalar::zero(),
+                BlsScalar::zero(),
+                -inputs.bls_scalars[2],
+            );
+            pi.push((composer.circuit_size(), "Public input called \"C\""));
+            // Check that a and b are in range
+            composer.range_gate(a, 1 << 6);
+            composer.range_gate(b, 1 << 5);
+            // Make second constraint a * b = d
+            composer.poly_gate(
+                a,
+                b,
+                composer.zero_var,
+                BlsScalar::one(),
+                BlsScalar::zero(),
+                BlsScalar::zero(),
+                BlsScalar::one(),
+                BlsScalar::zero(),
+                -inputs.bls_scalars[3],
+            );
+            pi.push((composer.circuit_size(), "Public input called \"D\""));
+            Ok(pi)
+        }
+        fn compile_circuit(&mut self, pub_params: &PublicParameters) -> Result<(), Error> {
             // Setup PublicParams
             let (ck, vk) = pub_params.trim(1 << 9)?;
             // Generate & save `ProverKey` with some random values.
-            let a = BlsScalar::from(25u64);
-            let b = BlsScalar::from(5u64);
-            let c = BlsScalar::from(30u64);
-            let d = BlsScalar::from(125u64);
             let mut prover = Prover::new(b"TestCircuit");
             prover.preprocess(&ck)?;
-            let pi = test_circuit_gadget(prover.mut_cs(), a, b, c, d);
-            let prover_key = prover.prover_key.unwrap();
+            let pi = TestCircuit::gadget(prover.mut_cs(), self.compile_params)?;
+            self.prover_key = prover.prover_key;
             // Generate & save `VerifierKey` with some random values.
             let mut verifier = Verifier::new(b"TestCircuit");
-            test_circuit_gadget(verifier.mut_cs(), a, b, c, d);
+            TestCircuit::gadget(verifier.mut_cs(), self.compile_params)?;
             verifier.preprocess(&ck).unwrap();
-            let verifier_key = verifier.verifier_key.unwrap();
-            Ok(TestCircuit {
-                prover_key,
-                verifier_key,
-                //pi_constructor: &pi,
-            })
+            self.verifier_key = verifier.verifier_key;
+            Ok(())
         }
 
         /*fn pi_setup_fn_generation(&'a self) -> Fn(Self, &[BlsScalar]) -> &Vec<BlsScalar> {
@@ -120,18 +136,93 @@ mod tests {
 
         fn write_keys(&self, pk_path: &str, vk_path: &str) -> Result<(), io::Error> {
             let mut prover_file = File::create(pk_path)?;
-            prover_file.write(&self.prover_key.to_bytes()[..])?;
-
+            let written = prover_file.write(
+                &self
+                    .prover_key
+                    .as_ref()
+                    .ok_or(io::Error::new(
+                        io::ErrorKind::UnexpectedEof,
+                        "Missing ProverKey",
+                    ))?
+                    .to_bytes(),
+            )?;
+            println!("{}", written);
             let mut verifier_file = File::create(vk_path)?;
-            verifier_file.write(&self.verifier_key.to_bytes()[..])?;
+            verifier_file.write(
+                &self
+                    .verifier_key
+                    .as_ref()
+                    .ok_or(io::Error::new(
+                        io::ErrorKind::UnexpectedEof,
+                        "Missing VerifierKey",
+                    ))?
+                    .to_bytes(),
+            )?;
             Ok(())
         }
     }
 
     #[test]
-    fn test_full() {
+    fn test_full() -> Result<(), Error> {
+        // Generate CRS
         let pub_params = PublicParameters::setup(1 << 10, &mut rand::thread_rng()).unwrap();
-        let circuit = TestCircuit::compile_circuit(&pub_params).unwrap();
-        circuit.write_keys("pk_testcirc", "vk_testcirc").unwrap();
+        let (ck, vk) = pub_params.trim(1 << 9).unwrap();
+        // Generate circuit compilation params
+        let a = BlsScalar::from(25u64);
+        let b = BlsScalar::from(5u64);
+        let c = BlsScalar::from(30u64);
+        let d = BlsScalar::from(125u64);
+        let inputs = CircuitInputs {
+            bls_scalars: &[a, b, c, d],
+            jubjub_scalars: &[],
+            jubjub_affines: &[],
+        };
+        // Initialize the circuit
+        let mut circuit = TestCircuit::new(inputs);
+        {
+            // Compile the circuit
+            circuit.compile_circuit(&pub_params).unwrap();
+            // Write the keys to the desired paths.
+            circuit.write_keys("pk_testcirc", "vk_testcirc").unwrap();
+        };
+
+        use io::Read;
+        // Now we can use the circuit as a gadget also to make new proofs:
+        // Read ProverKey
+        /*let mut pk_file = File::open("pk_testcirc").unwrap();
+        let mut pk_bytes = Vec::new();
+        let read = pk_file.read(&mut pk_bytes).unwrap();
+        let prover_key = ProverKey::from_bytes(&pk_bytes).unwrap();
+
+        // Read VerifierKey
+        let mut vk_file = File::open("vk_testcirc").unwrap();
+        let mut vk_bytes = Vec::new();
+        vk_file.read(&mut vk_bytes).unwrap();
+        let verifier_key = VerifierKey::from_bytes(&vk_bytes).unwrap();*/
+
+        // Generate new inputs
+        // Generate circuit compilation params
+        let a = BlsScalar::from(20u64);
+        let b = BlsScalar::from(5u64);
+        let c = BlsScalar::from(25u64);
+        let d = BlsScalar::from(100u64);
+        let inputs2 = CircuitInputs {
+            bls_scalars: &[a, b, c, d],
+            jubjub_scalars: &[],
+            jubjub_affines: &[],
+        };
+        // New Prover instance
+        let mut prover = Prover::new(b"TestCircuit");
+        // Add ProverKey to Prover
+        prover.prover_key = Some(circuit.prover_key.unwrap());
+        // Fill witnesses for Prover
+        TestCircuit::gadget(prover.mut_cs(), inputs2).unwrap();
+        let proof = prover.prove(&ck).unwrap();
+
+        let mut verifier = Verifier::new(b"TestCircuit");
+        // Add ProverKey to Prover
+        verifier.verifier_key = Some(circuit.verifier_key.unwrap());
+        let pi = verifier.mut_cs().public_inputs.clone();
+        verifier.verify(&proof, &vk, &pi)
     }
 }
