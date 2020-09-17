@@ -47,7 +47,6 @@ mod tests {
     use crate::constraint_system::StandardComposer;
     use crate::proof_system::{Prover, ProverKey, Verifier, VerifierKey};
     use anyhow::{Error, Result};
-    use std::borrow::Borrow;
     use std::fs::File;
     use std::io::Write;
 
@@ -63,7 +62,7 @@ mod tests {
         compile_params: CircuitInputs<'b>,
         prover_key: Box<Option<ProverKey>>,
         verifier_key: Box<Option<VerifierKey>>,
-        pi_constructor: Option<Vec<(usize, &'a str)>>,
+        _pi_constructor: Option<Vec<(usize, &'a str)>>,
     }
 
     impl<'a, 'b> Circuit<'a, 'b> for TestCircuit<'a, 'b> {
@@ -72,7 +71,7 @@ mod tests {
                 compile_params: params,
                 prover_key: Box::new(None),
                 verifier_key: Box::new(None),
-                pi_constructor: None,
+                _pi_constructor: None,
             }
         }
         fn gadget(
@@ -111,15 +110,14 @@ mod tests {
                 -inputs.bls_scalars[3],
             );
             pi.push((composer.circuit_size(), "Public input called \"D\""));
-            println!("{:?}", composer.circuit_size());
             Ok(pi)
         }
         fn compile_circuit(&mut self, pub_params: &PublicParameters) -> Result<(), Error> {
             // Setup PublicParams
-            let (ck, vk) = pub_params.trim(1 << 9)?;
+            let (ck, _vk) = pub_params.trim(1 << 9)?;
             // Generate & save `ProverKey` with some random values.
             let mut prover = Prover::new(b"TestCircuit");
-            let pi = TestCircuit::gadget(prover.mut_cs(), self.compile_params)?;
+            let _pi = TestCircuit::gadget(prover.mut_cs(), self.compile_params)?;
             prover.preprocess(&ck)?;
             self.prover_key = Box::new(prover.prover_key);
             // Generate & save `VerifierKey` with some random values.
@@ -141,6 +139,7 @@ mod tests {
             prover_file.write(
                 self.prover_key
                     .as_ref()
+                    .as_ref()
                     .ok_or(io::Error::new(
                         io::ErrorKind::UnexpectedEof,
                         "Missing ProverKey",
@@ -152,6 +151,7 @@ mod tests {
             verifier_file.write(
                 &self
                     .verifier_key
+                    .as_ref()
                     .as_ref()
                     .ok_or(io::Error::new(
                         io::ErrorKind::UnexpectedEof,
