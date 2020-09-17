@@ -110,6 +110,7 @@ mod tests {
                 -inputs.bls_scalars[3],
             );
             pi.push((composer.circuit_size(), "Public input called \"D\""));
+            println!("{:?}", composer.circuit_size());
             Ok(pi)
         }
         fn compile_circuit(&mut self, pub_params: &PublicParameters) -> Result<(), Error> {
@@ -117,8 +118,8 @@ mod tests {
             let (ck, vk) = pub_params.trim(1 << 9)?;
             // Generate & save `ProverKey` with some random values.
             let mut prover = Prover::new(b"TestCircuit");
-            prover.preprocess(&ck)?;
             let pi = TestCircuit::gadget(prover.mut_cs(), self.compile_params)?;
+            prover.preprocess(&ck)?;
             self.prover_key = prover.prover_key;
             // Generate & save `VerifierKey` with some random values.
             let mut verifier = Verifier::new(b"TestCircuit");
@@ -136,7 +137,7 @@ mod tests {
 
         fn write_keys(&self, pk_path: &str, vk_path: &str) -> Result<(), io::Error> {
             let mut prover_file = File::create(pk_path)?;
-            let written = prover_file.write(
+            prover_file.write(
                 &self
                     .prover_key
                     .as_ref()
@@ -146,7 +147,6 @@ mod tests {
                     ))?
                     .to_bytes(),
             )?;
-            println!("{}", written);
             let mut verifier_file = File::create(vk_path)?;
             verifier_file.write(
                 &self
@@ -166,7 +166,7 @@ mod tests {
     fn test_full() -> Result<(), Error> {
         // Generate CRS
         let pub_params = PublicParameters::setup(1 << 10, &mut rand::thread_rng()).unwrap();
-        let (ck, vk) = pub_params.trim(1 << 9).unwrap();
+        let (ck, vk) = pub_params.trim(1 << 5).unwrap();
         // Generate circuit compilation params
         let a = BlsScalar::from(25u64);
         let b = BlsScalar::from(5u64);
@@ -189,16 +189,10 @@ mod tests {
         use io::Read;
         // Now we can use the circuit as a gadget also to make new proofs:
         // Read ProverKey
-        /*let mut pk_file = File::open("pk_testcirc").unwrap();
-        let mut pk_bytes = Vec::new();
-        let read = pk_file.read(&mut pk_bytes).unwrap();
-        let prover_key = ProverKey::from_bytes(&pk_bytes).unwrap();
+        let prover_key = ProverKey::from_bytes(&std::fs::read("pk_testcirc")?[..]).unwrap();
 
         // Read VerifierKey
-        let mut vk_file = File::open("vk_testcirc").unwrap();
-        let mut vk_bytes = Vec::new();
-        vk_file.read(&mut vk_bytes).unwrap();
-        let verifier_key = VerifierKey::from_bytes(&vk_bytes).unwrap();*/
+        let verifier_key = VerifierKey::from_bytes(&std::fs::read("vk_testcirc")?[..]).unwrap();
 
         // Generate new inputs
         // Generate circuit compilation params
@@ -212,16 +206,19 @@ mod tests {
             jubjub_affines: &[],
         };
         // New Prover instance
-        let mut prover = Prover::new(b"TestCircuit");
-        // Add ProverKey to Prover
-        prover.prover_key = Some(circuit.prover_key.unwrap());
+        let mut prover = Prover::with_expected_size(b"TestCircuit", 1 << 5);
+
         // Fill witnesses for Prover
         TestCircuit::gadget(prover.mut_cs(), inputs2).unwrap();
+
+        // Add ProverKey to Prover
+        prover.prover_key = Some(prover_key);
         let proof = prover.prove(&ck).unwrap();
 
-        let mut verifier = Verifier::new(b"TestCircuit");
+        let mut verifier = Verifier::with_expected_size(b"TestCircuit", 1 << 5);
+        TestCircuit::gadget(verifier.mut_cs(), inputs2)?;
         // Add ProverKey to Prover
-        verifier.verifier_key = Some(circuit.verifier_key.unwrap());
+        verifier.verifier_key = Some(verifier_key);
         let pi = verifier.mut_cs().public_inputs.clone();
         verifier.verify(&proof, &vk, &pi)
     }
