@@ -15,6 +15,30 @@ pub struct CircuitInputs<'a> {
     jubjub_affines: &'a [JubJubAffine],
 }
 
+/// Public Input
+#[derive(Debug, Copy, Clone)]
+pub enum PublicInput {
+    /// Scalar Input
+    BlsScalar(BlsScalar, usize),
+    /// Embedded Scalar Input
+    JubJubScalar(JubJubScalar, usize),
+    /// Point as Public Input
+    AffinePoint(JubJubAffine, usize, usize),
+}
+
+impl PublicInput {
+    #[allow(dead_code)]
+    fn value(&self) -> Vec<BlsScalar> {
+        match self {
+            PublicInput::BlsScalar(scalar, _) => vec![*scalar],
+            PublicInput::JubJubScalar(scalar, _) => vec![BlsScalar::from(*scalar)],
+            PublicInput::AffinePoint(point, _, _) => {
+                vec![point.get_x().into(), point.get_y().into()]
+            }
+        }
+    }
+}
+
 /// Circuit representation for a gadget with all of the tools that it
 /// should implement.
 pub trait Circuit<'a>
@@ -25,7 +49,7 @@ where
     fn gadget(
         composer: &mut StandardComposer,
         inputs: CircuitInputs,
-    ) -> Result<(Vec<usize>, usize), Error>;
+    ) -> Result<(Vec<PublicInput>, usize), Error>;
     /// Compiles the circuit by using a function that returns a `Result`
     /// with the `ProverKey`, `VerifierKey` and the circuit size.
     fn compile(
@@ -35,26 +59,26 @@ where
     ) -> Result<(ProverKey, VerifierKey, usize), Error>;
 
     /// Build PI vector for Proof verifications.
-    fn build_pi(&self, pub_inputs: &[BlsScalar]) -> Vec<BlsScalar>;
+    fn build_pi(&self, pub_inputs: &[PublicInput]) -> Vec<BlsScalar>;
 
     /// Generates a proof using the provided `CircuitInputs` & `ProverKey` instances.
     fn gen_proof(
         &self,
+        pub_params: &PublicParameters,
         prover_key: &ProverKey,
         inputs: CircuitInputs,
         transcript_initialisation: Option<&'static [u8]>,
-        pub_params: &PublicParameters,
     ) -> Result<Proof, Error>;
 
     /// Verifies a proof using the provided `CircuitInputs` & `VerifierKey` instances.
     fn verify_proof(
         &self,
+        pub_params: &PublicParameters,
         verifier_key: &VerifierKey,
         inputs: CircuitInputs,
         transcript_initialisation: Option<&'static [u8]>,
-        pub_params: &PublicParameters,
         proof: &Proof,
-        pub_inputs: &[BlsScalar],
+        pub_inputs: &[PublicInput],
     ) -> Result<(), Error>;
 }
 
@@ -72,7 +96,7 @@ mod tests {
     // 4) a * b = d where D is a PI
     pub struct TestCircuit {
         circuit_size: usize,
-        pi_constructor: Option<Vec<usize>>,
+        pi_constructor: Option<Vec<PublicInput>>,
     }
 
     impl Default for TestCircuit {
@@ -88,11 +112,15 @@ mod tests {
         fn gadget(
             composer: &mut StandardComposer,
             inputs: CircuitInputs,
-        ) -> Result<(Vec<usize>, usize), Error> {
+        ) -> Result<(Vec<PublicInput>, usize), Error> {
             let mut pi = Vec::new();
             let a = composer.add_input(inputs.bls_scalars[0]);
             let b = composer.add_input(inputs.bls_scalars[1]);
             // Make first constraint a + b = c
+            pi.push(PublicInput::BlsScalar(
+                -inputs.bls_scalars[2],
+                composer.circuit_size(),
+            ));
             composer.poly_gate(
                 a,
                 b,
@@ -104,11 +132,15 @@ mod tests {
                 BlsScalar::zero(),
                 -inputs.bls_scalars[2],
             );
-            pi.push(composer.circuit_size());
+
             // Check that a and b are in range
             composer.range_gate(a, 1 << 6);
             composer.range_gate(b, 1 << 5);
             // Make second constraint a * b = d
+            pi.push(PublicInput::BlsScalar(
+                -inputs.bls_scalars[3],
+                composer.circuit_size(),
+            ));
             composer.poly_gate(
                 a,
                 b,
@@ -120,7 +152,7 @@ mod tests {
                 BlsScalar::zero(),
                 -inputs.bls_scalars[3],
             );
-            pi.push(composer.circuit_size());
+
             let final_circuit_size = composer.circuit_size();
             Ok((pi, final_circuit_size))
         }
@@ -155,18 +187,34 @@ mod tests {
             ))
         }
 
-        fn build_pi(&self, pub_inputs: &[BlsScalar]) -> Vec<BlsScalar> {
+        fn build_pi(&self, pub_inputs: &[PublicInput]) -> Vec<BlsScalar> {
             let mut pi = vec![BlsScalar::zero(); self.circuit_size];
-            unimplemented!()
-            //self.pi_constructor.expect("Circuit must be compiled before.").iter().enumerate().map(|(idx, pos)| pi[pos] = )
+            self.pi_constructor
+                .as_ref()
+                .expect("Circuit must be compiled before building PI vectors.")
+                .iter()
+                .enumerate()
+                .for_each(|(idx, pi_constr)| {
+                    match pi_constr {
+                        PublicInput::BlsScalar(_, pos) => pi[*pos] = pub_inputs[idx].value()[0],
+                        PublicInput::JubJubScalar(_, pos) => pi[*pos] = pub_inputs[idx].value()[0],
+                        PublicInput::AffinePoint(_, pos_x, pos_y) => {
+                            let (coord_x, coord_y) =
+                                (pub_inputs[idx].value()[0], pub_inputs[idx].value()[1]);
+                            pi[*pos_x] = coord_x;
+                            pi[*pos_y] = coord_y;
+                        }
+                    };
+                });
+            pi
         }
 
         fn gen_proof(
             &self,
+            pub_params: &PublicParameters,
             prover_key: &ProverKey,
             inputs: CircuitInputs,
             transcript_initialisation: Option<&'static [u8]>,
-            pub_params: &PublicParameters,
         ) -> Result<Proof, Error> {
             let (ck, _) = pub_params.trim(1 << 9)?;
             // New Prover instance
@@ -181,12 +229,12 @@ mod tests {
 
         fn verify_proof(
             &self,
+            pub_params: &PublicParameters,
             verifier_key: &VerifierKey,
             inputs: CircuitInputs,
             transcript_initialisation: Option<&'static [u8]>,
-            pub_params: &PublicParameters,
             proof: &Proof,
-            pub_inputs: &[BlsScalar],
+            pub_inputs: &[PublicInput],
         ) -> Result<(), Error> {
             let (_, vk) = pub_params.trim(1 << 9)?;
             // New Verifier instance
@@ -242,7 +290,15 @@ mod tests {
             jubjub_scalars: &[],
             jubjub_affines: &[],
         };
-        let proof = circuit.gen_proof(&prover_key, inputs2, None, &pub_params)?;
-        circuit.verify_proof(&verifier_key, inputs2, None, &pub_params, &proof, &[c, d])
+        let public_inputs2 = vec![PublicInput::BlsScalar(-c, 0), PublicInput::BlsScalar(-d, 0)];
+        let proof = circuit.gen_proof(&pub_params, &prover_key, inputs2, None)?;
+        circuit.verify_proof(
+            &pub_params,
+            &verifier_key,
+            inputs2,
+            None,
+            &proof,
+            &public_inputs2,
+        )
     }
 }
