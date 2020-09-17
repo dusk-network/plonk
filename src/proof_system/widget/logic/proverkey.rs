@@ -7,7 +7,7 @@ use crate::fft::{Evaluations, Polynomial};
 
 use dusk_bls12_381::Scalar;
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct ProverKey {
     pub q_c: (Polynomial, Evaluations),
     pub q_logic: (Polynomial, Evaluations),

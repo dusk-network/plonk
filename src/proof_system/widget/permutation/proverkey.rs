@@ -6,7 +6,7 @@ use crate::fft::{EvaluationDomain, Evaluations, Polynomial};
 use crate::permutation::constants::{K1, K2, K3};
 use dusk_bls12_381::Scalar;
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct ProverKey {
     pub left_sigma: (Polynomial, Evaluations),
     pub right_sigma: (Polynomial, Evaluations),
