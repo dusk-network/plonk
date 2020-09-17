@@ -39,7 +39,7 @@ pub struct ProverKey {
 }
 
 /// PLONK circuit verification key
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub struct VerifierKey {
     /// Circuit size
     pub n: usize,
