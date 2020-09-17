@@ -1,7 +1,7 @@
 //! Tools & traits for PLONK circuits
 
 use crate::commitment_scheme::kzg10::PublicParameters;
-use crate::constraint_system::{StandardComposer, Variable};
+use crate::constraint_system::StandardComposer;
 use anyhow::{Error, Result};
 use dusk_bls12_381::Scalar as BlsScalar;
 use dusk_jubjub::{AffinePoint as JubJubAffine, Scalar as JubJubScalar};
@@ -47,6 +47,7 @@ mod tests {
     use crate::constraint_system::StandardComposer;
     use crate::proof_system::{Prover, ProverKey, Verifier, VerifierKey};
     use anyhow::{Error, Result};
+    use std::borrow::Borrow;
     use std::fs::File;
     use std::io::Write;
 
@@ -60,8 +61,8 @@ mod tests {
         'b: 'a,
     {
         compile_params: CircuitInputs<'b>,
-        prover_key: Option<ProverKey>,
-        verifier_key: Option<VerifierKey>,
+        prover_key: Box<Option<ProverKey>>,
+        verifier_key: Box<Option<VerifierKey>>,
         pi_constructor: Option<Vec<(usize, &'a str)>>,
     }
 
@@ -69,8 +70,8 @@ mod tests {
         fn new(params: CircuitInputs<'b>) -> Self {
             Self {
                 compile_params: params,
-                prover_key: None,
-                verifier_key: None,
+                prover_key: Box::new(None),
+                verifier_key: Box::new(None),
                 pi_constructor: None,
             }
         }
@@ -120,12 +121,12 @@ mod tests {
             let mut prover = Prover::new(b"TestCircuit");
             let pi = TestCircuit::gadget(prover.mut_cs(), self.compile_params)?;
             prover.preprocess(&ck)?;
-            self.prover_key = prover.prover_key;
+            self.prover_key = Box::new(prover.prover_key);
             // Generate & save `VerifierKey` with some random values.
             let mut verifier = Verifier::new(b"TestCircuit");
             TestCircuit::gadget(verifier.mut_cs(), self.compile_params)?;
             verifier.preprocess(&ck).unwrap();
-            self.verifier_key = verifier.verifier_key;
+            self.verifier_key = Box::new(verifier.verifier_key);
             Ok(())
         }
 
@@ -138,14 +139,14 @@ mod tests {
         fn write_keys(&self, pk_path: &str, vk_path: &str) -> Result<(), io::Error> {
             let mut prover_file = File::create(pk_path)?;
             prover_file.write(
-                &self
-                    .prover_key
+                self.prover_key
                     .as_ref()
                     .ok_or(io::Error::new(
                         io::ErrorKind::UnexpectedEof,
                         "Missing ProverKey",
                     ))?
-                    .to_bytes(),
+                    .to_bytes()[..]
+                    .as_ref(),
             )?;
             let mut verifier_file = File::create(vk_path)?;
             verifier_file.write(
@@ -186,7 +187,6 @@ mod tests {
             circuit.write_keys("pk_testcirc", "vk_testcirc").unwrap();
         };
 
-        use io::Read;
         // Now we can use the circuit as a gadget also to make new proofs:
         // Read ProverKey
         let prover_key = ProverKey::from_bytes(&std::fs::read("pk_testcirc")?[..]).unwrap();
