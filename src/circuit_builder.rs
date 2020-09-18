@@ -32,9 +32,7 @@ impl PublicInput {
         match self {
             PublicInput::BlsScalar(scalar, _) => vec![*scalar],
             PublicInput::JubJubScalar(scalar, _) => vec![BlsScalar::from(*scalar)],
-            PublicInput::AffinePoint(point, _, _) => {
-                vec![point.get_x().into(), point.get_y().into()]
-            }
+            PublicInput::AffinePoint(point, _, _) => vec![point.get_x(), point.get_y()],
         }
     }
 }
