@@ -71,7 +71,7 @@ where
         pub_params: &PublicParameters,
         prover_key: &ProverKey,
         inputs: CircuitInputs,
-        transcript_initialisation: Option<&'static [u8]>,
+        transcript_initialisation: &'static [u8],
     ) -> Result<Proof, Error>;
 
     /// Verifies a proof using the provided `CircuitInputs` & `VerifierKey` instances.
@@ -79,7 +79,7 @@ where
         &self,
         pub_params: &PublicParameters,
         verifier_key: &VerifierKey,
-        transcript_initialisation: Option<&'static [u8]>,
+        transcript_initialisation: &'static [u8],
         proof: &Proof,
         pub_inputs: &[PublicInput],
     ) -> Result<(), Error>;
@@ -220,12 +220,11 @@ mod tests {
             pub_params: &PublicParameters,
             prover_key: &ProverKey,
             inputs: CircuitInputs,
-            transcript_initialisation: Option<&'static [u8]>,
+            transcript_initialisation: &'static [u8],
         ) -> Result<Proof, Error> {
             let (ck, _) = pub_params.trim(1 << 9)?;
             // New Prover instance
-            let mut prover =
-                Prover::new(transcript_initialisation.unwrap_or_else(|| b"Default label"));
+            let mut prover = Prover::new(transcript_initialisation);
             // Fill witnesses for Prover
             self.gadget(prover.mut_cs(), inputs)?;
             // Add ProverKey to Prover
@@ -237,14 +236,13 @@ mod tests {
             &self,
             pub_params: &PublicParameters,
             verifier_key: &VerifierKey,
-            transcript_initialisation: Option<&'static [u8]>,
+            transcript_initialisation: &'static [u8],
             proof: &Proof,
             pub_inputs: &[PublicInput],
         ) -> Result<(), Error> {
             let (_, vk) = pub_params.trim(1 << 9)?;
             // New Verifier instance
-            let mut verifier =
-                Verifier::new(transcript_initialisation.unwrap_or_else(|| b"Default label"));
+            let mut verifier = Verifier::new(transcript_initialisation);
             verifier.verifier_key = Some(*verifier_key);
             verifier.verify(proof, &vk, &self.build_pi(pub_inputs))
         }
@@ -295,7 +293,13 @@ mod tests {
             jubjub_affines: &[],
         };
         let public_inputs2 = vec![PublicInput::BlsScalar(-c, 0), PublicInput::BlsScalar(-d, 0)];
-        let proof = circuit.gen_proof(&pub_params, &prover_key, inputs2, None)?;
-        circuit.verify_proof(&pub_params, &verifier_key, None, &proof, &public_inputs2)
+        let proof = circuit.gen_proof(&pub_params, &prover_key, inputs2, b"TestCirc")?;
+        circuit.verify_proof(
+            &pub_params,
+            &verifier_key,
+            b"TestCirc",
+            &proof,
+            &public_inputs2,
+        )
     }
 }
