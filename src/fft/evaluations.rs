@@ -9,7 +9,7 @@ use core::ops::{Add, AddAssign, DivAssign, Index, Mul, MulAssign, Sub, SubAssign
 use dusk_bls12_381::Scalar;
 
 /// Stores a polynomial in evaluation form.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub struct Evaluations {
     /// The evaluations of a polynomial over the domain `D`
     pub evals: Vec<Scalar>,

@@ -44,7 +44,9 @@
 #![allow(clippy::many_single_char_names)]
 // Bool expr are usually easier to read with match statements.
 #![allow(clippy::match_bool)]
-#![deny(intra_doc_link_resolution_failure)]
+// Clippy does not have `broken_intra_doc_links` as a known lint.
+#![allow(unknown_lints)]
+#![deny(broken_intra_doc_links)]
 #![deny(missing_debug_implementations)]
 #![deny(missing_docs)]
 #![deny(unsafe_code)]
@@ -53,6 +55,7 @@
 mod macros;
 
 mod bit_iterator;
+pub mod circuit_builder;
 pub mod commitment_scheme;
 pub mod constraint_system;
 pub mod fft;

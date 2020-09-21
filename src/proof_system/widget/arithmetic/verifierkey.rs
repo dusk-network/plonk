@@ -5,7 +5,7 @@ use crate::commitment_scheme::kzg10::Commitment;
 use crate::proof_system::linearisation_poly::ProofEvaluations;
 use dusk_bls12_381::{G1Affine, Scalar};
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub struct VerifierKey {
     pub q_m: Commitment,
     pub q_l: Commitment,

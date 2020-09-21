@@ -7,7 +7,7 @@ use crate::proof_system::linearisation_poly::ProofEvaluations;
 use dusk_bls12_381::{G1Affine, Scalar};
 use dusk_jubjub::EDWARDS_D;
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub struct VerifierKey {
     pub q_l: Commitment,
     pub q_r: Commitment,

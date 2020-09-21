@@ -58,6 +58,16 @@ impl Prover {
             preprocessed_transcript: Transcript::new(label),
         }
     }
+
+    /// Creates a new prover object with some expected size.
+    pub fn with_expected_size(label: &'static [u8], size: usize) -> Prover {
+        Prover {
+            prover_key: None,
+            cs: StandardComposer::with_expected_size(size),
+            preprocessed_transcript: Transcript::new(label),
+        }
+    }
+
     /// Returns the number of gates in the circuit
     pub fn circuit_size(&self) -> usize {
         self.cs.circuit_size()
@@ -205,8 +215,10 @@ impl Prover {
         let alpha = transcript.challenge_scalar(b"alpha");
         let range_sep_challenge = transcript.challenge_scalar(b"range separation challenge");
         let logic_sep_challenge = transcript.challenge_scalar(b"logic separation challenge");
-        let fixed_base_sep_challenge = transcript.challenge_scalar(b"fixed base separation challenge");
-        let var_base_sep_challenge = transcript.challenge_scalar(b"variable base separation challenge");
+        let fixed_base_sep_challenge =
+            transcript.challenge_scalar(b"fixed base separation challenge");
+        let var_base_sep_challenge =
+            transcript.challenge_scalar(b"variable base separation challenge");
 
         let t_poly = quotient_poly::compute(
             &domain,
