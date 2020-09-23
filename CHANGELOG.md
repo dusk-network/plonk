@@ -10,6 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 
+## [0.2.10] - 23-09-20
+
+### Added
+- Added `CircuitBuilder` trait and a example for it. 
+
 ## [0.2.9] - 11-09-20
 
 ### Added
