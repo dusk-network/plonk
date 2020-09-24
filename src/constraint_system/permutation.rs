@@ -9,7 +9,7 @@ use std::collections::HashMap;
 
 /// Permutation provides the necessary state information and functions
 /// to create the permutation polynomial. In the literature, Z(X) is the "accumulator",
-/// this is what this codebase calls the permutation polynomial.  
+/// this is what this codebase calls the permutation polynomial.
 #[derive(Debug)]
 pub struct Permutation {
     // Maps a variable to the wires that it is associated to
@@ -75,6 +75,7 @@ impl Permutation {
         self.add_variable_to_map(d, fourth);
     }
 
+    /// Maps a variable to the wire it is associated with
     pub fn add_variable_to_map(&mut self, var: Variable, wire_data: WireData) {
         assert!(self.valid_variables(&[var]));
 
@@ -603,6 +604,8 @@ impl Permutation {
     }
 }
 
+
+/// Testing
 #[cfg(test)]
 mod test {
     use super::*;

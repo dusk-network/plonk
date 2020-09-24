@@ -5,14 +5,16 @@
 //! `Proof` structure and it's methods.
 
 use super::linearisation_poly::ProofEvaluations;
-use super::proof_system_errors::{ProofError, ProofErrors};
+use super::proof_system_errors::ProofErrors;
 use crate::commitment_scheme::kzg10::{AggregateProof, Commitment, OpeningKey};
 use crate::fft::EvaluationDomain;
 use crate::proof_system::widget::VerifierKey;
 use crate::transcript::TranscriptProtocol;
+use anyhow::{Error, Result};
 use dusk_bls12_381::{multiscalar_mul::msm_variable_base, G1Affine, Scalar};
-use failure::Error;
 use merlin::Transcript;
+use serde::de::Visitor;
+use serde::{self, Deserialize, Deserializer, Serialize, Serializer};
 
 /// A Proof is a composition of `Commitments` to the witness, permutation,
 /// quotient, shifted and opening polynomials as well as the
@@ -52,7 +54,72 @@ pub struct Proof {
     pub evaluations: ProofEvaluations,
 }
 
+impl_serde!(Proof);
+
 impl Proof {
+    /// Serialises a Proof struct
+    pub fn to_bytes(&self) -> Vec<u8> {
+        use crate::serialisation::write_commitment;
+
+        let mut bytes = Vec::with_capacity(Proof::serialised_size());
+
+        write_commitment(&self.a_comm, &mut bytes);
+        write_commitment(&self.b_comm, &mut bytes);
+        write_commitment(&self.c_comm, &mut bytes);
+        write_commitment(&self.d_comm, &mut bytes);
+        write_commitment(&self.z_comm, &mut bytes);
+        write_commitment(&self.t_1_comm, &mut bytes);
+        write_commitment(&self.t_2_comm, &mut bytes);
+        write_commitment(&self.t_3_comm, &mut bytes);
+        write_commitment(&self.t_4_comm, &mut bytes);
+        write_commitment(&self.w_z_comm, &mut bytes);
+        write_commitment(&self.w_zw_comm, &mut bytes);
+
+        bytes.extend(self.evaluations.to_bytes());
+
+        bytes
+    }
+    /// Deserialises a Proof struct
+    pub fn from_bytes(bytes: &[u8]) -> Result<Proof, Error> {
+        use crate::serialisation::read_commitment;
+
+        let (a_comm, rest) = read_commitment(bytes)?;
+        let (b_comm, rest) = read_commitment(rest)?;
+        let (c_comm, rest) = read_commitment(rest)?;
+        let (d_comm, rest) = read_commitment(rest)?;
+        let (z_comm, rest) = read_commitment(rest)?;
+        let (t_1_comm, rest) = read_commitment(rest)?;
+        let (t_2_comm, rest) = read_commitment(rest)?;
+        let (t_3_comm, rest) = read_commitment(rest)?;
+        let (t_4_comm, rest) = read_commitment(rest)?;
+        let (w_z_comm, rest) = read_commitment(rest)?;
+        let (w_zw_comm, rest) = read_commitment(rest)?;
+
+        let evaluations = ProofEvaluations::from_bytes(rest);
+
+        let proof = Proof {
+            a_comm,
+            b_comm,
+            c_comm,
+            d_comm,
+            z_comm,
+            t_1_comm,
+            t_2_comm,
+            t_3_comm,
+            t_4_comm,
+            w_z_comm,
+            w_zw_comm,
+            evaluations: evaluations?,
+        };
+        Ok(proof)
+    }
+
+    const fn serialised_size() -> usize {
+        const NUM_COMMITMENTS: usize = 11;
+        const COMMITMENT_SIZE: usize = 48;
+        (NUM_COMMITMENTS * COMMITMENT_SIZE) + ProofEvaluations::serialised_size()
+    }
+
     /// Performs the verification of a `Proof` returning a boolean result.
     pub(crate) fn verify(
         &self,
@@ -87,7 +154,8 @@ impl Proof {
         let alpha = transcript.challenge_scalar(b"alpha");
         let range_sep_challenge = transcript.challenge_scalar(b"range separation challenge");
         let logic_sep_challenge = transcript.challenge_scalar(b"logic separation challenge");
-        let ecc_sep_challenge = transcript.challenge_scalar(b"ecc separation challenge");
+        let fixed_base_sep_challenge = transcript.challenge_scalar(b"fixed base separation challenge");
+        let var_base_sep_challenge = transcript.challenge_scalar(b"variable base separation challenge");
 
         // Add commitment to quotient polynomial to transcript
         transcript.append_commitment(b"t_1", &self.t_1_comm);
@@ -148,7 +216,8 @@ impl Proof {
             (
                 &range_sep_challenge,
                 &logic_sep_challenge,
-                &ecc_sep_challenge,
+                &fixed_base_sep_challenge,
+                &var_base_sep_challenge,
             ),
             &z_challenge,
             l1_eval,
@@ -205,7 +274,7 @@ impl Proof {
             )
             .is_err()
         {
-            return Err(ProofError(ProofErrors::ProofVerificationError.into()).into());
+            return Err(ProofErrors::ProofVerificationError.into());
         }
         Ok(())
     }
@@ -272,7 +341,7 @@ impl Proof {
         alpha: &Scalar,
         beta: &Scalar,
         gamma: &Scalar,
-        (range_sep_challenge, logic_sep_challenge, ecc_sep_challenge): (&Scalar, &Scalar, &Scalar),
+        (range_sep_challenge, logic_sep_challenge, fixed_base_sep_challenge,var_base_sep_challenge): (&Scalar, &Scalar, &Scalar,&Scalar),
         z_challenge: &Scalar,
         l1_eval: Scalar,
         verifier_key: &VerifierKey,
@@ -300,12 +369,21 @@ impl Proof {
             &self.evaluations,
         );
 
-        verifier_key.ecc.compute_linearisation_commitment(
-            &ecc_sep_challenge,
+        verifier_key.fixed_base.compute_linearisation_commitment(
+            &fixed_base_sep_challenge,
             &mut scalars,
             &mut points,
             &self.evaluations,
         );
+
+        verifier_key
+            .variable_base
+            .compute_linearisation_commitment(
+                &var_base_sep_challenge,
+                &mut scalars,
+                &mut points,
+                &self.evaluations,
+            );
 
         verifier_key.permutation.compute_linearisation_commitment(
             &mut scalars,
@@ -375,4 +453,46 @@ fn compute_barycentric_eval(
         .sum();
 
     result * numerator
+}
+#[cfg(test)]
+mod test {
+    use super::*;
+    #[test]
+    fn test_serialise_deserialise_proof() {
+        let proof = Proof {
+            a_comm: Commitment::default(),
+            b_comm: Commitment::default(),
+            c_comm: Commitment::default(),
+            d_comm: Commitment::default(),
+            z_comm: Commitment::default(),
+            t_1_comm: Commitment::default(),
+            t_2_comm: Commitment::default(),
+            t_3_comm: Commitment::default(),
+            t_4_comm: Commitment::default(),
+            w_z_comm: Commitment::default(),
+            w_zw_comm: Commitment::default(),
+            evaluations: ProofEvaluations {
+                a_eval: Scalar::random(&mut rand::thread_rng()),
+                b_eval: Scalar::random(&mut rand::thread_rng()),
+                c_eval: Scalar::random(&mut rand::thread_rng()),
+                d_eval: Scalar::random(&mut rand::thread_rng()),
+                a_next_eval: Scalar::random(&mut rand::thread_rng()),
+                b_next_eval: Scalar::random(&mut rand::thread_rng()),
+                d_next_eval: Scalar::random(&mut rand::thread_rng()),
+                q_arith_eval: Scalar::random(&mut rand::thread_rng()),
+                q_c_eval: Scalar::random(&mut rand::thread_rng()),
+                q_l_eval: Scalar::random(&mut rand::thread_rng()),
+                q_r_eval: Scalar::random(&mut rand::thread_rng()),
+                left_sigma_eval: Scalar::random(&mut rand::thread_rng()),
+                right_sigma_eval: Scalar::random(&mut rand::thread_rng()),
+                out_sigma_eval: Scalar::random(&mut rand::thread_rng()),
+                lin_poly_eval: Scalar::random(&mut rand::thread_rng()),
+                perm_eval: Scalar::random(&mut rand::thread_rng()),
+            },
+        };
+
+        let proof_bytes = proof.to_bytes();
+        let got_proof = Proof::from_bytes(&proof_bytes).unwrap();
+        assert_eq!(got_proof, proof);
+    }
 }

@@ -2,7 +2,8 @@ use super::delta;
 use crate::commitment_scheme::kzg10::Commitment;
 use crate::proof_system::linearisation_poly::ProofEvaluations;
 use dusk_bls12_381::{G1Affine, Scalar};
-#[derive(Debug)]
+
+#[derive(Debug, PartialEq, Eq)]
 pub struct VerifierKey {
     pub q_range: Commitment,
 }

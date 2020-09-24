@@ -1,12 +1,12 @@
-use super::proof_system_errors::{ProofError, ProofErrors};
+use super::proof_system_errors::ProofErrors;
 use crate::commitment_scheme::kzg10::CommitKey;
 use crate::constraint_system::{StandardComposer, Variable};
 use crate::fft::{EvaluationDomain, Polynomial};
 use crate::proof_system::widget::ProverKey;
 use crate::proof_system::{linearisation_poly, proof::Proof, quotient_poly};
 use crate::transcript::TranscriptProtocol;
+use anyhow::{Error, Result};
 use dusk_bls12_381::Scalar;
-use failure::Error;
 use merlin::Transcript;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
@@ -30,7 +30,7 @@ impl Prover {
     /// Preprocesses the underlying constraint system
     pub fn preprocess(&mut self, commit_key: &CommitKey) -> Result<(), Error> {
         if self.prover_key.is_some() {
-            return Err(ProofError(ProofErrors::CircuitAlreadyPreprocessed.into()).into());
+            return Err(ProofErrors::CircuitAlreadyPreprocessed.into());
         }
         let pk = self
             .cs
@@ -202,7 +202,8 @@ impl Prover {
         let alpha = transcript.challenge_scalar(b"alpha");
         let range_sep_challenge = transcript.challenge_scalar(b"range separation challenge");
         let logic_sep_challenge = transcript.challenge_scalar(b"logic separation challenge");
-        let ecc_sep_challenge = transcript.challenge_scalar(b"ecc separation challenge");
+        let fixed_base_sep_challenge = transcript.challenge_scalar(b"fixed base separation challenge");
+        let var_base_sep_challenge = transcript.challenge_scalar(b"variable base separation challenge");
 
         let t_poly = quotient_poly::compute(
             &domain,
@@ -216,7 +217,8 @@ impl Prover {
                 gamma,
                 range_sep_challenge,
                 logic_sep_challenge,
-                ecc_sep_challenge,
+                fixed_base_sep_challenge,
+                var_base_sep_challenge,
             ),
         )?;
 
@@ -249,7 +251,8 @@ impl Prover {
                 gamma,
                 range_sep_challenge,
                 logic_sep_challenge,
-                ecc_sep_challenge,
+                fixed_base_sep_challenge,
+                var_base_sep_challenge,
                 z_challenge,
             ),
             &w_l_poly,

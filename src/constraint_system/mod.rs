@@ -10,7 +10,7 @@ pub(crate) mod variable;
 pub mod arithmetic;
 /// Boolean gate
 pub mod boolean;
-/// Scalar multiplication gate
+/// Elliptic Curve Crypto gates
 pub mod ecc;
 #[cfg(test)]
 pub(crate) mod helper;
@@ -21,3 +21,9 @@ pub mod range;
 
 pub use composer::StandardComposer;
 pub use variable::{Variable, WireData};
+
+/// copied from old permutation.rs
+pub(crate) mod constants;
+#[allow(clippy::module_inception)]
+pub(crate) mod permutation;
+pub use permutation::Permutation;
