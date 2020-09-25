@@ -10,9 +10,12 @@ use dusk_jubjub::{AffinePoint as JubJubAffine, Scalar as JubJubScalar};
 /// Circuit inputs
 #[derive(Debug, Clone, Copy)]
 pub struct CircuitInputs<'a> {
-    bls_scalars: &'a [BlsScalar],
-    jubjub_scalars: &'a [JubJubScalar],
-    jubjub_affines: &'a [JubJubAffine],
+    /// BlsScalar inputs.
+    pub bls_scalars: &'a [BlsScalar],
+    /// JubJubScalar inputs.
+    pub jubjub_scalars: &'a [JubJubScalar],
+    /// JubJubAffine inputs.
+    pub jubjub_affines: &'a [JubJubAffine],
 }
 
 /// Public Input
