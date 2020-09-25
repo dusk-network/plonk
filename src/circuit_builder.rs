@@ -20,8 +20,8 @@ pub enum PublicInput {
 }
 
 impl PublicInput {
-    #[allow(dead_code)]
-    fn value(&self) -> Vec<BlsScalar> {
+    /// Returns the value of a PublicInput struct
+    pub fn value(&self) -> Vec<BlsScalar> {
         match self {
             PublicInput::BlsScalar(scalar, _) => vec![*scalar],
             PublicInput::JubJubScalar(scalar, _) => vec![BlsScalar::from(*scalar)],
@@ -59,7 +59,7 @@ where
 
     /// Verifies a proof using the provided `CircuitInputs` & `VerifierKey` instances.
     fn verify_proof(
-        &self,
+        &mut self,
         pub_params: &PublicParameters,
         verifier_key: &VerifierKey,
         transcript_initialisation: &'static [u8],
@@ -166,7 +166,7 @@ mod tests {
             // Generate & save `VerifierKey` with some random values.
             let mut verifier = Verifier::new(b"TestCircuit");
             self.gadget(verifier.mut_cs())?;
-            verifier.preprocess(&ck).unwrap();
+            verifier.preprocess(&ck)?;
             Ok((
                 prover
                     .prover_key
@@ -222,7 +222,7 @@ mod tests {
         }
 
         fn verify_proof(
-            &self,
+            &mut self,
             pub_params: &PublicParameters,
             verifier_key: &VerifierKey,
             transcript_initialisation: &'static [u8],
@@ -232,6 +232,8 @@ mod tests {
             let (_, vk) = pub_params.trim(1 << 9)?;
             // New Verifier instance
             let mut verifier = Verifier::new(transcript_initialisation);
+            // Fill witnesses for Verifier
+            self.gadget(verifier.mut_cs())?;
             verifier.verifier_key = Some(*verifier_key);
             verifier.verify(proof, &vk, &self.build_pi(pub_inputs)?)
         }
