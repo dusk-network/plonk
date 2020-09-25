@@ -44,7 +44,7 @@ where
         -> Result<(ProverKey, VerifierKey, usize)>;
 
     /// Build PI vector for Proof verifications.
-    fn build_pi(&self, pub_inputs: &[PublicInput]) -> Vec<BlsScalar>;
+    fn build_pi(&self, pub_inputs: &[PublicInput]) -> Result<Vec<BlsScalar>>;
 
     /// Get the circuit size of the implemented circuit.
     fn circuit_size(&self) -> usize;
@@ -75,6 +75,10 @@ pub enum CircuitErrors {
     /// required inputs.
     #[error("missing inputs for the circuit")]
     CircuitInputsNotFound,
+    /// This error occurs when we want to verify a Proof but the pi_constructor
+    /// attribute is unninitialized.
+    #[error("PI constructor attribute is unninitialized")]
+    UnninitializedPIGenerator,
 }
 
 #[cfg(test)]
@@ -175,11 +179,11 @@ mod tests {
             ))
         }
 
-        fn build_pi(&self, pub_inputs: &[PublicInput]) -> Vec<BlsScalar> {
+        fn build_pi(&self, pub_inputs: &[PublicInput]) -> Result<Vec<BlsScalar>> {
             let mut pi = vec![BlsScalar::zero(); self.circuit_size];
             self.pi_constructor
                 .as_ref()
-                .expect("Circuit must be compiled before building PI vectors.")
+                .ok_or_else(|| CircuitErrors::UnninitializedPIGenerator)?
                 .iter()
                 .enumerate()
                 .for_each(|(idx, pi_constr)| {
@@ -194,7 +198,7 @@ mod tests {
                         }
                     };
                 });
-            pi
+            Ok(pi)
         }
 
         fn circuit_size(&self) -> usize {
@@ -229,7 +233,7 @@ mod tests {
             // New Verifier instance
             let mut verifier = Verifier::new(transcript_initialisation);
             verifier.verifier_key = Some(*verifier_key);
-            verifier.verify(proof, &vk, &self.build_pi(pub_inputs))
+            verifier.verify(proof, &vk, &self.build_pi(pub_inputs)?)
         }
     }
 
