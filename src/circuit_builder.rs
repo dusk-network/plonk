@@ -183,7 +183,7 @@ mod tests {
             let mut pi = vec![BlsScalar::zero(); self.circuit_size];
             self.pi_constructor
                 .as_ref()
-                .ok_or_else(|| CircuitErrors::UnninitializedPIGenerator)?
+                .ok_or_else(|| CircuitErrors::UninitializedPIGenerator)?
                 .iter()
                 .enumerate()
                 .for_each(|(idx, pi_constr)| {
