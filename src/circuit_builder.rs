@@ -76,9 +76,9 @@ pub enum CircuitErrors {
     #[error("missing inputs for the circuit")]
     CircuitInputsNotFound,
     /// This error occurs when we want to verify a Proof but the pi_constructor
-    /// attribute is unninitialized.
-    #[error("PI constructor attribute is unninitialized")]
-    UnninitializedPIGenerator,
+    /// attribute is uninitialized.
+    #[error("PI constructor attribute is uninitialized")]
+    UninitializedPIGenerator,
 }
 
 #[cfg(test)]
