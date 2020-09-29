@@ -10,6 +10,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 
+## [0.2.11] - 29-09-20
+
+### Changed
+- Now `Circuit` inputs are set in the circuit structure as `Option<T>`.
+- Make `PublicInput::value()` fn public.
+- Make pi_builder return `Result<T>`
+- Refactored examples for the `Circuit` trait impl
+according to the new changes.
+
+### Removed
+- Removed `CircuitInputs` from the crate.
+
 ## [0.2.10] - 23-09-20
 
 ### Added

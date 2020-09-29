@@ -6,6 +6,7 @@ use crate::proof_system::{Proof, Prover, ProverKey, Verifier, VerifierKey};
 use anyhow::{anyhow, Error, Result};
 use dusk_bls12_381::Scalar as BlsScalar;
 use dusk_jubjub::{AffinePoint as JubJubAffine, Scalar as JubJubScalar};
+use thiserror::Error as ThisError;
 
 #[macro_export]
 /// Wrapper macro to build static plonk circuits.
@@ -254,8 +255,8 @@ pub enum PublicInput {
 }
 
 impl PublicInput {
-    #[allow(dead_code)]
-    fn value(&self) -> Vec<BlsScalar> {
+    /// Returns the value of a PublicInput struct
+    pub fn value(&self) -> Vec<BlsScalar> {
         match self {
             PublicInput::BlsScalar(scalar, _) => vec![*scalar],
             PublicInput::JubJubScalar(scalar, _) => vec![BlsScalar::from(*scalar)],
@@ -420,6 +421,19 @@ pub trait Circuit: Sized {
     fn transcript_initializer() -> &'static [u8];
 }
 
+/// Represents an error in the PublicParameters creation and or modification.
+#[derive(ThisError, Debug)]
+pub enum CircuitErrors {
+    /// This error occurs when the circuit is not provided with all of the
+    /// required inputs.
+    #[error("missing inputs for the circuit")]
+    CircuitInputsNotFound,
+    /// This error occurs when we want to verify a Proof but the pi_constructor
+    /// attribute is uninitialized.
+    #[error("PI constructor attribute is uninitialized")]
+    UninitializedPIGenerator,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -493,7 +507,7 @@ mod tests {
     );
 
     #[test]
-    fn test_full() -> Result<(), Error> {
+    fn test_full() -> Result<()> {
         // Generate CRS
         let pub_params = PublicParameters::setup(1 << 10, &mut rand::thread_rng())?;
 
