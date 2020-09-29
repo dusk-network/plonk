@@ -28,7 +28,7 @@ pub struct OpeningKey {
 }
 
 /// CommitKey is used to commit to a polynomial which is bounded by the max_degree.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct CommitKey {
     /// Group elements of the form `{ \beta^i G }`, where `i` ranges from 0 to `degree`.
     pub powers_of_g: Vec<G1Affine>,

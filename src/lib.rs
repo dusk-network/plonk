@@ -55,6 +55,7 @@
 mod macros;
 
 mod bit_iterator;
+#[macro_use]
 pub mod circuit_builder;
 pub mod commitment_scheme;
 pub mod constraint_system;
