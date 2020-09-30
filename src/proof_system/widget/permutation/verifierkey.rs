@@ -4,11 +4,15 @@
 #![allow(clippy::too_many_arguments)]
 
 use crate::commitment_scheme::kzg10::Commitment;
-use crate::permutation::constants::{K1, K2, K3};
+use crate::constraint_system::constants::{K1, K2, K3};
 use crate::proof_system::linearisation_poly::ProofEvaluations;
 use dusk_bls12_381::{G1Affine, Scalar};
 
+<<<<<<< HEAD
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
+=======
+#[derive(Debug, PartialEq, Eq)]
+>>>>>>> 5ae0bc10e582861d623078ed4af84100acb5fcca
 pub struct VerifierKey {
     pub left_sigma: Commitment,
     pub right_sigma: Commitment,

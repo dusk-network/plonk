@@ -1,9 +1,6 @@
-<<<<<<< HEAD:src/constraint_system/ecc/curve_addition/fixed_base_gate.rs
 // Copyright (c) DUSK NETWORK. All rights reserved.
 // Licensed under the MPL 2.0 license. See LICENSE file in the project root for details.
 
-=======
->>>>>>> moved permutation section, Dusk's work also included:src/constraint_system/ecc/gates.rs
 use crate::constraint_system::StandardComposer;
 use crate::constraint_system::Variable;
 use dusk_bls12_381::Scalar;
