@@ -1,14 +1,17 @@
+// Copyright (c) DUSK NETWORK. All rights reserved.
+// Licensed under the MPL 2.0 license. See LICENSE file in the project root for details.
+
 use super::{check_bit_consistency, extract_bit};
 use crate::fft::{Evaluations, Polynomial};
 use dusk_bls12_381::Scalar;
 use dusk_jubjub::EDWARDS_D;
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct ProverKey {
     pub q_l: (Polynomial, Evaluations),
     pub q_r: (Polynomial, Evaluations),
     pub q_c: (Polynomial, Evaluations),
-    pub q_ecc: (Polynomial, Evaluations),
+    pub q_fixed_group_add: (Polynomial, Evaluations),
 }
 
 impl ProverKey {
@@ -25,7 +28,7 @@ impl ProverKey {
         w_4_i: &Scalar,      // accumulated_bit
         w_4_i_next: &Scalar, // accumulated_bit_next
     ) -> Scalar {
-        let q_ecc_i = &self.q_ecc.1[index];
+        let q_fixed_group_add_i = &self.q_fixed_group_add.1[index];
         let q_c_i = &self.q_c.1[index];
 
         let kappa = ecc_separation_challenge.square();
@@ -72,7 +75,7 @@ impl ProverKey {
 
         let identity = bit_consistency + x_acc_consistency + y_acc_consistency + xy_consistency;
 
-        identity * q_ecc_i * ecc_separation_challenge
+        identity * q_fixed_group_add_i * ecc_separation_challenge
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -90,7 +93,7 @@ impl ProverKey {
         q_r_eval: &Scalar,
         q_c_eval: &Scalar,
     ) -> Polynomial {
-        let q_ecc_poly = &self.q_ecc.0;
+        let q_fixed_group_add_poly = &self.q_fixed_group_add.0;
 
         let kappa = ecc_separation_challenge.square();
         let kappa_sq = kappa.square();
@@ -134,6 +137,6 @@ impl ProverKey {
 
         let a = bit_consistency + x_acc_consistency + y_acc_consistency + xy_consistency;
 
-        q_ecc_poly * &(a * ecc_separation_challenge)
+        q_fixed_group_add_poly * &(a * ecc_separation_challenge)
     }
 }

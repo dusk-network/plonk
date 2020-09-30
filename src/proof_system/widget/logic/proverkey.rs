@@ -1,10 +1,13 @@
+// Copyright (c) DUSK NETWORK. All rights reserved.
+// Licensed under the MPL 2.0 license. See LICENSE file in the project root for details.
+
 #![allow(clippy::too_many_arguments)]
 use super::{delta, delta_xor_and};
 use crate::fft::{Evaluations, Polynomial};
 
 use dusk_bls12_381::Scalar;
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct ProverKey {
     pub q_c: (Polynomial, Evaluations),
     pub q_logic: (Polynomial, Evaluations),

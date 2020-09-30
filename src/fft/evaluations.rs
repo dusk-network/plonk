@@ -1,3 +1,6 @@
+// Copyright (c) DUSK NETWORK. All rights reserved.
+// Licensed under the MPL 2.0 license. See LICENSE file in the project root for details.
+
 //! A polynomial represented in evaluations form over a domain of size 2^n.
 
 use super::domain::EvaluationDomain;
@@ -6,7 +9,7 @@ use core::ops::{Add, AddAssign, DivAssign, Index, Mul, MulAssign, Sub, SubAssign
 use dusk_bls12_381::Scalar;
 
 /// Stores a polynomial in evaluation form.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub struct Evaluations {
     /// The evaluations of a polynomial over the domain `D`
     pub evals: Vec<Scalar>,

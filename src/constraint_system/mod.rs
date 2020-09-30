@@ -1,3 +1,6 @@
+// Copyright (c) DUSK NETWORK. All rights reserved.
+// Licensed under the MPL 2.0 license. See LICENSE file in the project root for details.
+
 //! The constraint System module stores the implementation
 //! of the PLONK Standard Composer, as well as the circuit
 //! tools and abstractions, used by the Composer to generate,
@@ -10,7 +13,7 @@ pub(crate) mod variable;
 pub mod arithmetic;
 /// Boolean gate
 pub mod boolean;
-/// Scalar multiplication gate
+/// Elliptic Curve Crypto gates
 pub mod ecc;
 #[cfg(test)]
 pub(crate) mod helper;

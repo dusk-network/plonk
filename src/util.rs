@@ -1,3 +1,6 @@
+// Copyright (c) DUSK NETWORK. All rights reserved.
+// Licensed under the MPL 2.0 license. See LICENSE file in the project root for details.
+
 use dusk_bls12_381::{G1Affine, G1Projective, G2Affine, G2Projective, Scalar};
 use rand_core::RngCore;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};

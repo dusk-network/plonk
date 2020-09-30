@@ -1,3 +1,6 @@
+// Copyright (c) DUSK NETWORK. All rights reserved.
+// Licensed under the MPL 2.0 license. See LICENSE file in the project root for details.
+
 //! The `Composer` is a Trait that is actually defining some kind of
 //! Circuit Builder for PLONK.
 //!
@@ -34,25 +37,27 @@ pub struct StandardComposer {
     pub(crate) q_l: Vec<Scalar>,
     // Right wire selector
     pub(crate) q_r: Vec<Scalar>,
-    // output wire selector
+    // Output wire selector
     pub(crate) q_o: Vec<Scalar>,
-    // fourth wire selector
+    // Fourth wire selector
     pub(crate) q_4: Vec<Scalar>,
-    // constant wire selector
+    // Constant wire selector
     pub(crate) q_c: Vec<Scalar>,
-    // arithmetic wire selector
+    // Arithmetic wire selector
     pub(crate) q_arith: Vec<Scalar>,
-    // range selector
+    // Range selector
     pub(crate) q_range: Vec<Scalar>,
-    // logic selector
+    // Logic selector
     pub(crate) q_logic: Vec<Scalar>,
-    // ecc selector
-    pub(crate) q_ecc: Vec<Scalar>,
+    // Fixed base group addition selector
+    pub(crate) q_fixed_group_add: Vec<Scalar>,
+    // Variable base group addition selector
+    pub(crate) q_variable_group_add: Vec<Scalar>,
 
     /// Public inputs vector
     pub public_inputs: Vec<Scalar>,
 
-    // witness vectors
+    // Witness vectors
     pub(crate) w_l: Vec<Variable>,
     pub(crate) w_r: Vec<Variable>,
     pub(crate) w_o: Vec<Variable>,
@@ -98,23 +103,10 @@ impl StandardComposer {
     }
 
     /// Fixes a variable in the witness to be a part of the circuit description.
-    /// This method is (currently) only used in the following context:
-    /// We have gates which only require 3/4 wires,
-    /// We must assign the fourth value to another value, we then fix this value to be zero.
-    /// However, the verifier needs to be able to verify that this value is also zero.
-    /// We therefore must make this zero value a part of the circuit description of every circuit.
-    pub fn add_witness_to_circuit_description(&mut self, var: Variable, value: Scalar) {
-        self.poly_gate(
-            var,
-            var,
-            var,
-            Scalar::zero(),
-            Scalar::one(),
-            Scalar::zero(),
-            Scalar::zero(),
-            -value,
-            Scalar::zero(),
-        );
+    pub fn add_witness_to_circuit_description(&mut self, value: Scalar) -> Variable {
+        let var = self.add_input(value);
+        self.constrain_to_constant(var, value, Scalar::zero());
+        var
     }
 
     /// Creates a new circuit with an expected circuit size.
@@ -134,7 +126,8 @@ impl StandardComposer {
             q_arith: Vec::with_capacity(expected_size),
             q_range: Vec::with_capacity(expected_size),
             q_logic: Vec::with_capacity(expected_size),
-            q_ecc: Vec::with_capacity(expected_size),
+            q_fixed_group_add: Vec::with_capacity(expected_size),
+            q_variable_group_add: Vec::with_capacity(expected_size),
             public_inputs: Vec::with_capacity(expected_size),
 
             w_l: Vec::with_capacity(expected_size),
@@ -150,9 +143,7 @@ impl StandardComposer {
         };
 
         // Reserve the first variable to be zero
-        let zero_var = composer.add_input(Scalar::zero());
-        composer.add_witness_to_circuit_description(zero_var, Scalar::zero());
-        composer.zero_var = zero_var;
+        composer.zero_var = composer.add_witness_to_circuit_description(Scalar::zero());
 
         // Add dummy constraints
         composer.add_dummy_constraints();
@@ -170,21 +161,6 @@ impl StandardComposer {
         // The composer now links the Scalar to the Variable returned from the Permutation
         self.variables.insert(var, s);
 
-        var
-    }
-
-    /// Adds the passed `BlsScalar` to the Constraint System as a
-    /// witness value and constraints it to be equal to the value that
-    /// was sent.
-    ///
-    /// This makes easier to work with Public Inputs, since they can just be
-    /// used as witnesses constrained to a fixed value.
-    pub fn add_constant_witness(&mut self, s: Scalar) -> Variable {
-        // Allocate and link the Variable and the Scalar values in the
-        // `Permutation` struct.
-        let var = self.add_input(s);
-        // We constraint the witness to be equal to a certain constant value.
-        self.constrain_to_constant(var, s, Scalar::zero());
         var
     }
 
@@ -224,7 +200,8 @@ impl StandardComposer {
 
         self.q_range.push(Scalar::zero());
         self.q_logic.push(Scalar::zero());
-        self.q_ecc.push(Scalar::zero());
+        self.q_fixed_group_add.push(Scalar::zero());
+        self.q_variable_group_add.push(Scalar::zero());
 
         self.public_inputs.push(pi);
 
@@ -267,6 +244,45 @@ impl StandardComposer {
         );
     }
 
+    /// Conditionally selects a Variable based on an input bit
+    /// If:
+    ///     bit == 1 => choice_a,
+    ///     bit == 0 => choice_b,
+    pub fn conditional_select(
+        &mut self,
+        bit: Variable,
+        choice_a: Variable,
+        choice_b: Variable,
+    ) -> Variable {
+        // bit * choice_a
+        let bit_times_a = self.mul(Scalar::one(), bit, choice_a, Scalar::zero(), Scalar::zero());
+
+        // 1 - bit
+        let one_min_bit = self.add(
+            (-Scalar::one(), bit),
+            (Scalar::zero(), self.zero_var),
+            Scalar::one(),
+            Scalar::zero(),
+        );
+
+        // (1 - bit) * b
+        let one_min_bit_choice_b = self.mul(
+            Scalar::one(),
+            one_min_bit,
+            choice_b,
+            Scalar::zero(),
+            Scalar::zero(),
+        );
+
+        // [ (1 - bit) * b ] + [ bit * a ]
+        self.add(
+            (Scalar::one(), one_min_bit_choice_b),
+            (Scalar::one(), bit_times_a),
+            Scalar::zero(),
+            Scalar::zero(),
+        )
+    }
+
     /// This function is used to add a blinding factor to the witness polynomials
     /// XXX: Split this into two separate functions and document
     /// XXX: We could add another section to add random witness variables, with selector polynomials all zero
@@ -281,7 +297,8 @@ impl StandardComposer {
         self.q_arith.push(Scalar::one());
         self.q_range.push(Scalar::zero());
         self.q_logic.push(Scalar::zero());
-        self.q_ecc.push(Scalar::zero());
+        self.q_fixed_group_add.push(Scalar::zero());
+        self.q_variable_group_add.push(Scalar::zero());
         self.public_inputs.push(Scalar::zero());
         let var_six = self.add_input(Scalar::from(6));
         let var_one = self.add_input(Scalar::from(1));
@@ -304,7 +321,8 @@ impl StandardComposer {
         self.q_arith.push(Scalar::one());
         self.q_range.push(Scalar::zero());
         self.q_logic.push(Scalar::zero());
-        self.q_ecc.push(Scalar::zero());
+        self.q_fixed_group_add.push(Scalar::zero());
+        self.q_variable_group_add.push(Scalar::zero());
         self.public_inputs.push(Scalar::zero());
         self.w_l.push(var_min_twenty);
         self.w_r.push(var_six);
@@ -359,7 +377,8 @@ impl StandardComposer {
             let qarith = self.q_arith[i];
             let qrange = self.q_range[i];
             let qlogic = self.q_logic[i];
-            let qecc = self.q_ecc[i];
+            let qfixed = self.q_fixed_group_add[i];
+            let qvar = self.q_variable_group_add[i];
             let pi = self.public_inputs[i];
 
             let a = w_l[i];
@@ -383,13 +402,14 @@ impl StandardComposer {
             - q_arith -> {:?}\n
             - q_range -> {:?}\n
             - q_logic -> {:?}\n
-            - q_ecc -> {:?}\n
+            - q_fixed_group_add -> {:?}\n
+            - q_variable_group_add -> {:?}\n
             # Witness polynomials:\n
             - w_l -> {:?}\n
             - w_r -> {:?}\n
             - w_o -> {:?}\n
             - w_4 -> {:?}\n",
-                i, qm, ql, qr, q4, qo, qc, qarith, qrange, qlogic, qecc, a, b, c, d
+                i, qm, ql, qr, q4, qo, qc, qarith, qrange, qlogic, qfixed, qvar, a, b, c, d
             );
             let k = qarith * ((qm * a * b) + (ql * a) + (qr * b) + (qo * c) + (q4 * d) + pi + qc)
                 + qlogic
@@ -442,6 +462,27 @@ mod tests {
                 // do nothing except add the dummy constraints
             },
             200,
+        );
+        assert!(res.is_ok());
+    }
+
+    #[test]
+    fn test_conditional_select() {
+        let res = gadget_tester(
+            |composer| {
+                let bit_1 = composer.add_input(Scalar::one());
+                let bit_0 = composer.add_input(Scalar::zero());
+
+                let choice_a = composer.add_input(Scalar::from(10u64));
+                let choice_b = composer.add_input(Scalar::from(20u64));
+
+                let choice = composer.conditional_select(bit_1, choice_a, choice_b);
+                composer.assert_equal(choice, choice_a);
+
+                let choice = composer.conditional_select(bit_0, choice_a, choice_b);
+                composer.assert_equal(choice, choice_b);
+            },
+            32,
         );
         assert!(res.is_ok());
     }

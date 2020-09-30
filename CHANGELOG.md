@@ -9,6 +9,59 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+
+## [0.2.11] - 29-09-20
+
+### Changed
+- Now `Circuit` inputs are set in the circuit structure as `Option<T>`.
+- Make `PublicInput::value()` fn public.
+- Make pi_builder return `Result<T>`
+- Refactored examples for the `Circuit` trait impl
+according to the new changes.
+
+### Removed
+- Removed `CircuitInputs` from the crate.
+
+## [0.2.10] - 23-09-20
+
+### Added
+- Added `CircuitBuilder` trait and a example for it. 
+
+## [0.2.9] - 11-09-20
+
+### Added
+- Added `ProverKey` & `Verifierkey` to the public API as exported types.
+
+### Changed
+- Use `dusk-bls12_381 v0.1.4`. 
+- Use `dusk-jubjub v0.3.8`. 
+
+## [0.2.8] - 25-08-20
+
+### Added
+- Add a `variable_base_scalar_mul` method using a variable base curve add gate.
+
+### Changed
+- `ecc::scalar_mul` now named fixed_base_scalar_mul
+
+
+## [0.2.7] - 13-08-20
+
+### Added
+- `Anyhow` & `thiserror` for error handling support.
+- Serialisation methods for the crate public structures &
+`serde` support.
+- Add a `variable_base_scalar_mul` method using a variable base curve add gate.
+### Removed
+- `failure` for error support since has been deprecated.
+
+### Changed
+- `add_witness_to_circuit_description` requires now just to send
+a `Scalar` and returns a constant & constrained witness `Variable`.
+- Update `add_witness_to_circuit_description` fn sig (#282, #284)
+- dusk-jubjub version updated to 0.3.6
+- `ecc::scalar_mul` now named fixed_base_scalar_mul
+
 ## [0.2.6] - 03-08-20
 
 ### Changed

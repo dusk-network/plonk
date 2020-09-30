@@ -1,9 +1,12 @@
+// Copyright (c) DUSK NETWORK. All rights reserved.
+// Licensed under the MPL 2.0 license. See LICENSE file in the project root for details.
+
 use crate::commitment_scheme::kzg10::{CommitKey, OpeningKey};
 use crate::constraint_system::StandardComposer;
 use crate::proof_system::widget::VerifierKey;
 use crate::proof_system::Proof;
+use anyhow::{Error, Result};
 use dusk_bls12_381::Scalar;
-use failure::Error;
 use merlin::Transcript;
 /// Verifier verifies a proof
 #[allow(missing_debug_implementations)]
@@ -31,6 +34,15 @@ impl Verifier {
         Verifier {
             verifier_key: None,
             cs: StandardComposer::new(),
+            preprocessed_transcript: Transcript::new(label),
+        }
+    }
+
+    /// Creates a new verifier object with some expected size.
+    pub fn with_expected_size(label: &'static [u8], size: usize) -> Verifier {
+        Verifier {
+            verifier_key: None,
+            cs: StandardComposer::with_expected_size(size),
             preprocessed_transcript: Transcript::new(label),
         }
     }

@@ -1,3 +1,6 @@
+// Copyright (c) DUSK NETWORK. All rights reserved.
+// Licensed under the MPL 2.0 license. See LICENSE file in the project root for details.
+
 use crate::bit_iterator::*;
 use crate::constraint_system::StandardComposer;
 use crate::constraint_system::{Variable, WireData};
@@ -136,7 +139,8 @@ impl StandardComposer {
         self.q_c.extend(zeros.iter());
         self.q_arith.extend(zeros.iter());
         self.q_4.extend(zeros.iter());
-        self.q_ecc.extend(zeros.iter());
+        self.q_fixed_group_add.extend(zeros.iter());
+        self.q_variable_group_add.extend(zeros.iter());
         self.q_range.extend(ones.iter());
         self.q_logic.extend(zeros.iter());
         self.public_inputs.extend(zeros.iter());

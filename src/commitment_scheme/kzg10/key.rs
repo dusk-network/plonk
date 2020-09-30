@@ -1,15 +1,15 @@
+// Copyright (c) DUSK NETWORK. All rights reserved.
+// Licensed under the MPL 2.0 license. See LICENSE file in the project root for details.
+
 //! Key module contains the utilities and data structures
 //! that support the generation and usage of Commit and
 //! Opening keys.
-use super::{
-    errors::{KZG10Errors, PolyCommitSchemeError},
-    AggregateProof, Commitment, Proof,
-};
+use super::{errors::KZG10Errors, AggregateProof, Commitment, Proof};
 use crate::{fft::Polynomial, transcript::TranscriptProtocol, util};
+use anyhow::{Error, Result};
 use dusk_bls12_381::{
     multiscalar_mul::msm_variable_base, G1Affine, G1Projective, G2Affine, G2Prepared, Scalar,
 };
-use failure::Error;
 use merlin::Transcript;
 
 /// Opening Key is used to verify opening proofs made about a committed polynomial.
@@ -35,6 +35,39 @@ pub struct CommitKey {
 }
 
 impl CommitKey {
+    /// Serialises the commitment Key to a byte slice
+    pub fn to_bytes(&self) -> Vec<u8> {
+        use crate::serialisation::{write_g1_affine, write_u64};
+
+        let mut bytes = Vec::with_capacity(self.powers_of_g.len() * 48);
+
+        write_u64(self.powers_of_g.len() as u64, &mut bytes);
+
+        for point in self.powers_of_g.iter() {
+            write_g1_affine(point, &mut bytes);
+        }
+
+        bytes
+    }
+
+    /// Deserialises a bytes slice to a Commitment Key
+    pub fn from_bytes(bytes: &[u8]) -> Result<CommitKey, Error> {
+        use crate::serialisation::{read_g1_affine, read_u64};
+
+        let (num_points, rest) = read_u64(&bytes)?;
+
+        let mut powers_of_g = Vec::with_capacity(num_points as usize);
+
+        let mut remaining: &[u8] = &rest;
+        for _ in 0..num_points {
+            let (point, rest) = read_g1_affine(remaining)?;
+            powers_of_g.push(point);
+            remaining = rest;
+        }
+
+        Ok(CommitKey { powers_of_g })
+    }
+
     /// Returns the maximum degree polynomial that you can commit to.
     pub fn max_degree(&self) -> usize {
         self.powers_of_g.len() - 1
@@ -49,12 +82,12 @@ impl CommitKey {
         }
         // Check that the truncated degree is not zero
         if truncated_degree == 0 {
-            return Err(PolyCommitSchemeError(KZG10Errors::TruncatedDegreeIsZero.into()).into());
+            return Err(KZG10Errors::TruncatedDegreeIsZero.into());
         }
 
         // Check that max degree is less than truncated degree
         if truncated_degree > self.max_degree() {
-            return Err(PolyCommitSchemeError(KZG10Errors::TruncatedDegreeTooLarge.into()).into());
+            return Err(KZG10Errors::TruncatedDegreeTooLarge.into());
         }
 
         let truncated_powers = Self {
@@ -162,6 +195,49 @@ impl CommitKey {
 }
 
 impl OpeningKey {
+    pub(crate) fn new(g: G1Affine, h: G2Affine, beta_h: G2Affine) -> OpeningKey {
+        let prepared_h: G2Prepared = G2Prepared::from(h);
+        let prepared_beta_h = G2Prepared::from(beta_h);
+        OpeningKey {
+            g,
+            h,
+            beta_h,
+            prepared_beta_h,
+            prepared_h,
+        }
+    }
+    /// Serialises an Opening Key to bytes
+    pub fn to_bytes(&self) -> Vec<u8> {
+        use crate::serialisation::{write_g1_affine, write_g2_affine};
+        let mut bytes = Vec::with_capacity(OpeningKey::serialised_size());
+
+        write_g1_affine(&self.g, &mut bytes);
+        write_g2_affine(&self.h, &mut bytes);
+        write_g2_affine(&self.beta_h, &mut bytes);
+
+        bytes
+    }
+
+    pub(crate) fn serialised_size() -> usize {
+        const NUM_G2: usize = 2;
+        const NUM_G1: usize = 1;
+        const G1_SIZE: usize = 48;
+        const G2_SIZE: usize = 96;
+
+        NUM_G1 * G1_SIZE + NUM_G2 * G2_SIZE
+    }
+
+    /// Deserialises a byte slice into an Opening Key
+    pub fn from_bytes(bytes: &[u8]) -> Result<OpeningKey, Error> {
+        use crate::serialisation::{read_g1_affine, read_g2_affine};
+
+        let (g, rest) = read_g1_affine(&bytes)?;
+        let (h, rest) = read_g2_affine(&rest)?;
+        let (beta_h, _) = read_g2_affine(&rest)?;
+
+        Ok(OpeningKey::new(g, h, beta_h))
+    }
+
     /// Checks that a polynomial `p` was evaluated at a point `z` and returned the value specified `v`.
     /// ie. v = p(z).
     pub fn check(&self, point: Scalar, proof: Proof) -> bool {
@@ -217,7 +293,7 @@ impl OpeningKey {
         .final_exponentiation();
 
         if pairing != dusk_bls12_381::Gt::identity() {
-            return Err(PolyCommitSchemeError(KZG10Errors::PairingCheckFailure.into()).into());
+            return Err(KZG10Errors::PairingCheckFailure.into());
         };
         Ok(())
     }
@@ -231,10 +307,10 @@ impl OpeningKey {
 /// Returns an error if any of the above conditions are true.
 fn check_degree_is_within_bounds(max_degree: usize, poly_degree: usize) -> Result<(), Error> {
     if poly_degree == 0 {
-        return Err(PolyCommitSchemeError(KZG10Errors::PolynomialDegreeIsZero.into()).into());
+        return Err(KZG10Errors::PolynomialDegreeIsZero.into());
     }
     if poly_degree > max_degree {
-        return Err(PolyCommitSchemeError(KZG10Errors::PolynomialDegreeTooLarge.into()).into());
+        return Err(KZG10Errors::PolynomialDegreeTooLarge.into());
     }
     Ok(())
 }

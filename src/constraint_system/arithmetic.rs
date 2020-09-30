@@ -1,3 +1,6 @@
+// Copyright (c) DUSK NETWORK. All rights reserved.
+// Licensed under the MPL 2.0 license. See LICENSE file in the project root for details.
+
 #![allow(clippy::too_many_arguments)]
 
 use crate::constraint_system::StandardComposer;
@@ -65,7 +68,8 @@ impl StandardComposer {
         self.q_arith.push(Scalar::one());
         self.q_range.push(Scalar::zero());
         self.q_logic.push(Scalar::zero());
-        self.q_ecc.push(Scalar::zero());
+        self.q_fixed_group_add.push(Scalar::zero());
+        self.q_variable_group_add.push(Scalar::zero());
 
         self.public_inputs.push(pi);
 
@@ -141,7 +145,8 @@ impl StandardComposer {
 
         self.q_range.push(Scalar::zero());
         self.q_logic.push(Scalar::zero());
-        self.q_ecc.push(Scalar::zero());
+        self.q_fixed_group_add.push(Scalar::zero());
+        self.q_variable_group_add.push(Scalar::zero());
 
         self.public_inputs.push(pi);
 

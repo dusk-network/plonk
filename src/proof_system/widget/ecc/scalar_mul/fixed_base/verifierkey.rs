@@ -1,13 +1,17 @@
+// Copyright (c) DUSK NETWORK. All rights reserved.
+// Licensed under the MPL 2.0 license. See LICENSE file in the project root for details.
+
 use super::{check_bit_consistency, extract_bit};
 use crate::commitment_scheme::kzg10::Commitment;
 use crate::proof_system::linearisation_poly::ProofEvaluations;
 use dusk_bls12_381::{G1Affine, Scalar};
 use dusk_jubjub::EDWARDS_D;
-#[derive(Debug)]
+
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub struct VerifierKey {
     pub q_l: Commitment,
     pub q_r: Commitment,
-    pub q_ecc: Commitment,
+    pub q_fixed_group_add: Commitment,
 }
 
 impl VerifierKey {
@@ -61,6 +65,6 @@ impl VerifierKey {
         let a = bit_consistency + x_acc_consistency + y_acc_consistency + xy_consistency;
 
         scalars.push(a * ecc_separation_challenge);
-        points.push(self.q_ecc.0);
+        points.push(self.q_fixed_group_add.0);
     }
 }

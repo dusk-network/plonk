@@ -1,3 +1,6 @@
+// Copyright (c) DUSK NETWORK. All rights reserved.
+// Licensed under the MPL 2.0 license. See LICENSE file in the project root for details.
+
 use crate::bit_iterator::*;
 use crate::constraint_system::StandardComposer;
 use crate::constraint_system::{Variable, WireData};
@@ -210,7 +213,8 @@ impl StandardComposer {
             self.q_o.push(Scalar::zero());
             self.q_4.push(Scalar::zero());
             self.q_range.push(Scalar::zero());
-            self.q_ecc.push(Scalar::zero());
+            self.q_fixed_group_add.push(Scalar::zero());
+            self.q_variable_group_add.push(Scalar::zero());
             match is_xor_gate {
                 true => {
                     self.q_c.push(-Scalar::one());
@@ -230,7 +234,8 @@ impl StandardComposer {
         self.q_o.push(Scalar::zero());
         self.q_4.push(Scalar::zero());
         self.q_range.push(Scalar::zero());
-        self.q_ecc.push(Scalar::zero());
+        self.q_fixed_group_add.push(Scalar::zero());
+        self.q_variable_group_add.push(Scalar::zero());
 
         self.q_c.push(Scalar::zero());
         self.q_logic.push(Scalar::zero());

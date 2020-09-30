@@ -1,3 +1,6 @@
+// Copyright (c) DUSK NETWORK. All rights reserved.
+// Licensed under the MPL 2.0 license. See LICENSE file in the project root for details.
+
 #![cfg_attr(feature = "nightly", feature(external_doc))]
 #![doc(
     html_logo_url = "https://lh3.googleusercontent.com/SmwswGxtgIANTbDrCOn5EKcRBnVdHjmYsHYxLq2HZNXWCQ9-fZyaea-bNgdX9eR0XGSqiMFi=w128-h128-e365"
@@ -41,23 +44,27 @@
 #![allow(clippy::many_single_char_names)]
 // Bool expr are usually easier to read with match statements.
 #![allow(clippy::match_bool)]
-#![deny(intra_doc_link_resolution_failure)]
+// Clippy does not have `broken_intra_doc_links` as a known lint.
+#![allow(unknown_lints)]
+#![deny(broken_intra_doc_links)]
 #![deny(missing_debug_implementations)]
 #![deny(missing_docs)]
 #![deny(unsafe_code)]
 
+#[macro_use]
+mod macros;
+
 mod bit_iterator;
+pub mod circuit_builder;
 pub mod commitment_scheme;
 pub mod constraint_system;
 pub mod fft;
 mod permutation;
 pub mod prelude;
 pub mod proof_system;
+mod serialisation;
 pub mod transcript;
 mod util;
-
-#[macro_use]
-extern crate failure;
 
 #[cfg(feature = "nightly")]
 #[doc(include = "../docs/notes-intro.md")]
