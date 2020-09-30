@@ -15,11 +15,7 @@ use serde::de::Visitor;
 use serde::{self, Deserialize, Deserializer, Serialize, Serializer};
 
 /// PLONK circuit proving key
-<<<<<<< HEAD
 #[derive(Debug, PartialEq, Eq, Clone)]
-=======
-#[derive(Debug, PartialEq, Eq)]
->>>>>>> 5ae0bc10e582861d623078ed4af84100acb5fcca
 pub struct ProverKey {
     /// Circuit size
     pub n: usize,
@@ -43,11 +39,7 @@ pub struct ProverKey {
 }
 
 /// PLONK circuit verification key
-<<<<<<< HEAD
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
-=======
-#[derive(Debug, PartialEq, Eq)]
->>>>>>> 5ae0bc10e582861d623078ed4af84100acb5fcca
 pub struct VerifierKey {
     /// Circuit size
     pub n: usize,
