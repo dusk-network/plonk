@@ -1,5 +1,8 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
 // Copyright (c) DUSK NETWORK. All rights reserved.
-// Licensed under the MPL 2.0 license. See LICENSE file in the project root for details.
 
 use crate::fft::{EvaluationDomain, Polynomial};
 use crate::proof_system::widget::ProverKey;
@@ -144,7 +147,16 @@ pub fn compute(
         fixed_base_separation_challenge,
         var_base_separation_challenge,
         z_challenge,
-    ): &(Scalar, Scalar, Scalar, Scalar, Scalar, Scalar, Scalar,Scalar),
+    ): &(
+        Scalar,
+        Scalar,
+        Scalar,
+        Scalar,
+        Scalar,
+        Scalar,
+        Scalar,
+        Scalar,
+    ),
     w_l_poly: &Polynomial,
     w_r_poly: &Polynomial,
     w_o_poly: &Polynomial,
@@ -234,12 +246,12 @@ pub fn compute(
 
 #[allow(clippy::too_many_arguments)]
 fn compute_circuit_satisfiability(
-    (range_separation_challenge, logic_separation_challenge, fixed_base_separation_challenge,var_base_separation_challenge): (
-        &Scalar,
-        &Scalar,
-        &Scalar,
-        &Scalar,
-    ),
+    (
+        range_separation_challenge,
+        logic_separation_challenge,
+        fixed_base_separation_challenge,
+        var_base_separation_challenge,
+    ): (&Scalar, &Scalar, &Scalar, &Scalar),
     a_eval: &Scalar,
     b_eval: &Scalar,
     c_eval: &Scalar,
