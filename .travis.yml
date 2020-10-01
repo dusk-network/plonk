@@ -48,8 +48,10 @@ matrix:
     install:
     before_script:
       - pip install 'travis-cargo<0.2' --user && export PATH=$HOME/.local/bin:$PATH
+      - cargo install --git https://github.com/dusk-network/cargo-dusk-analyzer
     script:
       - cargo check --features nightly
+      - cargo dusk-analyzer
       - cargo build --release --verbose --all --features nightly
       - cargo test --release --verbose --all --features nightly
       - cargo doc --no-deps --features nightly

@@ -1,5 +1,8 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
 // Copyright (c) DUSK NETWORK. All rights reserved.
-// Licensed under the MPL 2.0 license. See LICENSE file in the project root for details.
 
 //! A Proof stores the commitments to all of the elements that
 //! are needed to univocally identify a prove of some statement.
@@ -157,8 +160,10 @@ impl Proof {
         let alpha = transcript.challenge_scalar(b"alpha");
         let range_sep_challenge = transcript.challenge_scalar(b"range separation challenge");
         let logic_sep_challenge = transcript.challenge_scalar(b"logic separation challenge");
-        let fixed_base_sep_challenge = transcript.challenge_scalar(b"fixed base separation challenge");
-        let var_base_sep_challenge = transcript.challenge_scalar(b"variable base separation challenge");
+        let fixed_base_sep_challenge =
+            transcript.challenge_scalar(b"fixed base separation challenge");
+        let var_base_sep_challenge =
+            transcript.challenge_scalar(b"variable base separation challenge");
 
         // Add commitment to quotient polynomial to transcript
         transcript.append_commitment(b"t_1", &self.t_1_comm);
@@ -344,7 +349,12 @@ impl Proof {
         alpha: &Scalar,
         beta: &Scalar,
         gamma: &Scalar,
-        (range_sep_challenge, logic_sep_challenge, fixed_base_sep_challenge,var_base_sep_challenge): (&Scalar, &Scalar, &Scalar,&Scalar),
+        (
+            range_sep_challenge,
+            logic_sep_challenge,
+            fixed_base_sep_challenge,
+            var_base_sep_challenge,
+        ): (&Scalar, &Scalar, &Scalar, &Scalar),
         z_challenge: &Scalar,
         l1_eval: Scalar,
         verifier_key: &VerifierKey,
@@ -379,14 +389,12 @@ impl Proof {
             &self.evaluations,
         );
 
-        verifier_key
-            .variable_base
-            .compute_linearisation_commitment(
-                &var_base_sep_challenge,
-                &mut scalars,
-                &mut points,
-                &self.evaluations,
-            );
+        verifier_key.variable_base.compute_linearisation_commitment(
+            &var_base_sep_challenge,
+            &mut scalars,
+            &mut points,
+            &self.evaluations,
+        );
 
         verifier_key.permutation.compute_linearisation_commitment(
             &mut scalars,
