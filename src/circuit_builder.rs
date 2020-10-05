@@ -60,18 +60,18 @@ where
         // Setup PublicParams
         let (ck, _) = pub_params.trim(self.trim_size())?;
         // Generate & save `ProverKey` with some random values.
-        let mut prover = Prover::new(b"TestCircuit");
+        let mut prover = Prover::new(b"CircuitCompilation");
         self.gadget(prover.mut_cs())?;
         prover.preprocess(&ck)?;
 
         // Generate & save `VerifierKey` with some random values.
-        let mut verifier = Verifier::new(b"TestCircuit");
+        let mut verifier = Verifier::new(b"CircuitCompilation");
         self.gadget(verifier.mut_cs())?;
         verifier.preprocess(&ck)?;
         Ok((
             prover
                 .prover_key
-                .expect("Unexpected error. Missing VerifierKey in compilation")
+                .expect("Unexpected error. Missing ProverKey in compilation")
                 .clone(),
             verifier
                 .verifier_key
@@ -289,7 +289,7 @@ mod tests {
         let proof = {
             let mut circuit = TestCircuit::default();
             circuit.inputs = Some(&inputs2);
-            circuit.gen_proof(&pub_params, &prover_key, b"TestCirc")
+            circuit.gen_proof(&pub_params, &prover_key, b"Test")
         }?;
 
         // Verifier POV
@@ -299,12 +299,6 @@ mod tests {
             PublicInput::BlsScalar(BlsScalar::from(25u64), 0),
             PublicInput::BlsScalar(BlsScalar::from(100u64), 0),
         ];
-        circuit.verify_proof(
-            &pub_params,
-            &verifier_key,
-            b"TestCirc",
-            &proof,
-            &public_inputs2,
-        )
+        circuit.verify_proof(&pub_params, &verifier_key, b"Test", &proof, &public_inputs2)
     }
 }
