@@ -71,8 +71,7 @@ where
         Ok((
             prover
                 .prover_key
-                .expect("Unexpected error. Missing ProverKey in compilation")
-                .clone(),
+                .expect("Unexpected error. Missing ProverKey in compilation"),
             verifier
                 .verifier_key
                 .expect("Unexpected error. Missing VerifierKey in compilation"),
