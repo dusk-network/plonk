@@ -58,7 +58,7 @@ where
     fn compile(&mut self, pub_params: &PublicParameters) -> Result<(ProverKey, VerifierKey)> {
         use crate::proof_system::{Prover, Verifier};
         // Setup PublicParams
-        let (ck, _) = pub_params.trim(self.trim_size())?;
+        let (ck, _) = pub_params.trim(self.get_trim_size())?;
         // Generate & save `ProverKey` with some random values.
         let mut prover = Prover::new(b"CircuitCompilation");
         self.gadget(prover.mut_cs())?;
@@ -86,7 +86,7 @@ where
 
     /// Build PI vector for Proof verifications.
     fn build_pi(&self, pub_inputs: &[PublicInput]) -> Result<Vec<BlsScalar>> {
-        let mut pi = vec![BlsScalar::zero(); self.trim_size()];
+        let mut pi = vec![BlsScalar::zero(); self.get_trim_size()];
         pub_inputs
             .iter()
             .zip(self.get_pi_positions())
@@ -108,7 +108,11 @@ where
     /// Returns the size at which we trim the `PublicParameters`
     /// to compile the circuit or perform proving/verification
     /// actions.
-    fn trim_size(&self) -> usize;
+    fn get_trim_size(&self) -> usize;
+
+    /// Sets the trim size that will be used by this circuit when
+    /// trimming the Public Parameters.
+    fn set_trim_size(&mut self, size: usize);
 
     /// Generates a proof using the provided `CircuitInputs` & `ProverKey` instances.
     fn gen_proof(
@@ -118,7 +122,7 @@ where
         transcript_initialisation: &'static [u8],
     ) -> Result<Proof> {
         use crate::proof_system::Prover;
-        let (ck, _) = pub_params.trim(self.trim_size())?;
+        let (ck, _) = pub_params.trim(self.get_trim_size())?;
         // New Prover instance
         let mut prover = Prover::new(transcript_initialisation);
         // Fill witnesses for Prover
@@ -138,7 +142,7 @@ where
         pub_inputs: &[PublicInput],
     ) -> Result<()> {
         use crate::proof_system::Verifier;
-        let (_, vk) = pub_params.trim(self.trim_size())?;
+        let (_, vk) = pub_params.trim(self.get_trim_size())?;
         // New Verifier instance
         let mut verifier = Verifier::new(transcript_initialisation);
         // Fill witnesses for Verifier
@@ -176,6 +180,7 @@ mod tests {
     pub struct TestCircuit<'a> {
         inputs: Option<&'a [BlsScalar]>,
         pi_positions: Vec<PublicInput>,
+        trim_size: usize,
     }
 
     impl<'a> Default for TestCircuit<'a> {
@@ -183,6 +188,7 @@ mod tests {
             TestCircuit {
                 inputs: None,
                 pi_positions: vec![],
+                trim_size: 1 << 9,
             }
         }
     }
@@ -229,8 +235,12 @@ mod tests {
         }
 
         #[inline]
-        fn trim_size(&self) -> usize {
-            1 << 9
+        fn get_trim_size(&self) -> usize {
+            self.trim_size
+        }
+
+        fn set_trim_size(&mut self, size: usize) {
+            self.trim_size = size;
         }
 
         fn get_mut_pi_positions(&mut self) -> &mut Vec<PublicInput> {
