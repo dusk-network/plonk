@@ -34,26 +34,82 @@ impl PublicInput {
             PublicInput::AffinePoint(point, _, _) => vec![point.get_x(), point.get_y()],
         }
     }
+
+    /// Returns the positions that of a PublicInput struct
+    pub fn pos(&self) -> Vec<usize> {
+        match self {
+            PublicInput::BlsScalar(_, pos) => vec![*pos],
+            PublicInput::JubJubScalar(_, pos) => vec![*pos],
+            PublicInput::AffinePoint(_, pos_x, pos_y) => vec![*pos_x, *pos_y],
+        }
+    }
 }
 
 /// Circuit representation for a gadget with all of the tools that it
 /// should implement.
 pub trait Circuit<'a>
 where
-    Self: Sized + Default,
+    Self: Sized,
 {
     /// Gadget implementation used to fill the composer.
-    fn gadget(&mut self, composer: &mut StandardComposer) -> Result<Vec<PublicInput>>;
+    fn gadget(&mut self, composer: &mut StandardComposer) -> Result<()>;
     /// Compiles the circuit by using a function that returns a `Result`
     /// with the `ProverKey`, `VerifierKey` and the circuit size.
-    fn compile(&mut self, pub_params: &PublicParameters)
-        -> Result<(ProverKey, VerifierKey, usize)>;
+    fn compile(&mut self, pub_params: &PublicParameters) -> Result<(ProverKey, VerifierKey)> {
+        use crate::proof_system::{Prover, Verifier};
+        // Setup PublicParams
+        let (ck, _) = pub_params.trim(self.trim_size())?;
+        // Generate & save `ProverKey` with some random values.
+        let mut prover = Prover::new(b"TestCircuit");
+        self.gadget(prover.mut_cs())?;
+        prover.preprocess(&ck)?;
+
+        // Generate & save `VerifierKey` with some random values.
+        let mut verifier = Verifier::new(b"TestCircuit");
+        self.gadget(verifier.mut_cs())?;
+        verifier.preprocess(&ck)?;
+        Ok((
+            prover
+                .prover_key
+                .expect("Unexpected error. Missing VerifierKey in compilation")
+                .clone(),
+            verifier
+                .verifier_key
+                .expect("Unexpected error. Missing VerifierKey in compilation"),
+        ))
+    }
+
+    /// /// Return a mutable reference to the Public Inputs storage of the circuit.
+    fn get_mut_pi_positions(&mut self) -> &mut Vec<PublicInput>;
+
+    /// Return a reference to the Public Inputs storage of the circuit.
+    fn get_pi_positions(&self) -> &Vec<PublicInput>;
 
     /// Build PI vector for Proof verifications.
-    fn build_pi(&self, pub_inputs: &[PublicInput]) -> Result<Vec<BlsScalar>>;
+    fn build_pi(&self, pub_inputs: &[PublicInput]) -> Result<Vec<BlsScalar>> {
+        let mut pi = vec![BlsScalar::zero(); self.trim_size()];
+        pub_inputs
+            .iter()
+            .zip(self.get_pi_positions())
+            .for_each(|(real_value, real_pos)| {
+                match real_value {
+                    PublicInput::BlsScalar(value, _) => pi[real_pos.pos()[0]] = -value,
+                    PublicInput::JubJubScalar(value, _) => {
+                        pi[real_pos.pos()[0]] = -BlsScalar::from(*value)
+                    }
+                    PublicInput::AffinePoint(value, _, _) => {
+                        pi[real_pos.pos()[0]] = -value.get_x();
+                        pi[real_pos.pos()[1]] = -value.get_y();
+                    }
+                };
+            });
+        Ok(pi)
+    }
 
-    /// Get the circuit size of the implemented circuit.
-    fn circuit_size(&self) -> usize;
+    /// Returns the size at which we trim the `PublicParameters`
+    /// to compile the circuit or perform proving/verification
+    /// actions.
+    fn trim_size(&self) -> usize;
 
     /// Generates a proof using the provided `CircuitInputs` & `ProverKey` instances.
     fn gen_proof(
@@ -61,7 +117,17 @@ where
         pub_params: &PublicParameters,
         prover_key: &ProverKey,
         transcript_initialisation: &'static [u8],
-    ) -> Result<Proof>;
+    ) -> Result<Proof> {
+        use crate::proof_system::Prover;
+        let (ck, _) = pub_params.trim(self.trim_size())?;
+        // New Prover instance
+        let mut prover = Prover::new(transcript_initialisation);
+        // Fill witnesses for Prover
+        self.gadget(prover.mut_cs())?;
+        // Add ProverKey to Prover
+        prover.prover_key = Some(prover_key.clone());
+        prover.prove(&ck)
+    }
 
     /// Verifies a proof using the provided `CircuitInputs` & `VerifierKey` instances.
     fn verify_proof(
@@ -71,7 +137,16 @@ where
         transcript_initialisation: &'static [u8],
         proof: &Proof,
         pub_inputs: &[PublicInput],
-    ) -> Result<()>;
+    ) -> Result<()> {
+        use crate::proof_system::Verifier;
+        let (_, vk) = pub_params.trim(self.trim_size())?;
+        // New Verifier instance
+        let mut verifier = Verifier::new(transcript_initialisation);
+        // Fill witnesses for Verifier
+        self.gadget(verifier.mut_cs())?;
+        verifier.verifier_key = Some(*verifier_key);
+        verifier.verify(proof, &vk, &self.build_pi(pub_inputs)?)
+    }
 }
 
 /// Represents an error in the PublicParameters creation and or modification.
@@ -91,7 +166,7 @@ pub enum CircuitErrors {
 mod tests {
     use super::*;
     use crate::constraint_system::StandardComposer;
-    use crate::proof_system::{Prover, ProverKey, Verifier, VerifierKey};
+    use crate::proof_system::{ProverKey, VerifierKey};
     use anyhow::Result;
 
     // Implements a circuit that checks:
@@ -101,26 +176,24 @@ mod tests {
     // 4) a * b = d where D is a PI
     pub struct TestCircuit<'a> {
         inputs: Option<&'a [BlsScalar]>,
-        circuit_size: usize,
-        pi_constructor: Option<Vec<PublicInput>>,
+        pi_positions: Vec<PublicInput>,
     }
 
     impl<'a> Default for TestCircuit<'a> {
         fn default() -> Self {
             TestCircuit {
                 inputs: None,
-                circuit_size: 0,
-                pi_constructor: None,
+                pi_positions: vec![],
             }
         }
     }
 
     impl<'a> Circuit<'a> for TestCircuit<'a> {
-        fn gadget(&mut self, composer: &mut StandardComposer) -> Result<Vec<PublicInput>> {
+        fn gadget(&mut self, composer: &mut StandardComposer) -> Result<()> {
             let inputs = self
                 .inputs
                 .ok_or_else(|| CircuitErrors::CircuitInputsNotFound)?;
-            let mut pi = Vec::new();
+            let pi = self.get_mut_pi_positions();
             let a = composer.add_input(inputs[0]);
             let b = composer.add_input(inputs[1]);
             // Make first constraint a + b = c
@@ -153,95 +226,20 @@ mod tests {
                 BlsScalar::zero(),
                 -inputs[3],
             );
-
-            self.circuit_size = composer.circuit_size();
-            Ok(pi)
-        }
-        fn compile(
-            &mut self,
-            pub_params: &PublicParameters,
-        ) -> Result<(ProverKey, VerifierKey, usize)> {
-            // Setup PublicParams
-            let (ck, _) = pub_params.trim(1 << 9)?;
-            // Generate & save `ProverKey` with some random values.
-            let mut prover = Prover::new(b"TestCircuit");
-            // Set size & Pi builder
-            self.pi_constructor = Some(self.gadget(prover.mut_cs())?);
-            prover.preprocess(&ck)?;
-
-            // Generate & save `VerifierKey` with some random values.
-            let mut verifier = Verifier::new(b"TestCircuit");
-            self.gadget(verifier.mut_cs())?;
-            verifier.preprocess(&ck)?;
-            Ok((
-                prover
-                    .prover_key
-                    .expect("Unexpected error. Missing VerifierKey in compilation")
-                    .clone(),
-                verifier
-                    .verifier_key
-                    .expect("Unexpected error. Missing VerifierKey in compilation"),
-                self.circuit_size,
-            ))
+            Ok(())
         }
 
-        fn build_pi(&self, pub_inputs: &[PublicInput]) -> Result<Vec<BlsScalar>> {
-            let mut pi = vec![BlsScalar::zero(); self.circuit_size];
-            self.pi_constructor
-                .as_ref()
-                .ok_or_else(|| CircuitErrors::UninitializedPIGenerator)?
-                .iter()
-                .enumerate()
-                .for_each(|(idx, pi_constr)| {
-                    match pi_constr {
-                        PublicInput::BlsScalar(_, pos) => pi[*pos] = pub_inputs[idx].value()[0],
-                        PublicInput::JubJubScalar(_, pos) => pi[*pos] = pub_inputs[idx].value()[0],
-                        PublicInput::AffinePoint(_, pos_x, pos_y) => {
-                            let (coord_x, coord_y) =
-                                (pub_inputs[idx].value()[0], pub_inputs[idx].value()[1]);
-                            pi[*pos_x] = coord_x;
-                            pi[*pos_y] = coord_y;
-                        }
-                    };
-                });
-            Ok(pi)
+        #[inline]
+        fn trim_size(&self) -> usize {
+            1 << 9
         }
 
-        fn circuit_size(&self) -> usize {
-            self.circuit_size
+        fn get_mut_pi_positions(&mut self) -> &mut Vec<PublicInput> {
+            &mut self.pi_positions
         }
 
-        fn gen_proof(
-            &mut self,
-            pub_params: &PublicParameters,
-            prover_key: &ProverKey,
-            transcript_initialisation: &'static [u8],
-        ) -> Result<Proof> {
-            let (ck, _) = pub_params.trim(1 << 9)?;
-            // New Prover instance
-            let mut prover = Prover::new(transcript_initialisation);
-            // Fill witnesses for Prover
-            self.gadget(prover.mut_cs())?;
-            // Add ProverKey to Prover
-            prover.prover_key = Some(prover_key.clone());
-            prover.prove(&ck)
-        }
-
-        fn verify_proof(
-            &mut self,
-            pub_params: &PublicParameters,
-            verifier_key: &VerifierKey,
-            transcript_initialisation: &'static [u8],
-            proof: &Proof,
-            pub_inputs: &[PublicInput],
-        ) -> Result<()> {
-            let (_, vk) = pub_params.trim(1 << 9)?;
-            // New Verifier instance
-            let mut verifier = Verifier::new(transcript_initialisation);
-            // Fill witnesses for Verifier
-            self.gadget(verifier.mut_cs())?;
-            verifier.verifier_key = Some(*verifier_key);
-            verifier.verify(proof, &vk, &self.build_pi(pub_inputs)?)
+        fn get_pi_positions(&self) -> &Vec<PublicInput> {
+            &self.pi_positions
         }
     }
 
@@ -249,20 +247,21 @@ mod tests {
     fn test_full() -> Result<()> {
         // Generate CRS
         let pub_params = PublicParameters::setup(1 << 10, &mut rand::thread_rng())?;
-        // Generate circuit compilation params
-        let inputs = [
-            BlsScalar::from(25u64),
-            BlsScalar::from(5u64),
-            BlsScalar::from(30u64),
-            BlsScalar::from(125u64),
-        ];
 
-        // Initialize the circuit
-        let mut circuit = TestCircuit::default();
-        circuit.inputs = Some(&inputs);
         {
+            // Generate circuit compilation params
+            let inputs = [
+                BlsScalar::from(25u64),
+                BlsScalar::from(5u64),
+                BlsScalar::from(30u64),
+                BlsScalar::from(125u64),
+            ];
+
+            // Initialize the circuit
+            let mut circuit = TestCircuit::default();
+            circuit.inputs = Some(&inputs);
             // Compile the circuit
-            let (prover_key, verifier_key, _) = circuit.compile(&pub_params)?;
+            let (prover_key, verifier_key) = circuit.compile(&pub_params)?;
             // Write the keys
             use std::fs::File;
             use std::io::Write;
@@ -285,14 +284,21 @@ mod tests {
             BlsScalar::from(25u64),
             BlsScalar::from(100u64),
         ];
-        // Replace previous used inputs by the new ones.
-        circuit.inputs = Some(&inputs2);
 
+        // Prover POV
+        let proof = {
+            let mut circuit = TestCircuit::default();
+            circuit.inputs = Some(&inputs2);
+            circuit.gen_proof(&pub_params, &prover_key, b"TestCirc")
+        }?;
+
+        // Verifier POV
+        let mut circuit = TestCircuit::default();
+        circuit.inputs = Some(&inputs2);
         let public_inputs2 = vec![
-            PublicInput::BlsScalar(-BlsScalar::from(25u64), 0),
-            PublicInput::BlsScalar(-BlsScalar::from(100u64), 0),
+            PublicInput::BlsScalar(BlsScalar::from(25u64), 0),
+            PublicInput::BlsScalar(BlsScalar::from(100u64), 0),
         ];
-        let proof = circuit.gen_proof(&pub_params, &prover_key, b"TestCirc")?;
         circuit.verify_proof(
             &pub_params,
             &verifier_key,
