@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 ## [Unreleased]
+- Fixes #311 - big_mul and big_mul_gate documentation nit.
+
 
 ## [0.3.1] - 05-10-20
 ### Added

@@ -110,8 +110,10 @@ impl StandardComposer {
     /// possible. Since it allows the end-user to setup all of the selector
     /// coefficients.
     ///
-    /// Forces `q_l * (w_l + w_r) + w_4 * q_4 + + q_c + PI = q_o * w_o(computed by the gate)`.
-    /// XXX: Maybe make these tuples instead of individual field?
+    /// Forces `q_m * (w_l * w_r) + w_4 * q_4 + q_c + PI = q_o * w_o`.
+    ///
+    /// `{w_l, w_r, w_o, w_4} = {a, b, c, d}`
+    // XXX: Maybe make these tuples instead of individual field?
     pub fn big_mul_gate(
         &mut self,
         a: Variable,
@@ -241,8 +243,10 @@ impl StandardComposer {
     /// possible. Since it defaults some of the selector coeffs = 0 in order
     /// to reduce the verbosity and complexity.
     ///
-    /// Forces `q_l * (w_l + w_r) + w_4 * q_4 + q_c + PI = w_o(computed by the gate)`.
-    /// XXX: This API is not consistent. It should use tuples and not individual fields
+    /// Forces `q_m * (w_l * w_r) + w_4 * q_4 + q_c + PI = w_o(computed by the gate)`.
+    ///
+    /// `{w_l, w_r, w_4} = {a, b, d}`
+    // XXX: This API is not consistent. It should use tuples and not individual fields
     pub fn big_mul(
         &mut self,
         q_m: Scalar,
