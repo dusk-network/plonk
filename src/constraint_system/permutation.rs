@@ -196,12 +196,7 @@ impl Permutation {
                 self.compute_permutation_lagrange(partial_sigma, domain))
                 .collect();
 
-        (
-            left_sigma_poly,
-            right_sigma_poly,
-            out_sigma_poly,
-            fourth_sigma_poly,
-        )
+        sigma_polys
     }
 
     pub(crate) fn compute_permutation_poly(
@@ -441,10 +436,13 @@ impl Permutation {
         // Compute beta * roots
         let common_roots: Vec<Scalar> = domain.elements().map(|root| root * beta).collect();
 
-        let left_sigma_mapping = domain.fft(&left_sigma_poly);
-        let right_sigma_mapping = domain.fft(&right_sigma_poly);
-        let out_sigma_mapping = domain.fft(&out_sigma_poly);
-        let fourth_sigma_mapping = domain.fft(&fourth_sigma_poly);
+        let sigma_poly_list = (left_sigma_poly, right_sigma_poly, out_sigma_poly, fourth_sigma_poly);
+        
+        for sigma_poly in sigma_poly_list {
+        let sigma_mapping = sigma_poly_list
+            .iter()
+            .map(|sigma_poly| domain.fft(&sigma_poly));
+    }
 
         // Compute beta * sigma polynomials
         let beta_left_sigmas: Vec<_> = left_sigma_mapping
