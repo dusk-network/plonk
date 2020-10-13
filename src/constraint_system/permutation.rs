@@ -131,6 +131,14 @@ impl Permutation {
     ) -> Vec<Scalar> {
         let roots: Vec<_> = domain.elements().collect();
 
+        // please check this
+        let coset_reps = [Scalar::one(), K1, K2, K3];
+        // didn't specify type, which seems bad
+        let wire_types = [
+        WireData::Left, WireData::Right,
+        WireData::Output, WireData::Fourth
+        ];
+        
         let lagrange_poly: Vec<Scalar> = sigma_mapping
             .iter()
             .map(|x| match x {
@@ -165,21 +173,28 @@ impl Permutation {
         // Compute sigma mappings
         let sigmas = self.compute_sigma_permutations(n);
 
-        assert_eq!(sigmas[0].len(), n);
-        assert_eq!(sigmas[1].len(), n);
-        assert_eq!(sigmas[2].len(), n);
-        assert_eq!(sigmas[3].len(), n);
+        for partial_sigma in &sigmas {
+            assert_eq!(partial_sigma.len(), n);
+            }
 
         // define the sigma permutations using two non quadratic residues
-        let left_sigma = self.compute_permutation_lagrange(&sigmas[0], domain);
-        let right_sigma = self.compute_permutation_lagrange(&sigmas[1], domain);
-        let out_sigma = self.compute_permutation_lagrange(&sigmas[2], domain);
-        let fourth_sigma = self.compute_permutation_lagrange(&sigmas[3], domain);
-
-        let left_sigma_poly = Polynomial::from_coefficients_vec(domain.ifft(&left_sigma));
-        let right_sigma_poly = Polynomial::from_coefficients_vec(domain.ifft(&right_sigma));
-        let out_sigma_poly = Polynomial::from_coefficients_vec(domain.ifft(&out_sigma));
-        let fourth_sigma_poly = Polynomial::from_coefficients_vec(domain.ifft(&fourth_sigma));
+        for partial_sigma in &sigmas {
+        let part_sigma = self.compute_permutation_lagrange(partial_sigma, domain);
+        
+        let part_sigma_poly = Polynomial::from_coefficients_vec(domain.ifft(&part_sigma));
+        }
+        
+        // add type
+        let part_sigmas
+            = sigma_mapping.iter().map(|partial_sigma| 
+                self.compute_permutation_lagrange(partial_sigma, domain))
+                .collect();
+        
+        // add type        
+        let sigma_polys
+            = sigma_mapping.iter().map(|partial_sigma| 
+                self.compute_permutation_lagrange(partial_sigma, domain))
+                .collect();
 
         (
             left_sigma_poly,
