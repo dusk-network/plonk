@@ -169,31 +169,23 @@ impl Permutation {
         &mut self,
         n: usize,
         domain: &EvaluationDomain,
-    ) -> (Polynomial, Polynomial, Polynomial, Polynomial) {
+    ) -> Vec<Polynomial> {
         // Compute sigma mappings
         let sigmas = self.compute_sigma_permutations(n);
 
-        for partial_sigma in &sigmas {
-            assert_eq!(partial_sigma.len(), n);
-            }
-
-        // define the sigma permutations using two non quadratic residues
-        for partial_sigma in &sigmas {
-        let part_sigma = self.compute_permutation_lagrange(partial_sigma, domain);
-        
-        let part_sigma_poly = Polynomial::from_coefficients_vec(domain.ifft(&part_sigma));
-        }
-        
-        // add type
-        let part_sigmas
-            = sigma_mapping.iter().map(|partial_sigma| 
-                self.compute_permutation_lagrange(partial_sigma, domain))
+        // Check that each sigma permutation is length n
+        sigmas.iter().map(|s| assert_eq!(s.len(), n));
+      
+        // Get Lagrange basis coefficients for sigma permutations on distinct cosets
+        let sigmas_lagrange: Vec<Vec<Scalar>>
+            = sigmas.iter().map(|sigma| 
+                self.compute_permutation_lagrange(sigma, domain))
                 .collect();
         
-        // add type        
-        let sigma_polys
-            = sigma_mapping.iter().map(|partial_sigma| 
-                self.compute_permutation_lagrange(partial_sigma, domain))
+        // Interpolate to convert sigma polynomials into coefficient form       
+        let sigma_polys: Vec<Polynomial>
+            = sigmas_lagrange.iter().map(|sigma| 
+                Polynomial::from_coefficients_vec(domain.ifft(sigma)))
                 .collect();
 
         sigma_polys
@@ -202,32 +194,17 @@ impl Permutation {
     pub(crate) fn compute_permutation_poly(
         &self,
         domain: &EvaluationDomain,
-        w_l: &[Scalar],
-        w_r: &[Scalar],
-        w_o: &[Scalar],
-        w_4: &[Scalar],
-        (beta, gamma): &(Scalar, Scalar),
-        (left_sigma_poly, right_sigma_poly, out_sigma_poly, fourth_sigma_poly): (
-            &Polynomial,
-            &Polynomial,
-            &Polynomial,
-            &Polynomial,
-        ),
+        wires: Vec<Vec<Scalar>>,
+        beta: Scalar,
+        gamma: Scalar,
+        sigma_polys: Vec<Polynomial>
     ) -> Polynomial {
         let z_evaluations = self.compute_fast_permutation_poly(
             domain,
-            w_l,
-            w_r,
-            w_o,
-            w_4,
+            wires,
             beta,
             gamma,
-            (
-                left_sigma_poly,
-                right_sigma_poly,
-                out_sigma_poly,
-                fourth_sigma_poly,
-            ),
+            sigma_polys,
         );
         Polynomial::from_coefficients_vec(domain.ifft(&z_evaluations))
     }
