@@ -194,17 +194,32 @@ impl Permutation {
     pub(crate) fn compute_permutation_poly(
         &self,
         domain: &EvaluationDomain,
-        wires: Vec<Vec<Scalar>>,
-        beta: Scalar,
-        gamma: Scalar,
-        sigma_polys: Vec<Polynomial>
+        w_l: &[Scalar],
+        w_r: &[Scalar],
+        w_o: &[Scalar],
+        w_4: &[Scalar],
+        (beta, gamma): &(Scalar, Scalar),
+        (left_sigma_poly, right_sigma_poly, out_sigma_poly, fourth_sigma_poly): (
+            &Polynomial,
+            &Polynomial,
+            &Polynomial,
+            &Polynomial,
+        ),
     ) -> Polynomial {
         let z_evaluations = self.compute_fast_permutation_poly(
             domain,
-            wires,
+            w_l,
+            w_r,
+            w_o,
+            w_4,
             beta,
             gamma,
-            sigma_polys,
+            (
+                left_sigma_poly,
+                right_sigma_poly,
+                out_sigma_poly,
+                fourth_sigma_poly,
+            ),
         );
         Polynomial::from_coefficients_vec(domain.ifft(&z_evaluations))
     }
@@ -595,8 +610,57 @@ impl Permutation {
 
         z
     }
-}
 
+    // The formula for each irreducible factor 
+    fn numerator_irreducible(root: &Scalar, w: &Scalar, k: &Scalar, beta: &Scalar, gamma: &Scalar) -> Scalar {
+        w + *beta * k * root + gamma
+    }
+
+    fn denominator_irreducible(root: &Scalar, w: &Scalar, k: &Scalar, sigma: &Scalar, beta: &Scalar, gamma: &Scalar) -> Scalar {
+        w + *beta * sigma + gamma
+    }
+
+    // Uses a rayon multizip to allow more code flexibility while remaining parallelizable
+    // Is a product argument for any number of wires 
+    fn multizip_compute_permutation_poly (
+        &self,
+        domain: &EvaluationDomain,
+        wires: Vec<Vec<Scalar>>,
+        beta: &Scalar,
+        gamma: &Scalar,
+        sigmas: Vec<Vec<Scalar>>
+    ) -> Polynomial {
+
+        // Constants defining cosets H, k1H, k2H, ...
+        let ks = vec![Scalar::one(), K1, K2, K3];
+
+        // Transpose wires to get "rows" in the form vec![wl_i, wr_i, wo_i, ... ]
+        // where each row contains the wire values for a single gate
+        let gatewise_wires = wires.into_par_iter();
+        let gatewise_sigmas = sigmas.into_par_iter();
+        let roots: Vec<Scalar> = domain.elements().collect();
+
+        let matrix = (roots, gatewise_wires, gatewise_sigmas).into_par_iter()
+
+        // Associate each wire value in a row with the k defining its coset
+            .map(|(root, row, sigma)| (row, ks, sigma).into_par_iter().collect());
+
+        // Now the ith element of matrix will have the the form:
+        //  (root_i, ((w0_i, k0), (w1_i, k1), ..., (wm_i, km)) sigma_permutation)
+        //  for m different wires, which is all the information 
+        //  needed for a single accumulated product coefficient
+
+        let numerator_coefficients = matrix.map(|(root, row, sigma)| 
+            row.map(|w, k| Permutation::numerator_irreducible(root, w, k, beta, gamma)))
+                .product();
+
+        let denominator_coefficients = matrix.map(|(root, row, sigma)| 
+            row.map(|w, k| Permutation::denominator_irreducible(root, w, k, sigma, beta, gamma)))
+                .product();
+
+        Polynomial::zero()
+    }
+}
 
 /// Testing
 #[cfg(test)]
