@@ -604,6 +604,100 @@ impl Permutation {
 
         z
     }
+
+    // These are the formulas for the irreducible factors used in the product argument
+    fn numerator_irreducible(root: &Scalar, w: &Scalar, k: &Scalar, beta: &Scalar, gamma: &Scalar) -> Scalar {
+        w + *beta * k * root + gamma
+    }
+
+    fn denominator_irreducible(root: &Scalar, w: &Scalar, sigma: &Scalar, beta: &Scalar, gamma: &Scalar) -> Scalar {
+        w + *beta * sigma + gamma
+    }
+
+    // Uses a rayon multizip to allow more code flexibility while remaining parallelizable.
+    // This can be adapted into a general product argument for any number of wires, with specific formulas defined 
+    //   in the numerator_irreducible and denominator_irreducible functions
+
+    fn multizip_compute_permutation_poly (
+        &self,
+        domain: &EvaluationDomain,
+        wires: (&[Scalar], &[Scalar], &[Scalar], &[Scalar]),
+        beta: &Scalar,
+        gamma: &Scalar,
+        sigmas: (&[Scalar], &[Scalar], &[Scalar], &[Scalar]),
+    ) -> Vec<Scalar> {
+
+        let n = domain.size();
+
+        // Constants defining cosets H, k1H, k2H, etc
+        let ks = vec![Scalar::one(), K1, K2, K3];
+
+        // Transpose wires and sigma values to get "rows" in the form [wl_i, wr_i, wo_i, ... ]
+        // where each row contains the wire and sigma values for a single gate
+        let gatewise_wires = wires.into_par_iter().map(|(w0, w1, w2, w3)| vec![w0, w1, w2, w3]);
+        let gatewise_sigmas = sigmas.into_par_iter().map(|(s0, s1, s2, s3)| vec![s0, s1, s2, s3]);
+
+        // Compute all roots
+        // Non-parallelizable?
+        let roots: Vec<Scalar> = domain.elements().collect();
+
+        let product_argument = (roots, gatewise_sigmas, gatewise_wires).into_par_iter()
+
+        // Associate each wire value in a gate with the k defining its coset
+            .map(|(gate_root, gate_sigmas, gate_wires)| 
+                (
+                    gate_root, 
+                        (
+                            gate_sigmas,
+                            gate_wires,
+                            &ks
+                        )
+                        .into_par_iter()
+                )
+            )
+
+        // Now the ith element represents gate i and will have the form:
+        //   (root_i, ((w0_i, s0_i, k0), (w1_i, s1_i, k1), ..., (wm_i, sm_i, km)))
+        //   for m different wires, which is all the information 
+        //   needed for a single product coefficient for a single gate
+
+        // Multiply up the numerator and denominator irreducibles for each gate
+        //   and pair the results
+            .map(|(gate_root, wire_params)| 
+                (   
+                    // Numerator product
+                    wire_params.clone().map(|(sigma, wire, k)| 
+                        Permutation::numerator_irreducible(&gate_root, wire, &k, beta, gamma))
+                        .product::<Scalar>(),
+
+                    // Denominator product
+                    wire_params.map(|(sigma, wire, k)| 
+                        Permutation::denominator_irreducible(&gate_root, wire, sigma, beta, gamma))
+                        .product::<Scalar>(),
+                )
+            )
+
+        // Divide each pair to get the single scalar representing each gate
+            .map(|(n, d)| n*d.invert().unwrap())
+
+        // Collect into vector intermediary since rayon does not support `scan`
+            .collect::<Vec<Scalar>>();
+        
+        let mut z_coefficients = Vec::with_capacity(n);
+
+        // First element is one
+        let mut state = Scalar::one();
+        z_coefficients.push(state);
+
+        // Accumulate by successively multiplying the scalars
+        // Non-parallelizable?
+        for s in product_argument {
+            state *= s;
+            z_coefficients.push(state);
+        }
+
+        z_coefficients
+    }
 }
 
 #[cfg(test)]
