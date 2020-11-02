@@ -5,7 +5,6 @@ authors = ["Kevaundray Wedderburn <kevtheappdev@gmail.com>",
            "Luke Pearson <luke@dusk.network>", 
            "CPerezz <carlos@dusk.network>"] 
 readme = "README.md"
-documentation = "https://dusk-network.github.io/plonk"
 repository = "https://github.com/dusk-network/plonk"
 keywords = ["cryptography", "plonk", "zk-snarks", "zero-knowledge", "crypto"]
 categories =["algorithms", "cryptography", "science"]
@@ -16,7 +15,7 @@ exclude = [
     "Cargo.lock",
     "**/examples",
     "benchmarks/",
-    ".travis.yml"
+    ".github/"
 ]
 license = "MPL-2.0"
 edition = "2018"
