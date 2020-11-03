@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+
+## [0.3.3] - 02-11-20
+### Changed
+- dusk-jubjub update to `v0.3.11`
+
 ## [0.3.2] - 29-10-20
 ### Changed
 - dusk-bls12_381 update to `v0.1.5`
