@@ -705,6 +705,86 @@ mod test {
     use super::*;
     use crate::fft::Polynomial;
     use dusk_bls12_381::Scalar as Fr;
+    use crate::constraint_system::StandardComposer;
+
+    #[test]
+    fn test_multizip_permutation_poly() {
+        let mut cs = StandardComposer::with_expected_size(4);
+        let x1 = cs.add_input(Fr::from_raw([4,0,0,0]));
+        let x2 = cs.add_input(Fr::from_raw([12,0,0,0]));
+        let x3 = cs.add_input(Fr::from_raw([8,0,0,0]));
+        let x4 = cs.add_input(Fr::from_raw([3,0,0,0]));
+
+        let zero = Fr::zero();
+        let one = Fr::one();
+        let two = Fr::from_raw([2,0,0,0]);
+
+        // x1 * x4 = x2
+        cs.poly_gate(x1, x4, x2, one, zero, zero, -one, zero, zero);
+
+        // x1 + x3 = x2
+        cs.poly_gate(x1, x3, x2, zero, one, one, -one, zero, zero);
+
+        // x1 + x2 = 2*x3
+        cs.poly_gate(x1, x2, x3, zero, one, one, -two, zero, zero);
+
+        // x3 * x4 = 2*x2
+        cs.poly_gate(x3, x4, x2, one, zero, zero, -two, zero, zero);
+
+        let domain = EvaluationDomain::new(cs.circuit_size()).unwrap();
+        let w_l_scalar: Vec<Scalar> = cs.w_l.iter().map(|v| cs.variables[v]).collect();
+        let w_r_scalar: Vec<Scalar> = cs.w_r.iter().map(|v| cs.variables[v]).collect();
+        let w_o_scalar: Vec<Scalar> = cs.w_o.iter().map(|v| cs.variables[v]).collect();
+        let w_4_scalar: Vec<Scalar> = cs.w_4.iter().map(|v| cs.variables[v]).collect();
+
+        let sigmas: Vec<Vec<Scalar>>  = cs.perm.compute_sigma_permutations(7).iter().map(|wd| cs.perm.compute_permutation_lagrange(wd, &domain)).collect();
+
+        let beta = Fr::random(&mut rand::thread_rng());
+        let gamma = Fr::random(&mut rand::thread_rng());
+
+        let mz = cs.perm.multizip_compute_permutation_poly(
+            &domain, 
+            (&w_l_scalar, &w_r_scalar, &w_o_scalar, &w_4_scalar),
+            &beta,
+            &gamma,
+            (&sigmas[0], &sigmas[1], &sigmas[2], &sigmas[3]),
+        );
+
+        let sigma_polys: Vec<Polynomial> = sigmas.iter().map(|v| Polynomial::from_coefficients_vec(domain.ifft(&v))).collect();
+
+        let old_z = cs.perm.compute_permutation_poly(
+            &domain,
+            &w_l_scalar,
+            &w_r_scalar,
+            &w_o_scalar,
+            &w_4_scalar,
+            &(beta, gamma),
+            (
+                &sigma_polys[0],
+                &sigma_polys[1],
+                &sigma_polys[2],
+                &sigma_polys[3],
+            )
+        );
+/*
+        &self,
+        domain: &EvaluationDomain,
+        w_l: &[Scalar],
+        w_r: &[Scalar],
+        w_o: &[Scalar],
+        w_4: &[Scalar],
+        (beta, gamma): &(Scalar, Scalar),
+        (left_sigma_poly, right_sigma_poly, out_sigma_poly, fourth_sigma_poly): (
+            &Polynomial,
+            &Polynomial,
+            &Polynomial,
+            &Polynomial,
+        ),
+
+*/
+
+    }
+
 
     #[test]
     fn test_permutation_format() {
