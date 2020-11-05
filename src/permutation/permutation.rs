@@ -732,23 +732,29 @@ mod test {
         cs.poly_gate(x3, x4, x2, one, zero, zero, -two, zero, zero);
 
         let domain = EvaluationDomain::new(cs.circuit_size()).unwrap();
-        let w_l_scalar: Vec<Scalar> = cs.w_l.iter().map(|v| cs.variables[v]).collect();
-        let w_r_scalar: Vec<Scalar> = cs.w_r.iter().map(|v| cs.variables[v]).collect();
-        let w_o_scalar: Vec<Scalar> = cs.w_o.iter().map(|v| cs.variables[v]).collect();
-        let w_4_scalar: Vec<Scalar> = cs.w_4.iter().map(|v| cs.variables[v]).collect();
+        let pad = vec![Scalar::zero(); domain.size() - cs.w_l.len()];
+        let mut w_l_scalar: Vec<Scalar> = cs.w_l.iter().map(|v| cs.variables[v]).collect();
+        let mut w_r_scalar: Vec<Scalar> = cs.w_r.iter().map(|v| cs.variables[v]).collect();
+        let mut w_o_scalar: Vec<Scalar> = cs.w_o.iter().map(|v| cs.variables[v]).collect();
+        let mut w_4_scalar: Vec<Scalar> = cs.w_4.iter().map(|v| cs.variables[v]).collect();
 
-        let sigmas: Vec<Vec<Scalar>>  = cs.perm.compute_sigma_permutations(7).iter().map(|wd| cs.perm.compute_permutation_lagrange(wd, &domain)).collect();
+        w_l_scalar.extend(&pad);
+        w_r_scalar.extend(&pad);
+        w_o_scalar.extend(&pad);
+        w_4_scalar.extend(&pad);
+
+        let sigmas: Vec<Vec<Scalar>> = cs.perm.compute_sigma_permutations(7).iter().map(|wd| cs.perm.compute_permutation_lagrange(wd, &domain)).collect();
 
         let beta = Fr::random(&mut rand::thread_rng());
         let gamma = Fr::random(&mut rand::thread_rng());
 
-        let mz = cs.perm.multizip_compute_permutation_poly(
+        let mz = Polynomial::from_coefficients_vec(domain.ifft(&cs.perm.multizip_compute_permutation_poly(
             &domain, 
             (&w_l_scalar, &w_r_scalar, &w_o_scalar, &w_4_scalar),
             &beta,
             &gamma,
             (&sigmas[0], &sigmas[1], &sigmas[2], &sigmas[3]),
-        );
+        )));
 
         let sigma_polys: Vec<Polynomial> = sigmas.iter().map(|v| Polynomial::from_coefficients_vec(domain.ifft(&v))).collect();
 
@@ -766,25 +772,9 @@ mod test {
                 &sigma_polys[3],
             )
         );
-/*
-        &self,
-        domain: &EvaluationDomain,
-        w_l: &[Scalar],
-        w_r: &[Scalar],
-        w_o: &[Scalar],
-        w_4: &[Scalar],
-        (beta, gamma): &(Scalar, Scalar),
-        (left_sigma_poly, right_sigma_poly, out_sigma_poly, fourth_sigma_poly): (
-            &Polynomial,
-            &Polynomial,
-            &Polynomial,
-            &Polynomial,
-        ),
-
-*/
-
+        
+        assert!(mz==old_z);
     }
-
 
     #[test]
     fn test_permutation_format() {
