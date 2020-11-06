@@ -192,10 +192,10 @@ impl Prover {
             &w_4_scalar,
             &(beta, gamma),
             (
-                &prover_key.permutation.left_sigma.0,
-                &prover_key.permutation.right_sigma.0,
-                &prover_key.permutation.out_sigma.0,
-                &prover_key.permutation.fourth_sigma.0,
+                &prover_key.permutation.left_sigma.1.evals,
+                &prover_key.permutation.right_sigma.1.evals,
+                &prover_key.permutation.out_sigma.1.evals,
+                &prover_key.permutation.fourth_sigma.1.evals,
             ),
         );
 

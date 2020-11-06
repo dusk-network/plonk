@@ -196,11 +196,11 @@ impl Permutation {
         w_o: &[Scalar],
         w_4: &[Scalar],
         (beta, gamma): &(Scalar, Scalar),
-        (left_sigma_poly, right_sigma_poly, out_sigma_poly, fourth_sigma_poly): (
-            &Polynomial,
-            &Polynomial,
-            &Polynomial,
-            &Polynomial,
+        (left_sigma, right_sigma, out_sigma, fourth_sigma): (
+            &Vec<Scalar>,
+            &Vec<Scalar>,
+            &Vec<Scalar>,
+            &Vec<Scalar>,
         ),
     ) -> Polynomial {
         let z_evaluations = self.multizip_compute_permutation_poly(
@@ -209,10 +209,10 @@ impl Permutation {
             beta,
             gamma,
             (
-                left_sigma_poly,
-                right_sigma_poly,
-                out_sigma_poly,
-                fourth_sigma_poly,
+                left_sigma,
+                right_sigma,
+                out_sigma,
+                fourth_sigma,
             ),
         );
         Polynomial::from_coefficients_vec(domain.ifft(&z_evaluations))
@@ -614,7 +614,7 @@ impl Permutation {
     }
 
     fn denominator_irreducible(
-        root: &Scalar,
+        _root: &Scalar,
         w: &Scalar,
         sigma: &Scalar,
         beta: &Scalar,
@@ -633,10 +633,13 @@ impl Permutation {
         wires: (&[Scalar], &[Scalar], &[Scalar], &[Scalar]),
         beta: &Scalar,
         gamma: &Scalar,
-        sigmas: (&[Scalar], &[Scalar], &[Scalar], &[Scalar]),
+        sigmas: (&Vec<Scalar>, &Vec<Scalar>, &Vec<Scalar>, &Vec<Scalar>),
     ) -> Vec<Scalar> {
 
         let n = domain.size();
+
+
+
 
         // Constants defining cosets H, k1H, k2H, etc
         let ks = vec![Scalar::one(), K1, K2, K3];
@@ -671,14 +674,14 @@ impl Permutation {
                     // Numerator product
                     wire_params
                         .clone()
-                        .map(|(sigma, wire, k)| {
+                        .map(|(_sigma, wire, k)| {
                             Permutation::numerator_irreducible(&gate_root, wire, &k, beta, gamma)
                         })
                         .product::<Scalar>(),
                     // Denominator product
                     wire_params
-                        .map(|(sigma, wire, k)| {
-                            Permutation::denominator_irreducible(&gate_root, wire, sigma, beta, gamma)
+                        .map(|(sigma, wire, _k)| {
+                            Permutation::denominator_irreducible(&gate_root, wire, &sigma, beta, gamma)
                         })
                         .product::<Scalar>(),
                 )
