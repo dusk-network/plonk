@@ -7,7 +7,7 @@
 use crate::fft::{EvaluationDomain, Polynomial};
 use crate::proof_system::widget::ProverKey;
 use anyhow::{Error, Result};
-use dusk_bls12_381::Scalar;
+use dusk_bls12_381::BlsScalar;
 use rayon::prelude::*;
 
 /// This quotient polynomial can only be used for the standard composer
@@ -28,7 +28,15 @@ pub(crate) fn compute(
         logic_challenge,
         fixed_base_challenge,
         var_base_challenge,
-    ): &(Scalar, Scalar, Scalar, Scalar, Scalar, Scalar, Scalar),
+    ): &(
+        BlsScalar,
+        BlsScalar,
+        BlsScalar,
+        BlsScalar,
+        BlsScalar,
+        BlsScalar,
+        BlsScalar,
+    ),
 ) -> Result<Polynomial, Error> {
     // Compute 4n eval of z(X)
     let domain_4n = EvaluationDomain::new(4 * domain.size())?;
@@ -96,15 +104,20 @@ pub(crate) fn compute(
 fn compute_circuit_satisfiability_equation(
     domain: &EvaluationDomain,
     (range_challenge, logic_challenge, fixed_base_challenge, var_base_challenge): (
-        &Scalar,
-        &Scalar,
-        &Scalar,
-        &Scalar,
+        &BlsScalar,
+        &BlsScalar,
+        &BlsScalar,
+        &BlsScalar,
     ),
     prover_key: &ProverKey,
-    (wl_eval_4n, wr_eval_4n, wo_eval_4n, w4_eval_4n): (&[Scalar], &[Scalar], &[Scalar], &[Scalar]),
+    (wl_eval_4n, wr_eval_4n, wo_eval_4n, w4_eval_4n): (
+        &[BlsScalar],
+        &[BlsScalar],
+        &[BlsScalar],
+        &[BlsScalar],
+    ),
     pi_poly: &Polynomial,
-) -> Vec<Scalar> {
+) -> Vec<BlsScalar> {
     let domain_4n = EvaluationDomain::new(4 * domain.size()).unwrap();
     let pi_eval_4n = domain_4n.coset_fft(pi_poly);
 
@@ -172,10 +185,15 @@ fn compute_circuit_satisfiability_equation(
 fn compute_permutation_checks(
     domain: &EvaluationDomain,
     prover_key: &ProverKey,
-    (wl_eval_4n, wr_eval_4n, wo_eval_4n, w4_eval_4n): (&[Scalar], &[Scalar], &[Scalar], &[Scalar]),
-    z_eval_4n: &[Scalar],
-    (alpha, beta, gamma): (&Scalar, &Scalar, &Scalar),
-) -> Vec<Scalar> {
+    (wl_eval_4n, wr_eval_4n, wo_eval_4n, w4_eval_4n): (
+        &[BlsScalar],
+        &[BlsScalar],
+        &[BlsScalar],
+        &[BlsScalar],
+    ),
+    z_eval_4n: &[BlsScalar],
+    (alpha, beta, gamma): (&BlsScalar, &BlsScalar, &BlsScalar),
+) -> Vec<BlsScalar> {
     let domain_4n = EvaluationDomain::new(4 * domain.size()).unwrap();
     let l1_poly_alpha = compute_first_lagrange_poly_scaled(domain, alpha.square());
     let l1_alpha_sq_evals = domain_4n.coset_fft(&l1_poly_alpha.coeffs);
@@ -200,8 +218,8 @@ fn compute_permutation_checks(
         .collect();
     t
 }
-fn compute_first_lagrange_poly_scaled(domain: &EvaluationDomain, scale: Scalar) -> Polynomial {
-    let mut x_evals = vec![Scalar::zero(); domain.size()];
+fn compute_first_lagrange_poly_scaled(domain: &EvaluationDomain, scale: BlsScalar) -> Polynomial {
+    let mut x_evals = vec![BlsScalar::zero(); domain.size()];
     x_evals[0] = scale;
     domain.ifft_in_place(&mut x_evals);
     Polynomial::from_coefficients_vec(x_evals)

@@ -7,51 +7,51 @@
 use crate::fft::{EvaluationDomain, Polynomial};
 use crate::proof_system::widget::ProverKey;
 use anyhow::{Error, Result};
-use dusk_bls12_381::Scalar;
+use dusk_bls12_381::BlsScalar;
 /// Evaluations at points `z` or and `z * root of unity`
 pub struct Evaluations {
     pub proof: ProofEvaluations,
     // Evaluation of the linearisation sigma polynomial at `z`
-    pub quot_eval: Scalar,
+    pub quot_eval: BlsScalar,
 }
 
 /// Proof Evaluations is a subset of all of the evaluations. These evaluations will be added to the proof
 #[derive(Debug, Eq, PartialEq)]
 pub struct ProofEvaluations {
     // Evaluation of the witness polynomial for the left wire at `z`
-    pub a_eval: Scalar,
+    pub a_eval: BlsScalar,
     // Evaluation of the witness polynomial for the right wire at `z`
-    pub b_eval: Scalar,
+    pub b_eval: BlsScalar,
     // Evaluation of the witness polynomial for the output wire at `z`
-    pub c_eval: Scalar,
+    pub c_eval: BlsScalar,
     // Evaluation of the witness polynomial for the fourth wire at `z`
-    pub d_eval: Scalar,
+    pub d_eval: BlsScalar,
     //
-    pub a_next_eval: Scalar,
+    pub a_next_eval: BlsScalar,
     //
-    pub b_next_eval: Scalar,
+    pub b_next_eval: BlsScalar,
     // Evaluation of the witness polynomial for the fourth wire at `z * root of unity`
-    pub d_next_eval: Scalar,
+    pub d_next_eval: BlsScalar,
     // Evaluation of the arithmetic selector polynomial at `z`
-    pub q_arith_eval: Scalar,
+    pub q_arith_eval: BlsScalar,
     //
-    pub q_c_eval: Scalar,
+    pub q_c_eval: BlsScalar,
     //
-    pub q_l_eval: Scalar,
+    pub q_l_eval: BlsScalar,
     //
-    pub q_r_eval: Scalar,
+    pub q_r_eval: BlsScalar,
     // Evaluation of the left sigma polynomial at `z`
-    pub left_sigma_eval: Scalar,
+    pub left_sigma_eval: BlsScalar,
     // Evaluation of the right sigma polynomial at `z`
-    pub right_sigma_eval: Scalar,
+    pub right_sigma_eval: BlsScalar,
     // Evaluation of the out sigma polynomial at `z`
-    pub out_sigma_eval: Scalar,
+    pub out_sigma_eval: BlsScalar,
 
     // Evaluation of the linearisation sigma polynomial at `z`
-    pub lin_poly_eval: Scalar,
+    pub lin_poly_eval: BlsScalar,
 
     // (Shifted) Evaluation of the permutation polynomial at `z * root of unity`
-    pub perm_eval: Scalar,
+    pub perm_eval: BlsScalar,
 }
 
 impl ProofEvaluations {
@@ -148,14 +148,14 @@ pub fn compute(
         var_base_separation_challenge,
         z_challenge,
     ): &(
-        Scalar,
-        Scalar,
-        Scalar,
-        Scalar,
-        Scalar,
-        Scalar,
-        Scalar,
-        Scalar,
+        BlsScalar,
+        BlsScalar,
+        BlsScalar,
+        BlsScalar,
+        BlsScalar,
+        BlsScalar,
+        BlsScalar,
+        BlsScalar,
     ),
     w_l_poly: &Polynomial,
     w_r_poly: &Polynomial,
@@ -251,18 +251,18 @@ fn compute_circuit_satisfiability(
         logic_separation_challenge,
         fixed_base_separation_challenge,
         var_base_separation_challenge,
-    ): (&Scalar, &Scalar, &Scalar, &Scalar),
-    a_eval: &Scalar,
-    b_eval: &Scalar,
-    c_eval: &Scalar,
-    d_eval: &Scalar,
-    a_next_eval: &Scalar,
-    b_next_eval: &Scalar,
-    d_next_eval: &Scalar,
-    q_arith_eval: &Scalar,
-    q_c_eval: &Scalar,
-    q_l_eval: &Scalar,
-    q_r_eval: &Scalar,
+    ): (&BlsScalar, &BlsScalar, &BlsScalar, &BlsScalar),
+    a_eval: &BlsScalar,
+    b_eval: &BlsScalar,
+    c_eval: &BlsScalar,
+    d_eval: &BlsScalar,
+    a_next_eval: &BlsScalar,
+    b_next_eval: &BlsScalar,
+    d_next_eval: &BlsScalar,
+    q_arith_eval: &BlsScalar,
+    q_c_eval: &BlsScalar,
+    q_l_eval: &BlsScalar,
+    q_r_eval: &BlsScalar,
     prover_key: &ProverKey,
 ) -> Polynomial {
     let a =

@@ -6,7 +6,7 @@
 
 use crate::constraint_system::StandardComposer;
 use crate::constraint_system::Variable;
-use dusk_bls12_381::Scalar;
+use dusk_bls12_381::BlsScalar;
 
 #[derive(Debug, Clone, Copy)]
 /// Contains all of the components needed to verify that a bit scalar multiplication was computed correctly
@@ -26,12 +26,12 @@ pub(crate) struct WnafRound {
     pub xy_alpha: Variable,
     /// This is the possible x co-ordinate of the wnaf point we are going to add
     /// Actual x-co-ordinate = b_i * x_\beta
-    pub x_beta: Scalar,
+    pub x_beta: BlsScalar,
     /// This is the possible y co-ordinate of the wnaf point we are going to add
     /// Actual y coordinate = (b_i)^2 [y_\beta -1] + 1
-    pub y_beta: Scalar,
+    pub y_beta: BlsScalar,
     /// This is the multiplication of x_\beta * y_\beta
-    pub xy_beta: Scalar,
+    pub xy_beta: BlsScalar,
 }
 
 impl StandardComposer {
@@ -46,17 +46,17 @@ impl StandardComposer {
         self.q_r.push(wnaf_round.y_beta);
 
         self.q_c.push(wnaf_round.xy_beta);
-        self.q_o.push(Scalar::zero());
-        self.q_fixed_group_add.push(Scalar::one());
-        self.q_variable_group_add.push(Scalar::zero());
+        self.q_o.push(BlsScalar::zero());
+        self.q_fixed_group_add.push(BlsScalar::one());
+        self.q_variable_group_add.push(BlsScalar::zero());
 
-        self.q_m.push(Scalar::zero());
-        self.q_4.push(Scalar::zero());
-        self.q_arith.push(Scalar::zero());
-        self.q_range.push(Scalar::zero());
-        self.q_logic.push(Scalar::zero());
+        self.q_m.push(BlsScalar::zero());
+        self.q_4.push(BlsScalar::zero());
+        self.q_arith.push(BlsScalar::zero());
+        self.q_range.push(BlsScalar::zero());
+        self.q_logic.push(BlsScalar::zero());
 
-        self.public_inputs.push(Scalar::zero());
+        self.public_inputs.push(BlsScalar::zero());
 
         self.perm.add_variables_to_map(
             wnaf_round.acc_x,

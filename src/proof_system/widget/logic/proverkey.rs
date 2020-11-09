@@ -8,7 +8,7 @@
 use super::{delta, delta_xor_and};
 use crate::fft::{Evaluations, Polynomial};
 
-use dusk_bls12_381::Scalar;
+use dusk_bls12_381::BlsScalar;
 
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub struct ProverKey {
@@ -20,16 +20,16 @@ impl ProverKey {
     pub(crate) fn compute_quotient_i(
         &self,
         index: usize,
-        logic_separation_challenge: &Scalar,
-        w_l_i: &Scalar,
-        w_l_i_next: &Scalar,
-        w_r_i: &Scalar,
-        w_r_i_next: &Scalar,
-        w_o_i: &Scalar,
-        w_4_i: &Scalar,
-        w_4_i_next: &Scalar,
-    ) -> Scalar {
-        let four = Scalar::from(4);
+        logic_separation_challenge: &BlsScalar,
+        w_l_i: &BlsScalar,
+        w_l_i_next: &BlsScalar,
+        w_r_i: &BlsScalar,
+        w_r_i_next: &BlsScalar,
+        w_o_i: &BlsScalar,
+        w_4_i: &BlsScalar,
+        w_4_i_next: &BlsScalar,
+    ) -> BlsScalar {
+        let four = BlsScalar::from(4);
 
         let q_logic_i = &self.q_logic.1[index];
         let q_c_i = &self.q_c.1[index];
@@ -58,17 +58,17 @@ impl ProverKey {
 
     pub(crate) fn compute_linearisation(
         &self,
-        logic_separation_challenge: &Scalar,
-        a_eval: &Scalar,
-        a_next_eval: &Scalar,
-        b_eval: &Scalar,
-        b_next_eval: &Scalar,
-        c_eval: &Scalar,
-        d_eval: &Scalar,
-        d_next_eval: &Scalar,
-        q_c_eval: &Scalar,
+        logic_separation_challenge: &BlsScalar,
+        a_eval: &BlsScalar,
+        a_next_eval: &BlsScalar,
+        b_eval: &BlsScalar,
+        b_next_eval: &BlsScalar,
+        c_eval: &BlsScalar,
+        d_eval: &BlsScalar,
+        d_next_eval: &BlsScalar,
+        q_c_eval: &BlsScalar,
     ) -> Polynomial {
-        let four = Scalar::from(4);
+        let four = BlsScalar::from(4);
         let q_logic_poly = &self.q_logic.0;
 
         let kappa = logic_separation_challenge.square();

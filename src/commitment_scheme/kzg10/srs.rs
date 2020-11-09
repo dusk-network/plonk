@@ -112,10 +112,10 @@ impl PublicParameters {
 #[cfg(test)]
 mod test {
     use super::*;
-    use dusk_bls12_381::Scalar;
+    use dusk_bls12_381::BlsScalar;
     #[test]
     fn test_powers_of() {
-        let x = Scalar::from(10u64);
+        let x = BlsScalar::from(10u64);
         let degree = 100u64;
 
         let powers_of_x = util::powers_of(&x, degree as usize);

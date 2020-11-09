@@ -9,20 +9,20 @@
 use super::domain::EvaluationDomain;
 use super::polynomial::Polynomial;
 use core::ops::{Add, AddAssign, DivAssign, Index, Mul, MulAssign, Sub, SubAssign};
-use dusk_bls12_381::Scalar;
+use dusk_bls12_381::BlsScalar;
 
 /// Stores a polynomial in evaluation form.
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct Evaluations {
     /// The evaluations of a polynomial over the domain `D`
-    pub evals: Vec<Scalar>,
+    pub evals: Vec<BlsScalar>,
     #[doc(hidden)]
     domain: EvaluationDomain,
 }
 
 impl Evaluations {
     /// Construct `Self` from evaluations and a domain.
-    pub fn from_vec_and_domain(evals: Vec<Scalar>, domain: EvaluationDomain) -> Self {
+    pub fn from_vec_and_domain(evals: Vec<BlsScalar>, domain: EvaluationDomain) -> Self {
         Self { evals, domain }
     }
 
@@ -40,9 +40,9 @@ impl Evaluations {
 }
 
 impl Index<usize> for Evaluations {
-    type Output = Scalar;
+    type Output = BlsScalar;
 
-    fn index(&self, index: usize) -> &Scalar {
+    fn index(&self, index: usize) -> &BlsScalar {
         &self.evals[index]
     }
 }

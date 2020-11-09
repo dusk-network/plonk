@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.4] - 02-11-20
+### Changed
+- dusk-jubjub update to `v0.5.0` with API renaming
+- dusk-bls12_381 update to `v0.3.0` with API renaming
+
 ## [0.3.3] - 02-11-20
 ### Added
 - `canon` feature to manage `Canon` derivations usage in ecc libs.

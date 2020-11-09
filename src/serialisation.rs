@@ -7,7 +7,7 @@
 use crate::commitment_scheme::kzg10::Commitment;
 use crate::fft::{EvaluationDomain, Evaluations, Polynomial};
 use anyhow::{Error, Result};
-use dusk_bls12_381::{G1Affine, G2Affine, Scalar};
+use dusk_bls12_381::{BlsScalar, G1Affine, G2Affine};
 use thiserror::Error;
 
 /// Defines all of the possible Serialisation errors
@@ -18,7 +18,7 @@ pub enum SerialisationErrors {
     #[error("Cannot decompress point, as it is not in a canonical format")]
     PointMalformed,
     #[error("Cannot deserialise scalar, as it is not in a canonical format")]
-    ScalarMalformed,
+    BlsScalarMalformed,
 }
 
 /// Reads n bytes from slice and returns the n bytes along with the rest of the slice
@@ -31,20 +31,20 @@ pub fn read_n(n: usize, bytes: &[u8]) -> Result<(&[u8], &[u8]), Error> {
     Ok((bytes32, rest))
 }
 
-/// Reads 32 bytes and converts it to a Scalar
+/// Reads 32 bytes and converts it to a BlsScalar
 /// Returns the remaining bytes
-pub fn read_scalar(bytes: &[u8]) -> Result<(Scalar, &[u8]), Error> {
+pub fn read_scalar(bytes: &[u8]) -> Result<(BlsScalar, &[u8]), Error> {
     let (bytes32, rest) = read_n(32, bytes)?;
     let mut arr32 = [0u8; 32];
     arr32.copy_from_slice(bytes32);
-    let scalar = Scalar::from_bytes(&arr32);
+    let scalar = BlsScalar::from_bytes(&arr32);
     if scalar.is_none().into() {
-        return Err(SerialisationErrors::ScalarMalformed.into());
+        return Err(SerialisationErrors::BlsScalarMalformed.into());
     }
     Ok((scalar.unwrap(), rest))
 }
-/// Writes a Scalar into a mutable slice
-pub fn write_scalar(scalar: &Scalar, bytes: &mut Vec<u8>) {
+/// Writes a BlsScalar into a mutable slice
+pub fn write_scalar(scalar: &BlsScalar, bytes: &mut Vec<u8>) {
     bytes.extend_from_slice(&scalar.to_bytes());
 }
 
@@ -109,7 +109,7 @@ pub fn write_u64(val: u64, bytes: &mut Vec<u8>) {
 
 /// Reads the bytes slice and parses a Vector of scalars
 /// Returns the remaining bytes
-pub fn read_scalars(bytes: &[u8]) -> Result<(Vec<Scalar>, &[u8]), Error> {
+pub fn read_scalars(bytes: &[u8]) -> Result<(Vec<BlsScalar>, &[u8]), Error> {
     let (num_scalars, mut bytes) = read_u64(bytes)?;
 
     let mut poly_vec = Vec::new();
@@ -121,7 +121,7 @@ pub fn read_scalars(bytes: &[u8]) -> Result<(Vec<Scalar>, &[u8]), Error> {
     Ok((poly_vec, bytes))
 }
 /// Writes a Vector of scalars into a mutable slice
-pub fn write_scalars(val: &[Scalar], bytes: &mut Vec<u8>) {
+pub fn write_scalars(val: &[BlsScalar], bytes: &mut Vec<u8>) {
     let num_scalars = val.len() as u64;
     write_u64(num_scalars, bytes);
 
@@ -163,7 +163,7 @@ mod test {
     fn test_read_write_scalar() {
         let mut bytes = Vec::new();
 
-        let scalar = Scalar::random(&mut rand::thread_rng());
+        let scalar = BlsScalar::random(&mut rand::thread_rng());
 
         write_scalar(&scalar, &mut bytes);
         let (got, rest) = read_scalar(&bytes).unwrap();
@@ -176,7 +176,7 @@ mod test {
         let mut bytes = Vec::new();
 
         let scalars: Vec<_> = (0..100)
-            .map(|_| Scalar::random(&mut rand::thread_rng()))
+            .map(|_| BlsScalar::random(&mut rand::thread_rng()))
             .collect();
 
         let polynomial = Polynomial::from_coefficients_slice(&scalars);

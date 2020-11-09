@@ -6,7 +6,7 @@
 
 use super::{check_bit_consistency, extract_bit};
 use crate::fft::{Evaluations, Polynomial};
-use dusk_bls12_381::Scalar;
+use dusk_bls12_381::BlsScalar;
 use dusk_jubjub::EDWARDS_D;
 
 #[derive(Debug, Eq, PartialEq, Clone)]
@@ -22,15 +22,15 @@ impl ProverKey {
     pub(crate) fn compute_quotient_i(
         &self,
         index: usize,
-        ecc_separation_challenge: &Scalar,
-        w_l_i: &Scalar,      // acc_x or curr_x
-        w_l_i_next: &Scalar, //  // next_x
-        w_r_i: &Scalar,      // acc_y or curr_y
-        w_r_i_next: &Scalar, // next_y
-        w_o_i: &Scalar,      // xy_alpha
-        w_4_i: &Scalar,      // accumulated_bit
-        w_4_i_next: &Scalar, // accumulated_bit_next
-    ) -> Scalar {
+        ecc_separation_challenge: &BlsScalar,
+        w_l_i: &BlsScalar,      // acc_x or curr_x
+        w_l_i_next: &BlsScalar, //  // next_x
+        w_r_i: &BlsScalar,      // acc_y or curr_y
+        w_r_i_next: &BlsScalar, // next_y
+        w_o_i: &BlsScalar,      // xy_alpha
+        w_4_i: &BlsScalar,      // accumulated_bit
+        w_4_i_next: &BlsScalar, // accumulated_bit_next
+    ) -> BlsScalar {
         let q_fixed_group_add_i = &self.q_fixed_group_add.1[index];
         let q_c_i = &self.q_c.1[index];
 
@@ -58,7 +58,7 @@ impl ProverKey {
         let bit_consistency = check_bit_consistency(bit);
 
         // Derive y_alpha and x_alpha from bit
-        let y_alpha = bit.square() * (y_beta - Scalar::one()) + Scalar::one();
+        let y_alpha = bit.square() * (y_beta - BlsScalar::one()) + BlsScalar::one();
         let x_alpha = bit * x_beta;
 
         // xy_alpha consistency check
@@ -84,17 +84,17 @@ impl ProverKey {
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn compute_linearisation(
         &self,
-        ecc_separation_challenge: &Scalar,
-        a_eval: &Scalar,
-        a_next_eval: &Scalar,
-        b_eval: &Scalar,
-        b_next_eval: &Scalar,
-        c_eval: &Scalar,
-        d_eval: &Scalar,
-        d_next_eval: &Scalar,
-        q_l_eval: &Scalar,
-        q_r_eval: &Scalar,
-        q_c_eval: &Scalar,
+        ecc_separation_challenge: &BlsScalar,
+        a_eval: &BlsScalar,
+        a_next_eval: &BlsScalar,
+        b_eval: &BlsScalar,
+        b_next_eval: &BlsScalar,
+        c_eval: &BlsScalar,
+        d_eval: &BlsScalar,
+        d_next_eval: &BlsScalar,
+        q_l_eval: &BlsScalar,
+        q_r_eval: &BlsScalar,
+        q_c_eval: &BlsScalar,
     ) -> Polynomial {
         let q_fixed_group_add_poly = &self.q_fixed_group_add.0;
 
@@ -119,7 +119,7 @@ impl ProverKey {
         // Check bit consistency
         let bit_consistency = check_bit_consistency(bit);
 
-        let y_alpha = bit.square() * (y_beta_eval - Scalar::one()) + Scalar::one();
+        let y_alpha = bit.square() * (y_beta_eval - BlsScalar::one()) + BlsScalar::one();
 
         let x_alpha = x_beta_eval * bit;
 

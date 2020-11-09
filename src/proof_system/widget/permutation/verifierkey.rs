@@ -9,7 +9,7 @@
 use crate::commitment_scheme::kzg10::Commitment;
 use crate::permutation::constants::{K1, K2, K3};
 use crate::proof_system::linearisation_poly::ProofEvaluations;
-use dusk_bls12_381::{G1Affine, Scalar};
+use dusk_bls12_381::{BlsScalar, G1Affine};
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub struct VerifierKey {
@@ -22,12 +22,12 @@ pub struct VerifierKey {
 impl VerifierKey {
     pub(crate) fn compute_linearisation_commitment(
         &self,
-        scalars: &mut Vec<Scalar>,
+        scalars: &mut Vec<BlsScalar>,
         points: &mut Vec<G1Affine>,
         evaluations: &ProofEvaluations,
-        z_challenge: &Scalar,
-        (alpha, beta, gamma): (&Scalar, &Scalar, &Scalar),
-        l1_eval: &Scalar,
+        z_challenge: &BlsScalar,
+        (alpha, beta, gamma): (&BlsScalar, &BlsScalar, &BlsScalar),
+        l1_eval: &BlsScalar,
         z_comm: G1Affine,
     ) {
         let alpha_sq = alpha.square();
