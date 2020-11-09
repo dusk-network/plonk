@@ -13,7 +13,7 @@ use crate::constraint_system::StandardComposer;
 use crate::fft::{EvaluationDomain, Evaluations, Polynomial};
 use crate::proof_system::widget;
 use anyhow::{Error, Result};
-use dusk_bls12_381::Scalar;
+use dusk_bls12_381::BlsScalar;
 use merlin::Transcript;
 
 /// Struct that contains all of the selector and permutation polynomials in PLONK
@@ -41,7 +41,7 @@ impl StandardComposer {
     /// `diff` is the difference between circuit size and next power of two.
     fn pad(&mut self, diff: usize) {
         // Add a zero variable to circuit
-        let zero_scalar = Scalar::zero();
+        let zero_scalar = BlsScalar::zero();
         let zero_var = self.add_input(zero_scalar);
 
         let zeroes_scalar = vec![zero_scalar; diff];
@@ -142,7 +142,7 @@ impl StandardComposer {
         );
         // XXX: Remove this and compute it on the fly
         let linear_eval_4n = Evaluations::from_vec_and_domain(
-            domain_4n.coset_fft(&[Scalar::zero(), Scalar::one()]),
+            domain_4n.coset_fft(&[BlsScalar::zero(), BlsScalar::one()]),
             domain_4n,
         );
 

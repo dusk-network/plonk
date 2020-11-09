@@ -6,7 +6,7 @@
 
 use super::delta;
 use crate::fft::{Evaluations, Polynomial};
-use dusk_bls12_381::Scalar;
+use dusk_bls12_381::BlsScalar;
 
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub struct ProverKey {
@@ -18,14 +18,14 @@ impl ProverKey {
     pub(crate) fn compute_quotient_i(
         &self,
         index: usize,
-        range_separation_challenge: &Scalar,
-        w_l_i: &Scalar,
-        w_r_i: &Scalar,
-        w_o_i: &Scalar,
-        w_4_i: &Scalar,
-        w_4_i_next: &Scalar,
-    ) -> Scalar {
-        let four = Scalar::from(4);
+        range_separation_challenge: &BlsScalar,
+        w_l_i: &BlsScalar,
+        w_r_i: &BlsScalar,
+        w_o_i: &BlsScalar,
+        w_4_i: &BlsScalar,
+        w_4_i_next: &BlsScalar,
+    ) -> BlsScalar {
+        let four = BlsScalar::from(4);
         let q_range_i = &self.q_range.1[index];
 
         let kappa = range_separation_challenge.square();
@@ -43,14 +43,14 @@ impl ProverKey {
 
     pub(crate) fn compute_linearisation(
         &self,
-        range_separation_challenge: &Scalar,
-        a_eval: &Scalar,
-        b_eval: &Scalar,
-        c_eval: &Scalar,
-        d_eval: &Scalar,
-        d_next_eval: &Scalar,
+        range_separation_challenge: &BlsScalar,
+        a_eval: &BlsScalar,
+        b_eval: &BlsScalar,
+        c_eval: &BlsScalar,
+        d_eval: &BlsScalar,
+        d_next_eval: &BlsScalar,
     ) -> Polynomial {
-        let four = Scalar::from(4);
+        let four = BlsScalar::from(4);
         let q_range_poly = &self.q_range.0;
 
         let kappa = range_separation_challenge.square();

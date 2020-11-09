@@ -10,8 +10,8 @@ use crate::commitment_scheme::kzg10::PublicParameters;
 use crate::constraint_system::StandardComposer;
 use crate::proof_system::{Proof, ProverKey, VerifierKey};
 use anyhow::Result;
-use dusk_bls12_381::Scalar as BlsScalar;
-use dusk_jubjub::{AffinePoint as JubJubAffine, Scalar as JubJubScalar};
+use dusk_bls12_381::BlsScalar;
+use dusk_jubjub::{JubJubAffine, JubJubScalar};
 use thiserror::Error;
 
 /// Public Input

@@ -9,7 +9,7 @@ use crate::constraint_system::StandardComposer;
 use crate::proof_system::widget::VerifierKey;
 use crate::proof_system::Proof;
 use anyhow::{Error, Result};
-use dusk_bls12_381::Scalar;
+use dusk_bls12_381::BlsScalar;
 use merlin::Transcript;
 /// Verifier verifies a proof
 #[allow(missing_debug_implementations)]
@@ -81,7 +81,7 @@ impl Verifier {
         &self,
         proof: &Proof,
         opening_key: &OpeningKey,
-        public_inputs: &[Scalar],
+        public_inputs: &[BlsScalar],
     ) -> Result<(), Error> {
         let mut cloned_transcript = self.preprocessed_transcript.clone();
         let verifier_key = self.verifier_key.as_ref().unwrap();

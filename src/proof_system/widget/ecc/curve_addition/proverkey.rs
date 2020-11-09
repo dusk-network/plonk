@@ -5,7 +5,7 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use crate::fft::{Evaluations, Polynomial};
-use dusk_bls12_381::Scalar;
+use dusk_bls12_381::BlsScalar;
 use dusk_jubjub::EDWARDS_D;
 
 #[derive(Debug, Eq, PartialEq, Clone)]
@@ -18,15 +18,15 @@ impl ProverKey {
     pub(crate) fn compute_quotient_i(
         &self,
         index: usize,
-        curve_add_separation_challenge: &Scalar,
-        w_l_i: &Scalar,      // x_1
-        w_l_i_next: &Scalar, // x_3
-        w_r_i: &Scalar,      // y_1
-        w_r_i_next: &Scalar, // y_3
-        w_o_i: &Scalar,      // x_2
-        w_4_i: &Scalar,      // y_2
-        w_4_i_next: &Scalar, // x_1 * y_2
-    ) -> Scalar {
+        curve_add_separation_challenge: &BlsScalar,
+        w_l_i: &BlsScalar,      // x_1
+        w_l_i_next: &BlsScalar, // x_3
+        w_r_i: &BlsScalar,      // y_1
+        w_r_i_next: &BlsScalar, // y_3
+        w_o_i: &BlsScalar,      // x_2
+        w_4_i: &BlsScalar,      // y_2
+        w_4_i_next: &BlsScalar, // x_1 * y_2
+    ) -> BlsScalar {
         let q_variable_group_add_i = &self.q_variable_group_add.1[index];
 
         let kappa = curve_add_separation_challenge.square();
@@ -66,14 +66,14 @@ impl ProverKey {
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn compute_linearisation(
         &self,
-        curve_add_separation_challenge: &Scalar,
-        a_eval: &Scalar,
-        a_next_eval: &Scalar,
-        b_eval: &Scalar,
-        b_next_eval: &Scalar,
-        c_eval: &Scalar,
-        d_eval: &Scalar,
-        d_next_eval: &Scalar,
+        curve_add_separation_challenge: &BlsScalar,
+        a_eval: &BlsScalar,
+        a_next_eval: &BlsScalar,
+        b_eval: &BlsScalar,
+        b_next_eval: &BlsScalar,
+        c_eval: &BlsScalar,
+        d_eval: &BlsScalar,
+        d_next_eval: &BlsScalar,
     ) -> Polynomial {
         let q_variable_group_add_poly = &self.q_variable_group_add.0;
 

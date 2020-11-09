@@ -8,11 +8,11 @@ use super::StandardComposer;
 use crate::commitment_scheme::kzg10::PublicParameters;
 use crate::proof_system::{Prover, Verifier};
 use anyhow::{Error, Result};
-use dusk_bls12_381::Scalar;
+use dusk_bls12_381::BlsScalar;
 
 /// Adds dummy constraints using arithmetic gates
 pub(crate) fn dummy_gadget(n: usize, composer: &mut StandardComposer) {
-    let one = Scalar::one();
+    let one = BlsScalar::one();
 
     let var_one = composer.add_input(one);
 
@@ -21,8 +21,8 @@ pub(crate) fn dummy_gadget(n: usize, composer: &mut StandardComposer) {
             var_one.into(),
             var_one.into(),
             None,
-            Scalar::zero(),
-            Scalar::zero(),
+            BlsScalar::zero(),
+            BlsScalar::zero(),
         );
     }
 }

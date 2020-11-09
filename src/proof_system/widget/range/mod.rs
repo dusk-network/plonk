@@ -15,12 +15,12 @@ pub use verifierkey::VerifierKey;
 ///
 ///
 ///
-use dusk_bls12_381::Scalar;
+use dusk_bls12_381::BlsScalar;
 
 // Computes f(f-1)(f-2)(f-3)
-fn delta(f: Scalar) -> Scalar {
-    let f_1 = f - Scalar::one();
-    let f_2 = f - Scalar::from(2);
-    let f_3 = f - Scalar::from(3);
+fn delta(f: BlsScalar) -> BlsScalar {
+    let f_1 = f - BlsScalar::one();
+    let f_2 = f - BlsScalar::from(2);
+    let f_3 = f - BlsScalar::from(3);
     f * f_1 * f_2 * f_3
 }

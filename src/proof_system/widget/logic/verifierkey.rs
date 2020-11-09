@@ -7,7 +7,7 @@
 use super::{delta, delta_xor_and};
 use crate::commitment_scheme::kzg10::Commitment;
 use crate::proof_system::linearisation_poly::ProofEvaluations;
-use dusk_bls12_381::{G1Affine, Scalar};
+use dusk_bls12_381::{BlsScalar, G1Affine};
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub struct VerifierKey {
@@ -18,12 +18,12 @@ pub struct VerifierKey {
 impl VerifierKey {
     pub(crate) fn compute_linearisation_commitment(
         &self,
-        logic_separation_challenge: &Scalar,
-        scalars: &mut Vec<Scalar>,
+        logic_separation_challenge: &BlsScalar,
+        scalars: &mut Vec<BlsScalar>,
         points: &mut Vec<G1Affine>,
         evaluations: &ProofEvaluations,
     ) {
-        let four = Scalar::from(4);
+        let four = BlsScalar::from(4);
 
         let kappa = logic_separation_challenge.square();
         let kappa_sq = kappa.square();

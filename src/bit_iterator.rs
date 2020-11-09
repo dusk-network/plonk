@@ -57,10 +57,10 @@ bit_iterator!(u8, BitIterator8);
 #[cfg(test)]
 mod test {
     use super::*;
-    use dusk_bls12_381::Scalar;
+    use dusk_bls12_381::BlsScalar;
     #[test]
     fn test_bit_iterator8() {
-        let mut a = BitIterator8::new(Scalar::one().to_bytes());
+        let mut a = BitIterator8::new(BlsScalar::one().to_bytes());
         let expected = "0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001";
         for e in expected.chars() {
             assert!(a.next().unwrap() == (e == '1'));
