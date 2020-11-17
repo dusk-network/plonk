@@ -120,7 +120,7 @@ impl Proof {
         Ok(proof)
     }
 
-    const fn serialised_size() -> usize {
+    pub const fn serialised_size() -> usize {
         const NUM_COMMITMENTS: usize = 11;
         const COMMITMENT_SIZE: usize = 48;
         (NUM_COMMITMENTS * COMMITMENT_SIZE) + ProofEvaluations::serialised_size()
