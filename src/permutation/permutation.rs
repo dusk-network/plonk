@@ -191,39 +191,6 @@ impl Permutation {
         )
     }
 
-    pub(crate) fn compute_permutation_poly(
-        &self,
-        domain: &EvaluationDomain,
-        w_l: &[BlsScalar],
-        w_r: &[BlsScalar],
-        w_o: &[BlsScalar],
-        w_4: &[BlsScalar],
-        (beta, gamma): &(BlsScalar, BlsScalar),
-        (left_sigma_poly, right_sigma_poly, out_sigma_poly, fourth_sigma_poly): (
-            &Polynomial,
-            &Polynomial,
-            &Polynomial,
-            &Polynomial,
-        ),
-    ) -> Polynomial {
-        let z_evaluations = self.compute_fast_permutation_poly(
-            domain,
-            w_l,
-            w_r,
-            w_o,
-            w_4,
-            beta,
-            gamma,
-            (
-                left_sigma_poly,
-                right_sigma_poly,
-                out_sigma_poly,
-                fourth_sigma_poly,
-            ),
-        );
-        Polynomial::from_coefficients_vec(domain.ifft(&z_evaluations))
-    }
-
     #[allow(dead_code)]
     fn compute_slow_permutation_poly<I>(
         &self,
