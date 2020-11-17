@@ -1,11 +1,14 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
 // Copyright (c) DUSK NETWORK. All rights reserved.
-// Licensed under the MPL 2.0 license. See LICENSE file in the project root for details.
 
 #![allow(clippy::too_many_arguments)]
 use super::constants::{K1, K2, K3};
 use crate::constraint_system::{Variable, WireData};
 use crate::fft::{EvaluationDomain, Polynomial};
-use dusk_bls12_381::Scalar;
+use dusk_bls12_381::BlsScalar;
 use itertools::izip;
 use rayon::iter::*;
 use std::collections::HashMap;
@@ -127,10 +130,10 @@ impl Permutation {
         &self,
         sigma_mapping: &[WireData],
         domain: &EvaluationDomain,
-    ) -> Vec<Scalar> {
+    ) -> Vec<BlsScalar> {
         let roots: Vec<_> = domain.elements().collect();
 
-        let lagrange_poly: Vec<Scalar> = sigma_mapping
+        let lagrange_poly: Vec<BlsScalar> = sigma_mapping
             .iter()
             .map(|x| match x {
                 WireData::Left(index) => {
@@ -188,36 +191,6 @@ impl Permutation {
         )
     }
 
-    pub(crate) fn compute_permutation_poly(
-        &self,
-        domain: &EvaluationDomain,
-        w_l: &[Scalar],
-        w_r: &[Scalar],
-        w_o: &[Scalar],
-        w_4: &[Scalar],
-        (beta, gamma): &(Scalar, Scalar),
-        (left_sigma, right_sigma, out_sigma, fourth_sigma): (
-            &Vec<Scalar>,
-            &Vec<Scalar>,
-            &Vec<Scalar>,
-            &Vec<Scalar>,
-        ),
-    ) -> Polynomial {
-        let z_evaluations = self.multizip_compute_permutation_poly(
-            domain,
-            (w_l, w_r, w_o, w_4),
-            beta,
-            gamma,
-            (
-                left_sigma,
-                right_sigma,
-                out_sigma,
-                fourth_sigma,
-            ),
-        );
-        Polynomial::from_coefficients_vec(domain.ifft(&z_evaluations))
-    }
-
     #[allow(dead_code)]
     fn compute_slow_permutation_poly<I>(
         &self,
@@ -226,17 +199,17 @@ impl Permutation {
         w_r: I,
         w_o: I,
         w_4: I,
-        beta: &Scalar,
-        gamma: &Scalar,
+        beta: &BlsScalar,
+        gamma: &BlsScalar,
         (left_sigma_poly, right_sigma_poly, out_sigma_poly, fourth_sigma_poly): (
             &Polynomial,
             &Polynomial,
             &Polynomial,
             &Polynomial,
         ),
-    ) -> (Vec<Scalar>, Vec<Scalar>, Vec<Scalar>)
+    ) -> (Vec<BlsScalar>, Vec<BlsScalar>, Vec<BlsScalar>)
     where
-        I: Iterator<Item = Scalar>,
+        I: Iterator<Item = BlsScalar>,
     {
         let n = domain.size();
 
@@ -275,15 +248,15 @@ impl Permutation {
         // Compute fourth_wire + gamma
         let w_4_gamma: Vec<_> = w_4.map(|w| w + gamma).collect();
 
-        let mut numerator_partial_components: Vec<Scalar> = Vec::with_capacity(n);
-        let mut denominator_partial_components: Vec<Scalar> = Vec::with_capacity(n);
+        let mut numerator_partial_components: Vec<BlsScalar> = Vec::with_capacity(n);
+        let mut denominator_partial_components: Vec<BlsScalar> = Vec::with_capacity(n);
 
-        let mut numerator_coefficients: Vec<Scalar> = Vec::with_capacity(n);
-        let mut denominator_coefficients: Vec<Scalar> = Vec::with_capacity(n);
+        let mut numerator_coefficients: Vec<BlsScalar> = Vec::with_capacity(n);
+        let mut denominator_coefficients: Vec<BlsScalar> = Vec::with_capacity(n);
 
         // First element in both of them is one
-        numerator_coefficients.push(Scalar::one());
-        denominator_coefficients.push(Scalar::one());
+        numerator_coefficients.push(BlsScalar::one());
+        denominator_coefficients.push(BlsScalar::one());
 
         // Compute numerator coefficients
         for (
@@ -374,10 +347,10 @@ impl Permutation {
 
         // Check that n+1'th elements are equal (taken from proof)
         let a = numerator_coefficients.last().unwrap();
-        assert_ne!(a, &Scalar::zero());
+        assert_ne!(a, &BlsScalar::zero());
         let b = denominator_coefficients.last().unwrap();
-        assert_ne!(b, &Scalar::zero());
-        assert_eq!(*a * b.invert().unwrap(), Scalar::one());
+        assert_ne!(b, &BlsScalar::zero());
+        assert_eq!(*a * b.invert().unwrap(), BlsScalar::one());
 
         // Remove those extra elements
         numerator_coefficients.remove(n);
@@ -385,7 +358,7 @@ impl Permutation {
 
         // Combine numerator and denominator
 
-        let mut z_coefficients: Vec<Scalar> = Vec::with_capacity(n);
+        let mut z_coefficients: Vec<BlsScalar> = Vec::with_capacity(n);
         for (numerator, denominator) in numerator_coefficients
             .iter()
             .zip(denominator_coefficients.iter())
@@ -404,23 +377,23 @@ impl Permutation {
     fn compute_fast_permutation_poly(
         &self,
         domain: &EvaluationDomain,
-        w_l: &[Scalar],
-        w_r: &[Scalar],
-        w_o: &[Scalar],
-        w_4: &[Scalar],
-        beta: &Scalar,
-        gamma: &Scalar,
+        w_l: &[BlsScalar],
+        w_r: &[BlsScalar],
+        w_o: &[BlsScalar],
+        w_4: &[BlsScalar],
+        beta: &BlsScalar,
+        gamma: &BlsScalar,
         (left_sigma_poly, right_sigma_poly, out_sigma_poly, fourth_sigma_poly): (
             &Polynomial,
             &Polynomial,
             &Polynomial,
             &Polynomial,
         ),
-    ) -> Vec<Scalar> {
+    ) -> Vec<BlsScalar> {
         let n = domain.size();
 
         // Compute beta * roots
-        let common_roots: Vec<Scalar> = domain.elements().map(|root| root * beta).collect();
+        let common_roots: Vec<BlsScalar> = domain.elements().map(|root| root * beta).collect();
 
         let left_sigma_mapping = domain.fft(&left_sigma_poly);
         let right_sigma_mapping = domain.fft(&right_sigma_poly);
@@ -529,14 +502,14 @@ impl Permutation {
 
         // Prepend ones to the beginning of each accumulator to signify L_1(x)
         let accumulator_components = std::iter::once((
-            Scalar::one(),
-            Scalar::one(),
-            Scalar::one(),
-            Scalar::one(),
-            Scalar::one(),
-            Scalar::one(),
-            Scalar::one(),
-            Scalar::one(),
+            BlsScalar::one(),
+            BlsScalar::one(),
+            BlsScalar::one(),
+            BlsScalar::one(),
+            BlsScalar::one(),
+            BlsScalar::one(),
+            BlsScalar::one(),
+            BlsScalar::one(),
         ))
         .chain(accumulator_components_without_l1);
 
@@ -546,14 +519,14 @@ impl Permutation {
         // result = [1, 1*2, 1*2*3, 1*2*3*4]
         // Non Parallelisable
         let mut prev = (
-            Scalar::one(),
-            Scalar::one(),
-            Scalar::one(),
-            Scalar::one(),
-            Scalar::one(),
-            Scalar::one(),
-            Scalar::one(),
-            Scalar::one(),
+            BlsScalar::one(),
+            BlsScalar::one(),
+            BlsScalar::one(),
+            BlsScalar::one(),
+            BlsScalar::one(),
+            BlsScalar::one(),
+            BlsScalar::one(),
+            BlsScalar::one(),
         );
         let product_acumulated_components: Vec<_> = accumulator_components
             .map(move |current_component| {
@@ -581,7 +554,7 @@ impl Permutation {
         let mut z: Vec<_> = product_acumulated_components
             .par_iter()
             .map(move |current_component| {
-                let mut prev = Scalar::one();
+                let mut prev = BlsScalar::one();
                 prev *= current_component.0;
                 prev *= current_component.1;
                 prev *= current_component.2;
@@ -604,45 +577,45 @@ impl Permutation {
 
     // These are the formulas for the irreducible factors used in the product argument
     fn numerator_irreducible(
-        root: &Scalar,
-        w: &Scalar,
-        k: &Scalar,
-        beta: &Scalar,
-        gamma: &Scalar,
-    ) -> Scalar {
+        root: &BlsScalar,
+        w: &BlsScalar,
+        k: &BlsScalar,
+        beta: &BlsScalar,
+        gamma: &BlsScalar,
+    ) -> BlsScalar {
         w + *beta * k * root + gamma
     }
 
     fn denominator_irreducible(
-        _root: &Scalar,
-        w: &Scalar,
-        sigma: &Scalar,
-        beta: &Scalar,
-        gamma: &Scalar,
-    ) -> Scalar {
+        _root: &BlsScalar,
+        w: &BlsScalar,
+        sigma: &BlsScalar,
+        beta: &BlsScalar,
+        gamma: &BlsScalar,
+    ) -> BlsScalar {
         w + *beta * sigma + gamma
     }
 
     // Uses a rayon multizip to allow more code flexibility while remaining parallelizable.
     // This can be adapted into a general product argument for any number of wires, with specific formulas defined
-    //   in the numerator_irreducible and denominator_irreducible functions
-
-    fn multizip_compute_permutation_poly(
+    // in the numerator_irreducible and denominator_irreducible functions
+    pub(crate) fn compute_permutation_poly(
         &self,
         domain: &EvaluationDomain,
-        wires: (&[Scalar], &[Scalar], &[Scalar], &[Scalar]),
-        beta: &Scalar,
-        gamma: &Scalar,
-        sigmas: (&Vec<Scalar>, &Vec<Scalar>, &Vec<Scalar>, &Vec<Scalar>),
-    ) -> Vec<Scalar> {
-
+        wires: (&[BlsScalar], &[BlsScalar], &[BlsScalar], &[BlsScalar]),
+        beta: &BlsScalar,
+        gamma: &BlsScalar,
+        sigmas: (
+            &Vec<BlsScalar>,
+            &Vec<BlsScalar>,
+            &Vec<BlsScalar>,
+            &Vec<BlsScalar>,
+        ),
+    ) -> Vec<BlsScalar> {
         let n = domain.size();
 
-
-
-
         // Constants defining cosets H, k1H, k2H, etc
-        let ks = vec![Scalar::one(), K1, K2, K3];
+        let ks = vec![BlsScalar::one(), K1, K2, K3];
 
         // Transpose wires and sigma values to get "rows" in the form [wl_i, wr_i, wo_i, ... ]
         // where each row contains the wire and sigma values for a single gate
@@ -655,7 +628,7 @@ impl Permutation {
 
         // Compute all roots
         // Non-parallelizable?
-        let roots: Vec<Scalar> = domain.elements().collect();
+        let roots: Vec<BlsScalar> = domain.elements().collect();
 
         let product_argument = (roots, gatewise_sigmas, gatewise_wires)
             .into_par_iter()
@@ -677,24 +650,26 @@ impl Permutation {
                         .map(|(_sigma, wire, k)| {
                             Permutation::numerator_irreducible(&gate_root, wire, &k, beta, gamma)
                         })
-                        .product::<Scalar>(),
+                        .product::<BlsScalar>(),
                     // Denominator product
                     wire_params
                         .map(|(sigma, wire, _k)| {
-                            Permutation::denominator_irreducible(&gate_root, wire, &sigma, beta, gamma)
+                            Permutation::denominator_irreducible(
+                                &gate_root, wire, &sigma, beta, gamma,
+                            )
                         })
-                        .product::<Scalar>(),
+                        .product::<BlsScalar>(),
                 )
             })
             // Divide each pair to get the single scalar representing each gate
             .map(|(n, d)| n * d.invert().unwrap())
             // Collect into vector intermediary since rayon does not support `scan`
-            .collect::<Vec<Scalar>>();
-        
+            .collect::<Vec<BlsScalar>>();
+
         let mut z_coefficients = Vec::with_capacity(n);
 
         // First element is one
-        let mut state = Scalar::one();
+        let mut state = BlsScalar::one();
         z_coefficients.push(state);
 
         // Accumulate by successively multiplying the scalars
@@ -713,7 +688,7 @@ mod test {
     use super::*;
     use crate::constraint_system::StandardComposer;
     use crate::fft::Polynomial;
-    use dusk_bls12_381::Scalar as Fr;
+    use dusk_bls12_381::BlsScalar as Fr;
 
     #[test]
     fn test_multizip_permutation_poly() {
@@ -740,18 +715,18 @@ mod test {
         cs.poly_gate(x3, x4, x2, one, zero, zero, -two, zero, zero);
 
         let domain = EvaluationDomain::new(cs.circuit_size()).unwrap();
-        let pad = vec![Scalar::zero(); domain.size() - cs.w_l.len()];
-        let mut w_l_scalar: Vec<Scalar> = cs.w_l.iter().map(|v| cs.variables[v]).collect();
-        let mut w_r_scalar: Vec<Scalar> = cs.w_r.iter().map(|v| cs.variables[v]).collect();
-        let mut w_o_scalar: Vec<Scalar> = cs.w_o.iter().map(|v| cs.variables[v]).collect();
-        let mut w_4_scalar: Vec<Scalar> = cs.w_4.iter().map(|v| cs.variables[v]).collect();
+        let pad = vec![BlsScalar::zero(); domain.size() - cs.w_l.len()];
+        let mut w_l_scalar: Vec<BlsScalar> = cs.w_l.iter().map(|v| cs.variables[v]).collect();
+        let mut w_r_scalar: Vec<BlsScalar> = cs.w_r.iter().map(|v| cs.variables[v]).collect();
+        let mut w_o_scalar: Vec<BlsScalar> = cs.w_o.iter().map(|v| cs.variables[v]).collect();
+        let mut w_4_scalar: Vec<BlsScalar> = cs.w_4.iter().map(|v| cs.variables[v]).collect();
 
         w_l_scalar.extend(&pad);
         w_r_scalar.extend(&pad);
         w_o_scalar.extend(&pad);
         w_4_scalar.extend(&pad);
 
-        let sigmas: Vec<Vec<Scalar>> = cs
+        let sigmas: Vec<Vec<BlsScalar>> = cs
             .perm
             .compute_sigma_permutations(7)
             .iter()
@@ -852,7 +827,6 @@ mod test {
         perm.add_variables_to_map(var_zero, var_four, var_eight, var_nine, 3);
 
         /*
-
         var_zero = {L0, R0,L1,L2, L3}
         var_two = {R1}
         var_three = {R2}
@@ -861,12 +835,10 @@ mod test {
         var_six = {O2}
         var_seven = {O3}
         var_eight = {O4}
-
         Left_sigma = {R0, L2,L3, L0}
         Right_sigma = {L1, R1, R2, R3}
         Out_sigma = {O0, O1, O2, O3, O4}
         Fourth_sigma = {F0, F1, F2, F3, F4}
-
         */
         let sigmas = perm.compute_sigma_permutations(num_wire_mappings);
         let left_sigma = &sigmas[0];
@@ -973,17 +945,14 @@ mod test {
 
         /*
         Below is a sketch of the map created by adding the specific variables into the map
-
         var_one : {L0,R0, R1, O2, R3 }
         var_two : {O0, L1, O1, L3}
         var_three : {L2, R2, O3}
         var_four : {F0, F1, F2, F3}
-
         Left_Sigma : {0,1,2,3} -> {R0,O1,R2,O0}
         Right_Sigma : {0,1,2,3} -> {R1, O2, O3, L0}
         Out_Sigma : {0,1,2,3} -> {L1, L3, R3, L2}
         Fourth_Sigma : {0,1,2,3} -> {F0, F1, F2, F3}
-
         */
         let sigmas = perm.compute_sigma_permutations(num_wire_mappings);
         let left_sigma = &sigmas[0];
@@ -1016,17 +985,13 @@ mod test {
         assert_eq!(fourth_sigma[3], WireData::Fourth(0));
 
         /*
-
         Check that the unique encodings of the sigma polynomials have been computed properly
         Left_Sigma : {R0,O1,R2,O0}
             When encoded using w, K1,K2,K3 we have {1 * K1, w * K2, w^2 *K1, w^3 * K2}
-
         Right_Sigma : {R1, O2, O3, L0}
             When encoded using w, K1,K2,K3 we have {1 * K1, w * K2, w^2 * K2, w^3}
-
         Out_Sigma : {L1, L3, R3, L2}
             When encoded using w, K1, K2,K3 we have {1, w , w^2 * K1, w^3}
-
         Fourth_Sigma : {0,1,2,3} -> {F0, F1, F2, F3}
             When encoded using w, K1, K2,K3 we have {1 * K3, w * K3, w^2 * K3, w^3 * K3}
         */
@@ -1228,12 +1193,12 @@ mod test {
     }
 }
 
-// bls_12-381 library does not provide a `random` method for Scalar
+// bls_12-381 library does not provide a `random` method for BlsScalar
 // We wil use this helper function to compensate
 use rand_core::RngCore;
 #[allow(dead_code)]
-pub(crate) fn random_scalar<R: RngCore>(rng: &mut R) -> Scalar {
-    Scalar::from_raw([
+pub(crate) fn random_scalar<R: RngCore>(rng: &mut R) -> BlsScalar {
+    BlsScalar::from_raw([
         rng.next_u64(),
         rng.next_u64(),
         rng.next_u64(),
