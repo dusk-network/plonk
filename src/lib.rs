@@ -48,7 +48,7 @@
 #![allow(unknown_lints)]
 #![deny(broken_intra_doc_links)]
 #![deny(missing_debug_implementations)]
-#![deny(missing_docs)]
+//#![deny(missing_docs)]
 #![deny(unsafe_code)]
 
 #[macro_use]
@@ -59,6 +59,7 @@ pub mod circuit_builder;
 pub mod commitment_scheme;
 pub mod constraint_system;
 pub mod fft;
+pub mod plookup;
 pub mod prelude;
 pub mod proof_system;
 mod serialisation;
