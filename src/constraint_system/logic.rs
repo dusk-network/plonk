@@ -1,10 +1,13 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
 // Copyright (c) DUSK NETWORK. All rights reserved.
-// Licensed under the MPL 2.0 license. See LICENSE file in the project root for details.
 
 use crate::bit_iterator::*;
 use crate::constraint_system::StandardComposer;
 use crate::constraint_system::{Variable, WireData};
-use dusk_bls12_381::Scalar;
+use dusk_bls12_381::BlsScalar;
 
 impl StandardComposer {
     // Performs a logical AND or XOR op between the inputs provided for the specified
@@ -33,9 +36,9 @@ impl StandardComposer {
         // both numbers.
         let num_quads = num_bits >> 1;
         // Allocate accumulators for gate construction.
-        let mut left_accumulator = Scalar::zero();
-        let mut right_accumulator = Scalar::zero();
-        let mut out_accumulator = Scalar::zero();
+        let mut left_accumulator = BlsScalar::zero();
+        let mut right_accumulator = BlsScalar::zero();
+        let mut out_accumulator = BlsScalar::zero();
         let mut left_quad: u8;
         let mut right_quad: u8;
         // Get vars as bits and reverse them to get the Little Endian repr.
@@ -95,20 +98,20 @@ impl StandardComposer {
                 let idx = i << 1;
                 ((b_bits[idx] as u8) << 1) + (b_bits[idx + 1] as u8)
             };
-            let left_quad_fr = Scalar::from(left_quad as u64);
-            let right_quad_fr = Scalar::from(right_quad as u64);
+            let left_quad_fr = BlsScalar::from(left_quad as u64);
+            let right_quad_fr = BlsScalar::from(right_quad as u64);
             // The `out_quad` is the result of the bitwise ops `&` or `^` between
             // the left and right quads. The op is decided with a boolean flag set
             // as input of the function.
             let out_quad_fr = match is_xor_gate {
-                true => Scalar::from((left_quad ^ right_quad) as u64),
-                false => Scalar::from((left_quad & right_quad) as u64),
+                true => BlsScalar::from((left_quad ^ right_quad) as u64),
+                false => BlsScalar::from((left_quad & right_quad) as u64),
             };
             // We also need to allocate a helper item which is the result
             // of the product between the left and right quads.
             // This param is identified as `w` in the program memory and
             // is needed to prevent the degree of our quotient polynomial from blowing up
-            let prod_quad_fr = Scalar::from((left_quad * right_quad) as u64);
+            let prod_quad_fr = BlsScalar::from((left_quad * right_quad) as u64);
 
             // Now that we've computed this round results, we need to apply the
             // logic transition constraint that will check the following:
@@ -143,18 +146,24 @@ impl StandardComposer {
             //   i     ===   (bits/2 - j)
             //        j = 0
             //
-            left_accumulator *= Scalar::from(4u64);
+            left_accumulator *= BlsScalar::from(4u64);
             left_accumulator += left_quad_fr;
-            right_accumulator *= Scalar::from(4u64);
+            right_accumulator *= BlsScalar::from(4u64);
             right_accumulator += right_quad_fr;
-            out_accumulator *= Scalar::from(4u64);
+            out_accumulator *= BlsScalar::from(4u64);
             out_accumulator += out_quad_fr;
             // Apply logic transition constraints.
-            assert!(left_accumulator - (prev_left_accum * Scalar::from(4u64)) < Scalar::from(4u64));
             assert!(
-                right_accumulator - (prev_right_accum * Scalar::from(4u64)) < Scalar::from(4u64)
+                left_accumulator - (prev_left_accum * BlsScalar::from(4u64))
+                    < BlsScalar::from(4u64)
             );
-            assert!(out_accumulator - (prev_out_accum * Scalar::from(4u64)) < Scalar::from(4u64));
+            assert!(
+                right_accumulator - (prev_right_accum * BlsScalar::from(4u64))
+                    < BlsScalar::from(4u64)
+            );
+            assert!(
+                out_accumulator - (prev_out_accum * BlsScalar::from(4u64)) < BlsScalar::from(4u64)
+            );
 
             // Get variables pointing to the previous accumulated values.
             let var_a = self.add_input(left_accumulator);
@@ -206,39 +215,39 @@ impl StandardComposer {
         // Now we just need to extend the selector polynomials with the appropriate
         // coefficients to form complete logic gates.
         for _ in 0..num_quads {
-            self.q_m.push(Scalar::zero());
-            self.q_l.push(Scalar::zero());
-            self.q_r.push(Scalar::zero());
-            self.q_arith.push(Scalar::zero());
-            self.q_o.push(Scalar::zero());
-            self.q_4.push(Scalar::zero());
-            self.q_range.push(Scalar::zero());
-            self.q_fixed_group_add.push(Scalar::zero());
-            self.q_variable_group_add.push(Scalar::zero());
+            self.q_m.push(BlsScalar::zero());
+            self.q_l.push(BlsScalar::zero());
+            self.q_r.push(BlsScalar::zero());
+            self.q_arith.push(BlsScalar::zero());
+            self.q_o.push(BlsScalar::zero());
+            self.q_4.push(BlsScalar::zero());
+            self.q_range.push(BlsScalar::zero());
+            self.q_fixed_group_add.push(BlsScalar::zero());
+            self.q_variable_group_add.push(BlsScalar::zero());
             match is_xor_gate {
                 true => {
-                    self.q_c.push(-Scalar::one());
-                    self.q_logic.push(-Scalar::one());
+                    self.q_c.push(-BlsScalar::one());
+                    self.q_logic.push(-BlsScalar::one());
                 }
                 false => {
-                    self.q_c.push(Scalar::one());
-                    self.q_logic.push(Scalar::one());
+                    self.q_c.push(BlsScalar::one());
+                    self.q_logic.push(BlsScalar::one());
                 }
             };
         }
         // For the last gate, `q_c` and `q_logic` we use no-op values (Zero).
-        self.q_m.push(Scalar::zero());
-        self.q_l.push(Scalar::zero());
-        self.q_r.push(Scalar::zero());
-        self.q_arith.push(Scalar::zero());
-        self.q_o.push(Scalar::zero());
-        self.q_4.push(Scalar::zero());
-        self.q_range.push(Scalar::zero());
-        self.q_fixed_group_add.push(Scalar::zero());
-        self.q_variable_group_add.push(Scalar::zero());
+        self.q_m.push(BlsScalar::zero());
+        self.q_l.push(BlsScalar::zero());
+        self.q_r.push(BlsScalar::zero());
+        self.q_arith.push(BlsScalar::zero());
+        self.q_o.push(BlsScalar::zero());
+        self.q_4.push(BlsScalar::zero());
+        self.q_range.push(BlsScalar::zero());
+        self.q_fixed_group_add.push(BlsScalar::zero());
+        self.q_variable_group_add.push(BlsScalar::zero());
 
-        self.q_c.push(Scalar::zero());
-        self.q_logic.push(Scalar::zero());
+        self.q_c.push(BlsScalar::zero());
+        self.q_logic.push(BlsScalar::zero());
 
         // We also need to extend the `public_inputs` Vec with
         // zeros since the coeffs will not be added by the user as
@@ -246,7 +255,7 @@ impl StandardComposer {
         //
         // It makes no sense to allow the user introduce any kind of value
         // in the middle of the logical gate iteration.
-        let zeros = vec![Scalar::zero(); num_quads + 1];
+        let zeros = vec![BlsScalar::zero(); num_quads + 1];
         self.public_inputs.extend(zeros.iter());
 
         // Now we need to assert that the sum of accumulated values
@@ -264,12 +273,12 @@ impl StandardComposer {
         // sent through the function parameters.
         assert_eq!(
             self.variables[&a]
-                & (Scalar::from(2u64).pow(&[(num_bits) as u64, 0, 0, 0]) - Scalar::one()),
+                & (BlsScalar::from(2u64).pow(&[(num_bits) as u64, 0, 0, 0]) - BlsScalar::one()),
             self.variables[&self.w_l[self.n - 1]]
         );
         assert_eq!(
             self.variables[&b]
-                & (Scalar::from(2u64).pow(&[(num_bits) as u64, 0, 0, 0]) - Scalar::one()),
+                & (BlsScalar::from(2u64).pow(&[(num_bits) as u64, 0, 0, 0]) - BlsScalar::one()),
             self.variables[&self.w_r[self.n - 1]]
         );
 
@@ -304,21 +313,21 @@ impl StandardComposer {
 #[cfg(test)]
 mod tests {
     use super::super::helper::*;
-    use dusk_bls12_381::Scalar;
+    use dusk_bls12_381::BlsScalar;
 
     #[test]
     fn test_logic_xor_and_constraint() {
         // Should pass since the XOR result is correct and the bit-num is even.
         let res = gadget_tester(
             |composer| {
-                let witness_a = composer.add_input(Scalar::from(500u64));
-                let witness_b = composer.add_input(Scalar::from(357u64));
+                let witness_a = composer.add_input(BlsScalar::from(500u64));
+                let witness_b = composer.add_input(BlsScalar::from(357u64));
                 let xor_res = composer.xor_gate(witness_a, witness_b, 10);
                 // Check that the XOR result is indeed what we are expecting.
                 composer.constrain_to_constant(
                     xor_res,
-                    Scalar::from(500u64 ^ 357u64),
-                    Scalar::zero(),
+                    BlsScalar::from(500u64 ^ 357u64),
+                    BlsScalar::zero(),
                 );
             },
             200,
@@ -328,14 +337,14 @@ mod tests {
         // Should pass since the AND result is correct even the bit-num is even.
         let res = gadget_tester(
             |composer| {
-                let witness_a = composer.add_input(Scalar::from(469u64));
-                let witness_b = composer.add_input(Scalar::from(321u64));
+                let witness_a = composer.add_input(BlsScalar::from(469u64));
+                let witness_b = composer.add_input(BlsScalar::from(321u64));
                 let xor_res = composer.and_gate(witness_a, witness_b, 10);
                 // Check that the AND result is indeed what we are expecting.
                 composer.constrain_to_constant(
                     xor_res,
-                    Scalar::from(469u64 & 321u64),
-                    Scalar::zero(),
+                    BlsScalar::from(469u64 & 321u64),
+                    BlsScalar::zero(),
                 );
             },
             200,
@@ -345,14 +354,14 @@ mod tests {
         // Should not pass since the XOR result is not correct even the bit-num is even.
         let res = gadget_tester(
             |composer| {
-                let witness_a = composer.add_input(Scalar::from(139u64));
-                let witness_b = composer.add_input(Scalar::from(33u64));
+                let witness_a = composer.add_input(BlsScalar::from(139u64));
+                let witness_b = composer.add_input(BlsScalar::from(33u64));
                 let xor_res = composer.xor_gate(witness_a, witness_b, 10);
                 // Check that the XOR result is indeed what we are expecting.
                 composer.constrain_to_constant(
                     xor_res,
-                    Scalar::from(139u64 & 33u64),
-                    Scalar::zero(),
+                    BlsScalar::from(139u64 & 33u64),
+                    BlsScalar::zero(),
                 );
             },
             200,
@@ -362,11 +371,15 @@ mod tests {
         // Should pass even the bitnum is less than the number bit-size
         let res = gadget_tester(
             |composer| {
-                let witness_a = composer.add_input(Scalar::from(256u64));
-                let witness_b = composer.add_input(Scalar::from(235u64));
+                let witness_a = composer.add_input(BlsScalar::from(256u64));
+                let witness_b = composer.add_input(BlsScalar::from(235u64));
                 let xor_res = composer.xor_gate(witness_a, witness_b, 2);
                 // Check that the XOR result is indeed what we are expecting.
-                composer.constrain_to_constant(xor_res, Scalar::from(256 ^ 235), Scalar::zero());
+                composer.constrain_to_constant(
+                    xor_res,
+                    BlsScalar::from(256 ^ 235),
+                    BlsScalar::zero(),
+                );
             },
             200,
         );
@@ -379,11 +392,11 @@ mod tests {
         // Should fail since the bit-num is odd.
         let _ = gadget_tester(
             |composer| {
-                let witness_a = composer.add_input(Scalar::from(500u64));
-                let witness_b = composer.add_input(Scalar::from(499u64));
+                let witness_a = composer.add_input(BlsScalar::from(500u64));
+                let witness_b = composer.add_input(BlsScalar::from(499u64));
                 let xor_res = composer.xor_gate(witness_a, witness_b, 9);
                 // Check that the XOR result is indeed what we are expecting.
-                composer.constrain_to_constant(xor_res, Scalar::from(7u64), Scalar::zero());
+                composer.constrain_to_constant(xor_res, BlsScalar::from(7u64), BlsScalar::zero());
             },
             200,
         );

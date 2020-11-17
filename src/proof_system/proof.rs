@@ -1,5 +1,8 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
 // Copyright (c) DUSK NETWORK. All rights reserved.
-// Licensed under the MPL 2.0 license. See LICENSE file in the project root for details.
 
 //! A Proof stores the commitments to all of the elements that
 //! are needed to univocally identify a prove of some statement.
@@ -14,7 +17,7 @@ use crate::fft::EvaluationDomain;
 use crate::proof_system::widget::VerifierKey;
 use crate::transcript::TranscriptProtocol;
 use anyhow::{Error, Result};
-use dusk_bls12_381::{multiscalar_mul::msm_variable_base, G1Affine, Scalar};
+use dusk_bls12_381::{multiscalar_mul::msm_variable_base, BlsScalar, G1Affine};
 use merlin::Transcript;
 use serde::de::Visitor;
 use serde::{self, Deserialize, Deserializer, Serialize, Serializer};
@@ -129,7 +132,7 @@ impl Proof {
         verifier_key: &VerifierKey,
         transcript: &mut Transcript,
         opening_key: &OpeningKey,
-        pub_inputs: &[Scalar],
+        pub_inputs: &[BlsScalar],
     ) -> Result<(), Error> {
         let domain = EvaluationDomain::new(verifier_key.n)?;
 
@@ -157,8 +160,10 @@ impl Proof {
         let alpha = transcript.challenge_scalar(b"alpha");
         let range_sep_challenge = transcript.challenge_scalar(b"range separation challenge");
         let logic_sep_challenge = transcript.challenge_scalar(b"logic separation challenge");
-        let fixed_base_sep_challenge = transcript.challenge_scalar(b"fixed base separation challenge");
-        let var_base_sep_challenge = transcript.challenge_scalar(b"variable base separation challenge");
+        let fixed_base_sep_challenge =
+            transcript.challenge_scalar(b"fixed base separation challenge");
+        let var_base_sep_challenge =
+            transcript.challenge_scalar(b"variable base separation challenge");
 
         // Add commitment to quotient polynomial to transcript
         transcript.append_commitment(b"t_1", &self.t_1_comm);
@@ -286,15 +291,15 @@ impl Proof {
     fn compute_quotient_evaluation(
         &self,
         domain: &EvaluationDomain,
-        pub_inputs: &[Scalar],
-        alpha: &Scalar,
-        beta: &Scalar,
-        gamma: &Scalar,
-        z_challenge: &Scalar,
-        z_h_eval: &Scalar,
-        l1_eval: &Scalar,
-        z_hat_eval: &Scalar,
-    ) -> Scalar {
+        pub_inputs: &[BlsScalar],
+        alpha: &BlsScalar,
+        beta: &BlsScalar,
+        gamma: &BlsScalar,
+        z_challenge: &BlsScalar,
+        z_h_eval: &BlsScalar,
+        l1_eval: &BlsScalar,
+        z_hat_eval: &BlsScalar,
+    ) -> BlsScalar {
         // Compute the public input polynomial evaluated at `z_challenge`
         let pi_eval = compute_barycentric_eval(pub_inputs, z_challenge, domain);
 
@@ -326,7 +331,7 @@ impl Proof {
         (a - b - c) * z_h_eval.invert().unwrap()
     }
 
-    fn compute_quotient_commitment(&self, z_challenge: &Scalar, n: usize) -> Commitment {
+    fn compute_quotient_commitment(&self, z_challenge: &BlsScalar, n: usize) -> Commitment {
         let z_n = z_challenge.pow(&[n as u64, 0, 0, 0]);
         let z_two_n = z_challenge.pow(&[2 * n as u64, 0, 0, 0]);
         let z_three_n = z_challenge.pow(&[3 * n as u64, 0, 0, 0]);
@@ -341,12 +346,17 @@ impl Proof {
     #[allow(clippy::too_many_arguments)]
     fn compute_linearisation_commitment(
         &self,
-        alpha: &Scalar,
-        beta: &Scalar,
-        gamma: &Scalar,
-        (range_sep_challenge, logic_sep_challenge, fixed_base_sep_challenge,var_base_sep_challenge): (&Scalar, &Scalar, &Scalar,&Scalar),
-        z_challenge: &Scalar,
-        l1_eval: Scalar,
+        alpha: &BlsScalar,
+        beta: &BlsScalar,
+        gamma: &BlsScalar,
+        (
+            range_sep_challenge,
+            logic_sep_challenge,
+            fixed_base_sep_challenge,
+            var_base_sep_challenge,
+        ): (&BlsScalar, &BlsScalar, &BlsScalar, &BlsScalar),
+        z_challenge: &BlsScalar,
+        l1_eval: BlsScalar,
         verifier_key: &VerifierKey,
     ) -> Commitment {
         let mut scalars: Vec<_> = Vec::with_capacity(6);
@@ -379,14 +389,12 @@ impl Proof {
             &self.evaluations,
         );
 
-        verifier_key
-            .variable_base
-            .compute_linearisation_commitment(
-                &var_base_sep_challenge,
-                &mut scalars,
-                &mut points,
-                &self.evaluations,
-            );
+        verifier_key.variable_base.compute_linearisation_commitment(
+            &var_base_sep_challenge,
+            &mut scalars,
+            &mut points,
+            &self.evaluations,
+        );
 
         verifier_key.permutation.compute_linearisation_commitment(
             &mut scalars,
@@ -404,48 +412,49 @@ impl Proof {
 
 fn compute_first_lagrange_evaluation(
     domain: &EvaluationDomain,
-    z_h_eval: &Scalar,
-    z_challenge: &Scalar,
-) -> Scalar {
-    let n_fr = Scalar::from(domain.size() as u64);
-    let denom = n_fr * (z_challenge - Scalar::one());
+    z_h_eval: &BlsScalar,
+    z_challenge: &BlsScalar,
+) -> BlsScalar {
+    let n_fr = BlsScalar::from(domain.size() as u64);
+    let denom = n_fr * (z_challenge - BlsScalar::one());
     z_h_eval * denom.invert().unwrap()
 }
 
 #[warn(clippy::needless_range_loop)]
 fn compute_barycentric_eval(
-    evaluations: &[Scalar],
-    point: &Scalar,
+    evaluations: &[BlsScalar],
+    point: &BlsScalar,
     domain: &EvaluationDomain,
-) -> Scalar {
+) -> BlsScalar {
     use crate::util::batch_inversion;
     use rayon::iter::IntoParallelIterator;
     use rayon::prelude::*;
 
-    let numerator = (point.pow(&[domain.size() as u64, 0, 0, 0]) - Scalar::one()) * domain.size_inv;
+    let numerator =
+        (point.pow(&[domain.size() as u64, 0, 0, 0]) - BlsScalar::one()) * domain.size_inv;
 
     // Indices with non-zero evaluations
     let non_zero_evaluations: Vec<usize> = (0..evaluations.len())
         .into_par_iter()
         .filter(|&i| {
             let evaluation = &evaluations[i];
-            evaluation != &Scalar::zero()
+            evaluation != &BlsScalar::zero()
         })
         .collect();
 
     // Only compute the denominators with non-zero evaluations
-    let mut denominators: Vec<Scalar> = (0..non_zero_evaluations.len())
+    let mut denominators: Vec<BlsScalar> = (0..non_zero_evaluations.len())
         .into_par_iter()
         .map(|i| {
             // index of non-zero evaluation
             let index = non_zero_evaluations[i];
 
-            (domain.group_gen_inv.pow(&[index as u64, 0, 0, 0]) * point) - Scalar::one()
+            (domain.group_gen_inv.pow(&[index as u64, 0, 0, 0]) * point) - BlsScalar::one()
         })
         .collect();
     batch_inversion(&mut denominators);
 
-    let result: Scalar = (0..non_zero_evaluations.len())
+    let result: BlsScalar = (0..non_zero_evaluations.len())
         .into_par_iter()
         .map(|i| {
             let eval_index = non_zero_evaluations[i];
@@ -475,22 +484,22 @@ mod test {
             w_z_comm: Commitment::default(),
             w_zw_comm: Commitment::default(),
             evaluations: ProofEvaluations {
-                a_eval: Scalar::random(&mut rand::thread_rng()),
-                b_eval: Scalar::random(&mut rand::thread_rng()),
-                c_eval: Scalar::random(&mut rand::thread_rng()),
-                d_eval: Scalar::random(&mut rand::thread_rng()),
-                a_next_eval: Scalar::random(&mut rand::thread_rng()),
-                b_next_eval: Scalar::random(&mut rand::thread_rng()),
-                d_next_eval: Scalar::random(&mut rand::thread_rng()),
-                q_arith_eval: Scalar::random(&mut rand::thread_rng()),
-                q_c_eval: Scalar::random(&mut rand::thread_rng()),
-                q_l_eval: Scalar::random(&mut rand::thread_rng()),
-                q_r_eval: Scalar::random(&mut rand::thread_rng()),
-                left_sigma_eval: Scalar::random(&mut rand::thread_rng()),
-                right_sigma_eval: Scalar::random(&mut rand::thread_rng()),
-                out_sigma_eval: Scalar::random(&mut rand::thread_rng()),
-                lin_poly_eval: Scalar::random(&mut rand::thread_rng()),
-                perm_eval: Scalar::random(&mut rand::thread_rng()),
+                a_eval: BlsScalar::random(&mut rand::thread_rng()),
+                b_eval: BlsScalar::random(&mut rand::thread_rng()),
+                c_eval: BlsScalar::random(&mut rand::thread_rng()),
+                d_eval: BlsScalar::random(&mut rand::thread_rng()),
+                a_next_eval: BlsScalar::random(&mut rand::thread_rng()),
+                b_next_eval: BlsScalar::random(&mut rand::thread_rng()),
+                d_next_eval: BlsScalar::random(&mut rand::thread_rng()),
+                q_arith_eval: BlsScalar::random(&mut rand::thread_rng()),
+                q_c_eval: BlsScalar::random(&mut rand::thread_rng()),
+                q_l_eval: BlsScalar::random(&mut rand::thread_rng()),
+                q_r_eval: BlsScalar::random(&mut rand::thread_rng()),
+                left_sigma_eval: BlsScalar::random(&mut rand::thread_rng()),
+                right_sigma_eval: BlsScalar::random(&mut rand::thread_rng()),
+                out_sigma_eval: BlsScalar::random(&mut rand::thread_rng()),
+                lin_poly_eval: BlsScalar::random(&mut rand::thread_rng()),
+                perm_eval: BlsScalar::random(&mut rand::thread_rng()),
             },
         };
 

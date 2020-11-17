@@ -1,0 +1,52 @@
+on: [pull_request]
+name: Continuous integration
+
+jobs:
+  analyze:
+    name: Dusk Analyzer
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: nightly
+          override: true
+      - uses: actions-rs/cargo@v1
+        with:
+          command: install
+          args: --git https://github.com/dusk-network/cargo-dusk-analyzer
+      - uses: actions-rs/cargo@v1
+        with:
+          command: dusk-analyzer
+
+  test_nightly:
+    name: Nightly tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: nightly
+          override: true
+      - uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --release
+
+  fmt:
+      name: Rustfmt
+      runs-on: ubuntu-latest
+      steps:
+        - uses: actions/checkout@v2
+        - uses: actions-rs/toolchain@v1
+          with:
+            profile: minimal
+            toolchain: nightly-2020-10-25
+            override: true
+        - run: rustup component add rustfmt
+        - uses: actions-rs/cargo@v1
+          with:
+            command: fmt
+            args: --all -- --check

@@ -1,5 +1,8 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
 // Copyright (c) DUSK NETWORK. All rights reserved.
-// Licensed under the MPL 2.0 license. See LICENSE file in the project root for details.
 
 //! Code taken from zcash repo and generalised as we do not have access to the limbs
 use std::mem;
@@ -54,10 +57,10 @@ bit_iterator!(u8, BitIterator8);
 #[cfg(test)]
 mod test {
     use super::*;
-    use dusk_bls12_381::Scalar;
+    use dusk_bls12_381::BlsScalar;
     #[test]
     fn test_bit_iterator8() {
-        let mut a = BitIterator8::new(Scalar::one().to_bytes());
+        let mut a = BitIterator8::new(BlsScalar::one().to_bytes());
         let expected = "0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001";
         for e in expected.chars() {
             assert!(a.next().unwrap() == (e == '1'));

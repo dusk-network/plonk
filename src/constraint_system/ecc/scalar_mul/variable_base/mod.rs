@@ -1,11 +1,14 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
 // Copyright (c) DUSK NETWORK. All rights reserved.
-// Licensed under the MPL 2.0 license. See LICENSE file in the project root for details.
 
 use crate::constraint_system::ecc::{Point, PointScalar};
 use crate::constraint_system::{variable::Variable, StandardComposer};
-use dusk_bls12_381::Scalar;
+use dusk_bls12_381::BlsScalar;
 
-/// Computes a Scalar multiplication with the input scalar and a chosen generator
+/// Computes a BlsScalar multiplication with the input scalar and a chosen generator
 pub fn variable_base_scalar_mul(
     composer: &mut StandardComposer,
     jubjub_var: Variable,
@@ -39,7 +42,13 @@ fn conditional_select_zero(
     value: Variable,
 ) -> Variable {
     // returns bit * value
-    composer.mul(Scalar::one(), bit, value, Scalar::zero(), Scalar::zero())
+    composer.mul(
+        BlsScalar::one(),
+        bit,
+        value,
+        BlsScalar::zero(),
+        BlsScalar::zero(),
+    )
 }
 /// If bit == 0, then return 1 else return value
 /// This is the polynomial f(x) = 1 - x + xa
@@ -52,19 +61,19 @@ fn conditional_select_one(
     let value_scalar = composer.variables.get(&value).unwrap();
     let bit_scalar = composer.variables.get(&bit).unwrap();
 
-    let f_x_scalar = Scalar::one() - bit_scalar + (bit_scalar * value_scalar);
+    let f_x_scalar = BlsScalar::one() - bit_scalar + (bit_scalar * value_scalar);
     let f_x = composer.add_input(f_x_scalar);
 
     composer.poly_gate(
         bit,
         value,
         f_x,
-        Scalar::one(),
-        -Scalar::one(),
-        Scalar::zero(),
-        -Scalar::one(),
-        Scalar::one(),
-        Scalar::zero(),
+        BlsScalar::one(),
+        -BlsScalar::one(),
+        BlsScalar::zero(),
+        -BlsScalar::one(),
+        BlsScalar::one(),
+        BlsScalar::zero(),
     );
 
     f_x
@@ -85,7 +94,7 @@ fn conditional_select_identity(
 fn scalar_decomposition(
     composer: &mut StandardComposer,
     witness_var: Variable,
-    witness_scalar: Scalar,
+    witness_scalar: BlsScalar,
 ) -> Vec<Variable> {
     // Decompose the bits
     let scalar_bits = scalar_to_bits(&witness_scalar);
@@ -93,7 +102,7 @@ fn scalar_decomposition(
     // Add all the bits into the composer
     let scalar_bits_var: Vec<Variable> = scalar_bits
         .iter()
-        .map(|bit| composer.add_input(Scalar::from(*bit as u64)))
+        .map(|bit| composer.add_input(BlsScalar::from(*bit as u64)))
         .collect();
 
     // Take the first 252 bits
@@ -101,28 +110,28 @@ fn scalar_decomposition(
 
     // Now ensure that the bits correctly accumulate to the witness given
     let mut accumulator_var = composer.zero_var;
-    let mut accumulator_scalar = Scalar::zero();
+    let mut accumulator_scalar = BlsScalar::zero();
 
     for (power, bit) in scalar_bits_var.iter().enumerate() {
         composer.boolean_gate(*bit);
 
-        let two_pow = Scalar::pow_of_2(power as u64);
+        let two_pow = BlsScalar::pow_of_2(power as u64);
 
         let q_l_a = (two_pow, *bit);
-        let q_r_b = (Scalar::one(), accumulator_var);
-        let q_c = Scalar::zero();
-        let pi = Scalar::zero();
+        let q_r_b = (BlsScalar::one(), accumulator_var);
+        let q_c = BlsScalar::zero();
+        let pi = BlsScalar::zero();
 
         accumulator_var = composer.add(q_l_a, q_r_b, q_c, pi);
 
-        accumulator_scalar += two_pow * Scalar::from(scalar_bits[power] as u64);
+        accumulator_scalar += two_pow * BlsScalar::from(scalar_bits[power] as u64);
     }
     composer.assert_equal(accumulator_var, witness_var);
 
     scalar_bits_var
 }
 
-fn scalar_to_bits(scalar: &Scalar) -> [u8; 256] {
+fn scalar_to_bits(scalar: &BlsScalar) -> [u8; 256] {
     let mut res = [0u8; 256];
     let bytes = scalar.to_bytes();
     for (byte, bits) in bytes.iter().zip(res.chunks_mut(8)) {
@@ -136,9 +145,9 @@ fn scalar_to_bits(scalar: &Scalar) -> [u8; 256] {
 mod tests {
     use super::*;
     use crate::constraint_system::helper::*;
-    use dusk_bls12_381::Scalar as BlsScalar;
+    use dusk_bls12_381::BlsScalar;
     use dusk_jubjub::GENERATOR;
-    use dusk_jubjub::{AffinePoint, ExtendedPoint, Fr as JubJubScalar};
+    use dusk_jubjub::{JubJubAffine, JubJubExtended, JubJubScalar};
     #[test]
     fn test_var_base_scalar_mul() {
         let res = gadget_tester(
@@ -152,7 +161,8 @@ mod tests {
                 let bls_scalar = BlsScalar::from_bytes(&scalar.to_bytes()).unwrap();
                 let secret_scalar = composer.add_input(bls_scalar);
 
-                let expected_point: AffinePoint = (ExtendedPoint::from(GENERATOR) * scalar).into();
+                let expected_point: JubJubAffine =
+                    (JubJubExtended::from(GENERATOR) * scalar).into();
 
                 let point = Point::from_private_affine(composer, GENERATOR);
 
