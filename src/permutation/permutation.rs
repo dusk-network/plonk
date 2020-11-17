@@ -736,15 +736,13 @@ mod test {
         let beta = Fr::random(&mut rand::thread_rng());
         let gamma = Fr::random(&mut rand::thread_rng());
 
-        let mz = Polynomial::from_coefficients_vec(domain.ifft(
-            &cs.perm.multizip_compute_permutation_poly(
-                &domain,
-                (&w_l_scalar, &w_r_scalar, &w_o_scalar, &w_4_scalar),
-                &beta,
-                &gamma,
-                (&sigmas[0], &sigmas[1], &sigmas[2], &sigmas[3]),
-            ),
-        ));
+        let mz = Polynomial::from_coefficients_vec(domain.ifft(&cs.perm.compute_permutation_poly(
+            &domain,
+            (&w_l_scalar, &w_r_scalar, &w_o_scalar, &w_4_scalar),
+            &beta,
+            &gamma,
+            (&sigmas[0], &sigmas[1], &sigmas[2], &sigmas[3]),
+        )));
 
         let sigma_polys: Vec<Polynomial> = sigmas
             .iter()
