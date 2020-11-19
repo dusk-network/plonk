@@ -38,18 +38,18 @@ impl Plookup {
     //   in the numerator_irreducible and denominator_irreducible functions
 
     fn multizip_compute_plookup_product(
-        &self,
+        //&self,
         domain: &EvaluationDomain,
-        // wires: (&[Scalar], &[Scalar], &[Scalar], &[Scalar]),
         queries: &Vec<Scalar>,
         table: &Vec<Scalar>,
-        sorted: (&Vec<Scalar>, &Vec<Scalar>),
+        sorted: (&[Scalar], &[Scalar]),
         beta: &Scalar,
         gamma: &Scalar,
-        // sigmas: (&Vec<Scalar>, &Vec<Scalar>, &Vec<Scalar>, &Vec<Scalar>),
     ) -> Vec<Scalar> {
 
         let n = domain.size();
+
+        // To Do: add assertions that the queries, table, and sorteds are correct length
 
         // the randomized differences need to be able to access the "next" element
         // so we shift them by one
@@ -59,54 +59,24 @@ impl Plookup {
         let sorted2 = sorted.1;
         let sorted2_next: Vec<Scalar> = [&sorted2[1..n], &[sorted2[0]]].concat();
 
-        // Transpose queries, table, and sorted values to get "rows"
-        // in the form [f_i, t_i, t_next_i, h1_i, h1_next_i, h2_i, h2_next_i]
-        //let pointwise_polys = (queries, table, table_next,
-        //                    sorted1, sorted1_next, sorted2, sorted2_next)
-        //    .into_par_iter();
-            //.map(|(f, t, t_n, h1, h1_n, h2, h2_n)| vec![f, t, &t_n, h1, &h1_n, h2, &h2_n]);
-
-        // Compute all roots
-        // Non-parallelizable?
-        let roots: Vec<Scalar> = domain.elements().collect();
-
-        let product_argument = (roots, queries, table, table_next, sorted1, sorted1_next, sorted2, sorted2_next)
+        let plookup_accumulator = (queries, table, table_next, sorted1, sorted1_next, sorted2, sorted2_next)
             .into_par_iter()
-            // Associate each lookup query, table, sorted value with its index
-            // Actually that's a terrible explanation of it
-            // This is just part of the plonk code, mutatis mutandis
-            // We might be able to drop it/streamline it
-            //.map(|(root, poly)| {
-            //    (pointwise_root, pointwise_polys.into_par_iter())
-            //})
 
-            // Now the ith element represents index i and will have the form:
-            //   (root_i, (f_i, t_i, t_next_i, h1_i, h1_next_i, h2_i, h2_next_i))
-            //   which is all the information
-            //   needed for a single product coefficient for a single lookup
             // Multiply up the numerator and denominator irreducibles for each gate
             //   and pair the results
-            .map(|(index_root, lookup_septuple)| {
+            .map(|(f, t, t_next, s1, s1_next, s2, s2_next)|
                 (
-                    // Numerator product
-                    lookup_septuple
-                        .clone()
-                        .map(|(f, t, t_n, _h1, _h1_n, _h2, _h2_n)| {
-                            Plookup::plookup_table_irreducible(&f, beta, gamma)
-                            * Plookup::plookup_random_difference(&t, &t_n, beta, gamma)
-                        })
-                        .product::<Scalar>(),
-                    // Denominator product
-                    lookup_septuple
-                        .map(|(_f, _t, _t_n, h1, h1_n, h2, h2_n)| {
-                            Plookup::plookup_random_difference(&h1, &h1_n, beta, gamma)
-                            * Plookup::plookup_random_difference(&h2, &h2_n, beta, gamma)
-                        })
-                        .product::<Scalar>(),
+                    Plookup::plookup_table_irreducible(&f, beta, gamma)
+                    * Plookup::plookup_random_difference(&t, &t_next, beta, gamma)
+                ,
+                    Plookup::plookup_random_difference(&s1, &s1_next, beta, gamma)
+                    * Plookup::plookup_random_difference(&s2, &s2_next, beta, gamma)
                 )
-            })
+            )
+
             // Divide each pair to get the single scalar representing each gate
             .map(|(n, d)| n * d.invert().unwrap())
+
             // Collect into vector intermediary since rayon does not support `scan`
             .collect::<Vec<Scalar>>();
 
@@ -117,12 +87,99 @@ impl Plookup {
         plookup_z_coefficients.push(state);
 
         // Accumulate by successively multiplying the scalars
-        // Non-parallelizable?
-        for s in product_argument {
+        // Non-parallelizable
+        for s in plookup_accumulator {
             state *= s;
             plookup_z_coefficients.push(state);
         }
 
         plookup_z_coefficients
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use rand::Rng;
+    use super::*;
+
+    #[test]
+    fn test_plookup_accumulator() {
+        let mut rng = rand::thread_rng();
+
+        // this should be completely randomized eventually
+        // should be easy since table entries are independent of each other
+        //   unlike arithmetic circuit gates
+
+        // table is for the function that counts the number of set bits for integers 0 to 15
+        let uncompressed_table = vec![
+            (0, 0),
+            (1, 1),
+            (2, 1),
+            (3, 2),
+            (4, 1),
+            (5, 2),
+            (6, 2),
+            (7, 3),
+            (8, 1),
+            (9, 2),
+            (10, 2),
+            (11, 3),
+            (12, 2),
+            (13, 3),
+            (14, 3),
+            (15, 4),
+        ];
+
+        let alpha = Scalar::random(&mut rng);
+
+        let mut compressed_table: Vec<Scalar> = uncompressed_table.into_iter().map(|(a, b)| Scalar::from_raw([a,0,0,0]) + alpha*Scalar([b,0,0,0])).collect();
+
+        // although the table itself does not have to be sorted, the ordering of the concatenated lookups and table need to match
+        // the ordering of the table. sorting both the same way makes sure the order matches.
+        compressed_table.sort();
+
+        let n = compressed_table.len()-1;
+
+        let uncompressed_queries = vec![
+            (2, 1),
+            (7, 3),
+            (2, 1),
+            (4, 1),
+            (8, 1),
+            (15, 4),
+        ];
+
+        let mut compressed_queries: Vec<Scalar> = uncompressed_queries.into_iter().map(|(a, b)| Scalar::from_raw([a,0,0,0]) + alpha*Scalar([b,0,0,0])).collect();
+
+        // pad lookups with last element until the length is one less than the table length
+        while compressed_queries.len() < n {
+            compressed_queries.push(*compressed_queries.last().unwrap());
+        }
+        assert!(compressed_queries.len()+1 == compressed_table.len());
+
+        let mut big_sort = [&compressed_queries[..], &compressed_table[..]].concat();
+        big_sort.sort();
+
+        let sorted1 = &big_sort[0..n+1];
+        let sorted2 = &big_sort[n..];
+
+        assert!(sorted1[n]==sorted2[0]);
+        assert!(sorted1.len() == n+1);
+        assert!(sorted2.len() == n+1);
+
+        let domain = EvaluationDomain::new(n+1).unwrap();
+        let beta = Scalar::random(&mut rng);
+        let gamma = Scalar::random(&mut rng);
+
+        let mut z_coeffs = Plookup::multizip_compute_plookup_product(
+            &domain,
+            &compressed_queries,
+            &compressed_table,
+            (&sorted1, &sorted2),
+            &beta,
+            &gamma,
+        );
+
+        assert!(z_coeffs.last().unwrap() == &Scalar::one());
     }
 }
