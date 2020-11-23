@@ -22,6 +22,9 @@ use merlin::Transcript;
 use serde::de::Visitor;
 use serde::{self, Deserialize, Deserializer, Serialize, Serializer};
 
+/// Byte-size of a serialised `Proof`.
+pub const PROOF_SIZE: usize = Proof::serialised_size();
+
 /// A Proof is a composition of `Commitments` to the witness, permutation,
 /// quotient, shifted and opening polynomials as well as the
 /// `ProofEvaluations`.
@@ -29,7 +32,7 @@ use serde::{self, Deserialize, Deserializer, Serialize, Serializer};
 /// It's main goal is to have a `verify()` method attached which contains the
 /// logic of the operations that the `Verifier` will need to do in order to
 /// formally verify the `Proof`.
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct Proof {
     /// Commitment to the witness polynomial for the left wires.
     pub a_comm: Commitment,
@@ -64,27 +67,24 @@ impl_serde!(Proof);
 
 impl Proof {
     /// Serialises a Proof struct
-    pub fn to_bytes(&self) -> Vec<u8> {
-        use crate::serialisation::write_commitment;
-
-        let mut bytes = Vec::with_capacity(Proof::serialised_size());
-
-        write_commitment(&self.a_comm, &mut bytes);
-        write_commitment(&self.b_comm, &mut bytes);
-        write_commitment(&self.c_comm, &mut bytes);
-        write_commitment(&self.d_comm, &mut bytes);
-        write_commitment(&self.z_comm, &mut bytes);
-        write_commitment(&self.t_1_comm, &mut bytes);
-        write_commitment(&self.t_2_comm, &mut bytes);
-        write_commitment(&self.t_3_comm, &mut bytes);
-        write_commitment(&self.t_4_comm, &mut bytes);
-        write_commitment(&self.w_z_comm, &mut bytes);
-        write_commitment(&self.w_zw_comm, &mut bytes);
-
-        bytes.extend(self.evaluations.to_bytes());
+    pub fn to_bytes(&self) -> [u8; PROOF_SIZE] {
+        let mut bytes = [0u8; PROOF_SIZE];
+        bytes[0..48].copy_from_slice(&self.a_comm.0.to_compressed()[..]);
+        bytes[48..96].copy_from_slice(&self.b_comm.0.to_compressed()[..]);
+        bytes[96..144].copy_from_slice(&self.c_comm.0.to_compressed()[..]);
+        bytes[144..192].copy_from_slice(&self.d_comm.0.to_compressed()[..]);
+        bytes[192..240].copy_from_slice(&self.z_comm.0.to_compressed()[..]);
+        bytes[240..288].copy_from_slice(&self.t_1_comm.0.to_compressed()[..]);
+        bytes[288..336].copy_from_slice(&self.t_2_comm.0.to_compressed()[..]);
+        bytes[336..384].copy_from_slice(&self.t_3_comm.0.to_compressed()[..]);
+        bytes[384..432].copy_from_slice(&self.t_4_comm.0.to_compressed()[..]);
+        bytes[432..480].copy_from_slice(&self.w_z_comm.0.to_compressed()[..]);
+        bytes[480..528].copy_from_slice(&self.w_zw_comm.0.to_compressed()[..]);
+        bytes[528..PROOF_SIZE].copy_from_slice(&self.evaluations.to_bytes()[..]);
 
         bytes
     }
+
     /// Deserialises a Proof struct
     pub fn from_bytes(bytes: &[u8]) -> Result<Proof, Error> {
         use crate::serialisation::read_commitment;
@@ -120,6 +120,7 @@ impl Proof {
         Ok(proof)
     }
 
+    /// Returns the serialised size of a [`Proof`] object.
     pub const fn serialised_size() -> usize {
         const NUM_COMMITMENTS: usize = 11;
         const COMMITMENT_SIZE: usize = 48;
