@@ -22,6 +22,9 @@ use merlin::Transcript;
 use serde::de::Visitor;
 use serde::{self, Deserialize, Deserializer, Serialize, Serializer};
 
+#[cfg(feature = "canon")]
+use canonical::{Canon, InvalidEncoding, Sink, Source, Store};
+
 /// Byte-size of a serialised `Proof`.
 pub const PROOF_SIZE: usize = Proof::serialised_size();
 
@@ -64,6 +67,27 @@ pub struct Proof {
 }
 
 impl_serde!(Proof);
+
+#[cfg(feature = "canon")]
+impl<S: Store> Canon<S> for Proof {
+    fn write(&self, sink: &mut impl Sink<S>) -> Result<(), S::Error> {
+        sink.copy_bytes(&self.to_bytes());
+        Ok(())
+    }
+
+    fn read(source: &mut impl Source<S>) -> Result<Self, S::Error> {
+        let mut bytes = [0u8; PROOF_SIZE];
+        bytes.copy_from_slice(source.read_bytes(PROOF_SIZE));
+        match Proof::from_bytes(&bytes) {
+            Ok(proof) => Ok(proof),
+            _ => Err(InvalidEncoding.into()),
+        }
+    }
+
+    fn encoded_len(&self) -> usize {
+        PROOF_SIZE
+    }
+}
 
 impl Proof {
     /// Serialises a Proof struct
