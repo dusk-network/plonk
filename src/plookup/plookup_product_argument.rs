@@ -1,4 +1,3 @@
-use crate::constraint_system::{Variable, WireData, Permutation};
 use crate::fft::{EvaluationDomain, Polynomial};
 use dusk_bls12_381::Scalar;
 use itertools::izip;
@@ -177,7 +176,7 @@ mod test {
         let beta = Scalar::random(&mut rng);
         let gamma = Scalar::random(&mut rng);
 
-        let mut z_coeffs = Plookup::multizip_compute_plookup_product(
+        let z_coeffs = Plookup::multizip_compute_plookup_product(
             &domain,
             &compressed_queries,
             &compressed_table,
@@ -191,11 +190,15 @@ mod test {
 
     #[test]
     fn test_plookup_prove_verify() {
-        let n: usize = 4;
         let mut rng = rand::thread_rng();
 
-        // generate random table and queries
-        let (table, queries) = random_table_and_queries(n);
+        let domain = EvaluationDomain::new(100).unwrap();
+        let n = domain.size() - 1;
+        let g = domain.group_gen;
+
+        // generate random table and queries of correct size
+        // in practice you would pad the table and queries to get the correct size
+        let (table, queries) = random_table_and_queries(domain.size());
 
         // Prover
 
@@ -207,22 +210,25 @@ mod test {
         let sorted_lo = &concat_table_and_queries[0..n+1];
         let sorted_hi = &concat_table_and_queries[n..];
 
-        let domain = EvaluationDomain::new(n+1).unwrap();
-        let g = domain.group_gen;
-
+        // create the h1(x), h2(x) polynomials from sorted_lo and sorted_hi
         let h1_x = Polynomial::from_coefficients_vec(domain.ifft(&sorted_lo));
-        let h1_gx = Polynomial::from_coefficients_vec(domain.ifft(&[&sorted_lo[1..n], &[sorted_lo[0]]].concat()));
-
         let h2_x = Polynomial::from_coefficients_vec(domain.ifft(&sorted_hi));
-        let h2_gx = Polynomial::from_coefficients_vec(domain.ifft(&[&sorted_hi[1..n], &[sorted_hi[0]]].concat()));
 
+        // create the shifted h1(gx), and h2(gx) polynomials by rotating the evaluations
+        let h1_gx = Polynomial::from_coefficients_vec(domain.ifft(&[&sorted_lo[1..n+1], &[sorted_lo[0]]].concat()));
+        let h2_gx = Polynomial::from_coefficients_vec(domain.ifft(&[&sorted_hi[1..n+1], &[sorted_hi[0]]].concat()));
+
+        // create the polynomial representing the queries
         let f_x = Polynomial::from_coefficients_vec(domain.ifft(&queries));
-        let t_x = Polynomial::from_coefficients_vec(domain.ifft(&table));
-        let t_gx = Polynomial::from_coefficients_vec(domain.ifft(&[&table[1..n], &[table[0]]].concat()));
 
+        // create the polynomials representing the table and shifted table
+        let t_x = Polynomial::from_coefficients_vec(domain.ifft(&table));
+        let t_gx = Polynomial::from_coefficients_vec(domain.ifft(&[&table[1..n+1], &[table[0]]].concat()));
+
+        // 
         let mut one_followed_by_zeroes = vec![Scalar::one()];
         one_followed_by_zeroes.extend(vec![Scalar::zero(); domain.size()-1]);
-        let one_poly = Polynomial::from_coefficients_vec(one_followed_by_zeroes.clone());
+
         let beta = Scalar::random(&mut rng);
         let gamma = Scalar::random(&mut rng);
 
@@ -238,7 +244,6 @@ mod test {
         assert!(Z_values[0] == Scalar::one());
         assert!(Z_values.last().unwrap() == &Scalar::one());
 
-        let Z_x = Polynomial::from_coefficients_vec(domain.ifft(&Z_values));
         let Z_gx = Polynomial::from_coefficients_vec(domain.ifft(&[&Z_values[1..n+1], &[Z_values[0]]].concat()));
 
         // Verifier
@@ -253,11 +258,12 @@ mod test {
         // show L_1(x) * (Z(x) - 1) = 0 on all x in H
         assert!((&L1_eval * &(&Z_eval - &one_eval)).evals == zero_eval.evals);
 
-        // b:  
+        // b: check the left and right sides of the "big equation" are equal
+
         let x_minus_g_to_n_plus_1_eval = Evaluations::from_vec_and_domain(
             domain.fft(
                 &Polynomial::from_coefficients_vec(
-                    vec![-g.pow(&[(n+1) as u64,0,0,0]), Scalar::one()]
+                   vec![-g.pow(&[n as u64, 0, 0, 0]), Scalar::one()]
                 ).coeffs
             ),
             domain
@@ -266,6 +272,7 @@ mod test {
         let one_plus_beta_eval = Evaluations::from_vec_and_domain(vec![Scalar::one()+beta; domain.size()], domain);
         let gamma_eval = Evaluations::from_vec_and_domain(vec![gamma; domain.size()], domain);
         let beta_eval = Evaluations::from_vec_and_domain(vec![beta; domain.size()], domain);
+
         let f_eval = Evaluations::from_vec_and_domain(domain.fft(&f_x.coeffs), domain);
         let t_x_eval = Evaluations::from_vec_and_domain(domain.fft(&t_x.coeffs), domain);
         let t_gx_eval = Evaluations::from_vec_and_domain(domain.fft(&t_gx.coeffs), domain);
@@ -278,31 +285,10 @@ mod test {
         let left = &(&(&(&x_minus_g_to_n_plus_1_eval * &Z_eval) * &one_plus_beta_eval) * &(&gamma_eval + &f_eval)) * &(&(&(&gamma_eval * &one_plus_beta_eval) +  &t_x_eval) + &(&beta_eval * &t_gx_eval));
         let right = &(&(&x_minus_g_to_n_plus_1_eval * &Z_gx_eval) * &(&(&(&gamma_eval * &one_plus_beta_eval) + &h1_x_eval) + &(&beta_eval * &h1_gx_eval))) * &(&(&(&gamma_eval * &one_plus_beta_eval) + &h2_x_eval) + &(&beta_eval * &h2_gx_eval));
         
-        println!("gamma_eval: {:?}\n", gamma_eval);
-        println!("beta_eval:  {:?}\n", beta_eval);
-        println!("f_eval:     {:?}\n", f_eval);
-        println!("t_x_eval :  {:?}\n", t_x_eval);
-        println!("t_gx_eval:  {:?}\n", t_gx_eval);
-        println!("Z_eval:     {:?}\n", Z_eval);
-        println!("Z_gx_eval:  {:?}\n", Z_gx_eval);
-        println!("h1_x_eval:  {:?}\n", h1_x_eval);
-        println!("h1_gx_eval: {:?}\n", h1_gx_eval);
-        println!("h2_x_eval:  {:?}\n", h2_x_eval);
-        println!("h2_gx_eval: {:?}\n", h2_gx_eval);
-
-        println!("{:?}", left);
-        println!("{:?}", right);
+        assert!(left == right);
         
-/*
-        // b:
-        let gamma_poly = Polynomial::from_coefficients_vec([gamma]);
-        let one_plus_beta_poly = Polynomial::from_coefficients_vec([Scalar::one + beta]);
-        let x_minus_g_to_n_plus_1 = Polynomial::from_coefficients_vec([-g.pow(n+1), Scalar::one()]);
+        // c: 
 
-        let b_left = x_minus_g_to_n_plus_1 * Z_x * one_plus_beta_poly
-            * (gamma_poly + f_x) * (gamma_poly * one_plus_beta_poly + t_x + beta*)
-
-*/
         assert!(0==1);
     }
 
@@ -310,11 +296,11 @@ mod test {
         let mut rng = rand::thread_rng();
 
         // create a table of random scalars
-        let mut random_table: Vec<Scalar> = (0..n+1).into_iter().map(|i| Scalar::random(&mut rng)).collect();
+        let mut random_table: Vec<Scalar> = (0..n).into_iter().map(|_i| Scalar::random(&mut rng)).collect();
         random_table.sort();
 
         // create a table of queries from the table
-        let random_queries: Vec<Scalar> = (0..n).into_iter().map(|i| random_table[rng.gen_range(0, n+1)]).collect();
+        let random_queries: Vec<Scalar> = (0..n-1).into_iter().map(|_i| random_table[rng.gen_range(0, n)]).collect();
 
         (random_table, random_queries)
     }
