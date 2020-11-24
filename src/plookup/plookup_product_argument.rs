@@ -10,6 +10,7 @@ use rayon::iter::*;
 
 pub struct Plookup {
     table: Vec<Scalar>,
+    queries: Vec<Scalar>,
 }
 
 impl Plookup {
@@ -32,9 +33,7 @@ impl Plookup {
         gamma * (Scalar::one() + beta) + t + (beta * t_next)
     }
 
-
     fn multizip_compute_plookup_product(
-        //&self,
         domain: &EvaluationDomain,
         queries: &Vec<Scalar>,
         table: &Vec<Scalar>,
@@ -105,102 +104,19 @@ mod test {
     use crate::fft::Evaluations;
 
     #[test]
-    fn test_plookup_accumulator() {
-        let mut rng = rand::thread_rng();
-
-        // this should be completely randomized eventually
-        // should be easy since table entries are independent of each other
-        //   unlike arithmetic circuit gates
-
-        // table is for the function that counts the number of set bits for integers 0 to 15
-        let uncompressed_table = vec![
-            (0, 0),
-            (1, 1),
-            (2, 1),
-            (3, 2),
-            (4, 1),
-            (5, 2),
-            (6, 2),
-            (7, 3),
-            (8, 1),
-            (9, 2),
-            (10, 2),
-            (11, 3),
-            (12, 2),
-            (13, 3),
-            (14, 3),
-            (15, 4),
-        ];
-
-        let alpha = Scalar::random(&mut rng);
-
-        let mut compressed_table: Vec<Scalar> = uncompressed_table.into_iter().map(|(a, b)| Scalar::from_raw([a,0,0,0]) + alpha*Scalar([b,0,0,0])).collect();
-
-        // although the table itself does not have to be sorted, the ordering of the concatenated lookups and table need to match
-        // the ordering of the table. sorting both the same way makes sure the order matches.
-        compressed_table.sort();
-
-        let domain = EvaluationDomain::new(compressed_table.len()).unwrap();
-        let n = domain.size() - 1;
-
-        while compressed_table.len() < domain.size() {
-            compressed_table.push(*compressed_table.last().unwrap());
-        }
-
-        let uncompressed_queries = vec![
-            (2, 1),
-            (7, 3),
-            (2, 1),
-            (4, 1),
-            (8, 1),
-            (15, 4),
-        ];
-
-        let mut compressed_queries: Vec<Scalar> = uncompressed_queries.into_iter().map(|(a, b)| Scalar::from_raw([a,0,0,0]) + alpha*Scalar([b,0,0,0])).collect();
-
-        // pad queries with last element until the length is one less than the table length
-        while compressed_queries.len() + 1 < domain.size() {
-            compressed_queries.push(*compressed_queries.last().unwrap());
-        }
-
-        let mut big_sort = [&compressed_queries[..], &compressed_table[..]].concat();
-        big_sort.sort();
-
-        let sorted1 = &big_sort[0..n+1];
-        let sorted2 = &big_sort[n..];
-
-        assert!(sorted1[n] == sorted2[0]);
-        assert!(sorted1.len() == domain.size());
-        assert!(sorted2.len() == domain.size());
-
-        let beta = Scalar::random(&mut rng);
-        let gamma = Scalar::random(&mut rng);
-
-        let z_coeffs = Plookup::multizip_compute_plookup_product(
-            &domain,
-            &compressed_queries,
-            &compressed_table,
-            (&sorted1, &sorted2),
-            &beta,
-            &gamma,
-        );
-
-        assert!(z_coeffs.last().unwrap() == &Scalar::one());
-    }
-
-    #[test]
     fn test_plookup_prove_verify() {
         let mut rng = rand::thread_rng();
 
         let domain = EvaluationDomain::new(100).unwrap();
         let n = domain.size() - 1;
-        let g = domain.group_gen;
+        let g_inv = domain.group_gen_inv;
+
+        // the indexing below differs from Plookup paper: we will use 0..n
+        //   where the paper uses 1..n+1
 
         // generate random table and queries of correct size
         // in practice you would pad the table and queries to get the correct size
         let (table, queries) = random_table_and_queries(domain.size());
-
-        // Prover
 
         // concatenate and sort the table and queries
         let mut concat_table_and_queries = [&queries[..], &table[..]].concat();
@@ -210,86 +126,88 @@ mod test {
         let sorted_lo = &concat_table_and_queries[0..n+1];
         let sorted_hi = &concat_table_and_queries[n..];
 
-        // create the h1(x), h2(x) polynomials from sorted_lo and sorted_hi
-        let h1_x = Polynomial::from_coefficients_vec(domain.ifft(&sorted_lo));
-        let h2_x = Polynomial::from_coefficients_vec(domain.ifft(&sorted_hi));
+        // create the h1(x), h2(x) polynomials from sorted_lo and sorted_hi in evaluation form
+        let h1 = Evaluations::from_vec_and_domain(sorted_lo.to_vec(), domain);
+        let h2 = Evaluations::from_vec_and_domain(sorted_hi.to_vec(), domain);
 
         // create the shifted h1(gx), and h2(gx) polynomials by rotating the evaluations
-        let h1_gx = Polynomial::from_coefficients_vec(domain.ifft(&[&sorted_lo[1..n+1], &[sorted_lo[0]]].concat()));
-        let h2_gx = Polynomial::from_coefficients_vec(domain.ifft(&[&sorted_hi[1..n+1], &[sorted_hi[0]]].concat()));
+        let h1g = Evaluations::from_vec_and_domain([&sorted_lo[1..n+1], &[sorted_lo[0]]].concat(), domain);
+        let h2g = Evaluations::from_vec_and_domain([&sorted_hi[1..n+1], &[sorted_hi[0]]].concat(), domain);
 
-        // create the polynomial representing the queries
-        let f_x = Polynomial::from_coefficients_vec(domain.ifft(&queries));
+        // create the polynomial representing the queries in evaluation form
+        let f = Evaluations::from_vec_and_domain(queries.clone(), domain);
 
-        // create the polynomials representing the table and shifted table
-        let t_x = Polynomial::from_coefficients_vec(domain.ifft(&table));
-        let t_gx = Polynomial::from_coefficients_vec(domain.ifft(&[&table[1..n+1], &[table[0]]].concat()));
+        // create the polynomials representing the table and shifted table in evaluation form
+        let t = Evaluations::from_vec_and_domain(table.clone(), domain);
+        let tg = Evaluations::from_vec_and_domain([&table[1..n+1], &[table[0]]].concat(), domain);
 
-        // 
-        let mut one_followed_by_zeroes = vec![Scalar::one()];
-        one_followed_by_zeroes.extend(vec![Scalar::zero(); domain.size()-1]);
+        // create L1 Lagrange polynomial in evaluation form
+        let mut one_followed_by_zeros = vec![Scalar::one()];
+        one_followed_by_zeros.extend(vec![Scalar::zero(); domain.size()-1]);
+        let l1 = Evaluations::from_vec_and_domain(one_followed_by_zeros, domain);
 
-        let beta = Scalar::random(&mut rng);
-        let gamma = Scalar::random(&mut rng);
+        // create Ln Lagrange polynomial in evaluation form
+        let mut zeros_followed_by_one = vec![Scalar::zero(); domain.size()-1];
+        zeros_followed_by_one.push(Scalar::one());
+        let ln = Evaluations::from_vec_and_domain(zeros_followed_by_one, domain);
 
-        let Z_values = Plookup::multizip_compute_plookup_product(
+        // get random parameters beta and gamma
+        let beta_scalar = Scalar::random(&mut rng);
+        let gamma_scalar = Scalar::random(&mut rng);
+
+        // convert random parameters to constant polynomials in evaluation form
+        let gamma = Evaluations::from_vec_and_domain(vec![gamma_scalar; domain.size()], domain);
+        let beta = Evaluations::from_vec_and_domain(vec![beta_scalar; domain.size()], domain);
+
+        // create constant polynomials for zero and one in evaluation form 
+        let zero = Evaluations::from_vec_and_domain(vec![Scalar::zero(); domain.size()], domain);
+        let one = Evaluations::from_vec_and_domain(vec![Scalar::one(); domain.size()], domain);
+
+        let z_values = Plookup::multizip_compute_plookup_product(
             &domain,
             &queries,
             &table,
             (&sorted_lo, &sorted_hi),
-            &beta,
-            &gamma,
+            &beta_scalar,
+            &gamma_scalar,
         );
 
-        assert!(Z_values[0] == Scalar::one());
-        assert!(Z_values.last().unwrap() == &Scalar::one());
+        // create the Z polynomial in evaluation form
+        let z = Evaluations::from_vec_and_domain(z_values.clone(), domain);
+        let zg = Evaluations::from_vec_and_domain([&z_values[1..n+1], &[z_values[0]]].concat(), domain);
 
-        let Z_gx = Polynomial::from_coefficients_vec(domain.ifft(&[&Z_values[1..n+1], &[Z_values[0]]].concat()));
-
-        // Verifier
-        // naive verifier based on Plookup paper
-
-        // a: check that the first value is 1
-        let zero_eval = Evaluations::from_vec_and_domain(vec![Scalar::zero(); domain.size()], domain);
-        let one_eval = Evaluations::from_vec_and_domain(vec![Scalar::one(); domain.size()], domain);
-        let L1_eval = Evaluations::from_vec_and_domain(one_followed_by_zeroes, domain);
-        let Z_eval = Evaluations::from_vec_and_domain(Z_values, domain);
-
-        // show L_1(x) * (Z(x) - 1) = 0 on all x in H
-        assert!((&L1_eval * &(&Z_eval - &one_eval)).evals == zero_eval.evals);
-
-        // b: check the left and right sides of the "big equation" are equal
-
-        let x_minus_g_to_n_plus_1_eval = Evaluations::from_vec_and_domain(
+        // g^n = g^(-1) 
+        let x_minus_g_to_n = Evaluations::from_vec_and_domain(
             domain.fft(
                 &Polynomial::from_coefficients_vec(
-                   vec![-g.pow(&[n as u64, 0, 0, 0]), Scalar::one()]
+                   vec![-g_inv, Scalar::one()]
                 ).coeffs
             ),
             domain
         );
 
-        let one_plus_beta_eval = Evaluations::from_vec_and_domain(vec![Scalar::one()+beta; domain.size()], domain);
-        let gamma_eval = Evaluations::from_vec_and_domain(vec![gamma; domain.size()], domain);
-        let beta_eval = Evaluations::from_vec_and_domain(vec![beta; domain.size()], domain);
+        // for convenience
+        let one_plus_beta = &one + &beta;
+        let gamma_times_one_plus_beta = &gamma * &one_plus_beta;
 
-        let f_eval = Evaluations::from_vec_and_domain(domain.fft(&f_x.coeffs), domain);
-        let t_x_eval = Evaluations::from_vec_and_domain(domain.fft(&t_x.coeffs), domain);
-        let t_gx_eval = Evaluations::from_vec_and_domain(domain.fft(&t_gx.coeffs), domain);
-        let Z_gx_eval = Evaluations::from_vec_and_domain(domain.fft(&Z_gx.coeffs), domain);
-        let h1_x_eval = Evaluations::from_vec_and_domain(domain.fft(&h1_x.coeffs), domain);
-        let h2_x_eval = Evaluations::from_vec_and_domain(domain.fft(&h2_x.coeffs), domain);
-        let h1_gx_eval = Evaluations::from_vec_and_domain(domain.fft(&h1_gx.coeffs), domain);
-        let h2_gx_eval = Evaluations::from_vec_and_domain(domain.fft(&h2_gx.coeffs), domain);
+        // Verifier checks
 
-        let left = &(&(&(&x_minus_g_to_n_plus_1_eval * &Z_eval) * &one_plus_beta_eval) * &(&gamma_eval + &f_eval)) * &(&(&(&gamma_eval * &one_plus_beta_eval) +  &t_x_eval) + &(&beta_eval * &t_gx_eval));
-        let right = &(&(&x_minus_g_to_n_plus_1_eval * &Z_gx_eval) * &(&(&(&gamma_eval * &one_plus_beta_eval) + &h1_x_eval) + &(&beta_eval * &h1_gx_eval))) * &(&(&(&gamma_eval * &one_plus_beta_eval) + &h2_x_eval) + &(&beta_eval * &h2_gx_eval));
+        // a: check that the first value of Z is 1
+        assert!(&l1 * &(&z - &one) == zero);
+
+        // b: check the left and right sides of the "big equation" are equal
+
+        // we use g^n rather than g^(n+1), and L_n rather than L_(n+1) because of the 
+        let left = &(&(&(&x_minus_g_to_n * &z) * &one_plus_beta) * &(&gamma + &f)) * &(&(&gamma_times_one_plus_beta + &t) + &(&beta * &tg));
+        let right = &(&(&x_minus_g_to_n * &zg) * &(&(&gamma_times_one_plus_beta + &h1) + &(&beta*&h1g))) * &(&(&gamma_times_one_plus_beta + &h2) + &(&beta * &h2g));
         
         assert!(left == right);
         
-        // c: 
+        // c: check that the last element of h1 is the first element of h2 
+        assert!(&ln * &(&h1 - &h2g) == zero);
 
-        assert!(0==1);
+        // d: check that the last element of Z is 1
+        assert!(&ln * &(&z - &one) == zero);
     }
 
     fn random_table_and_queries(n: usize) -> (Vec<Scalar>, Vec<Scalar>) {
