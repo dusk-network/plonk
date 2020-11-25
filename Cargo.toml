@@ -1,6 +1,6 @@
 [package]
 name = "dusk-plonk"
-version = "0.3.4"
+version = "0.3.5"
 authors = ["Kevaundray Wedderburn <kevtheappdev@gmail.com>",
            "Luke Pearson <luke@dusk.network>", 
            "CPerezz <carlos@dusk.network>"] 
@@ -33,6 +33,8 @@ anyhow = "1.0.32"
 dusk-jubjub = "0.5.0"
 thiserror = "1.0"
 serde = "1.0"
+# Dusk related deps for WASMI serde
+canonical = {version = "0.4", optional = true}
 
 [dev-dependencies]
 rand = "0.7.0"
@@ -44,4 +46,4 @@ rustdoc-args = [ "--html-in-header", "katex-header.html" ]
 nightly = []
 trace = []
 trace-print = ["trace"]
-canon = ["dusk-bls12_381/canon", "dusk-jubjub/canon"]
+canon = ["dusk-bls12_381/canon", "dusk-jubjub/canon", "canonical"]

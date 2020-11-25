@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.5] - 25-11-20
+### Changed
+- Changed `Proof` & `ProofEvaluations` byte conversion fn signatures.
+### Added
+- Implemented `Canon` for `Proof`.
+
 ## [0.3.4] - 02-11-20
 ### Changed
 - dusk-jubjub update to `v0.5.0` with API renaming

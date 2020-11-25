@@ -193,10 +193,10 @@ impl Prover {
             &beta,
             &gamma,
             (
-                &domain.fft(&prover_key.permutation.left_sigma.0),
-                &domain.fft(&prover_key.permutation.right_sigma.0),
-                &domain.fft(&prover_key.permutation.out_sigma.0),
-                &domain.fft(&prover_key.permutation.fourth_sigma.0),
+                &prover_key.permutation.left_sigma.0,
+                &prover_key.permutation.right_sigma.0,
+                &prover_key.permutation.out_sigma.0,
+                &prover_key.permutation.fourth_sigma.0,
             ),
         ));
 
