@@ -618,7 +618,7 @@ impl Permutation {
             domain.fft(sigma_polys.2),
             domain.fft(sigma_polys.3),
         );
-        
+
         // Transpose wires and sigma values to get "rows" in the form [wl_i, wr_i, wo_i, ... ]
         // where each row contains the wire and sigma values for a single gate
         let gatewise_wires = wires
@@ -681,7 +681,9 @@ impl Permutation {
             z.push(state);
         }
 
-        z.pop();
+        // Remove the last(n+1'th) element
+        z.remove(n);
+
         assert_eq!(n, z.len());
 
         Polynomial::from_coefficients_vec(domain.ifft(&z))
@@ -747,24 +749,8 @@ mod test {
             .collect();
 
         let mz = cs.perm.compute_permutation_poly(
-                &domain,
-                (&w_l_scalar, &w_r_scalar, &w_o_scalar, &w_4_scalar),
-                &beta,
-                &gamma,
-                (
-                    &sigma_polys[0],
-                    &sigma_polys[1],
-                    &sigma_polys[2],
-                    &sigma_polys[3],
-                ),
-        );
-
-        let old_z = Polynomial::from_coefficients_vec(domain.ifft(&cs.perm.compute_fast_permutation_poly(
             &domain,
-            &w_l_scalar,
-            &w_r_scalar,
-            &w_o_scalar,
-            &w_4_scalar,
+            (&w_l_scalar, &w_r_scalar, &w_o_scalar, &w_4_scalar),
             &beta,
             &gamma,
             (
@@ -773,7 +759,24 @@ mod test {
                 &sigma_polys[2],
                 &sigma_polys[3],
             ),
-        )));
+        );
+
+        let old_z =
+            Polynomial::from_coefficients_vec(domain.ifft(&cs.perm.compute_fast_permutation_poly(
+                &domain,
+                &w_l_scalar,
+                &w_r_scalar,
+                &w_o_scalar,
+                &w_4_scalar,
+                &beta,
+                &gamma,
+                (
+                    &sigma_polys[0],
+                    &sigma_polys[1],
+                    &sigma_polys[2],
+                    &sigma_polys[3],
+                ),
+            )));
 
         assert!(mz == old_z);
     }
