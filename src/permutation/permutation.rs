@@ -605,24 +605,26 @@ impl Permutation {
         wires: (&[BlsScalar], &[BlsScalar], &[BlsScalar], &[BlsScalar]),
         beta: &BlsScalar,
         gamma: &BlsScalar,
-        sigmas: (
-            &Vec<BlsScalar>,
-            &Vec<BlsScalar>,
-            &Vec<BlsScalar>,
-            &Vec<BlsScalar>,
-        ),
-    ) -> Vec<BlsScalar> {
+        sigma_polys: (&Polynomial, &Polynomial, &Polynomial, &Polynomial),
+    ) -> Polynomial {
         let n = domain.size();
 
         // Constants defining cosets H, k1H, k2H, etc
         let ks = vec![BlsScalar::one(), K1, K2, K3];
 
+        let sigma_mappings = (
+            domain.fft(sigma_polys.0),
+            domain.fft(sigma_polys.1),
+            domain.fft(sigma_polys.2),
+            domain.fft(sigma_polys.3),
+        );
+        
         // Transpose wires and sigma values to get "rows" in the form [wl_i, wr_i, wo_i, ... ]
         // where each row contains the wire and sigma values for a single gate
         let gatewise_wires = wires
             .into_par_iter()
             .map(|(w0, w1, w2, w3)| vec![w0, w1, w2, w3]);
-        let gatewise_sigmas = sigmas
+        let gatewise_sigmas = sigma_mappings
             .into_par_iter()
             .map(|(s0, s1, s2, s3)| vec![s0, s1, s2, s3]);
 
@@ -666,20 +668,23 @@ impl Permutation {
             // Collect into vector intermediary since rayon does not support `scan`
             .collect::<Vec<BlsScalar>>();
 
-        let mut z_coefficients = Vec::with_capacity(n);
+        let mut z = Vec::with_capacity(n);
 
         // First element is one
         let mut state = BlsScalar::one();
-        z_coefficients.push(state);
+        z.push(state);
 
         // Accumulate by successively multiplying the scalars
         // Non-parallelizable?
         for s in product_argument {
             state *= s;
-            z_coefficients.push(state);
+            z.push(state);
         }
 
-        z_coefficients
+        z.pop();
+        assert_eq!(n, z.len());
+
+        Polynomial::from_coefficients_vec(domain.ifft(&z))
     }
 }
 
@@ -736,22 +741,25 @@ mod test {
         let beta = Fr::random(&mut rand::thread_rng());
         let gamma = Fr::random(&mut rand::thread_rng());
 
-        let mz = Polynomial::from_coefficients_vec(domain.ifft(
-            &cs.perm.multizip_compute_permutation_poly(
-                &domain,
-                (&w_l_scalar, &w_r_scalar, &w_o_scalar, &w_4_scalar),
-                &beta,
-                &gamma,
-                (&sigmas[0], &sigmas[1], &sigmas[2], &sigmas[3]),
-            ),
-        ));
-
         let sigma_polys: Vec<Polynomial> = sigmas
             .iter()
             .map(|v| Polynomial::from_coefficients_vec(domain.ifft(&v)))
             .collect();
 
-        let old_z = cs.perm.compute_fast_permutation_poly(
+        let mz = cs.perm.compute_permutation_poly(
+                &domain,
+                (&w_l_scalar, &w_r_scalar, &w_o_scalar, &w_4_scalar),
+                &beta,
+                &gamma,
+                (
+                    &sigma_polys[0],
+                    &sigma_polys[1],
+                    &sigma_polys[2],
+                    &sigma_polys[3],
+                ),
+        );
+
+        let old_z = Polynomial::from_coefficients_vec(domain.ifft(&cs.perm.compute_fast_permutation_poly(
             &domain,
             &w_l_scalar,
             &w_r_scalar,
@@ -765,9 +773,9 @@ mod test {
                 &sigma_polys[2],
                 &sigma_polys[3],
             ),
-        );
+        )));
 
-        assert!(mz == Polynomial::from_coefficients_vec(domain.ifft(&old_z)));
+        assert!(mz == old_z);
     }
 
     #[test]
