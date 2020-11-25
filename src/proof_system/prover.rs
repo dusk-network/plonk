@@ -1,5 +1,8 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
 // Copyright (c) DUSK NETWORK. All rights reserved.
-// Licensed under the MPL 2.0 license. See LICENSE file in the project root for details.
 
 use super::proof_system_errors::ProofErrors;
 use crate::commitment_scheme::kzg10::CommitKey;
@@ -9,7 +12,7 @@ use crate::proof_system::widget::ProverKey;
 use crate::proof_system::{linearisation_poly, proof::Proof, quotient_poly};
 use crate::transcript::TranscriptProtocol;
 use anyhow::{Error, Result};
-use dusk_bls12_381::Scalar;
+use dusk_bls12_381::BlsScalar;
 use merlin::Transcript;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
@@ -93,7 +96,7 @@ impl Prover {
         t_2_poly: &Polynomial,
         t_3_poly: &Polynomial,
         t_4_poly: &Polynomial,
-        z_challenge: &Scalar,
+        z_challenge: &BlsScalar,
     ) -> Polynomial {
         // Compute z^n , z^2n , z^3n
         let z_n = z_challenge.pow(&[n as u64, 0, 0, 0]);
@@ -108,7 +111,7 @@ impl Prover {
         &abc + &d
     }
     /// Convert variables to their actual witness values.
-    pub(crate) fn to_scalars(&self, vars: &[Variable]) -> Vec<Scalar> {
+    pub(crate) fn to_scalars(&self, vars: &[Variable]) -> Vec<BlsScalar> {
         vars.par_iter().map(|var| self.cs.variables[var]).collect()
     }
     /// Resets the witnesses in the prover object.
@@ -149,9 +152,9 @@ impl Prover {
 
         //1. Compute witness Polynomials
         //
-        // Convert Variables to Scalars padding them to the
+        // Convert Variables to BlsScalars padding them to the
         // correct domain size.
-        let pad = vec![Scalar::zero(); domain.size() - self.cs.w_l.len()];
+        let pad = vec![BlsScalar::zero(); domain.size() - self.cs.w_l.len()];
         let w_l_scalar = &[&self.to_scalars(&self.cs.w_l)[..], &pad].concat();
         let w_r_scalar = &[&self.to_scalars(&self.cs.w_r)[..], &pad].concat();
         let w_o_scalar = &[&self.to_scalars(&self.cs.w_o)[..], &pad].concat();

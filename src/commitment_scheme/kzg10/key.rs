@@ -1,5 +1,8 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
 // Copyright (c) DUSK NETWORK. All rights reserved.
-// Licensed under the MPL 2.0 license. See LICENSE file in the project root for details.
 
 //! Key module contains the utilities and data structures
 //! that support the generation and usage of Commit and
@@ -8,7 +11,7 @@ use super::{errors::KZG10Errors, AggregateProof, Commitment, Proof};
 use crate::{fft::Polynomial, transcript::TranscriptProtocol, util};
 use anyhow::{Error, Result};
 use dusk_bls12_381::{
-    multiscalar_mul::msm_variable_base, G1Affine, G1Projective, G2Affine, G2Prepared, Scalar,
+    multiscalar_mul::msm_variable_base, BlsScalar, G1Affine, G1Projective, G2Affine, G2Prepared,
 };
 use merlin::Transcript;
 
@@ -119,7 +122,7 @@ impl CommitKey {
     /// However we note that the quotient polynomial is invariant under the value f(z)
     /// ie. only the remainder changes. We can therefore compute the witness as f(x) / x - z
     /// and only use the remainder term f(z) during verification.
-    pub fn compute_single_witness(&self, polynomial: &Polynomial, point: &Scalar) -> Polynomial {
+    pub fn compute_single_witness(&self, polynomial: &Polynomial, point: &BlsScalar) -> Polynomial {
         // Computes `f(x) / x-z`, returning it as the witness poly
         polynomial.ruffini(*point)
     }
@@ -130,7 +133,7 @@ impl CommitKey {
     pub(crate) fn compute_aggregate_witness(
         &self,
         polynomials: &[Polynomial],
-        point: &Scalar,
+        point: &BlsScalar,
         transcript: &mut Transcript,
     ) -> Polynomial {
         let challenge = transcript.challenge_scalar(b"aggregate_witness");
@@ -152,8 +155,8 @@ impl CommitKey {
     pub fn open_single(
         &self,
         polynomial: &Polynomial,
-        value: &Scalar,
-        point: &Scalar,
+        value: &BlsScalar,
+        point: &BlsScalar,
     ) -> Result<Proof, Error> {
         let witness_poly = self.compute_single_witness(polynomial, point);
         Ok(Proof {
@@ -169,8 +172,8 @@ impl CommitKey {
     pub fn open_multiple(
         &self,
         polynomials: &[Polynomial],
-        evaluations: Vec<Scalar>,
-        point: &Scalar,
+        evaluations: Vec<BlsScalar>,
+        point: &BlsScalar,
         transcript: &mut Transcript,
     ) -> Result<AggregateProof, Error> {
         // Commit to polynomials
@@ -240,7 +243,7 @@ impl OpeningKey {
 
     /// Checks that a polynomial `p` was evaluated at a point `z` and returned the value specified `v`.
     /// ie. v = p(z).
-    pub fn check(&self, point: Scalar, proof: Proof) -> bool {
+    pub fn check(&self, point: BlsScalar, proof: Proof) -> bool {
         let inner_a: G1Affine =
             (proof.commitment_to_polynomial.0 - (self.g * proof.evaluated_point)).into();
 
@@ -259,7 +262,7 @@ impl OpeningKey {
     /// Checks whether a batch of polynomials evaluated at different points, returned their specified value.
     pub fn batch_check(
         &self,
-        points: &[Scalar],
+        points: &[BlsScalar],
         proofs: &[Proof],
         transcript: &mut Transcript,
     ) -> Result<(), Error> {
@@ -270,7 +273,7 @@ impl OpeningKey {
         let powers = util::powers_of(&challenge, proofs.len() - 1);
         // Instead of multiplying g and gamma_g in each turn, we simply accumulate
         // their coefficients and perform a final multiplication at the end.
-        let mut g_multiplier = Scalar::zero();
+        let mut g_multiplier = BlsScalar::zero();
 
         for ((proof, challenge), point) in proofs.iter().zip(powers).zip(points) {
             let mut c = G1Projective::from(proof.commitment_to_polynomial.0);
@@ -329,7 +332,7 @@ mod test {
     fn test_basic_commit() {
         let degree = 25;
         let (proving_key, opening_key) = setup_test(degree);
-        let point = Scalar::from(10);
+        let point = BlsScalar::from(10);
 
         let poly = Polynomial::rand(degree, &mut rand::thread_rng());
         let value = poly.evaluate(&point);
@@ -344,8 +347,8 @@ mod test {
         let degree = 25;
         let (proving_key, vk) = setup_test(degree);
 
-        let point_a = Scalar::from(10);
-        let point_b = Scalar::from(11);
+        let point_a = BlsScalar::from(10);
+        let point_b = BlsScalar::from(11);
 
         // Compute secret polynomial a
         let poly_a = Polynomial::rand(degree, &mut rand::thread_rng());
@@ -375,7 +378,7 @@ mod test {
     fn test_aggregate_witness() {
         let max_degree = 27;
         let (proving_key, opening_key) = setup_test(max_degree);
-        let point = Scalar::from(10);
+        let point = BlsScalar::from(10);
 
         // Committer's View
         let aggregated_proof = {
@@ -412,8 +415,8 @@ mod test {
     fn test_batch_with_aggregation() {
         let max_degree = 28;
         let (proving_key, opening_key) = setup_test(max_degree);
-        let point_a = Scalar::from(10);
-        let point_b = Scalar::from(11);
+        let point_a = BlsScalar::from(10);
+        let point_b = BlsScalar::from(11);
 
         // Committer's View
         let (aggregated_proof, single_proof) = {

@@ -1,16 +1,19 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
 // Copyright (c) DUSK NETWORK. All rights reserved.
-// Licensed under the MPL 2.0 license. See LICENSE file in the project root for details.
 
 use crate::constraint_system::ecc::curve_addition::fixed_base_gate::WnafRound;
 use crate::constraint_system::ecc::{Point, PointScalar};
 use crate::constraint_system::{variable::Variable, StandardComposer};
-use dusk_bls12_381::Scalar as BlsScalar;
-use dusk_jubjub::{AffinePoint, ExtendedPoint, Fr as JubJubScalar};
+use dusk_bls12_381::BlsScalar;
+use dusk_jubjub::{JubJubAffine, JubJubExtended, JubJubScalar};
 
-fn compute_wnaf_point_multiples(generator: ExtendedPoint, num_bits: usize) -> Vec<AffinePoint> {
+fn compute_wnaf_point_multiples(generator: JubJubExtended, num_bits: usize) -> Vec<JubJubAffine> {
     assert!(generator.is_prime_order().unwrap_u8() == 1);
 
-    let mut multiples = vec![ExtendedPoint::default(); num_bits];
+    let mut multiples = vec![JubJubExtended::default(); num_bits];
     multiples[0] = generator;
     for i in 1..num_bits {
         multiples[i] = multiples[i - 1].double();
@@ -19,11 +22,11 @@ fn compute_wnaf_point_multiples(generator: ExtendedPoint, num_bits: usize) -> Ve
     dusk_jubjub::batch_normalize(&mut multiples).collect()
 }
 
-/// Computes a Scalar multiplication with the input scalar and a chosen generator
+/// Computes a BlsScalar multiplication with the input scalar and a chosen generator
 pub fn scalar_mul(
     composer: &mut StandardComposer,
     jubjub_scalar: Variable,
-    generator: ExtendedPoint,
+    generator: JubJubExtended,
 ) -> PointScalar {
     // XXX: we can slice off 3 bits from the top of wnaf, since F_r prime has 252 bits.
     // XXX :We can also move to base4 and have half the number of gates since wnaf adjacent entries product is zero, we will not go over the specified amount
@@ -45,8 +48,8 @@ pub fn scalar_mul(
     // Initialise the accumulators
     let mut scalar_acc: Vec<BlsScalar> = Vec::new();
     scalar_acc.push(BlsScalar::zero());
-    let mut point_acc: Vec<AffinePoint> = Vec::new();
-    point_acc.push(AffinePoint::identity());
+    let mut point_acc: Vec<JubJubAffine> = Vec::new();
+    point_acc.push(JubJubAffine::identity());
 
     // Auxillary point to help with checks on the backend
     let mut xy_alphas = Vec::new();
@@ -55,7 +58,7 @@ pub fn scalar_mul(
     for (i, entry) in wnaf_entries.iter().rev().enumerate() {
         // Based on the WNAF, we decide what scalar and point to add
         let (scalar_to_add, point_to_add) = match entry {
-            0 => { (BlsScalar::zero(), AffinePoint::identity())},
+            0 => { (BlsScalar::zero(), JubJubAffine::identity())},
             -1 => {(BlsScalar::one().neg(), -point_multiples[i])},
             1 => {(BlsScalar::one(), point_multiples[i])},
             _ => unreachable!("Currently WNAF_2(k) is supported. The possible values are 1, -1 and 0. Current entry is {}", entry),
@@ -64,7 +67,7 @@ pub fn scalar_mul(
         let prev_accumulator = BlsScalar::from(2u64) * scalar_acc[i];
         scalar_acc.push(prev_accumulator + scalar_to_add);
         point_acc
-            .push((ExtendedPoint::from(point_acc[i]) + ExtendedPoint::from(point_to_add)).into());
+            .push((JubJubExtended::from(point_acc[i]) + JubJubExtended::from(point_to_add)).into());
 
         let x_alpha = point_to_add.get_x();
         let y_alpha = point_to_add.get_y();
@@ -154,7 +157,8 @@ mod tests {
                 let bls_scalar = BlsScalar::from_bytes(&scalar.to_bytes()).unwrap();
                 let secret_scalar = composer.add_input(bls_scalar);
 
-                let expected_point: AffinePoint = (ExtendedPoint::from(GENERATOR) * scalar).into();
+                let expected_point: JubJubAffine =
+                    (JubJubExtended::from(GENERATOR) * scalar).into();
 
                 let point_scalar = scalar_mul(composer, secret_scalar, GENERATOR.into());
 
@@ -173,7 +177,8 @@ mod tests {
                 let bls_scalar = BlsScalar::from_bytes(&scalar.to_bytes()).unwrap();
                 let secret_scalar = composer.add_input(bls_scalar);
 
-                let expected_point: AffinePoint = (ExtendedPoint::from(GENERATOR) * scalar).into();
+                let expected_point: JubJubAffine =
+                    (JubJubExtended::from(GENERATOR) * scalar).into();
 
                 let point_scalar = scalar_mul(composer, secret_scalar, GENERATOR.into());
 
@@ -192,9 +197,9 @@ mod tests {
                 let secret_scalar = composer.add_input(bls_scalar);
                 // Fails because we are not multiplying by the GENERATOR, it is double
 
-                let double_gen = ExtendedPoint::from(GENERATOR).double();
+                let double_gen = JubJubExtended::from(GENERATOR).double();
 
-                let expected_point: AffinePoint = (double_gen * scalar).into();
+                let expected_point: JubJubAffine = (double_gen * scalar).into();
 
                 let point_scalar = scalar_mul(composer, secret_scalar, GENERATOR.into());
 
@@ -209,13 +214,13 @@ mod tests {
     fn test_point_addition() {
         let res = gadget_tester(
             |composer| {
-                let point_a = ExtendedPoint::from(GENERATOR);
+                let point_a = JubJubExtended::from(GENERATOR);
                 let point_b = point_a.double();
                 let expected_point = point_a + point_b;
 
-                let affine_point_a: AffinePoint = point_a.into();
-                let affine_point_b: AffinePoint = point_b.into();
-                let affine_expected_point: AffinePoint = expected_point.into();
+                let affine_point_a: JubJubAffine = point_a.into();
+                let affine_point_b: JubJubAffine = point_b.into();
+                let affine_expected_point: JubJubAffine = expected_point.into();
 
                 let var_point_a_x = composer.add_input(affine_point_a.get_x());
                 let var_point_a_y = composer.add_input(affine_point_a.get_y());
@@ -247,18 +252,18 @@ mod tests {
                 let scalar_a = JubJubScalar::from(112233u64);
                 let bls_scalar = BlsScalar::from_bytes(&scalar_a.to_bytes()).unwrap();
                 let secret_scalar_a = composer.add_input(bls_scalar);
-                let point_a = ExtendedPoint::from(GENERATOR);
-                let c_a: AffinePoint = (point_a * scalar_a).into();
+                let point_a = JubJubExtended::from(GENERATOR);
+                let c_a: JubJubAffine = (point_a * scalar_a).into();
 
                 // Second component
                 let scalar_b = JubJubScalar::from(445566u64);
                 let bls_scalar = BlsScalar::from_bytes(&scalar_b.to_bytes()).unwrap();
                 let secret_scalar_b = composer.add_input(bls_scalar);
                 let point_b = point_a.double() + point_a;
-                let c_b: AffinePoint = (point_b * scalar_b).into();
+                let c_b: JubJubAffine = (point_b * scalar_b).into();
 
                 // Expected pedersen hash
-                let expected_point: AffinePoint = (point_a * scalar_a + point_b * scalar_b).into();
+                let expected_point: JubJubAffine = (point_a * scalar_a + point_b * scalar_b).into();
 
                 // To check this pedersen commitment, we will need to do:
                 // - Two scalar multiplications
@@ -305,9 +310,9 @@ mod tests {
                 let bls_scalar_d = BlsScalar::from_bytes(&scalar_d.to_bytes()).unwrap();
                 let secret_scalar_d = composer.add_input(bls_scalar_d);
 
-                let gen = ExtendedPoint::from(GENERATOR);
-                let expected_lhs: AffinePoint = (gen * (scalar_a + scalar_b)).into();
-                let expected_rhs: AffinePoint = (gen * (scalar_c + scalar_d)).into();
+                let gen = JubJubExtended::from(GENERATOR);
+                let expected_lhs: JubJubAffine = (gen * (scalar_a + scalar_b)).into();
+                let expected_rhs: JubJubAffine = (gen * (scalar_c + scalar_d)).into();
 
                 let P1 = scalar_mul(composer, secret_scalar_a, gen);
                 let P2 = scalar_mul(composer, secret_scalar_b, gen);

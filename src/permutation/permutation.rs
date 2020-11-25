@@ -1,11 +1,14 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
 // Copyright (c) DUSK NETWORK. All rights reserved.
-// Licensed under the MPL 2.0 license. See LICENSE file in the project root for details.
 
 #![allow(clippy::too_many_arguments)]
 use super::constants::{K1, K2, K3};
 use crate::constraint_system::{Variable, WireData};
 use crate::fft::{EvaluationDomain, Polynomial};
-use dusk_bls12_381::Scalar;
+use dusk_bls12_381::BlsScalar;
 use itertools::izip;
 use rayon::iter::*;
 use std::collections::HashMap;
@@ -127,10 +130,10 @@ impl Permutation {
         &self,
         sigma_mapping: &[WireData],
         domain: &EvaluationDomain,
-    ) -> Vec<Scalar> {
+    ) -> Vec<BlsScalar> {
         let roots: Vec<_> = domain.elements().collect();
 
-        let lagrange_poly: Vec<Scalar> = sigma_mapping
+        let lagrange_poly: Vec<BlsScalar> = sigma_mapping
             .iter()
             .map(|x| match x {
                 WireData::Left(index) => {
@@ -191,11 +194,11 @@ impl Permutation {
     pub(crate) fn compute_permutation_poly(
         &self,
         domain: &EvaluationDomain,
-        w_l: &[Scalar],
-        w_r: &[Scalar],
-        w_o: &[Scalar],
-        w_4: &[Scalar],
-        (beta, gamma): &(Scalar, Scalar),
+        w_l: &[BlsScalar],
+        w_r: &[BlsScalar],
+        w_o: &[BlsScalar],
+        w_4: &[BlsScalar],
+        (beta, gamma): &(BlsScalar, BlsScalar),
         (left_sigma_poly, right_sigma_poly, out_sigma_poly, fourth_sigma_poly): (
             &Polynomial,
             &Polynomial,
@@ -229,17 +232,17 @@ impl Permutation {
         w_r: I,
         w_o: I,
         w_4: I,
-        beta: &Scalar,
-        gamma: &Scalar,
+        beta: &BlsScalar,
+        gamma: &BlsScalar,
         (left_sigma_poly, right_sigma_poly, out_sigma_poly, fourth_sigma_poly): (
             &Polynomial,
             &Polynomial,
             &Polynomial,
             &Polynomial,
         ),
-    ) -> (Vec<Scalar>, Vec<Scalar>, Vec<Scalar>)
+    ) -> (Vec<BlsScalar>, Vec<BlsScalar>, Vec<BlsScalar>)
     where
-        I: Iterator<Item = Scalar>,
+        I: Iterator<Item = BlsScalar>,
     {
         let n = domain.size();
 
@@ -278,15 +281,15 @@ impl Permutation {
         // Compute fourth_wire + gamma
         let w_4_gamma: Vec<_> = w_4.map(|w| w + gamma).collect();
 
-        let mut numerator_partial_components: Vec<Scalar> = Vec::with_capacity(n);
-        let mut denominator_partial_components: Vec<Scalar> = Vec::with_capacity(n);
+        let mut numerator_partial_components: Vec<BlsScalar> = Vec::with_capacity(n);
+        let mut denominator_partial_components: Vec<BlsScalar> = Vec::with_capacity(n);
 
-        let mut numerator_coefficients: Vec<Scalar> = Vec::with_capacity(n);
-        let mut denominator_coefficients: Vec<Scalar> = Vec::with_capacity(n);
+        let mut numerator_coefficients: Vec<BlsScalar> = Vec::with_capacity(n);
+        let mut denominator_coefficients: Vec<BlsScalar> = Vec::with_capacity(n);
 
         // First element in both of them is one
-        numerator_coefficients.push(Scalar::one());
-        denominator_coefficients.push(Scalar::one());
+        numerator_coefficients.push(BlsScalar::one());
+        denominator_coefficients.push(BlsScalar::one());
 
         // Compute numerator coefficients
         for (
@@ -377,10 +380,10 @@ impl Permutation {
 
         // Check that n+1'th elements are equal (taken from proof)
         let a = numerator_coefficients.last().unwrap();
-        assert_ne!(a, &Scalar::zero());
+        assert_ne!(a, &BlsScalar::zero());
         let b = denominator_coefficients.last().unwrap();
-        assert_ne!(b, &Scalar::zero());
-        assert_eq!(*a * b.invert().unwrap(), Scalar::one());
+        assert_ne!(b, &BlsScalar::zero());
+        assert_eq!(*a * b.invert().unwrap(), BlsScalar::one());
 
         // Remove those extra elements
         numerator_coefficients.remove(n);
@@ -388,7 +391,7 @@ impl Permutation {
 
         // Combine numerator and denominator
 
-        let mut z_coefficients: Vec<Scalar> = Vec::with_capacity(n);
+        let mut z_coefficients: Vec<BlsScalar> = Vec::with_capacity(n);
         for (numerator, denominator) in numerator_coefficients
             .iter()
             .zip(denominator_coefficients.iter())
@@ -407,23 +410,23 @@ impl Permutation {
     fn compute_fast_permutation_poly(
         &self,
         domain: &EvaluationDomain,
-        w_l: &[Scalar],
-        w_r: &[Scalar],
-        w_o: &[Scalar],
-        w_4: &[Scalar],
-        beta: &Scalar,
-        gamma: &Scalar,
+        w_l: &[BlsScalar],
+        w_r: &[BlsScalar],
+        w_o: &[BlsScalar],
+        w_4: &[BlsScalar],
+        beta: &BlsScalar,
+        gamma: &BlsScalar,
         (left_sigma_poly, right_sigma_poly, out_sigma_poly, fourth_sigma_poly): (
             &Polynomial,
             &Polynomial,
             &Polynomial,
             &Polynomial,
         ),
-    ) -> Vec<Scalar> {
+    ) -> Vec<BlsScalar> {
         let n = domain.size();
 
         // Compute beta * roots
-        let common_roots: Vec<Scalar> = domain.elements().map(|root| root * beta).collect();
+        let common_roots: Vec<BlsScalar> = domain.elements().map(|root| root * beta).collect();
 
         let left_sigma_mapping = domain.fft(&left_sigma_poly);
         let right_sigma_mapping = domain.fft(&right_sigma_poly);
@@ -532,14 +535,14 @@ impl Permutation {
 
         // Prepend ones to the beginning of each accumulator to signify L_1(x)
         let accumulator_components = std::iter::once((
-            Scalar::one(),
-            Scalar::one(),
-            Scalar::one(),
-            Scalar::one(),
-            Scalar::one(),
-            Scalar::one(),
-            Scalar::one(),
-            Scalar::one(),
+            BlsScalar::one(),
+            BlsScalar::one(),
+            BlsScalar::one(),
+            BlsScalar::one(),
+            BlsScalar::one(),
+            BlsScalar::one(),
+            BlsScalar::one(),
+            BlsScalar::one(),
         ))
         .chain(accumulator_components_without_l1);
 
@@ -549,14 +552,14 @@ impl Permutation {
         // result = [1, 1*2, 1*2*3, 1*2*3*4]
         // Non Parallelisable
         let mut prev = (
-            Scalar::one(),
-            Scalar::one(),
-            Scalar::one(),
-            Scalar::one(),
-            Scalar::one(),
-            Scalar::one(),
-            Scalar::one(),
-            Scalar::one(),
+            BlsScalar::one(),
+            BlsScalar::one(),
+            BlsScalar::one(),
+            BlsScalar::one(),
+            BlsScalar::one(),
+            BlsScalar::one(),
+            BlsScalar::one(),
+            BlsScalar::one(),
         );
         let product_acumulated_components: Vec<_> = accumulator_components
             .map(move |current_component| {
@@ -584,7 +587,7 @@ impl Permutation {
         let mut z: Vec<_> = product_acumulated_components
             .par_iter()
             .map(move |current_component| {
-                let mut prev = Scalar::one();
+                let mut prev = BlsScalar::one();
                 prev *= current_component.0;
                 prev *= current_component.1;
                 prev *= current_component.2;
@@ -610,7 +613,7 @@ impl Permutation {
 mod test {
     use super::*;
     use crate::fft::Polynomial;
-    use dusk_bls12_381::Scalar as Fr;
+    use dusk_bls12_381::BlsScalar as Fr;
 
     #[test]
     fn test_permutation_format() {
@@ -1045,12 +1048,12 @@ mod test {
     }
 }
 
-// bls_12-381 library does not provide a `random` method for Scalar
+// bls_12-381 library does not provide a `random` method for BlsScalar
 // We wil use this helper function to compensate
 use rand_core::RngCore;
 #[allow(dead_code)]
-pub(crate) fn random_scalar<R: RngCore>(rng: &mut R) -> Scalar {
-    Scalar::from_raw([
+pub(crate) fn random_scalar<R: RngCore>(rng: &mut R) -> BlsScalar {
+    BlsScalar::from_raw([
         rng.next_u64(),
         rng.next_u64(),
         rng.next_u64(),

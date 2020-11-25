@@ -1,5 +1,8 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
 // Copyright (c) DUSK NETWORK. All rights reserved.
-// Licensed under the MPL 2.0 license. See LICENSE file in the project root for details.
 
 pub mod arithmetic;
 pub mod ecc;
@@ -243,7 +246,7 @@ impl ProverKey {
         write_polynomial(&self.range.q_range.0, &mut bytes);
         write_evaluations(&self.range.q_range.1, &mut bytes);
 
-        // Scalar multiplication
+        // BlsScalar multiplication
         write_polynomial(&self.fixed_base.q_fixed_group_add.0, &mut bytes);
         write_evaluations(&self.fixed_base.q_fixed_group_add.1, &mut bytes);
 
@@ -411,7 +414,7 @@ impl ProverKey {
 mod test {
     use super::*;
     use crate::fft::{EvaluationDomain, Polynomial};
-    use dusk_bls12_381::Scalar;
+    use dusk_bls12_381::BlsScalar;
 
     fn rand_poly_eval(n: usize) -> (Polynomial, Evaluations) {
         let polynomial = Polynomial::rand(n, &mut rand::thread_rng());
@@ -421,7 +424,7 @@ mod test {
     fn rand_evaluations(n: usize) -> Evaluations {
         let domain = EvaluationDomain::new(4 * n).unwrap();
         let values: Vec<_> = (0..4 * n)
-            .map(|_| Scalar::random(&mut rand::thread_rng()))
+            .map(|_| BlsScalar::random(&mut rand::thread_rng()))
             .collect();
         let evaluations = Evaluations::from_vec_and_domain(values, domain);
         evaluations

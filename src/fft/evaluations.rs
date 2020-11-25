@@ -1,25 +1,28 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
 // Copyright (c) DUSK NETWORK. All rights reserved.
-// Licensed under the MPL 2.0 license. See LICENSE file in the project root for details.
 
 //! A polynomial represented in evaluations form over a domain of size 2^n.
 
 use super::domain::EvaluationDomain;
 use super::polynomial::Polynomial;
 use core::ops::{Add, AddAssign, DivAssign, Index, Mul, MulAssign, Sub, SubAssign};
-use dusk_bls12_381::Scalar;
+use dusk_bls12_381::BlsScalar;
 
 /// Stores a polynomial in evaluation form.
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct Evaluations {
     /// The evaluations of a polynomial over the domain `D`
-    pub evals: Vec<Scalar>,
+    pub evals: Vec<BlsScalar>,
     #[doc(hidden)]
     domain: EvaluationDomain,
 }
 
 impl Evaluations {
     /// Construct `Self` from evaluations and a domain.
-    pub fn from_vec_and_domain(evals: Vec<Scalar>, domain: EvaluationDomain) -> Self {
+    pub fn from_vec_and_domain(evals: Vec<BlsScalar>, domain: EvaluationDomain) -> Self {
         Self { evals, domain }
     }
 
@@ -37,9 +40,9 @@ impl Evaluations {
 }
 
 impl Index<usize> for Evaluations {
-    type Output = Scalar;
+    type Output = BlsScalar;
 
-    fn index(&self, index: usize) -> &Scalar {
+    fn index(&self, index: usize) -> &BlsScalar {
         &self.evals[index]
     }
 }

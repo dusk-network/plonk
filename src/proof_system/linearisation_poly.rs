@@ -1,79 +1,80 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
 // Copyright (c) DUSK NETWORK. All rights reserved.
-// Licensed under the MPL 2.0 license. See LICENSE file in the project root for details.
 
 use crate::fft::{EvaluationDomain, Polynomial};
 use crate::proof_system::widget::ProverKey;
 use anyhow::{Error, Result};
-use dusk_bls12_381::Scalar;
+use dusk_bls12_381::BlsScalar;
 /// Evaluations at points `z` or and `z * root of unity`
 pub struct Evaluations {
     pub proof: ProofEvaluations,
     // Evaluation of the linearisation sigma polynomial at `z`
-    pub quot_eval: Scalar,
+    pub quot_eval: BlsScalar,
 }
 
 /// Proof Evaluations is a subset of all of the evaluations. These evaluations will be added to the proof
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct ProofEvaluations {
     // Evaluation of the witness polynomial for the left wire at `z`
-    pub a_eval: Scalar,
+    pub a_eval: BlsScalar,
     // Evaluation of the witness polynomial for the right wire at `z`
-    pub b_eval: Scalar,
+    pub b_eval: BlsScalar,
     // Evaluation of the witness polynomial for the output wire at `z`
-    pub c_eval: Scalar,
+    pub c_eval: BlsScalar,
     // Evaluation of the witness polynomial for the fourth wire at `z`
-    pub d_eval: Scalar,
+    pub d_eval: BlsScalar,
     //
-    pub a_next_eval: Scalar,
+    pub a_next_eval: BlsScalar,
     //
-    pub b_next_eval: Scalar,
+    pub b_next_eval: BlsScalar,
     // Evaluation of the witness polynomial for the fourth wire at `z * root of unity`
-    pub d_next_eval: Scalar,
+    pub d_next_eval: BlsScalar,
     // Evaluation of the arithmetic selector polynomial at `z`
-    pub q_arith_eval: Scalar,
+    pub q_arith_eval: BlsScalar,
     //
-    pub q_c_eval: Scalar,
+    pub q_c_eval: BlsScalar,
     //
-    pub q_l_eval: Scalar,
+    pub q_l_eval: BlsScalar,
     //
-    pub q_r_eval: Scalar,
+    pub q_r_eval: BlsScalar,
     // Evaluation of the left sigma polynomial at `z`
-    pub left_sigma_eval: Scalar,
+    pub left_sigma_eval: BlsScalar,
     // Evaluation of the right sigma polynomial at `z`
-    pub right_sigma_eval: Scalar,
+    pub right_sigma_eval: BlsScalar,
     // Evaluation of the out sigma polynomial at `z`
-    pub out_sigma_eval: Scalar,
+    pub out_sigma_eval: BlsScalar,
 
     // Evaluation of the linearisation sigma polynomial at `z`
-    pub lin_poly_eval: Scalar,
+    pub lin_poly_eval: BlsScalar,
 
     // (Shifted) Evaluation of the permutation polynomial at `z * root of unity`
-    pub perm_eval: Scalar,
+    pub perm_eval: BlsScalar,
 }
 
 impl ProofEvaluations {
     /// Serialises a Proof Evaluation struct to bytes
-    pub fn to_bytes(&self) -> Vec<u8> {
-        use crate::serialisation::write_scalar;
+    pub fn to_bytes(&self) -> [u8; ProofEvaluations::serialised_size()] {
+        let mut bytes = [0u8; ProofEvaluations::serialised_size()];
 
-        let mut bytes = Vec::with_capacity(ProofEvaluations::serialised_size());
-
-        write_scalar(&self.a_eval, &mut bytes);
-        write_scalar(&self.b_eval, &mut bytes);
-        write_scalar(&self.c_eval, &mut bytes);
-        write_scalar(&self.d_eval, &mut bytes);
-        write_scalar(&self.a_next_eval, &mut bytes);
-        write_scalar(&self.b_next_eval, &mut bytes);
-        write_scalar(&self.d_next_eval, &mut bytes);
-        write_scalar(&self.q_arith_eval, &mut bytes);
-        write_scalar(&self.q_c_eval, &mut bytes);
-        write_scalar(&self.q_l_eval, &mut bytes);
-        write_scalar(&self.q_r_eval, &mut bytes);
-        write_scalar(&self.left_sigma_eval, &mut bytes);
-        write_scalar(&self.right_sigma_eval, &mut bytes);
-        write_scalar(&self.out_sigma_eval, &mut bytes);
-        write_scalar(&self.lin_poly_eval, &mut bytes);
-        write_scalar(&self.perm_eval, &mut bytes);
+        bytes[0..32].copy_from_slice(&self.a_eval.to_bytes()[..]);
+        bytes[32..64].copy_from_slice(&self.b_eval.to_bytes()[..]);
+        bytes[64..96].copy_from_slice(&self.c_eval.to_bytes()[..]);
+        bytes[96..128].copy_from_slice(&self.d_eval.to_bytes()[..]);
+        bytes[128..160].copy_from_slice(&self.a_next_eval.to_bytes()[..]);
+        bytes[160..192].copy_from_slice(&self.b_next_eval.to_bytes()[..]);
+        bytes[192..224].copy_from_slice(&self.d_next_eval.to_bytes()[..]);
+        bytes[224..256].copy_from_slice(&self.q_arith_eval.to_bytes()[..]);
+        bytes[256..288].copy_from_slice(&self.q_c_eval.to_bytes()[..]);
+        bytes[288..320].copy_from_slice(&self.q_l_eval.to_bytes()[..]);
+        bytes[320..352].copy_from_slice(&self.q_r_eval.to_bytes()[..]);
+        bytes[352..384].copy_from_slice(&self.left_sigma_eval.to_bytes()[..]);
+        bytes[384..416].copy_from_slice(&self.right_sigma_eval.to_bytes()[..]);
+        bytes[416..448].copy_from_slice(&self.out_sigma_eval.to_bytes()[..]);
+        bytes[448..480].copy_from_slice(&self.lin_poly_eval.to_bytes()[..]);
+        bytes[480..512].copy_from_slice(&self.perm_eval.to_bytes()[..]);
 
         bytes
     }
@@ -123,7 +124,7 @@ impl ProofEvaluations {
         Ok(proof_evals)
     }
 
-    pub(crate) const fn serialised_size() -> usize {
+    pub const fn serialised_size() -> usize {
         const NUM_SCALARS: usize = 16;
         const SCALAR_SIZE: usize = 32;
         NUM_SCALARS * SCALAR_SIZE
@@ -144,7 +145,16 @@ pub fn compute(
         fixed_base_separation_challenge,
         var_base_separation_challenge,
         z_challenge,
-    ): &(Scalar, Scalar, Scalar, Scalar, Scalar, Scalar, Scalar,Scalar),
+    ): &(
+        BlsScalar,
+        BlsScalar,
+        BlsScalar,
+        BlsScalar,
+        BlsScalar,
+        BlsScalar,
+        BlsScalar,
+        BlsScalar,
+    ),
     w_l_poly: &Polynomial,
     w_r_poly: &Polynomial,
     w_o_poly: &Polynomial,
@@ -234,23 +244,23 @@ pub fn compute(
 
 #[allow(clippy::too_many_arguments)]
 fn compute_circuit_satisfiability(
-    (range_separation_challenge, logic_separation_challenge, fixed_base_separation_challenge,var_base_separation_challenge): (
-        &Scalar,
-        &Scalar,
-        &Scalar,
-        &Scalar,
-    ),
-    a_eval: &Scalar,
-    b_eval: &Scalar,
-    c_eval: &Scalar,
-    d_eval: &Scalar,
-    a_next_eval: &Scalar,
-    b_next_eval: &Scalar,
-    d_next_eval: &Scalar,
-    q_arith_eval: &Scalar,
-    q_c_eval: &Scalar,
-    q_l_eval: &Scalar,
-    q_r_eval: &Scalar,
+    (
+        range_separation_challenge,
+        logic_separation_challenge,
+        fixed_base_separation_challenge,
+        var_base_separation_challenge,
+    ): (&BlsScalar, &BlsScalar, &BlsScalar, &BlsScalar),
+    a_eval: &BlsScalar,
+    b_eval: &BlsScalar,
+    c_eval: &BlsScalar,
+    d_eval: &BlsScalar,
+    a_next_eval: &BlsScalar,
+    b_next_eval: &BlsScalar,
+    d_next_eval: &BlsScalar,
+    q_arith_eval: &BlsScalar,
+    q_c_eval: &BlsScalar,
+    q_l_eval: &BlsScalar,
+    q_r_eval: &BlsScalar,
     prover_key: &ProverKey,
 ) -> Polynomial {
     let a =
