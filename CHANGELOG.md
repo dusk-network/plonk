@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Changed `compute_permutation_poly` to simpler version
 
-## [0.3.5] - 26-11-20
+## [0.3.5] - 25-11-20
 ### Changed
 - Changed `Proof` & `ProofEvaluations` byte conversion fn signatures.
 
