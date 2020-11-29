@@ -36,8 +36,8 @@ impl PlookupTable {
     ///
     /// Function takes in two different usize numbers and checks the range
     /// between them, as well as computing the value of their additions.
-    /// These numbers require exponentiation outside, otherwise the range cannot
-    /// start from zero, as 2^0 = 1.
+    /// These numbers require exponentiation outside, for the lower bound,
+    /// otherwise the range cannot start from zero, as 2^0 = 1.
     pub fn add_table(lower_bound: u64, n: u8) -> Self {
         let upper_bound = 2u64.pow(n.into());
 
@@ -69,8 +69,8 @@ impl PlookupTable {
 
     /// Function takes in two different usize numbers and checks the range
     /// between them, as well as computing the value of their XOR operation.
-    /// These numbers require exponentiation outside, otherwise the range cannot
-    /// start from zero, as 2^0 = 1.
+    /// These numbers require exponentiation outside, for the lower bound,
+    /// otherwise the range cannot start from zero, as 2^0 = 1.
     pub fn xor_table(lower_bound: u64, n: u8) -> Self {
         let upper_bound = 2u64.pow(n.into());
 
@@ -102,8 +102,8 @@ impl PlookupTable {
 
     /// Function takes in two different usize numbers and checks the range
     /// between them, as well as computing the value of their product.
-    /// These numbers require exponentiation outside, otherwise the range cannot
-    /// start from zero, as 2^0 = 1.
+    /// These numbers require exponentiation outside, for the lower bound,
+    /// otherwise the range cannot start from zero, as 2^0 = 1.
     pub fn mul_table(lower_bound: u64, n: u8) -> Self {
         let upper_bound = 2u64.pow(n.into());
 
