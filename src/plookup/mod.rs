@@ -4,12 +4,5 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-#![allow(clippy::too_many_arguments)]
-
-use crate::constraint_system::StandardComposer;
-use crate::constraint_system::Variable;
-use dusk_bls12_381::BlsScalar;
-
-impl StandardComposer {
-    // 
-}
+pub mod plookup;
+pub mod table;
