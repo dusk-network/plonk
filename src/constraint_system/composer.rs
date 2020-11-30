@@ -56,6 +56,8 @@ pub struct StandardComposer {
     pub(crate) q_fixed_group_add: Vec<BlsScalar>,
     // Variable base group addition selector
     pub(crate) q_variable_group_add: Vec<BlsScalar>,
+    // Plookup gate wire selector
+    // pub(crate) q_look_up: Vec<BlsScalar>,
 
     /// Public inputs vector
     pub public_inputs: Vec<BlsScalar>,
