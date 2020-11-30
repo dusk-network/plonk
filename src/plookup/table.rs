@@ -134,6 +134,32 @@ impl PlookupTable {
     }
 }
 
+pub struct WitnessTable(pub Vec<[BlsScalar; 4]>);
+
+impl WitnessTable {
+
+    pub from_wire_values(a: Vec<Variable>, b: Vec<Variable>, c: Vec<Variable>, d: Vec<Option<Vec>>) -> f: Vec![Variable] {
+
+        // Build a corresponding table out the a and b inputs of the
+        // same nature, to the one inputted.
+        let f_table = a
+            .iter()
+            .zip(b.iter())
+            .zip(c.iter())
+            .zip(d.iter())
+            .for_each(|(((left, right), output), fourth)| {
+                f_table.push(left);
+            });
+    }
+}
+    
+pub fn get_challenge(&Self) -> BlsScalar {
+
+    }
+
+
+
+
 #[cfg(test)]
 mod test {
     use super::*;
