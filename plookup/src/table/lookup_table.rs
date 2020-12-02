@@ -182,7 +182,7 @@ impl PlookupTable4Arity {
         for a in range.clone() {
             range
                 .clone()
-                .for_each(|b| table.insert_add_row(a, b, upper_bound));
+                .for_each(|b| self.insert_add_row(a, b, upper_bound));
         }
     }
 
@@ -194,7 +194,7 @@ impl PlookupTable4Arity {
         for a in range.clone() {
             range
                 .clone()
-                .for_each(|b| table.insert_mul_row(a, b, upper_bound));
+                .for_each(|b| self.insert_mul_row(a, b, upper_bound));
         }
     }
 
@@ -206,7 +206,7 @@ impl PlookupTable4Arity {
         for a in range.clone() {
             range
                 .clone()
-                .for_each(|b| table.insert_xor_row(a, b, upper_bound));
+                .for_each(|b| self.insert_xor_row(a, b, upper_bound));
         }
     }
 }
@@ -222,7 +222,7 @@ unimplemented!()
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::constraint_system::StandardComposer;
+    use dusk_plonk::constraint_system::StandardComposer;
 
     #[test]
     fn test_add_table() {
