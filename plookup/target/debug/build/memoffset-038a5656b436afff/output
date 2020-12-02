@@ -1,0 +1,4 @@
+cargo:rustc-cfg=tuple_ty
+cargo:rustc-cfg=allow_clippy
+cargo:rustc-cfg=maybe_uninit
+cargo:rustc-cfg=doctests

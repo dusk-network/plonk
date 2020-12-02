@@ -1,0 +1,2 @@
+cargo:rustc-env=TYPENUM_BUILD_CONSTS=/Users/lukepearson/Github/dusk/plonk/plookup/target/debug/build/typenum-080bcb860ceb50f3/out/consts.rs
+cargo:rustc-env=TYPENUM_BUILD_OP=/Users/lukepearson/Github/dusk/plonk/plookup/target/debug/build/typenum-080bcb860ceb50f3/out/op.rs

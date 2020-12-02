@@ -1,0 +1,11 @@
+[package]
+name = "dusk-plookup"
+version = "0.1.0"
+authors = ["Luke Pearson <luke@dusk.network>"] 
+readme = "README.md"
+repository = "https://github.com/dusk-network/plonk"
+license = "MPL-2.0"
+edition = "2018"
+
+[dependencies]
+dusk-plonk = { path = "../" }
