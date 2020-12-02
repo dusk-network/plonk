@@ -22,8 +22,6 @@ pub mod ecc;
 pub(crate) mod helper;
 /// XOR and AND gates
 pub mod logic;
-/// Plookup gate;
-pub mod plookup;
 /// Range gate
 pub mod range;
 
