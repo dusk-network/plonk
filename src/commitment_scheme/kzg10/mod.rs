@@ -1,5 +1,8 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
 // Copyright (c) DUSK NETWORK. All rights reserved.
-// Licensed under the MPL 2.0 license. See LICENSE file in the project root for details.
 
 //! Implementation of the KZG10 polynomial commitment scheme.
 pub mod errors;
@@ -11,7 +14,7 @@ pub use srs::PublicParameters;
 
 use crate::transcript::TranscriptProtocol;
 use crate::util::powers_of;
-use dusk_bls12_381::{G1Affine, G1Projective, Scalar};
+use dusk_bls12_381::{BlsScalar, G1Affine, G1Projective};
 use merlin::Transcript;
 
 #[derive(Copy, Clone, Debug)]
@@ -21,7 +24,7 @@ pub struct Proof {
     /// This is a commitment to the witness polynomial.
     pub commitment_to_witness: Commitment,
     /// This is the result of evaluating a polynomial at the point `z`.
-    pub evaluated_point: Scalar,
+    pub evaluated_point: BlsScalar,
     /// This is the commitment to the polynomial that you want to prove a statement about.
     pub commitment_to_polynomial: Commitment,
 }
@@ -33,7 +36,7 @@ pub struct AggregateProof {
     /// This is a commitment to the aggregated witness polynomial.
     pub commitment_to_witness: Commitment,
     /// These are the results of the evaluating each polynomial at the point `z`.
-    pub evaluated_points: Vec<Scalar>,
+    pub evaluated_points: Vec<BlsScalar>,
     /// These are the commitments to the polynomials which you want to prove a statement about.
     pub commitments_to_polynomials: Vec<Commitment>,
 }
@@ -49,7 +52,7 @@ impl AggregateProof {
     }
 
     /// Adds an evaluated point with the commitment to the polynomial which produced it.
-    pub fn add_part(&mut self, part: (Scalar, Commitment)) {
+    pub fn add_part(&mut self, part: (BlsScalar, Commitment)) {
         self.evaluated_points.push(part.0);
         self.commitments_to_polynomials.push(part.1);
     }
@@ -68,12 +71,12 @@ impl AggregateProof {
             .map(|(poly, challenge)| poly.0 * challenge)
             .sum();
         // Flattened evaluation points
-        let flattened_poly_evaluations: Scalar = self
+        let flattened_poly_evaluations: BlsScalar = self
             .evaluated_points
             .iter()
             .zip(powers.iter())
             .map(|(eval, challenge)| eval * challenge)
-            .fold(Scalar::zero(), |acc, current_val| acc + current_val);
+            .fold(BlsScalar::zero(), |acc, current_val| acc + current_val);
 
         Proof {
             commitment_to_witness: self.commitment_to_witness,

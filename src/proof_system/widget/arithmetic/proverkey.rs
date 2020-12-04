@@ -1,8 +1,11 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
 // Copyright (c) DUSK NETWORK. All rights reserved.
-// Licensed under the MPL 2.0 license. See LICENSE file in the project root for details.
 
 use crate::fft::{Evaluations, Polynomial};
-use dusk_bls12_381::Scalar;
+use dusk_bls12_381::BlsScalar;
 
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub struct ProverKey {
@@ -19,11 +22,11 @@ impl ProverKey {
     pub(crate) fn compute_quotient_i(
         &self,
         index: usize,
-        w_l_i: &Scalar,
-        w_r_i: &Scalar,
-        w_o_i: &Scalar,
-        w_4_i: &Scalar,
-    ) -> Scalar {
+        w_l_i: &BlsScalar,
+        w_r_i: &BlsScalar,
+        w_o_i: &BlsScalar,
+        w_4_i: &BlsScalar,
+    ) -> BlsScalar {
         let q_m_i = &self.q_m.1[index];
         let q_l_i = &self.q_l.1[index];
         let q_r_i = &self.q_r.1[index];
@@ -45,11 +48,11 @@ impl ProverKey {
 
     pub(crate) fn compute_linearisation(
         &self,
-        a_eval: &Scalar,
-        b_eval: &Scalar,
-        c_eval: &Scalar,
-        d_eval: &Scalar,
-        q_arith_eval: &Scalar,
+        a_eval: &BlsScalar,
+        b_eval: &BlsScalar,
+        c_eval: &BlsScalar,
+        d_eval: &BlsScalar,
+        q_arith_eval: &BlsScalar,
     ) -> Polynomial {
         let q_m_poly = &self.q_m.0;
         let q_l_poly = &self.q_l.0;

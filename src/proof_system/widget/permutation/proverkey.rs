@@ -1,10 +1,13 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
 // Copyright (c) DUSK NETWORK. All rights reserved.
-// Licensed under the MPL 2.0 license. See LICENSE file in the project root for details.
 
 #![allow(clippy::too_many_arguments)]
 use crate::fft::{EvaluationDomain, Evaluations, Polynomial};
-use crate::constraint_system::constants::{K1, K2, K3};
-use dusk_bls12_381::Scalar;
+use crate::permutation::constants::{K1, K2, K3};
+use dusk_bls12_381::BlsScalar;
 
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub struct ProverKey {
@@ -19,17 +22,17 @@ impl ProverKey {
     pub(crate) fn compute_quotient_i(
         &self,
         index: usize,
-        w_l_i: &Scalar,
-        w_r_i: &Scalar,
-        w_o_i: &Scalar,
-        w_4_i: &Scalar,
-        z_i: &Scalar,
-        z_i_next: &Scalar,
-        alpha: &Scalar,
-        l1_alpha_sq: &Scalar,
-        beta: &Scalar,
-        gamma: &Scalar,
-    ) -> Scalar {
+        w_l_i: &BlsScalar,
+        w_r_i: &BlsScalar,
+        w_o_i: &BlsScalar,
+        w_4_i: &BlsScalar,
+        z_i: &BlsScalar,
+        z_i_next: &BlsScalar,
+        alpha: &BlsScalar,
+        l1_alpha_sq: &BlsScalar,
+        beta: &BlsScalar,
+        gamma: &BlsScalar,
+    ) -> BlsScalar {
         let a = self.compute_quotient_identity_range_check_i(
             index, w_l_i, w_r_i, w_o_i, w_4_i, z_i, alpha, beta, gamma,
         );
@@ -43,15 +46,15 @@ impl ProverKey {
     fn compute_quotient_identity_range_check_i(
         &self,
         index: usize,
-        w_l_i: &Scalar,
-        w_r_i: &Scalar,
-        w_o_i: &Scalar,
-        w_4_i: &Scalar,
-        z_i: &Scalar,
-        alpha: &Scalar,
-        beta: &Scalar,
-        gamma: &Scalar,
-    ) -> Scalar {
+        w_l_i: &BlsScalar,
+        w_r_i: &BlsScalar,
+        w_o_i: &BlsScalar,
+        w_4_i: &BlsScalar,
+        z_i: &BlsScalar,
+        alpha: &BlsScalar,
+        beta: &BlsScalar,
+        gamma: &BlsScalar,
+    ) -> BlsScalar {
         let x = self.linear_evaluations[index];
 
         (w_l_i + (beta * x) + gamma)
@@ -65,15 +68,15 @@ impl ProverKey {
     fn compute_quotient_copy_range_check_i(
         &self,
         index: usize,
-        w_l_i: &Scalar,
-        w_r_i: &Scalar,
-        w_o_i: &Scalar,
-        w_4_i: &Scalar,
-        z_i_next: &Scalar,
-        alpha: &Scalar,
-        beta: &Scalar,
-        gamma: &Scalar,
-    ) -> Scalar {
+        w_l_i: &BlsScalar,
+        w_r_i: &BlsScalar,
+        w_o_i: &BlsScalar,
+        w_4_i: &BlsScalar,
+        z_i_next: &BlsScalar,
+        alpha: &BlsScalar,
+        beta: &BlsScalar,
+        gamma: &BlsScalar,
+    ) -> BlsScalar {
         let left_sigma_eval = self.left_sigma.1[index];
         let right_sigma_eval = self.right_sigma.1[index];
         let out_sigma_eval = self.out_sigma.1[index];
@@ -89,17 +92,21 @@ impl ProverKey {
         -product
     }
     // L_1(X)[Z(X) - 1]
-    fn compute_quotient_term_check_one_i(&self, z_i: &Scalar, l1_alpha_sq: &Scalar) -> Scalar {
-        (z_i - Scalar::one()) * l1_alpha_sq
+    fn compute_quotient_term_check_one_i(
+        &self,
+        z_i: &BlsScalar,
+        l1_alpha_sq: &BlsScalar,
+    ) -> BlsScalar {
+        (z_i - BlsScalar::one()) * l1_alpha_sq
     }
 
     pub(crate) fn compute_linearisation(
         &self,
-        z_challenge: &Scalar,
-        (alpha, beta, gamma): (&Scalar, &Scalar, &Scalar),
-        (a_eval, b_eval, c_eval, d_eval): (&Scalar, &Scalar, &Scalar, &Scalar),
-        (sigma_1_eval, sigma_2_eval, sigma_3_eval): (&Scalar, &Scalar, &Scalar),
-        z_eval: &Scalar,
+        z_challenge: &BlsScalar,
+        (alpha, beta, gamma): (&BlsScalar, &BlsScalar, &BlsScalar),
+        (a_eval, b_eval, c_eval, d_eval): (&BlsScalar, &BlsScalar, &BlsScalar, &BlsScalar),
+        (sigma_1_eval, sigma_2_eval, sigma_3_eval): (&BlsScalar, &BlsScalar, &BlsScalar),
+        z_eval: &BlsScalar,
         z_poly: &Polynomial,
     ) -> Polynomial {
         let a = self.compute_lineariser_identity_range_check(
@@ -125,9 +132,9 @@ impl ProverKey {
     // (a_eval + beta * z_challenge + gamma)(b_eval + beta * K1 * z_challenge + gamma)(c_eval + beta * K2 * z_challenge + gamma) * alpha z(X)
     fn compute_lineariser_identity_range_check(
         &self,
-        (a_eval, b_eval, c_eval, d_eval): (&Scalar, &Scalar, &Scalar, &Scalar),
-        z_challenge: &Scalar,
-        (alpha, beta, gamma): (&Scalar, &Scalar, &Scalar),
+        (a_eval, b_eval, c_eval, d_eval): (&BlsScalar, &BlsScalar, &BlsScalar, &BlsScalar),
+        z_challenge: &BlsScalar,
+        (alpha, beta, gamma): (&BlsScalar, &BlsScalar, &BlsScalar),
         z_poly: &Polynomial,
     ) -> Polynomial {
         let beta_z = beta * z_challenge;
@@ -160,12 +167,12 @@ impl ProverKey {
     // -(a_eval + beta * sigma_1 + gamma)(b_eval + beta * sigma_2 + gamma) (c_eval + beta * sigma_3 + gamma) * beta *z_eval * alpha^2 * Sigma_4(X)
     fn compute_lineariser_copy_range_check(
         &self,
-        (a_eval, b_eval, c_eval): (&Scalar, &Scalar, &Scalar),
-        z_eval: &Scalar,
-        sigma_1_eval: &Scalar,
-        sigma_2_eval: &Scalar,
-        sigma_3_eval: &Scalar,
-        (alpha, beta, gamma): (&Scalar, &Scalar, &Scalar),
+        (a_eval, b_eval, c_eval): (&BlsScalar, &BlsScalar, &BlsScalar),
+        z_eval: &BlsScalar,
+        sigma_1_eval: &BlsScalar,
+        sigma_2_eval: &BlsScalar,
+        sigma_3_eval: &BlsScalar,
+        (alpha, beta, gamma): (&BlsScalar, &BlsScalar, &BlsScalar),
         fourth_sigma_poly: &Polynomial,
     ) -> Polynomial {
         // a_eval + beta * sigma_1 + gamma
@@ -195,8 +202,8 @@ impl ProverKey {
     fn compute_lineariser_check_is_one(
         &self,
         domain: &EvaluationDomain,
-        z_challenge: &Scalar,
-        alpha_sq: &Scalar,
+        z_challenge: &BlsScalar,
+        alpha_sq: &BlsScalar,
         z_coeffs: &Polynomial,
     ) -> Polynomial {
         // Evaluate l_1(z)

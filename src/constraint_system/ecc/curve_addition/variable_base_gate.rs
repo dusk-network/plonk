@@ -1,10 +1,13 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
 // Copyright (c) DUSK NETWORK. All rights reserved.
-// Licensed under the MPL 2.0 license. See LICENSE file in the project root for details.
 
 use crate::constraint_system::ecc::Point;
 use crate::constraint_system::StandardComposer;
-use dusk_bls12_381::Scalar;
-use dusk_jubjub::{AffinePoint, ExtendedPoint};
+use dusk_bls12_381::BlsScalar;
+use dusk_jubjub::{JubJubAffine, JubJubExtended};
 
 impl Point {
     /// Adds two curve points together using a curve addition gate
@@ -27,10 +30,10 @@ impl Point {
         let x_2_scalar = composer.variables.get(&x_2).unwrap();
         let y_2_scalar = composer.variables.get(&y_2).unwrap();
 
-        let p1 = AffinePoint::from_raw_unchecked(*x_1_scalar, *y_1_scalar);
-        let p2 = AffinePoint::from_raw_unchecked(*x_2_scalar, *y_2_scalar);
+        let p1 = JubJubAffine::from_raw_unchecked(*x_1_scalar, *y_1_scalar);
+        let p2 = JubJubAffine::from_raw_unchecked(*x_2_scalar, *y_2_scalar);
 
-        let point: AffinePoint = (ExtendedPoint::from(p1) + p2).into();
+        let point: JubJubAffine = (JubJubExtended::from(p1) + p2).into();
         let x_3_scalar = point.get_x();
         let y_3_scalar = point.get_y();
 
@@ -48,41 +51,41 @@ impl Point {
 
         composer
             .q_l
-            .append(&mut vec![Scalar::zero(), Scalar::zero()]);
+            .append(&mut vec![BlsScalar::zero(), BlsScalar::zero()]);
         composer
             .q_r
-            .append(&mut vec![Scalar::zero(), Scalar::zero()]);
+            .append(&mut vec![BlsScalar::zero(), BlsScalar::zero()]);
         composer
             .q_c
-            .append(&mut vec![Scalar::zero(), Scalar::zero()]);
+            .append(&mut vec![BlsScalar::zero(), BlsScalar::zero()]);
         composer
             .q_o
-            .append(&mut vec![Scalar::zero(), Scalar::zero()]);
+            .append(&mut vec![BlsScalar::zero(), BlsScalar::zero()]);
         composer
             .q_m
-            .append(&mut vec![Scalar::zero(), Scalar::zero()]);
+            .append(&mut vec![BlsScalar::zero(), BlsScalar::zero()]);
         composer
             .q_4
-            .append(&mut vec![Scalar::zero(), Scalar::zero()]);
+            .append(&mut vec![BlsScalar::zero(), BlsScalar::zero()]);
         composer
             .q_arith
-            .append(&mut vec![Scalar::zero(), Scalar::zero()]);
+            .append(&mut vec![BlsScalar::zero(), BlsScalar::zero()]);
         composer
             .q_range
-            .append(&mut vec![Scalar::zero(), Scalar::zero()]);
+            .append(&mut vec![BlsScalar::zero(), BlsScalar::zero()]);
         composer
             .q_logic
-            .append(&mut vec![Scalar::zero(), Scalar::zero()]);
+            .append(&mut vec![BlsScalar::zero(), BlsScalar::zero()]);
         composer
             .q_fixed_group_add
-            .append(&mut vec![Scalar::zero(), Scalar::zero()]);
+            .append(&mut vec![BlsScalar::zero(), BlsScalar::zero()]);
 
-        composer.q_variable_group_add.push(Scalar::one());
-        composer.q_variable_group_add.push(Scalar::zero());
+        composer.q_variable_group_add.push(BlsScalar::one());
+        composer.q_variable_group_add.push(BlsScalar::zero());
 
         composer
             .public_inputs
-            .append(&mut vec![Scalar::zero(), Scalar::zero()]);
+            .append(&mut vec![BlsScalar::zero(), BlsScalar::zero()]);
 
         composer
             .perm
@@ -103,13 +106,13 @@ mod test {
     use super::*;
     use crate::constraint_system::helper::*;
     use dusk_jubjub::GENERATOR;
-    use dusk_jubjub::{AffinePoint, ExtendedPoint};
+    use dusk_jubjub::{JubJubAffine, JubJubExtended};
     #[test]
     fn test_curve_addition() {
         let res = gadget_tester(
             |composer| {
-                let expected_point: AffinePoint =
-                    (ExtendedPoint::from(GENERATOR) + ExtendedPoint::from(GENERATOR)).into();
+                let expected_point: JubJubAffine =
+                    (JubJubExtended::from(GENERATOR) + JubJubExtended::from(GENERATOR)).into();
                 let x = composer.add_input(GENERATOR.get_x());
                 let y = composer.add_input(GENERATOR.get_y());
                 let point_a = Point { x, y };

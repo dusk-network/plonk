@@ -1,15 +1,18 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
 // Copyright (c) DUSK NETWORK. All rights reserved.
-// Licensed under the MPL 2.0 license. See LICENSE file in the project root for details.
 
 use super::StandardComposer;
 use crate::commitment_scheme::kzg10::PublicParameters;
 use crate::proof_system::{Prover, Verifier};
 use anyhow::{Error, Result};
-use dusk_bls12_381::Scalar;
+use dusk_bls12_381::BlsScalar;
 
 /// Adds dummy constraints using arithmetic gates
 pub(crate) fn dummy_gadget(n: usize, composer: &mut StandardComposer) {
-    let one = Scalar::one();
+    let one = BlsScalar::one();
 
     let var_one = composer.add_input(one);
 
@@ -18,8 +21,8 @@ pub(crate) fn dummy_gadget(n: usize, composer: &mut StandardComposer) {
             var_one.into(),
             var_one.into(),
             None,
-            Scalar::zero(),
-            Scalar::zero(),
+            BlsScalar::zero(),
+            BlsScalar::zero(),
         );
     }
 }

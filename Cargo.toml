@@ -1,11 +1,10 @@
 [package]
 name = "dusk-plonk"
-version = "0.2.11"
+version = "0.3.5"
 authors = ["Kevaundray Wedderburn <kevtheappdev@gmail.com>",
            "Luke Pearson <luke@dusk.network>", 
            "CPerezz <carlos@dusk.network>"] 
 readme = "README.md"
-documentation = "https://dusk-network.github.io/plonk"
 repository = "https://github.com/dusk-network/plonk"
 keywords = ["cryptography", "plonk", "zk-snarks", "zero-knowledge", "crypto"]
 categories =["algorithms", "cryptography", "science"]
@@ -16,7 +15,7 @@ exclude = [
     "Cargo.lock",
     "**/examples",
     "benchmarks/",
-    ".travis.yml"
+    ".github/"
 ]
 license = "MPL-2.0"
 edition = "2018"
@@ -26,14 +25,16 @@ merlin = "2.0.0"
 rand = "0.7.2"
 rand_core = { version = "0.5", default-features = false }
 # Built by default with "std", "alloc", "pairing", "groups" and "endo" features.
-dusk-bls12_381 = "0.1.4"
-itertools = "0.8.2"
+dusk-bls12_381 = "0.3.0"
+itertools = "0.9.0"
 rand_chacha = "0.2"
 rayon = "1.3.0"
 anyhow = "1.0.32"
-dusk-jubjub = "0.3.8"
+dusk-jubjub = "0.5.0"
 thiserror = "1.0"
 serde = "1.0"
+# Dusk related deps for WASMI serde
+canonical = {version = "0.4", optional = true}
 
 [dev-dependencies]
 rand = "0.7.0"
@@ -45,3 +46,4 @@ rustdoc-args = [ "--html-in-header", "katex-header.html" ]
 nightly = []
 trace = []
 trace-print = ["trace"]
+canon = ["dusk-bls12_381/canon", "dusk-jubjub/canon", "canonical"]

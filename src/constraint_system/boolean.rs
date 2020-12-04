@@ -1,9 +1,12 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
 // Copyright (c) DUSK NETWORK. All rights reserved.
-// Licensed under the MPL 2.0 license. See LICENSE file in the project root for details.
 
 use crate::constraint_system::StandardComposer;
 use crate::constraint_system::Variable;
-use dusk_bls12_381::Scalar;
+use dusk_bls12_381::BlsScalar;
 
 impl StandardComposer {
     /// Adds a boolean constraint (also known as binary constraint) where
@@ -18,20 +21,20 @@ impl StandardComposer {
         self.w_o.push(a);
         self.w_4.push(self.zero_var);
 
-        self.q_m.push(Scalar::one());
-        self.q_l.push(Scalar::zero());
-        self.q_r.push(Scalar::zero());
-        self.q_o.push(-Scalar::one());
-        self.q_c.push(Scalar::zero());
-        self.q_4.push(Scalar::zero());
-        self.q_arith.push(Scalar::one());
+        self.q_m.push(BlsScalar::one());
+        self.q_l.push(BlsScalar::zero());
+        self.q_r.push(BlsScalar::zero());
+        self.q_o.push(-BlsScalar::one());
+        self.q_c.push(BlsScalar::zero());
+        self.q_4.push(BlsScalar::zero());
+        self.q_arith.push(BlsScalar::one());
 
-        self.q_range.push(Scalar::zero());
-        self.q_logic.push(Scalar::zero());
-        self.q_fixed_group_add.push(Scalar::zero());
-        self.q_variable_group_add.push(Scalar::zero());
+        self.q_range.push(BlsScalar::zero());
+        self.q_logic.push(BlsScalar::zero());
+        self.q_fixed_group_add.push(BlsScalar::zero());
+        self.q_variable_group_add.push(BlsScalar::zero());
 
-        self.public_inputs.push(Scalar::zero());
+        self.public_inputs.push(BlsScalar::zero());
 
         self.perm
             .add_variables_to_map(a, a, a, self.zero_var, self.n);
@@ -44,13 +47,13 @@ impl StandardComposer {
 #[cfg(test)]
 mod tests {
     use super::super::helper::*;
-    use dusk_bls12_381::Scalar;
+    use dusk_bls12_381::BlsScalar;
     #[test]
     fn test_correct_bool_gate() {
         let res = gadget_tester(
             |composer| {
-                let zero = composer.add_input(Scalar::zero());
-                let one = composer.add_input(Scalar::one());
+                let zero = composer.add_input(BlsScalar::zero());
+                let one = composer.add_input(BlsScalar::one());
 
                 composer.boolean_gate(zero);
                 composer.boolean_gate(one);
@@ -64,8 +67,8 @@ mod tests {
     fn test_incorrect_bool_gate() {
         let res = gadget_tester(
             |composer| {
-                let zero = composer.add_input(Scalar::from(5));
-                let one = composer.add_input(Scalar::one());
+                let zero = composer.add_input(BlsScalar::from(5));
+                let one = composer.add_input(BlsScalar::one());
 
                 composer.boolean_gate(zero);
                 composer.boolean_gate(one);

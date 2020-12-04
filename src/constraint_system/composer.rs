@@ -1,5 +1,8 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
 // Copyright (c) DUSK NETWORK. All rights reserved.
-// Licensed under the MPL 2.0 license. See LICENSE file in the project root for details.
 
 //! The `Composer` is a Trait that is actually defining some kind of
 //! Circuit Builder for PLONK.
@@ -17,8 +20,8 @@
 #![allow(clippy::too_many_arguments)]
 
 use crate::constraint_system::Variable;
-use crate::constraint_system::Permutation;
-use dusk_bls12_381::Scalar;
+use crate::permutation::Permutation;
+use dusk_bls12_381::BlsScalar;
 use std::collections::HashMap;
 
 /// A composer is a circuit builder
@@ -32,30 +35,30 @@ pub struct StandardComposer {
     // Selector vectors
     //
     // Multiplier selector
-    pub(crate) q_m: Vec<Scalar>,
+    pub(crate) q_m: Vec<BlsScalar>,
     // Left wire selector
-    pub(crate) q_l: Vec<Scalar>,
+    pub(crate) q_l: Vec<BlsScalar>,
     // Right wire selector
-    pub(crate) q_r: Vec<Scalar>,
+    pub(crate) q_r: Vec<BlsScalar>,
     // Output wire selector
-    pub(crate) q_o: Vec<Scalar>,
+    pub(crate) q_o: Vec<BlsScalar>,
     // Fourth wire selector
-    pub(crate) q_4: Vec<Scalar>,
+    pub(crate) q_4: Vec<BlsScalar>,
     // Constant wire selector
-    pub(crate) q_c: Vec<Scalar>,
+    pub(crate) q_c: Vec<BlsScalar>,
     // Arithmetic wire selector
-    pub(crate) q_arith: Vec<Scalar>,
+    pub(crate) q_arith: Vec<BlsScalar>,
     // Range selector
-    pub(crate) q_range: Vec<Scalar>,
+    pub(crate) q_range: Vec<BlsScalar>,
     // Logic selector
-    pub(crate) q_logic: Vec<Scalar>,
+    pub(crate) q_logic: Vec<BlsScalar>,
     // Fixed base group addition selector
-    pub(crate) q_fixed_group_add: Vec<Scalar>,
+    pub(crate) q_fixed_group_add: Vec<BlsScalar>,
     // Variable base group addition selector
-    pub(crate) q_variable_group_add: Vec<Scalar>,
+    pub(crate) q_variable_group_add: Vec<BlsScalar>,
 
     /// Public inputs vector
-    pub public_inputs: Vec<Scalar>,
+    pub public_inputs: Vec<BlsScalar>,
 
     // Witness vectors
     pub(crate) w_l: Vec<Variable>,
@@ -71,7 +74,7 @@ pub struct StandardComposer {
 
     // These are the actual variable values
     // N.B. They should not be exposed to the end user once added into the composer
-    pub(crate) variables: HashMap<Variable, Scalar>,
+    pub(crate) variables: HashMap<Variable, BlsScalar>,
 
     pub(crate) perm: Permutation,
 }
@@ -103,9 +106,9 @@ impl StandardComposer {
     }
 
     /// Fixes a variable in the witness to be a part of the circuit description.
-    pub fn add_witness_to_circuit_description(&mut self, value: Scalar) -> Variable {
+    pub fn add_witness_to_circuit_description(&mut self, value: BlsScalar) -> Variable {
         let var = self.add_input(value);
-        self.constrain_to_constant(var, value, Scalar::zero());
+        self.constrain_to_constant(var, value, BlsScalar::zero());
         var
     }
 
@@ -143,7 +146,7 @@ impl StandardComposer {
         };
 
         // Reserve the first variable to be zero
-        composer.zero_var = composer.add_witness_to_circuit_description(Scalar::zero());
+        composer.zero_var = composer.add_witness_to_circuit_description(BlsScalar::zero());
 
         // Add dummy constraints
         composer.add_dummy_constraints();
@@ -153,12 +156,12 @@ impl StandardComposer {
 
     /// Add Input first calls the `Permutation` struct
     /// to generate and allocate a new variable `var`.
-    /// The composer then links the Variable to the Scalar
+    /// The composer then links the Variable to the BlsScalar
     /// and returns the Variable for use in the system.
-    pub fn add_input(&mut self, s: Scalar) -> Variable {
+    pub fn add_input(&mut self, s: BlsScalar) -> Variable {
         // Get a new Variable from the permutation
         let var = self.perm.new_variable();
-        // The composer now links the Scalar to the Variable returned from the Permutation
+        // The composer now links the BlsScalar to the Variable returned from the Permutation
         self.variables.insert(var, s);
 
         var
@@ -177,12 +180,12 @@ impl StandardComposer {
         a: Variable,
         b: Variable,
         c: Variable,
-        q_m: Scalar,
-        q_l: Scalar,
-        q_r: Scalar,
-        q_o: Scalar,
-        q_c: Scalar,
-        pi: Scalar,
+        q_m: BlsScalar,
+        q_l: BlsScalar,
+        q_r: BlsScalar,
+        q_o: BlsScalar,
+        q_c: BlsScalar,
+        pi: BlsScalar,
     ) -> (Variable, Variable, Variable) {
         self.w_l.push(a);
         self.w_r.push(b);
@@ -195,13 +198,13 @@ impl StandardComposer {
         self.q_m.push(q_m);
         self.q_o.push(q_o);
         self.q_c.push(q_c);
-        self.q_4.push(Scalar::zero());
-        self.q_arith.push(Scalar::one());
+        self.q_4.push(BlsScalar::zero());
+        self.q_arith.push(BlsScalar::one());
 
-        self.q_range.push(Scalar::zero());
-        self.q_logic.push(Scalar::zero());
-        self.q_fixed_group_add.push(Scalar::zero());
-        self.q_variable_group_add.push(Scalar::zero());
+        self.q_range.push(BlsScalar::zero());
+        self.q_logic.push(BlsScalar::zero());
+        self.q_fixed_group_add.push(BlsScalar::zero());
+        self.q_variable_group_add.push(BlsScalar::zero());
 
         self.public_inputs.push(pi);
 
@@ -213,16 +216,16 @@ impl StandardComposer {
     }
 
     /// Adds a gate which is designed to constrain a `Variable` to have
-    /// a specific constant value which is sent as a `Scalar`.
-    pub fn constrain_to_constant(&mut self, a: Variable, constant: Scalar, pi: Scalar) {
+    /// a specific constant value which is sent as a `BlsScalar`.
+    pub fn constrain_to_constant(&mut self, a: Variable, constant: BlsScalar, pi: BlsScalar) {
         self.poly_gate(
             a,
             a,
             a,
-            Scalar::zero(),
-            Scalar::one(),
-            Scalar::zero(),
-            Scalar::zero(),
+            BlsScalar::zero(),
+            BlsScalar::one(),
+            BlsScalar::zero(),
+            BlsScalar::zero(),
             -constant,
             pi,
         );
@@ -235,12 +238,12 @@ impl StandardComposer {
             a,
             b,
             self.zero_var,
-            Scalar::zero(),
-            Scalar::one(),
-            -Scalar::one(),
-            Scalar::zero(),
-            Scalar::zero(),
-            Scalar::zero(),
+            BlsScalar::zero(),
+            BlsScalar::one(),
+            -BlsScalar::one(),
+            BlsScalar::zero(),
+            BlsScalar::zero(),
+            BlsScalar::zero(),
         );
     }
 
@@ -255,31 +258,37 @@ impl StandardComposer {
         choice_b: Variable,
     ) -> Variable {
         // bit * choice_a
-        let bit_times_a = self.mul(Scalar::one(), bit, choice_a, Scalar::zero(), Scalar::zero());
+        let bit_times_a = self.mul(
+            BlsScalar::one(),
+            bit,
+            choice_a,
+            BlsScalar::zero(),
+            BlsScalar::zero(),
+        );
 
         // 1 - bit
         let one_min_bit = self.add(
-            (-Scalar::one(), bit),
-            (Scalar::zero(), self.zero_var),
-            Scalar::one(),
-            Scalar::zero(),
+            (-BlsScalar::one(), bit),
+            (BlsScalar::zero(), self.zero_var),
+            BlsScalar::one(),
+            BlsScalar::zero(),
         );
 
         // (1 - bit) * b
         let one_min_bit_choice_b = self.mul(
-            Scalar::one(),
+            BlsScalar::one(),
             one_min_bit,
             choice_b,
-            Scalar::zero(),
-            Scalar::zero(),
+            BlsScalar::zero(),
+            BlsScalar::zero(),
         );
 
         // [ (1 - bit) * b ] + [ bit * a ]
         self.add(
-            (Scalar::one(), one_min_bit_choice_b),
-            (Scalar::one(), bit_times_a),
-            Scalar::zero(),
-            Scalar::zero(),
+            (BlsScalar::one(), one_min_bit_choice_b),
+            (BlsScalar::one(), bit_times_a),
+            BlsScalar::zero(),
+            BlsScalar::zero(),
         )
     }
 
@@ -288,22 +297,22 @@ impl StandardComposer {
     /// XXX: We could add another section to add random witness variables, with selector polynomials all zero
     pub fn add_dummy_constraints(&mut self) {
         // Add a dummy constraint so that we do not have zero polynomials
-        self.q_m.push(Scalar::from(1));
-        self.q_l.push(Scalar::from(2));
-        self.q_r.push(Scalar::from(3));
-        self.q_o.push(Scalar::from(4));
-        self.q_c.push(Scalar::from(4));
-        self.q_4.push(Scalar::one());
-        self.q_arith.push(Scalar::one());
-        self.q_range.push(Scalar::zero());
-        self.q_logic.push(Scalar::zero());
-        self.q_fixed_group_add.push(Scalar::zero());
-        self.q_variable_group_add.push(Scalar::zero());
-        self.public_inputs.push(Scalar::zero());
-        let var_six = self.add_input(Scalar::from(6));
-        let var_one = self.add_input(Scalar::from(1));
-        let var_seven = self.add_input(Scalar::from(7));
-        let var_min_twenty = self.add_input(-Scalar::from(20));
+        self.q_m.push(BlsScalar::from(1));
+        self.q_l.push(BlsScalar::from(2));
+        self.q_r.push(BlsScalar::from(3));
+        self.q_o.push(BlsScalar::from(4));
+        self.q_c.push(BlsScalar::from(4));
+        self.q_4.push(BlsScalar::one());
+        self.q_arith.push(BlsScalar::one());
+        self.q_range.push(BlsScalar::zero());
+        self.q_logic.push(BlsScalar::zero());
+        self.q_fixed_group_add.push(BlsScalar::zero());
+        self.q_variable_group_add.push(BlsScalar::zero());
+        self.public_inputs.push(BlsScalar::zero());
+        let var_six = self.add_input(BlsScalar::from(6));
+        let var_one = self.add_input(BlsScalar::from(1));
+        let var_seven = self.add_input(BlsScalar::from(7));
+        let var_min_twenty = self.add_input(-BlsScalar::from(20));
         self.w_l.push(var_six);
         self.w_r.push(var_seven);
         self.w_o.push(var_min_twenty);
@@ -312,18 +321,18 @@ impl StandardComposer {
             .add_variables_to_map(var_six, var_seven, var_min_twenty, var_one, self.n);
         self.n += 1;
         //Add another dummy constraint so that we do not get the identity permutation
-        self.q_m.push(Scalar::from(1));
-        self.q_l.push(Scalar::from(1));
-        self.q_r.push(Scalar::from(1));
-        self.q_o.push(Scalar::from(1));
-        self.q_c.push(Scalar::from(127));
-        self.q_4.push(Scalar::zero());
-        self.q_arith.push(Scalar::one());
-        self.q_range.push(Scalar::zero());
-        self.q_logic.push(Scalar::zero());
-        self.q_fixed_group_add.push(Scalar::zero());
-        self.q_variable_group_add.push(Scalar::zero());
-        self.public_inputs.push(Scalar::zero());
+        self.q_m.push(BlsScalar::from(1));
+        self.q_l.push(BlsScalar::from(1));
+        self.q_r.push(BlsScalar::from(1));
+        self.q_o.push(BlsScalar::from(1));
+        self.q_c.push(BlsScalar::from(127));
+        self.q_4.push(BlsScalar::zero());
+        self.q_arith.push(BlsScalar::one());
+        self.q_range.push(BlsScalar::zero());
+        self.q_logic.push(BlsScalar::zero());
+        self.q_fixed_group_add.push(BlsScalar::zero());
+        self.q_variable_group_add.push(BlsScalar::zero());
+        self.public_inputs.push(BlsScalar::zero());
         self.w_l.push(var_min_twenty);
         self.w_r.push(var_six);
         self.w_o.push(var_seven);
@@ -339,34 +348,34 @@ impl StandardComposer {
     /// XXX: This is messy and will be removed in a later PR.
     #[cfg(feature = "trace")]
     pub fn check_circuit_satisfied(&self) {
-        let w_l: Vec<&Scalar> = self
+        let w_l: Vec<&BlsScalar> = self
             .w_l
             .iter()
             .map(|w_l_i| self.variables.get(&w_l_i).unwrap())
             .collect();
-        let w_r: Vec<&Scalar> = self
+        let w_r: Vec<&BlsScalar> = self
             .w_r
             .iter()
             .map(|w_r_i| self.variables.get(&w_r_i).unwrap())
             .collect();
-        let w_o: Vec<&Scalar> = self
+        let w_o: Vec<&BlsScalar> = self
             .w_o
             .iter()
             .map(|w_o_i| self.variables.get(&w_o_i).unwrap())
             .collect();
-        let w_4: Vec<&Scalar> = self
+        let w_4: Vec<&BlsScalar> = self
             .w_4
             .iter()
             .map(|w_4_i| self.variables.get(&w_4_i).unwrap())
             .collect();
         // Computes f(f-1)(f-2)(f-3)
-        let delta = |f: Scalar| -> Scalar {
-            let f_1 = f - Scalar::one();
-            let f_2 = f - Scalar::from(2);
-            let f_3 = f - Scalar::from(3);
+        let delta = |f: BlsScalar| -> BlsScalar {
+            let f_1 = f - BlsScalar::one();
+            let f_2 = f - BlsScalar::from(2);
+            let f_3 = f - BlsScalar::from(3);
             f * f_1 * f_2 * f_3
         };
-        let four = Scalar::from(4);
+        let four = BlsScalar::from(4);
         for i in 0..self.n {
             let qm = self.q_m[i];
             let ql = self.q_l[i];
@@ -417,10 +426,10 @@ impl StandardComposer {
                         + delta(a_next - four * a)
                         + delta(b_next - four * b)
                         + delta(d_next - four * d)
-                        + match (qlogic == Scalar::one(), qlogic == -Scalar::one()) {
+                        + match (qlogic == BlsScalar::one(), qlogic == -BlsScalar::one()) {
                             (true, false) => (a & b) - d,
                             (false, true) => (a ^ b) - d,
-                            (false, false) => Scalar::zero(),
+                            (false, false) => BlsScalar::zero(),
                             _ => unreachable!(),
                         })
                 + qrange
@@ -429,7 +438,7 @@ impl StandardComposer {
                         + delta(a - four * b)
                         + delta(d_next - four * a));
 
-            assert_eq!(k, Scalar::zero(), "Check failed at gate {}", i,);
+            assert_eq!(k, BlsScalar::zero(), "Check failed at gate {}", i,);
         }
     }
 }
@@ -470,11 +479,11 @@ mod tests {
     fn test_conditional_select() {
         let res = gadget_tester(
             |composer| {
-                let bit_1 = composer.add_input(Scalar::one());
-                let bit_0 = composer.add_input(Scalar::zero());
+                let bit_1 = composer.add_input(BlsScalar::one());
+                let bit_0 = composer.add_input(BlsScalar::zero());
 
-                let choice_a = composer.add_input(Scalar::from(10u64));
-                let choice_b = composer.add_input(Scalar::from(20u64));
+                let choice_a = composer.add_input(BlsScalar::from(10u64));
+                let choice_b = composer.add_input(BlsScalar::from(20u64));
 
                 let choice = composer.conditional_select(bit_1, choice_a, choice_b);
                 composer.assert_equal(choice, choice_a);

@@ -1,5 +1,8 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
 // Copyright (c) DUSK NETWORK. All rights reserved.
-// Licensed under the MPL 2.0 license. See LICENSE file in the project root for details.
 
 /// Curve addition gate
 pub mod curve_addition;
@@ -7,7 +10,7 @@ pub mod curve_addition;
 pub mod scalar_mul;
 
 use crate::constraint_system::{variable::Variable, StandardComposer};
-use dusk_bls12_381::Scalar;
+use dusk_bls12_381::BlsScalar;
 use dusk_jubjub::EDWARDS_D;
 
 /// Represents a JubJub point in the circuit
@@ -30,32 +33,32 @@ impl Point {
 
     /// Returns an identity point
     pub fn identity(composer: &mut StandardComposer) -> Point {
-        let one = composer.add_witness_to_circuit_description(Scalar::one());
+        let one = composer.add_witness_to_circuit_description(BlsScalar::one());
         Point {
             x: composer.zero_var,
             y: one,
         }
     }
 
-    /// Converts an AffinePoint into a constraint system Point
+    /// Converts an JubJubAffine into a constraint system Point
     /// without constraining the values
     pub fn from_private_affine(
         composer: &mut StandardComposer,
-        affine: dusk_jubjub::AffinePoint,
+        affine: dusk_jubjub::JubJubAffine,
     ) -> Point {
         let x = composer.add_input(affine.get_x());
         let y = composer.add_input(affine.get_y());
         Point { x, y }
     }
-    /// Converts an AffinePoint into a constraint system Point
+    /// Converts an JubJubAffine into a constraint system Point
     /// without constraining the values
     pub fn from_public_affine(
         composer: &mut StandardComposer,
-        affine: dusk_jubjub::AffinePoint,
+        affine: dusk_jubjub::JubJubAffine,
     ) -> Point {
         let point = Point::from_private_affine(composer, affine);
-        composer.constrain_to_constant(point.x, Scalar::zero(), -affine.get_x());
-        composer.constrain_to_constant(point.y, Scalar::zero(), -affine.get_y());
+        composer.constrain_to_constant(point.x, BlsScalar::zero(), -affine.get_x());
+        composer.constrain_to_constant(point.y, BlsScalar::zero(), -affine.get_y());
 
         point
     }
@@ -117,38 +120,68 @@ impl Point {
         let y2 = point_b.y;
 
         // x1 * y2
-        let x1_y2 = composer.mul(Scalar::one(), x1, y2, Scalar::zero(), Scalar::zero());
+        let x1_y2 = composer.mul(
+            BlsScalar::one(),
+            x1,
+            y2,
+            BlsScalar::zero(),
+            BlsScalar::zero(),
+        );
         // y1 * x2
-        let y1_x2 = composer.mul(Scalar::one(), y1, x2, Scalar::zero(), Scalar::zero());
+        let y1_x2 = composer.mul(
+            BlsScalar::one(),
+            y1,
+            x2,
+            BlsScalar::zero(),
+            BlsScalar::zero(),
+        );
         // y1 * y2
-        let y1_y2 = composer.mul(Scalar::one(), y1, y2, Scalar::zero(), Scalar::zero());
+        let y1_y2 = composer.mul(
+            BlsScalar::one(),
+            y1,
+            y2,
+            BlsScalar::zero(),
+            BlsScalar::zero(),
+        );
         // x1 * x2
-        let x1_x2 = composer.mul(Scalar::one(), x1, x2, Scalar::zero(), Scalar::zero());
+        let x1_x2 = composer.mul(
+            BlsScalar::one(),
+            x1,
+            x2,
+            BlsScalar::zero(),
+            BlsScalar::zero(),
+        );
         // d x1x2 * y1y2
-        let d_x1_x2_y1_y2 = composer.mul(EDWARDS_D, x1_x2, y1_y2, Scalar::zero(), Scalar::zero());
+        let d_x1_x2_y1_y2 = composer.mul(
+            EDWARDS_D,
+            x1_x2,
+            y1_y2,
+            BlsScalar::zero(),
+            BlsScalar::zero(),
+        );
 
         // x1y2 + y1x2
         let x_numerator = composer.add(
-            (Scalar::one(), x1_y2),
-            (Scalar::one(), y1_x2),
-            Scalar::zero(),
-            Scalar::zero(),
+            (BlsScalar::one(), x1_y2),
+            (BlsScalar::one(), y1_x2),
+            BlsScalar::zero(),
+            BlsScalar::zero(),
         );
 
         // y1y2 - a * x1x2 (a=-1) => y1y2 + x1x2
         let y_numerator = composer.add(
-            (Scalar::one(), y1_y2),
-            (Scalar::one(), x1_x2),
-            Scalar::zero(),
-            Scalar::zero(),
+            (BlsScalar::one(), y1_y2),
+            (BlsScalar::one(), x1_x2),
+            BlsScalar::zero(),
+            BlsScalar::zero(),
         );
 
         // 1 + dx1x2y1y2
         let x_denominator = composer.add(
-            (Scalar::one(), d_x1_x2_y1_y2),
-            (Scalar::zero(), composer.zero_var),
-            Scalar::one(),
-            Scalar::zero(),
+            (BlsScalar::one(), d_x1_x2_y1_y2),
+            (BlsScalar::zero(), composer.zero_var),
+            BlsScalar::one(),
+            BlsScalar::zero(),
         );
 
         // Compute the inverse
@@ -166,18 +199,18 @@ impl Point {
             x_denominator,
             inv_x_denom,
             composer.zero_var,
-            Scalar::one(),
-            Scalar::zero(),
-            -Scalar::one(),
-            Scalar::zero(),
+            BlsScalar::one(),
+            BlsScalar::zero(),
+            -BlsScalar::one(),
+            BlsScalar::zero(),
         );
 
         // 1 - dx1x2y1y2
         let y_denominator = composer.add(
-            (-Scalar::one(), d_x1_x2_y1_y2),
-            (Scalar::zero(), composer.zero_var),
-            Scalar::one(),
-            Scalar::zero(),
+            (-BlsScalar::one(), d_x1_x2_y1_y2),
+            (BlsScalar::zero(), composer.zero_var),
+            BlsScalar::one(),
+            BlsScalar::zero(),
         );
         let inv_y_denom = composer
             .variables
@@ -192,27 +225,27 @@ impl Point {
             y_denominator,
             inv_y_denom,
             composer.zero_var,
-            Scalar::one(),
-            Scalar::zero(),
-            -Scalar::one(),
-            Scalar::zero(),
+            BlsScalar::one(),
+            BlsScalar::zero(),
+            -BlsScalar::one(),
+            BlsScalar::zero(),
         );
 
         // We can now use the inverses
 
         let x_3 = composer.mul(
-            Scalar::one(),
+            BlsScalar::one(),
             inv_x_denom,
             x_numerator,
-            Scalar::zero(),
-            Scalar::zero(),
+            BlsScalar::zero(),
+            BlsScalar::zero(),
         );
         let y_3 = composer.mul(
-            Scalar::one(),
+            BlsScalar::one(),
             inv_y_denom,
             y_numerator,
-            Scalar::zero(),
-            Scalar::zero(),
+            BlsScalar::zero(),
+            BlsScalar::zero(),
         );
 
         Point { x: x_3, y: y_3 }
@@ -226,10 +259,10 @@ impl StandardComposer {
     pub fn assert_equal_public_point(
         &mut self,
         point: Point,
-        public_point: dusk_jubjub::AffinePoint,
+        public_point: dusk_jubjub::JubJubAffine,
     ) {
-        self.constrain_to_constant(point.x, Scalar::zero(), -public_point.get_x());
-        self.constrain_to_constant(point.y, Scalar::zero(), -public_point.get_y());
+        self.constrain_to_constant(point.x, BlsScalar::zero(), -public_point.get_x());
+        self.constrain_to_constant(point.y, BlsScalar::zero(), -public_point.get_y());
     }
     /// Asserts that a point in the circuit is equal to another point in the circuit
     pub fn assert_equal_point(&mut self, point_a: Point, point_b: Point) {
@@ -247,13 +280,13 @@ mod tests {
     fn test_conditional_select_point() {
         let res = gadget_tester(
             |composer| {
-                let bit_1 = composer.add_input(Scalar::one());
-                let bit_0 = composer.add_input(Scalar::zero());
+                let bit_1 = composer.add_input(BlsScalar::one());
+                let bit_0 = composer.add_input(BlsScalar::zero());
 
                 let point_a = Point::identity(composer);
                 let point_b = Point {
-                    x: composer.add_input(Scalar::from(10u64)),
-                    y: composer.add_input(Scalar::from(20u64)),
+                    x: composer.add_input(BlsScalar::from(10u64)),
+                    y: composer.add_input(BlsScalar::from(20u64)),
                 };
 
                 let choice = point_a.conditional_select(composer, bit_1, point_b);
