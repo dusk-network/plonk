@@ -4,24 +4,21 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
+use crate::multiset::MultiSet;
 use dusk_plonk::bls12_381::BlsScalar;
-use plookup::multiset::MultiSet;
 
-pub struct WitnessTable3Arity(
-    {
-    pub f_1: Multiset; 
-    pub f_2: MultiSet; 
-    pub f_3: MultiSet;
+pub struct WitnessTable3Arity {
+    pub f_1: MultiSet,
+    pub f_2: MultiSet,
+    pub f_3: MultiSet,
+}
 
-});
-
-pub struct WitnessTable4Arity( 
-    {
-    pub f_1: Multiset; 
-    pub f_2: MultiSet; 
-    pub f_3: MultiSet;
-    pub f_4: MultiSet; 
-});
+pub struct WitnessTable4Arity {
+    pub f_1: MultiSet,
+    pub f_2: MultiSet,
+    pub f_3: MultiSet,
+    pub f_4: MultiSet,
+}
 
 /*
 impl WitnessTable {
