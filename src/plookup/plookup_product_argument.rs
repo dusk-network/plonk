@@ -1,5 +1,5 @@
 use crate::fft::{EvaluationDomain, Polynomial};
-use dusk_bls12_381::Scalar;
+use dusk_bls12_381::BlsScalar;
 use itertools::izip;
 use rayon::iter::*;
 
@@ -9,38 +9,38 @@ use rayon::iter::*;
 /// expect from a multiset whose elements are from the lookup table
 
 pub struct Plookup {
-    table: Vec<Scalar>,
-    queries: Vec<Scalar>,
+    table: Vec<BlsScalar>,
+    queries: Vec<BlsScalar>,
 }
 
 impl Plookup {
 
     // These are the formulas for the irreducible factors used in the product argument
     fn plookup_table_irreducible(
-        w: &Scalar,
-        beta: &Scalar,
-        gamma: &Scalar,
-    ) -> Scalar {
-        (Scalar::one() + beta) * (gamma + w)
+        w: &BlsScalar,
+        beta: &BlsScalar,
+        gamma: &BlsScalar,
+    ) -> BlsScalar {
+        (BlsScalar::one() + beta) * (gamma + w)
     }
 
     fn plookup_random_difference(
-        t: &Scalar,
-        t_next: &Scalar,
-        beta: &Scalar,
-        gamma: &Scalar,
-    ) -> Scalar {
-        gamma * (Scalar::one() + beta) + t + (beta * t_next)
+        t: &BlsScalar,
+        t_next: &BlsScalar,
+        beta: &BlsScalar,
+        gamma: &BlsScalar,
+    ) -> BlsScalar {
+        gamma * (BlsScalar::one() + beta) + t + (beta * t_next)
     }
 
     fn multizip_compute_plookup_product(
         domain: &EvaluationDomain,
-        queries: &Vec<Scalar>,
-        table: &Vec<Scalar>,
-        sorted: (&[Scalar], &[Scalar]),
-        beta: &Scalar,
-        gamma: &Scalar,
-    ) -> Vec<Scalar> {
+        queries: &Vec<BlsScalar>,
+        table: &Vec<BlsScalar>,
+        sorted: (&[BlsScalar], &[BlsScalar]),
+        beta: &BlsScalar,
+        gamma: &BlsScalar,
+    ) -> Vec<BlsScalar> {
 
         let d = domain.size();
 
@@ -53,11 +53,11 @@ impl Plookup {
 
         // the randomized differences need to be able to access the "next" element
         // so we shift them by one
-        let table_next: Vec<Scalar> = [&table[1..], &[table[0]]].concat();
+        let table_next: Vec<BlsScalar> = [&table[1..], &[table[0]]].concat();
         let sorted1 = sorted.0;
-        let sorted1_next: Vec<Scalar> = [&sorted1[1..], &[sorted1[0]]].concat();
+        let sorted1_next: Vec<BlsScalar> = [&sorted1[1..], &[sorted1[0]]].concat();
         let sorted2 = sorted.1;
-        let sorted2_next: Vec<Scalar> = [&sorted2[1..], &[sorted2[0]]].concat();
+        let sorted2_next: Vec<BlsScalar> = [&sorted2[1..], &[sorted2[0]]].concat();
 
         let plookup_accumulator = (queries, table, table_next, sorted1, sorted1_next, sorted2, sorted2_next)
             .into_par_iter()
@@ -78,12 +78,12 @@ impl Plookup {
             .map(|(n, d)| n * d.invert().unwrap())
 
             // Collect into vector intermediary since rayon does not support `scan`
-            .collect::<Vec<Scalar>>();
+            .collect::<Vec<BlsScalar>>();
 
         let mut plookup_z_coefficients = Vec::with_capacity(d);
 
         // First element is one
-        let mut state = Scalar::one();
+        let mut state = BlsScalar::one();
         plookup_z_coefficients.push(state);
 
         // Accumulate by successively multiplying the scalars
@@ -142,26 +142,26 @@ mod test {
         let tg = Evaluations::from_vec_and_domain([&table[1..n+1], &[table[0]]].concat(), domain);
 
         // create L1 Lagrange polynomial in evaluation form
-        let mut one_followed_by_zeros = vec![Scalar::one()];
-        one_followed_by_zeros.extend(vec![Scalar::zero(); domain.size()-1]);
+        let mut one_followed_by_zeros = vec![BlsScalar::one()];
+        one_followed_by_zeros.extend(vec![BlsScalar::zero(); domain.size()-1]);
         let l1 = Evaluations::from_vec_and_domain(one_followed_by_zeros, domain);
 
         // create Ln Lagrange polynomial in evaluation form
-        let mut zeros_followed_by_one = vec![Scalar::zero(); domain.size()-1];
-        zeros_followed_by_one.push(Scalar::one());
+        let mut zeros_followed_by_one = vec![BlsScalar::zero(); domain.size()-1];
+        zeros_followed_by_one.push(BlsScalar::one());
         let ln = Evaluations::from_vec_and_domain(zeros_followed_by_one, domain);
 
         // get random parameters beta and gamma
-        let beta_scalar = Scalar::random(&mut rng);
-        let gamma_scalar = Scalar::random(&mut rng);
+        let beta_scalar = BlsScalar::random(&mut rng);
+        let gamma_scalar = BlsScalar::random(&mut rng);
 
         // convert random parameters to constant polynomials in evaluation form
         let gamma = Evaluations::from_vec_and_domain(vec![gamma_scalar; domain.size()], domain);
         let beta = Evaluations::from_vec_and_domain(vec![beta_scalar; domain.size()], domain);
 
         // create constant polynomials for zero and one in evaluation form 
-        let zero = Evaluations::from_vec_and_domain(vec![Scalar::zero(); domain.size()], domain);
-        let one = Evaluations::from_vec_and_domain(vec![Scalar::one(); domain.size()], domain);
+        let zero = Evaluations::from_vec_and_domain(vec![BlsScalar::zero(); domain.size()], domain);
+        let one = Evaluations::from_vec_and_domain(vec![BlsScalar::one(); domain.size()], domain);
 
         let z_values = Plookup::multizip_compute_plookup_product(
             &domain,
@@ -180,7 +180,7 @@ mod test {
         let x_minus_g_to_n = Evaluations::from_vec_and_domain(
             domain.fft(
                 &Polynomial::from_coefficients_vec(
-                   vec![-g_inv, Scalar::one()]
+                   vec![-g_inv, BlsScalar::one()]
                 ).coeffs
             ),
             domain
@@ -210,15 +210,15 @@ mod test {
         assert!(&ln * &(&z - &one) == zero);
     }
 
-    fn random_table_and_queries(n: usize) -> (Vec<Scalar>, Vec<Scalar>) {
+    fn random_table_and_queries(n: usize) -> (Vec<BlsScalar>, Vec<BlsScalar>) {
         let mut rng = rand::thread_rng();
 
         // create a table of random scalars
-        let mut random_table: Vec<Scalar> = (0..n).into_iter().map(|_i| Scalar::random(&mut rng)).collect();
+        let mut random_table: Vec<BlsScalar> = (0..n).into_iter().map(|_i| BlsScalar::random(&mut rng)).collect();
         random_table.sort();
 
         // create a table of queries from the table
-        let random_queries: Vec<Scalar> = (0..n-1).into_iter().map(|_i| random_table[rng.gen_range(0, n)]).collect();
+        let random_queries: Vec<BlsScalar> = (0..n-1).into_iter().map(|_i| random_table[rng.gen_range(0, n)]).collect();
 
         (random_table, random_queries)
     }

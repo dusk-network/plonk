@@ -6,7 +6,7 @@
 
 #![allow(clippy::too_many_arguments)]
 use crate::fft::{EvaluationDomain, Evaluations, Polynomial};
-use crate::permutation::constants::{K1, K2, K3};
+use crate::constraint_system::constants::{K1, K2, K3};
 use dusk_bls12_381::BlsScalar;
 
 #[derive(Debug, Eq, PartialEq, Clone)]

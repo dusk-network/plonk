@@ -20,7 +20,7 @@
 #![allow(clippy::too_many_arguments)]
 
 use crate::constraint_system::Variable;
-use crate::permutation::Permutation;
+use crate::constraint_system::Permutation;
 use dusk_bls12_381::BlsScalar;
 use std::collections::HashMap;
 
