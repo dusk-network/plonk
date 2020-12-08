@@ -11,7 +11,7 @@ use crate::table::lookup_table::{PlookupTable3Arity, PlookupTable4Arity};
 use dusk_plonk::bls12_381::{BlsScalar, G1Affine};
 use dusk_plonk::commitment_scheme::kzg10::{CommitKey, Commitment};
 use dusk_plonk::fft::{EvaluationDomain, Polynomial};
-use std::collections::HashMap;
+
 /// This table will be the preprocessed version of the
 /// precomputed table, T. This structure is passed to the
 /// proof alongside the table of witness values.
