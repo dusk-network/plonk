@@ -178,6 +178,13 @@ impl Prover {
         transcript.append_commitment(b"w_r", &w_r_poly_commit);
         transcript.append_commitment(b"w_o", &w_o_poly_commit);
         transcript.append_commitment(b"w_4", &w_4_poly_commit);
+        
+        // Do the same for the compressed lookups
+        // Reads compressed lookups from the composer
+        // (which doesn't have plookup yet)
+        let lookup_pad = vec![c_l[0]; domain.size() - self.cs.c_l.len()];
+        let c_l_scalar = &[&self.to_scalars(&self.cs.c_l)[..], &lookup_pad].concat();
+        let c_l_poly = Polynomial::from_coefficients_vec(domain.ifft(c_l_scalar));
 
         // 2. Compute permutation polynomial
         //
@@ -206,11 +213,37 @@ impl Prover {
 
         // Add permutation polynomial commitment to transcript
         transcript.append_commitment(b"z", &z_poly_commit);
+        
+        // 2. Compute plookup product argument polynomial
+        //
+        //
+        // Compute challenges; `delta` and `epsilon`
+        let delta = transcript.challenge_scalar(b"delta");
+        transcript.append_scalar(b"delta", &delta);
+        let epsilon = transcript.challenge_scalar(b"epsilon");
+
+        let zplookup_poly = Polynomial::from_coefficients_slice(&self.plookup_product_argument.multizip_compute_plookup_product(
+            &domain,
+            &queries,
+            &table,
+            (&h1, &h2),
+            &delta,
+            &epsilon,
+        ));
+
+        // Commit to permutation polynomial
+        //
+        let zplookup_poly_commit = commit_key.commit(&zplookup_poly)?;
+
+        // Add permutation polynomial commitment to transcript
+        transcript.append_commitment(b"zplookup", &zplookup_poly_commit);
 
         // 3. Compute public inputs polynomial
         let pi_poly = Polynomial::from_coefficients_vec(domain.ifft(&self.cs.public_inputs));
 
         // 4. Compute quotient polynomial
+        //
+        // To do: update this section AFTER updating quotient_poly.rs and linearisation_poly.rs
         //
         // Compute quotient challenge; `alpha`
         let alpha = transcript.challenge_scalar(b"alpha");

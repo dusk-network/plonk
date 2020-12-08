@@ -45,9 +45,19 @@ pub struct Proof {
     pub c_comm: Commitment,
     /// Commitment to the witness polynomial for the fourth wires.
     pub d_comm: Commitment,
-
+    
+    /// Commitment to the lookup queries polynomial.
+    pub f_comm: Commitment,
+    
     /// Commitment to the permutation polynomial.
     pub z_comm: Commitment,
+    
+    /// Commitment to the sorted concatenation of lookups and the table
+    pub h1_comm: Commitment,
+    pub h2_comm: Commitment,
+
+    /// Commitment to the plookup product polynomial.
+    pub zplookup_comm: Commitment,
 
     /// Commitment to the quotient polynomial.
     pub t_1_comm: Commitment,
@@ -97,14 +107,18 @@ impl Proof {
         bytes[48..96].copy_from_slice(&self.b_comm.0.to_compressed()[..]);
         bytes[96..144].copy_from_slice(&self.c_comm.0.to_compressed()[..]);
         bytes[144..192].copy_from_slice(&self.d_comm.0.to_compressed()[..]);
-        bytes[192..240].copy_from_slice(&self.z_comm.0.to_compressed()[..]);
-        bytes[240..288].copy_from_slice(&self.t_1_comm.0.to_compressed()[..]);
-        bytes[288..336].copy_from_slice(&self.t_2_comm.0.to_compressed()[..]);
-        bytes[336..384].copy_from_slice(&self.t_3_comm.0.to_compressed()[..]);
-        bytes[384..432].copy_from_slice(&self.t_4_comm.0.to_compressed()[..]);
-        bytes[432..480].copy_from_slice(&self.w_z_comm.0.to_compressed()[..]);
-        bytes[480..528].copy_from_slice(&self.w_zw_comm.0.to_compressed()[..]);
-        bytes[528..PROOF_SIZE].copy_from_slice(&self.evaluations.to_bytes()[..]);
+        bytes[192..240].copy_from_slice(&self.f_comm.0.to_compressed()[..]);
+        bytes[240..288].copy_from_slice(&self.z_comm.0.to_compressed()[..]);
+        bytes[288..336].copy_from_slice(&self.h1_comm.0.to_compressed()[..]);
+        bytes[336..384].copy_from_slice(&self.h2_comm.0.to_compressed()[..]);
+        bytes[384..432].copy_from_slice(&self.zplookup_comm.0.to_compressed()[..]);
+        bytes[432..480].copy_from_slice(&self.t_1_comm.0.to_compressed()[..]);
+        bytes[480..528].copy_from_slice(&self.t_2_comm.0.to_compressed()[..]);
+        bytes[528..576].copy_from_slice(&self.t_3_comm.0.to_compressed()[..]);
+        bytes[576..624].copy_from_slice(&self.t_4_comm.0.to_compressed()[..]);
+        bytes[624..672].copy_from_slice(&self.w_z_comm.0.to_compressed()[..]);
+        bytes[672..720].copy_from_slice(&self.w_zw_comm.0.to_compressed()[..]);
+        bytes[720..PROOF_SIZE].copy_from_slice(&self.evaluations.to_bytes()[..]);
 
         bytes
     }
@@ -117,7 +131,11 @@ impl Proof {
         let (b_comm, rest) = read_commitment(rest)?;
         let (c_comm, rest) = read_commitment(rest)?;
         let (d_comm, rest) = read_commitment(rest)?;
+        let (f_comm, rest) = read_commitment(rest)?;
         let (z_comm, rest) = read_commitment(rest)?;
+        let (h1_comm, rest) = read_commitment(rest)?;
+        let (h2_comm, rest) = read_commitment(rest)?;
+        let (zplookup_comm, rest) = read_commitment(rest)?;
         let (t_1_comm, rest) = read_commitment(rest)?;
         let (t_2_comm, rest) = read_commitment(rest)?;
         let (t_3_comm, rest) = read_commitment(rest)?;
@@ -132,7 +150,11 @@ impl Proof {
             b_comm,
             c_comm,
             d_comm,
+            f_comm,
             z_comm,
+            h1_comm,
+            h2_comm,
+            zplookup_comm,
             t_1_comm,
             t_2_comm,
             t_3_comm,
@@ -146,7 +168,7 @@ impl Proof {
 
     /// Returns the serialised size of a [`Proof`] object.
     pub const fn serialised_size() -> usize {
-        const NUM_COMMITMENTS: usize = 11;
+        const NUM_COMMITMENTS: usize = 15;
         const COMMITMENT_SIZE: usize = 48;
         (NUM_COMMITMENTS * COMMITMENT_SIZE) + ProofEvaluations::serialised_size()
     }
@@ -173,6 +195,12 @@ impl Proof {
         transcript.append_commitment(b"w_r", &self.b_comm);
         transcript.append_commitment(b"w_o", &self.c_comm);
         transcript.append_commitment(b"w_4", &self.d_comm);
+        
+        // Compute compression parameter zeta
+        let zeta = transcript.challenge_scalar(b"zeta");
+        transcript.append_scalar(b"zeta", &zeta);        
+        // Add commitment to compressed lookup queries
+        transcript.append_commitment(b"c_l", &self.f_comm);
 
         // Compute beta and gamma challenges
         let beta = transcript.challenge_scalar(b"beta");
@@ -180,6 +208,16 @@ impl Proof {
         let gamma = transcript.challenge_scalar(b"gamma");
         // Add commitment to permutation polynomial to transcript
         transcript.append_commitment(b"z", &self.z_comm);
+        // Add commitments to h1, h2
+        transcript.append_commitment(b"h1", &self.h1_comm);
+        transcript.append_commitment(b"h2", &self.h2_comm);
+        
+        // Compute delta and epsilon challenges (beta and gamma for plookup)
+        let delta = transcript.challenge_scalar(b"delta");
+        transcript.append_scalar(b"delta", &delta);
+        let epsilon = transcript.challenge_scalar(b"epsilon");
+        // Add commitment to permutation polynomial to transcript
+        transcript.append_commitment(b"zplookup", &self.zplookup_comm);
 
         // Compute quotient challenge
         let alpha = transcript.challenge_scalar(b"alpha");
@@ -227,12 +265,17 @@ impl Proof {
         transcript.append_scalar(b"b_eval", &self.evaluations.b_eval);
         transcript.append_scalar(b"c_eval", &self.evaluations.c_eval);
         transcript.append_scalar(b"d_eval", &self.evaluations.d_eval);
+        transcript.append_scalar(b"f_eval", &self.evaluations.f_eval);
         transcript.append_scalar(b"a_next_eval", &self.evaluations.a_next_eval);
         transcript.append_scalar(b"b_next_eval", &self.evaluations.b_next_eval);
+        // there wasn't a c_next_eval here
+        // should there be? -nat
         transcript.append_scalar(b"d_next_eval", &self.evaluations.d_next_eval);
         transcript.append_scalar(b"left_sig_eval", &self.evaluations.left_sigma_eval);
         transcript.append_scalar(b"right_sig_eval", &self.evaluations.right_sigma_eval);
         transcript.append_scalar(b"out_sig_eval", &self.evaluations.out_sigma_eval);
+        // also no fourth sigma
+        // gonna ask about that -nat
         transcript.append_scalar(b"q_arith_eval", &self.evaluations.q_arith_eval);
         transcript.append_scalar(b"q_c_eval", &self.evaluations.q_c_eval);
         transcript.append_scalar(b"q_l_eval", &self.evaluations.q_l_eval);
@@ -240,6 +283,9 @@ impl Proof {
         transcript.append_scalar(b"perm_eval", &self.evaluations.perm_eval);
         transcript.append_scalar(b"t_eval", &t_eval);
         transcript.append_scalar(b"r_eval", &self.evaluations.lin_poly_eval);
+    
+        // Confused about some of the eval points
+        // Leaving off here for now -nat
 
         // Compute linearisation commitment
         let r_comm = self.compute_linearisation_commitment(
