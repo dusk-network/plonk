@@ -4,6 +4,7 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
+use crate::multiset::MultiSet;
 use dusk_plonk::constraint_system::StandardComposer;
 use dusk_plonk::constraint_system::Variable;
 use dusk_plonk::prelude::BlsScalar;
@@ -117,6 +118,20 @@ impl PlookupTable3Arity {
 
         PlookupTable3Arity(table)
     }
+
+    pub fn vec_to_multiset(&self) -> (MultiSet, MultiSet, MultiSet) {
+        let mut multiset_a = MultiSet::new();
+        let mut multiset_b = MultiSet::new();
+        let mut multiset_c = MultiSet::new();
+
+        self.0.iter().for_each(|row| {
+            multiset_a.push(row[0]);
+            multiset_b.push(row[1]);
+            multiset_c.push(row[2]);
+        });
+
+        (multiset_a, multiset_b, multiset_c)
+    }
 }
 /// This is a table, either
 pub struct PlookupTable4Arity(pub Vec<[BlsScalar; 4]>);
@@ -209,15 +224,23 @@ impl PlookupTable4Arity {
                 .for_each(|b| self.insert_xor_row(a, b, upper_bound));
         }
     }
-}
 
-pub struct PrecomputedT();
+    pub fn vec_to_multiset(&self) -> (MultiSet, MultiSet, MultiSet, MultiSet) {
+        let mut multiset_a = MultiSet::new();
+        let mut multiset_b = MultiSet::new();
+        let mut multiset_c = MultiSet::new();
+        let mut multiset_d = MultiSet::new();
 
-/*
-pub fn get_challenge(&Self) -> BlsScalar {
-unimplemented!()
+        self.0.iter().for_each(|row| {
+            multiset_a.push(row[0]);
+            multiset_b.push(row[1]);
+            multiset_c.push(row[2]);
+            multiset_d.push(row[3]);
+        });
+
+        (multiset_a, multiset_b, multiset_c, multiset_d)
     }
-*/
+}
 
 #[cfg(test)]
 mod test {
