@@ -468,10 +468,8 @@ mod test {
         let (commit_key, _) = setup_test(7);
         let ck_bytes = commit_key.to_bytes();
         let ck_bytes_safe = CommitKey::from_bytes(&ck_bytes).expect("CommitKey conversion error");
-        let ck_bytes_unchecked = CommitKey::from_bytes_unchecked(&ck_bytes);
 
         assert_eq!(commit_key.powers_of_g, ck_bytes_safe.powers_of_g);
-        assert_eq!(commit_key.powers_of_g, ck_bytes_unchecked.powers_of_g);
     }
 
     #[test]
