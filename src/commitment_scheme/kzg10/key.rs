@@ -210,18 +210,17 @@ impl OpeningKey {
         }
     }
     /// Serialises an Opening Key to bytes
-    pub fn to_bytes(&self) -> Vec<u8> {
-        use crate::serialisation::{write_g1_affine, write_g2_affine};
-        let mut bytes = Vec::with_capacity(OpeningKey::serialised_size());
-
-        write_g1_affine(&self.g, &mut bytes);
-        write_g2_affine(&self.h, &mut bytes);
-        write_g2_affine(&self.beta_h, &mut bytes);
+    pub fn to_bytes(&self) -> [u8; Self::serialized_size()] {
+        let mut bytes = [0u8; Self::serialized_size()];
+        bytes[0..48].copy_from_slice(&self.g.to_compressed());
+        bytes[48..144].copy_from_slice(&self.h.to_compressed());
+        bytes[144..Self::serialized_size()].copy_from_slice(&self.beta_h.to_compressed());
 
         bytes
     }
 
-    pub(crate) fn serialised_size() -> usize {
+    /// Returns the serialized size of [`OpeningKey`]
+    pub const fn serialized_size() -> usize {
         const NUM_G2: usize = 2;
         const NUM_G1: usize = 1;
         const G1_SIZE: usize = 48;
@@ -462,5 +461,25 @@ mod test {
         };
 
         assert!(ok.is_ok());
+    }
+
+    #[test]
+    fn commit_key_serde() {
+        let (commit_key, _) = setup_test(7);
+        let ck_bytes = commit_key.to_bytes();
+        let ck_bytes_safe = CommitKey::from_bytes(&ck_bytes).expect("CommitKey conversion error");
+        let ck_bytes_unchecked = CommitKey::from_bytes_unchecked(&ck_bytes);
+
+        assert_eq!(commit_key.powers_of_g, ck_bytes_safe.powers_of_g);
+        assert_eq!(commit_key.powers_of_g, ck_bytes_unchecked.powers_of_g);
+    }
+
+    #[test]
+    fn opening_key_serde() {
+        let (_, opening_key) = setup_test(7);
+        let ok_bytes = opening_key.to_bytes();
+        let obtained_key = OpeningKey::from_bytes(&ok_bytes).expect("CommitKey conversion error");
+
+        assert_eq!(opening_key.to_bytes(), obtained_key.to_bytes());
     }
 }
