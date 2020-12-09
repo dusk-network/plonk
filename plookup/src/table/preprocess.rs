@@ -4,32 +4,36 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use anyhow::{Error, Result};
-use dusk_plonk::commitment_scheme::kzg10;
 use crate::multiset::MultiSet;
 use crate::table::lookup_table::{PlookupTable3Arity, PlookupTable4Arity};
+use anyhow::{Error, Result};
 use dusk_plonk::bls12_381::{BlsScalar, G1Affine};
+use dusk_plonk::commitment_scheme::kzg10;
 use dusk_plonk::commitment_scheme::kzg10::{CommitKey, Commitment};
 use dusk_plonk::fft::{EvaluationDomain, Polynomial};
 
 /// This table will be the preprocessed version of the
 /// precomputed table, T. This structure is passed to the
 /// proof alongside the table of witness values.
-pub struct PreProcessedTableArity3 {
+pub struct PreprocessedTable3Arity {
     pub n: u32,
     pub t_1: (MultiSet, Commitment, Polynomial),
     pub t_2: (MultiSet, Commitment, Polynomial),
     pub t_3: (MultiSet, Commitment, Polynomial),
 }
 
-impl PreProcessedTableArity3 {
+impl PreprocessedTable3Arity {
     /// This function takes in a precomputed look up table and
     /// pads it to the length of the circuit entries, as a power
     /// of 2. The function then interpolates a polynomial from the
     /// padded table and makes a commitment to the poly. The
     /// outputted struct will be used in the proof alongside our
     /// circuit witness table.
-    pub fn preprocess(table: PlookupTable3Arity, commit_key: &CommitKey, n: u32) -> Result<Self, Error> {
+    pub fn preprocess(
+        table: PlookupTable3Arity,
+        commit_key: &CommitKey,
+        n: u32,
+    ) -> Result<Self, Error> {
         let domain: EvaluationDomain = EvaluationDomain::new(n as usize).unwrap();
 
         let columned_table = table.vec_to_multiset();
@@ -49,7 +53,7 @@ impl PreProcessedTableArity3 {
         let t_2_commit = commit_key.commit(&t_2_poly)?;
         let t_3_commit = commit_key.commit(&t_3_poly)?;
 
-        Ok(PreProcessedTableArity3 {
+        Ok(PreprocessedTable3Arity {
             n: n,
             t_1: (t_1, t_1_commit, t_1_poly),
             t_2: (t_2, t_2_commit, t_2_poly),
@@ -58,7 +62,7 @@ impl PreProcessedTableArity3 {
     }
 }
 
-pub struct PreProcessedTableArity4 {
+pub struct PreprocessedTable4Arity {
     pub n: u32,
     pub t_1: (MultiSet, Commitment, Polynomial),
     pub t_2: (MultiSet, Commitment, Polynomial),
@@ -66,14 +70,18 @@ pub struct PreProcessedTableArity4 {
     pub t_4: (MultiSet, Commitment, Polynomial),
 }
 
-impl PreProcessedTableArity4 {
+impl PreprocessedTable4Arity {
     /// This function takes in a precomputed look up table and
     /// pads it to the length of the circuit entries, as a power
     /// of 2. The function then interpolates a polynomial from the
     /// padded table and makes a commitment to the poly. The
     /// outputted struct will be used in the proof alongside our
     /// circuit witness table.
-    pub fn preprocess(table: PlookupTable4Arity, commit_key: &CommitKey, n: u32) -> Result<Self, Error> {
+    pub fn preprocess(
+        table: PlookupTable4Arity,
+        commit_key: &CommitKey,
+        n: u32,
+    ) -> Result<Self, Error> {
         let domain: EvaluationDomain = EvaluationDomain::new(n as usize).unwrap();
 
         let columned_table = table.vec_to_multiset();
@@ -97,7 +105,7 @@ impl PreProcessedTableArity4 {
         let t_3_commit = commit_key.commit(&t_3_poly)?;
         let t_4_commit = commit_key.commit(&t_4_poly)?;
 
-        Ok(PreProcessedTableArity4 {
+        Ok(PreprocessedTable4Arity {
             n: n,
             t_1: (t_1, t_1_commit, t_1_poly),
             t_2: (t_2, t_2_commit, t_2_poly),
