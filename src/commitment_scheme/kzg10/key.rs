@@ -39,7 +39,7 @@ pub struct CommitKey {
 
 impl CommitKey {
     /// Serialises the commitment Key to a byte slice
-    pub fn to_bytes(&self) -> Vec<u8> {
+    pub fn into_bytes(&self) -> Vec<u8> {
         use crate::serialisation::{write_g1_affine, write_u64};
 
         let mut bytes = Vec::with_capacity(self.powers_of_g.len() * 48);
@@ -466,7 +466,7 @@ mod test {
     #[test]
     fn commit_key_serde() {
         let (commit_key, _) = setup_test(7);
-        let ck_bytes = commit_key.to_bytes();
+        let ck_bytes = commit_key.into_bytes();
         let ck_bytes_safe = CommitKey::from_bytes(&ck_bytes).expect("CommitKey conversion error");
 
         assert_eq!(commit_key.powers_of_g, ck_bytes_safe.powers_of_g);

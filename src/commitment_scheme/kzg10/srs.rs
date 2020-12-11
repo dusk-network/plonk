@@ -28,7 +28,7 @@ pub struct PublicParameters {
     pub opening_key: OpeningKey,
 }
 
-impl_serde!(PublicParameters);
+impl_serde_into!(PublicParameters);
 
 impl PublicParameters {
     /// Setup generates the public parameters using a random number generator.
@@ -73,9 +73,9 @@ impl PublicParameters {
     }
 
     /// Serialises a [`PublicParameters`] struct into a slice of bytes
-    pub fn to_bytes(&self) -> Vec<u8> {
+    pub fn into_bytes(&self) -> Vec<u8> {
         let mut bytes = self.opening_key.to_bytes().to_vec();
-        bytes.extend(self.commit_key.to_bytes());
+        bytes.extend(self.commit_key.into_bytes());
         bytes
     }
 
@@ -132,7 +132,7 @@ mod test {
     fn test_serialise_deserialise_public_parameter() {
         let pp = PublicParameters::setup(100, &mut rand::thread_rng()).unwrap();
 
-        let got_pp = PublicParameters::from_bytes(&pp.to_bytes()).unwrap();
+        let got_pp = PublicParameters::from_bytes(&pp.into_bytes()).unwrap();
 
         assert_eq!(got_pp.commit_key.powers_of_g, pp.commit_key.powers_of_g);
         assert_eq!(got_pp.opening_key.g, pp.opening_key.g);
