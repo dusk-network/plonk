@@ -28,7 +28,7 @@ pub struct PublicParameters {
     pub opening_key: OpeningKey,
 }
 
-impl_serde!(PublicParameters);
+impl_serde_into!(PublicParameters);
 
 impl PublicParameters {
     /// Setup generates the public parameters using a random number generator.
@@ -72,10 +72,17 @@ impl PublicParameters {
         })
     }
 
+    /// Serialises a [`PublicParameters`] struct into a slice of bytes
+    pub fn into_bytes(&self) -> Vec<u8> {
+        let mut bytes = self.opening_key.to_bytes().to_vec();
+        bytes.extend(self.commit_key.into_bytes());
+        bytes
+    }
+
     /// Deserialise a slice of bytes into a Public Parameter struct
     pub fn from_bytes(bytes: &[u8]) -> Result<PublicParameters, Error> {
-        let opening_key_bytes = &bytes[0..OpeningKey::serialised_size()];
-        let commit_key_bytes = &bytes[OpeningKey::serialised_size()..];
+        let opening_key_bytes = &bytes[0..OpeningKey::serialized_size()];
+        let commit_key_bytes = &bytes[OpeningKey::serialized_size()..];
 
         let opening_key = OpeningKey::from_bytes(opening_key_bytes)?;
         let commit_key = CommitKey::from_bytes(commit_key_bytes)?;
@@ -86,13 +93,6 @@ impl PublicParameters {
         };
 
         Ok(pp)
-    }
-
-    /// Serialises a Public Parameter struct into a slice of bytes
-    pub fn to_bytes(&self) -> Vec<u8> {
-        let mut bytes = self.opening_key.to_bytes();
-        bytes.extend(self.commit_key.to_bytes());
-        bytes
     }
 
     /// Trim truncates the prover key to allow the prover to commit to polynomials up to the
@@ -132,10 +132,9 @@ mod test {
     fn test_serialise_deserialise_public_parameter() {
         let pp = PublicParameters::setup(100, &mut rand::thread_rng()).unwrap();
 
-        let got_pp = PublicParameters::from_bytes(&pp.to_bytes()).unwrap();
+        let got_pp = PublicParameters::from_bytes(&pp.into_bytes()).unwrap();
 
         assert_eq!(got_pp.commit_key.powers_of_g, pp.commit_key.powers_of_g);
-
         assert_eq!(got_pp.opening_key.g, pp.opening_key.g);
         assert_eq!(got_pp.opening_key.h, pp.opening_key.h);
         assert_eq!(got_pp.opening_key.beta_h, pp.opening_key.beta_h);
