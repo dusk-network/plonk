@@ -75,7 +75,7 @@ impl Prover {
     pub fn circuit_size(&self) -> usize {
         self.cs.circuit_size()
     }
-
+	
     /// Split `t(X)` poly into 4 degree `n` polynomials.
     pub(crate) fn split_tx_poly(
         &self,
@@ -182,7 +182,8 @@ impl Prover {
         // Do the same for the compressed lookups
         // Reads compressed lookups from the composer
         // (which doesn't have plookup yet)
-        let lookup_pad = vec![c_l[0]; domain.size() - self.cs.c_l.len()];
+        let lookup_pad = vec![BlsScalar::zero(); domain.size() - self.cs.w_l.len()];
+        
         let c_l_scalar = &[&self.to_scalars(&self.cs.c_l)[..], &lookup_pad].concat();
         let c_l_poly = Polynomial::from_coefficients_vec(domain.ifft(c_l_scalar));
 

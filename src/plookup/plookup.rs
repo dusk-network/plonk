@@ -15,6 +15,19 @@ pub struct Plookup {
 
 impl Plookup {
 
+	/// Compress lookup values 
+	pub fn compress_zeta(
+			wires: (&BlsScalar, &BlsScalar, &BlsScalar, &BlsScalar),
+			parameter: &BlsScalar
+			) -> BlsScalar {
+		let powers = util::powers_of(&parameter, 4);
+        let c_l: Vec<BlsScalars> = wires
+            .iter()
+            .zip(powers.iter())
+            .map(|(poly, challenge)| poly * challenge)
+            .sum();
+	}
+	
     // These are the formulas for the irreducible factors used in the product argument
     fn plookup_table_irreducible(
         w: &BlsScalar,
