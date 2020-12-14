@@ -5,20 +5,21 @@ use dusk_plonk::constraint_system::StandardComposer;
 use dusk_plonk::constraint_system::Variable;
 use dusk_plonk::prelude::BlsScalar;
 
-const t_s: u8 = 10;
+
+// For Bls and BN254 we have different values of p (and therefore of
+// the s_i, etc.)
+// These are the required constants for Bls
+// Currently making the s_i usize, but in reality I think they should be BlsScalars
+const p: usize = 52435875175126190479447740508185965837690552500527637822603658699938581184513;
+const v: usize = 643;
+const n: usize = 27;
+// Note this is currently backwards, e.g. S[0] should = 673. But doesn't matter for now
+const S: Vec<usize; n> = vec!<651,658,656,666,663,654,668,677,681,683,669,681,680,677,675,
+                                668,675,683,681,683,683,655,680,683,667,678,673>;
+const t_s: usize = 4;
 
 // A vector x in (F_p)^t goes through r rounds of some round function R.
 // The result is another vector y in (F_p)^t.
-
-// The hash table should be t_s-ary, but it is not clear what t_s is right now.
-// The table will have (\Sum_{0<i<n+1}s_i - v) + 2^{t_s} + v + 1 rows
-// So in order to make some progress I think I need more information on what
-// t_s is, and the s_i.
-// We are working in a prime field F_p, and we can find the s_i as follows.
-// We need to find a representation of p-1 as
-// (v_1 || v_2 || ... || v_n) \in  Z_{s_1} x Z_{s_2} x ... x Z_{s_n},
-// such that \Prod_{i=1}^{n} s_i > p.
-// So we have a definition, but we still have to work out how to identify these s_i.
 
 pub struct hash_table(Vec<[BlsScalar; t_s]>);
 
@@ -54,7 +55,7 @@ impl hash_table {
     // in (F_p)^n, and v and n.
     // Will have to do the same thing as in the first rows to append t_s-3 lots of -1 to the end
     // of each row.
-    pub fn middle_rows(S: Vec<[usize; n]>, n: usize, v: usize) -> self {
+    pub fn middle_rows(S: Vec<usize; n>, n: usize, v: usize) -> self {
         // Calculate the number of middle rows
         cap = 0;
         for i in 0..n {
@@ -124,3 +125,11 @@ fn main() {
     binary_rows(t_s);
 }
 
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_first() {
+        let ans = first_rows(v, f);
+        println!("{:?}", ans);
+    }
+}
