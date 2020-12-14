@@ -4,6 +4,8 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
+use crate::error::PlookupErrors;
+use crate::multiset::MultiSet;
 use dusk_plonk::constraint_system::StandardComposer;
 use dusk_plonk::constraint_system::Variable;
 use dusk_plonk::prelude::BlsScalar;
@@ -117,7 +119,65 @@ impl PlookupTable3Arity {
 
         PlookupTable3Arity(table)
     }
+
+    // Function takes in two different usize numbers and checks the range
+    /// between them, as well as computing the value of their AND bitwise 
+    /// operation. These numbers require exponentiation outside, for the lower
+    /// bound, otherwise the range cannot start from zero, as 2^0 = 1.
+    pub fn and_table(lower_bound: u64, n: u8) -> Self {
+        let upper_bound = 2u64.pow(n.into());
+
+        let range = lower_bound..upper_bound;
+
+        let cap = ((upper_bound - lower_bound) * upper_bound) as usize;
+
+        let mut table: Vec<[BlsScalar; 3]> = Vec::with_capacity(cap);
+
+        for a in range.clone() {
+            range
+                .clone()
+                .map(|b| {
+                    let c = (a & b) % upper_bound;
+                    [BlsScalar::from(a), BlsScalar::from(b), BlsScalar::from(c)]
+                })
+                .for_each(|row| {
+                    table.push(row);
+                });
+        }
+
+        PlookupTable3Arity(table)
+    }
+
+    /// Takes in a table, which is a list of vectors containing
+    /// 3 elements, and turns them into 3 distinct multisets for 
+    /// a, b and c.
+    pub fn vec_to_multiset(&self) -> (MultiSet, MultiSet, MultiSet) {
+        let mut multiset_a = MultiSet::new();
+        let mut multiset_b = MultiSet::new();
+        let mut multiset_c = MultiSet::new();
+
+        self.0.iter().for_each(|row| {
+            multiset_a.push(row[0]);
+            multiset_b.push(row[1]);
+            multiset_c.push(row[2]);
+        });
+
+        (multiset_a, multiset_b, multiset_c)
+    }
+
+    /// Attempts to find an output value, given two input values, by querying the lookup
+    /// table. If the element does not exist, it will return an error.
+    pub fn lookup(&self, a: BlsScalar, b: BlsScalar) -> Result<BlsScalar, PlookupErrors> {
+        let pos = self
+            .0
+            .iter()
+            .position(|row| row[0] == a && row[1] == b)
+            .ok_or(PlookupErrors::ElementNotIndexed)?;
+
+        Ok(self.0[pos][2])
+    }
 }
+
 /// This is a table, either
 pub struct PlookupTable4Arity(pub Vec<[BlsScalar; 4]>);
 
@@ -166,6 +226,20 @@ impl PlookupTable4Arity {
         ]);
     }
 
+    /// Insert a new row for an AND operation.
+    /// This function needs to know the upper bound of the amount of XOR
+    /// operations that will be done in the plookup table.
+    pub fn insert_and_row(&mut self, a: u64, b: u64, upper_bound: u64) {
+        let c = (a & b) % upper_bound;
+        self.0.push([
+            BlsScalar::from(a),
+            BlsScalar::from(b),
+            BlsScalar::from(c),
+            BlsScalar::from(2u64),
+        ]);
+    }
+
+
     /// Function builds a table from more than one operation. This is denoted
     /// as 'Multiple Tables' in the paper. If, for example, we are using lookup
     /// tables for both XOR and mul operataions, we can create a table where the
@@ -209,15 +283,56 @@ impl PlookupTable4Arity {
                 .for_each(|b| self.insert_xor_row(a, b, upper_bound));
         }
     }
-}
 
-pub struct PrecomputedT();
+    pub fn insert_multi_and(&mut self, lower_bound: u64, n: u8) {
+    let upper_bound = 2u64.pow(n.into());
 
-/*
-pub fn get_challenge(&Self) -> BlsScalar {
-unimplemented!()
+        let range = lower_bound..upper_bound;
+
+        for a in range.clone() {
+            range
+                .clone()
+                .for_each(|b| self.insert_and_row(a, b, upper_bound));
+        }
     }
-*/
+
+    
+    /// Takes in a table, which is a list of vectors containing
+    /// 4 elements, and turns them into 4 distinct multisets for 
+    /// a, b, c and d.
+    pub fn vec_to_multiset(&self) -> (MultiSet, MultiSet, MultiSet, MultiSet) {
+        let mut multiset_a = MultiSet::new();
+        let mut multiset_b = MultiSet::new();
+        let mut multiset_c = MultiSet::new();
+        let mut multiset_d = MultiSet::new();
+
+        self.0.iter().for_each(|row| {
+            multiset_a.push(row[0]);
+            multiset_b.push(row[1]);
+            multiset_c.push(row[2]);
+            multiset_d.push(row[3]);
+        });
+
+        (multiset_a, multiset_b, multiset_c, multiset_d)
+    }
+
+    /// Attempts to find an output value, given two input values, by querying the lookup
+    /// table. If the element does not exist, it will return an error.
+    pub fn lookup(
+        &self,
+        a: BlsScalar,
+        b: BlsScalar,
+        d: BlsScalar,
+    ) -> Result<BlsScalar, PlookupErrors> {
+        let pos = self
+            .0
+            .iter()
+            .position(|row| row[0] == a && row[1] == b && row[3] == d)
+            .ok_or(PlookupErrors::ElementNotIndexed)?;
+
+        Ok(self.0[pos][2])
+    }
+}
 
 #[cfg(test)]
 mod test {

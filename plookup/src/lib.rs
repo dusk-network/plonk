@@ -4,8 +4,9 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
+mod error;
+mod multiset;
 mod plookup;
 mod prover;
 mod table;
 mod verifier;
-mod multiset; 
