@@ -88,11 +88,6 @@ pub fn read_g2_affine(bytes: &[u8]) -> Result<(G2Affine, &[u8]), Error> {
     }
     Ok((g2.unwrap(), rest))
 }
-/// Writes a G2Affine into a mutable slice
-pub fn write_g2_affine(affine: &G2Affine, bytes: &mut Vec<u8>) {
-    let bytes96 = affine.to_compressed();
-    bytes.extend_from_slice(&bytes96);
-}
 
 /// Reads 8 bytes and converts it to a u64
 /// Returns the remaining bytes
@@ -223,19 +218,15 @@ mod test {
         let mut bytes = Vec::new();
 
         let comm = Commitment::from_affine(G1Affine::generator());
-        let g2 = G2Affine::generator();
 
         write_commitment(&comm, &mut bytes);
         write_g1_affine(&comm.0, &mut bytes);
-        write_g2_affine(&g2, &mut bytes);
 
         let (got_g1_affine, rest) = read_g1_affine(&bytes).unwrap();
         let (got_comm, rest) = read_commitment(&rest).unwrap();
-        let (got_g2_affine, rest) = read_g2_affine(&rest).unwrap();
         assert_eq!(rest.len(), 0);
 
         assert_eq!(got_g1_affine, comm.0);
         assert_eq!(got_comm, comm);
-        assert_eq!(got_g2_affine, g2);
     }
 }
