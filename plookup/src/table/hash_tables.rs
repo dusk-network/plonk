@@ -14,9 +14,17 @@ const p: usize = 524358751751261904794477405081859658376905525005276378226036586
 const v: usize = 643;
 const n: usize = 27;
 // Note this is currently backwards, e.g. S[0] should = 673. But doesn't matter for now
-const S: Vec<usize; n> = vec!<651,658,656,666,663,654,668,677,681,683,669,681,680,677,675,
-                                668,675,683,681,683,683,655,680,683,667,678,673>;
+const S: Vec<usize; n> = vec![651,658,656,666,663,654,668,677,681,683,669,681,680,677,675,
+                                668,675,683,681,683,683,655,680,683,667,678,673];
 const t_s: usize = 4;
+
+// f is a polynomial; we will represent it as a vector of coefficients.
+// We will make f the simple bijection that adds 3 to each element for now.
+// The first entry represents the coefficient of the highest power, the 
+// last entry is the constant in the polynomial.
+// But this approach also seems to require knowing beforehand the degree of f.
+// Perhaps we could find a max degree D for f and then always input f as D-sized vector
+let f: Vec<usize> = vec![1, 3];
 
 // A vector x in (F_p)^t goes through r rounds of some round function R.
 // The result is another vector y in (F_p)^t.
@@ -38,6 +46,8 @@ impl hash_table {
         // Also need to figure out what this function f is, and how to give it to this
         // table creator
         for i in 0..(v+1) {
+            let eval = f.0 * i + f.1;
+            let perm_eval = BlsScalar::from(eval);
             let mut row = [BlsScalar::from(i), BlsScalar::zero(), BlsScalar::from(f(i))];
 
             // Need to push t_s-3 lots of -1 to the end of each vector
