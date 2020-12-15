@@ -7,3 +7,4 @@
 pub mod lookup_table;
 pub mod preprocess;
 pub mod witness_table;
+pub mod hash_tables;
