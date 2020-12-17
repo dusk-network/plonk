@@ -1,8 +1,8 @@
-// // This Source Code Form is subject to the terms of the Mozilla Public
-// // License, v. 2.0. If a copy of the MPL was not distributed with this
-// // file, You can obtain one at http://mozilla.org/MPL/2.0/.
-// //
-// // Copyright (c) DUSK NETWORK. All rights reserved.
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright (c) DUSK NETWORK. All rights reserved.
 
 // use crate::multiset::MultiSet;
 // use crate::table::lookup_table::{PlookupTable3Arity, PlookupTable4Arity};
@@ -16,6 +16,9 @@
 // use crate::multiset::compress_four_arity;
 // use dusk_plonk::proof_system::ProverKey;
 // use merlin::Transcript;
+
+// XXX: To be dealt with within plookup_gate PR.
+
 
 // pub struct PlookupProof3Arity {
 //     f: WitnessTable3Arity,
