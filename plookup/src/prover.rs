@@ -19,7 +19,6 @@
 
 // XXX: To be dealt with within plookup_gate PR.
 
-
 // pub struct PlookupProof3Arity {
 //     f: WitnessTable3Arity,
 //     t: PreprocessedTable3Arity,

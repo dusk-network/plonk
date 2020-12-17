@@ -4,7 +4,7 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
+pub mod hash_tables;
 pub mod lookup_table;
 pub mod preprocess;
 pub mod witness_table;
-pub mod hash_tables;
