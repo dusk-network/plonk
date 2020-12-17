@@ -173,7 +173,8 @@ impl VerifierKey {
         Ok(verifier_key)
     }
 
-    const fn serialised_size() -> usize {
+    /// Return the serialized size of a [`VerifierKey`]
+    pub const fn serialised_size() -> usize {
         const N_SIZE: usize = 8;
         const NUM_COMMITMENTS: usize = 15;
         const COMMITMENT_SIZE: usize = 48;
