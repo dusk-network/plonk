@@ -14,6 +14,10 @@ use dusk_bls12_381::BlsScalar;
 use dusk_jubjub::{JubJubAffine, JubJubScalar};
 use thiserror::Error;
 
+const BLS_SCALAR: u8 = 1;
+const JUBJUB_SCALAR: u8 = 2;
+const JUBJUB_AFFINE: u8 = 3;
+
 /// Public Input
 #[derive(Debug, Copy, Clone)]
 pub enum PublicInput {
@@ -39,17 +43,17 @@ impl PublicInput {
         let mut bytes = [0u8; Self::serialized_size()];
         match self {
             Self::BlsScalar(scalar, _) => {
-                bytes[0] = 0;
+                bytes[0] = BLS_SCALAR;
                 bytes[1..33].copy_from_slice(&scalar.to_bytes());
                 bytes
             }
             Self::JubJubScalar(scalar, _) => {
-                bytes[0] = 1;
+                bytes[0] = JUBJUB_SCALAR;
                 bytes[1..33].copy_from_slice(&scalar.to_bytes());
                 bytes
             }
             Self::AffinePoint(point, _, _) => {
-                bytes[0] = 2;
+                bytes[0] = JUBJUB_AFFINE;
                 bytes[1..Self::serialized_size()].copy_from_slice(&point.to_bytes());
                 bytes
             }
@@ -58,23 +62,23 @@ impl PublicInput {
 
     /// Generate a [`PublicInput`] structure from it's byte representation.
     pub fn from_bytes(bytes: &[u8]) -> Result<Self, CircuitErrors> {
-        if bytes.len() != Self::serialized_size() {
+        if bytes.len() < Self::serialized_size() {
             return Err(CircuitErrors::InvalidPublicInputBytes.into());
         } else {
             let mut array_bytes = [0u8; 32];
             array_bytes.copy_from_slice(&bytes[1..Self::serialized_size()]);
             match bytes[0] {
-                0 => Ok(Self::BlsScalar(
+                BLS_SCALAR => Ok(Self::BlsScalar(
                     Option::from(BlsScalar::from_bytes(&array_bytes))
                         .ok_or_else(|| CircuitErrors::InvalidPublicInputBytes.into())?,
                     0,
                 )),
-                1 => Ok(Self::JubJubScalar(
+                JUBJUB_SCALAR => Ok(Self::JubJubScalar(
                     Option::from(JubJubScalar::from_bytes(&array_bytes))
                         .ok_or_else(|| CircuitErrors::InvalidPublicInputBytes.into())?,
                     0,
                 )),
-                2 => Ok(Self::AffinePoint(
+                JUBJUB_AFFINE => Ok(Self::AffinePoint(
                     Option::from(JubJubAffine::from_bytes(array_bytes))
                         .ok_or_else(|| CircuitErrors::InvalidPublicInputBytes.into())?,
                     0,
