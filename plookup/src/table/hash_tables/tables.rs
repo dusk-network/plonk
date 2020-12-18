@@ -6,6 +6,8 @@
 
 //! In circuit hashing can be conducted using table lookups from the
 //! tables defined in this file
+// This currently assumes that T_S = 4. It is possible that in future T_S > 4,
+// in which case this file will ahve to be adjusted.
 
 use crate::table::hash_tables::constants::{F, N, S, T_S, V};
 use dusk_plonk::constraint_system::StandardComposer;
@@ -13,7 +15,7 @@ use dusk_plonk::constraint_system::Variable;
 use dusk_plonk::prelude::BlsScalar;
 use std::convert::TryInto;
 
-/// A vector x in (F_p)^t goes through r rounds of some round function R.
+/// A vector x in (F_p)^t goes through r rounds of a round function R.
 /// The result is another vector y in (F_p)^t.
 #[derive(Debug)]
 pub struct HashTable {
@@ -37,21 +39,13 @@ impl HashTable {
     /// The middle rows are where the first entries are between V+1 and s_i for some i.
     /// The binary rows are at the bottom of the table, and they enumerate all binary possibilities
     /// on T_S bits.
-    /// Perhaps the function F can be entered as a vector of its coefficients; I think this would
-    /// require knowing the degree of F before hand though in order to be able to evaluate it.
     pub fn f_rows(&mut self) {
-        // Have to make sure types of the same, right now V and are usize and BlsScalars.
-        // Also need to figure out what this function F is, and how to give it to this
-        // table creator
         for i in 0..(V + 1) {
-            // println!("i: {}", i);
             let eval: u64 = (F[0] * i as u64) + F[1];
-            // println!("eval: {}", eval);
-            let perm_eval = BlsScalar::from(eval);
             let row = [
                 BlsScalar::from(i as u64),
                 BlsScalar::zero(),
-                perm_eval,
+                BlsScalar::from(eval),
                 -BlsScalar::one(),
             ];
 
@@ -59,14 +53,7 @@ impl HashTable {
         }
     }
 
-    /// The middle rows can be created iteratively too by taking in a vector S = (s_1,..., s_n)
-    /// in (F_p)^N, and V and N.
-    /// Will have to do the same thing as in the first rows to append T_S-3 lots of -1 to the end
-    /// of each row.
     pub fn m_rows(&mut self) {
-        // Iteratively build each row; the first loop determines which section (V+1 to s_{i+1}),
-        // the second determines which row in the section (i.e. (V+j, i+1, ...)), and the third
-        // loop iteratively appends all the -1's.
         for i in 0..N {
             let distance = S[i as usize] - V as u64;
 
@@ -84,76 +71,72 @@ impl HashTable {
     }
 
     // A function that creates all binary values of word of length T_S,
-    // i.e. this is the bottom part of the end hash table we want.
-    // It does this in a recursive manner.
     pub fn binary_end_rows(&mut self) {
-        // Get all binary combinations
-        let combinations = all_outcomes();
-        println!("{:?}", combinations);
-        combinations.iter().for_each(|c| {
-            let mut scalars = [BlsScalar::zero(); T_S];
+        let mut row = [BlsScalar::zero(); 4];
+        self.end_rows.push(row);
 
-            for (i, mut v) in scalars.iter().enumerate() {
-                v = &BlsScalar::from(c[i] as u64)
-            }
-            self.end_rows.push(scalars);
-        });
-    }
-}
-
-fn all_outcomes() -> Vec<[u8; T_S]> {
-    let mut a = [0u8; T_S];
-
-    let mut results = vec![];
-
-    // Push all-zero result first
-    results.push(a.clone());
-
-    for _ in 1..2i32.pow(T_S.try_into().unwrap()) {
-        // Carry
-        let mut c = 1u8;
-
-        for i in (0..(T_S)).rev() {
-            if a[i] == 1 && c == 1 {
-                a[i] = 0;
-                c = 1;
-                continue;
-            }
-
-            if a[i] == 0 && c == 1 {
-                a[i] = 1;
-                c = 0;
-            }
+        for i in 1..(2i32.pow(T_S.try_into().unwrap())) {
+            incrementer(&mut row, 0);
+            self.end_rows.push(row);
         }
-
-        results.push(a.clone());
     }
 
-    results
 }
+
+pub fn incrementer(mut row: &mut [BlsScalar; 4], i: usize) {
+    if row[3-i] == BlsScalar::zero() {
+        row[3-i] = BlsScalar::one();
+    } else {
+        row[3-i] = BlsScalar::zero();
+        incrementer(&mut row, i+1);
+    }
+}
+
 
 #[cfg(test)]
 mod tests {
     use crate::table::hash_tables::tables::HashTable;
+    use dusk_plonk::prelude::BlsScalar;
+    use crate::table::hash_tables::constants::{F, N, S, T_S, V};
 
     #[test]
     fn test_first() {
         let mut table = HashTable::new();
         table.f_rows();
-        println!("The values are: {:?}", table);
+        // Check that second row of first rows equals [1,0,f(1),-1] when f(x)=x+3.
+        assert_eq!(table.first_rows[1], 
+            [BlsScalar::one(),
+            BlsScalar::zero(),
+            BlsScalar::from(4),
+            -BlsScalar::one()
+            ]);
+        // Here I am trying to check that 1 + (-1) = 0, (as BlsScalars).
+        // This is done only for the second row though.
+        let hopefully_zero = table.first_rows[1][0] + table.first_rows[1][3];
+        assert_eq!(hopefully_zero, BlsScalar::zero());
     }
 
     #[test]
     fn test_middle() {
         let mut table = HashTable::new();
         table.m_rows();
-        println!("{:?}", table);
+        let check1 = S[0] as usize - V - 1 as usize;
+        // Check that the first entry of the S[0]-V-1'th row of middle rows is s_1 (i.e. is equal to S[0]).
+        assert_eq!(table.middle_rows[check1][0], BlsScalar::from(S[0]));
+        let check_end = table.middle_rows.len();
+        // Check that the first entry if the final row is equal to s_27, i.e. equal to S[26].
+        assert_eq!(table.middle_rows[check_end-1][0], BlsScalar::from(S[26]));
     }
 
     #[test]
     fn test_end() {
         let mut table = HashTable::new();
-        table.binary_end_rows();
-        println!("{:?}", table);
+        table.binary_end_rows();         
+        // Check that first binary row is [0,0,0,0].
+        assert_eq!(table.end_rows[0], [BlsScalar::zero(); 4]);
+        // Check that last binary row is [1,1,1,1]. This is assuming T_S = 4.
+        assert_eq!(table.end_rows[15], [BlsScalar::one(); 4]);
     }
+
+
 }
