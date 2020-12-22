@@ -10,8 +10,6 @@
 /// in which case this file will have to be adjusted. T_S is the arity of the
 /// vectors.
 use crate::table::hash_tables::constants::{N, S, T_S, V};
-use dusk_plonk::constraint_system::StandardComposer;
-use dusk_plonk::constraint_system::Variable;
 use dusk_plonk::fft::Polynomial;
 use dusk_plonk::prelude::BlsScalar;
 use std::convert::TryInto;
@@ -68,7 +66,7 @@ impl HashTable {
             let distance = S[i as usize] - V as u64;
 
             for j in 1..(distance + 1) {
-                let mut row = [
+                let row = [
                     BlsScalar::from(V as u64 + j),
                     BlsScalar::from(i as u64 + 1),
                     BlsScalar::from(V as u64 + j),
@@ -87,7 +85,7 @@ impl HashTable {
         let mut row = [BlsScalar::zero(); 4];
         self.end_rows.push(row);
 
-        for i in 1..(2i32.pow(T_S.try_into().unwrap())) {
+        for _ in 1..(2i32.pow(T_S.try_into().unwrap())) {
             incrementer(&mut row, 0);
             self.end_rows.push(row);
         }
@@ -174,7 +172,7 @@ mod tests {
         let f: Polynomial = Polynomial {
             coeffs: vec![BlsScalar::from(3), BlsScalar::one()],
         };
-        let mut table = HashTable::construct_table(f);
+        let table = HashTable::construct_table(f);
 
         // Assert the fixed length of the three parts of the 
         // hash table 

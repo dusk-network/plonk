@@ -6,5 +6,8 @@
 
 mod error;
 mod multiset;
-mod plookup;
 mod table;
+
+pub use error::PlookupErrors; 
+pub use multiset::MultiSet; 
+pub use table::{hash_tables::tables::HashTable, lookup_table, witness_table, preprocess};

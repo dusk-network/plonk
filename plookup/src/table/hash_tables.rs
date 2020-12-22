@@ -7,5 +7,7 @@
 //! In circuit hashing can be conducted using table lookups from the
 //! tables defined in this file
 
-pub mod constants;
+mod constants;
 pub mod tables;
+
+pub use constants::{N, S, T_S, V};
