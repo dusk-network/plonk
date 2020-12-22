@@ -8,6 +8,6 @@ mod error;
 mod multiset;
 mod table;
 
-pub use error::PlookupErrors; 
-pub use multiset::MultiSet; 
-pub use table::{lookup_table, witness_table, preprocess};
+pub use error::PlookupErrors;
+pub use multiset::MultiSet;
+pub use table::{lookup_table, preprocess, witness_table};

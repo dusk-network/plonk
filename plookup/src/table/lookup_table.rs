@@ -313,8 +313,8 @@ impl PlookupTable4Arity {
     }
 
     /// Attempts to find an output value, given two input values, by querying the lookup
-    /// table. The final wire holds the index of the table. The element must be predetermined 
-    /// to be between -1 and 2 depending on the type of table used. 
+    /// table. The final wire holds the index of the table. The element must be predetermined
+    /// to be between -1 and 2 depending on the type of table used.
     /// If the element does not exist, it will return an error.
     pub fn lookup(
         &self,
