@@ -6,8 +6,6 @@
 
 use crate::error::PlookupErrors;
 use crate::multiset::MultiSet;
-use dusk_plonk::constraint_system::StandardComposer;
-use dusk_plonk::constraint_system::Variable;
 use dusk_plonk::prelude::BlsScalar;
 
 /// For the implemenation of look up tables in PLONK, aptly named PLOOKup tables,
@@ -337,7 +335,6 @@ impl PlookupTable4Arity {
 #[cfg(test)]
 mod test {
     use super::*;
-    use dusk_plonk::constraint_system::StandardComposer;
 
     #[test]
     fn test_add_table() {

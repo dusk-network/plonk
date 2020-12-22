@@ -64,7 +64,7 @@ impl MultiSet {
     /// their elements together. The final MultiSet will
     /// look as follows, s: {1,1,2,2,3,3,4,4}
     pub fn sort_and_index(&self, f: &MultiSet) -> Result<MultiSet, PlookupErrors> {
-        let mut s: Vec<BlsScalar> = Vec::with_capacity(self.0.len() + f.0.len());
+        let _s: Vec<BlsScalar> = Vec::with_capacity(self.0.len() + f.0.len());
         let mut s = self.clone();
         for element in f.0.iter() {
             let index = s
@@ -190,7 +190,7 @@ impl Mul for MultiSet {
 #[cfg(test)]
 mod test {
     use super::*;
-    use dusk_plonk::fft::{EvaluationDomain, Polynomial};
+    use dusk_plonk::fft::EvaluationDomain;
 
     #[test]
     fn test_halve() {

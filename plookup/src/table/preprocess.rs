@@ -7,8 +7,6 @@
 use crate::multiset::MultiSet;
 use crate::table::lookup_table::{PlookupTable3Arity, PlookupTable4Arity};
 use anyhow::{Error, Result};
-use dusk_plonk::bls12_381::{BlsScalar, G1Affine};
-use dusk_plonk::commitment_scheme::kzg10;
 use dusk_plonk::commitment_scheme::kzg10::{CommitKey, Commitment};
 use dusk_plonk::fft::{EvaluationDomain, Polynomial};
 
