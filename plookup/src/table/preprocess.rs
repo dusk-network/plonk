@@ -7,8 +7,6 @@
 use crate::multiset::MultiSet;
 use crate::table::lookup_table::{PlookupTable3Arity, PlookupTable4Arity};
 use anyhow::{Error, Result};
-use dusk_plonk::bls12_381::{BlsScalar, G1Affine};
-use dusk_plonk::commitment_scheme::kzg10;
 use dusk_plonk::commitment_scheme::kzg10::{CommitKey, Commitment};
 use dusk_plonk::fft::{EvaluationDomain, Polynomial};
 
@@ -45,16 +43,16 @@ impl PreprocessedTable3Arity {
         t_2.pad(n);
         t_3.pad(n);
 
-        let t_1_poly = Polynomial::from_coefficients_vec(domain.ifft(&t_1.0));
-        let t_2_poly = Polynomial::from_coefficients_vec(domain.ifft(&t_2.0));
-        let t_3_poly = Polynomial::from_coefficients_vec(domain.ifft(&t_3.0));
+        let t_1_poly = t_1.to_polynomial(&domain);
+        let t_2_poly = t_2.to_polynomial(&domain);
+        let t_3_poly = t_3.to_polynomial(&domain);
 
         let t_1_commit = commit_key.commit(&t_1_poly)?;
         let t_2_commit = commit_key.commit(&t_2_poly)?;
         let t_3_commit = commit_key.commit(&t_3_poly)?;
 
         Ok(PreprocessedTable3Arity {
-            n: n,
+            n,
             t_1: (t_1, t_1_commit, t_1_poly),
             t_2: (t_2, t_2_commit, t_2_poly),
             t_3: (t_3, t_3_commit, t_3_poly),
@@ -95,10 +93,10 @@ impl PreprocessedTable4Arity {
         t_3.pad(n);
         t_4.pad(n);
 
-        let t_1_poly = Polynomial::from_coefficients_vec(domain.ifft(&t_1.0));
-        let t_2_poly = Polynomial::from_coefficients_vec(domain.ifft(&t_2.0));
-        let t_3_poly = Polynomial::from_coefficients_vec(domain.ifft(&t_3.0));
-        let t_4_poly = Polynomial::from_coefficients_vec(domain.ifft(&t_3.0));
+        let t_1_poly = t_1.to_polynomial(&domain);
+        let t_2_poly = t_2.to_polynomial(&domain);
+        let t_3_poly = t_3.to_polynomial(&domain);
+        let t_4_poly = t_4.to_polynomial(&domain);
 
         let t_1_commit = commit_key.commit(&t_1_poly)?;
         let t_2_commit = commit_key.commit(&t_2_poly)?;
@@ -106,7 +104,7 @@ impl PreprocessedTable4Arity {
         let t_4_commit = commit_key.commit(&t_4_poly)?;
 
         Ok(PreprocessedTable4Arity {
-            n: n,
+            n,
             t_1: (t_1, t_1_commit, t_1_poly),
             t_2: (t_2, t_2_commit, t_2_poly),
             t_3: (t_3, t_3_commit, t_3_poly),

@@ -9,7 +9,6 @@ use crate::multiset::MultiSet;
 use crate::table::lookup_table::{PlookupTable3Arity, PlookupTable4Arity};
 use dusk_plonk::bls12_381::BlsScalar;
 
-
 pub struct WitnessTable3Arity {
     pub f_1: MultiSet,
     pub f_2: MultiSet,
