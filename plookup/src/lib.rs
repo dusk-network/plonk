@@ -6,7 +6,4 @@
 
 mod error;
 mod multiset;
-mod plookup;
-mod prover;
 mod table;
-mod verifier;

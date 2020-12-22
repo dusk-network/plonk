@@ -12,13 +12,13 @@ use dusk_plonk::prelude::BlsScalar;
 
 /// For the implemenation of look up tables in PLONK, aptly named PLOOKup tables,
 /// there will be different fucntions depending on the type of table that needs
-/// to be constructed. All tables entries envisioned will be with arity 4. Meaning
-/// each of the wires will correspond to a column.
+/// to be constructed. All tables entries envisioned will be with different arity.
+/// Meaning each of the wires will correspond to a column.
 ///
 /// If the standard composer calls a plookup gate, then the user will define
-/// the length of the gate, which is measured in terms of
+/// the length of the gate, measured in circuit size.
 #[derive(Debug)]
-pub struct PlookupTable3Arity(pub Vec<[BlsScalar; 3]>);
+pub struct PlookupTable3Arity(Vec<[BlsScalar; 3]>);
 
 impl PlookupTable3Arity {
     /// Constructs a Lookup table of four columns corresponding to
@@ -121,7 +121,7 @@ impl PlookupTable3Arity {
     }
 
     // Function takes in two different usize numbers and checks the range
-    /// between them, as well as computing the value of their AND bitwise 
+    /// between them, as well as computing the value of their AND bitwise
     /// operation. These numbers require exponentiation outside, for the lower
     /// bound, otherwise the range cannot start from zero, as 2^0 = 1.
     pub fn and_table(lower_bound: u64, n: u8) -> Self {
@@ -149,7 +149,7 @@ impl PlookupTable3Arity {
     }
 
     /// Takes in a table, which is a list of vectors containing
-    /// 3 elements, and turns them into 3 distinct multisets for 
+    /// 3 elements, and turns them into 3 distinct multisets for
     /// a, b and c.
     pub fn vec_to_multiset(&self) -> (MultiSet, MultiSet, MultiSet) {
         let mut multiset_a = MultiSet::new();
@@ -179,7 +179,7 @@ impl PlookupTable3Arity {
 }
 
 /// This is a table, either
-pub struct PlookupTable4Arity(pub Vec<[BlsScalar; 4]>);
+pub struct PlookupTable4Arity(Vec<[BlsScalar; 4]>);
 
 impl PlookupTable4Arity {
     /// Create a new, empty Plookup table, with arity 4.
@@ -239,7 +239,6 @@ impl PlookupTable4Arity {
         ]);
     }
 
-
     /// Function builds a table from more than one operation. This is denoted
     /// as 'Multiple Tables' in the paper. If, for example, we are using lookup
     /// tables for both XOR and mul operataions, we can create a table where the
@@ -285,7 +284,7 @@ impl PlookupTable4Arity {
     }
 
     pub fn insert_multi_and(&mut self, lower_bound: u64, n: u8) {
-    let upper_bound = 2u64.pow(n.into());
+        let upper_bound = 2u64.pow(n.into());
 
         let range = lower_bound..upper_bound;
 
@@ -296,9 +295,8 @@ impl PlookupTable4Arity {
         }
     }
 
-    
     /// Takes in a table, which is a list of vectors containing
-    /// 4 elements, and turns them into 4 distinct multisets for 
+    /// 4 elements, and turns them into 4 distinct multisets for
     /// a, b, c and d.
     pub fn vec_to_multiset(&self) -> (MultiSet, MultiSet, MultiSet, MultiSet) {
         let mut multiset_a = MultiSet::new();
@@ -317,7 +315,9 @@ impl PlookupTable4Arity {
     }
 
     /// Attempts to find an output value, given two input values, by querying the lookup
-    /// table. If the element does not exist, it will return an error.
+    /// table. The final wire holds the index of the table. The element must be predetermined 
+    /// to be between -1 and 2 depending on the type of table used. 
+    /// If the element does not exist, it will return an error.
     pub fn lookup(
         &self,
         a: BlsScalar,
@@ -344,8 +344,6 @@ mod test {
         let n = 4;
 
         let table = PlookupTable3Arity::add_table(0, n);
-
-        // println!("{:?}", table);
 
         // Create an identical matrix, but with std numbers.
         // This way, we can also do the modulo operation, and properly
@@ -410,5 +408,43 @@ mod test {
             table.0.len() as u64,
             2u64.pow(n as u32) * 2u64.pow(n as u32)
         );
+    }
+
+    #[test]
+    fn test_lookup_arity_3() {
+        let add_table = PlookupTable3Arity::add_table(0, 3);
+
+        assert!(add_table
+            .lookup(BlsScalar::from(2), BlsScalar::from(3))
+            .is_ok());
+
+        let output = add_table.0[1][0] + add_table.0[1][1];
+
+        assert_eq!(output, BlsScalar::one());
+
+        let second_output = add_table.0[12][0] + add_table.0[12][1];
+
+        assert_eq!(second_output, BlsScalar::from(5));
+    }
+
+    #[test]
+    fn test_missing_lookup_value() {
+        let xor_table = PlookupTable3Arity::xor_table(0, 5);
+
+        assert!(xor_table
+            .lookup(BlsScalar::from(17), BlsScalar::from(367))
+            .is_err());
+    }
+
+    #[test]
+    fn test_concatenated_table() {
+        let mut table = PlookupTable4Arity::new();
+
+        table.insert_multi_xor(0, 5);
+        table.insert_multi_add(4, 7);
+
+        assert_eq!(table.0.last().unwrap()[2], BlsScalar::from(126u64));
+        let xor = table.0[36][0] ^ table.0[36][1];
+        assert_eq!(xor, BlsScalar::from(5u64));
     }
 }
