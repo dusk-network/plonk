@@ -179,6 +179,12 @@ impl PlookupTable3Arity {
 /// This is a table, either
 pub struct PlookupTable4Arity(Vec<[BlsScalar; 4]>);
 
+impl Default for PlookupTable4Arity {
+    fn default() -> Self {
+        PlookupTable4Arity::new()
+    }
+}
+
 impl PlookupTable4Arity {
     /// Create a new, empty Plookup table, with arity 4.
     pub fn new() -> Self {

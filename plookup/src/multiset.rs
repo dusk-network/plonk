@@ -15,6 +15,18 @@ use std::ops::{Add, Mul};
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub struct MultiSet(Vec<BlsScalar>);
 
+impl Default for MultiSet {
+    fn default() -> Self {
+        MultiSet::new()
+    }
+}
+
+impl From<&[BlsScalar]> for MultiSet {
+    fn from(slice: &[BlsScalar]) -> MultiSet {
+        MultiSet(slice.to_vec())
+    }
+}
+
 impl MultiSet {
     /// Creates an empty vector with a multiset wrapper around it
     pub fn new() -> MultiSet {
@@ -42,13 +54,14 @@ impl MultiSet {
         self.0.last()
     }
 
-    fn from_slice(slice: &[BlsScalar]) -> MultiSet {
-        MultiSet(slice.to_vec())
-    }
-
     /// Returns the cardinality of the multiset
     pub fn len(&self) -> usize {
         self.0.len()
+    }
+
+    /// Returns whether or not the multiset is empty.
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
     }
 
     /// Returns the position of the element in the Multiset.
@@ -64,9 +77,9 @@ impl MultiSet {
     /// Then we combine the multisets together and sort
     /// their elements together. The final MultiSet will
     /// look as follows, s: {1,1,2,2,3,3,4,4}
-    pub fn sort_and_index(&self, f: &MultiSet) -> Result<MultiSet, PlookupErrors> {
-        let _s: Vec<BlsScalar> = Vec::with_capacity(self.0.len() + f.0.len());
+    pub fn sorted_concat(&self, f: &MultiSet) -> Result<MultiSet, PlookupErrors> {
         let mut s = self.clone();
+        s.0.reserve(f.0.len());
         for element in f.0.iter() {
             let index = s
                 .position(element)
@@ -80,17 +93,8 @@ impl MultiSet {
     /// Checks whether one mutltiset is a subset of another.
     /// This function will be used to check if the all elements
     /// in set f, from the paper, are contained inside t.
-    pub fn is_subset_of(&self, other: &MultiSet) -> bool {
-        let mut is_subset = true;
-
-        for x in self.0.iter() {
-            is_subset = other.contains(x);
-            if is_subset == false {
-                break;
-            }
-        }
-
-        is_subset
+    pub fn contains_all(&self, other: &MultiSet) -> bool {
+        other.0.iter().all(|item| self.contains(item))
     }
 
     /// Checks if an element is in the MultiSet
@@ -101,11 +105,13 @@ impl MultiSet {
     /// Splits a multiset into halves as specified by the paper
     /// The last element of the first half should be the same
     /// as the first element of the second half.
+    /// Since a multiset can never have an even cardinality, we
+    /// always split it in the way described above.
     pub fn halve(&self) -> (MultiSet, MultiSet) {
         let length = self.0.len();
 
-        let first_half = MultiSet::from_slice(&self.0[0..=length / 2]);
-        let second_half = MultiSet::from_slice(&self.0[length / 2..]);
+        let first_half = MultiSet::from(&self.0[0..=length / 2]);
+        let second_half = MultiSet::from(&self.0[length / 2..]);
 
         (first_half, second_half)
     }
@@ -261,8 +267,8 @@ mod test {
         let mut n = MultiSet::new();
         n.push(BlsScalar::from(8));
 
-        assert!(f.is_subset_of(&t));
-        assert!(!n.is_subset_of(&t));
+        assert!(t.contains_all(&f));
+        assert!(!t.contains_all(&n));
     }
 
     #[test]
@@ -291,11 +297,11 @@ mod test {
         f.push(BlsScalar::from(1));
         f.push(BlsScalar::from(2));
 
-        assert!(f.is_subset_of(&t));
+        assert!(t.contains_all(&f));
 
         assert!(t.contains(&BlsScalar::from(2)));
 
-        let s = t.sort_and_index(&f);
+        let s = t.sorted_concat(&f);
 
         // The sets should be merged but also
         // in the ascending order

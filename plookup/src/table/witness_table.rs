@@ -21,6 +21,12 @@ pub struct WitnessTable4Arity {
     pub f_4: MultiSet,
 }
 
+impl Default for WitnessTable3Arity {
+    fn default() -> Self {
+        WitnessTable3Arity::new()
+    }
+}
+
 impl WitnessTable3Arity {
     /// Initialises an empty witness table of arity 4
     pub fn new() -> Self {
@@ -58,6 +64,12 @@ impl WitnessTable3Arity {
         self.f_2.push(right_wire_val);
         self.f_3.push(output_wire_val);
         Ok(())
+    }
+}
+
+impl Default for WitnessTable4Arity {
+    fn default() -> Self {
+        WitnessTable4Arity::new()
     }
 }
 

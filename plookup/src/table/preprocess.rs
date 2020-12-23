@@ -112,4 +112,3 @@ impl PreprocessedTable4Arity {
         })
     }
 }
-
