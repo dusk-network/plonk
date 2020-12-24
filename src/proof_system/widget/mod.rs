@@ -68,7 +68,7 @@ impl VerifierKey {
     pub fn to_bytes(&self) -> Vec<u8> {
         use crate::serialisation::{write_commitment, write_u64};
 
-        let mut bytes = Vec::with_capacity(VerifierKey::serialised_size());
+        let mut bytes = Vec::with_capacity(VerifierKey::serialized_size());
 
         // Circuit size
         // Assuming that circuits will not exceed 2^64 we cast `usize` to `u64`
@@ -108,7 +108,7 @@ impl VerifierKey {
     pub fn from_bytes(bytes: &[u8]) -> Result<VerifierKey, Error> {
         use crate::serialisation::{read_commitment, read_u64};
 
-        assert_eq!(bytes.len(), VerifierKey::serialised_size());
+        assert_eq!(bytes.len(), VerifierKey::serialized_size());
 
         let (n, rest) = read_u64(bytes)?;
 
@@ -174,7 +174,7 @@ impl VerifierKey {
     }
 
     /// Return the serialized size of a [`VerifierKey`]
-    pub const fn serialised_size() -> usize {
+    pub const fn serialized_size() -> usize {
         const N_SIZE: usize = 8;
         const NUM_COMMITMENTS: usize = 15;
         const COMMITMENT_SIZE: usize = 48;
@@ -213,7 +213,7 @@ impl ProverKey {
     pub fn to_bytes(&self) -> Vec<u8> {
         use crate::serialisation::{write_evaluations, write_polynomial, write_u64};
 
-        let mut bytes = Vec::with_capacity(ProverKey::serialised_size(self.n));
+        let mut bytes = Vec::with_capacity(ProverKey::serialized_size(self.n));
 
         write_u64(self.n as u64, &mut bytes);
 
@@ -393,7 +393,7 @@ impl ProverKey {
         Ok(prover_key)
     }
 
-    fn serialised_size(n: usize) -> usize {
+    fn serialized_size(n: usize) -> usize {
         const SIZE_SCALAR: usize = 32;
 
         const NUM_POLYNOMIALS: usize = 15;

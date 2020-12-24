@@ -5,7 +5,7 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 //! Code taken from zcash repo and generalised as we do not have access to the limbs
-use std::mem;
+use core::mem;
 
 macro_rules! bit_iterator {
     ($sty : ty, $name : ident) => {

@@ -14,6 +14,7 @@ use super::linearisation_poly::ProofEvaluations;
 use super::proof_system_errors::ProofErrors;
 use crate::commitment_scheme::kzg10::{AggregateProof, Commitment, OpeningKey};
 use crate::fft::EvaluationDomain;
+pub use crate::proof_structures::Proof;
 use crate::proof_system::widget::VerifierKey;
 use crate::transcript::TranscriptProtocol;
 use anyhow::{Error, Result};
@@ -26,45 +27,7 @@ use serde::{self, Deserialize, Deserializer, Serialize, Serializer};
 use canonical::{Canon, InvalidEncoding, Sink, Source, Store};
 
 /// Byte-size of a serialised `Proof`.
-pub const PROOF_SIZE: usize = Proof::serialised_size();
-
-/// A Proof is a composition of `Commitments` to the witness, permutation,
-/// quotient, shifted and opening polynomials as well as the
-/// `ProofEvaluations`.
-///
-/// It's main goal is to have a `verify()` method attached which contains the
-/// logic of the operations that the `Verifier` will need to do in order to
-/// formally verify the `Proof`.
-#[derive(Debug, Eq, PartialEq, Clone)]
-pub struct Proof {
-    /// Commitment to the witness polynomial for the left wires.
-    pub a_comm: Commitment,
-    /// Commitment to the witness polynomial for the right wires.
-    pub b_comm: Commitment,
-    /// Commitment to the witness polynomial for the output wires.
-    pub c_comm: Commitment,
-    /// Commitment to the witness polynomial for the fourth wires.
-    pub d_comm: Commitment,
-
-    /// Commitment to the permutation polynomial.
-    pub z_comm: Commitment,
-
-    /// Commitment to the quotient polynomial.
-    pub t_1_comm: Commitment,
-    /// Commitment to the quotient polynomial.
-    pub t_2_comm: Commitment,
-    /// Commitment to the quotient polynomial.
-    pub t_3_comm: Commitment,
-    /// Commitment to the quotient polynomial.
-    pub t_4_comm: Commitment,
-
-    /// Commitment to the opening polynomial.
-    pub w_z_comm: Commitment,
-    /// Commitment to the shifted opening polynomial.
-    pub w_zw_comm: Commitment,
-    /// Subset of all of the evaluations added to the proof.
-    pub evaluations: ProofEvaluations,
-}
+pub const PROOF_SIZE: usize = Proof::serialized_size();
 
 impl_serde!(Proof);
 
@@ -145,10 +108,10 @@ impl Proof {
     }
 
     /// Returns the serialised size of a [`Proof`] object.
-    pub const fn serialised_size() -> usize {
+    pub const fn serialized_size() -> usize {
         const NUM_COMMITMENTS: usize = 11;
         const COMMITMENT_SIZE: usize = 48;
-        (NUM_COMMITMENTS * COMMITMENT_SIZE) + ProofEvaluations::serialised_size()
+        (NUM_COMMITMENTS * COMMITMENT_SIZE) + ProofEvaluations::serialized_size()
     }
 
     /// Performs the verification of a `Proof` returning a boolean result.

@@ -4,6 +4,7 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
+#![cfg_attr(not(feature = "std"), no_std)]
 #![cfg_attr(feature = "nightly", feature(external_doc))]
 #![doc(
     html_logo_url = "https://lh3.googleusercontent.com/SmwswGxtgIANTbDrCOn5EKcRBnVdHjmYsHYxLq2HZNXWCQ9-fZyaea-bNgdX9eR0XGSqiMFi=w128-h128-e365"
@@ -54,20 +55,28 @@
 #![deny(missing_docs)]
 #![deny(unsafe_code)]
 
-#[macro_use]
-mod macros;
+/// Proof serialization definitions with no-std compatibility
+pub mod proof_structures;
 
-mod bit_iterator;
-pub mod circuit_builder;
-pub mod commitment_scheme;
-pub mod constraint_system;
-pub mod fft;
-mod permutation;
-pub mod prelude;
-pub mod proof_system;
-mod serialisation;
-pub mod transcript;
-mod util;
+cfg_if::cfg_if! {
+    if #[cfg(feature = "std")] {
+        #[macro_use]
+        mod macros;
+
+        mod bit_iterator;
+        mod permutation;
+        mod serialisation;
+        mod util;
+
+        pub mod circuit_builder;
+        pub mod commitment_scheme;
+        pub mod constraint_system;
+        pub mod fft;
+        pub mod prelude;
+        pub mod proof_system;
+        pub mod transcript;
+    }
+}
 
 #[cfg(feature = "nightly")]
 #[doc(include = "../docs/notes-intro.md")]
@@ -92,8 +101,10 @@ pub mod notes {
     pub mod kzg10_docs {}
 }
 
-/// Re-exported dusk-bls12_381 fork.
-pub use dusk_bls12_381 as bls12_381;
-
-/// Re-exported dusk-jubjub fork.
-pub use dusk_jubjub as jubjub;
+#[cfg(not(feature = "std"))]
+mod some_stuff {
+    #[panic_handler]
+    fn panic(_: &core::panic::PanicInfo) -> ! {
+        loop {}
+    }
+}

@@ -12,9 +12,10 @@ pub mod srs;
 pub use key::{CommitKey, OpeningKey};
 pub use srs::PublicParameters;
 
+pub use crate::proof_structures::Commitment;
 use crate::transcript::TranscriptProtocol;
 use crate::util::powers_of;
-use dusk_bls12_381::{BlsScalar, G1Affine, G1Projective};
+use dusk_bls12_381::{BlsScalar, G1Projective};
 use merlin::Transcript;
 
 #[derive(Copy, Clone, Debug)]
@@ -83,34 +84,5 @@ impl AggregateProof {
             evaluated_point: flattened_poly_evaluations,
             commitment_to_polynomial: Commitment::from_projective(flattened_poly_commitments),
         }
-    }
-}
-
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
-/// Holds a commitment to a polynomial in a form of a `G1Affine` Bls12_381 point.
-pub struct Commitment(
-    /// The commitment is a group element.
-    pub G1Affine,
-);
-
-impl Commitment {
-    /// Builds a `Commitment` from a Bls12_381 `G1Projective` point.
-    pub fn from_projective(g: G1Projective) -> Self {
-        Self(g.into())
-    }
-    /// Builds a `Commitment` from a Bls12_381 `G1Affine` point.
-    pub fn from_affine(g: G1Affine) -> Self {
-        Self(g)
-    }
-    /// Builds an empty `Commitment` which is equivalent to the
-    /// `G1Affine` identity point in Bls12_381.
-    pub fn empty() -> Self {
-        Commitment(G1Affine::identity())
-    }
-}
-
-impl Default for Commitment {
-    fn default() -> Self {
-        Commitment::empty()
     }
 }
