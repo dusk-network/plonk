@@ -15,6 +15,18 @@ use std::ops::{Add, Mul};
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub struct MultiSet(Vec<BlsScalar>);
 
+impl Default for MultiSet {
+    fn default() -> Self {
+        MultiSet::new()
+    }
+}
+
+impl From<&[BlsScalar]> for MultiSet {
+    fn from(slice: &[BlsScalar]) -> MultiSet {
+        MultiSet(slice.to_vec())
+    }
+}
+
 impl MultiSet {
     /// Creates an empty vector with a multiset wrapper around it
     pub fn new() -> MultiSet {
@@ -22,9 +34,10 @@ impl MultiSet {
     }
 
     /// Extends the length of the multiset to 2^n elements
-    /// The 2^n will be the size of the arithmetic circuit
-    /// we are constructing
+    /// The 2^n will be the size of the arithmetic circuit.
+    /// This will extend the vectors to the size
     pub fn pad(&mut self, n: u32) {
+        assert!(n.is_power_of_two());
         let new_length = 2u64.pow(n);
         let diff = new_length - self.len() as u64;
         self.0.extend(vec![BlsScalar::zero(); diff as usize]);
@@ -41,13 +54,14 @@ impl MultiSet {
         self.0.last()
     }
 
-    fn from_slice(slice: &[BlsScalar]) -> MultiSet {
-        MultiSet(slice.to_vec())
-    }
-
     /// Returns the cardinality of the multiset
     pub fn len(&self) -> usize {
         self.0.len()
+    }
+
+    /// Returns whether or not the multiset is empty.
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
     }
 
     /// Returns the position of the element in the Multiset.
@@ -63,9 +77,9 @@ impl MultiSet {
     /// Then we combine the multisets together and sort
     /// their elements together. The final MultiSet will
     /// look as follows, s: {1,1,2,2,3,3,4,4}
-    pub fn sort_and_index(&self, f: &MultiSet) -> Result<MultiSet, PlookupErrors> {
-        let _s: Vec<BlsScalar> = Vec::with_capacity(self.0.len() + f.0.len());
+    pub fn sorted_concat(&self, f: &MultiSet) -> Result<MultiSet, PlookupErrors> {
         let mut s = self.clone();
+        s.0.reserve(f.0.len());
         for element in f.0.iter() {
             let index = s
                 .position(element)
@@ -76,18 +90,11 @@ impl MultiSet {
         Ok(s)
     }
 
-    /// Checks whether self is a subset of other
-    pub fn is_subset_of(&self, other: &MultiSet) -> bool {
-        let mut is_subset = true;
-
-        for x in self.0.iter() {
-            is_subset = other.contains(x);
-            if is_subset == false {
-                break;
-            }
-        }
-
-        is_subset
+    /// Checks whether one mutltiset is a subset of another.
+    /// This function will be used to check if the all elements
+    /// in set f, from the paper, are contained inside t.
+    pub fn contains_all(&self, other: &MultiSet) -> bool {
+        other.0.iter().all(|item| self.contains(item))
     }
 
     /// Checks if an element is in the MultiSet
@@ -96,18 +103,15 @@ impl MultiSet {
     }
 
     /// Splits a multiset into halves as specified by the paper
-    /// If s = [1,2,3,4,5,6,7], we can deduce n using |s| = 2 * n + 1 = 7
-    /// n is therefore 3
-    /// We split s into two MultiSets of size n+1 each
-    /// s_0 = [1,2,3,4] ,|s_0| = n+1 = 4
-    /// s_1 = [4,5,6,7] , |s_1| = n+1 = 4
-    /// Notice that the last element of the first half equals the first element in the second half
-    /// This is specified in the paper
+    /// The last element of the first half should be the same
+    /// as the first element of the second half.
+    /// Since a multiset can never have an even cardinality, we
+    /// always split it in the way described above.
     pub fn halve(&self) -> (MultiSet, MultiSet) {
         let length = self.0.len();
 
-        let first_half = MultiSet::from_slice(&self.0[0..=length / 2]);
-        let second_half = MultiSet::from_slice(&self.0[length / 2..]);
+        let first_half = MultiSet::from(&self.0[0..=length / 2]);
+        let second_half = MultiSet::from(&self.0[length / 2..]);
 
         (first_half, second_half)
     }
@@ -190,81 +194,168 @@ impl Mul for MultiSet {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::witness_table::WitnessTable3Arity;
     use dusk_plonk::fft::EvaluationDomain;
 
     #[test]
     fn test_halve() {
-        let mut a = MultiSet::new();
-        a.push(BlsScalar::from(14));
-        a.push(BlsScalar::from(24));
-        a.push(BlsScalar::from(34));
-        a.push(BlsScalar::from(44));
-        a.push(BlsScalar::from(54));
-        a.push(BlsScalar::from(64));
-        a.push(BlsScalar::from(74));
+        let mut s = MultiSet::new();
+        s.push(BlsScalar::from(0));
+        s.push(BlsScalar::from(1));
+        s.push(BlsScalar::from(2));
+        s.push(BlsScalar::from(3));
+        s.push(BlsScalar::from(4));
+        s.push(BlsScalar::from(5));
+        s.push(BlsScalar::from(6));
 
-        let (h_1, h_2) = a.halve();
+        let (h_1, h_2) = s.halve();
         assert_eq!(h_1.len(), 4);
         assert_eq!(h_2.len(), 4);
 
-        assert_eq!(
-            MultiSet(vec![
-                BlsScalar::from(14),
-                BlsScalar::from(24),
-                BlsScalar::from(34),
-                BlsScalar::from(44)
-            ]),
-            h_1
-        );
+        let left_half = MultiSet(vec![
+            BlsScalar::from(0),
+            BlsScalar::from(1),
+            BlsScalar::from(2),
+            BlsScalar::from(3),
+        ]);
 
-        assert_eq!(
-            MultiSet(vec![
-                BlsScalar::from(44),
-                BlsScalar::from(54),
-                BlsScalar::from(64),
-                BlsScalar::from(74)
-            ]),
-            h_2
-        );
+        assert_eq!(left_half, h_1);
 
-        // Last element in the first half should equal first element in the second half
+        let right_half = MultiSet(vec![
+            BlsScalar::from(3),
+            BlsScalar::from(4),
+            BlsScalar::from(5),
+            BlsScalar::from(6),
+        ]);
+
+        assert_eq!(right_half, h_2);
+
+        // The last element of the first half should equal the first
+        // element of the second half.
         assert_eq!(h_1.0.last().unwrap(), &h_2.0[0])
     }
 
     #[test]
     fn test_to_polynomial() {
+        let mut s = MultiSet::new();
+        s.push(BlsScalar::from(1));
+        s.push(BlsScalar::from(2));
+        s.push(BlsScalar::from(3));
+        s.push(BlsScalar::from(4));
+        s.push(BlsScalar::from(5));
+        s.push(BlsScalar::from(6));
+        s.push(BlsScalar::from(7));
 
-        let mut a = MultiSet::new();
-        a.push(BlsScalar::from(1));
-        a.push(BlsScalar::from(2));
-        a.push(BlsScalar::from(3));
-        a.push(BlsScalar::from(4));
-        a.push(BlsScalar::from(5));
-        a.push(BlsScalar::from(6));
-        a.push(BlsScalar::from(7));
+        let domain = EvaluationDomain::new(s.len() + 1).unwrap();
+        let s_poly = s.to_polynomial(&domain);
 
-        let domain = EvaluationDomain::new(a.len() + 1).unwrap();
-        let a_poly = a.to_polynomial(&domain);
-
-        assert_eq!(a_poly.degree(), 7)
+        assert_eq!(s_poly.degree(), 7)
     }
     #[test]
     fn test_is_subset() {
-        let mut a = MultiSet::new();
-        a.push(BlsScalar::from(1));
-        a.push(BlsScalar::from(2));
-        a.push(BlsScalar::from(3));
-        a.push(BlsScalar::from(4));
-        a.push(BlsScalar::from(5));
-        a.push(BlsScalar::from(6));
-        a.push(BlsScalar::from(7));
-        let mut b = MultiSet::new();
-        b.push(BlsScalar::from(1));
-        b.push(BlsScalar::from(2));
-        let mut c = MultiSet::new();
-        c.push(BlsScalar::from(100));
+        let mut t = MultiSet::new();
+        t.push(BlsScalar::from(1));
+        t.push(BlsScalar::from(2));
+        t.push(BlsScalar::from(3));
+        t.push(BlsScalar::from(4));
+        t.push(BlsScalar::from(5));
+        t.push(BlsScalar::from(6));
+        t.push(BlsScalar::from(7));
+        let mut f = MultiSet::new();
+        f.push(BlsScalar::from(1));
+        f.push(BlsScalar::from(2));
+        let mut n = MultiSet::new();
+        n.push(BlsScalar::from(8));
 
-        assert!(b.is_subset_of(&a));
-        assert!(!c.is_subset_of(&a));
+        assert!(t.contains_all(&f));
+        assert!(!t.contains_all(&n));
+    }
+
+    #[test]
+    fn test_full_compression_into_s() {
+        let mut t = MultiSet::new();
+
+        t.push(BlsScalar::zero());
+        t.push(BlsScalar::one());
+        t.push(BlsScalar::from(2));
+        t.push(BlsScalar::from(3));
+        t.push(BlsScalar::from(4));
+        t.push(BlsScalar::from(5));
+        t.push(BlsScalar::from(6));
+        t.push(BlsScalar::from(7));
+
+        let mut f = MultiSet::new();
+        f.push(BlsScalar::from(3));
+        f.push(BlsScalar::from(6));
+        f.push(BlsScalar::from(0));
+        f.push(BlsScalar::from(5));
+        f.push(BlsScalar::from(4));
+        f.push(BlsScalar::from(3));
+        f.push(BlsScalar::from(2));
+        f.push(BlsScalar::from(0));
+        f.push(BlsScalar::from(0));
+        f.push(BlsScalar::from(1));
+        f.push(BlsScalar::from(2));
+
+        assert!(t.contains_all(&f));
+
+        assert!(t.contains(&BlsScalar::from(2)));
+
+        let s = t.sorted_concat(&f);
+
+        // The sets should be merged but also
+        // in the ascending order
+        let concatenated_set = MultiSet(vec![
+            BlsScalar::zero(),
+            BlsScalar::zero(),
+            BlsScalar::zero(),
+            BlsScalar::zero(),
+            BlsScalar::one(),
+            BlsScalar::one(),
+            BlsScalar::from(2),
+            BlsScalar::from(2),
+            BlsScalar::from(2),
+            BlsScalar::from(3),
+            BlsScalar::from(3),
+            BlsScalar::from(3),
+            BlsScalar::from(4),
+            BlsScalar::from(4),
+            BlsScalar::from(5),
+            BlsScalar::from(5),
+            BlsScalar::from(6),
+            BlsScalar::from(6),
+            BlsScalar::from(7),
+        ]);
+
+        assert_eq!(s.unwrap(), concatenated_set);
+    }
+
+    #[test]
+    fn multiset_compression_input() {
+        // Alpha is a random challenge from
+        // the transcript
+        let alpha = BlsScalar::from(2);
+        let alpha_squared = alpha * alpha;
+
+        let mut table = WitnessTable3Arity::default();
+
+        // Fill in wires directly, no need to use a
+        // plookup table as this will not be going
+        // into a proof
+        table.from_wire_values(BlsScalar::from(1), BlsScalar::from(2), BlsScalar::from(3));
+
+        // Computed expected result
+        let compressed_element =
+            MultiSet::compress_three_arity([&table.f_1, &table.f_2, &table.f_3], alpha);
+
+        let actual_element = BlsScalar::from(1)
+            + (BlsScalar::from(2) * alpha)
+            + (BlsScalar::from(3) * alpha_squared);
+
+        let mut actual_set = MultiSet::new();
+
+        actual_set.push(actual_element);
+
+        assert_eq!(actual_set, compressed_element);
     }
 }

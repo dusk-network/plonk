@@ -14,6 +14,10 @@ use dusk_bls12_381::BlsScalar;
 use dusk_jubjub::{JubJubAffine, JubJubScalar};
 use thiserror::Error;
 
+const BLS_SCALAR: u8 = 1;
+const JUBJUB_SCALAR: u8 = 2;
+const JUBJUB_AFFINE: u8 = 3;
+
 /// Public Input
 #[derive(Debug, Copy, Clone)]
 pub enum PublicInput {
@@ -26,21 +30,71 @@ pub enum PublicInput {
 }
 
 impl PublicInput {
-    /// Returns the value of a PublicInput struct
-    pub fn value(&self) -> Vec<BlsScalar> {
+    /// Returns the serialized-size of the `PublicInput` structure.
+    pub const fn serialized_size() -> usize {
+        33usize
+    }
+
+    /// Returns the byte-representation of a [`PublicInput`].
+    /// Note that the underlying variants of this enum have different
+    /// sizes on it's byte-representation. Therefore, we need to return
+    /// the biggest one to set it as the default one.
+    pub fn to_bytes(&self) -> [u8; Self::serialized_size()] {
+        let mut bytes = [0u8; Self::serialized_size()];
         match self {
-            PublicInput::BlsScalar(scalar, _) => vec![*scalar],
-            PublicInput::JubJubScalar(scalar, _) => vec![BlsScalar::from(*scalar)],
-            PublicInput::AffinePoint(point, _, _) => vec![point.get_x(), point.get_y()],
+            Self::BlsScalar(scalar, _) => {
+                bytes[0] = BLS_SCALAR;
+                bytes[1..33].copy_from_slice(&scalar.to_bytes());
+                bytes
+            }
+            Self::JubJubScalar(scalar, _) => {
+                bytes[0] = JUBJUB_SCALAR;
+                bytes[1..33].copy_from_slice(&scalar.to_bytes());
+                bytes
+            }
+            Self::AffinePoint(point, _, _) => {
+                bytes[0] = JUBJUB_AFFINE;
+                bytes[1..Self::serialized_size()].copy_from_slice(&point.to_bytes());
+                bytes
+            }
+        }
+    }
+
+    /// Generate a [`PublicInput`] structure from it's byte representation.
+    pub fn from_bytes(bytes: &[u8]) -> Result<Self, CircuitErrors> {
+        if bytes.len() < Self::serialized_size() {
+            return Err(CircuitErrors::InvalidPublicInputBytes.into());
+        } else {
+            let mut array_bytes = [0u8; 32];
+            array_bytes.copy_from_slice(&bytes[1..Self::serialized_size()]);
+            match bytes[0] {
+                BLS_SCALAR => Ok(Self::BlsScalar(
+                    Option::from(BlsScalar::from_bytes(&array_bytes))
+                        .ok_or_else(|| CircuitErrors::InvalidPublicInputBytes.into())?,
+                    0,
+                )),
+                JUBJUB_SCALAR => Ok(Self::JubJubScalar(
+                    Option::from(JubJubScalar::from_bytes(&array_bytes))
+                        .ok_or_else(|| CircuitErrors::InvalidPublicInputBytes.into())?,
+                    0,
+                )),
+                JUBJUB_AFFINE => Ok(Self::AffinePoint(
+                    Option::from(JubJubAffine::from_bytes(array_bytes))
+                        .ok_or_else(|| CircuitErrors::InvalidPublicInputBytes.into())?,
+                    0,
+                    0,
+                )),
+                _ => unreachable!(),
+            }
         }
     }
 
     /// Returns the positions that of a PublicInput struct
-    pub fn pos(&self) -> Vec<usize> {
+    fn pos(&self) -> [usize; 2] {
         match self {
-            PublicInput::BlsScalar(_, pos) => vec![*pos],
-            PublicInput::JubJubScalar(_, pos) => vec![*pos],
-            PublicInput::AffinePoint(_, pos_x, pos_y) => vec![*pos_x, *pos_y],
+            PublicInput::BlsScalar(_, pos) => [*pos, 0],
+            PublicInput::JubJubScalar(_, pos) => [*pos, 0],
+            PublicInput::AffinePoint(_, pos_x, pos_y) => [*pos_x, *pos_y],
         }
     }
 }
@@ -163,6 +217,9 @@ pub enum CircuitErrors {
     /// attribute is uninitialized.
     #[error("PI constructor attribute is uninitialized")]
     UninitializedPIGenerator,
+    /// PublicInput serialization error
+    #[error("Invalid PublicInput bytes")]
+    InvalidPublicInputBytes,
 }
 
 #[cfg(test)]
