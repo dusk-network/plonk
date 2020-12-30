@@ -12,7 +12,6 @@
 use crate::table::hash_tables::constants::{N, S, T_S, V};
 use dusk_plonk::fft::Polynomial;
 use dusk_plonk::prelude::BlsScalar;
-use std::convert::TryInto;
 
 /// A HashTable consists of three different segments, each of arity
 /// vectors containing Bls Scalars. These values are precomputed and
@@ -22,9 +21,9 @@ use std::convert::TryInto;
 /// The result is another vector y in (F_p)^t.
 #[derive(Debug)]
 pub struct HashTable {
-    pub first_rows: Vec<[BlsScalar; 4]>,
-    pub middle_rows: Vec<[BlsScalar; 4]>,
-    pub end_rows: Vec<[BlsScalar; 4]>,
+    pub first_rows: [[BlsScalar; 4]; V + 1],
+    pub middle_rows: [[BlsScalar; 4]; 787],
+    pub end_rows: [[BlsScalar; 4]; 16],
 }
 
 impl HashTable {
@@ -32,9 +31,9 @@ impl HashTable {
     /// empty vectors for each field.
     pub fn new() -> Self {
         Self {
-            first_rows: vec![],
-            middle_rows: vec![],
-            end_rows: vec![],
+            first_rows: [[BlsScalar::zero(); 4]; V + 1],
+            middle_rows: [[BlsScalar::zero(); 4]; 787],
+            end_rows: [[BlsScalar::zero(); 4]; 16],
         }
     }
 
@@ -43,7 +42,7 @@ impl HashTable {
     // The middle rows are where the first entries are between V+1 and s_i for some i.
     // The binary rows are at the bottom of the table, and they enumerate all binary possibilities
     // on T_S bits.
-    fn f_rows(&mut self, f: Polynomial) {
+    fn f_rows(&mut self, f: &Polynomial) {
         for i in 0..(V + 1) {
             let eval = f.evaluate(&BlsScalar::from(i as u64));
             let row = [
@@ -53,7 +52,7 @@ impl HashTable {
                 -BlsScalar::one(),
             ];
 
-            self.first_rows.push(row);
+            self.first_rows[i] = row;
         }
     }
 
@@ -62,6 +61,7 @@ impl HashTable {
     // for a chosen i. The i here depends on the intialisation
     // of the first rows.
     fn m_rows(&mut self) {
+        let mut idx = 0;
         for i in 0..N {
             let distance = S[i as usize] - V as u64;
 
@@ -73,7 +73,8 @@ impl HashTable {
                     -BlsScalar::one(),
                 ];
 
-                self.middle_rows.push(row);
+                self.middle_rows[idx] = row;
+                idx += 1;
             }
         }
     }
@@ -83,17 +84,17 @@ impl HashTable {
     // between 0 and 15.
     fn binary_end_rows(&mut self) {
         let mut row = [BlsScalar::zero(); 4];
-        self.end_rows.push(row);
+        self.end_rows[0] = row;
 
-        for _ in 1..(2i32.pow(T_S.try_into().unwrap())) {
+        for i in 1..(2i32.pow(T_S)) {
             incrementer(&mut row, 0);
-            self.end_rows.push(row);
+            self.end_rows[i as usize] = row;
         }
     }
 
     /// This function constructs a hash table based on the
     /// constants declared.
-    pub fn construct_table(f: Polynomial) -> Self {
+    pub fn construct_table(f: &Polynomial) -> Self {
         let mut table = HashTable::new();
         table.f_rows(f);
         table.m_rows();
@@ -106,6 +107,8 @@ impl HashTable {
 /// The binary end rows section of the a hash table requires
 /// a function which fills out the whole vector, of arity 4,
 /// dependant on the given initial entry.
+///
+/// Note: if `i` is greater than 4, this function will panic.
 pub fn incrementer(mut row: &mut [BlsScalar; 4], i: usize) {
     if row[3 - i] == BlsScalar::zero() {
         row[3 - i] = BlsScalar::one();
@@ -117,10 +120,10 @@ pub fn incrementer(mut row: &mut [BlsScalar; 4], i: usize) {
 
 #[cfg(test)]
 mod tests {
-    use crate::table::hash_tables::constants::{N, S, T_S, V};
+    use crate::table::hash_tables::constants::{S, V};
     use crate::table::hash_tables::tables::HashTable;
-    use dusk_plonk::prelude::BlsScalar;
     use dusk_plonk::fft::Polynomial;
+    use dusk_plonk::prelude::BlsScalar;
 
     #[test]
     fn test_first() {
@@ -128,8 +131,8 @@ mod tests {
         let f: Polynomial = Polynomial {
             coeffs: vec![BlsScalar::from(3), BlsScalar::one()],
         };
-        table.f_rows(f);
-        // Check that second row of first rows equals [1,0,f(1),-1], 
+        table.f_rows(&f);
+        // Check that second row of first rows equals [1,0,f(1),-1],
         // when f(x) = x+3.
         assert_eq!(
             table.first_rows[1],
@@ -172,26 +175,24 @@ mod tests {
         let f: Polynomial = Polynomial {
             coeffs: vec![BlsScalar::from(3), BlsScalar::one()],
         };
-        let table = HashTable::construct_table(f);
+        let table = HashTable::construct_table(&f);
 
-        // Assert the fixed length of the three parts of the 
-        // hash table 
+        // Assert the fixed length of the three parts of the
+        // hash table
         assert_eq!(644, table.first_rows.len() as usize);
         assert_eq!(787, table.middle_rows.len() as usize);
         assert_eq!(16, table.end_rows.len() as usize);
-
     }
 
     #[test]
     fn test_incorrect_poly() {
-        
-        // Create polynomial for first table  
+        // Create polynomial for first table
         let f_1: Polynomial = Polynomial {
             coeffs: vec![BlsScalar::from(3), BlsScalar::one()],
         };
         // Build complete table
-        let table = HashTable::construct_table(f_1);
-        
+        let table = HashTable::construct_table(&f_1);
+
         // Create polynomial for second table
         let f_2: Polynomial = Polynomial {
             coeffs: vec![BlsScalar::from(6), BlsScalar::one()],
@@ -199,7 +200,7 @@ mod tests {
 
         // Create table and insert first rows from second poly
         let mut table_2 = HashTable::new();
-        table_2.f_rows(f_2);
+        table_2.f_rows(&f_2);
 
         // Assert the tables have different values
         assert_ne!(table.first_rows, table_2.first_rows);
