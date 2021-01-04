@@ -150,7 +150,7 @@ impl Prover {
         // Commitments
         let mut transcript = self.preprocessed_transcript.clone();
 
-        //1. Compute witness Polynomials
+        // 1. Compute witness Polynomials
         //
         // Convert Variables to BlsScalars padding them to the
         // correct domain size.

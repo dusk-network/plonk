@@ -56,6 +56,9 @@ pub struct StandardComposer {
     pub(crate) q_fixed_group_add: Vec<BlsScalar>,
     // Variable base group addition selector
     pub(crate) q_variable_group_add: Vec<BlsScalar>,
+    // Plookup Gate selector
+    pub(crate) q_plookup: Vec<BlsScalar>,
+
 
     /// Public inputs vector
     pub public_inputs: Vec<BlsScalar>,
@@ -131,6 +134,7 @@ impl StandardComposer {
             q_logic: Vec::with_capacity(expected_size),
             q_fixed_group_add: Vec::with_capacity(expected_size),
             q_variable_group_add: Vec::with_capacity(expected_size),
+            q_plookup: Vec::with_capacity(expected_size),
             public_inputs: Vec::with_capacity(expected_size),
 
             w_l: Vec::with_capacity(expected_size),
@@ -205,6 +209,7 @@ impl StandardComposer {
         self.q_logic.push(BlsScalar::zero());
         self.q_fixed_group_add.push(BlsScalar::zero());
         self.q_variable_group_add.push(BlsScalar::zero());
+        self.q_plookup.push(BlsScalar::zero());
 
         self.public_inputs.push(pi);
 
@@ -308,6 +313,7 @@ impl StandardComposer {
         self.q_logic.push(BlsScalar::zero());
         self.q_fixed_group_add.push(BlsScalar::zero());
         self.q_variable_group_add.push(BlsScalar::zero());
+        self.q_plookup.push(BlsScalar::zero());
         self.public_inputs.push(BlsScalar::zero());
         let var_six = self.add_input(BlsScalar::from(6));
         let var_one = self.add_input(BlsScalar::from(1));
@@ -332,6 +338,7 @@ impl StandardComposer {
         self.q_logic.push(BlsScalar::zero());
         self.q_fixed_group_add.push(BlsScalar::zero());
         self.q_variable_group_add.push(BlsScalar::zero());
+        self.q_plookup.push(BlsScalar::zero());
         self.public_inputs.push(BlsScalar::zero());
         self.w_l.push(var_min_twenty);
         self.w_r.push(var_six);
@@ -388,6 +395,7 @@ impl StandardComposer {
             let qlogic = self.q_logic[i];
             let qfixed = self.q_fixed_group_add[i];
             let qvar = self.q_variable_group_add[i];
+            let qplookup = self.q_plookup[i];
             let pi = self.public_inputs[i];
 
             let a = w_l[i];
@@ -418,7 +426,7 @@ impl StandardComposer {
             - w_r -> {:?}\n
             - w_o -> {:?}\n
             - w_4 -> {:?}\n",
-                i, qm, ql, qr, q4, qo, qc, qarith, qrange, qlogic, qfixed, qvar, a, b, c, d
+                i, qm, ql, qr, q4, qo, qc, qarith, qrange, qlogic, qfixed, qvar, qplookup, a, b, c, d
             );
             let k = qarith * ((qm * a * b) + (ql * a) + (qr * b) + (qo * c) + (q4 * d) + pi + qc)
                 + qlogic
