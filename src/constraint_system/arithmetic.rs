@@ -73,7 +73,7 @@ impl StandardComposer {
         self.q_logic.push(BlsScalar::zero());
         self.q_fixed_group_add.push(BlsScalar::zero());
         self.q_variable_group_add.push(BlsScalar::zero());
-        self.q_plookup.push(BlsScalar::zero());
+        self.q_lookup.push(BlsScalar::zero());
 
         self.public_inputs.push(pi);
 
@@ -153,7 +153,7 @@ impl StandardComposer {
         self.q_logic.push(BlsScalar::zero());
         self.q_fixed_group_add.push(BlsScalar::zero());
         self.q_variable_group_add.push(BlsScalar::zero());
-        self.q_plookup.push(BlsScalar::zero());
+        self.q_lookup.push(BlsScalar::zero());
 
         self.public_inputs.push(pi);
 

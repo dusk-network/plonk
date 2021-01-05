@@ -57,7 +57,7 @@ pub struct StandardComposer {
     // Variable base group addition selector
     pub(crate) q_variable_group_add: Vec<BlsScalar>,
     // Plookup Gate selector
-    pub(crate) q_plookup: Vec<BlsScalar>,
+    pub(crate) q_lookup: Vec<BlsScalar>,
 
 
     /// Public inputs vector
@@ -134,7 +134,7 @@ impl StandardComposer {
             q_logic: Vec::with_capacity(expected_size),
             q_fixed_group_add: Vec::with_capacity(expected_size),
             q_variable_group_add: Vec::with_capacity(expected_size),
-            q_plookup: Vec::with_capacity(expected_size),
+            q_lookup: Vec::with_capacity(expected_size),
             public_inputs: Vec::with_capacity(expected_size),
 
             w_l: Vec::with_capacity(expected_size),
@@ -209,7 +209,7 @@ impl StandardComposer {
         self.q_logic.push(BlsScalar::zero());
         self.q_fixed_group_add.push(BlsScalar::zero());
         self.q_variable_group_add.push(BlsScalar::zero());
-        self.q_plookup.push(BlsScalar::zero());
+        self.q_lookup.push(BlsScalar::zero());
 
         self.public_inputs.push(pi);
 
@@ -313,7 +313,7 @@ impl StandardComposer {
         self.q_logic.push(BlsScalar::zero());
         self.q_fixed_group_add.push(BlsScalar::zero());
         self.q_variable_group_add.push(BlsScalar::zero());
-        self.q_plookup.push(BlsScalar::zero());
+        self.q_lookup.push(BlsScalar::zero());
         self.public_inputs.push(BlsScalar::zero());
         let var_six = self.add_input(BlsScalar::from(6));
         let var_one = self.add_input(BlsScalar::from(1));
@@ -338,7 +338,7 @@ impl StandardComposer {
         self.q_logic.push(BlsScalar::zero());
         self.q_fixed_group_add.push(BlsScalar::zero());
         self.q_variable_group_add.push(BlsScalar::zero());
-        self.q_plookup.push(BlsScalar::zero());
+        self.q_lookup.push(BlsScalar::zero());
         self.public_inputs.push(BlsScalar::zero());
         self.w_l.push(var_min_twenty);
         self.w_r.push(var_six);
@@ -395,7 +395,7 @@ impl StandardComposer {
             let qlogic = self.q_logic[i];
             let qfixed = self.q_fixed_group_add[i];
             let qvar = self.q_variable_group_add[i];
-            let qplookup = self.q_plookup[i];
+            let qplookup = self.q_lookup[i];
             let pi = self.public_inputs[i];
 
             let a = w_l[i];

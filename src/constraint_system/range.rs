@@ -144,7 +144,7 @@ impl StandardComposer {
         self.q_4.extend(zeros.iter());
         self.q_fixed_group_add.extend(zeros.iter());
         self.q_variable_group_add.extend(zeros.iter());
-        self.q_plookup.extend(zeros.iter());
+        self.q_lookup.extend(zeros.iter());
         self.q_range.extend(ones.iter());
         self.q_logic.extend(zeros.iter());
         self.public_inputs.extend(zeros.iter());

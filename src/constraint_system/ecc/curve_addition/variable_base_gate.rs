@@ -80,7 +80,7 @@ impl Point {
             .q_fixed_group_add
             .append(&mut vec![BlsScalar::zero(), BlsScalar::zero()]);
         composer
-            .q_plookup
+            .q_lookup
             .append(&mut vec![BlsScalar::zero(), BlsScalar::zero()]);
 
         composer.q_variable_group_add.push(BlsScalar::one());

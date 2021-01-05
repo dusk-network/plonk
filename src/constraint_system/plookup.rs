@@ -57,7 +57,7 @@ impl StandardComposer {
 
         // For a lookup gate, only one selector poly is 
         // turned on as the output is inputted directly
-        self.q_plookup.push(BlsScalar::one());
+        self.q_lookup.push(BlsScalar::one());
 
 
         self.public_inputs.push(pi);
