@@ -30,10 +30,14 @@ pub(crate) struct SelectorPolynomials {
     q_logic: Polynomial,
     q_fixed_group_add: Polynomial,
     q_variable_group_add: Polynomial,
+    q_lookup: Polynomial,
+
     left_sigma: Polynomial,
     right_sigma: Polynomial,
     out_sigma: Polynomial,
     fourth_sigma: Polynomial,
+    // table_poly: Polynomial,
+    // query_poly: Polynomial,
 }
 
 impl StandardComposer {
@@ -58,11 +62,17 @@ impl StandardComposer {
         self.q_logic.extend(zeroes_scalar.iter());
         self.q_fixed_group_add.extend(zeroes_scalar.iter());
         self.q_variable_group_add.extend(zeroes_scalar.iter());
+        // self.q_lookup.extend(zeroes_scalar.iter());
 
         self.w_l.extend(zeroes_var.iter());
         self.w_r.extend(zeroes_var.iter());
         self.w_o.extend(zeroes_var.iter());
         self.w_4.extend(zeroes_var.iter());
+
+        self.x_i.extend(zeroes_var.iter());
+        self.y_i.extend(zeroes_var.iter());
+        self.z_i.extend(zeroes_var.iter());
+        self.fourth_i.extend(zeroes_var.iter());
 
         self.n += diff;
     }
@@ -81,6 +91,7 @@ impl StandardComposer {
             && self.q_logic.len() == k
             && self.q_fixed_group_add.len() == k
             && self.q_variable_group_add.len() == k
+            // && self.q_lookup.len() == k
             && self.w_l.len() == k
             && self.w_r.len() == k
             && self.w_o.len() == k
@@ -127,6 +138,8 @@ impl StandardComposer {
             domain_4n.coset_fft(&selectors.q_variable_group_add),
             domain_4n,
         );
+        // let q_lookup_eval_4n =
+        //     Evaluations::from_vec_and_domain(domain_4n.coset_fft(&selectors.q_lookup), domain_4n);
 
         let left_sigma_eval_4n =
             Evaluations::from_vec_and_domain(domain_4n.coset_fft(&selectors.left_sigma), domain_4n);
@@ -190,6 +203,11 @@ impl StandardComposer {
             q_variable_group_add: (selectors.q_variable_group_add, q_variable_group_add_eval_4n),
         };
 
+        // Prover Key for lookup operations
+        // let lookup_prover_key = widget::lookup::ProverKey {
+        //     q_lookup: (selectors.q_lookup, q_lookup_eval_4n),
+        // };
+
         let prover_key = widget::ProverKey {
             n: domain.size(),
             arithmetic: arithmetic_prover_key,
@@ -198,6 +216,7 @@ impl StandardComposer {
             permutation: permutation_prover_key,
             variable_base: curve_addition_prover_key,
             fixed_base: ecc_prover_key,
+            // lookup: lookup_prover_key,
             // Compute 4n evaluations for X^n -1
             v_h_coset_4n: domain_4n.compute_vanishing_poly_over_coset(domain.size() as u64),
         };
@@ -243,6 +262,7 @@ impl StandardComposer {
             Polynomial::from_coefficients_slice(&domain.ifft(&self.q_fixed_group_add));
         let q_variable_group_add_poly =
             Polynomial::from_coefficients_slice(&domain.ifft(&self.q_variable_group_add));
+        let q_lookup_poly = Polynomial::from_coefficients_slice(&domain.ifft(&self.q_lookup));
 
         // 2. Compute the sigma polynomials
         let (left_sigma_poly, right_sigma_poly, out_sigma_poly, fourth_sigma_poly) =
@@ -263,6 +283,7 @@ impl StandardComposer {
         let q_variable_group_add_poly_commit = commit_key
             .commit(&q_variable_group_add_poly)
             .unwrap_or_default();
+        let q_lookup_poly_commit = commit_key.commit(&q_lookup_poly).unwrap_or_default();
 
         let left_sigma_poly_commit = commit_key.commit(&left_sigma_poly)?;
         let right_sigma_poly_commit = commit_key.commit(&right_sigma_poly)?;
@@ -298,6 +319,12 @@ impl StandardComposer {
         let curve_addition_verifier_key = widget::ecc::curve_addition::VerifierKey {
             q_variable_group_add: q_variable_group_add_poly_commit,
         };
+
+        // Verifier Key for lookup operations
+        // let lookup_verifier_key = widget::lookup::VerifierKey {
+        //     q_lookup: q_lookup_poly_commit,
+        // };
+
         // Verifier Key for permutation argument
         let permutation_verifier_key = widget::permutation::VerifierKey {
             left_sigma: left_sigma_poly_commit,
@@ -314,6 +341,7 @@ impl StandardComposer {
             fixed_base: ecc_verifier_key,
             variable_base: curve_addition_verifier_key,
             permutation: permutation_verifier_key,
+            // lookup: lookup_verifier_key,
         };
 
         let selectors = SelectorPolynomials {
@@ -328,6 +356,7 @@ impl StandardComposer {
             q_logic: q_logic_poly,
             q_fixed_group_add: q_fixed_group_add_poly,
             q_variable_group_add: q_variable_group_add_poly,
+            q_lookup: q_lookup_poly,
             left_sigma: left_sigma_poly,
             right_sigma: right_sigma_poly,
             out_sigma: out_sigma_poly,

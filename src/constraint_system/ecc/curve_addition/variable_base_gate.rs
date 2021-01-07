@@ -90,7 +90,6 @@ impl Point {
             .public_inputs
             .append(&mut vec![BlsScalar::zero(), BlsScalar::zero()]);
 
-
         composer
             .perm
             .add_variables_to_map(x_1, y_1, x_2, y_2, composer.n);

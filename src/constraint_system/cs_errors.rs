@@ -15,4 +15,8 @@ pub enum PreProcessingError {
     /// stage.
     #[error("the length of the wires it's not the same")]
     MismatchedPolyLen,
+    /// This error occurs when a user attempts to add a lookup gate when there
+    /// is no lookup table present in the composer.
+    #[error("attempted to add a lookup gate without a lookup table")]
+    LookupTableMissing,
 }
