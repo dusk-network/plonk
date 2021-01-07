@@ -110,6 +110,7 @@ impl HashTable {
 ///
 /// Note: if `i` is greater than 4, this function will panic.
 pub fn incrementer(mut row: &mut [BlsScalar; 4], i: usize) {
+    assert!(i < 4);
     if row[3 - i] == BlsScalar::zero() {
         row[3 - i] = BlsScalar::one();
     } else {
