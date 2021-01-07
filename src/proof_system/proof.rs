@@ -56,10 +56,10 @@ pub struct Proof {
     pub p_comm: Commitment,
 
     /// Commitment to first half of concatanted lookup poly.
-    pub h_1_comm: Commitment, 
+    pub h_1_comm: Commitment,
 
     /// Commitment to second half of concatenated lookup poly.
-    pub h_2_comm: Commitment, 
+    pub h_2_comm: Commitment,
 
     /// Commitment to the quotient polynomial.
     pub t_1_comm: Commitment,
@@ -151,7 +151,7 @@ impl Proof {
             f_comm,
             z_comm,
             p_comm,
-            h_1_comm, 
+            h_1_comm,
             h_2_comm,
             t_1_comm,
             t_2_comm,

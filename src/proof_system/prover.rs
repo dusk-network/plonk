@@ -190,8 +190,15 @@ impl Prover {
         let fourth_i_scalar = &[&self.to_scalars(&self.cs.fourth_i)[..], &pad].concat();
 
         // Compress table into vector of single elements
-        let compressed_f =
-            MultiSet::compress_four_arity([&MultiSet::from(x_i_scalar.as_slice()), &MultiSet::from(y_i_scalar.as_slice()), &MultiSet::from(z_i_scalar.as_slice()), &MultiSet::from(fourth_i_scalar.as_slice())], zeta);
+        let compressed_f = MultiSet::compress_four_arity(
+            [
+                &MultiSet::from(x_i_scalar.as_slice()),
+                &MultiSet::from(y_i_scalar.as_slice()),
+                &MultiSet::from(z_i_scalar.as_slice()),
+                &MultiSet::from(fourth_i_scalar.as_slice()),
+            ],
+            zeta,
+        );
 
         // Compute query poly
         let f_poly = Polynomial::from_coefficients_vec(domain.ifft(&compressed_f.0.as_slice()));
@@ -209,13 +216,18 @@ impl Prover {
         let t_4_scalar = &[&self.to_scalars(&self.cs.t_4)[..], &pad].concat();
 
         // Compress table into vector of single elements
-        let compressed_t =
-            MultiSet::compress_four_arity([&MultiSet::from(t_1_scalar.as_slice()), &MultiSet::from(t_2_scalar.as_slice()), &MultiSet::from(t_3_scalar.as_slice()), &MultiSet::from(t_4_scalar.as_slice())], zeta);
-
+        let compressed_t = MultiSet::compress_four_arity(
+            [
+                &MultiSet::from(t_1_scalar.as_slice()),
+                &MultiSet::from(t_2_scalar.as_slice()),
+                &MultiSet::from(t_3_scalar.as_slice()),
+                &MultiSet::from(t_4_scalar.as_slice()),
+            ],
+            zeta,
+        );
 
         // Compute table poly
         let t_poly = Polynomial::from_coefficients_vec(domain.ifft(&compressed_t.0.as_slice()));
-
 
         // 2. Compute permutation polynomial
         //
@@ -246,7 +258,7 @@ impl Prover {
 
         // Compute s, as the sorted and concatenated version of f and t
         let s = compressed_t.sorted_concat(&compressed_f)?;
-        
+
         // Compute first and second halves of s, as h_1 and h_2
         let (h_1, h_2) = s.halve();
 
@@ -263,15 +275,16 @@ impl Prover {
         transcript.append_commitment(b"h_2", &h_2_poly_commit);
 
         // Compute lookup permutation poly
-        let p_poly = Polynomial::from_coefficients_slice(&self.cs.perm.compute_lookup_permutation_poly(
-            &domain,
-            &compressed_f.0,
-            &compressed_t.0,
-            &h_1.0,
-            &h_2.0,
-            &delta, 
-            &epsilon, 
-        ));
+        let p_poly =
+            Polynomial::from_coefficients_slice(&self.cs.perm.compute_lookup_permutation_poly(
+                &domain,
+                &compressed_f.0,
+                &compressed_t.0,
+                &h_1.0,
+                &h_2.0,
+                &delta,
+                &epsilon,
+            ));
 
         // Commit to permutation polynomial
         //
@@ -428,7 +441,6 @@ impl Prover {
             t_2_comm: t_2_commit,
             t_3_comm: t_3_commit,
             t_4_comm: t_4_commit,
-
 
             w_z_comm,
             w_zw_comm: w_zx_comm,

@@ -726,7 +726,6 @@ impl Permutation {
             .map(|(num, den)| num * den.invert().unwrap())
             .collect();
 
-
         let mut state = BlsScalar::one();
         let mut p = Vec::with_capacity(n - 1);
         p.push(state);
