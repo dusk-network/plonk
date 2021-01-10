@@ -37,7 +37,7 @@ pub(crate) fn compute(
         BlsScalar,
         BlsScalar,
         BlsScalar,
-        BlsScalar, 
+        BlsScalar,
     ),
     zeta: &BlsScalar,
     f: &BlsScalar,
@@ -81,8 +81,8 @@ pub(crate) fn compute(
         prover_key,
         (&wl_eval_4n, &wr_eval_4n, &wo_eval_4n, &w4_eval_4n),
         public_inputs_poly,
-        zeta, 
-        f
+        zeta,
+        f,
     );
 
     let t_2 = compute_permutation_checks(
@@ -186,9 +186,16 @@ fn compute_circuit_satisfiability_equation(
                 &w4_next,
             );
 
-            let f  = prover_key.lookup.compute_quotient_i(i, lookup_challenge, &wl, &wr, &wo, w4, &f, &zeta);
-
-        
+            let f = prover_key.lookup.compute_quotient_i(
+                i,
+                lookup_challenge,
+                &wl,
+                &wr,
+                &wo,
+                w4,
+                &f,
+                &zeta,
+            );
 
             (a + pi) + b + c + d + e + f
         })
@@ -238,5 +245,3 @@ fn compute_first_lagrange_poly_scaled(domain: &EvaluationDomain, scale: BlsScala
     domain.ifft_in_place(&mut x_evals);
     Polynomial::from_coefficients_vec(x_evals)
 }
-
-

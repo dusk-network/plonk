@@ -227,7 +227,7 @@ impl Prover {
         );
 
         // Compute table poly
-        let t_poly = Polynomial::from_coefficients_vec(domain.ifft(&compressed_t.0.as_slice()));
+        let table_poly = Polynomial::from_coefficients_vec(domain.ifft(&compressed_t.0.as_slice()));
 
         // 2. Compute permutation polynomial
         //

@@ -16,12 +16,17 @@ pub use verifierkey::VerifierKey;
 ///
 use dusk_bls12_381::BlsScalar;
 
-fn compress(w_l: BlsScalar, w_r: BlsScalar, w_o: BlsScalar, w_4: BlsScalar, zeta: BlsScalar) -> BlsScalar {
-    
+fn compress(
+    w_l: BlsScalar,
+    w_r: BlsScalar,
+    w_o: BlsScalar,
+    w_4: BlsScalar,
+    zeta: BlsScalar,
+) -> BlsScalar {
     let zeta_sq = zeta.square();
     let zeta_cu = zeta_sq * zeta;
 
-    let a = w_l; 
+    let a = w_l;
 
     let b = w_r * zeta;
 
