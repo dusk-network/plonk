@@ -36,7 +36,8 @@ pub struct ProverKey {
     /// ProverKey for variable base curve addition gates
     pub variable_base: ecc::curve_addition::ProverKey,
     /// ProverKey for lookup operations
-    // pub lookup: lookup::ProverKey,
+    pub lookup: lookup::ProverKey,
+    
     // Pre-processes the 4n Evaluations for the vanishing polynomial, so they do not
     // need to be computed at the proving stage.
     // Note: With this, we can combine all parts of the quotient polynomial in their evaluation phase and

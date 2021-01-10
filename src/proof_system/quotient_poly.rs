@@ -28,6 +28,7 @@ pub(crate) fn compute(
         logic_challenge,
         fixed_base_challenge,
         var_base_challenge,
+        lookup_challenge,
     ): &(
         BlsScalar,
         BlsScalar,
@@ -36,7 +37,10 @@ pub(crate) fn compute(
         BlsScalar,
         BlsScalar,
         BlsScalar,
+        BlsScalar, 
     ),
+    zeta: &BlsScalar,
+    f: &BlsScalar,
 ) -> Result<Polynomial, Error> {
     // Compute 4n eval of z(X)
     let domain_4n = EvaluationDomain::new(4 * domain.size())?;
@@ -72,10 +76,13 @@ pub(crate) fn compute(
             logic_challenge,
             fixed_base_challenge,
             var_base_challenge,
+            lookup_challenge,
         ),
         prover_key,
         (&wl_eval_4n, &wr_eval_4n, &wo_eval_4n, &w4_eval_4n),
         public_inputs_poly,
+        zeta, 
+        f
     );
 
     let t_2 = compute_permutation_checks(
@@ -103,7 +110,8 @@ pub(crate) fn compute(
 // Ensures that the circuit is satisfied
 fn compute_circuit_satisfiability_equation(
     domain: &EvaluationDomain,
-    (range_challenge, logic_challenge, fixed_base_challenge, var_base_challenge): (
+    (range_challenge, logic_challenge, fixed_base_challenge, var_base_challenge, lookup_challenge): (
+        &BlsScalar,
         &BlsScalar,
         &BlsScalar,
         &BlsScalar,
@@ -117,6 +125,8 @@ fn compute_circuit_satisfiability_equation(
         &[BlsScalar],
     ),
     pi_poly: &Polynomial,
+    zeta: &BlsScalar,
+    f: &BlsScalar,
 ) -> Vec<BlsScalar> {
     let domain_4n = EvaluationDomain::new(4 * domain.size()).unwrap();
     let pi_eval_4n = domain_4n.coset_fft(pi_poly);
@@ -176,7 +186,11 @@ fn compute_circuit_satisfiability_equation(
                 &w4_next,
             );
 
-            (a + pi) + b + c + d + e
+            let f  = prover_key.lookup.compute_quotient_i(i, lookup_challenge, &wl, &wr, &wo, w4, &f, &zeta);
+
+        
+
+            (a + pi) + b + c + d + e + f
         })
         .collect();
     t
@@ -224,3 +238,5 @@ fn compute_first_lagrange_poly_scaled(domain: &EvaluationDomain, scale: BlsScala
     domain.ifft_in_place(&mut x_evals);
     Polynomial::from_coefficients_vec(x_evals)
 }
+
+
