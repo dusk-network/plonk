@@ -75,7 +75,7 @@ impl PublicParameters {
     /// Serialize the `PublicParameters` into bytes.
     ///
     /// Will consume approx. twice the bytes of `into_bytes`
-    pub unsafe fn to_bytes_unchecked(&self) -> Vec<u8> {
+    pub fn to_bytes_unchecked(&self) -> Vec<u8> {
         let mut bytes = self.opening_key.to_bytes().to_vec();
 
         bytes.extend(&self.commit_key.to_bytes_unchecked());

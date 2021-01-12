@@ -41,7 +41,7 @@ impl CommitKey {
     /// Serialize the `CommitKey` into bytes.
     ///
     /// Will consume twice the bytes of `into_bytes`
-    pub unsafe fn to_bytes_unchecked(&self) -> Vec<u8> {
+    pub fn to_bytes_unchecked(&self) -> Vec<u8> {
         let mut bytes = Vec::with_capacity(8 + self.powers_of_g.len() * 96);
 
         let len = self.powers_of_g.len() as u64;
