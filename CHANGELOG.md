@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Changed
 - Refactored to/from_bytes criteria for some structs (#333)
+- API breaking - Implement to/from unchecked bytes for public parameters (#332)
 
 ## [0.3.6] - 17-12-20
 ### Added 

@@ -28,7 +28,7 @@ pub trait TranscriptProtocol {
 
 impl TranscriptProtocol for Transcript {
     fn append_commitment(&mut self, label: &'static [u8], comm: &Commitment) {
-        self.append_message(label, &comm.0.to_compressed());
+        self.append_message(label, &comm.0.to_bytes());
     }
 
     fn append_scalar(&mut self, label: &'static [u8], s: &BlsScalar) {

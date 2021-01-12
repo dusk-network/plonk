@@ -54,7 +54,7 @@ pub fn read_g1_affine(bytes: &[u8]) -> Result<(G1Affine, &[u8]), Error> {
     let (bytes48, rest) = read_n(48, bytes)?;
     let mut arr48 = [0u8; 48];
     arr48.copy_from_slice(bytes48);
-    let g1 = G1Affine::from_compressed(&arr48);
+    let g1 = G1Affine::from_bytes(&arr48);
     if g1.is_none().into() {
         return Err(SerialisationErrors::PointMalformed.into());
     }
@@ -68,7 +68,7 @@ pub fn read_commitment(bytes: &[u8]) -> Result<(Commitment, &[u8]), Error> {
 }
 /// Writes a G1Affine into a mutable slice
 pub fn write_g1_affine(affine: &G1Affine, bytes: &mut Vec<u8>) {
-    let bytes48 = affine.to_compressed();
+    let bytes48 = affine.to_bytes();
     bytes.extend_from_slice(&bytes48);
 }
 /// Writes a Commitment into a mutable slice
