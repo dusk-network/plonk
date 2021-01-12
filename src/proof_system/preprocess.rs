@@ -138,8 +138,8 @@ impl StandardComposer {
             domain_4n.coset_fft(&selectors.q_variable_group_add),
             domain_4n,
         );
-        // let q_lookup_eval_4n =
-        //     Evaluations::from_vec_and_domain(domain_4n.coset_fft(&selectors.q_lookup), domain_4n);
+        let q_lookup_eval_4n =
+            Evaluations::from_vec_and_domain(domain_4n.coset_fft(&selectors.q_lookup), domain_4n);
 
         let left_sigma_eval_4n =
             Evaluations::from_vec_and_domain(domain_4n.coset_fft(&selectors.left_sigma), domain_4n);
@@ -203,10 +203,10 @@ impl StandardComposer {
             q_variable_group_add: (selectors.q_variable_group_add, q_variable_group_add_eval_4n),
         };
 
-        // Prover Key for lookup operations
-        // let lookup_prover_key = widget::lookup::ProverKey {
-        //     q_lookup: (selectors.q_lookup, q_lookup_eval_4n),
-        // };
+        // Prover key for lookup operations 
+        let lookup_prover_key = widget::lookup::ProverKey{
+            q_lookup: (selectors.q_lookup, q_lookup_eval_4n)
+        };
 
         let prover_key = widget::ProverKey {
             n: domain.size(),
@@ -216,7 +216,7 @@ impl StandardComposer {
             permutation: permutation_prover_key,
             variable_base: curve_addition_prover_key,
             fixed_base: ecc_prover_key,
-            // lookup: lookup_prover_key,
+            lookup: lookup_prover_key,
             // Compute 4n evaluations for X^n -1
             v_h_coset_4n: domain_4n.compute_vanishing_poly_over_coset(domain.size() as u64),
         };

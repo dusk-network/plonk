@@ -338,6 +338,10 @@ impl ProverKey {
         let (q_variable_group_add_evals, rest) = read_evaluations(domain, &rest)?;
         let q_variable_group_add = (q_variable_group_add_poly, q_variable_group_add_evals);
 
+        let (q_lookup_poly, rest) = read_polynomial(&rest)?;
+        let (q_lookup_evals, rest) = read_evaluations(domain, &rest)?;
+        let q_lookup = (q_lookup_poly, q_lookup_evals);
+
         let (left_sigma_poly, rest) = read_polynomial(&rest)?;
         let (left_sigma_evals, rest) = read_evaluations(domain, &rest)?;
         let left_sigma = (left_sigma_poly, left_sigma_evals);
@@ -393,6 +397,10 @@ impl ProverKey {
             q_variable_group_add,
         };
 
+        let lookup = lookup::ProverKey {
+            q_lookup,
+        };
+
         let prover_key = ProverKey {
             n: n as usize,
             arithmetic,
@@ -401,7 +409,7 @@ impl ProverKey {
             fixed_base,
             variable_base,
             permutation,
-            // lookup,
+            lookup,
             v_h_coset_4n,
         };
 
@@ -466,6 +474,8 @@ mod test {
 
         let q_variable_group_add = rand_poly_eval(n);
 
+        let q_lookup = rand_poly_eval(n);
+
         let left_sigma = rand_poly_eval(n);
         let right_sigma = rand_poly_eval(n);
         let out_sigma = rand_poly_eval(n);
@@ -510,6 +520,10 @@ mod test {
             q_variable_group_add,
         };
 
+        let lookup = lookup::ProverKey {
+            q_lookup,
+        };
+
         let prover_key = ProverKey {
             arithmetic,
             logic,
@@ -517,7 +531,7 @@ mod test {
             range,
             variable_base,
             permutation,
-            // lookup,
+            lookup,
             v_h_coset_4n,
             n,
         };

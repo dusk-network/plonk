@@ -4,6 +4,9 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
+//! Structs and functions for LookupTables
+//! Denoted as 't' in Plookup paper.
+
 use crate::plookup::MultiSet;
 use crate::plookup::PlookupErrors;
 use crate::prelude::BlsScalar;
@@ -15,7 +18,18 @@ use crate::prelude::BlsScalar;
 ///
 /// If the standard composer calls a plookup gate, then the user will define
 /// the length of the gate, measured in circuit size.
-#[derive(Debug)]
+
+
+/// This struct is a table, contaning a vector, 
+/// of arity 3 where each of the values is a 
+/// BlsScalar. The elements of the table are 
+/// determined by the function g for 
+/// g(x,y), used to compute tuples. 
+/// 
+/// This struct will be used to determine 
+/// the outputs of gates within arithmetic
+/// circuits.
+#[derive(Clone, Eq, PartialEq, Debug)]
 pub struct PlookupTable3Arity(Vec<[BlsScalar; 3]>);
 
 impl PlookupTable3Arity {
@@ -176,7 +190,16 @@ impl PlookupTable3Arity {
     }
 }
 
-/// This is a table, either
+/// This struct is a table, contaning a vector, 
+/// of arity 4 where each of the values is a 
+/// BlsScalar. The elements of the table are 
+/// determined by the function g for 
+/// g(x,y), used to compute tuples. 
+/// 
+/// This struct will be used to determine 
+/// the outputs of gates within arithmetic
+/// circuits.
+#[derive(Clone, Eq, PartialEq, Debug)]
 pub struct PlookupTable4Arity(Vec<[BlsScalar; 4]>);
 
 impl Default for PlookupTable4Arity {
@@ -263,6 +286,14 @@ impl PlookupTable4Arity {
         }
     }
 
+    /// Function builds a table from mutiple operations. If, for example,
+    /// we are using lookup tables for both XOR and mul operataions, we can 
+    /// create a table where the rows 0..n/2 use a mul function on all 2^n 
+    /// indices and have the 4th wire storing index 0. For all indices n/2..n, 
+    /// an XOR gate can be added, wheren the index of the 4th wire is 0.
+    /// These numbers require exponentiation outside, for the lower bound,
+    /// otherwise the range cannot start from zero, as 2^0 = 1.
+    /// Particular multiplication row(s) can be added with this function.
     pub fn insert_multi_mul(&mut self, lower_bound: u64, n: u8) {
         let upper_bound = 2u64.pow(n.into());
 
@@ -275,6 +306,14 @@ impl PlookupTable4Arity {
         }
     }
 
+    /// Function builds a table from mutiple operations. If, for example,
+    /// we are using lookup tables for both XOR and mul operataions, we can 
+    /// create a table where the rows 0..n/2 use a mul function on all 2^n 
+    /// indices and have the 4th wire storing index 0. For all indices n/2..n, 
+    /// an XOR gate can be added, wheren the index of the 4th wire is 0.
+    /// These numbers require exponentiation outside, for the lower bound,
+    /// otherwise the range cannot start from zero, as 2^0 = 1.
+    /// Particular XOR row(s) can be added with this function.
     pub fn insert_multi_xor(&mut self, lower_bound: u64, n: u8) {
         let upper_bound = 2u64.pow(n.into());
 
@@ -287,6 +326,14 @@ impl PlookupTable4Arity {
         }
     }
 
+    /// Function builds a table from mutiple operations. If, for example,
+    /// we are using lookup tables for both XOR and mul operataions, we can 
+    /// create a table where the rows 0..n/2 use a mul function on all 2^n 
+    /// indices and have the 4th wire storing index 0. For all indices n/2..n, 
+    /// an XOR gate can be added, wheren the index of the 4th wire is 0.
+    /// These numbers require exponentiation outside, for the lower bound,
+    /// otherwise the range cannot start from zero, as 2^0 = 1.
+    /// Particular AND row(s) can be added with this function.
     pub fn insert_multi_and(&mut self, lower_bound: u64, n: u8) {
         let upper_bound = 2u64.pow(n.into());
 

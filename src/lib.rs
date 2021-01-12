@@ -63,12 +63,13 @@ pub mod commitment_scheme;
 pub mod constraint_system;
 pub mod fft;
 mod permutation;
-mod plookup;
+pub mod plookup;
 pub mod prelude;
 pub mod proof_system;
 mod serialisation;
 pub mod transcript;
 mod util;
+
 
 #[cfg(feature = "nightly")]
 #[doc(include = "../docs/notes-intro.md")]

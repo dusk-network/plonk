@@ -4,6 +4,9 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
+//! Contains all multisets for columns of query tables
+//! Denotes as 'f' in original plookup paper.
+
 use crate::bls12_381::BlsScalar;
 use crate::fft::{EvaluationDomain, Polynomial};
 use crate::plookup::error::PlookupErrors;

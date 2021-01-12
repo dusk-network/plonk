@@ -4,6 +4,10 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
+//! Structs and functions for PreProcessedTables
+//! Used in Plookup inside the transcript and passed
+//! to the proof system.
+
 use crate::commitment_scheme::kzg10::{CommitKey, Commitment};
 use crate::fft::{EvaluationDomain, Polynomial};
 use crate::plookup::MultiSet;
@@ -11,12 +15,25 @@ use crate::plookup::{PlookupTable3Arity, PlookupTable4Arity};
 use anyhow::{Error, Result};
 
 /// This table will be the preprocessed version of the
-/// precomputed table, T. This structure is passed to the
-/// proof alongside the table of witness values.
+/// precomputed table, T, of arity 3. This structure is 
+/// passed to the proof alongside the table of witness values.
+#[derive(Clone, Eq, PartialEq, Debug)]
 pub struct PreprocessedTable3Arity {
+    /// Circuit size
     pub n: u32,
+    /// This is the first column in the preprocessed 
+    /// table containing a MultiSet, Commitments to the
+    /// MultiSet and the coefficients as a Polynomial
     pub t_1: (MultiSet, Commitment, Polynomial),
+
+    /// This is the second column in the preprocessed 
+    /// table containing a MultiSet, Commitments to the
+    /// MultiSet and the coefficients as a Polynomial
     pub t_2: (MultiSet, Commitment, Polynomial),
+
+    /// This is the third column in the preprocessed 
+    /// table containing a MultiSet, Commitments to the
+    /// MultiSet and the coefficients as a Polynomial
     pub t_3: (MultiSet, Commitment, Polynomial),
 }
 
@@ -60,11 +77,34 @@ impl PreprocessedTable3Arity {
     }
 }
 
+/// This table will be the preprocessed version of the
+/// precomputed table, T, with arity 4. This structure 
+/// is passed to the proof alongside the table of witness 
+/// values.
+#[derive(Clone, Eq, PartialEq, Debug)]
 pub struct PreprocessedTable4Arity {
+    
+    /// This is the circuit size
     pub n: u32,
+
+    /// This is the first column in the preprocessed 
+    /// table containing a MultiSet, Commitments to the
+    /// MultiSet and the coefficients as a Polynomial
     pub t_1: (MultiSet, Commitment, Polynomial),
+
+    /// This is the second column in the preprocessed 
+    /// table containing a MultiSet, Commitments to the
+    /// MultiSet and the coefficients as a Polynomial
     pub t_2: (MultiSet, Commitment, Polynomial),
+
+    /// This is the third column in the preprocessed 
+    /// table containing a MultiSet, Commitments to the
+    /// MultiSet and the coefficients as a Polynomial
     pub t_3: (MultiSet, Commitment, Polynomial),
+
+    /// This is the fourth column in the preprocessed 
+    /// table containing a MultiSet, Commitments to the
+    /// MultiSet and the coefficients as a Polynomial
     pub t_4: (MultiSet, Commitment, Polynomial),
 }
 

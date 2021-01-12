@@ -16,9 +16,6 @@ pub struct ProverKey {
     pub out_sigma: (Polynomial, Evaluations),
     pub fourth_sigma: (Polynomial, Evaluations),
     pub linear_evaluations: Evaluations, // Evaluations of f(x) = X [XXX: Remove this and benchmark if it makes a considerable difference -- These are just the domain elements]
-    pub h_1: (Polynomial, Evaluations),
-    pub h_2: (Polynomial, Evaluations),
-    pub t: (Polynomial, Evaluations),
 }
 
 impl ProverKey {
@@ -226,8 +223,8 @@ impl ProverKey {
         h_1_i: &BlsScalar,
         h_2_i_next: &BlsScalar,
         ln_alpha_6: &BlsScalar,
-    ) -> &BlsScalar {
-        &(&(h_1_i - h_2_i_next) * ln_alpha_6)
+    ) -> BlsScalar {
+        (h_1_i - h_2_i_next) * ln_alpha_6
     }
 
     pub(crate) fn compute_linearisation(

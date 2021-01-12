@@ -4,6 +4,8 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
+//! Contains the functionality of plookup gates on top of the composer
+
 #![allow(clippy::too_many_arguments)]
 
 use crate::constraint_system::StandardComposer;

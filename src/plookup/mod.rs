@@ -4,9 +4,16 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-mod error;
-mod multiset;
-mod table;
+//! Module containing the plookup works. 
+//! Plookup is the protcol for using 
+//! precomputed and stored tables of values 
+//! for specific functions to determine the 
+//! output of gates within a circuit, without 
+//! computing them.
+
+pub mod error;
+pub mod multiset;
+pub mod table;
 
 pub use error::PlookupErrors;
 pub use multiset::MultiSet;
