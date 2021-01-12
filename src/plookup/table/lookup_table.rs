@@ -19,14 +19,13 @@ use crate::prelude::BlsScalar;
 /// If the standard composer calls a plookup gate, then the user will define
 /// the length of the gate, measured in circuit size.
 
-
-/// This struct is a table, contaning a vector, 
-/// of arity 3 where each of the values is a 
-/// BlsScalar. The elements of the table are 
-/// determined by the function g for 
-/// g(x,y), used to compute tuples. 
-/// 
-/// This struct will be used to determine 
+/// This struct is a table, contaning a vector,
+/// of arity 3 where each of the values is a
+/// BlsScalar. The elements of the table are
+/// determined by the function g for
+/// g(x,y), used to compute tuples.
+///
+/// This struct will be used to determine
 /// the outputs of gates within arithmetic
 /// circuits.
 #[derive(Clone, Eq, PartialEq, Debug)]
@@ -190,13 +189,13 @@ impl PlookupTable3Arity {
     }
 }
 
-/// This struct is a table, contaning a vector, 
-/// of arity 4 where each of the values is a 
-/// BlsScalar. The elements of the table are 
-/// determined by the function g for 
-/// g(x,y), used to compute tuples. 
-/// 
-/// This struct will be used to determine 
+/// This struct is a table, contaning a vector,
+/// of arity 4 where each of the values is a
+/// BlsScalar. The elements of the table are
+/// determined by the function g for
+/// g(x,y), used to compute tuples.
+///
+/// This struct will be used to determine
 /// the outputs of gates within arithmetic
 /// circuits.
 #[derive(Clone, Eq, PartialEq, Debug)]
@@ -287,9 +286,9 @@ impl PlookupTable4Arity {
     }
 
     /// Function builds a table from mutiple operations. If, for example,
-    /// we are using lookup tables for both XOR and mul operataions, we can 
-    /// create a table where the rows 0..n/2 use a mul function on all 2^n 
-    /// indices and have the 4th wire storing index 0. For all indices n/2..n, 
+    /// we are using lookup tables for both XOR and mul operataions, we can
+    /// create a table where the rows 0..n/2 use a mul function on all 2^n
+    /// indices and have the 4th wire storing index 0. For all indices n/2..n,
     /// an XOR gate can be added, wheren the index of the 4th wire is 0.
     /// These numbers require exponentiation outside, for the lower bound,
     /// otherwise the range cannot start from zero, as 2^0 = 1.
@@ -307,9 +306,9 @@ impl PlookupTable4Arity {
     }
 
     /// Function builds a table from mutiple operations. If, for example,
-    /// we are using lookup tables for both XOR and mul operataions, we can 
-    /// create a table where the rows 0..n/2 use a mul function on all 2^n 
-    /// indices and have the 4th wire storing index 0. For all indices n/2..n, 
+    /// we are using lookup tables for both XOR and mul operataions, we can
+    /// create a table where the rows 0..n/2 use a mul function on all 2^n
+    /// indices and have the 4th wire storing index 0. For all indices n/2..n,
     /// an XOR gate can be added, wheren the index of the 4th wire is 0.
     /// These numbers require exponentiation outside, for the lower bound,
     /// otherwise the range cannot start from zero, as 2^0 = 1.
@@ -327,9 +326,9 @@ impl PlookupTable4Arity {
     }
 
     /// Function builds a table from mutiple operations. If, for example,
-    /// we are using lookup tables for both XOR and mul operataions, we can 
-    /// create a table where the rows 0..n/2 use a mul function on all 2^n 
-    /// indices and have the 4th wire storing index 0. For all indices n/2..n, 
+    /// we are using lookup tables for both XOR and mul operataions, we can
+    /// create a table where the rows 0..n/2 use a mul function on all 2^n
+    /// indices and have the 4th wire storing index 0. For all indices n/2..n,
     /// an XOR gate can be added, wheren the index of the 4th wire is 0.
     /// These numbers require exponentiation outside, for the lower bound,
     /// otherwise the range cannot start from zero, as 2^0 = 1.

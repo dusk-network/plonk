@@ -203,9 +203,9 @@ impl StandardComposer {
             q_variable_group_add: (selectors.q_variable_group_add, q_variable_group_add_eval_4n),
         };
 
-        // Prover key for lookup operations 
-        let lookup_prover_key = widget::lookup::ProverKey{
-            q_lookup: (selectors.q_lookup, q_lookup_eval_4n)
+        // Prover key for lookup operations
+        let lookup_prover_key = widget::lookup::ProverKey {
+            q_lookup: (selectors.q_lookup, q_lookup_eval_4n),
         };
 
         let prover_key = widget::ProverKey {

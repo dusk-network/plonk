@@ -12,64 +12,62 @@ use crate::plookup::table::lookup_table::{PlookupTable3Arity, PlookupTable4Arity
 use crate::plookup::MultiSet;
 use crate::plookup::PlookupErrors;
 
-/// This witness table contains quieries 
+/// This witness table contains quieries
 /// to a lookup table for lookup gates
 /// This table is of arity 3.
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub struct WitnessTable3Arity {
-
-    /// This column represents the 
+    /// This column represents the
     /// first values inside the lookup
-    /// table. At gate checks, this 
+    /// table. At gate checks, this
     /// can be regarded as the first
     /// wire
     pub f_1: MultiSet,
 
-    /// This column represents the 
+    /// This column represents the
     /// first values inside the lookup
-    /// table. At gate checks, this 
+    /// table. At gate checks, this
     /// can be regarded as the second
     /// wire
     pub f_2: MultiSet,
 
-    /// This column represents the 
+    /// This column represents the
     /// first values inside the lookup
-    /// table. At gate checks, this 
+    /// table. At gate checks, this
     /// can be regarded as the third
     /// wire
     pub f_3: MultiSet,
 }
 
-/// This witness table contains quieries 
+/// This witness table contains quieries
 /// to a lookup table for lookup gates
 /// This table is of arity 3.
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub struct WitnessTable4Arity {
-
-    /// This column represents the 
+    /// This column represents the
     /// first values inside the lookup
-    /// table. At gate checks, this 
+    /// table. At gate checks, this
     /// can be regarded as the first
     /// wire
     pub f_1: MultiSet,
 
-    /// This column represents the 
+    /// This column represents the
     /// first values inside the lookup
-    /// table. At gate checks, this 
+    /// table. At gate checks, this
     /// can be regarded as the second
     /// wire
     pub f_2: MultiSet,
 
-    /// This column represents the 
+    /// This column represents the
     /// first values inside the lookup
-    /// table. At gate checks, this 
+    /// table. At gate checks, this
     /// can be regarded as the third
     /// wire
     pub f_3: MultiSet,
 
-    /// This column represents the 
+    /// This column represents the
     /// first values inside the lookup
-    /// table. At gate checks, this 
+    /// table. At gate checks, this
     /// can be regarded as the fourth
     /// wire
     pub f_4: MultiSet,

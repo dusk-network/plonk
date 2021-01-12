@@ -70,7 +70,6 @@ mod serialisation;
 pub mod transcript;
 mod util;
 
-
 #[cfg(feature = "nightly")]
 #[doc(include = "../docs/notes-intro.md")]
 pub mod notes {

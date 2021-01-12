@@ -4,10 +4,9 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-//! All three types of tables which are used in 
+//! All three types of tables which are used in
 //! plookup proofs
 
 pub mod lookup_table;
 pub mod preprocess;
 pub mod witness_table;
-

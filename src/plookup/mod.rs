@@ -4,11 +4,11 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-//! Module containing the plookup works. 
-//! Plookup is the protcol for using 
-//! precomputed and stored tables of values 
-//! for specific functions to determine the 
-//! output of gates within a circuit, without 
+//! Module containing the plookup works.
+//! Plookup is the protcol for using
+//! precomputed and stored tables of values
+//! for specific functions to determine the
+//! output of gates within a circuit, without
 //! computing them.
 
 pub mod error;

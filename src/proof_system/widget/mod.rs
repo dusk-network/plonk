@@ -397,9 +397,7 @@ impl ProverKey {
             q_variable_group_add,
         };
 
-        let lookup = lookup::ProverKey {
-            q_lookup,
-        };
+        let lookup = lookup::ProverKey { q_lookup };
 
         let prover_key = ProverKey {
             n: n as usize,
@@ -520,9 +518,7 @@ mod test {
             q_variable_group_add,
         };
 
-        let lookup = lookup::ProverKey {
-            q_lookup,
-        };
+        let lookup = lookup::ProverKey { q_lookup };
 
         let prover_key = ProverKey {
             arithmetic,

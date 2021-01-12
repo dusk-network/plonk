@@ -338,4 +338,3 @@ fn compute_last_lagrange_poly_scaled(domain: &EvaluationDomain, scale: BlsScalar
     domain.ifft_in_place(&mut x_evals);
     Polynomial::from_coefficients_vec(x_evals)
 }
-
