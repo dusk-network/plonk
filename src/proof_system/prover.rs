@@ -306,21 +306,31 @@ impl Prover {
             transcript.challenge_scalar(b"fixed base separation challenge");
         let var_base_sep_challenge =
             transcript.challenge_scalar(b"variable base separation challenge");
+        let lookup_sep_challenge = transcript.challenge_scalar(b"lookup challenge");
 
         let t_poly = quotient_poly::compute(
             &domain,
             &prover_key,
             &z_poly,
+            &p_poly,
             (&w_l_poly, &w_r_poly, &w_o_poly, &w_4_poly),
+            &f_poly,
+            &table_poly,
+            &h_1_poly,
+            &h_2_poly,
             &pi_poly,
             &(
                 alpha,
                 beta,
                 gamma,
+                delta,
+                epsilon,
+                zeta,
                 range_sep_challenge,
                 logic_sep_challenge,
                 fixed_base_sep_challenge,
                 var_base_sep_challenge,
+                lookup_sep_challenge,
             ),
         )?;
 

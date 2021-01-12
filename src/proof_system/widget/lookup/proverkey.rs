@@ -19,7 +19,7 @@ impl ProverKey {
     pub(crate) fn compute_quotient_i(
         &self,
         index: usize,
-        plookup_separation_challenge: &BlsScalar,
+        lookup_separation_challenge: &BlsScalar,
         w_l_i: &BlsScalar,
         w_r_i: &BlsScalar,
         w_o_i: &BlsScalar,
@@ -35,6 +35,6 @@ impl ProverKey {
 
         let compressed_tuple = compress(*w_l_i, *w_r_i, *w_o_i, *w_4_i, *zeta);
 
-        q_lookup_i * (compressed_tuple - compressed_f_element) * plookup_separation_challenge
+        q_lookup_i * (compressed_tuple - compressed_f_element) * lookup_separation_challenge
     }
 }

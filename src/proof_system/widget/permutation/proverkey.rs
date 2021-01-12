@@ -29,16 +29,27 @@ impl ProverKey {
         w_r_i: &BlsScalar,
         w_o_i: &BlsScalar,
         w_4_i: &BlsScalar,
+        f_i: &BlsScalar,
+        t_i: &BlsScalar,
+        t_i_next: &BlsScalar,
+        h_1_i: &BlsScalar,
+        h_2_i: &BlsScalar,
+        h_1_i_next: &BlsScalar,
+        h_2_i_next: &BlsScalar,
         z_i: &BlsScalar,
         z_i_next: &BlsScalar,
         p_i: &BlsScalar,
         p_i_next: &BlsScalar,
         alpha: &BlsScalar,
         l1_alpha_sq: &BlsScalar,
+        l1_alpha_4: &BlsScalar,
+        ln_alpha_6: &BlsScalar,
+        ln_alpha_7: &BlsScalar,
         beta: &BlsScalar,
         gamma: &BlsScalar,
         delta: &BlsScalar,
         epsilon: &BlsScalar,
+        omega_roots: &BlsScalar,
     ) -> BlsScalar {
         let a = self.compute_quotient_identity_range_check_i(
             index, w_l_i, w_r_i, w_o_i, w_4_i, z_i, alpha, beta, gamma,
@@ -46,8 +57,39 @@ impl ProverKey {
         let b = self.compute_quotient_copy_range_check_i(
             index, w_l_i, w_r_i, w_o_i, w_4_i, z_i_next, alpha, beta, gamma,
         );
-        let c = self.compute_quotient_term_check_one_i(z_i, l1_alpha_sq);
-        a + b + c
+        let c = self.compute_lookup_quotient_identity_range_check_i(
+            index,
+            f_i,
+            t_i,
+            t_i_next,
+            p_i,
+            alpha,
+            delta,
+            epsilon,
+            omega_roots,
+        );
+        let d = self.compute_lookup_quotient_copy_range_check_i(
+            index,
+            h_1_i,
+            h_2_i,
+            h_1_i_next,
+            h_2_i_next,
+            p_i_next,
+            alpha,
+            delta,
+            epsilon,
+            omega_roots,
+        );
+        let e = self.compute_quotient_term_check_first_la_grange_polys(
+            z_i,
+            p_i,
+            l1_alpha_sq,
+            l1_alpha_4,
+        );
+        let f = self.compute_quotient_last_la_grange_polys(p_i, ln_alpha_7);
+        let g = self.compute_overlap_check(h_1_i, h_2_i_next, ln_alpha_6);
+
+        a + b + c + d + e + f + g
     }
 
     // (a(x) + beta * X + gamma) (b(X) + beta * k1 * X + gamma) (c(X) + beta * k2 * X + gamma)(d(X) + beta * k3 * X + gamma)z(X) * alpha
@@ -76,29 +118,27 @@ impl ProverKey {
     // (x - omega^n) * p(x) * (1 + delta) * (epsilon + f(x))(epsilon(1 + delta) + t(x) + delta * t(x_omega)) * alpha^5
     fn compute_lookup_quotient_identity_range_check_i(
         &self,
-        gate_root: &BlsScalar,
         index: usize,
         f_i: &BlsScalar,
-        t_i: BlsScalar,
+        t_i: &BlsScalar,
+        t_i_next: &BlsScalar,
         p_i: &BlsScalar,
         alpha: &BlsScalar,
         delta: &BlsScalar,
-        epsilon: &BlsScalar, 
+        epsilon: &BlsScalar,
+        omega_roots: &BlsScalar,
     ) -> BlsScalar {
         let x = self.linear_evaluations[index];
         let alpha_5 = alpha * alpha * alpha * alpha * alpha;
-        let t_1 = self.t.1[index];
 
-        
-        // Compute multi use fn, 1 + delta 
+        // Compute multi use fn, 1 + delta
         let one_plus_delta = BlsScalar::one() + delta;
 
-        let a_1 = x - gate_root;
+        let a_1 = x - omega_roots;
         let a_2 = epsilon + f_i;
-        let a_3 = (epsilon * one_plus_delta) + t_i + (delta * t_1); 
+        let a_3 = (epsilon * one_plus_delta) + t_i + (delta * t_i_next);
 
         a_1 * p_i * one_plus_delta * a_2 * a_3 * alpha_5
-
     }
 
     // (a(x) + beta * Sigma1(X) + gamma) (b(X) + beta * Sigma2(X) + gamma) (c(X) + beta * Sigma3(X) + gamma)(d(X) + beta * Sigma4(X) + gamma) Z(X.omega) * alpha
@@ -128,41 +168,39 @@ impl ProverKey {
 
         -product
     }
-    
+
     // (x - omega^n) * p(x_omega) * (epsilon(1 + delta) + h_1(x) + delta * h_1(x_omega)) * (epsilon(1 + delta) + h_2(x) + delta * h_2(x_omega)) * alpha^5
     fn compute_lookup_quotient_copy_range_check_i(
         &self,
         index: usize,
-        gate_root: &BlsScalar,
         h_1_i: &BlsScalar,
         h_2_i: &BlsScalar,
+        h_1_i_next: &BlsScalar,
+        h_2_i_next: &BlsScalar,
         p_i_next: &BlsScalar,
         alpha: &BlsScalar,
-        delta: &BlsScalar, 
-        epsilon: &BlsScalar, 
+        delta: &BlsScalar,
+        epsilon: &BlsScalar,
+        omega_roots: &BlsScalar,
     ) -> BlsScalar {
+        let alpha_5 = alpha * alpha * alpha * alpha * alpha;
 
-        let h_1_eval = self.h_1.1[index];
-        let h_2_eval = self.h_2.1[index];
-        let alpha_5 = alpha * alpha * alpha * alpha * alpha;  
-
-        // Compute multi use fn's  
+        // Compute multi use fn's
         let one_plus_delta = BlsScalar::one() + delta;
         let epsilon_one_plus_delta = epsilon * one_plus_delta;
 
         let x = self.linear_evaluations[index];
-        let a_1 = x - gate_root;
-        let a_2 = epsilon_one_plus_delta + h_1_i + (delta * h_1_eval);
-        let a_3 = epsilon_one_plus_delta + h_2_i + (delta * h_2_eval);
+        let a_1 = x - omega_roots;
+        let a_2 = epsilon_one_plus_delta + h_1_i + (delta * h_1_i_next);
+        let a_3 = epsilon_one_plus_delta + h_2_i + (delta * h_2_i_next);
 
         let product = p_i_next * a_1 * a_2 * a_3 * alpha_5;
 
         -product
-
     }
 
-    // L_1(X)[Z(X) - 1] + L_1(X)[P(X) - 1] 
-    fn compute_quotient_term_check_one_i(
+    // L_1(X)[Z(X) - 1] + L_1(X)[P(X) - 1]
+    fn compute_quotient_term_check_first_la_grange_polys(
         &self,
         z_i: &BlsScalar,
         p_i: &BlsScalar,
@@ -173,6 +211,23 @@ impl ProverKey {
         let a_2 = (p_i - BlsScalar::one()) * l1_alpha_4;
 
         a_1 + a_2
+    }
+
+    fn compute_quotient_last_la_grange_polys(
+        &self,
+        p_i: &BlsScalar,
+        ln_alpha_7: &BlsScalar,
+    ) -> BlsScalar {
+        (p_i - BlsScalar::one()) * ln_alpha_7
+    }
+
+    fn compute_overlap_check(
+        &self,
+        h_1_i: &BlsScalar,
+        h_2_i_next: &BlsScalar,
+        ln_alpha_6: &BlsScalar,
+    ) -> &BlsScalar {
+        &(&(h_1_i - h_2_i_next) * ln_alpha_6)
     }
 
     pub(crate) fn compute_linearisation(
