@@ -52,6 +52,21 @@ pub struct ProofEvaluations {
 
     // (Shifted) Evaluation of the permutation polynomial at `z * root of unity`
     pub perm_eval: BlsScalar,
+
+    // (Shifted) evaluation of plookup permutation polynomial at `z * root of unity`
+    pub p_next_eval: BlsScalar,
+
+    // Evaluation of lower concatenation polynomial at `z`
+    pub h_1_eval: BlsScalar,
+
+    // (Shifted) evaluation of lower concatenation polynomial at `z * root of unity`
+    pub h_1_next_eval: BlsScalar,
+
+    // (Shifted) evaluation of lower concatenation polynomial at `z * root of unity`
+    pub h_2_next_eval: BlsScalar,
+
+    // Evaluation of query polynomial at `z * root of unity`
+    pub f_eval: BlsScalar,
 }
 
 impl ProofEvaluations {
@@ -101,7 +116,13 @@ impl ProofEvaluations {
         let (right_sigma_eval, rest) = read_scalar(rest)?;
         let (out_sigma_eval, rest) = read_scalar(rest)?;
         let (lin_poly_eval, rest) = read_scalar(rest)?;
-        let (perm_eval, _) = read_scalar(rest)?;
+        let (perm_eval, rest) = read_scalar(rest)?;
+
+        let (p_next_eval, rest) = read_scalar(rest)?;
+        let (h_1_eval, rest) = read_scalar(rest)?;
+        let (h_1_next_eval, rest) = read_scalar(rest)?;
+        let (h_2_next_eval, rest) = read_scalar(rest)?;
+        let (f_eval, _) = read_scalar(rest)?;
 
         let proof_evals = ProofEvaluations {
             a_eval,
@@ -120,6 +141,11 @@ impl ProofEvaluations {
             out_sigma_eval,
             lin_poly_eval,
             perm_eval,
+            p_next_eval,
+            h_1_eval,
+            h_1_next_eval,
+            h_2_next_eval,
+            f_eval,
         };
         Ok(proof_evals)
     }
