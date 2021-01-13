@@ -373,6 +373,10 @@ impl Prover {
             &w_4_poly,
             &t_poly,
             &z_poly,
+            &p_poly,
+            &h_1_poly,
+            &h_2_poly,
+            &f_poly,
         );
 
         // Add evaluations to transcript
@@ -418,6 +422,8 @@ impl Prover {
                 prover_key.permutation.left_sigma.0.clone(),
                 prover_key.permutation.right_sigma.0.clone(),
                 prover_key.permutation.out_sigma.0.clone(),
+                f_poly,
+                h_1_poly.clone(),
             ],
             &z_challenge,
             &mut transcript,
@@ -426,7 +432,7 @@ impl Prover {
 
         // Compute aggregate witness to polynomials evaluated at the shifted evaluation challenge
         let shifted_aggregate_witness = commit_key.compute_aggregate_witness(
-            &[z_poly, w_l_poly, w_r_poly, w_4_poly],
+            &[z_poly, w_l_poly, w_r_poly, w_4_poly, h_1_poly, h_2_poly, p_poly],
             &(z_challenge * domain.group_gen),
             &mut transcript,
         );

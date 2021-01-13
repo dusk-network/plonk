@@ -161,6 +161,10 @@ pub fn compute(
     w_4_poly: &Polynomial,
     t_x_poly: &Polynomial,
     z_poly: &Polynomial,
+    p_poly: &Polynomial,
+    h_1_poly: &Polynomial,
+    h_2_poly: &Polynomial,
+    f_poly: &Polynomial,
 ) -> (Polynomial, Evaluations) {
     // Compute evaluations
     let quot_eval = t_x_poly.evaluate(z_challenge);
@@ -180,6 +184,12 @@ pub fn compute(
     let b_next_eval = w_r_poly.evaluate(&(z_challenge * domain.group_gen));
     let d_next_eval = w_4_poly.evaluate(&(z_challenge * domain.group_gen));
     let perm_eval = z_poly.evaluate(&(z_challenge * domain.group_gen));
+
+    let p_next_eval = p_poly.evaluate(&(z_challenge * domain.group_gen));
+    let h_1_eval = h_1_poly.evaluate(z_challenge);
+    let h_1_next_eval = h_1_poly.evaluate(&(z_challenge * domain.group_gen));
+    let h_2_next_eval = h_2_poly.evaluate(&(z_challenge * domain.group_gen));
+    let f_eval = f_poly.evaluate(z_challenge);
 
     let f_1 = compute_circuit_satisfiability(
         (
@@ -236,6 +246,11 @@ pub fn compute(
                 out_sigma_eval,
                 lin_poly_eval,
                 perm_eval,
+                p_next_eval,
+                h_1_eval,
+                h_1_next_eval,
+                h_2_next_eval,
+                f_eval,
             },
             quot_eval,
         },
