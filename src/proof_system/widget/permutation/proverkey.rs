@@ -210,6 +210,7 @@ impl ProverKey {
         a_1 + a_2
     }
 
+    // L_n(X)[P(X) - 1]
     fn compute_quotient_last_la_grange_polys(
         &self,
         p_i: &BlsScalar,
@@ -218,6 +219,7 @@ impl ProverKey {
         (p_i - BlsScalar::one()) * ln_alpha_7
     }
 
+    // L_n(X)[h_1 - h_2(X_omega)]
     fn compute_overlap_check(
         &self,
         h_1_i: &BlsScalar,

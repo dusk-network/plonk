@@ -366,6 +366,7 @@ impl Prover {
                 fixed_base_sep_challenge,
                 var_base_sep_challenge,
                 z_challenge,
+                lookup_sep_challenge,
             ),
             &w_l_poly,
             &w_r_poly,
@@ -373,6 +374,11 @@ impl Prover {
             &w_4_poly,
             &t_poly,
             &z_poly,
+            &f_poly,
+            &h_1_poly,
+            &h_2_poly,
+            &table_poly, 
+            &p_poly,
         );
 
         // Add evaluations to transcript
