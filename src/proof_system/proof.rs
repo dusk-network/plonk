@@ -549,6 +549,11 @@ mod test {
                 out_sigma_eval: BlsScalar::random(&mut rand::thread_rng()),
                 lin_poly_eval: BlsScalar::random(&mut rand::thread_rng()),
                 perm_eval: BlsScalar::random(&mut rand::thread_rng()),
+                f_eval: BlsScalar::random(&mut rand::thread_rng()),
+                h_1_eval: BlsScalar::random(&mut rand::thread_rng()),
+                h_1_next_eval: BlsScalar::random(&mut rand::thread_rng()),
+                h_2_next_eval: BlsScalar::random(&mut rand::thread_rng()),
+                p_next_eval: BlsScalar::random(&mut rand::thread_rng()),
             },
         };
 
