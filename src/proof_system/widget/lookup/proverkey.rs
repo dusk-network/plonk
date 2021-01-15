@@ -44,6 +44,7 @@ impl ProverKey {
         lookup_separation_challenge: &BlsScalar,
         f_eval: &BlsScalar,
     ) -> Polynomial {
+        // q_lookup(X) * f_eval * alpha^3
         let q_lookup_poly = &self.q_lookup.0;
 
         let a = f_eval * lookup_separation_challenge;

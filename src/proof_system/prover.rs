@@ -361,6 +361,8 @@ impl Prover {
                 alpha,
                 beta,
                 gamma,
+                delta,
+                epsilon,
                 range_sep_challenge,
                 logic_sep_challenge,
                 fixed_base_sep_challenge,
@@ -377,7 +379,7 @@ impl Prover {
             &f_poly,
             &h_1_poly,
             &h_2_poly,
-            &table_poly, 
+            &table_poly,
             &p_poly,
         );
 

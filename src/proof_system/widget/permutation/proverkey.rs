@@ -166,7 +166,7 @@ impl ProverKey {
         -product
     }
 
-    // (x - omega^n) * p(x_omega) * (epsilon(1 + delta) + h_1(x) + delta * h_1(x_omega)) * (epsilon(1 + delta) + h_2(x) + delta * h_2(x_omega)) * alpha^5
+    // -(x - omega^n) * p(x_omega) * (epsilon(1 + delta) + h_1(x) + delta * h_1(x_omega)) * (epsilon(1 + delta) + h_2(x) + delta * h_2(x_omega)) * alpha^5
     fn compute_lookup_quotient_copy_range_check_i(
         &self,
         index: usize,
@@ -232,11 +232,27 @@ impl ProverKey {
     pub(crate) fn compute_linearisation(
         &self,
         z_challenge: &BlsScalar,
-        (alpha, beta, gamma): (&BlsScalar, &BlsScalar, &BlsScalar),
+        (alpha, beta, gamma, delta, epsilon): (
+            &BlsScalar,
+            &BlsScalar,
+            &BlsScalar,
+            &BlsScalar,
+            &BlsScalar,
+        ),
         (a_eval, b_eval, c_eval, d_eval): (&BlsScalar, &BlsScalar, &BlsScalar, &BlsScalar),
         (sigma_1_eval, sigma_2_eval, sigma_3_eval): (&BlsScalar, &BlsScalar, &BlsScalar),
         z_eval: &BlsScalar,
         z_poly: &Polynomial,
+        p_poly: &Polynomial,
+        f_eval: &BlsScalar,
+        t_eval: &BlsScalar,
+        t_next_eval: &BlsScalar,
+        h_1_eval: &BlsScalar,
+        h_1_next_eval: &BlsScalar,
+        h_1_poly: &Polynomial,
+        h_2_poly: &Polynomial,
+        lookup_perm_eval: &BlsScalar,
+        omega_roots: &BlsScalar,
     ) -> Polynomial {
         let a = self.compute_lineariser_identity_range_check(
             (&a_eval, &b_eval, &c_eval, &d_eval),
@@ -253,10 +269,51 @@ impl ProverKey {
             (alpha, beta, gamma),
             &self.fourth_sigma.0,
         );
+        let c = self.compute_lookup_lineariser_identity_range_check(
+            alpha,
+            delta,
+            epsilon,
+            z_challenge,
+            omega_roots,
+            f_eval,
+            t_eval,
+            t_next_eval,
+            p_poly,
+        );
+        let d = self.compute_lookup_lineariser_copy_range_check(
+            alpha,
+            delta,
+            epsilon,
+            z_challenge,
+            omega_roots,
+            lookup_perm_eval,
+            h_1_eval,
+            h_1_next_eval,
+            h_2_poly,
+        );
 
         let domain = EvaluationDomain::new(z_poly.degree()).unwrap();
-        let c = self.compute_lineariser_check_is_one(&domain, z_challenge, &alpha.square(), z_poly);
-        &(&a + &b) + &c
+        let e = self.compute_lineariser_check_is_one(
+            &domain,
+            z_challenge,
+            &alpha.square(),
+            z_poly,
+            p_poly,
+        );
+
+        let f = self.compute_lineariser_last_la_grange_polys(
+            &domain,
+            z_challenge,
+            alpha,
+            h_1_poly,
+            p_poly,
+        );
+
+        let poly_1 = &(&a + &b) + &(&c + &d);
+
+        let poly_2 = &e + &f;
+
+        &poly_1 + &poly_2
     }
     // (a_eval + beta * z_challenge + gamma)(b_eval + beta * K1 * z_challenge + gamma)(c_eval + beta * K2 * z_challenge + gamma) * alpha z(X)
     fn compute_lineariser_identity_range_check(
@@ -293,6 +350,43 @@ impl ProverKey {
         a *= alpha; // (a_eval + beta * z_challenge + gamma)(b_eval + beta * K1 * z_challenge + gamma)(c_eval + beta * K2 * z_challenge + gamma)(d_eval + beta * K3 * z_challenge + gamma) * alpha
         z_poly * &a // (a_eval + beta * z_challenge + gamma)(b_eval + beta * K1 * z_challenge + gamma)(c_eval + beta * K2 * z_challenge + gamma) * alpha z(X)
     }
+    // (z_challenge - omega^n) * p(x) * (1 + delta) * (epsilon + f_eval) * (epsilon(1 + delta) + t_eval + (delta * t_next_eval) * alpha^5
+    fn compute_lookup_lineariser_identity_range_check(
+        &self,
+        alpha: &BlsScalar,
+        delta: &BlsScalar,
+        epsilon: &BlsScalar,
+        z_challenge: &BlsScalar,
+        omega_roots: &BlsScalar,
+        f_eval: &BlsScalar,
+        t_eval: &BlsScalar,
+        t_next_eval: &BlsScalar,
+        p_poly: &Polynomial,
+    ) -> Polynomial {
+        // Compute powers of alpha
+        let alpha_5 = alpha * alpha * alpha * alpha * alpha;
+
+        // Compute commonly used term (1 + delta)
+        let one_plus_delta = delta + BlsScalar::one();
+        // (z_challenge - omega^n)
+        let a_1 = &(z_challenge - omega_roots);
+
+        // (epsilon + f_eval)
+        let a_2 = epsilon + f_eval;
+
+        // (epsilon(1 + delta) + t_eval + (delta * t_next_eval)
+        let a = epsilon * one_plus_delta;
+        let b = delta * t_next_eval;
+
+        let mut a_n = a + t_eval + b;
+
+        a_n *= a_2;
+        a_n *= one_plus_delta;
+        a_n *= a_1;
+        a_n *= alpha_5;
+        p_poly * &a_n
+    }
+
     // -(a_eval + beta * sigma_1 + gamma)(b_eval + beta * sigma_2 + gamma) (c_eval + beta * sigma_3 + gamma) * beta *z_eval * alpha^2 * Sigma_4(X)
     fn compute_lineariser_copy_range_check(
         &self,
@@ -327,17 +421,79 @@ impl ProverKey {
 
         fourth_sigma_poly * &-a // -(a_eval + beta * sigma_1 + gamma)(b_eval + beta * sigma_2 + gamma) (c_eval + beta * sigma_3 + gamma) * beta * z_eval * alpha^2 * Sigma_4(X)
     }
+    // -(z_challenge - omega^n) * p_eval * (epsilon(1 + delta) + h_1_eval + (delta * h_1_next_eval)) * h_2(X) * alpha^5
+    fn compute_lookup_lineariser_copy_range_check(
+        &self,
+        alpha: &BlsScalar,
+        delta: &BlsScalar,
+        epsilon: &BlsScalar,
+        z_challenge: &BlsScalar,
+        omega_roots: &BlsScalar,
+        p_eval: &BlsScalar,
+        h_1_eval: &BlsScalar,
+        h_1_next_eval: &BlsScalar,
+        h_2_poly: &Polynomial,
+    ) -> Polynomial {
+        // Compute powers of alpha
+        let alpha_5 = alpha * alpha * alpha * alpha * alpha;
 
+        // (z_challenge - omega^n)
+        let a_1 = &(z_challenge - omega_roots);
+
+        // (epsilon(1 + delta) + h_1_eval + (delta * h_1_next_eval))
+        let a = epsilon * (delta + BlsScalar::one());
+        let a_2 = &a + h_1_eval + (h_1_next_eval * delta);
+
+        let a_n = a_1 * p_eval * a_2 * alpha_5;
+        let output = h_2_poly * &a_n;
+
+        -output
+    }
+
+    // Batch the checks for both la grange coeffs on the two permutation polynomials into one
     fn compute_lineariser_check_is_one(
         &self,
         domain: &EvaluationDomain,
         z_challenge: &BlsScalar,
         alpha_sq: &BlsScalar,
         z_coeffs: &Polynomial,
+        p_coeffs: &Polynomial,
     ) -> Polynomial {
         // Evaluate l_1(z)
         let l_1_z = domain.evaluate_all_lagrange_coefficients(*z_challenge)[0];
 
-        z_coeffs * &(l_1_z * alpha_sq)
+        let alpha_4 = alpha_sq * alpha_sq;
+
+        // z(X)L_1(z)α^2
+        let poly_1 = z_coeffs * &(l_1_z * alpha_sq);
+        // p(X)L_1(z)α^4
+        let poly_2 = p_coeffs * &(l_1_z * alpha_4);
+
+        &poly_1 + &poly_2
+    }
+
+    // Batcht together the nth eval la grange polys for plookup based polynomials that go into the lineariser argument
+    fn compute_lineariser_last_la_grange_polys(
+        &self,
+        domain: &EvaluationDomain,
+        z_challenge: &BlsScalar,
+        alpha: &BlsScalar,
+        h_1_coeffs: &Polynomial,
+        p_coeffs: &Polynomial,
+    ) -> Polynomial {
+        // Evaluate l_n(z)
+        let l_z = domain.evaluate_all_lagrange_coefficients(*z_challenge);
+        let l_n_z = l_z[l_z.len() - 1];
+
+        // Compute powers of alpha
+        let alpha_6 = alpha * alpha * alpha * alpha * alpha * alpha;
+        let alpha_7 = alpha_6 * alpha;
+
+        // h1(X)L_n(z)α^6
+        let poly_1 = h_1_coeffs * &(l_n_z * alpha_6);
+        // p(X)L_n(z)α^7
+        let poly_2 = p_coeffs * &(l_n_z * alpha_7);
+
+        &poly_1 + &poly_2
     }
 }

@@ -140,6 +140,8 @@ pub fn compute(
         alpha,
         beta,
         gamma,
+        delta,
+        epsilon,
         range_separation_challenge,
         logic_separation_challenge,
         fixed_base_separation_challenge,
@@ -147,6 +149,8 @@ pub fn compute(
         lookup_separation_challenge,
         z_challenge,
     ): &(
+        BlsScalar,
+        BlsScalar,
         BlsScalar,
         BlsScalar,
         BlsScalar,
@@ -191,9 +195,10 @@ pub fn compute(
     let d_next_eval = w_4_poly.evaluate(&(z_challenge * domain.group_gen));
     let perm_eval = z_poly.evaluate(&(z_challenge * domain.group_gen));
     let lookup_perm_eval = p_poly.evaluate(&(z_challenge * domain.group_gen));
-    let h_1_eval = h_1_poly.evaluate(&(z_challenge * domain.group_gen));
-    let h_2_eval = h_2_poly.evaluate(&(z_challenge * domain.group_gen));
+    let h_1_next_eval = h_1_poly.evaluate(&(z_challenge * domain.group_gen));
     let t_next_eval = table_poly.evaluate(&(z_challenge * domain.group_gen));
+
+    let omega_roots = domain.elements().last().unwrap();
 
     let f_1 = compute_circuit_satisfiability(
         (
@@ -220,11 +225,21 @@ pub fn compute(
 
     let f_2 = prover_key.permutation.compute_linearisation(
         z_challenge,
-        (alpha, beta, gamma),
+        (alpha, beta, gamma, delta, epsilon),
         (&a_eval, &b_eval, &c_eval, &d_eval),
         (&left_sigma_eval, &right_sigma_eval, &out_sigma_eval),
         &perm_eval,
         z_poly,
+        p_poly,
+        &f_eval,
+        &t_eval,
+        &t_next_eval,
+        &h_1_eval,
+        &h_1_next_eval,
+        &h_1_poly,
+        &h_2_poly,
+        &lookup_perm_eval,
+        &omega_roots,
     );
 
     let lin_poly = &f_1 + &f_2;
@@ -332,12 +347,15 @@ fn compute_circuit_satisfiability(
         d_next_eval,
     );
 
-    let f = prover_key.lookup.compute_linearisation(lookup_separation_challenge, f_eval);
+    let f = prover_key
+        .lookup
+        .compute_linearisation(lookup_separation_challenge, f_eval);
 
     let mut linearisation_poly = &a + &b;
     linearisation_poly += &c;
     linearisation_poly += &d;
     linearisation_poly += &e;
+    linearisation_poly += &f;
 
     linearisation_poly
 }

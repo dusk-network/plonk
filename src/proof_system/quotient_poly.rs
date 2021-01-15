@@ -74,7 +74,7 @@ pub(crate) fn compute(
     t_eval_4n.push(t_eval_4n[3]);
 
     // Compute f(x)
-    let mut f_eval = domain_4n.fft(&f_poly);
+    let f_eval = domain_4n.fft(&f_poly);
 
     // Compute 4n eval of h_1
     let mut h_1_eval_4n = domain_4n.coset_fft(&h_1_poly);
