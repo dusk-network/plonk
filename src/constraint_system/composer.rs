@@ -19,8 +19,10 @@
 // maximum performance and minimum circuit sizes.
 #![allow(clippy::too_many_arguments)]
 
+use super::cs_errors::PreProcessingError;
 use crate::constraint_system::Variable;
 use crate::permutation::Permutation;
+use crate::plookup::PlookupTable3Arity;
 use dusk_bls12_381::BlsScalar;
 use std::collections::HashMap;
 
@@ -56,7 +58,8 @@ pub struct StandardComposer {
     pub(crate) q_fixed_group_add: Vec<BlsScalar>,
     // Variable base group addition selector
     pub(crate) q_variable_group_add: Vec<BlsScalar>,
-
+    // Plookup gate wire selector
+    pub(crate) q_lookup: Vec<BlsScalar>,
     /// Public inputs vector
     pub public_inputs: Vec<BlsScalar>,
 
@@ -65,6 +68,18 @@ pub struct StandardComposer {
     pub(crate) w_r: Vec<Variable>,
     pub(crate) w_o: Vec<Variable>,
     pub(crate) w_4: Vec<Variable>,
+
+    // Lookup queries
+    pub(crate) x_i: Vec<Variable>,
+    pub(crate) y_i: Vec<Variable>,
+    pub(crate) z_i: Vec<Variable>,
+    pub(crate) fourth_i: Vec<Variable>,
+
+    // Table values
+    pub(crate) t_1: Vec<Variable>,
+    pub(crate) t_2: Vec<Variable>,
+    pub(crate) t_3: Vec<Variable>,
+    pub(crate) t_4: Vec<Variable>,
 
     /// A zero variable that is a part of the circuit description.
     /// We reserve a variable to be zero in the system
@@ -131,6 +146,7 @@ impl StandardComposer {
             q_logic: Vec::with_capacity(expected_size),
             q_fixed_group_add: Vec::with_capacity(expected_size),
             q_variable_group_add: Vec::with_capacity(expected_size),
+            q_lookup: Vec::with_capacity(expected_size),
             public_inputs: Vec::with_capacity(expected_size),
 
             w_l: Vec::with_capacity(expected_size),
@@ -138,7 +154,17 @@ impl StandardComposer {
             w_o: Vec::with_capacity(expected_size),
             w_4: Vec::with_capacity(expected_size),
 
+            x_i: Vec::with_capacity(expected_size),
+            y_i: Vec::with_capacity(expected_size),
+            z_i: Vec::with_capacity(expected_size),
+            fourth_i: Vec::with_capacity(expected_size),
+
             zero_var: Variable(0),
+
+            t_1: Vec::with_capacity(expected_size),
+            t_2: Vec::with_capacity(expected_size),
+            t_3: Vec::with_capacity(expected_size),
+            t_4: Vec::with_capacity(expected_size),
 
             variables: HashMap::with_capacity(expected_size),
 
@@ -165,6 +191,40 @@ impl StandardComposer {
         self.variables.insert(var, s);
 
         var
+    }
+
+    ///
+    pub fn lookup_gate(
+        &mut self,
+        a: Variable,
+        b: Variable,
+        c: Variable,
+    ) -> Result<(), PreProcessingError> {
+        // if self.x_i.is_none() {
+        //     return Err(PreProcessingError::LookupTableMissing);
+        // }
+
+        self.w_l.push(a);
+        self.w_l.push(a);
+        self.w_l.push(a);
+        self.w_4.push(self.zero_var);
+        self.q_l.push(BlsScalar::zero());
+        self.q_r.push(BlsScalar::zero());
+
+        // Add selector vectors
+        self.q_m.push(BlsScalar::zero());
+        self.q_o.push(BlsScalar::zero());
+        self.q_c.push(BlsScalar::zero());
+        self.q_4.push(BlsScalar::zero());
+        self.q_arith.push(BlsScalar::zero());
+
+        self.q_range.push(BlsScalar::zero());
+        self.q_logic.push(BlsScalar::zero());
+        self.q_fixed_group_add.push(BlsScalar::zero());
+        self.q_variable_group_add.push(BlsScalar::zero());
+        self.q_lookup.push(BlsScalar::one());
+
+        Ok(())
     }
 
     /// Adds a width-3 poly gate.
@@ -205,6 +265,7 @@ impl StandardComposer {
         self.q_logic.push(BlsScalar::zero());
         self.q_fixed_group_add.push(BlsScalar::zero());
         self.q_variable_group_add.push(BlsScalar::zero());
+        self.q_lookup.push(BlsScalar::zero());
 
         self.public_inputs.push(pi);
 
@@ -308,6 +369,7 @@ impl StandardComposer {
         self.q_logic.push(BlsScalar::zero());
         self.q_fixed_group_add.push(BlsScalar::zero());
         self.q_variable_group_add.push(BlsScalar::zero());
+        self.q_lookup.push(BlsScalar::zero());
         self.public_inputs.push(BlsScalar::zero());
         let var_six = self.add_input(BlsScalar::from(6));
         let var_one = self.add_input(BlsScalar::from(1));
@@ -332,6 +394,7 @@ impl StandardComposer {
         self.q_logic.push(BlsScalar::zero());
         self.q_fixed_group_add.push(BlsScalar::zero());
         self.q_variable_group_add.push(BlsScalar::zero());
+        self.q_lookup.push(BlsScalar::zero());
         self.public_inputs.push(BlsScalar::zero());
         self.w_l.push(var_min_twenty);
         self.w_r.push(var_six);
@@ -388,6 +451,7 @@ impl StandardComposer {
             let qlogic = self.q_logic[i];
             let qfixed = self.q_fixed_group_add[i];
             let qvar = self.q_variable_group_add[i];
+            let qplookup = self.q_lookup[i];
             let pi = self.public_inputs[i];
 
             let a = w_l[i];
@@ -418,7 +482,23 @@ impl StandardComposer {
             - w_r -> {:?}\n
             - w_o -> {:?}\n
             - w_4 -> {:?}\n",
-                i, qm, ql, qr, q4, qo, qc, qarith, qrange, qlogic, qfixed, qvar, a, b, c, d
+                i,
+                qm,
+                ql,
+                qr,
+                q4,
+                qo,
+                qc,
+                qarith,
+                qrange,
+                qlogic,
+                qfixed,
+                qvar,
+                qplookup,
+                a,
+                b,
+                c,
+                d
             );
             let k = qarith * ((qm * a * b) + (ql * a) + (qr * b) + (qo * c) + (q4 * d) + pi + qc)
                 + qlogic

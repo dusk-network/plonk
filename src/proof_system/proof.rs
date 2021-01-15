@@ -46,8 +46,20 @@ pub struct Proof {
     /// Commitment to the witness polynomial for the fourth wires.
     pub d_comm: Commitment,
 
+    /// Commitment to the lookup query polynomial.
+    pub f_comm: Commitment,
+
     /// Commitment to the permutation polynomial.
     pub z_comm: Commitment,
+
+    /// Commitment to the plookup permutation polynomial.
+    pub p_comm: Commitment,
+
+    /// Commitment to first half of concatanted lookup poly.
+    pub h_1_comm: Commitment,
+
+    /// Commitment to second half of concatenated lookup poly.
+    pub h_2_comm: Commitment,
 
     /// Commitment to the quotient polynomial.
     pub t_1_comm: Commitment,
@@ -117,7 +129,11 @@ impl Proof {
         let (b_comm, rest) = read_commitment(rest)?;
         let (c_comm, rest) = read_commitment(rest)?;
         let (d_comm, rest) = read_commitment(rest)?;
+        let (f_comm, rest) = read_commitment(rest)?;
         let (z_comm, rest) = read_commitment(rest)?;
+        let (p_comm, rest) = read_commitment(rest)?;
+        let (h_1_comm, rest) = read_commitment(rest)?;
+        let (h_2_comm, rest) = read_commitment(rest)?;
         let (t_1_comm, rest) = read_commitment(rest)?;
         let (t_2_comm, rest) = read_commitment(rest)?;
         let (t_3_comm, rest) = read_commitment(rest)?;
@@ -132,7 +148,11 @@ impl Proof {
             b_comm,
             c_comm,
             d_comm,
+            f_comm,
             z_comm,
+            p_comm,
+            h_1_comm,
+            h_2_comm,
             t_1_comm,
             t_2_comm,
             t_3_comm,
@@ -501,7 +521,11 @@ mod test {
             b_comm: Commitment::default(),
             c_comm: Commitment::default(),
             d_comm: Commitment::default(),
+            f_comm: Commitment::default(),
             z_comm: Commitment::default(),
+            p_comm: Commitment::default(),
+            h_1_comm: Commitment::default(),
+            h_2_comm: Commitment::default(),
             t_1_comm: Commitment::default(),
             t_2_comm: Commitment::default(),
             t_3_comm: Commitment::default(),

@@ -140,12 +140,18 @@ pub fn compute(
         alpha,
         beta,
         gamma,
+        delta,
+        epsilon,
         range_separation_challenge,
         logic_separation_challenge,
         fixed_base_separation_challenge,
         var_base_separation_challenge,
+        lookup_separation_challenge,
         z_challenge,
     ): &(
+        BlsScalar,
+        BlsScalar,
+        BlsScalar,
         BlsScalar,
         BlsScalar,
         BlsScalar,
@@ -161,6 +167,11 @@ pub fn compute(
     w_4_poly: &Polynomial,
     t_x_poly: &Polynomial,
     z_poly: &Polynomial,
+    f_poly: &Polynomial,
+    h_1_poly: &Polynomial,
+    h_2_poly: &Polynomial,
+    table_poly: &Polynomial,
+    p_poly: &Polynomial,
 ) -> (Polynomial, Evaluations) {
     // Compute evaluations
     let quot_eval = t_x_poly.evaluate(z_challenge);
@@ -175,11 +186,19 @@ pub fn compute(
     let q_c_eval = prover_key.logic.q_c.0.evaluate(z_challenge);
     let q_l_eval = prover_key.fixed_base.q_l.0.evaluate(z_challenge);
     let q_r_eval = prover_key.fixed_base.q_r.0.evaluate(z_challenge);
+    let f_eval = f_poly.evaluate(z_challenge);
+    let h_1_eval = h_1_poly.evaluate(z_challenge);
+    let t_eval = table_poly.evaluate(z_challenge);
 
     let a_next_eval = w_l_poly.evaluate(&(z_challenge * domain.group_gen));
     let b_next_eval = w_r_poly.evaluate(&(z_challenge * domain.group_gen));
     let d_next_eval = w_4_poly.evaluate(&(z_challenge * domain.group_gen));
     let perm_eval = z_poly.evaluate(&(z_challenge * domain.group_gen));
+    let lookup_perm_eval = p_poly.evaluate(&(z_challenge * domain.group_gen));
+    let h_1_next_eval = h_1_poly.evaluate(&(z_challenge * domain.group_gen));
+    let t_next_eval = table_poly.evaluate(&(z_challenge * domain.group_gen));
+
+    let omega_roots = domain.elements().last().unwrap();
 
     let f_1 = compute_circuit_satisfiability(
         (
@@ -187,6 +206,7 @@ pub fn compute(
             logic_separation_challenge,
             fixed_base_separation_challenge,
             var_base_separation_challenge,
+            lookup_separation_challenge,
         ),
         &a_eval,
         &b_eval,
@@ -196,6 +216,7 @@ pub fn compute(
         &b_next_eval,
         &d_next_eval,
         &q_arith_eval,
+        &f_eval,
         &q_c_eval,
         &q_l_eval,
         &q_r_eval,
@@ -204,11 +225,21 @@ pub fn compute(
 
     let f_2 = prover_key.permutation.compute_linearisation(
         z_challenge,
-        (alpha, beta, gamma),
+        (alpha, beta, gamma, delta, epsilon),
         (&a_eval, &b_eval, &c_eval, &d_eval),
         (&left_sigma_eval, &right_sigma_eval, &out_sigma_eval),
         &perm_eval,
         z_poly,
+        p_poly,
+        &f_eval,
+        &t_eval,
+        &t_next_eval,
+        &h_1_eval,
+        &h_1_next_eval,
+        &h_1_poly,
+        &h_2_poly,
+        &lookup_perm_eval,
+        &omega_roots,
     );
 
     let lin_poly = &f_1 + &f_2;
@@ -249,7 +280,8 @@ fn compute_circuit_satisfiability(
         logic_separation_challenge,
         fixed_base_separation_challenge,
         var_base_separation_challenge,
-    ): (&BlsScalar, &BlsScalar, &BlsScalar, &BlsScalar),
+        lookup_separation_challenge,
+    ): (&BlsScalar, &BlsScalar, &BlsScalar, &BlsScalar, &BlsScalar),
     a_eval: &BlsScalar,
     b_eval: &BlsScalar,
     c_eval: &BlsScalar,
@@ -258,6 +290,7 @@ fn compute_circuit_satisfiability(
     b_next_eval: &BlsScalar,
     d_next_eval: &BlsScalar,
     q_arith_eval: &BlsScalar,
+    f_eval: &BlsScalar,
     q_c_eval: &BlsScalar,
     q_l_eval: &BlsScalar,
     q_r_eval: &BlsScalar,
@@ -314,10 +347,15 @@ fn compute_circuit_satisfiability(
         d_next_eval,
     );
 
+    let f = prover_key
+        .lookup
+        .compute_linearisation(lookup_separation_challenge, f_eval);
+
     let mut linearisation_poly = &a + &b;
     linearisation_poly += &c;
     linearisation_poly += &d;
     linearisation_poly += &e;
+    linearisation_poly += &f;
 
     linearisation_poly
 }
