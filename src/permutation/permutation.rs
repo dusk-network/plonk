@@ -753,7 +753,7 @@ fn plookup_numerator_irreducible(
     t: &BlsScalar,
     t_next: BlsScalar,
 ) -> BlsScalar {
-    let prod_1 = epsilon * f;
+    let prod_1 = epsilon + f;
     let prod_2 = BlsScalar::one() + delta;
     let prod_3 = (epsilon * prod_2) + t + (delta * t_next);
 
@@ -769,8 +769,8 @@ fn plookup_denominator_irreducible(
     h_2_next: &BlsScalar,
 ) -> BlsScalar {
     let epsilon_plus_one_delta = epsilon * (BlsScalar::one() + delta);
-    let prod_1 = epsilon + h_1 + (h_1_next * delta);
-    let prod_2 = epsilon + h_2 + (h_2_next * delta);
+    let prod_1 = epsilon_plus_one_delta + h_1 + (h_1_next * delta);
+    let prod_2 = epsilon_plus_one_delta + h_2 + (h_2_next * delta);
 
     prod_1 * prod_2
 }
