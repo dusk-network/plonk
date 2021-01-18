@@ -49,17 +49,14 @@ pub struct Proof {
     /// Commitment to the lookup query polynomial.
     pub f_comm: Commitment,
 
+    /// Commitment to the lookup table.
+    pub table_comm: Commitment,
+
     /// Commitment to the permutation polynomial.
     pub z_comm: Commitment,
 
     /// Commitment to the plookup permutation polynomial.
     pub p_comm: Commitment,
-
-    /// Commitment to first half of concatanted lookup poly.
-    pub h_1_comm: Commitment,
-
-    /// Commitment to second half of concatenated lookup poly.
-    pub h_2_comm: Commitment,
 
     /// Commitment to the quotient polynomial.
     pub t_1_comm: Commitment,
@@ -130,10 +127,9 @@ impl Proof {
         let (c_comm, rest) = read_commitment(rest)?;
         let (d_comm, rest) = read_commitment(rest)?;
         let (f_comm, rest) = read_commitment(rest)?;
+        let (table_comm, rest) = read_commitment(rest)?;
         let (z_comm, rest) = read_commitment(rest)?;
         let (p_comm, rest) = read_commitment(rest)?;
-        let (h_1_comm, rest) = read_commitment(rest)?;
-        let (h_2_comm, rest) = read_commitment(rest)?;
         let (t_1_comm, rest) = read_commitment(rest)?;
         let (t_2_comm, rest) = read_commitment(rest)?;
         let (t_3_comm, rest) = read_commitment(rest)?;
@@ -149,10 +145,9 @@ impl Proof {
             c_comm,
             d_comm,
             f_comm,
+            table_comm,
             z_comm,
             p_comm,
-            h_1_comm,
-            h_2_comm,
             t_1_comm,
             t_2_comm,
             t_3_comm,
@@ -201,6 +196,12 @@ impl Proof {
         // Add commitment to permutation polynomial to transcript
         transcript.append_commitment(b"z", &self.z_comm);
 
+        // Compute delta and epsilon challenges
+        let delta = transcript.challenge_scalar(b"delta");
+        let epsilon = transcript.challenge_scalar(b"epsilon");
+        
+
+
         // Compute quotient challenge
         let alpha = transcript.challenge_scalar(b"alpha");
         let range_sep_challenge = transcript.challenge_scalar(b"range separation challenge");
@@ -209,6 +210,8 @@ impl Proof {
             transcript.challenge_scalar(b"fixed base separation challenge");
         let var_base_sep_challenge =
             transcript.challenge_scalar(b"variable base separation challenge");
+        let lookup_sep_challenge = transcript.challenge_scalar(b"lookup challenge");
+
 
         // Add commitment to quotient polynomial to transcript
         transcript.append_commitment(b"t_1", &self.t_1_comm);
@@ -522,10 +525,9 @@ mod test {
             c_comm: Commitment::default(),
             d_comm: Commitment::default(),
             f_comm: Commitment::default(),
+            table_comm: Commitment::default(),
             z_comm: Commitment::default(),
             p_comm: Commitment::default(),
-            h_1_comm: Commitment::default(),
-            h_2_comm: Commitment::default(),
             t_1_comm: Commitment::default(),
             t_2_comm: Commitment::default(),
             t_3_comm: Commitment::default(),
@@ -549,6 +551,11 @@ mod test {
                 out_sigma_eval: BlsScalar::random(&mut rand::thread_rng()),
                 lin_poly_eval: BlsScalar::random(&mut rand::thread_rng()),
                 perm_eval: BlsScalar::random(&mut rand::thread_rng()),
+                lookup_perm_eval: BlsScalar::random(&mut rand::thread_rng()),
+                h_1_eval: BlsScalar::random(&mut rand::thread_rng()),
+                h_1_next_eval: BlsScalar::random(&mut rand::thread_rng()),
+                h_2_next_eval: BlsScalar::random(&mut rand::thread_rng()),
+
             },
         };
 

@@ -229,6 +229,12 @@ impl Prover {
         // Compute table poly
         let table_poly = Polynomial::from_coefficients_vec(domain.ifft(&compressed_t.0.as_slice()));
 
+        // Commit to table polynomial
+        let table_poly_commit = commit_key.commit(&table_poly)?;
+
+        // Add table_poly commitment to transcript
+        transcript.append_commitment(b"t", &table_poly_commit);
+
         // 2. Compute permutation polynomial
         //
         //
@@ -265,14 +271,6 @@ impl Prover {
         // Compute h polys
         let h_1_poly = Polynomial::from_coefficients_vec(domain.ifft(&h_1.0.as_slice()));
         let h_2_poly = Polynomial::from_coefficients_vec(domain.ifft(&h_2.0.as_slice()));
-
-        // Commit to h polys
-        let h_1_poly_commit = commit_key.commit(&h_1_poly)?;
-        let h_2_poly_commit = commit_key.commit(&h_2_poly)?;
-
-        // Add h polys to transcript
-        transcript.append_commitment(b"h_1", &h_1_poly_commit);
-        transcript.append_commitment(b"h_2", &h_2_poly_commit);
 
         // Compute lookup permutation poly
         let p_poly =
@@ -399,6 +397,10 @@ impl Prover {
         transcript.append_scalar(b"q_l_eval", &evaluations.proof.q_l_eval);
         transcript.append_scalar(b"q_r_eval", &evaluations.proof.q_r_eval);
         transcript.append_scalar(b"perm_eval", &evaluations.proof.perm_eval);
+        transcript.append_scalar(b"lookup_perm_eval", &evaluations.proof.lookup_perm_eval);
+        transcript.append_scalar(b"h_1_eval", &evaluations.proof.h_1_eval);
+        transcript.append_scalar(b"h_1_next_eval", &evaluations.proof.h_1_next_eval);
+        transcript.append_scalar(b"h_2_next_eval", &evaluations.proof.h_2_next_eval);
         transcript.append_scalar(b"t_eval", &evaluations.quot_eval);
         transcript.append_scalar(b"r_eval", &evaluations.proof.lin_poly_eval);
 
@@ -448,12 +450,10 @@ impl Prover {
             d_comm: w_4_poly_commit,
 
             f_comm: f_poly_commit,
+            table_comm: table_poly_commit,
 
             z_comm: z_poly_commit,
             p_comm: p_poly_commit,
-
-            h_1_comm: h_1_poly_commit,
-            h_2_comm: h_2_poly_commit,
 
             t_1_comm: t_1_commit,
             t_2_comm: t_2_commit,

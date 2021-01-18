@@ -52,6 +52,20 @@ pub struct ProofEvaluations {
 
     // (Shifted) Evaluation of the permutation polynomial at `z * root of unity`
     pub perm_eval: BlsScalar,
+
+    // (Shifted) Evaluation of the lookup permutation polynomial at `z * root of unity`
+    pub lookup_perm_eval: BlsScalar,
+
+    /// Evaluations of the first half of sorted plookup poly at `z`
+    pub h_1_eval: BlsScalar,
+
+    /// (Shifted) Evaluations of the first half of sorted plookup poly at `z * root of unity`
+    pub h_1_next_eval: BlsScalar,
+
+    /// (Shifted) Evaluations of the second half of sorted plookup poly at `z * root of unity`
+    pub h_2_next_eval: BlsScalar,
+
+
 }
 
 impl ProofEvaluations {
@@ -102,6 +116,10 @@ impl ProofEvaluations {
         let (out_sigma_eval, rest) = read_scalar(rest)?;
         let (lin_poly_eval, rest) = read_scalar(rest)?;
         let (perm_eval, _) = read_scalar(rest)?;
+        let (lookup_perm_eval, _) = read_scalar(rest)?;
+        let (h_1_eval, _) = read_scalar(rest)?;
+        let (h_1_next_eval, _) = read_scalar(rest)?;
+        let (h_2_next_eval, _) = read_scalar(rest)?;
 
         let proof_evals = ProofEvaluations {
             a_eval,
@@ -120,6 +138,10 @@ impl ProofEvaluations {
             out_sigma_eval,
             lin_poly_eval,
             perm_eval,
+            lookup_perm_eval,
+            h_1_eval, 
+            h_1_next_eval, 
+            h_2_next_eval,
         };
         Ok(proof_evals)
     }
@@ -196,6 +218,7 @@ pub fn compute(
     let perm_eval = z_poly.evaluate(&(z_challenge * domain.group_gen));
     let lookup_perm_eval = p_poly.evaluate(&(z_challenge * domain.group_gen));
     let h_1_next_eval = h_1_poly.evaluate(&(z_challenge * domain.group_gen));
+    let h_2_next_eval = h_2_poly.evaluate(&(z_challenge * domain.group_gen));
     let t_next_eval = table_poly.evaluate(&(z_challenge * domain.group_gen));
 
     let omega_roots = domain.elements().last().unwrap();
@@ -267,6 +290,10 @@ pub fn compute(
                 out_sigma_eval,
                 lin_poly_eval,
                 perm_eval,
+                lookup_perm_eval,
+                h_1_eval, 
+                h_1_next_eval, 
+                h_2_next_eval,
             },
             quot_eval,
         },
