@@ -288,8 +288,6 @@ fn compute_permutation_checks(
     let ln_poly_alpha_7 = compute_last_lagrange_poly_scaled(domain, alpha_7);
     let ln_alpha_7_evals = domain_4n.coset_fft(&ln_poly_alpha_7.coeffs);
 
-    let omega_roots = domain.elements().last().unwrap();
-
     let t: Vec<_> = (0..domain_4n.size())
         .into_par_iter()
         .map(|i| {
@@ -319,7 +317,6 @@ fn compute_permutation_checks(
                 &gamma,
                 &delta,
                 &epsilon,
-                &omega_roots,
             )
         })
         .collect();

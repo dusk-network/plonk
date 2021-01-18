@@ -198,8 +198,6 @@ pub fn compute(
     let h_1_next_eval = h_1_poly.evaluate(&(z_challenge * domain.group_gen));
     let t_next_eval = table_poly.evaluate(&(z_challenge * domain.group_gen));
 
-    let omega_roots = domain.elements().last().unwrap();
-
     let f_1 = compute_circuit_satisfiability(
         (
             range_separation_challenge,
@@ -239,7 +237,6 @@ pub fn compute(
         &h_1_poly,
         &h_2_poly,
         &lookup_perm_eval,
-        &omega_roots,
     );
 
     let lin_poly = &f_1 + &f_2;
