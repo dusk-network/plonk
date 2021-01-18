@@ -61,7 +61,7 @@ pub struct VerifierKey {
     /// VerifierKey for variable base curve addition gates
     pub variable_base: ecc::curve_addition::VerifierKey,
     /// VerifierKey for lookup operations
-    // pub lookup: lookup::VerifierKey,
+    pub lookup: lookup::VerifierKey,
     /// VerifierKey for permutation checks
     pub permutation: permutation::VerifierKey,
 }
@@ -103,7 +103,7 @@ impl VerifierKey {
         write_commitment(&self.variable_base.q_variable_group_add, &mut bytes);
 
         // Lookup
-        // write_commitment(&self.lookup, &mut bytes);
+        write_commitment(&self.lookup.q_lookup, &mut bytes);
 
         // Perm
         write_commitment(&self.permutation.left_sigma, &mut bytes);
@@ -137,7 +137,7 @@ impl VerifierKey {
 
         let (q_variable_group_add, rest) = read_commitment(rest)?;
 
-        // let (q_lookup, rest) = read_commitment(rest)?;
+        let (q_lookup, rest) = read_commitment(rest)?;
 
         let (left_sigma, rest) = read_commitment(rest)?;
         let (right_sigma, rest) = read_commitment(rest)?;
@@ -172,7 +172,7 @@ impl VerifierKey {
             fourth_sigma,
         };
 
-        // let lookup = lookup::VerifierKey { q_lookup };
+        let lookup = lookup::VerifierKey { q_lookup };
 
         let verifier_key = VerifierKey {
             n: n as usize,
@@ -182,7 +182,7 @@ impl VerifierKey {
             variable_base,
             fixed_base,
             permutation,
-            // lookup,
+            lookup,
         };
         Ok(verifier_key)
     }
@@ -211,6 +211,7 @@ impl VerifierKey {
             &self.variable_base.q_variable_group_add,
         );
         transcript.append_commitment(b"q_fixed_group_add", &self.fixed_base.q_fixed_group_add);
+        transcript.append_commitment(b"q_lookup", &self.lookup.q_lookup);
 
         transcript.append_commitment(b"left_sigma", &self.permutation.left_sigma);
         transcript.append_commitment(b"right_sigma", &self.permutation.right_sigma);
@@ -268,6 +269,10 @@ impl ProverKey {
         // Curve addition
         write_polynomial(&self.variable_base.q_variable_group_add.0, &mut bytes);
         write_evaluations(&self.variable_base.q_variable_group_add.1, &mut bytes);
+
+        // Lookup
+        write_polynomial(&self.lookup.q_lookup.0, &mut bytes);
+        write_evaluations(&self.lookup.q_lookup.1, &mut bytes);
 
         // Permutation
         write_polynomial(&self.permutation.left_sigma.0, &mut bytes);
@@ -552,6 +557,7 @@ mod test {
         let q_c = Commitment::from_affine(G1Affine::generator());
         let q_4 = Commitment::from_affine(G1Affine::generator());
         let q_arith = Commitment::from_affine(G1Affine::generator());
+        let q_lookup = Commitment::from_affine(G1Affine::generator());
 
         let q_range = Commitment::from_affine(G1Affine::generator());
 
@@ -588,6 +594,8 @@ mod test {
             q_variable_group_add,
         };
 
+        let lookup = lookup::VerifierKey { q_lookup };
+
         let permutation = permutation::VerifierKey {
             left_sigma,
             right_sigma,
@@ -603,7 +611,7 @@ mod test {
             fixed_base,
             variable_base,
             permutation,
-            // lookup,
+            lookup,
         };
 
         let verifier_key_bytes = verifier_key.to_bytes();

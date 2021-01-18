@@ -40,6 +40,8 @@ pub struct ProofEvaluations {
     pub q_l_eval: BlsScalar,
     //
     pub q_r_eval: BlsScalar,
+    //
+    pub q_lookup_eval: BlsScalar,
     // Evaluation of the left sigma polynomial at `z`
     pub left_sigma_eval: BlsScalar,
     // Evaluation of the right sigma polynomial at `z`
@@ -65,7 +67,8 @@ pub struct ProofEvaluations {
     /// (Shifted) Evaluations of the second half of sorted plookup poly at `z * root of unity`
     pub h_2_next_eval: BlsScalar,
 
-
+    /// Evaluations of the query polynomial at `z`
+    pub f_eval: BlsScalar,
 }
 
 impl ProofEvaluations {
@@ -111,6 +114,7 @@ impl ProofEvaluations {
         let (q_c_eval, rest) = read_scalar(rest)?;
         let (q_l_eval, rest) = read_scalar(rest)?;
         let (q_r_eval, rest) = read_scalar(rest)?;
+        let (q_lookup_eval, rest) = read_scalar(rest)?;
         let (left_sigma_eval, rest) = read_scalar(rest)?;
         let (right_sigma_eval, rest) = read_scalar(rest)?;
         let (out_sigma_eval, rest) = read_scalar(rest)?;
@@ -120,6 +124,7 @@ impl ProofEvaluations {
         let (h_1_eval, _) = read_scalar(rest)?;
         let (h_1_next_eval, _) = read_scalar(rest)?;
         let (h_2_next_eval, _) = read_scalar(rest)?;
+        let (f_eval, _) = read_scalar(rest)?;
 
         let proof_evals = ProofEvaluations {
             a_eval,
@@ -133,15 +138,17 @@ impl ProofEvaluations {
             q_c_eval,
             q_l_eval,
             q_r_eval,
+            q_lookup_eval,
             left_sigma_eval,
             right_sigma_eval,
             out_sigma_eval,
             lin_poly_eval,
             perm_eval,
             lookup_perm_eval,
-            h_1_eval, 
-            h_1_next_eval, 
+            h_1_eval,
+            h_1_next_eval,
             h_2_next_eval,
+            f_eval,
         };
         Ok(proof_evals)
     }
@@ -168,10 +175,8 @@ pub fn compute(
         logic_separation_challenge,
         fixed_base_separation_challenge,
         var_base_separation_challenge,
-        lookup_separation_challenge,
         z_challenge,
     ): &(
-        BlsScalar,
         BlsScalar,
         BlsScalar,
         BlsScalar,
@@ -208,6 +213,7 @@ pub fn compute(
     let q_c_eval = prover_key.logic.q_c.0.evaluate(z_challenge);
     let q_l_eval = prover_key.fixed_base.q_l.0.evaluate(z_challenge);
     let q_r_eval = prover_key.fixed_base.q_r.0.evaluate(z_challenge);
+    let q_lookup_eval = prover_key.lookup.q_lookup.0.evaluate(z_challenge);
     let f_eval = f_poly.evaluate(z_challenge);
     let h_1_eval = h_1_poly.evaluate(z_challenge);
     let t_eval = table_poly.evaluate(z_challenge);
@@ -229,7 +235,6 @@ pub fn compute(
             logic_separation_challenge,
             fixed_base_separation_challenge,
             var_base_separation_challenge,
-            lookup_separation_challenge,
         ),
         &a_eval,
         &b_eval,
@@ -243,6 +248,7 @@ pub fn compute(
         &q_c_eval,
         &q_l_eval,
         &q_r_eval,
+        &q_lookup_eval,
         prover_key,
     );
 
@@ -285,15 +291,17 @@ pub fn compute(
                 q_c_eval,
                 q_l_eval,
                 q_r_eval,
+                q_lookup_eval,
                 left_sigma_eval,
                 right_sigma_eval,
                 out_sigma_eval,
                 lin_poly_eval,
                 perm_eval,
                 lookup_perm_eval,
-                h_1_eval, 
-                h_1_next_eval, 
+                h_1_eval,
+                h_1_next_eval,
                 h_2_next_eval,
+                f_eval,
             },
             quot_eval,
         },
@@ -307,8 +315,7 @@ fn compute_circuit_satisfiability(
         logic_separation_challenge,
         fixed_base_separation_challenge,
         var_base_separation_challenge,
-        lookup_separation_challenge,
-    ): (&BlsScalar, &BlsScalar, &BlsScalar, &BlsScalar, &BlsScalar),
+    ): (&BlsScalar, &BlsScalar, &BlsScalar, &BlsScalar),
     a_eval: &BlsScalar,
     b_eval: &BlsScalar,
     c_eval: &BlsScalar,
@@ -321,6 +328,7 @@ fn compute_circuit_satisfiability(
     q_c_eval: &BlsScalar,
     q_l_eval: &BlsScalar,
     q_r_eval: &BlsScalar,
+    q_lookup_eval: &BlsScalar,
     prover_key: &ProverKey,
 ) -> Polynomial {
     let a =
@@ -376,7 +384,7 @@ fn compute_circuit_satisfiability(
 
     let f = prover_key
         .lookup
-        .compute_linearisation(lookup_separation_challenge, f_eval);
+        .compute_linearisation(q_lookup_eval, f_eval);
 
     let mut linearisation_poly = &a + &b;
     linearisation_poly += &c;

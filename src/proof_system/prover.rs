@@ -366,7 +366,6 @@ impl Prover {
                 fixed_base_sep_challenge,
                 var_base_sep_challenge,
                 z_challenge,
-                lookup_sep_challenge,
             ),
             &w_l_poly,
             &w_r_poly,
@@ -396,6 +395,7 @@ impl Prover {
         transcript.append_scalar(b"q_c_eval", &evaluations.proof.q_c_eval);
         transcript.append_scalar(b"q_l_eval", &evaluations.proof.q_l_eval);
         transcript.append_scalar(b"q_r_eval", &evaluations.proof.q_r_eval);
+        transcript.append_scalar(b"q_lookup_eval", &evaluations.proof.q_lookup_eval);
         transcript.append_scalar(b"perm_eval", &evaluations.proof.perm_eval);
         transcript.append_scalar(b"lookup_perm_eval", &evaluations.proof.lookup_perm_eval);
         transcript.append_scalar(b"h_1_eval", &evaluations.proof.h_1_eval);

@@ -10,11 +10,19 @@ use dusk_bls12_381::{BlsScalar, G1Affine};
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub struct VerifierKey {
-    pub q_m: Commitment,
-    pub q_l: Commitment,
-    pub q_r: Commitment,
-    pub q_o: Commitment,
-    pub q_c: Commitment,
-    pub q_4: Commitment,
-    pub q_arith: Commitment,
+    pub q_lookup: Commitment,
+}
+
+impl VerifierKey {
+    pub(crate) fn compute_linearisation_commitment(
+        &self,
+        scalars: &mut Vec<BlsScalar>,
+        points: &mut Vec<G1Affine>,
+        evaluations: &ProofEvaluations,
+    ) {
+        let q_arith_eval = evaluations.q_arith_eval;
+
+        scalars.push(evaluations.f_eval * q_arith_eval);
+        points.push(self.q_lookup.0);
+    }
 }

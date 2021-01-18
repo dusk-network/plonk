@@ -318,10 +318,10 @@ impl StandardComposer {
             q_variable_group_add: q_variable_group_add_poly_commit,
         };
 
-        // // Verifier Key for lookup operations
-        // let lookup_verifier_key = widget::lookup::VerifierKey {
-        //     q_lookup: q_lookup_poly_commit,
-        // };
+        // Verifier Key for lookup operations
+        let lookup_verifier_key = widget::lookup::VerifierKey {
+            q_lookup: q_lookup_poly_commit,
+        };
 
         // Verifier Key for permutation argument
         let permutation_verifier_key = widget::permutation::VerifierKey {
@@ -339,7 +339,7 @@ impl StandardComposer {
             fixed_base: ecc_verifier_key,
             variable_base: curve_addition_verifier_key,
             permutation: permutation_verifier_key,
-            // lookup: lookup_verifier_key,
+            lookup: lookup_verifier_key,
         };
 
         let selectors = SelectorPolynomials {
