@@ -13,7 +13,7 @@
 use super::linearisation_poly::ProofEvaluations;
 use super::proof_system_errors::ProofErrors;
 use crate::commitment_scheme::kzg10::{AggregateProof, Commitment, OpeningKey};
-use crate::fft::EvaluationDomain;
+use crate::fft::{EvaluationDomain, Polynomial};
 use crate::proof_system::widget::VerifierKey;
 use crate::transcript::TranscriptProtocol;
 use anyhow::{Error, Result};
@@ -231,7 +231,17 @@ impl Proof {
         // Compute n'th Lagrange poly evaluated at `z_challenge`
         let ln_eval = compute_nth_lagrange_evaluation(&domain, &z_h_eval, &z_challenge);
 
+        // XXX: TODO include lookup into the transcript or pub inputs
         // Compute table
+        // let t_1_scalar = &[&self.to_scalars(&self.cs.t_1)[..], &pad].concat();
+        // let t_2_scalar = &[&self.to_scalars(&self.cs.t_2)[..], &pad].concat();
+        // let t_3_scalar = &[&self.to_scalars(&self.cs.t_3)[..], &pad].concat();
+        // let t_4_scalar = &[&self.to_scalars(&self.cs.t_4)[..], &pad].concat();
+        let t = Polynomial::from_coefficients_vec(domain.ifft(pub_inputs));
+
+        let table_eval = t.evaluate(&z_challenge);
+        let table_next_eval = t.evaluate(&(z_challenge * domain.group_gen));
+
 
         // Compute quotient polynomial evaluated at `z_challenge`
         let t_eval = self.compute_quotient_evaluation(
@@ -279,6 +289,8 @@ impl Proof {
             &alpha,
             &beta,
             &gamma,
+            &delta,
+            &epsilon,
             (
                 &range_sep_challenge,
                 &logic_sep_challenge,
@@ -287,6 +299,9 @@ impl Proof {
             ),
             &z_challenge,
             l1_eval,
+            ln_eval, 
+            table_eval,
+            table_next_eval,
             &verifier_key,
         );
 
@@ -316,6 +331,8 @@ impl Proof {
             self.evaluations.out_sigma_eval,
             verifier_key.permutation.out_sigma,
         ));
+        aggregate_proof.add_part((self.evaluations.f_eval, self.f_comm));
+        aggregate_proof.add_part((self.evaluations.h_1_eval, self.h_1_comm));
         // Flatten proof with opening challenge
         let flattened_proof_a = aggregate_proof.flatten(transcript);
 
@@ -325,6 +342,9 @@ impl Proof {
         shifted_aggregate_proof.add_part((self.evaluations.a_next_eval, self.a_comm));
         shifted_aggregate_proof.add_part((self.evaluations.b_next_eval, self.b_comm));
         shifted_aggregate_proof.add_part((self.evaluations.d_next_eval, self.d_comm));
+        shifted_aggregate_proof.add_part((self.evaluations.h_1_next_eval, self.h_1_comm));
+        shifted_aggregate_proof.add_part((self.evaluations.h_2_next_eval, self.h_2_comm));
+        shifted_aggregate_proof.add_part((self.evaluations.lookup_perm_eval, self.p_comm));
         let flattened_proof_b = shifted_aggregate_proof.flatten(transcript);
 
         // Add commitment to openings to transcript
@@ -447,6 +467,8 @@ impl Proof {
         alpha: &BlsScalar,
         beta: &BlsScalar,
         gamma: &BlsScalar,
+        delta: &BlsScalar,
+        epsilon: &BlsScalar,
         (
             range_sep_challenge,
             logic_sep_challenge,
@@ -508,13 +530,15 @@ impl Proof {
             &mut points,
             &self.evaluations,
             z_challenge,
-            (alpha, beta, gamma),
+            (alpha, beta, gamma, delta, epsilon),
             &l1_eval,
             &ln_eval,
             &t_eval,
             &t_next_eval,
             self.z_comm.0,
-            &h_1_comm,
+            self.h_1_comm.0,
+            self.h_2_comm.0,
+            self.p_comm.0,
         );
 
         Commitment::from_projective(msm_variable_base(&points, &scalars))
