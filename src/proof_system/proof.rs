@@ -242,7 +242,6 @@ impl Proof {
         let table_eval = t.evaluate(&z_challenge);
         let table_next_eval = t.evaluate(&(z_challenge * domain.group_gen));
 
-
         // Compute quotient polynomial evaluated at `z_challenge`
         let t_eval = self.compute_quotient_evaluation(
             &domain,
@@ -299,7 +298,7 @@ impl Proof {
             ),
             &z_challenge,
             l1_eval,
-            ln_eval, 
+            ln_eval,
             table_eval,
             table_next_eval,
             &verifier_key,
