@@ -54,25 +54,10 @@ impl ProverKey {
             index, w_l_i, w_r_i, w_o_i, w_4_i, z_i_next, alpha, beta, gamma,
         );
         let c = self.compute_lookup_quotient_identity_range_check_i(
-            index,
-            f_i,
-            t_i,
-            t_i_next,
-            p_i,
-            alpha,
-            delta,
-            epsilon,
+            index, f_i, t_i, t_i_next, p_i, alpha, delta, epsilon,
         );
         let d = self.compute_lookup_quotient_copy_range_check_i(
-            index,
-            h_1_i,
-            h_2_i,
-            h_1_i_next,
-            h_2_i_next,
-            p_i_next,
-            alpha,
-            delta,
-            epsilon,
+            index, h_1_i, h_2_i, h_1_i_next, h_2_i_next, p_i_next, alpha, delta, epsilon,
         );
         let e = self.compute_quotient_term_check_first_la_grange_polys(
             z_i,
