@@ -8,6 +8,7 @@
 
 use crate::commitment_scheme::kzg10::PublicParameters;
 use crate::constraint_system::StandardComposer;
+use crate::plookup::{PlookupTable4Arity, PreprocessedTable4Arity};
 use crate::proof_system::{Proof, ProverKey, VerifierKey};
 use anyhow::Result;
 use dusk_bls12_381::BlsScalar;
@@ -194,6 +195,7 @@ where
         transcript_initialisation: &'static [u8],
         proof: &Proof,
         pub_inputs: &[PublicInput],
+        lookup_table: &PreprocessedTable4Arity,
     ) -> Result<()> {
         use crate::proof_system::Verifier;
         let (_, vk) = pub_params.trim(self.get_trim_size())?;
@@ -202,7 +204,7 @@ where
         // Fill witnesses for Verifier
         self.gadget(verifier.mut_cs())?;
         verifier.verifier_key = Some(*verifier_key);
-        verifier.verify(proof, &vk, &self.build_pi(pub_inputs)?)
+        verifier.verify(proof, &vk, &self.build_pi(pub_inputs)?, lookup_table)
     }
 }
 
@@ -314,6 +316,12 @@ mod tests {
         // Generate CRS
         let pub_params = PublicParameters::setup(1 << 10, &mut rand::thread_rng())?;
 
+        // Commit Key
+        let (ck, _) = pub_params.trim(2 * 20).unwrap();
+
+        let plookup_table = PlookupTable4Arity::new();
+        let lookup_table = PreprocessedTable4Arity::preprocess(plookup_table, &ck, 4);
+
         {
             // Generate circuit compilation params
             let inputs = [
@@ -365,6 +373,13 @@ mod tests {
             PublicInput::BlsScalar(BlsScalar::from(25u64), 0),
             PublicInput::BlsScalar(BlsScalar::from(100u64), 0),
         ];
-        circuit.verify_proof(&pub_params, &verifier_key, b"Test", &proof, &public_inputs2)
+        circuit.verify_proof(
+            &pub_params,
+            &verifier_key,
+            b"Test",
+            &proof,
+            &public_inputs2,
+            &lookup_table.unwrap(),
+        )
     }
 }

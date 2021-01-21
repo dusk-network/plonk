@@ -14,6 +14,7 @@ use super::linearisation_poly::ProofEvaluations;
 use super::proof_system_errors::ProofErrors;
 use crate::commitment_scheme::kzg10::{AggregateProof, Commitment, OpeningKey};
 use crate::fft::{EvaluationDomain, Polynomial};
+use crate::plookup::{MultiSet, PreprocessedTable4Arity};
 use crate::proof_system::widget::VerifierKey;
 use crate::transcript::TranscriptProtocol;
 use anyhow::{Error, Result};
@@ -49,8 +50,11 @@ pub struct Proof {
     /// Commitment to the lookup query polynomial.
     pub f_comm: Commitment,
 
-    /// Commitment to the lookup table.
-    pub table_comm: Commitment,
+    /// Commitment to first half of sorted polynomial
+    pub h_1_comm: Commitment,
+
+    /// Commitment to second half of sorted polynomial
+    pub h_2_comm: Commitment,
 
     /// Commitment to the permutation polynomial.
     pub z_comm: Commitment,
@@ -127,7 +131,8 @@ impl Proof {
         let (c_comm, rest) = read_commitment(rest)?;
         let (d_comm, rest) = read_commitment(rest)?;
         let (f_comm, rest) = read_commitment(rest)?;
-        let (table_comm, rest) = read_commitment(rest)?;
+        let (h_1_comm, rest) = read_commitment(rest)?;
+        let (h_2_comm, rest) = read_commitment(rest)?;
         let (z_comm, rest) = read_commitment(rest)?;
         let (p_comm, rest) = read_commitment(rest)?;
         let (t_1_comm, rest) = read_commitment(rest)?;
@@ -145,7 +150,8 @@ impl Proof {
             c_comm,
             d_comm,
             f_comm,
-            table_comm,
+            h_1_comm,
+            h_2_comm,
             z_comm,
             p_comm,
             t_1_comm,
@@ -172,6 +178,7 @@ impl Proof {
         verifier_key: &VerifierKey,
         transcript: &mut Transcript,
         opening_key: &OpeningKey,
+        lookup_table: &PreprocessedTable4Arity,
         pub_inputs: &[BlsScalar],
     ) -> Result<(), Error> {
         let domain = EvaluationDomain::new(verifier_key.n)?;
@@ -231,13 +238,19 @@ impl Proof {
         // Compute n'th Lagrange poly evaluated at `z_challenge`
         let ln_eval = compute_nth_lagrange_evaluation(&domain, &z_h_eval, &z_challenge);
 
-        // XXX: TODO include lookup into the transcript or pub inputs
-        // Compute table
-        // let t_1_scalar = &[&self.to_scalars(&self.cs.t_1)[..], &pad].concat();
-        // let t_2_scalar = &[&self.to_scalars(&self.cs.t_2)[..], &pad].concat();
-        // let t_3_scalar = &[&self.to_scalars(&self.cs.t_3)[..], &pad].concat();
-        // let t_4_scalar = &[&self.to_scalars(&self.cs.t_4)[..], &pad].concat();
-        let t = Polynomial::from_coefficients_vec(domain.ifft(pub_inputs));
+        // Compress table into vector of single elements
+        let compressed_t = MultiSet::compress_four_arity(
+            [
+                &lookup_table.t_1.0,
+                &lookup_table.t_2.0,
+                &lookup_table.t_3.0,
+                &lookup_table.t_4.0,
+            ],
+            zeta,
+        );
+
+        // Compute table poly
+        let t = Polynomial::from_coefficients_vec(domain.ifft(&compressed_t.0.as_slice()));
 
         let table_eval = t.evaluate(&z_challenge);
         let table_next_eval = t.evaluate(&(z_challenge * domain.group_gen));
@@ -622,7 +635,8 @@ mod test {
             c_comm: Commitment::default(),
             d_comm: Commitment::default(),
             f_comm: Commitment::default(),
-            table_comm: Commitment::default(),
+            h_1_comm: Commitment::default(),
+            h_2_comm: Commitment::default(),
             z_comm: Commitment::default(),
             p_comm: Commitment::default(),
             t_1_comm: Commitment::default(),

@@ -6,6 +6,7 @@
 
 use super::StandardComposer;
 use crate::commitment_scheme::kzg10::PublicParameters;
+use crate::plookup::{PlookupTable4Arity, PreprocessedTable4Arity};
 use crate::proof_system::{Prover, Verifier};
 use anyhow::{Error, Result};
 use dusk_bls12_381::BlsScalar;
@@ -73,9 +74,12 @@ pub(crate) fn gadget_tester(
     // Compute Commit and Verifier Key
     let (ck, vk) = public_parameters.trim(verifier.cs.circuit_size().next_power_of_two())?;
 
+    let plookup_table = PlookupTable4Arity::new();
+    let lookup_table = PreprocessedTable4Arity::preprocess(plookup_table, &ck, 4);
+
     // Preprocess circuit
     verifier.preprocess(&ck)?;
 
     // Verify proof
-    verifier.verify(&proof, &vk, &public_inputs)
+    verifier.verify(&proof, &vk, &public_inputs, &lookup_table.unwrap())
 }

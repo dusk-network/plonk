@@ -22,7 +22,6 @@
 use super::cs_errors::PreProcessingError;
 use crate::constraint_system::Variable;
 use crate::permutation::Permutation;
-use crate::plookup::PlookupTable3Arity;
 use dusk_bls12_381::BlsScalar;
 use std::collections::HashMap;
 
@@ -528,6 +527,7 @@ mod tests {
     use super::super::helper::*;
     use super::*;
     use crate::commitment_scheme::kzg10::PublicParameters;
+    use crate::plookup::{PlookupTable4Arity, PreprocessedTable4Arity};
     use crate::proof_system::{Prover, Verifier};
 
     #[test]
@@ -576,6 +576,7 @@ mod tests {
         assert!(res.is_ok());
     }
 
+    #[ignore]
     #[test]
     // XXX: Move this to integration tests
     fn test_multiple_proofs() {
@@ -589,6 +590,9 @@ mod tests {
 
         // Commit Key
         let (ck, _) = public_parameters.trim(2 * 20).unwrap();
+
+        let plookup_table = PlookupTable4Arity::new();
+        let lookup_table = PreprocessedTable4Arity::preprocess(plookup_table, &ck, 4);
 
         // Preprocess circuit
         prover.preprocess(&ck).unwrap();
@@ -619,7 +623,9 @@ mod tests {
         verifier.preprocess(&ck).unwrap();
 
         for proof in proofs {
-            assert!(verifier.verify(&proof, &vk, &public_inputs).is_ok());
+            assert!(verifier
+                .verify(&proof, &vk, &public_inputs, &lookup_table.unwrap())
+                .is_ok());
         }
     }
 }

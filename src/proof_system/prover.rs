@@ -8,7 +8,7 @@ use super::proof_system_errors::ProofErrors;
 use crate::commitment_scheme::kzg10::CommitKey;
 use crate::constraint_system::{StandardComposer, Variable};
 use crate::fft::{EvaluationDomain, Polynomial};
-use crate::plookup::MultiSet;
+use crate::plookup::{MultiSet, PlookupTable4Arity, PreprocessedTable4Arity};
 use crate::proof_system::widget::ProverKey;
 use crate::proof_system::{linearisation_poly, proof::Proof, quotient_poly};
 use crate::transcript::TranscriptProtocol;
@@ -143,6 +143,7 @@ impl Prover {
         &self,
         commit_key: &CommitKey,
         prover_key: &ProverKey,
+        lookup_table: &PreprocessedTable4Arity,
     ) -> Result<Proof, Error> {
         let domain = EvaluationDomain::new(self.cs.circuit_size())?;
 
@@ -209,31 +210,19 @@ impl Prover {
         // Add f_poly commitment to transcript
         transcript.append_commitment(b"f", &f_poly_commit);
 
-        // Compute table t
-        let t_1_scalar = &[&self.to_scalars(&self.cs.t_1)[..], &pad].concat();
-        let t_2_scalar = &[&self.to_scalars(&self.cs.t_2)[..], &pad].concat();
-        let t_3_scalar = &[&self.to_scalars(&self.cs.t_3)[..], &pad].concat();
-        let t_4_scalar = &[&self.to_scalars(&self.cs.t_4)[..], &pad].concat();
-
         // Compress table into vector of single elements
         let compressed_t = MultiSet::compress_four_arity(
             [
-                &MultiSet::from(t_1_scalar.as_slice()),
-                &MultiSet::from(t_2_scalar.as_slice()),
-                &MultiSet::from(t_3_scalar.as_slice()),
-                &MultiSet::from(t_4_scalar.as_slice()),
+                &lookup_table.t_1.0,
+                &lookup_table.t_2.0,
+                &lookup_table.t_3.0,
+                &lookup_table.t_4.0,
             ],
             zeta,
         );
 
         // Compute table poly
         let table_poly = Polynomial::from_coefficients_vec(domain.ifft(&compressed_t.0.as_slice()));
-
-        // Commit to table polynomial
-        let table_poly_commit = commit_key.commit(&table_poly)?;
-
-        // Add table_poly commitment to transcript
-        transcript.append_commitment(b"t", &table_poly_commit);
 
         // 2. Compute permutation polynomial
         //
@@ -271,6 +260,14 @@ impl Prover {
         // Compute h polys
         let h_1_poly = Polynomial::from_coefficients_vec(domain.ifft(&h_1.0.as_slice()));
         let h_2_poly = Polynomial::from_coefficients_vec(domain.ifft(&h_2.0.as_slice()));
+
+        // Commit to h polys
+        let h_1_poly_commit = commit_key.commit(&h_1_poly)?;
+        let h_2_poly_commit = commit_key.commit(&h_2_poly)?;
+
+        // Add h polynomials to transcript
+        transcript.append_commitment(b"h1", &h_1_poly_commit);
+        transcript.append_commitment(b"h2", &h_2_poly_commit);
 
         // Compute lookup permutation poly
         let p_poly =
@@ -450,7 +447,9 @@ impl Prover {
             d_comm: w_4_poly_commit,
 
             f_comm: f_poly_commit,
-            table_comm: table_poly_commit,
+
+            h_1_comm: h_1_poly_commit,
+            h_2_comm: h_2_poly_commit,
 
             z_comm: z_poly_commit,
             p_comm: p_poly_commit,
@@ -472,6 +471,8 @@ impl Prover {
     /// also be computed
     pub fn prove(&mut self, commit_key: &CommitKey) -> Result<Proof, Error> {
         let prover_key: &ProverKey;
+        let plookup_table = PlookupTable4Arity::new();
+        let lookup_table = PreprocessedTable4Arity::preprocess(plookup_table, &commit_key, 4);
 
         if self.prover_key.is_none() {
             // Preprocess circuit
@@ -484,7 +485,7 @@ impl Prover {
 
         prover_key = self.prover_key.as_ref().unwrap();
 
-        let proof = self.prove_with_preprocessed(commit_key, prover_key)?;
+        let proof = self.prove_with_preprocessed(commit_key, prover_key, &lookup_table.unwrap())?;
 
         // Clear witness and reset composer variables
         self.clear_witness();
