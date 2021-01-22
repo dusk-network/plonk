@@ -576,7 +576,6 @@ mod tests {
         assert!(res.is_ok());
     }
 
-    #[ignore]
     #[test]
     // XXX: Move this to integration tests
     fn test_multiple_proofs() {
@@ -592,7 +591,7 @@ mod tests {
         let (ck, _) = public_parameters.trim(2 * 20).unwrap();
 
         let plookup_table = PlookupTable4Arity::new();
-        let lookup_table = PreprocessedTable4Arity::preprocess(plookup_table, &ck, 4);
+        let lookup_table = PreprocessedTable4Arity::preprocess(plookup_table, &ck, 4).unwrap();
 
         // Preprocess circuit
         prover.preprocess(&ck).unwrap();
@@ -624,7 +623,7 @@ mod tests {
 
         for proof in proofs {
             assert!(verifier
-                .verify(&proof, &vk, &public_inputs, &lookup_table.unwrap())
+                .verify(&proof, &vk, &public_inputs, &lookup_table)
                 .is_ok());
         }
     }
