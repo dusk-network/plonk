@@ -5,7 +5,7 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use dusk_bls12_381::{BlsScalar, G1Affine, G1Projective, G2Affine, G2Projective};
-use rand_core::RngCore;
+use rand_core::{CryptoRng, RngCore};
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
 /// Returns a vector of BlsScalars of increasing powers of x from x^0 to x^d.
@@ -19,21 +19,16 @@ pub(crate) fn powers_of(scalar: &BlsScalar, max_degree: usize) -> Vec<BlsScalar>
 }
 
 /// Generates a random BlsScalar using a RNG seed.
-pub(crate) fn random_scalar<R: RngCore>(rng: &mut R) -> BlsScalar {
-    BlsScalar::from_raw([
-        rng.next_u64(),
-        rng.next_u64(),
-        rng.next_u64(),
-        rng.next_u64(),
-    ])
+pub(crate) fn random_scalar<R: RngCore + CryptoRng>(rng: &mut R) -> BlsScalar {
+    BlsScalar::random(rng)
 }
 
 /// Generates a random G1 Point using an RNG seed.
-pub(crate) fn random_g1_point<R: RngCore>(rng: &mut R) -> G1Projective {
+pub(crate) fn random_g1_point<R: RngCore + CryptoRng>(rng: &mut R) -> G1Projective {
     G1Affine::generator() * random_scalar(rng)
 }
 /// Generates a random G2 point using an RNG seed.
-pub(crate) fn random_g2_point<R: RngCore>(rng: &mut R) -> G2Projective {
+pub(crate) fn random_g2_point<R: RngCore + CryptoRng>(rng: &mut R) -> G2Projective {
     G2Affine::generator() * random_scalar(rng)
 }
 

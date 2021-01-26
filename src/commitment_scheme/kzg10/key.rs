@@ -13,6 +13,7 @@ use anyhow::{Error, Result};
 use dusk_bls12_381::{
     multiscalar_mul::msm_variable_base, BlsScalar, G1Affine, G1Projective, G2Affine, G2Prepared,
 };
+use dusk_bytes::Serializable;
 use merlin::Transcript;
 
 /// Opening Key is used to verify opening proofs made about a committed polynomial.
@@ -41,8 +42,8 @@ impl CommitKey {
     /// Serialize the `CommitKey` into bytes.
     ///
     /// Will consume twice the bytes of `into_bytes`
-    pub fn to_bytes_unchecked(&self) -> Vec<u8> {
-        let mut bytes = Vec::with_capacity(8 + self.powers_of_g.len() * 96);
+    pub fn to_raw_bytes(&self) -> Vec<u8> {
+        let mut bytes = Vec::with_capacity(8 + self.powers_of_g.len() * G1Affine::RAW_SIZE);
 
         let len = self.powers_of_g.len() as u64;
         let len = len.to_le_bytes();
@@ -50,7 +51,7 @@ impl CommitKey {
 
         self.powers_of_g
             .iter()
-            .for_each(|g| bytes.extend_from_slice(&g.to_bytes_unchecked()));
+            .for_each(|g| bytes.extend_from_slice(&g.to_raw_bytes()));
 
         bytes
     }
@@ -71,7 +72,7 @@ impl CommitKey {
         let len = u64::from_le_bytes(len);
 
         let powers_of_g = bytes[8..]
-            .chunks_exact(96)
+            .chunks_exact(G1Affine::RAW_SIZE)
             .zip(0..len)
             .map(|(c, _)| G1Affine::from_slice_unchecked(c))
             .collect();
@@ -250,12 +251,14 @@ impl OpeningKey {
             prepared_h,
         }
     }
+
     /// Serialises an Opening Key to bytes
     pub fn to_bytes(&self) -> [u8; Self::serialized_size()] {
         let mut bytes = [0u8; Self::serialized_size()];
+
         bytes[0..48].copy_from_slice(&self.g.to_bytes());
-        bytes[48..144].copy_from_slice(&self.h.to_compressed());
-        bytes[144..Self::serialized_size()].copy_from_slice(&self.beta_h.to_compressed());
+        bytes[48..144].copy_from_slice(&self.h.to_bytes());
+        bytes[144..Self::serialized_size()].copy_from_slice(&self.beta_h.to_bytes());
 
         bytes
     }
@@ -359,8 +362,8 @@ fn check_degree_is_within_bounds(max_degree: usize, poly_degree: usize) -> Resul
 }
 #[cfg(test)]
 mod test {
-    use super::super::srs::*;
-    use super::*;
+    use crate::fft::Polynomial;
+    use crate::prelude::*;
     use merlin::Transcript;
 
     // Creates a proving key and verifier key based on a specified degree
@@ -527,7 +530,7 @@ mod test {
         let (ck, _) = setup_test(7);
 
         let ck_p = unsafe {
-            let bytes = ck.to_bytes_unchecked();
+            let bytes = ck.to_raw_bytes();
             CommitKey::from_slice_unchecked(&bytes)
         };
 

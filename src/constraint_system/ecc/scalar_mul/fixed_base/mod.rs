@@ -8,6 +8,7 @@ use crate::constraint_system::ecc::curve_addition::fixed_base_gate::WnafRound;
 use crate::constraint_system::ecc::{Point, PointScalar};
 use crate::constraint_system::{variable::Variable, StandardComposer};
 use dusk_bls12_381::BlsScalar;
+use dusk_bytes::Serializable;
 use dusk_jubjub::{JubJubAffine, JubJubExtended, JubJubScalar};
 
 fn compute_wnaf_point_multiples(generator: JubJubExtended, num_bits: usize) -> Vec<JubJubAffine> {

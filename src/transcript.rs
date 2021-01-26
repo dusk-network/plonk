@@ -8,6 +8,7 @@
 //! which adds a few extra functionalities.
 use crate::commitment_scheme::kzg10::Commitment;
 use dusk_bls12_381::BlsScalar;
+use dusk_bytes::Serializable;
 use merlin::Transcript;
 
 /// Transcript adds an abstraction over the Merlin transcript

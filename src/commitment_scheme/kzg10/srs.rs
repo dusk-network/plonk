@@ -12,7 +12,7 @@ use super::{
 use crate::util;
 use anyhow::{anyhow, Error, Result};
 use dusk_bls12_381::{G1Affine, G1Projective, G2Affine};
-use rand_core::RngCore;
+use rand_core::{CryptoRng, RngCore};
 
 use serde::de::Visitor;
 use serde::{self, Deserialize, Deserializer, Serialize, Serializer};
@@ -35,7 +35,7 @@ impl PublicParameters {
     /// This method will in most cases be used for testing and exploration.
     /// In reality, a `Trusted party` or a `Multiparty Computation` will used to generate the SRS.
     /// Returns an error if the configured degree is less than one.
-    pub fn setup<R: RngCore>(
+    pub fn setup<R: RngCore + CryptoRng>(
         max_degree: usize,
         mut rng: &mut R,
     ) -> Result<PublicParameters, Error> {
@@ -75,15 +75,15 @@ impl PublicParameters {
     /// Serialize the `PublicParameters` into bytes.
     ///
     /// Will consume approx. twice the bytes of `into_bytes`
-    pub fn to_bytes_unchecked(&self) -> Vec<u8> {
+    pub fn to_raw_bytes(&self) -> Vec<u8> {
         let mut bytes = self.opening_key.to_bytes().to_vec();
 
-        bytes.extend(&self.commit_key.to_bytes_unchecked());
+        bytes.extend(&self.commit_key.to_raw_bytes());
 
         bytes
     }
 
-    /// Deserialize `PublicParameters` from a set of bytes created by `to_bytes_unchecked`
+    /// Deserialize `PublicParameters` from a set of bytes created by `to_raw_bytes`
     ///
     /// The bytes source is expected to be trusted and no check will be performed reggarding the
     /// points security
@@ -177,7 +177,7 @@ mod test {
         let pp = PublicParameters::setup(1 << 7, &mut rand::thread_rng()).unwrap();
 
         let pp_p = unsafe {
-            let bytes = pp.to_bytes_unchecked();
+            let bytes = pp.to_raw_bytes();
             PublicParameters::from_slice_unchecked(&bytes).unwrap()
         };
 

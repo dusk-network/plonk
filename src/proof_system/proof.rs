@@ -18,6 +18,7 @@ use crate::proof_system::widget::VerifierKey;
 use crate::transcript::TranscriptProtocol;
 use anyhow::{Error, Result};
 use dusk_bls12_381::{multiscalar_mul::msm_variable_base, BlsScalar, G1Affine};
+use dusk_bytes::Serializable;
 use merlin::Transcript;
 use serde::de::Visitor;
 use serde::{self, Deserialize, Deserializer, Serialize, Serializer};
@@ -93,6 +94,7 @@ impl Proof {
     /// Serialises a Proof struct
     pub fn to_bytes(&self) -> [u8; PROOF_SIZE] {
         let mut bytes = [0u8; PROOF_SIZE];
+
         bytes[0..48].copy_from_slice(&self.a_comm.0.to_bytes()[..]);
         bytes[48..96].copy_from_slice(&self.b_comm.0.to_bytes()[..]);
         bytes[96..144].copy_from_slice(&self.c_comm.0.to_bytes()[..]);

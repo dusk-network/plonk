@@ -58,6 +58,8 @@ bit_iterator!(u8, BitIterator8);
 mod test {
     use super::*;
     use dusk_bls12_381::BlsScalar;
+    use dusk_bytes::Serializable;
+
     #[test]
     fn test_bit_iterator8() {
         let mut a = BitIterator8::new(BlsScalar::one().to_bytes());

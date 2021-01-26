@@ -104,11 +104,10 @@ impl VerifierKey {
 
         bytes
     }
+
     /// Deserialise a slice of bytes into a VerifierKey
     pub fn from_bytes(bytes: &[u8]) -> Result<VerifierKey, Error> {
         use crate::serialisation::{read_commitment, read_u64};
-
-        assert_eq!(bytes.len(), VerifierKey::serialised_size());
 
         let (n, rest) = read_u64(bytes)?;
 

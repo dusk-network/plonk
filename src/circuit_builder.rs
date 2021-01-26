@@ -11,6 +11,7 @@ use crate::constraint_system::StandardComposer;
 use crate::proof_system::{Proof, ProverKey, VerifierKey};
 use anyhow::Result;
 use dusk_bls12_381::BlsScalar;
+use dusk_bytes::Serializable;
 use dusk_jubjub::{JubJubAffine, JubJubScalar};
 use thiserror::Error;
 
@@ -68,22 +69,18 @@ impl PublicInput {
             let mut array_bytes = [0u8; 32];
             array_bytes.copy_from_slice(&bytes[1..Self::serialized_size()]);
             match bytes[0] {
-                BLS_SCALAR => Ok(Self::BlsScalar(
-                    Option::from(BlsScalar::from_bytes(&array_bytes))
-                        .ok_or_else(|| CircuitErrors::InvalidPublicInputBytes.into())?,
-                    0,
-                )),
-                JUBJUB_SCALAR => Ok(Self::JubJubScalar(
-                    Option::from(JubJubScalar::from_bytes(&array_bytes))
-                        .ok_or_else(|| CircuitErrors::InvalidPublicInputBytes.into())?,
-                    0,
-                )),
-                JUBJUB_AFFINE => Ok(Self::AffinePoint(
-                    Option::from(JubJubAffine::from_bytes(array_bytes))
-                        .ok_or_else(|| CircuitErrors::InvalidPublicInputBytes.into())?,
-                    0,
-                    0,
-                )),
+                BLS_SCALAR => BlsScalar::from_bytes(&array_bytes)
+                    .map(|s| Self::BlsScalar(s, 0))
+                    .map_err(|_| CircuitErrors::InvalidPublicInputBytes),
+
+                JUBJUB_SCALAR => JubJubScalar::from_bytes(&array_bytes)
+                    .map(|s| Self::JubJubScalar(s, 0))
+                    .map_err(|_| CircuitErrors::InvalidPublicInputBytes),
+
+                JUBJUB_AFFINE => JubJubAffine::from_bytes(&array_bytes)
+                    .map(|s| Self::AffinePoint(s, 0, 0))
+                    .map_err(|_| CircuitErrors::InvalidPublicInputBytes),
+
                 _ => unreachable!(),
             }
         }
