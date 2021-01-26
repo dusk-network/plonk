@@ -18,6 +18,7 @@ use crate::proof_system::widget::VerifierKey;
 use crate::transcript::TranscriptProtocol;
 use anyhow::{Error, Result};
 use dusk_bls12_381::{multiscalar_mul::msm_variable_base, BlsScalar, G1Affine};
+use dusk_bytes::Serializable;
 use merlin::Transcript;
 use serde::de::Visitor;
 use serde::{self, Deserialize, Deserializer, Serialize, Serializer};
@@ -93,17 +94,18 @@ impl Proof {
     /// Serialises a Proof struct
     pub fn to_bytes(&self) -> [u8; PROOF_SIZE] {
         let mut bytes = [0u8; PROOF_SIZE];
-        bytes[0..48].copy_from_slice(&self.a_comm.0.to_compressed()[..]);
-        bytes[48..96].copy_from_slice(&self.b_comm.0.to_compressed()[..]);
-        bytes[96..144].copy_from_slice(&self.c_comm.0.to_compressed()[..]);
-        bytes[144..192].copy_from_slice(&self.d_comm.0.to_compressed()[..]);
-        bytes[192..240].copy_from_slice(&self.z_comm.0.to_compressed()[..]);
-        bytes[240..288].copy_from_slice(&self.t_1_comm.0.to_compressed()[..]);
-        bytes[288..336].copy_from_slice(&self.t_2_comm.0.to_compressed()[..]);
-        bytes[336..384].copy_from_slice(&self.t_3_comm.0.to_compressed()[..]);
-        bytes[384..432].copy_from_slice(&self.t_4_comm.0.to_compressed()[..]);
-        bytes[432..480].copy_from_slice(&self.w_z_comm.0.to_compressed()[..]);
-        bytes[480..528].copy_from_slice(&self.w_zw_comm.0.to_compressed()[..]);
+
+        bytes[0..48].copy_from_slice(&self.a_comm.0.to_bytes()[..]);
+        bytes[48..96].copy_from_slice(&self.b_comm.0.to_bytes()[..]);
+        bytes[96..144].copy_from_slice(&self.c_comm.0.to_bytes()[..]);
+        bytes[144..192].copy_from_slice(&self.d_comm.0.to_bytes()[..]);
+        bytes[192..240].copy_from_slice(&self.z_comm.0.to_bytes()[..]);
+        bytes[240..288].copy_from_slice(&self.t_1_comm.0.to_bytes()[..]);
+        bytes[288..336].copy_from_slice(&self.t_2_comm.0.to_bytes()[..]);
+        bytes[336..384].copy_from_slice(&self.t_3_comm.0.to_bytes()[..]);
+        bytes[384..432].copy_from_slice(&self.t_4_comm.0.to_bytes()[..]);
+        bytes[432..480].copy_from_slice(&self.w_z_comm.0.to_bytes()[..]);
+        bytes[480..528].copy_from_slice(&self.w_zw_comm.0.to_bytes()[..]);
         bytes[528..PROOF_SIZE].copy_from_slice(&self.evaluations.to_bytes()[..]);
 
         bytes

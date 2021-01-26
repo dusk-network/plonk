@@ -10,9 +10,9 @@ use super::{
     key::{CommitKey, OpeningKey},
 };
 use crate::util;
-use anyhow::{Error, Result};
+use anyhow::{anyhow, Error, Result};
 use dusk_bls12_381::{G1Affine, G1Projective, G2Affine};
-use rand_core::RngCore;
+use rand_core::{CryptoRng, RngCore};
 
 use serde::de::Visitor;
 use serde::{self, Deserialize, Deserializer, Serialize, Serializer};
@@ -35,7 +35,7 @@ impl PublicParameters {
     /// This method will in most cases be used for testing and exploration.
     /// In reality, a `Trusted party` or a `Multiparty Computation` will used to generate the SRS.
     /// Returns an error if the configured degree is less than one.
-    pub fn setup<R: RngCore>(
+    pub fn setup<R: RngCore + CryptoRng>(
         max_degree: usize,
         mut rng: &mut R,
     ) -> Result<PublicParameters, Error> {
@@ -69,6 +69,38 @@ impl PublicParameters {
                 powers_of_g: normalised_g,
             },
             opening_key: OpeningKey::new(g.into(), h, beta_h),
+        })
+    }
+
+    /// Serialize the `PublicParameters` into bytes.
+    ///
+    /// Will consume approx. twice the bytes of `into_bytes`
+    pub fn to_raw_bytes(&self) -> Vec<u8> {
+        let mut bytes = self.opening_key.to_bytes().to_vec();
+
+        bytes.extend(&self.commit_key.to_raw_bytes());
+
+        bytes
+    }
+
+    /// Deserialize `PublicParameters` from a set of bytes created by `to_raw_bytes`
+    ///
+    /// The bytes source is expected to be trusted and no check will be performed reggarding the
+    /// points security
+    pub unsafe fn from_slice_unchecked(bytes: &[u8]) -> Result<Self, Error> {
+        if bytes.len() < OpeningKey::serialized_size() + 1 {
+            return Err(anyhow!("Not enough bytes provided!"));
+        }
+
+        let opening_key = &bytes[..OpeningKey::serialized_size()];
+        let opening_key = OpeningKey::from_bytes(opening_key)?;
+
+        let commit_key = &bytes[OpeningKey::serialized_size()..];
+        let commit_key = CommitKey::from_slice_unchecked(commit_key);
+
+        Ok(Self {
+            commit_key,
+            opening_key,
         })
     }
 
@@ -138,5 +170,20 @@ mod test {
         assert_eq!(got_pp.opening_key.g, pp.opening_key.g);
         assert_eq!(got_pp.opening_key.h, pp.opening_key.h);
         assert_eq!(got_pp.opening_key.beta_h, pp.opening_key.beta_h);
+    }
+
+    #[test]
+    fn public_parameters_bytes_unchecked() {
+        let pp = PublicParameters::setup(1 << 7, &mut rand::thread_rng()).unwrap();
+
+        let pp_p = unsafe {
+            let bytes = pp.to_raw_bytes();
+            PublicParameters::from_slice_unchecked(&bytes).unwrap()
+        };
+
+        assert_eq!(pp.commit_key, pp_p.commit_key);
+        assert_eq!(pp.opening_key.g, pp_p.opening_key.g);
+        assert_eq!(pp.opening_key.h, pp_p.opening_key.h);
+        assert_eq!(pp.opening_key.beta_h, pp_p.opening_key.beta_h);
     }
 }

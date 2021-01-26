@@ -8,6 +8,7 @@ use crate::commitment_scheme::kzg10::Commitment;
 use crate::fft::{EvaluationDomain, Evaluations, Polynomial};
 use anyhow::{Error, Result};
 use dusk_bls12_381::{BlsScalar, G1Affine, G2Affine};
+use dusk_bytes::{DeserializableSlice, Serializable};
 use thiserror::Error;
 
 /// Defines all of the possible Serialisation errors
@@ -34,15 +35,13 @@ pub fn read_n(n: usize, bytes: &[u8]) -> Result<(&[u8], &[u8]), Error> {
 /// Reads 32 bytes and converts it to a BlsScalar
 /// Returns the remaining bytes
 pub fn read_scalar(bytes: &[u8]) -> Result<(BlsScalar, &[u8]), Error> {
-    let (bytes32, rest) = read_n(32, bytes)?;
-    let mut arr32 = [0u8; 32];
-    arr32.copy_from_slice(bytes32);
-    let scalar = BlsScalar::from_bytes(&arr32);
-    if scalar.is_none().into() {
-        return Err(SerialisationErrors::BlsScalarMalformed.into());
-    }
-    Ok((scalar.unwrap(), rest))
+    let (bytes, rest) = read_n(BlsScalar::SIZE, bytes)?;
+
+    BlsScalar::from_slice(bytes)
+        .map(|g| (g, rest))
+        .map_err(|_| SerialisationErrors::BlsScalarMalformed.into())
 }
+
 /// Writes a BlsScalar into a mutable slice
 pub fn write_scalar(scalar: &BlsScalar, bytes: &mut Vec<u8>) {
     bytes.extend_from_slice(&scalar.to_bytes());
@@ -51,15 +50,13 @@ pub fn write_scalar(scalar: &BlsScalar, bytes: &mut Vec<u8>) {
 /// Reads 48 bytes and converts it to a G1Affine
 /// Returns the remaining bytes
 pub fn read_g1_affine(bytes: &[u8]) -> Result<(G1Affine, &[u8]), Error> {
-    let (bytes48, rest) = read_n(48, bytes)?;
-    let mut arr48 = [0u8; 48];
-    arr48.copy_from_slice(bytes48);
-    let g1 = G1Affine::from_compressed(&arr48);
-    if g1.is_none().into() {
-        return Err(SerialisationErrors::PointMalformed.into());
-    }
-    Ok((g1.unwrap(), rest))
+    let (bytes, rest) = read_n(G1Affine::SIZE, bytes)?;
+
+    G1Affine::from_slice(bytes)
+        .map(|g| (g, rest))
+        .map_err(|_| SerialisationErrors::PointMalformed.into())
 }
+
 /// Reads 48 bytes and converts it to a Commitment
 /// Returns the remaining bytes
 pub fn read_commitment(bytes: &[u8]) -> Result<(Commitment, &[u8]), Error> {
@@ -68,7 +65,7 @@ pub fn read_commitment(bytes: &[u8]) -> Result<(Commitment, &[u8]), Error> {
 }
 /// Writes a G1Affine into a mutable slice
 pub fn write_g1_affine(affine: &G1Affine, bytes: &mut Vec<u8>) {
-    let bytes48 = affine.to_compressed();
+    let bytes48 = affine.to_bytes();
     bytes.extend_from_slice(&bytes48);
 }
 /// Writes a Commitment into a mutable slice
@@ -79,14 +76,11 @@ pub fn write_commitment(commitment: &Commitment, bytes: &mut Vec<u8>) {
 /// Reads 96 bytes and converts it to a G2Affine
 /// Returns the remaining bytes
 pub fn read_g2_affine(bytes: &[u8]) -> Result<(G2Affine, &[u8]), Error> {
-    let (bytes96, rest) = read_n(96, bytes)?;
-    let mut arr96 = [0u8; 96];
-    arr96.copy_from_slice(bytes96);
-    let g2 = G2Affine::from_compressed(&arr96);
-    if g2.is_none().into() {
-        return Err(SerialisationErrors::PointMalformed.into());
-    }
-    Ok((g2.unwrap(), rest))
+    let (bytes, rest) = read_n(G2Affine::SIZE, bytes)?;
+
+    G2Affine::from_slice(bytes)
+        .map(|g| (g, rest))
+        .map_err(|_| SerialisationErrors::PointMalformed.into())
 }
 
 /// Reads 8 bytes and converts it to a u64
