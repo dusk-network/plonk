@@ -37,6 +37,9 @@ serde = "1.0"
 # Dusk related deps for WASMI serde
 canonical = {version = "0.4", optional = true}
 
+[dev-dependencies]
+tempdir = "0.3"
+
 [package.metadata.docs.rs]
 rustdoc-args = [ "--html-in-header", "katex-header.html" ]
 
