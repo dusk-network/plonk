@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.1] - 02-02-21
+### Changed
+- Implement `Clone` for `PublicParameters` [#383](https://github.com/dusk-network/plonk/issues/383)
+
 ## [0.5.0] - 27-01-21
 ### Changed
 - Upgrade canonical to v0.5 (#371)

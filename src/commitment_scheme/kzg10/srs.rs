@@ -20,7 +20,7 @@ use serde::{self, Deserialize, Deserializer, Serialize, Serializer};
 /// The Public Parameters can also be referred to as the Structured Reference String (SRS).
 /// It is available to both the prover and verifier and allows the verifier to
 /// efficiently verify and make claims about polynomials up to and including a configured degree.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct PublicParameters {
     /// Key used to generate proofs for composed circuits.
     pub commit_key: CommitKey,
