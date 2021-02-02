@@ -8,7 +8,7 @@
 
 use crate::commitment_scheme::kzg10::CommitKey;
 use crate::constraint_system::cs_errors::PreProcessingError;
-use crate::constraint_system::StandardComposer;
+use crate::constraint_system::PlookupComposer;
 
 use crate::fft::{EvaluationDomain, Evaluations, Polynomial};
 use crate::proof_system::widget;
@@ -18,7 +18,7 @@ use merlin::Transcript;
 
 /// Struct that contains all of the selector and permutation polynomials in PLONK
 /// These polynomials are in coefficient form
-pub(crate) struct SelectorPolynomials {
+pub(crate) struct PlookupSelectorPolynomials {
     q_m: Polynomial,
     q_l: Polynomial,
     q_r: Polynomial,
@@ -30,14 +30,15 @@ pub(crate) struct SelectorPolynomials {
     q_logic: Polynomial,
     q_fixed_group_add: Polynomial,
     q_variable_group_add: Polynomial,
+    q_lookup: Polynomial,
+
     left_sigma: Polynomial,
     right_sigma: Polynomial,
     out_sigma: Polynomial,
     fourth_sigma: Polynomial,
 }
 
-
-impl StandardComposer {
+impl PlookupComposer {
     /// Pads the circuit to the next power of two
     /// `diff` is the difference between circuit size and next power of two.
     fn pad(&mut self, diff: usize) {
@@ -59,11 +60,17 @@ impl StandardComposer {
         self.q_logic.extend(zeroes_scalar.iter());
         self.q_fixed_group_add.extend(zeroes_scalar.iter());
         self.q_variable_group_add.extend(zeroes_scalar.iter());
+        self.q_lookup.extend(zeroes_scalar.iter());
 
         self.w_l.extend(zeroes_var.iter());
         self.w_r.extend(zeroes_var.iter());
         self.w_o.extend(zeroes_var.iter());
         self.w_4.extend(zeroes_var.iter());
+
+        self.f_1.extend(zeroes_var.iter());
+        self.f_2.extend(zeroes_var.iter());
+        self.f_3.extend(zeroes_var.iter());
+        self.f_4.extend(zeroes_var.iter());
 
         self.n += diff;
     }
@@ -82,6 +89,7 @@ impl StandardComposer {
             && self.q_logic.len() == k
             && self.q_fixed_group_add.len() == k
             && self.q_variable_group_add.len() == k
+            && self.q_lookup.len() == k
             && self.w_l.len() == k
             && self.w_r.len() == k
             && self.w_o.len() == k
@@ -98,7 +106,7 @@ impl StandardComposer {
         &mut self,
         commit_key: &CommitKey,
         transcript: &mut Transcript,
-    ) -> Result<widget::ProverKey, Error> {
+    ) -> Result<widget::PlookupProverKey, Error> {
         let (_, selectors, domain) = self.preprocess_shared(commit_key, transcript)?;
 
         let domain_4n = EvaluationDomain::new(4 * domain.size())?;
@@ -128,6 +136,8 @@ impl StandardComposer {
             domain_4n.coset_fft(&selectors.q_variable_group_add),
             domain_4n,
         );
+        let q_lookup_eval_4n =
+            Evaluations::from_vec_and_domain(domain_4n.coset_fft(&selectors.q_lookup), domain_4n);
 
         let left_sigma_eval_4n =
             Evaluations::from_vec_and_domain(domain_4n.coset_fft(&selectors.left_sigma), domain_4n);
@@ -191,7 +201,12 @@ impl StandardComposer {
             q_variable_group_add: (selectors.q_variable_group_add, q_variable_group_add_eval_4n),
         };
 
-        let prover_key = widget::ProverKey {
+        // Prover key for lookup operations
+        let lookup_prover_key = widget::lookup::ProverKey {
+            q_lookup: (selectors.q_lookup, q_lookup_eval_4n),
+        };
+
+        let prover_key = widget::PlookupProverKey {
             n: domain.size(),
             arithmetic: arithmetic_prover_key,
             logic: logic_prover_key,
@@ -199,6 +214,7 @@ impl StandardComposer {
             permutation: permutation_prover_key,
             variable_base: curve_addition_prover_key,
             fixed_base: ecc_prover_key,
+            lookup: lookup_prover_key,
             // Compute 4n evaluations for X^n -1
             v_h_coset_4n: domain_4n.compute_vanishing_poly_over_coset(domain.size() as u64),
         };
@@ -212,7 +228,7 @@ impl StandardComposer {
         &mut self,
         commit_key: &CommitKey,
         transcript: &mut Transcript,
-    ) -> Result<widget::VerifierKey, Error> {
+    ) -> Result<widget::PlookupVerifierKey, Error> {
         let (verifier_key, _, _) = self.preprocess_shared(commit_key, transcript)?;
         Ok(verifier_key)
     }
@@ -222,7 +238,7 @@ impl StandardComposer {
         &mut self,
         commit_key: &CommitKey,
         transcript: &mut Transcript,
-    ) -> Result<(widget::VerifierKey, SelectorPolynomials, EvaluationDomain), Error> {
+    ) -> Result<(widget::PlookupVerifierKey, PlookupSelectorPolynomials, EvaluationDomain), Error> {
         let domain = EvaluationDomain::new(self.circuit_size())?;
 
         // Check that the length of the wires is consistent.
@@ -244,6 +260,7 @@ impl StandardComposer {
             Polynomial::from_coefficients_slice(&domain.ifft(&self.q_fixed_group_add));
         let q_variable_group_add_poly =
             Polynomial::from_coefficients_slice(&domain.ifft(&self.q_variable_group_add));
+        let q_lookup_poly = Polynomial::from_coefficients_slice(&domain.ifft(&self.q_lookup));
 
         // 2. Compute the sigma polynomials
         let (left_sigma_poly, right_sigma_poly, out_sigma_poly, fourth_sigma_poly) =
@@ -264,6 +281,7 @@ impl StandardComposer {
         let q_variable_group_add_poly_commit = commit_key
             .commit(&q_variable_group_add_poly)
             .unwrap_or_default();
+        let q_lookup_poly_commit = commit_key.commit(&q_lookup_poly).unwrap_or_default();
 
         let left_sigma_poly_commit = commit_key.commit(&left_sigma_poly)?;
         let right_sigma_poly_commit = commit_key.commit(&right_sigma_poly)?;
@@ -271,7 +289,7 @@ impl StandardComposer {
         let fourth_sigma_poly_commit = commit_key.commit(&fourth_sigma_poly)?;
 
         // Verifier Key for arithmetic circuits
-        let arithmetic_verifier_key = widget::arithmetic::VerifierKey {
+        let arithmetic_verifier_key = widget::arithmetic::PlookupVerifierKey {
             q_m: q_m_poly_commit,
             q_l: q_l_poly_commit,
             q_r: q_r_poly_commit,
@@ -281,33 +299,39 @@ impl StandardComposer {
             q_arith: q_arith_poly_commit,
         };
         // Verifier Key for range circuits
-        let range_verifier_key = widget::range::VerifierKey {
+        let range_verifier_key = widget::range::PlookupVerifierKey {
             q_range: q_range_poly_commit,
         };
         // Verifier Key for logic circuits
-        let logic_verifier_key = widget::logic::VerifierKey {
+        let logic_verifier_key = widget::logic::PlookupVerifierKey {
             q_c: q_c_poly_commit,
             q_logic: q_logic_poly_commit,
         };
         // Verifier Key for ecc circuits
-        let ecc_verifier_key = widget::ecc::scalar_mul::fixed_base::VerifierKey {
+        let ecc_verifier_key = widget::ecc::scalar_mul::fixed_base::PlookupVerifierKey {
             q_l: q_l_poly_commit,
             q_r: q_r_poly_commit,
             q_fixed_group_add: q_fixed_group_add_poly_commit,
         };
         // Verifier Key for curve addition circuits
-        let curve_addition_verifier_key = widget::ecc::curve_addition::VerifierKey {
+        let curve_addition_verifier_key = widget::ecc::curve_addition::PlookupVerifierKey {
             q_variable_group_add: q_variable_group_add_poly_commit,
         };
+
+        // Verifier Key for lookup operations
+        let lookup_verifier_key = widget::lookup::PlookupVerifierKey {
+            q_lookup: q_lookup_poly_commit,
+        };
+
         // Verifier Key for permutation argument
-        let permutation_verifier_key = widget::permutation::VerifierKey {
+        let permutation_verifier_key = widget::permutation::PlookupVerifierKey {
             left_sigma: left_sigma_poly_commit,
             right_sigma: right_sigma_poly_commit,
             out_sigma: out_sigma_poly_commit,
             fourth_sigma: fourth_sigma_poly_commit,
         };
 
-        let verifier_key = widget::VerifierKey {
+        let verifier_key = widget::PlookupVerifierKey {
             n: self.circuit_size(),
             arithmetic: arithmetic_verifier_key,
             logic: logic_verifier_key,
@@ -315,9 +339,10 @@ impl StandardComposer {
             fixed_base: ecc_verifier_key,
             variable_base: curve_addition_verifier_key,
             permutation: permutation_verifier_key,
+            lookup: lookup_verifier_key,
         };
 
-        let selectors = SelectorPolynomials {
+        let selectors = PlookupSelectorPolynomials {
             q_m: q_m_poly,
             q_l: q_l_poly,
             q_r: q_r_poly,
@@ -329,6 +354,7 @@ impl StandardComposer {
             q_logic: q_logic_poly,
             q_fixed_group_add: q_fixed_group_add_poly,
             q_variable_group_add: q_variable_group_add_poly,
+            q_lookup: q_lookup_poly,
             left_sigma: left_sigma_poly,
             right_sigma: right_sigma_poly,
             out_sigma: out_sigma_poly,
@@ -349,9 +375,9 @@ mod test {
     #[test]
     /// Tests that the circuit gets padded to the correct length
     /// XXX: We can do this test without dummy_gadget method
-    fn test_pad() {
-        let mut composer: StandardComposer = StandardComposer::new();
-        dummy_gadget(100, &mut composer);
+    fn test_plookup_pad() {
+        let mut composer: PlookupComposer = PlookupComposer::new();
+        dummy_gadget_plookup(100, &mut composer);
 
         // Pad the circuit to next power of two
         let next_pow_2 = composer.n.next_power_of_two() as u64;
@@ -369,6 +395,7 @@ mod test {
         assert!(composer.q_logic.len() == size);
         assert!(composer.q_fixed_group_add.len() == size);
         assert!(composer.q_variable_group_add.len() == size);
+        assert!(composer.q_lookup.len() == size);
         assert!(composer.w_l.len() == size);
         assert!(composer.w_r.len() == size);
         assert!(composer.w_o.len() == size);

@@ -9,7 +9,12 @@
 pub(crate) mod linearisation_poly;
 mod preprocess;
 
-/// Represents a PLONK Proof
+pub(crate) mod lookup_quotient;
+
+pub(crate) mod lookup_lineariser;
+mod plookup_preprocess;
+
+/// Represents PLONK and plookup Proofs
 pub mod proof;
 pub(crate) mod proof_system_errors;
 /// Represents a PLONK Prover
@@ -19,7 +24,7 @@ pub(crate) mod quotient_poly;
 pub mod verifier;
 pub(crate) mod widget;
 
-pub use proof::Proof;
-pub use prover::Prover;
-pub use verifier::Verifier;
-pub use widget::{ProverKey, VerifierKey};
+pub use proof::{PlookupProof, Proof};
+pub use prover::{PlookupProver, Prover};
+pub use verifier::{PlookupVerifier,Verifier};
+pub use widget::{ProverKey, PlookupProverKey, VerifierKey, PlookupVerifierKey};

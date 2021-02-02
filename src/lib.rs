@@ -62,6 +62,7 @@ pub mod commitment_scheme;
 pub mod constraint_system;
 pub mod fft;
 mod permutation;
+pub mod plookup;
 pub mod prelude;
 pub mod proof_system;
 mod serialisation;
