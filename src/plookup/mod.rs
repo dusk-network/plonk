@@ -12,7 +12,7 @@
 //! computing them.
 
 pub mod error;
-/// Multiset 
+/// Multiset
 pub mod multiset;
 /// hello
 pub mod table;

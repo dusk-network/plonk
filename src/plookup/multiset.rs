@@ -4,16 +4,16 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use crate::plookup::error::PlookupErrors;
 use crate::bls12_381::BlsScalar;
 use crate::fft::{EvaluationDomain, Polynomial};
+use crate::plookup::error::PlookupErrors;
 use std::ops::{Add, Mul};
 
 /// MultiSet is struct containing vectors of scalars, which
 /// individually represents either a wire value or an index
 /// of a PlookUp table
 #[derive(Clone, Eq, PartialEq, Debug)]
-pub struct MultiSet(Vec<BlsScalar>);
+pub struct MultiSet(pub Vec<BlsScalar>);
 
 impl Default for MultiSet {
     fn default() -> Self {
@@ -194,8 +194,8 @@ impl Mul for MultiSet {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::plookup::WitnessTable3Arity;
     use crate::fft::EvaluationDomain;
+    use crate::plookup::WitnessTable3Arity;
 
     #[test]
     fn test_halve() {
