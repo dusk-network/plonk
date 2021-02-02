@@ -10,6 +10,7 @@
 //! build, preprocess circuits.
 pub(crate) mod composer;
 pub(crate) mod cs_errors;
+pub(crate) mod plookup_composer;
 pub(crate) mod variable;
 
 /// Simple Arithmetic gates
@@ -26,4 +27,5 @@ pub mod logic;
 pub mod range;
 
 pub use composer::StandardComposer;
+pub use plookup_composer::PlookupComposer;
 pub use variable::{Variable, WireData};
