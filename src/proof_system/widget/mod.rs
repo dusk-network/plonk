@@ -7,9 +7,9 @@
 pub mod arithmetic;
 pub mod ecc;
 pub mod logic;
+pub mod lookup;
 pub mod permutation;
 pub mod range;
-pub mod lookup;
 
 use crate::fft::Evaluations;
 use crate::transcript::TranscriptProtocol;
@@ -634,7 +634,6 @@ pub struct PlookupVerifierKey {
     pub permutation: permutation::PlookupVerifierKey,
 }
 
-
 impl PlookupVerifierKey {
     /// Serialises a VerifierKey to bytes
     pub fn to_bytes(&self) -> Vec<u8> {
@@ -833,7 +832,7 @@ impl PlookupProverKey {
 
         // Curve addition
         write_polynomial(&self.variable_base.q_variable_group_add.0, &mut bytes);
-        
+
         // Lookup
         write_polynomial(&self.lookup.q_lookup.0, &mut bytes);
         write_evaluations(&self.lookup.q_lookup.1, &mut bytes);
@@ -954,9 +953,7 @@ impl PlookupProverKey {
             q_c,
         };
 
-        let lookup = lookup::ProverKey {
-            q_lookup,
-        };
+        let lookup = lookup::ProverKey { q_lookup };
 
         let permutation = permutation::ProverKey {
             left_sigma,

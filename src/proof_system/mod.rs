@@ -26,5 +26,5 @@ pub(crate) mod widget;
 
 pub use proof::{PlookupProof, Proof};
 pub use prover::{PlookupProver, Prover};
-pub use verifier::{PlookupVerifier,Verifier};
-pub use widget::{ProverKey, PlookupProverKey, VerifierKey, PlookupVerifierKey};
+pub use verifier::{PlookupVerifier, Verifier};
+pub use widget::{PlookupProverKey, PlookupVerifierKey, ProverKey, VerifierKey};

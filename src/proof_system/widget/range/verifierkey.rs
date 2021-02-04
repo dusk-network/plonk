@@ -39,7 +39,6 @@ impl VerifierKey {
     }
 }
 
-
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub struct PlookupVerifierKey {
     pub q_range: Commitment,

@@ -9,7 +9,7 @@ use crate::commitment_scheme::kzg10::CommitKey;
 use crate::constraint_system::{PlookupComposer, StandardComposer, Variable};
 use crate::fft::{EvaluationDomain, Polynomial};
 use crate::plookup::{MultiSet, PlookupTable4Arity, PreprocessedTable4Arity};
-use crate::proof_system::widget::{ProverKey, PlookupProverKey};
+use crate::proof_system::widget::{PlookupProverKey, ProverKey};
 use crate::proof_system::{
     linearisation_poly, lookup_lineariser, lookup_quotient,
     proof::{PlookupProof, Proof},
@@ -392,7 +392,7 @@ pub(crate) fn split_tx_poly(
 /// Prover composes a circuit and builds a proof
 #[allow(missing_debug_implementations)]
 pub struct PlookupProver {
-    /// ProverKey which is used to create proofs about a specific PLONK circuit
+    /// ProverKey which is used to create proofs about a specific plookup circuit
     pub prover_key: Option<PlookupProverKey>,
 
     pub(crate) cs: PlookupComposer,
@@ -405,17 +405,6 @@ impl PlookupProver {
     /// Returns a mutable copy of the underlying composer
     pub fn mut_cs(&mut self) -> &mut PlookupComposer {
         &mut self.cs
-    }
-    /// Preprocesses the underlying constraint system
-    pub fn preprocess(&mut self, commit_key: &CommitKey) -> Result<(), Error> {
-        if self.prover_key.is_some() {
-            return Err(ProofErrors::CircuitAlreadyPreprocessed.into());
-        }
-        let pk = self
-            .cs
-            .preprocess_prover(commit_key, &mut self.preprocessed_transcript)?;
-        self.prover_key = Some(pk);
-        Ok(())
     }
 }
 
@@ -435,6 +424,18 @@ impl PlookupProver {
         }
     }
 
+    /// Preprocesses the underlying constraint system
+    pub fn preprocess(&mut self, commit_key: &CommitKey) -> Result<(), Error> {
+        if self.prover_key.is_some() {
+            return Err(ProofErrors::CircuitAlreadyPreprocessed.into());
+        }
+        let pk = self
+            .cs
+            .preprocess_prover(commit_key, &mut self.preprocessed_transcript)?;
+        self.prover_key = Some(pk);
+        Ok(())
+    }
+
     /// Creates a new prover object with some expected size.
     pub fn with_expected_size(label: &'static [u8], size: usize) -> PlookupProver {
         PlookupProver {
@@ -451,6 +452,12 @@ impl PlookupProver {
     /// Convert variables to their actual witness values.
     pub(crate) fn to_scalars(&self, vars: &[Variable]) -> Vec<BlsScalar> {
         vars.par_iter().map(|var| self.cs.variables[var]).collect()
+    }
+
+    /// Keys the transcript with additional seed information
+    /// Wrapper around transcript.append_message
+    pub fn key_transcript(&mut self, label: &'static [u8], message: &[u8]) {
+        self.preprocessed_transcript.append_message(label, message);
     }
 
     /// Creates a Proof that a circuit is satisfied
@@ -792,8 +799,9 @@ impl PlookupProver {
     /// also be computed
     pub fn prove(&mut self, commit_key: &CommitKey) -> Result<PlookupProof, Error> {
         let prover_key: &PlookupProverKey;
-        let plookup_table = PlookupTable4Arity::new();
-        let lookup_table = PreprocessedTable4Arity::preprocess(plookup_table, &commit_key, 4);
+        let mut plookup_table = PlookupTable4Arity::new();
+        plookup_table.insert_multi_mul(0, 3);
+        let lookup_table = PreprocessedTable4Arity::preprocess(plookup_table, &commit_key, 3);
 
         if self.prover_key.is_none() {
             // Preprocess circuit

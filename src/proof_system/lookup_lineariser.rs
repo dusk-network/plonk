@@ -5,7 +5,7 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use crate::fft::{EvaluationDomain, Polynomial};
-use crate::proof_system::widget::{ProverKey, PlookupProverKey};
+use crate::proof_system::widget::{PlookupProverKey, ProverKey};
 use anyhow::{Error, Result};
 use dusk_bls12_381::BlsScalar;
 // Evaluations of points from a plookup protocol at `z` or and `z * root of unity`

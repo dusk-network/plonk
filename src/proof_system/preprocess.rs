@@ -36,7 +36,6 @@ pub(crate) struct SelectorPolynomials {
     fourth_sigma: Polynomial,
 }
 
-
 impl StandardComposer {
     /// Pads the circuit to the next power of two
     /// `diff` is the difference between circuit size and next power of two.

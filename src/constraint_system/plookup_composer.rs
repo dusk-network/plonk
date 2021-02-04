@@ -357,11 +357,6 @@ impl PlookupComposer {
         b: Variable,
         c: Variable,
         d: Option<Variable>,
-        q_l: BlsScalar,
-        q_r: BlsScalar,
-        q_o: BlsScalar,
-        q_4: BlsScalar,
-        q_c: BlsScalar,
         pi: BlsScalar,
     ) -> Variable {
         // Check if advice wire has a value
@@ -370,17 +365,23 @@ impl PlookupComposer {
             None => self.zero_var,
         };
 
-        self.w_l.push(a);
-        self.w_r.push(b);
-        self.w_o.push(c);
-        self.w_4.push(d);
+        self.w_l.push(self.zero_var);
+        self.w_r.push(self.zero_var);
+        self.w_o.push(self.zero_var);
+        self.w_4.push(self.zero_var);
+
+        // Push plookup values
+        self.f_1.push(a);
+        self.f_2.push(b);
+        self.f_3.push(c);
+        self.f_4.push(d);
 
         // Add selector vectors
-        self.q_l.push(q_l);
-        self.q_r.push(q_r);
-        self.q_o.push(q_o);
-        self.q_c.push(q_c);
-        self.q_4.push(q_4);
+        self.q_l.push(BlsScalar::zero());
+        self.q_r.push(BlsScalar::zero());
+        self.q_o.push(BlsScalar::zero());
+        self.q_c.push(BlsScalar::zero());
+        self.q_4.push(BlsScalar::zero());
         self.q_arith.push(BlsScalar::zero());
         self.q_m.push(BlsScalar::zero());
         self.q_range.push(BlsScalar::zero());
@@ -408,8 +409,61 @@ mod tests {
     use super::*;
     use crate::commitment_scheme::kzg10::PublicParameters;
     use crate::plookup::{PlookupTable4Arity, PreprocessedTable4Arity};
-    use crate::proof_system::{Prover, Verifier, PlookupProver, PlookupVerifier};
-    
+    use crate::proof_system::{PlookupProver, PlookupVerifier, Prover, Verifier};
+
+    #[test]
+    #[ignore]
+    fn test_plookup_full() {
+        let public_parameters = PublicParameters::setup(2 * 30, &mut rand::thread_rng()).unwrap();
+        let mut composer = PlookupComposer::new();
+
+        let mut lookup_table = PlookupTable4Arity::new();
+        lookup_table.insert_multi_mul(0, 3);
+
+        // Create a prover struct
+        let mut prover = PlookupProver::new(b"test");
+
+        // add tp trans
+        prover.key_transcript(b"key", b"additional seed information");
+
+        let output = lookup_table.lookup(BlsScalar::from(2), BlsScalar::from(3), BlsScalar::one());
+
+        let two = composer.add_witness_to_circuit_description(BlsScalar::from(2));
+        let three = composer.add_witness_to_circuit_description(BlsScalar::from(3));
+        let result = composer.add_witness_to_circuit_description(output.unwrap());
+        let one = composer.add_witness_to_circuit_description(BlsScalar::one());
+
+        composer.plookup_gate(two, three, result, Some(one), BlsScalar::one());
+        composer.plookup_gate(two, three, result, Some(one), BlsScalar::one());
+        composer.plookup_gate(two, three, result, Some(one), BlsScalar::one());
+        composer.plookup_gate(two, three, result, Some(one), BlsScalar::one());
+        composer.plookup_gate(two, three, result, Some(one), BlsScalar::one());
+
+        composer.big_add(
+            (BlsScalar::one(), two),
+            (BlsScalar::one(), three),
+            None,
+            BlsScalar::zero(),
+            BlsScalar::zero(),
+        );
+
+        // Commit Key
+        let (ck, _) = public_parameters.trim(2 * 20).unwrap();
+
+        let preprocessed_table = PreprocessedTable4Arity::preprocess(lookup_table, &ck, 3);
+
+        // Commit Key
+        let (ck, _) = public_parameters.trim(2 * 20).unwrap();
+
+        // Preprocess circuit
+        prover.preprocess(&ck);
+
+        // Once the prove method is called, the public inputs are cleared
+        // So pre-fetch these before calling Prove
+        let public_inputs = prover.cs.public_inputs.clone();
+
+        (prover.prove(&ck), public_inputs);
+    }
 
     #[test]
     /// Tests that a circuit initially has 3 gates
@@ -422,7 +476,6 @@ mod tests {
         assert_eq!(3, composer.circuit_size())
     }
 
-
     #[test]
     #[ignore]
     // XXX: Move this to integration tests
@@ -433,7 +486,7 @@ mod tests {
         let mut prover = PlookupProver::new(b"demo");
 
         // Add gadgets
-        dummy_gadget_plookup(10, prover.mut_cs());
+        dummy_gadget_plookup(4, prover.mut_cs());
 
         // Commit Key
         let (ck, _) = public_parameters.trim(2 * 20).unwrap();
@@ -444,7 +497,7 @@ mod tests {
         let public_inputs = prover.cs.public_inputs.clone();
 
         let proof = prover.prove(&ck).unwrap();
-    
+
         let plookup_table = PlookupTable4Arity::new();
         let lookup_table = PreprocessedTable4Arity::preprocess(plookup_table, &ck, 4);
 
@@ -461,6 +514,8 @@ mod tests {
         // Preprocess
         verifier.preprocess(&ck).unwrap();
 
-        assert!(verifier.verify(&proof, &vk, &public_inputs, &lookup_table.unwrap()).is_ok());
+        assert!(verifier
+            .verify(&proof, &vk, &public_inputs, &lookup_table.unwrap())
+            .is_ok());
     }
 }

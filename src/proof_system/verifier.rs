@@ -5,13 +5,13 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use crate::commitment_scheme::kzg10::{CommitKey, OpeningKey};
-use crate::constraint_system::{StandardComposer, PlookupComposer};
-use crate::proof_system::widget::{VerifierKey, PlookupVerifierKey};
-use crate::proof_system::{Proof, PlookupProof};
+use crate::constraint_system::{PlookupComposer, StandardComposer};
+use crate::plookup::{MultiSet, PreprocessedTable4Arity};
+use crate::proof_system::widget::{PlookupVerifierKey, VerifierKey};
+use crate::proof_system::{PlookupProof, Proof};
 use anyhow::{Error, Result};
 use dusk_bls12_381::BlsScalar;
 use merlin::Transcript;
-use crate::plookup::{MultiSet, PreprocessedTable4Arity};
 /// Verifier verifies a proof
 #[allow(missing_debug_implementations)]
 pub struct Verifier {

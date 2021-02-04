@@ -190,7 +190,7 @@ impl StandardComposer {
     /// the largest amount of performance and the minimum circuit-size
     /// possible. Since it defaults some of the selector coeffs = 0 in order
     /// to reduce the verbosity and complexity.
-    /// 
+    ///
     ///
     /// Forces `q_l * w_l + q_r * w_r + q_4 * w_4 + q_c + PI = w_o(computed by the gate)`.
     pub fn big_add(
@@ -296,7 +296,7 @@ impl PlookupComposer {
 
     /// Adds a width-4 add gate to the plookup circuit and it's corresponding
     /// constraint.
-     fn big_add_gate(
+    fn big_add_gate(
         &mut self,
         a: Variable,
         b: Variable,
