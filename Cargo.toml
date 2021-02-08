@@ -43,24 +43,24 @@ tempdir = "0.3"
 [package.metadata.docs.rs]
 rustdoc-args = [ "--html-in-header", "katex-header.html" ]
 
-#[features]
-#default = ["std"]
-#std = [
-#    "dusk-bls12_381/default",
-#    "dusk-jubjub/std",
-#    "serde/default",
-#    "merlin/default",
-#    "itertools",
-#    "rayon",
-#    "anyhow",
-#    "thiserror",
-#    "rand"
-#]
-#nightly = []
-#trace = []
-#trace-print = ["trace"]
-#canon = [
-#    "dusk-bls12_381/canon",
-#    "dusk-jubjub/canon",
-#    "canonical"
-#]
+[features]
+default = ["std"]
+std = [
+    "dusk-bls12_381/default",
+    "dusk-jubjub/std",
+    "serde/default",
+    "merlin/default",
+    "itertools",
+    "rayon",
+    "anyhow",
+    "thiserror",
+    "rand"
+]
+nightly = []
+trace = []
+trace-print = ["trace"]
+canon = [
+    "dusk-bls12_381/canon",
+    "dusk-jubjub/canon",
+    "canonical"
+]
