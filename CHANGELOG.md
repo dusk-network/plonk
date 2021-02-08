@@ -6,8 +6,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [0.5.1] - 02-02-21
+### Changed
+- Implement `Clone` for `PublicParameters` [#383](https://github.com/dusk-network/plonk/issues/383)
+
+## [0.5.0] - 27-01-21
+### Changed
+- Upgrade canonical to v0.5 (#371)
+- Upgrade dusk-bls12_381 to v0.6
+- Upgrade dusk-jubjub to v0.8
+
+## [0.4.0] - 26-01-21
+### Fixed
+- Heavy data structures from unchecked [#332](https://github.com/dusk-network/plonk/issues/332)
 ### Changed
 - Refactored to/from_bytes criteria for some structs (#333)
+- API breaking - Implement to/from unchecked bytes for public parameters (#332)
 
 ## [0.4.0] - 24-12-20
 ### Added 

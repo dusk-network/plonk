@@ -8,6 +8,7 @@ use crate::bit_iterator::*;
 use crate::constraint_system::StandardComposer;
 use crate::constraint_system::{Variable, WireData};
 use dusk_bls12_381::BlsScalar;
+use dusk_bytes::Serializable;
 
 impl StandardComposer {
     // Performs a logical AND or XOR op between the inputs provided for the specified

@@ -7,6 +7,7 @@
 use crate::constraint_system::ecc::{Point, PointScalar};
 use crate::constraint_system::{variable::Variable, StandardComposer};
 use dusk_bls12_381::BlsScalar;
+use dusk_bytes::Serializable;
 
 /// Computes a BlsScalar multiplication with the input scalar and a chosen generator
 pub fn variable_base_scalar_mul(

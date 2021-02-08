@@ -13,6 +13,7 @@ use anyhow::{Error, Result};
 use dusk_bls12_381::{
     multiscalar_mul::msm_variable_base, BlsScalar, G1Affine, G1Projective, G2Affine, G2Prepared,
 };
+use dusk_bytes::Serializable;
 use merlin::Transcript;
 
 /// Opening Key is used to verify opening proofs made about a committed polynomial.
@@ -31,13 +32,54 @@ pub struct OpeningKey {
 }
 
 /// CommitKey is used to commit to a polynomial which is bounded by the max_degree.
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct CommitKey {
     /// Group elements of the form `{ \beta^i G }`, where `i` ranges from 0 to `degree`.
     pub powers_of_g: Vec<G1Affine>,
 }
 
 impl CommitKey {
+    /// Serialize the `CommitKey` into bytes.
+    ///
+    /// Will consume twice the bytes of `into_bytes`
+    pub fn to_raw_bytes(&self) -> Vec<u8> {
+        let mut bytes = Vec::with_capacity(8 + self.powers_of_g.len() * G1Affine::RAW_SIZE);
+
+        let len = self.powers_of_g.len() as u64;
+        let len = len.to_le_bytes();
+        bytes.extend_from_slice(&len);
+
+        self.powers_of_g
+            .iter()
+            .for_each(|g| bytes.extend_from_slice(&g.to_raw_bytes()));
+
+        bytes
+    }
+
+    /// Deserialize `CommitKey` from a set of bytes created by `to_bytes_unchecked`
+    ///
+    /// The bytes source is expected to be trusted and no check will be performed reggarding the
+    /// points security
+    pub unsafe fn from_slice_unchecked(bytes: &[u8]) -> Self {
+        if bytes.len() < 9 {
+            return Self {
+                powers_of_g: vec![],
+            };
+        }
+
+        let mut len = [0u8; 8];
+        len.copy_from_slice(&bytes[..8]);
+        let len = u64::from_le_bytes(len);
+
+        let powers_of_g = bytes[8..]
+            .chunks_exact(G1Affine::RAW_SIZE)
+            .zip(0..len)
+            .map(|(c, _)| G1Affine::from_slice_unchecked(c))
+            .collect();
+
+        Self { powers_of_g }
+    }
+
     /// Serialises the commitment Key to a byte slice
     pub fn into_bytes(&self) -> Vec<u8> {
         use crate::serialisation::{write_g1_affine, write_u64};
@@ -209,12 +251,14 @@ impl OpeningKey {
             prepared_h,
         }
     }
+
     /// Serialises an Opening Key to bytes
     pub fn to_bytes(&self) -> [u8; Self::serialized_size()] {
         let mut bytes = [0u8; Self::serialized_size()];
-        bytes[0..48].copy_from_slice(&self.g.to_compressed());
-        bytes[48..144].copy_from_slice(&self.h.to_compressed());
-        bytes[144..Self::serialized_size()].copy_from_slice(&self.beta_h.to_compressed());
+
+        bytes[0..48].copy_from_slice(&self.g.to_bytes());
+        bytes[48..144].copy_from_slice(&self.h.to_bytes());
+        bytes[144..Self::serialized_size()].copy_from_slice(&self.beta_h.to_bytes());
 
         bytes
     }
@@ -318,8 +362,8 @@ fn check_degree_is_within_bounds(max_degree: usize, poly_degree: usize) -> Resul
 }
 #[cfg(test)]
 mod test {
-    use super::super::srs::*;
-    use super::*;
+    use crate::fft::Polynomial;
+    use crate::prelude::*;
     use merlin::Transcript;
 
     // Creates a proving key and verifier key based on a specified degree
@@ -479,5 +523,17 @@ mod test {
         let obtained_key = OpeningKey::from_bytes(&ok_bytes).expect("CommitKey conversion error");
 
         assert_eq!(opening_key.to_bytes(), obtained_key.to_bytes());
+    }
+
+    #[test]
+    fn commit_key_bytes_unchecked() {
+        let (ck, _) = setup_test(7);
+
+        let ck_p = unsafe {
+            let bytes = ck.to_raw_bytes();
+            CommitKey::from_slice_unchecked(&bytes)
+        };
+
+        assert_eq!(ck, ck_p);
     }
 }

@@ -5,6 +5,7 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use dusk_bls12_381::{BlsScalar, G1Affine, G1Projective};
+use dusk_bytes::Serializable;
 
 #[cfg(feature = "std")]
 use anyhow::{Error, Result};
@@ -78,6 +79,14 @@ pub struct ProofEvaluations {
 }
 
 impl ProofEvaluations {
+    /// Serialized side of the structure
+    pub const fn serialized_size() -> usize {
+        const NUM_SCALARS: usize = 16;
+        const SCALAR_SIZE: usize = 32;
+
+        NUM_SCALARS * SCALAR_SIZE
+    }
+
     /// Serialises a Proof Evaluation struct to bytes
     pub fn to_bytes(&self) -> [u8; ProofEvaluations::serialized_size()] {
         let mut bytes = [0u8; ProofEvaluations::serialized_size()];
@@ -148,14 +157,6 @@ impl ProofEvaluations {
         };
 
         Ok(proof_evals)
-    }
-
-    /// Serialized side of the structure
-    pub const fn serialized_size() -> usize {
-        const NUM_SCALARS: usize = 16;
-        const SCALAR_SIZE: usize = 32;
-
-        NUM_SCALARS * SCALAR_SIZE
     }
 }
 

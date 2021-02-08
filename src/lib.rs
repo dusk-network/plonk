@@ -53,7 +53,6 @@
 #![deny(broken_intra_doc_links)]
 #![deny(missing_debug_implementations)]
 #![deny(missing_docs)]
-#![deny(unsafe_code)]
 
 /// Proof serialization definitions with no-std compatibility
 pub mod proof_structures;
@@ -99,12 +98,4 @@ pub mod notes {
     #[cfg(feature = "nightly")]
     #[doc(include = "../docs/notes-KZG10.md")]
     pub mod kzg10_docs {}
-}
-
-#[cfg(not(feature = "std"))]
-mod some_stuff {
-    #[panic_handler]
-    fn panic(_: &core::panic::PanicInfo) -> ! {
-        loop {}
-    }
 }

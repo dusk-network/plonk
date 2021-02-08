@@ -8,6 +8,7 @@ use crate::fft::{EvaluationDomain, Polynomial};
 pub use crate::proof_structures::ProofEvaluations;
 use crate::proof_system::widget::ProverKey;
 use dusk_bls12_381::BlsScalar;
+
 /// Evaluations at points `z` or and `z * root of unity`
 pub struct Evaluations {
     pub proof: ProofEvaluations,

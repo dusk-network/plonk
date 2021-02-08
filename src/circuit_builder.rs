@@ -11,6 +11,7 @@ use crate::constraint_system::StandardComposer;
 use crate::proof_system::{Proof, ProverKey, VerifierKey};
 use anyhow::Result;
 use dusk_bls12_381::BlsScalar;
+use dusk_bytes::Serializable;
 use dusk_jubjub::{JubJubAffine, JubJubScalar};
 use thiserror::Error;
 
@@ -68,22 +69,18 @@ impl PublicInput {
             let mut array_bytes = [0u8; 32];
             array_bytes.copy_from_slice(&bytes[1..Self::serialized_size()]);
             match bytes[0] {
-                BLS_SCALAR => Ok(Self::BlsScalar(
-                    Option::from(BlsScalar::from_bytes(&array_bytes))
-                        .ok_or_else(|| CircuitErrors::InvalidPublicInputBytes.into())?,
-                    0,
-                )),
-                JUBJUB_SCALAR => Ok(Self::JubJubScalar(
-                    Option::from(JubJubScalar::from_bytes(&array_bytes))
-                        .ok_or_else(|| CircuitErrors::InvalidPublicInputBytes.into())?,
-                    0,
-                )),
-                JUBJUB_AFFINE => Ok(Self::AffinePoint(
-                    Option::from(JubJubAffine::from_bytes(array_bytes))
-                        .ok_or_else(|| CircuitErrors::InvalidPublicInputBytes.into())?,
-                    0,
-                    0,
-                )),
+                BLS_SCALAR => BlsScalar::from_bytes(&array_bytes)
+                    .map(|s| Self::BlsScalar(s, 0))
+                    .map_err(|_| CircuitErrors::InvalidPublicInputBytes),
+
+                JUBJUB_SCALAR => JubJubScalar::from_bytes(&array_bytes)
+                    .map(|s| Self::JubJubScalar(s, 0))
+                    .map_err(|_| CircuitErrors::InvalidPublicInputBytes),
+
+                JUBJUB_AFFINE => JubJubAffine::from_bytes(&array_bytes)
+                    .map(|s| Self::AffinePoint(s, 0, 0))
+                    .map_err(|_| CircuitErrors::InvalidPublicInputBytes),
+
                 _ => unreachable!(),
             }
         }
@@ -311,36 +308,52 @@ mod tests {
 
     #[test]
     fn test_full() -> Result<()> {
+        use std::fs::{self, File};
+        use std::io::Write;
+        use tempdir::TempDir;
+
+        let tmp = TempDir::new("plonk-keys-test-full")?.into_path();
+        let pp_path = tmp.clone().join("pp_testcirc");
+        let pk_path = tmp.clone().join("pk_testcirc");
+        let vk_path = tmp.clone().join("vk_testcirc");
+
         // Generate CRS
-        let pub_params = PublicParameters::setup(1 << 10, &mut rand::thread_rng())?;
+        let pp_p = PublicParameters::setup(1 << 10, &mut rand::thread_rng())?;
+        File::create(&pp_path).and_then(|mut f| f.write(pp_p.to_raw_bytes().as_slice()))?;
 
-        {
-            // Generate circuit compilation params
-            let inputs = [
-                BlsScalar::from(25u64),
-                BlsScalar::from(5u64),
-                BlsScalar::from(30u64),
-                BlsScalar::from(125u64),
-            ];
+        // Read PublicParameters
+        let pp = fs::read(pp_path)?;
+        let pp = unsafe { PublicParameters::from_slice_unchecked(pp.as_slice())? };
 
-            // Initialize the circuit
-            let mut circuit = TestCircuit::default();
-            circuit.inputs = Some(&inputs);
-            // Compile the circuit
-            let (prover_key, verifier_key) = circuit.compile(&pub_params)?;
-            // Write the keys
-            use std::fs::File;
-            use std::io::Write;
-            let mut prover_file = File::create("pk_testcirc")?;
-            prover_file.write(prover_key.to_bytes()[..].as_ref())?;
-            let mut verifier_file = File::create("vk_testcirc")?;
-            verifier_file.write(verifier_key.to_bytes().as_ref())?;
-        };
+        // Generate circuit compilation params
+        let inputs = [
+            BlsScalar::from(25u64),
+            BlsScalar::from(5u64),
+            BlsScalar::from(30u64),
+            BlsScalar::from(125u64),
+        ];
+
+        // Initialize the circuit
+        let mut circuit = TestCircuit::default();
+        circuit.inputs = Some(&inputs);
+
+        // Compile the circuit
+        let (pk_p, vk_p) = circuit.compile(&pp)?;
+
+        // Write the keys
+        File::create(&pk_path).and_then(|mut f| f.write(pk_p.to_bytes().as_slice()))?;
+        File::create(&vk_path).and_then(|mut f| f.write(vk_p.to_bytes().as_slice()))?;
 
         // Read ProverKey
-        let prover_key = ProverKey::from_bytes(&std::fs::read("pk_testcirc")?[..]).unwrap();
+        let pk = fs::read(pk_path)?;
+        let pk = ProverKey::from_bytes(pk.as_slice())?;
+
         // Read VerifierKey
-        let verifier_key = VerifierKey::from_bytes(&std::fs::read("vk_testcirc")?[..]).unwrap();
+        let vk = fs::read(vk_path)?;
+        let vk = VerifierKey::from_bytes(vk.as_slice())?;
+
+        assert_eq!(pk, pk_p);
+        assert_eq!(vk, vk_p);
 
         // Generate new inputs
         // Generate circuit compilation params
@@ -351,11 +364,13 @@ mod tests {
             BlsScalar::from(100u64),
         ];
 
+        let label = b"Test";
+
         // Prover POV
         let proof = {
             let mut circuit = TestCircuit::default();
             circuit.inputs = Some(&inputs2);
-            circuit.gen_proof(&pub_params, &prover_key, b"Test")
+            circuit.gen_proof(&pp, &pk, label)
         }?;
 
         // Verifier POV
@@ -365,6 +380,9 @@ mod tests {
             PublicInput::BlsScalar(BlsScalar::from(25u64), 0),
             PublicInput::BlsScalar(BlsScalar::from(100u64), 0),
         ];
-        circuit.verify_proof(&pub_params, &verifier_key, b"Test", &proof, &public_inputs2)
+
+        circuit.verify_proof(&pp, &vk, label, &proof, &public_inputs2)?;
+
+        Ok(())
     }
 }

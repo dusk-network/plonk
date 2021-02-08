@@ -8,6 +8,7 @@
 //! which adds a few extra functionalities.
 use crate::commitment_scheme::kzg10::Commitment;
 use dusk_bls12_381::BlsScalar;
+use dusk_bytes::Serializable;
 use merlin::Transcript;
 
 /// Transcript adds an abstraction over the Merlin transcript
@@ -28,7 +29,7 @@ pub trait TranscriptProtocol {
 
 impl TranscriptProtocol for Transcript {
     fn append_commitment(&mut self, label: &'static [u8], comm: &Commitment) {
-        self.append_message(label, &comm.0.to_compressed());
+        self.append_message(label, &comm.0.to_bytes());
     }
 
     fn append_scalar(&mut self, label: &'static [u8], s: &BlsScalar) {

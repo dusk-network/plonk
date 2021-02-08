@@ -9,7 +9,7 @@
 use super::{EvaluationDomain, Evaluations};
 use crate::util;
 use dusk_bls12_381::BlsScalar;
-use rand::Rng;
+use rand_core::{CryptoRng, RngCore};
 use rayon::iter::{
     IndexedParallelIterator, IntoParallelIterator, IntoParallelRefIterator, ParallelIterator,
 };
@@ -119,7 +119,7 @@ impl Polynomial {
 
     /// Outputs a polynomial of degree `d` where each coefficient is sampled
     /// uniformly at random from the field `F`.
-    pub fn rand<R: Rng>(d: usize, mut rng: &mut R) -> Self {
+    pub fn rand<R: RngCore + CryptoRng>(d: usize, mut rng: &mut R) -> Self {
         let mut random_coeffs = Vec::with_capacity(d + 1);
         for _ in 0..=d {
             random_coeffs.push(util::random_scalar(&mut rng));
