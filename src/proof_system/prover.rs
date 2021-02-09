@@ -12,7 +12,7 @@ use crate::plookup::{MultiSet, PlookupTable4Arity, PreprocessedTable4Arity};
 use crate::proof_system::widget::{PlookupProverKey, ProverKey};
 use crate::proof_system::{
     linearisation_poly, lookup_lineariser, lookup_quotient,
-    proof::{PlookupProof, Proof},
+    proof::Proof, plookup_proof::PlookupProof,
     quotient_poly,
 };
 use crate::transcript::TranscriptProtocol;

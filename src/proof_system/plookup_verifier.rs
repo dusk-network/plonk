@@ -1,9 +1,3 @@
-// This Source Code Form is subject to the terms of the Mozilla Public
-// License, v. 2.0. If a copy of the MPL was not distributed with this
-// file, You can obtain one at http://mozilla.org/MPL/2.0/.
-//
-// Copyright (c) DUSK NETWORK. All rights reserved.
-
 use crate::commitment_scheme::kzg10::{CommitKey, OpeningKey};
 use crate::constraint_system::{PlookupComposer, StandardComposer};
 use crate::plookup::{MultiSet, PreprocessedTable4Arity};
@@ -12,13 +6,14 @@ use crate::proof_system::{PlookupProof, Proof};
 use anyhow::{Error, Result};
 use dusk_bls12_381::BlsScalar;
 use merlin::Transcript;
-/// Verifier verifies a proof
-#[allow(missing_debug_implementations)]
-pub struct Verifier {
-    /// VerificationKey which is used to verify a specific PLONK circuit
-    pub verifier_key: Option<VerifierKey>,
 
-    pub(crate) cs: StandardComposer,
+/// Verifier verifies a plookup proof
+#[allow(missing_debug_implementations)]
+pub struct PlookupVerifier {
+    /// VerificationKey which is used to verify a specific Plookup circuit
+    pub verifier_key: Option<PlookupVerifierKey>,
+
+    pub(crate) cs: PlookupComposer,
     /// Store the messages exchanged during the preprocessing stage
     /// This is copied each time, we make a proof, so that we can use the same verifier to
     /// Verify multiple proofs from the same circuit. If this is not copied, then the verification procedure will modify
@@ -26,27 +21,27 @@ pub struct Verifier {
     pub preprocessed_transcript: Transcript,
 }
 
-impl Default for Verifier {
-    fn default() -> Verifier {
-        Verifier::new(b"plonk")
+impl Default for PlookupVerifier {
+    fn default() -> PlookupVerifier {
+        PlookupVerifier::new(b"plookup")
     }
 }
 
-impl Verifier {
+impl PlookupVerifier {
     /// Creates a new verifier object
-    pub fn new(label: &'static [u8]) -> Verifier {
-        Verifier {
+    pub fn new(label: &'static [u8]) -> PlookupVerifier {
+        PlookupVerifier {
             verifier_key: None,
-            cs: StandardComposer::new(),
+            cs: PlookupComposer::new(),
             preprocessed_transcript: Transcript::new(label),
         }
     }
 
     /// Creates a new verifier object with some expected size.
-    pub fn with_expected_size(label: &'static [u8], size: usize) -> Verifier {
-        Verifier {
+    pub fn with_expected_size(label: &'static [u8], size: usize) -> PlookupVerifier {
+        PlookupVerifier {
             verifier_key: None,
-            cs: StandardComposer::with_expected_size(size),
+            cs: PlookupComposer::with_expected_size(size),
             preprocessed_transcript: Transcript::new(label),
         }
     }
@@ -57,7 +52,7 @@ impl Verifier {
     }
 
     /// Returns a mutable copy of the underlying composer
-    pub fn mut_cs(&mut self) -> &mut StandardComposer {
+    pub fn mut_cs(&mut self) -> &mut PlookupComposer {
         &mut self.cs
     }
 
@@ -80,9 +75,10 @@ impl Verifier {
     /// Verifies a proof
     pub fn verify(
         &self,
-        proof: &Proof,
+        proof: &PlookupProof,
         opening_key: &OpeningKey,
         public_inputs: &[BlsScalar],
+        lookup_table: &PreprocessedTable4Arity,
     ) -> Result<(), Error> {
         let mut cloned_transcript = self.preprocessed_transcript.clone();
         let verifier_key = self.verifier_key.as_ref().unwrap();
@@ -91,8 +87,8 @@ impl Verifier {
             verifier_key,
             &mut cloned_transcript,
             opening_key,
+            lookup_table,
             public_inputs,
         )
     }
 }
-

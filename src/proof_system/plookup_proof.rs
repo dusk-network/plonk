@@ -1,13 +1,7 @@
-// This Source Code Form is subject to the terms of the Mozilla Public
-// License, v. 2.0. If a copy of the MPL was not distributed with this
-// file, You can obtain one at http://mozilla.org/MPL/2.0/.
-//
-// Copyright (c) DUSK NETWORK. All rights reserved.
-
 //! A Proof stores the commitments to all of the elements that
 //! are needed to univocally identify a prove of some statement.
 //!
-//! This module contains the implementation of the `StandardComposer`s
+//! This module contains the implementation of the `PlookupComposer`s
 //! `Proof` structure and it's methods.
 
 use super::linearisation_poly::ProofEvaluations;
@@ -25,21 +19,10 @@ use merlin::Transcript;
 use serde::de::Visitor;
 use serde::{self, Deserialize, Deserializer, Serialize, Serializer};
 
-#[cfg(feature = "canon")]
-use canonical::{Canon, InvalidEncoding, Sink, Source, Store};
-
-/// Byte-size of a serialised `Proof`.
-pub const PROOF_SIZE: usize = Proof::serialised_size();
-
-/// A Proof is a composition of `Commitments` to the witness, permutation,
-/// quotient, shifted and opening polynomials as well as the
-/// `ProofEvaluations`.
-///
-/// It's main goal is to have a `verify()` method attached which contains the
-/// logic of the operations that the `Verifier` will need to do in order to
-/// formally verify the `Proof`.
+/// A plookup proof contains all of the fields of a plonk proof
+/// and then some additionally derived fields
 #[derive(Debug, Eq, PartialEq, Clone)]
-pub struct Proof {
+pub struct PlookupProof {
     /// Commitment to the witness polynomial for the left wires.
     pub a_comm: Commitment,
     /// Commitment to the witness polynomial for the right wires.
@@ -49,8 +32,20 @@ pub struct Proof {
     /// Commitment to the witness polynomial for the fourth wires.
     pub d_comm: Commitment,
 
+    /// Commitment to the lookup query polynomial.
+    pub f_comm: Commitment,
+
+    /// Commitment to first half of sorted polynomial
+    pub h_1_comm: Commitment,
+
+    /// Commitment to second half of sorted polynomial
+    pub h_2_comm: Commitment,
+
     /// Commitment to the permutation polynomial.
     pub z_comm: Commitment,
+
+    /// Commitment to the plookup permutation polynomial.
+    pub p_comm: Commitment,
 
     /// Commitment to the quotient polynomial.
     pub t_1_comm: Commitment,
@@ -65,64 +60,44 @@ pub struct Proof {
     pub w_z_comm: Commitment,
     /// Commitment to the shifted opening polynomial.
     pub w_zw_comm: Commitment,
+
     /// Subset of all of the evaluations added to the proof.
-    pub evaluations: ProofEvaluations,
+    pub evaluations: PlookupProofEvaluations,
 }
 
-impl_serde!(Proof);
-
-
-#[cfg(feature = "canon")]
-impl<S: Store> Canon<S> for Proof {
-    fn write(&self, sink: &mut impl Sink<S>) -> Result<(), S::Error> {
-        sink.copy_bytes(&self.to_bytes());
-        Ok(())
-    }
-
-    fn read(source: &mut impl Source<S>) -> Result<Self, S::Error> {
-        let mut bytes = [0u8; PROOF_SIZE];
-        bytes.copy_from_slice(source.read_bytes(PROOF_SIZE));
-        match Proof::from_bytes(&bytes) {
-            Ok(proof) => Ok(proof),
-            _ => Err(InvalidEncoding.into()),
-        }
-    }
-
-    fn encoded_len(&self) -> usize {
-        PROOF_SIZE
-    }
-}
-
-impl Proof {
+impl PlookupProof {
     /// Serialises a Proof struct
-    pub fn to_bytes(&self) -> [u8; PROOF_SIZE] {
-        let mut bytes = [0u8; PROOF_SIZE];
+    // pub fn to_bytes(&self) -> [u8; PROOF_SIZE] {
+    //     let mut bytes = [0u8; PROOF_SIZE];
+    //     bytes[0..48].copy_from_slice(&self.a_comm.0.to_compressed()[..]);
+    //     bytes[48..96].copy_from_slice(&self.b_comm.0.to_compressed()[..]);
+    //     bytes[96..144].copy_from_slice(&self.c_comm.0.to_compressed()[..]);
+    //     bytes[144..192].copy_from_slice(&self.d_comm.0.to_compressed()[..]);
+    //     bytes[192..240].copy_from_slice(&self.z_comm.0.to_compressed()[..]);
+    //     bytes[240..288].copy_from_slice(&self.t_1_comm.0.to_compressed()[..]);
+    //     bytes[288..336].copy_from_slice(&self.t_2_comm.0.to_compressed()[..]);
+    //     bytes[336..384].copy_from_slice(&self.t_3_comm.0.to_compressed()[..]);
+    //     bytes[384..432].copy_from_slice(&self.t_4_comm.0.to_compressed()[..]);
+    //     bytes[432..480].copy_from_slice(&self.w_z_comm.0.to_compressed()[..]);
+    //     bytes[480..528].copy_from_slice(&self.w_zw_comm.0.to_compressed()[..]);
+    //     bytes[528..PROOF_SIZE].copy_from_slice(&self.evaluations.to_bytes()[..]);
 
-        bytes[0..48].copy_from_slice(&self.a_comm.0.to_bytes()[..]);
-        bytes[48..96].copy_from_slice(&self.b_comm.0.to_bytes()[..]);
-        bytes[96..144].copy_from_slice(&self.c_comm.0.to_bytes()[..]);
-        bytes[144..192].copy_from_slice(&self.d_comm.0.to_bytes()[..]);
-        bytes[192..240].copy_from_slice(&self.z_comm.0.to_bytes()[..]);
-        bytes[240..288].copy_from_slice(&self.t_1_comm.0.to_bytes()[..]);
-        bytes[288..336].copy_from_slice(&self.t_2_comm.0.to_bytes()[..]);
-        bytes[336..384].copy_from_slice(&self.t_3_comm.0.to_bytes()[..]);
-        bytes[384..432].copy_from_slice(&self.t_4_comm.0.to_bytes()[..]);
-        bytes[432..480].copy_from_slice(&self.w_z_comm.0.to_bytes()[..]);
-        bytes[480..528].copy_from_slice(&self.w_zw_comm.0.to_bytes()[..]);
-        bytes[528..PROOF_SIZE].copy_from_slice(&self.evaluations.to_bytes()[..]);
-
-        bytes
-    }
+    //     bytes
+    // }
 
     /// Deserialises a Proof struct
-    pub fn from_bytes(bytes: &[u8]) -> Result<Proof, Error> {
+    pub fn from_bytes(bytes: &[u8]) -> Result<PlookupProof, Error> {
         use crate::serialisation::read_commitment;
 
         let (a_comm, rest) = read_commitment(bytes)?;
         let (b_comm, rest) = read_commitment(rest)?;
         let (c_comm, rest) = read_commitment(rest)?;
         let (d_comm, rest) = read_commitment(rest)?;
+        let (f_comm, rest) = read_commitment(rest)?;
+        let (h_1_comm, rest) = read_commitment(rest)?;
+        let (h_2_comm, rest) = read_commitment(rest)?;
         let (z_comm, rest) = read_commitment(rest)?;
+        let (p_comm, rest) = read_commitment(rest)?;
         let (t_1_comm, rest) = read_commitment(rest)?;
         let (t_2_comm, rest) = read_commitment(rest)?;
         let (t_3_comm, rest) = read_commitment(rest)?;
@@ -130,14 +105,18 @@ impl Proof {
         let (w_z_comm, rest) = read_commitment(rest)?;
         let (w_zw_comm, rest) = read_commitment(rest)?;
 
-        let evaluations = ProofEvaluations::from_bytes(rest);
+        let evaluations = PlookupProofEvaluations::from_bytes(rest);
 
-        let proof = Proof {
+        let proof = PlookupProof {
             a_comm,
             b_comm,
             c_comm,
             d_comm,
+            f_comm,
+            h_1_comm,
+            h_2_comm,
             z_comm,
+            p_comm,
             t_1_comm,
             t_2_comm,
             t_3_comm,
@@ -159,9 +138,10 @@ impl Proof {
     /// Performs the verification of a `Proof` returning a boolean result.
     pub(crate) fn verify(
         &self,
-        verifier_key: &VerifierKey,
+        verifier_key: &PlookupVerifierKey,
         transcript: &mut Transcript,
         opening_key: &OpeningKey,
+        lookup_table: &PreprocessedTable4Arity,
         pub_inputs: &[BlsScalar],
     ) -> Result<(), Error> {
         let domain = EvaluationDomain::new(verifier_key.n)?;
@@ -186,6 +166,13 @@ impl Proof {
         // Add commitment to permutation polynomial to transcript
         transcript.append_commitment(b"z", &self.z_comm);
 
+        // Compute delta and epsilon challenges
+        let delta = transcript.challenge_scalar(b"delta");
+        let epsilon = transcript.challenge_scalar(b"epsilon");
+
+        // Compute zeta compression challenge
+        let zeta = transcript.challenge_scalar(b"zeta");
+
         // Compute quotient challenge
         let alpha = transcript.challenge_scalar(b"alpha");
         let range_sep_challenge = transcript.challenge_scalar(b"range separation challenge");
@@ -194,6 +181,7 @@ impl Proof {
             transcript.challenge_scalar(b"fixed base separation challenge");
         let var_base_sep_challenge =
             transcript.challenge_scalar(b"variable base separation challenge");
+        let lookup_sep_challenge = transcript.challenge_scalar(b"lookup challenge");
 
         // Add commitment to quotient polynomial to transcript
         transcript.append_commitment(b"t_1", &self.t_1_comm);
@@ -210,6 +198,26 @@ impl Proof {
         // Compute first lagrange polynomial evaluated at `z_challenge`
         let l1_eval = compute_first_lagrange_evaluation(&domain, &z_h_eval, &z_challenge);
 
+        // Compute n'th Lagrange poly evaluated at `z_challenge`
+        let ln_eval = compute_nth_lagrange_evaluation(&domain, &z_h_eval, &z_challenge);
+
+        // Compress table into vector of single elements
+        let compressed_t = MultiSet::compress_four_arity(
+            [
+                &lookup_table.t_1.0,
+                &lookup_table.t_2.0,
+                &lookup_table.t_3.0,
+                &lookup_table.t_4.0,
+            ],
+            zeta,
+        );
+
+        // Compute table poly
+        let t = Polynomial::from_coefficients_vec(domain.ifft(&compressed_t.0.as_slice()));
+
+        let table_eval = t.evaluate(&z_challenge);
+        let table_next_eval = t.evaluate(&(z_challenge * domain.group_gen));
+
         // Compute quotient polynomial evaluated at `z_challenge`
         let t_eval = self.compute_quotient_evaluation(
             &domain,
@@ -217,9 +225,13 @@ impl Proof {
             &alpha,
             &beta,
             &gamma,
+            &delta,
+            &epsilon,
+            &zeta,
             &z_challenge,
             &z_h_eval,
             &l1_eval,
+            &ln_eval,
             &self.evaluations.perm_eval,
         );
 
@@ -242,6 +254,7 @@ impl Proof {
         transcript.append_scalar(b"q_c_eval", &self.evaluations.q_c_eval);
         transcript.append_scalar(b"q_l_eval", &self.evaluations.q_l_eval);
         transcript.append_scalar(b"q_r_eval", &self.evaluations.q_r_eval);
+        transcript.append_scalar(b"q_lookup_eval", &self.evaluations.q_lookup_eval);
         transcript.append_scalar(b"perm_eval", &self.evaluations.perm_eval);
         transcript.append_scalar(b"t_eval", &t_eval);
         transcript.append_scalar(b"r_eval", &self.evaluations.lin_poly_eval);
@@ -251,6 +264,8 @@ impl Proof {
             &alpha,
             &beta,
             &gamma,
+            &delta,
+            &epsilon,
             (
                 &range_sep_challenge,
                 &logic_sep_challenge,
@@ -259,6 +274,9 @@ impl Proof {
             ),
             &z_challenge,
             l1_eval,
+            ln_eval,
+            table_eval,
+            table_next_eval,
             &verifier_key,
         );
 
@@ -288,6 +306,8 @@ impl Proof {
             self.evaluations.out_sigma_eval,
             verifier_key.permutation.out_sigma,
         ));
+        aggregate_proof.add_part((self.evaluations.f_eval, self.f_comm));
+        aggregate_proof.add_part((self.evaluations.h_1_eval, self.h_1_comm));
         // Flatten proof with opening challenge
         let flattened_proof_a = aggregate_proof.flatten(transcript);
 
@@ -297,6 +317,9 @@ impl Proof {
         shifted_aggregate_proof.add_part((self.evaluations.a_next_eval, self.a_comm));
         shifted_aggregate_proof.add_part((self.evaluations.b_next_eval, self.b_comm));
         shifted_aggregate_proof.add_part((self.evaluations.d_next_eval, self.d_comm));
+        shifted_aggregate_proof.add_part((self.evaluations.h_1_next_eval, self.h_1_comm));
+        shifted_aggregate_proof.add_part((self.evaluations.h_2_next_eval, self.h_2_comm));
+        shifted_aggregate_proof.add_part((self.evaluations.lookup_perm_eval, self.p_comm));
         let flattened_proof_b = shifted_aggregate_proof.flatten(transcript);
 
         // Add commitment to openings to transcript
@@ -325,15 +348,32 @@ impl Proof {
         alpha: &BlsScalar,
         beta: &BlsScalar,
         gamma: &BlsScalar,
+        delta: &BlsScalar,
+        epsilon: &BlsScalar,
+        zeta: &BlsScalar,
         z_challenge: &BlsScalar,
         z_h_eval: &BlsScalar,
         l1_eval: &BlsScalar,
+        ln_eval: &BlsScalar,
         z_hat_eval: &BlsScalar,
     ) -> BlsScalar {
         // Compute the public input polynomial evaluated at `z_challenge`
         let pi_eval = compute_barycentric_eval(pub_inputs, z_challenge, domain);
 
+        // Compute powers of alpha
         let alpha_sq = alpha.square();
+        let alpha_cu = alpha_sq * alpha;
+        let alpha_4 = alpha_cu * alpha;
+        let alpha_5 = alpha_4 * alpha;
+        let alpha_6 = alpha_5 * alpha;
+        let alpha_7 = alpha_6 * alpha;
+
+        // Compute power of zeta
+        let zeta_sq = zeta.square();
+
+        // Compute common term
+        let epsilon_one_plus_delta = epsilon * (BlsScalar::one() + delta);
+
         // r + PI(z)
         let a = self.evaluations.lin_poly_eval + pi_eval;
 
@@ -357,8 +397,31 @@ impl Proof {
         // l_1(z) * alpha^2
         let c = l1_eval * alpha_sq;
 
+        // q_lookup(z) * (a + b*zeta + c*zeta^2) * alpha^3
+        let d_0 = self.evaluations.a_eval
+            + (self.evaluations.b_eval * zeta)
+            + (self.evaluations.c_eval * zeta_sq);
+        let d = self.evaluations.q_lookup_eval * d_0 * alpha_cu;
+
+        // l_1(z) * alpha^4
+        let e = l1_eval * alpha_4;
+
+        // (z - 1) * p_eval * (epsilon( 1+ delta) + h_1_eval +(delta * h_1_next_eval)(epsilon( 1+ delta) + delta * h_2_next_eval) * alpha^5
+        let f_0 = z_challenge - BlsScalar::one();
+        let f_1 = epsilon_one_plus_delta
+            + self.evaluations.h_1_eval
+            + (delta * self.evaluations.h_1_eval);
+        let f_2 = epsilon_one_plus_delta + (delta * self.evaluations.h_2_next_eval);
+        let f = f_0 * self.evaluations.lookup_perm_eval * f_1 * f_2 * alpha_5;
+
+        // l_n(z) * h_2_next_eval * alpha_5
+        let g = ln_eval * self.evaluations.h_2_next_eval * alpha_5;
+
+        // l_n(z) * alpha^7
+        let h = ln_eval * alpha_7;
+
         // Return t_eval
-        (a - b - c) * z_h_eval.invert().unwrap()
+        (a - b - c + d - e - f - g - h) * z_h_eval.invert().unwrap()
     }
 
     fn compute_quotient_commitment(&self, z_challenge: &BlsScalar, n: usize) -> Commitment {
@@ -379,6 +442,8 @@ impl Proof {
         alpha: &BlsScalar,
         beta: &BlsScalar,
         gamma: &BlsScalar,
+        delta: &BlsScalar,
+        epsilon: &BlsScalar,
         (
             range_sep_challenge,
             logic_sep_challenge,
@@ -387,7 +452,10 @@ impl Proof {
         ): (&BlsScalar, &BlsScalar, &BlsScalar, &BlsScalar),
         z_challenge: &BlsScalar,
         l1_eval: BlsScalar,
-        verifier_key: &VerifierKey,
+        ln_eval: BlsScalar,
+        t_eval: BlsScalar,
+        t_next_eval: BlsScalar,
+        verifier_key: &PlookupVerifierKey,
     ) -> Commitment {
         let mut scalars: Vec<_> = Vec::with_capacity(6);
         let mut points: Vec<G1Affine> = Vec::with_capacity(6);
@@ -426,14 +494,26 @@ impl Proof {
             &self.evaluations,
         );
 
+        verifier_key.lookup.compute_linearisation_commitment(
+            &mut scalars,
+            &mut points,
+            &self.evaluations,
+        );
+
         verifier_key.permutation.compute_linearisation_commitment(
             &mut scalars,
             &mut points,
             &self.evaluations,
             z_challenge,
-            (alpha, beta, gamma),
+            (alpha, beta, gamma, delta, epsilon),
             &l1_eval,
+            &ln_eval,
+            &t_eval,
+            &t_next_eval,
             self.z_comm.0,
+            self.h_1_comm.0,
+            self.h_2_comm.0,
+            self.p_comm.0,
         );
 
         Commitment::from_projective(msm_variable_base(&points, &scalars))
@@ -447,6 +527,17 @@ fn compute_first_lagrange_evaluation(
 ) -> BlsScalar {
     let n_fr = BlsScalar::from(domain.size() as u64);
     let denom = n_fr * (z_challenge - BlsScalar::one());
+    z_h_eval * denom.invert().unwrap()
+}
+
+fn compute_nth_lagrange_evaluation(
+    domain: &EvaluationDomain,
+    z_h_eval: &BlsScalar,
+    z_challenge: &BlsScalar,
+) -> BlsScalar {
+    let n_fr = BlsScalar::from(domain.size() as u64);
+    let eval_point = z_challenge * domain.group_gen;
+    let denom = n_fr * (eval_point - BlsScalar::one());
     z_h_eval * denom.invert().unwrap()
 }
 
