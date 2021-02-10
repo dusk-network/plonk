@@ -212,14 +212,18 @@ impl PlookupProof {
         let ln_eval = compute_nth_lagrange_evaluation(&domain, &z_h_eval, &z_challenge);
 
         // Compress table into vector of single elements
-        let mut compressed_t: Vec<BlsScalar> = lookup_table.0.iter().map(|arr| arr[0] + arr[1] * zeta + arr[2] * zeta * zeta + arr[3] * zeta * zeta * zeta).collect();
+        let mut compressed_t: Vec<BlsScalar> = lookup_table
+            .0
+            .iter()
+            .map(|arr| arr[0] + arr[1] * zeta + arr[2] * zeta * zeta + arr[3] * zeta * zeta * zeta)
+            .collect();
 
         // Sort table so we can be sure to choose an element that is not the highest or lowest
         compressed_t.sort();
         let second_element = compressed_t[1];
 
-        // Pad the table to the correct size with an element that is not the highest or lowest 
-        let pad = vec![second_element; domain.size()-compressed_t.len()];
+        // Pad the table to the correct size with an element that is not the highest or lowest
+        let pad = vec![second_element; domain.size() - compressed_t.len()];
         compressed_t.extend(pad);
 
         // Sort again to return t to sorted state

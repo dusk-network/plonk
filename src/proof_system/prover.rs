@@ -11,9 +11,8 @@ use crate::fft::{EvaluationDomain, Polynomial};
 use crate::plookup::{MultiSet, PlookupTable4Arity, PreprocessedTable4Arity};
 use crate::proof_system::widget::{PlookupProverKey, ProverKey};
 use crate::proof_system::{
-    linearisation_poly, lookup_lineariser, lookup_quotient,
-    proof::Proof, plookup_proof::PlookupProof,
-    quotient_poly,
+    linearisation_poly, lookup_lineariser, lookup_quotient, plookup_proof::PlookupProof,
+    proof::Proof, quotient_poly,
 };
 use crate::transcript::TranscriptProtocol;
 use anyhow::{Error, Result};
@@ -509,14 +508,18 @@ impl PlookupProver {
         let zeta = transcript.challenge_scalar(b"zeta");
 
         // Compress table into vector of single elements
-        let mut compressed_t: Vec<BlsScalar> = lookup_table.0.iter().map(|arr| arr[0] + arr[1] * zeta + arr[2] * zeta * zeta + arr[3] * zeta * zeta * zeta).collect();
+        let mut compressed_t: Vec<BlsScalar> = lookup_table
+            .0
+            .iter()
+            .map(|arr| arr[0] + arr[1] * zeta + arr[2] * zeta * zeta + arr[3] * zeta * zeta * zeta)
+            .collect();
 
         // Sort table so we can be sure to choose an element that is not the highest or lowest
         compressed_t.sort();
         let second_element = compressed_t[1];
 
-        // Pad the table to the correct size with an element that is not the highest or lowest 
-        let pad = vec![second_element; domain.size()-compressed_t.len()];
+        // Pad the table to the correct size with an element that is not the highest or lowest
+        let pad = vec![second_element; domain.size() - compressed_t.len()];
         compressed_t.extend(pad);
 
         // Sort again to return t to sorted state
@@ -526,16 +529,33 @@ impl PlookupProver {
         let compressed_t_multiset = MultiSet(compressed_t);
 
         // Compute table poly
-        let table_poly = Polynomial::from_coefficients_vec(domain.ifft(&compressed_t_multiset.0.as_slice()));
+        let table_poly =
+            Polynomial::from_coefficients_vec(domain.ifft(&compressed_t_multiset.0.as_slice()));
 
         // Compute table f
         // When q_lookup[i] is zero the wire value is replaced with a dummy value
         // Currently set as the first row of the public table
         // If q_lookup is one the wire values are preserved
-        let f_1_scalar = w_l_scalar.iter().zip(&self.cs.q_lookup).map(|(w, s)| w*s + (BlsScalar::one()-s) * compressed_t_multiset.0[1]).collect::<Vec<BlsScalar>>();
-        let f_2_scalar = w_r_scalar.iter().zip(&self.cs.q_lookup).map(|(w, s)| w*s).collect::<Vec<BlsScalar>>();
-        let f_3_scalar = w_o_scalar.iter().zip(&self.cs.q_lookup).map(|(w, s)| w*s).collect::<Vec<BlsScalar>>();
-        let f_4_scalar = w_4_scalar.iter().zip(&self.cs.q_lookup).map(|(w, s)| w*s).collect::<Vec<BlsScalar>>();
+        let f_1_scalar = w_l_scalar
+            .iter()
+            .zip(&self.cs.q_lookup)
+            .map(|(w, s)| w * s + (BlsScalar::one() - s) * compressed_t_multiset.0[1])
+            .collect::<Vec<BlsScalar>>();
+        let f_2_scalar = w_r_scalar
+            .iter()
+            .zip(&self.cs.q_lookup)
+            .map(|(w, s)| w * s)
+            .collect::<Vec<BlsScalar>>();
+        let f_3_scalar = w_o_scalar
+            .iter()
+            .zip(&self.cs.q_lookup)
+            .map(|(w, s)| w * s)
+            .collect::<Vec<BlsScalar>>();
+        let f_4_scalar = w_4_scalar
+            .iter()
+            .zip(&self.cs.q_lookup)
+            .map(|(w, s)| w * s)
+            .collect::<Vec<BlsScalar>>();
 
         // Compress table into vector of single elements
         // Skips first element so that f.len() = t.len() - 1
@@ -544,7 +564,7 @@ impl PlookupProver {
                 &MultiSet::from(&f_1_scalar[1..]),
                 &MultiSet::from(&f_2_scalar[1..]),
                 &MultiSet::from(&f_3_scalar[1..]),
-                &MultiSet::from(&f_4_scalar[1..])
+                &MultiSet::from(&f_4_scalar[1..]),
             ],
             zeta,
         );
@@ -630,7 +650,6 @@ impl PlookupProver {
 
         // Add permutation polynomial commitment to transcript
         transcript.append_commitment(b"p", &p_poly_commit);
-
 
         // 4. Compute quotient polynomial
         //

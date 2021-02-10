@@ -212,29 +212,38 @@ impl PlookupTable4Arity {
     pub fn new() -> Self {
         PlookupTable4Arity(vec![])
     }
-    
+
     /// Add 3 dummy rows at the beginning of the table to prevent errors caused by an empty table
     pub fn add_dummy_rows(&mut self) {
-        self.0.insert(0, [
-            BlsScalar::from(6),
-            BlsScalar::from(7),
-            -BlsScalar::from(20),
-            BlsScalar::from(1),
-        ]);
+        self.0.insert(
+            0,
+            [
+                BlsScalar::from(6),
+                BlsScalar::from(7),
+                -BlsScalar::from(20),
+                BlsScalar::from(1),
+            ],
+        );
 
-        self.0.insert(0, [
-            -BlsScalar::from(20),
-            BlsScalar::from(6),
-            BlsScalar::from(7),
-            BlsScalar::from(0),
-        ]);
+        self.0.insert(
+            0,
+            [
+                -BlsScalar::from(20),
+                BlsScalar::from(6),
+                BlsScalar::from(7),
+                BlsScalar::from(0),
+            ],
+        );
 
-        self.0.insert(0, [
-            BlsScalar::from(3),
-            BlsScalar::from(1),
-            BlsScalar::from(4),
-            BlsScalar::from(9),
-        ]);
+        self.0.insert(
+            0,
+            [
+                BlsScalar::from(3),
+                BlsScalar::from(1),
+                BlsScalar::from(4),
+                BlsScalar::from(9),
+            ],
+        );
     }
 
     /// Insert a new row for an addition operation.
