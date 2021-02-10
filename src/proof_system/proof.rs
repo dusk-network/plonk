@@ -71,7 +71,6 @@ pub struct Proof {
 
 impl_serde!(Proof);
 
-
 #[cfg(feature = "canon")]
 impl<S: Store> Canon<S> for Proof {
     fn write(&self, sink: &mut impl Sink<S>) -> Result<(), S::Error> {

@@ -31,11 +31,9 @@ pub(crate) mod widget;
 /// Represents a Plookup Verifier
 pub mod plookup_verifier;
 
-
-
 pub use plookup_proof::PlookupProof;
+pub use plookup_verifier::PlookupVerifier;
 pub use proof::Proof;
 pub use prover::{PlookupProver, Prover};
 pub use verifier::Verifier;
-pub use plookup_verifier::PlookupVerifier;
 pub use widget::{PlookupProverKey, PlookupVerifierKey, ProverKey, VerifierKey};
