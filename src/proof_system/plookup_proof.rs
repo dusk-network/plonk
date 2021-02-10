@@ -3,6 +3,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
+
 //! A Proof stores the commitments to all of the elements that
 //! are needed to univocally identify a prove of some statement.
 //!
