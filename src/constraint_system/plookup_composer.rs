@@ -68,12 +68,6 @@ pub struct PlookupComposer {
     pub(crate) w_o: Vec<Variable>,
     pub(crate) w_4: Vec<Variable>,
 
-    // Lookup queries
-    pub(crate) f_1: Vec<Variable>,
-    pub(crate) f_2: Vec<Variable>,
-    pub(crate) f_3: Vec<Variable>,
-    pub(crate) f_4: Vec<Variable>,
-
     /// A zero variable that is a part of the circuit description.
     /// We reserve a variable to be zero in the system
     /// This is so that when a gate only uses three wires, we set the fourth wire to be
@@ -146,11 +140,6 @@ impl PlookupComposer {
             w_r: Vec::with_capacity(expected_size),
             w_o: Vec::with_capacity(expected_size),
             w_4: Vec::with_capacity(expected_size),
-
-            f_1: Vec::with_capacity(expected_size),
-            f_2: Vec::with_capacity(expected_size),
-            f_3: Vec::with_capacity(expected_size),
-            f_4: Vec::with_capacity(expected_size),
 
             zero_var: Variable(0),
 
@@ -308,7 +297,7 @@ impl PlookupComposer {
         self.q_logic.push(BlsScalar::zero());
         self.q_fixed_group_add.push(BlsScalar::zero());
         self.q_variable_group_add.push(BlsScalar::zero());
-        self.q_lookup.push(BlsScalar::zero());
+        self.q_lookup.push(BlsScalar::one());
         self.public_inputs.push(BlsScalar::zero());
         let var_six = self.add_input(BlsScalar::from(6));
         let var_one = self.add_input(BlsScalar::from(1));
@@ -333,7 +322,7 @@ impl PlookupComposer {
         self.q_logic.push(BlsScalar::zero());
         self.q_fixed_group_add.push(BlsScalar::zero());
         self.q_variable_group_add.push(BlsScalar::zero());
-        self.q_lookup.push(BlsScalar::zero());
+        self.q_lookup.push(BlsScalar::one());
         self.public_inputs.push(BlsScalar::zero());
         self.w_l.push(var_min_twenty);
         self.w_r.push(var_six);
@@ -369,12 +358,6 @@ impl PlookupComposer {
         self.w_r.push(self.zero_var);
         self.w_o.push(self.zero_var);
         self.w_4.push(self.zero_var);
-
-        // Push plookup values
-        self.f_1.push(a);
-        self.f_2.push(b);
-        self.f_3.push(c);
-        self.f_4.push(d);
 
         // Add selector vectors
         self.q_l.push(BlsScalar::zero());
@@ -486,7 +469,7 @@ mod tests {
         let mut prover = PlookupProver::new(b"demo");
 
         // Add gadgets
-        dummy_gadget_plookup(4, prover.mut_cs());
+        //dummy_gadget_plookup(4, prover.mut_cs());
 
         // Commit Key
         let (ck, _) = public_parameters.trim(2 * 20).unwrap();
@@ -498,8 +481,8 @@ mod tests {
 
         let proof = prover.prove(&ck).unwrap();
 
-        let plookup_table = PlookupTable4Arity::new();
-        let lookup_table = PreprocessedTable4Arity::preprocess(plookup_table, &ck, 4);
+        let mut plookup_table = PlookupTable4Arity::new();
+        plookup_table.add_dummy_rows();
 
         // Verifier
         //
@@ -515,7 +498,7 @@ mod tests {
         verifier.preprocess(&ck).unwrap();
 
         assert!(verifier
-            .verify(&proof, &vk, &public_inputs, &lookup_table.unwrap())
+            .verify(&proof, &vk, &public_inputs, &plookup_table)
             .is_ok());
     }
 }

@@ -199,7 +199,7 @@ impl PlookupTable3Arity {
 /// the outputs of gates within arithmetic
 /// circuits.
 #[derive(Clone, Eq, PartialEq, Debug)]
-pub struct PlookupTable4Arity(Vec<[BlsScalar; 4]>);
+pub struct PlookupTable4Arity(pub Vec<[BlsScalar; 4]>);
 
 impl Default for PlookupTable4Arity {
     fn default() -> Self {
@@ -211,6 +211,39 @@ impl PlookupTable4Arity {
     /// Create a new, empty Plookup table, with arity 4.
     pub fn new() -> Self {
         PlookupTable4Arity(vec![])
+    }
+
+    /// Add 3 dummy rows at the beginning of the table to prevent errors caused by an empty table
+    pub fn add_dummy_rows(&mut self) {
+        self.0.insert(
+            0,
+            [
+                BlsScalar::from(6),
+                BlsScalar::from(7),
+                -BlsScalar::from(20),
+                BlsScalar::from(1),
+            ],
+        );
+
+        self.0.insert(
+            0,
+            [
+                -BlsScalar::from(20),
+                BlsScalar::from(6),
+                BlsScalar::from(7),
+                BlsScalar::from(0),
+            ],
+        );
+
+        self.0.insert(
+            0,
+            [
+                BlsScalar::from(3),
+                BlsScalar::from(1),
+                BlsScalar::from(4),
+                BlsScalar::from(9),
+            ],
+        );
     }
 
     /// Insert a new row for an addition operation.

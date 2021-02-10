@@ -67,11 +67,6 @@ impl PlookupComposer {
         self.w_o.extend(zeroes_var.iter());
         self.w_4.extend(zeroes_var.iter());
 
-        self.f_1.extend(zeroes_var.iter());
-        self.f_2.extend(zeroes_var.iter());
-        self.f_3.extend(zeroes_var.iter());
-        self.f_4.extend(zeroes_var.iter());
-
         self.n += diff;
     }
     /// Checks that all of the wires of the composer have the same
