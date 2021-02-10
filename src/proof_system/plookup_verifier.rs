@@ -6,7 +6,7 @@
 
 use crate::commitment_scheme::kzg10::{CommitKey, OpeningKey};
 use crate::constraint_system::{PlookupComposer, StandardComposer};
-use crate::plookup::{MultiSet, PreprocessedTable4Arity};
+use crate::plookup::{MultiSet, PlookupTable4Arity, PreprocessedTable4Arity};
 use crate::proof_system::widget::{PlookupVerifierKey, VerifierKey};
 use crate::proof_system::{PlookupProof, Proof};
 use anyhow::{Error, Result};
@@ -84,7 +84,7 @@ impl PlookupVerifier {
         proof: &PlookupProof,
         opening_key: &OpeningKey,
         public_inputs: &[BlsScalar],
-        lookup_table: &PreprocessedTable4Arity,
+        lookup_table: &PlookupTable4Arity,
     ) -> Result<(), Error> {
         let mut cloned_transcript = self.preprocessed_transcript.clone();
         let verifier_key = self.verifier_key.as_ref().unwrap();

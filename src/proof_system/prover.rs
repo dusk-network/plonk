@@ -466,7 +466,7 @@ impl PlookupProver {
         &self,
         commit_key: &CommitKey,
         prover_key: &PlookupProverKey,
-        lookup_table: &PreprocessedTable4Arity,
+        lookup_table: &PlookupTable4Arity,
     ) -> Result<PlookupProof, Error> {
         let domain = EvaluationDomain::new(self.cs.circuit_size())?;
 
@@ -507,19 +507,64 @@ impl PlookupProver {
         // Generate table compression factor
         let zeta = transcript.challenge_scalar(b"zeta");
 
+        // Compress table into vector of single elements
+        let mut compressed_t: Vec<BlsScalar> = lookup_table
+            .0
+            .iter()
+            .map(|arr| arr[0] + arr[1] * zeta + arr[2] * zeta * zeta + arr[3] * zeta * zeta * zeta)
+            .collect();
+
+        // Sort table so we can be sure to choose an element that is not the highest or lowest
+        compressed_t.sort();
+        let second_element = compressed_t[1];
+
+        // Pad the table to the correct size with an element that is not the highest or lowest
+        let pad = vec![second_element; domain.size() - compressed_t.len()];
+        compressed_t.extend(pad);
+
+        // Sort again to return t to sorted state
+        // There may be a better way of inserting the padding so the sort does not need to happen twice
+        compressed_t.sort();
+
+        let compressed_t_multiset = MultiSet(compressed_t);
+
+        // Compute table poly
+        let table_poly =
+            Polynomial::from_coefficients_vec(domain.ifft(&compressed_t_multiset.0.as_slice()));
+
         // Compute table f
-        let f_1_scalar = &[&self.to_scalars(&self.cs.f_1)[..], &pad].concat();
-        let f_2_scalar = &[&self.to_scalars(&self.cs.f_2)[..], &pad].concat();
-        let f_3_scalar = &[&self.to_scalars(&self.cs.f_3)[..], &pad].concat();
-        let f_4_scalar = &[&self.to_scalars(&self.cs.f_4)[..], &pad].concat();
+        // When q_lookup[i] is zero the wire value is replaced with a dummy value
+        // Currently set as the first row of the public table
+        // If q_lookup is one the wire values are preserved
+        let f_1_scalar = w_l_scalar
+            .iter()
+            .zip(&self.cs.q_lookup)
+            .map(|(w, s)| w * s + (BlsScalar::one() - s) * compressed_t_multiset.0[1])
+            .collect::<Vec<BlsScalar>>();
+        let f_2_scalar = w_r_scalar
+            .iter()
+            .zip(&self.cs.q_lookup)
+            .map(|(w, s)| w * s)
+            .collect::<Vec<BlsScalar>>();
+        let f_3_scalar = w_o_scalar
+            .iter()
+            .zip(&self.cs.q_lookup)
+            .map(|(w, s)| w * s)
+            .collect::<Vec<BlsScalar>>();
+        let f_4_scalar = w_4_scalar
+            .iter()
+            .zip(&self.cs.q_lookup)
+            .map(|(w, s)| w * s)
+            .collect::<Vec<BlsScalar>>();
 
         // Compress table into vector of single elements
+        // Skips first element so that f.len() = t.len() - 1
         let compressed_f = MultiSet::compress_four_arity(
             [
-                &MultiSet::from(f_1_scalar.as_slice()),
-                &MultiSet::from(f_2_scalar.as_slice()),
-                &MultiSet::from(f_3_scalar.as_slice()),
-                &MultiSet::from(f_4_scalar.as_slice()),
+                &MultiSet::from(&f_1_scalar[1..]),
+                &MultiSet::from(&f_2_scalar[1..]),
+                &MultiSet::from(&f_3_scalar[1..]),
+                &MultiSet::from(&f_4_scalar[1..]),
             ],
             zeta,
         );
@@ -532,20 +577,6 @@ impl PlookupProver {
 
         // Add f_poly commitment to transcript
         transcript.append_commitment(b"f", &f_poly_commit);
-
-        // Compress table into vector of single elements
-        let compressed_t = MultiSet::compress_four_arity(
-            [
-                &lookup_table.t_1.0,
-                &lookup_table.t_2.0,
-                &lookup_table.t_3.0,
-                &lookup_table.t_4.0,
-            ],
-            zeta,
-        );
-
-        // Compute table poly
-        let table_poly = Polynomial::from_coefficients_vec(domain.ifft(&compressed_t.0.as_slice()));
 
         // 2. Compute permutation polynomial
         //
@@ -574,8 +605,17 @@ impl PlookupProver {
         //
         let z_poly_commit = commit_key.commit(&z_poly)?;
 
+        // Add commitment to permutation polynomial to transcript
+        transcript.append_commitment(b"z", &z_poly_commit);
+
+        // 3. Compute public inputs polynomial
+        let pi_poly = Polynomial::from_coefficients_vec(domain.ifft(&self.cs.public_inputs));
+
+        // Compute evaluation challenge; `z`
+        let z_challenge = transcript.challenge_scalar(b"z_challenge");
+
         // Compute s, as the sorted and concatenated version of f and t
-        let s = compressed_t.sorted_concat(&compressed_f)?;
+        let s = compressed_t_multiset.sorted_concat(&compressed_f).unwrap();
 
         // Compute first and second halves of s, as h_1 and h_2
         let (h_1, h_2) = s.halve();
@@ -585,8 +625,8 @@ impl PlookupProver {
         let h_2_poly = Polynomial::from_coefficients_vec(domain.ifft(&h_2.0.as_slice()));
 
         // Commit to h polys
-        let h_1_poly_commit = commit_key.commit(&h_1_poly)?;
-        let h_2_poly_commit = commit_key.commit(&h_2_poly)?;
+        let h_1_poly_commit = commit_key.commit(&h_1_poly).unwrap();
+        let h_2_poly_commit = commit_key.commit(&h_2_poly).unwrap();
 
         // Add h polynomials to transcript
         transcript.append_commitment(b"h1", &h_1_poly_commit);
@@ -597,7 +637,7 @@ impl PlookupProver {
             Polynomial::from_coefficients_slice(&self.cs.perm.compute_lookup_permutation_poly(
                 &domain,
                 &compressed_f.0,
-                &compressed_t.0,
+                &compressed_t_multiset.0,
                 &h_1.0,
                 &h_2.0,
                 &delta,
@@ -610,9 +650,6 @@ impl PlookupProver {
 
         // Add permutation polynomial commitment to transcript
         transcript.append_commitment(b"p", &p_poly_commit);
-
-        // 3. Compute public inputs polynomial
-        let pi_poly = Polynomial::from_coefficients_vec(domain.ifft(&self.cs.public_inputs));
 
         // 4. Compute quotient polynomial
         //
@@ -669,8 +706,6 @@ impl PlookupProver {
 
         // 4. Compute linearisation polynomial
         //
-        // Compute evaluation challenge; `z`
-        let z_challenge = transcript.challenge_scalar(b"z");
 
         let (lin_poly, evaluations) = lookup_lineariser::compute(
             &domain,
@@ -735,7 +770,6 @@ impl PlookupProver {
             &t_4_poly,
             &z_challenge,
         );
-
         // Compute aggregate witness to polynomials evaluated at the evaluation challenge `z`
         let aggregate_witness = commit_key.compute_aggregate_witness(
             &[
@@ -793,14 +827,14 @@ impl PlookupProver {
         })
     }
 
-    /// Proves a plookup circuit is satisfied, then clears the witness variables
+    /// Proves a circuit is satisfied, then clears the witness variables
     /// If the circuit is not pre-processed, then the preprocessed circuit will
     /// also be computed
     pub fn prove(&mut self, commit_key: &CommitKey) -> Result<PlookupProof, Error> {
         let prover_key: &PlookupProverKey;
+
         let mut plookup_table = PlookupTable4Arity::new();
-        plookup_table.insert_multi_mul(0, 3);
-        let lookup_table = PreprocessedTable4Arity::preprocess(plookup_table, &commit_key, 3);
+        plookup_table.add_dummy_rows();
 
         if self.prover_key.is_none() {
             // Preprocess circuit
@@ -813,7 +847,7 @@ impl PlookupProver {
 
         prover_key = self.prover_key.as_ref().unwrap();
 
-        let proof = self.prove_with_preprocessed(commit_key, prover_key, &lookup_table.unwrap())?;
+        let proof = self.prove_with_preprocessed(commit_key, prover_key, &plookup_table)?;
 
         // Clear witness and reset composer variables
         self.clear_witness();

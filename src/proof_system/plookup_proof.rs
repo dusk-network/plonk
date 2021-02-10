@@ -15,7 +15,7 @@ use super::lookup_lineariser::PlookupProofEvaluations;
 use super::proof_system_errors::ProofErrors;
 use crate::commitment_scheme::kzg10::{AggregateProof, Commitment, OpeningKey};
 use crate::fft::{EvaluationDomain, Polynomial};
-use crate::plookup::{MultiSet, PreprocessedTable4Arity};
+use crate::plookup::{MultiSet, PlookupTable4Arity, PreprocessedTable4Arity};
 use crate::proof_system::widget::{PlookupVerifierKey, VerifierKey};
 use crate::transcript::TranscriptProtocol;
 use anyhow::{Error, Result};
@@ -147,11 +147,10 @@ impl PlookupProof {
         verifier_key: &PlookupVerifierKey,
         transcript: &mut Transcript,
         opening_key: &OpeningKey,
-        lookup_table: &PreprocessedTable4Arity,
+        lookup_table: &PlookupTable4Arity,
         pub_inputs: &[BlsScalar],
     ) -> Result<(), Error> {
         let domain = EvaluationDomain::new(verifier_key.n)?;
-
         // Subgroup checks are done when the proof is deserialised.
 
         // In order for the Verifier and Prover to have the same view in the non-interactive setting
@@ -165,19 +164,33 @@ impl PlookupProof {
         transcript.append_commitment(b"w_o", &self.c_comm);
         transcript.append_commitment(b"w_4", &self.d_comm);
 
+        // Compute zeta compression challenge
+        let zeta = transcript.challenge_scalar(b"zeta");
+
+        // Add f_poly commitment to transcript
+        transcript.append_commitment(b"f", &self.f_comm);
+
         // Compute beta and gamma challenges
         let beta = transcript.challenge_scalar(b"beta");
         transcript.append_scalar(b"beta", &beta);
         let gamma = transcript.challenge_scalar(b"gamma");
-        // Add commitment to permutation polynomial to transcript
-        transcript.append_commitment(b"z", &self.z_comm);
 
         // Compute delta and epsilon challenges
         let delta = transcript.challenge_scalar(b"delta");
         let epsilon = transcript.challenge_scalar(b"epsilon");
 
-        // Compute zeta compression challenge
-        let zeta = transcript.challenge_scalar(b"zeta");
+        // Add commitment to permutation polynomial to transcript
+        transcript.append_commitment(b"z", &self.z_comm);
+
+        // Compute evaluation challenge
+        let z_challenge = transcript.challenge_scalar(b"z_challenge");
+
+        // Add h polynomials to transcript
+        transcript.append_commitment(b"h1", &self.h_1_comm);
+        transcript.append_commitment(b"h2", &self.h_2_comm);
+
+        // Add permutation polynomial commitment to transcript
+        transcript.append_commitment(b"p", &self.p_comm);
 
         // Compute quotient challenge
         let alpha = transcript.challenge_scalar(b"alpha");
@@ -195,9 +208,6 @@ impl PlookupProof {
         transcript.append_commitment(b"t_3", &self.t_3_comm);
         transcript.append_commitment(b"t_4", &self.t_4_comm);
 
-        // Compute evaluation challenge
-        let z_challenge = transcript.challenge_scalar(b"z");
-
         // Compute zero polynomial evaluated at `z_challenge`
         let z_h_eval = domain.evaluate_vanishing_polynomial(&z_challenge);
 
@@ -208,18 +218,28 @@ impl PlookupProof {
         let ln_eval = compute_nth_lagrange_evaluation(&domain, &z_h_eval, &z_challenge);
 
         // Compress table into vector of single elements
-        let compressed_t = MultiSet::compress_four_arity(
-            [
-                &lookup_table.t_1.0,
-                &lookup_table.t_2.0,
-                &lookup_table.t_3.0,
-                &lookup_table.t_4.0,
-            ],
-            zeta,
-        );
+        let mut compressed_t: Vec<BlsScalar> = lookup_table
+            .0
+            .iter()
+            .map(|arr| arr[0] + arr[1] * zeta + arr[2] * zeta * zeta + arr[3] * zeta * zeta * zeta)
+            .collect();
+
+        // Sort table so we can be sure to choose an element that is not the highest or lowest
+        compressed_t.sort();
+        let second_element = compressed_t[1];
+
+        // Pad the table to the correct size with an element that is not the highest or lowest
+        let pad = vec![second_element; domain.size() - compressed_t.len()];
+        compressed_t.extend(pad);
+
+        // Sort again to return t to sorted state
+        // There may be a better way of inserting the padding so the sort does not need to happen twice
+        compressed_t.sort();
+
+        let compressed_t_multiset = MultiSet(compressed_t);
 
         // Compute table poly
-        let t = Polynomial::from_coefficients_vec(domain.ifft(&compressed_t.0.as_slice()));
+        let t = Polynomial::from_coefficients_vec(domain.ifft(&compressed_t_multiset.0.as_slice()));
 
         let table_eval = t.evaluate(&z_challenge);
         let table_next_eval = t.evaluate(&(z_challenge * domain.group_gen));
@@ -262,6 +282,10 @@ impl PlookupProof {
         transcript.append_scalar(b"q_r_eval", &self.evaluations.q_r_eval);
         transcript.append_scalar(b"q_lookup_eval", &self.evaluations.q_lookup_eval);
         transcript.append_scalar(b"perm_eval", &self.evaluations.perm_eval);
+        transcript.append_scalar(b"lookup_perm_eval", &self.evaluations.lookup_perm_eval);
+        transcript.append_scalar(b"h_1_eval", &self.evaluations.h_1_eval);
+        transcript.append_scalar(b"h_1_next_eval", &self.evaluations.h_1_next_eval);
+        transcript.append_scalar(b"h_2_next_eval", &self.evaluations.h_2_next_eval);
         transcript.append_scalar(b"t_eval", &t_eval);
         transcript.append_scalar(b"r_eval", &self.evaluations.lin_poly_eval);
 
@@ -327,11 +351,9 @@ impl PlookupProof {
         shifted_aggregate_proof.add_part((self.evaluations.h_2_next_eval, self.h_2_comm));
         shifted_aggregate_proof.add_part((self.evaluations.lookup_perm_eval, self.p_comm));
         let flattened_proof_b = shifted_aggregate_proof.flatten(transcript);
-
         // Add commitment to openings to transcript
         transcript.append_commitment(b"w_z", &self.w_z_comm);
         transcript.append_commitment(b"w_z_w", &self.w_zw_comm);
-
         // Batch check
         if opening_key
             .batch_check(
@@ -343,6 +365,7 @@ impl PlookupProof {
         {
             return Err(ProofErrors::ProofVerificationError.into());
         }
+
         Ok(())
     }
 

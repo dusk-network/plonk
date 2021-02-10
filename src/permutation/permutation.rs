@@ -736,9 +736,6 @@ impl Permutation {
             p.push(state);
         }
 
-        // Remove the last(n+1'th) element
-        p.remove(n);
-
         assert_eq!(n, p.len());
 
         Polynomial::from_coefficients_vec(domain.ifft(&p))
