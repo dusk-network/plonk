@@ -74,7 +74,11 @@ pub(crate) fn compute(
     t_eval_4n.push(t_eval_4n[3]);
 
     // Compute f(x)
-    let f_eval = domain_4n.fft(&f_poly);
+    let mut f_eval_4n = domain_4n.coset_fft(&f_poly);
+    f_eval_4n.push(f_eval_4n[0]);
+    f_eval_4n.push(f_eval_4n[1]);
+    f_eval_4n.push(f_eval_4n[2]);
+    f_eval_4n.push(f_eval_4n[3]);
 
     // Compute 4n eval of h_1
     let mut h_1_eval_4n = domain_4n.coset_fft(&h_1_poly);
@@ -122,14 +126,14 @@ pub(crate) fn compute(
         (&wl_eval_4n, &wr_eval_4n, &wo_eval_4n, &w4_eval_4n),
         public_inputs_poly,
         zeta,
-        &f_eval,
+        &f_eval_4n,
     );
 
     let t_2 = compute_permutation_checks(
         domain,
         prover_key,
         (&wl_eval_4n, &wr_eval_4n, &wo_eval_4n, &w4_eval_4n),
-        &f_eval,
+        &f_eval_4n,
         &t_eval_4n,
         &h_1_eval_4n,
         &h_2_eval_4n,
@@ -171,7 +175,7 @@ fn compute_circuit_satisfiability_equation(
     ),
     pi_poly: &Polynomial,
     zeta: &BlsScalar,
-    f_eval: &[BlsScalar],
+    f_eval_4n: &[BlsScalar],
 ) -> Vec<BlsScalar> {
     let domain_4n = EvaluationDomain::new(4 * domain.size()).unwrap();
     let pi_eval_4n = domain_4n.coset_fft(pi_poly);
@@ -187,7 +191,7 @@ fn compute_circuit_satisfiability_equation(
             let wr_next = &wr_eval_4n[i + 4];
             let w4_next = &w4_eval_4n[i + 4];
             let pi = &pi_eval_4n[i];
-            let f1 = &f_eval[i];
+            let f1 = &f_eval_4n[i];
 
             let a = prover_key.arithmetic.compute_quotient_i(i, wl, wr, wo, w4);
 
@@ -232,10 +236,16 @@ fn compute_circuit_satisfiability_equation(
                 &w4_next,
             );
 
-            let f =
-                prover_key
-                    .lookup
-                    .compute_quotient_i(i, lookup_challenge, &wl, &wr, &wo, f1, &zeta);
+            let f = prover_key.lookup.compute_quotient_i(
+                i,
+                lookup_challenge,
+                &wl,
+                &wr,
+                &wo,
+                &w4,
+                f1,
+                &zeta,
+            );
 
             (a + pi) + b + c + d + e + f
         })

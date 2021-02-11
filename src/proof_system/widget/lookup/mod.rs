@@ -20,11 +20,11 @@ fn compress(
     w_l: BlsScalar,
     w_r: BlsScalar,
     w_o: BlsScalar,
-    // w_4: BlsScalar,
+    w_4: BlsScalar,
     zeta: BlsScalar,
 ) -> BlsScalar {
     let zeta_sq = zeta.square();
-    // let zeta_cu = zeta_sq * zeta;
+    let zeta_cu = zeta_sq * zeta;
 
     let a = w_l;
 
@@ -32,7 +32,7 @@ fn compress(
 
     let c = w_o * zeta_sq;
 
-    // let d = w_o * zeta_cu;
+    let d = w_o * zeta_cu;
 
-    a + b + c
+    a + b + c + d
 }

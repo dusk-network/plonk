@@ -400,6 +400,7 @@ impl PlookupProof {
 
         // Compute power of zeta
         let zeta_sq = zeta.square();
+        let zeta_cu = zeta_sq * zeta;
 
         // Compute common term
         let epsilon_one_plus_delta = epsilon * (BlsScalar::one() + delta);
@@ -430,7 +431,8 @@ impl PlookupProof {
         // q_lookup(z) * (a + b*zeta + c*zeta^2) * alpha^3
         let d_0 = self.evaluations.a_eval
             + (self.evaluations.b_eval * zeta)
-            + (self.evaluations.c_eval * zeta_sq);
+            + (self.evaluations.c_eval * zeta_sq)
+            + (self.evaluations.d_eval * zeta_cu);
         let d = self.evaluations.q_lookup_eval * d_0 * alpha_cu;
 
         // l_1(z) * alpha^4

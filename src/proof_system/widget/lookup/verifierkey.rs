@@ -21,6 +21,8 @@ impl PlookupVerifierKey {
         points: &mut Vec<G1Affine>,
         evaluations: &PlookupProofEvaluations,
     ) {
+        // f_eval * q_lookup
+
         scalars.push(evaluations.f_eval * lookup_separation_challenge);
         points.push(self.q_lookup.0);
     }

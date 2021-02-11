@@ -23,6 +23,7 @@ impl ProverKey {
         w_l_i: &BlsScalar,
         w_r_i: &BlsScalar,
         w_o_i: &BlsScalar,
+        w_4_i: &BlsScalar,
         compressed_f_element: &BlsScalar,
         zeta: &BlsScalar,
     ) -> BlsScalar {
@@ -32,7 +33,7 @@ impl ProverKey {
 
         let q_lookup_i = self.q_lookup.1[index];
 
-        let compressed_tuple = compress(*w_l_i, *w_r_i, *w_o_i, *zeta);
+        let compressed_tuple = compress(*w_l_i, *w_r_i, *w_o_i, *w_4_i, *zeta);
 
         q_lookup_i * (compressed_tuple - compressed_f_element) * lookup_separation_challenge
     }
