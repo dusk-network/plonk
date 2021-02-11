@@ -19,6 +19,7 @@ impl ProverKey {
     pub(crate) fn compute_quotient_i(
         &self,
         index: usize,
+        lookup_separation_challenge: &BlsScalar,
         w_l_i: &BlsScalar,
         w_r_i: &BlsScalar,
         w_o_i: &BlsScalar,
@@ -27,27 +28,27 @@ impl ProverKey {
     ) -> BlsScalar {
         // This function will check the identity
         //
-        // q_lookup(X) * (a(X) + zeta * b(X) + (zeta^2 * c(X)) + (zeta^3 * d(X) - f(X)))
+        // q_lookup(X) * (a(X) + zeta * b(X) + (zeta^2 * c(X)) + (zeta^3 * d(X) - f(X))) * lookup_separation_challenge
 
         let q_lookup_i = self.q_lookup.1[index];
 
         let compressed_tuple = compress(*w_l_i, *w_r_i, *w_o_i, *zeta);
 
-        q_lookup_i * (compressed_tuple - compressed_f_element) * q_lookup_i
+        q_lookup_i * (compressed_tuple - compressed_f_element) * lookup_separation_challenge
     }
 
     /// Compute linearisation for lookup gates
     pub(crate) fn compute_linearisation(
         &self,
-        q_lookup_eval: &BlsScalar,
         f_eval: &BlsScalar,
+        lookup_separation_challenge: &BlsScalar,
     ) -> Polynomial {
-        // q_lookup(X) * f_eval * alpha^3
+        // q_lookup(X) * f_eval * lookuo_separation_challenge
         let q_lookup_poly = &self.q_lookup.0;
 
         let a = q_lookup_poly * f_eval;
 
-        let b = &a * q_lookup_eval;
+        let b = &a * lookup_separation_challenge;
 
         -b
     }

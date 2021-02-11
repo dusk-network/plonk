@@ -720,6 +720,7 @@ impl PlookupProver {
                 logic_sep_challenge,
                 fixed_base_sep_challenge,
                 var_base_sep_challenge,
+                lookup_sep_challenge,
                 z_challenge,
             ),
             &w_l_poly,

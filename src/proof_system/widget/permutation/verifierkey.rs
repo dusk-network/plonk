@@ -187,7 +187,7 @@ impl PlookupVerifierKey {
 
             let q_5 = ln_eval * alpha_7;
 
-            (q_1 * q_2 * q_3) + q_4 + q_5
+            (q_0 * q_1 * q_2 * q_3) + q_4 + q_5
         };
         scalars.push(c);
         points.push(p_comm);

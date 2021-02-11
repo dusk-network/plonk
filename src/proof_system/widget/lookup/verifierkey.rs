@@ -16,13 +16,12 @@ pub struct PlookupVerifierKey {
 impl PlookupVerifierKey {
     pub(crate) fn compute_linearisation_commitment(
         &self,
+        lookup_separation_challenge: &BlsScalar,
         scalars: &mut Vec<BlsScalar>,
         points: &mut Vec<G1Affine>,
         evaluations: &PlookupProofEvaluations,
     ) {
-        let q_arith_eval = evaluations.q_arith_eval;
-
-        scalars.push(evaluations.f_eval * q_arith_eval);
+        scalars.push(evaluations.f_eval * lookup_separation_challenge);
         points.push(self.q_lookup.0);
     }
 }

@@ -174,8 +174,10 @@ pub fn compute(
         logic_separation_challenge,
         fixed_base_separation_challenge,
         var_base_separation_challenge,
+        lookup_separation_challenge,
         z_challenge,
     ): &(
+        BlsScalar,
         BlsScalar,
         BlsScalar,
         BlsScalar,
@@ -232,6 +234,7 @@ pub fn compute(
             logic_separation_challenge,
             fixed_base_separation_challenge,
             var_base_separation_challenge,
+            lookup_separation_challenge,
         ),
         &a_eval,
         &b_eval,
@@ -245,7 +248,6 @@ pub fn compute(
         &q_c_eval,
         &q_l_eval,
         &q_r_eval,
-        &q_lookup_eval,
         prover_key,
     );
 
@@ -311,7 +313,8 @@ fn compute_circuit_satisfiability(
         logic_separation_challenge,
         fixed_base_separation_challenge,
         var_base_separation_challenge,
-    ): (&BlsScalar, &BlsScalar, &BlsScalar, &BlsScalar),
+        lookup_separation_challenge,
+    ): (&BlsScalar, &BlsScalar, &BlsScalar, &BlsScalar, &BlsScalar),
     a_eval: &BlsScalar,
     b_eval: &BlsScalar,
     c_eval: &BlsScalar,
@@ -324,7 +327,6 @@ fn compute_circuit_satisfiability(
     q_c_eval: &BlsScalar,
     q_l_eval: &BlsScalar,
     q_r_eval: &BlsScalar,
-    q_lookup_eval: &BlsScalar,
     prover_key: &PlookupProverKey,
 ) -> Polynomial {
     let a =
@@ -380,7 +382,7 @@ fn compute_circuit_satisfiability(
 
     let f = prover_key
         .lookup
-        .compute_linearisation(q_lookup_eval, f_eval);
+        .compute_linearisation(f_eval, lookup_separation_challenge);
 
     let mut linearisation_poly = &a + &b;
     linearisation_poly += &c;

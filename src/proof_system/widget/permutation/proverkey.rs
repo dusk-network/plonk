@@ -449,7 +449,7 @@ impl ProverKey {
         let alpha_5 = alpha * alpha * alpha * alpha * alpha;
 
         // Compute commonly used term (1 + delta)
-        let one_plus_delta = delta + BlsScalar::one();
+        let one_plus_delta = BlsScalar::one() + delta;
         // (z_challenge - 1)
         let a_1 = &(z_challenge - BlsScalar::one());
 

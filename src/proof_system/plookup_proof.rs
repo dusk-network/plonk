@@ -72,7 +72,7 @@ pub struct PlookupProof {
 }
 
 impl PlookupProof {
-    /// Serialises a Proof struct
+    // // Serialises a Proof struct
     // pub fn to_bytes(&self) -> [u8; PROOF_SIZE] {
     //     let mut bytes = [0u8; PROOF_SIZE];
     //     bytes[0..48].copy_from_slice(&self.a_comm.0.to_compressed()[..]);
@@ -301,6 +301,7 @@ impl PlookupProof {
                 &logic_sep_challenge,
                 &fixed_base_sep_challenge,
                 &var_base_sep_challenge,
+                &lookup_sep_challenge,
             ),
             &z_challenge,
             l1_eval,
@@ -478,7 +479,8 @@ impl PlookupProof {
             logic_sep_challenge,
             fixed_base_sep_challenge,
             var_base_sep_challenge,
-        ): (&BlsScalar, &BlsScalar, &BlsScalar, &BlsScalar),
+            lookup_sep_challenge,
+        ): (&BlsScalar, &BlsScalar, &BlsScalar, &BlsScalar, &BlsScalar),
         z_challenge: &BlsScalar,
         l1_eval: BlsScalar,
         ln_eval: BlsScalar,
@@ -524,6 +526,7 @@ impl PlookupProof {
         );
 
         verifier_key.lookup.compute_linearisation_commitment(
+            lookup_sep_challenge,
             &mut scalars,
             &mut points,
             &self.evaluations,
