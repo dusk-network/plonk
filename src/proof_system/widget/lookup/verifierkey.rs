@@ -20,10 +20,65 @@ impl PlookupVerifierKey {
         scalars: &mut Vec<BlsScalar>,
         points: &mut Vec<G1Affine>,
         evaluations: &PlookupProofEvaluations,
+        z_challenge: &BlsScalar,
+        (delta, epsilon): (&BlsScalar, &BlsScalar),
+        l1_eval: &BlsScalar,
+        ln_eval: &BlsScalar,
+        t_eval: &BlsScalar,
+        t_next_eval: &BlsScalar,
+        h_1_comm: G1Affine,
+        h_2_comm: G1Affine,
+        p_comm: G1Affine,
     ) {
-        // f_eval * q_lookup
 
-        scalars.push(evaluations.f_eval * lookup_separation_challenge);
+        let l_sep_sq = lookup_separation_challenge.square();
+        let l_sep_cu = lookup_separation_challenge * l_sep_sq;
+        let l_sep_4th = lookup_separation_challenge * l_sep_cu;
+        let l_sep_5th = lookup_separation_challenge * l_sep_4th;
+
+        // - f_eval * q_lookup * alpha_1
+        let a = -evaluations.f_eval * lookup_separation_challenge;
+        scalars.push(a);
         points.push(self.q_lookup.0);
+
+        // l_n(z) * alpha_1^4
+        let b = { ln_eval * l_sep_4th };
+        scalars.push(b);
+        points.push(h_1_comm);
+
+        // - ((z - 1)*p_next_eval*(epsilon*(1 + delta) + h_1_eval + delta*h_1_next_eval)*alpha_1^3)*h_2
+        let c = {
+            let c_0 = BlsScalar::one() - z_challenge;
+
+            let c_1 = &evaluations.lookup_perm_eval;
+
+            let c_2 = epsilon*(BlsScalar::one() + delta) + &evaluations.h_1_eval + delta*&evaluations.h_1_next_eval;
+
+            c_0 * c_1 *c_2
+        };
+        scalars.push(c);
+        points.push(h_2_comm);
+
+
+        // (z - 1)(1 + delta)(e + f_eval)(epsilon(1 + delta) + t_eval + (delta * t_next_eval) * alpha_1^3 + l_1(z) * alpha^4 + l_n(z) * alpha_1^5)
+        let d = {
+            let d_0 = z_challenge - BlsScalar::one();
+
+            let d_1 = BlsScalar::one() + delta;
+
+            let d_2 = epsilon + evaluations.f_eval;
+
+            let d_3 = (epsilon * d_1 + t_eval + (delta * t_next_eval)) * l_sep_cu;
+
+            let d_4 = l1_eval * l_sep_sq;
+
+            let d_5 = ln_eval * l_sep_5th;
+
+            (d_0 * d_1 * d_2 * d_3) + d_4 + d_5
+        };
+
+        scalars.push(d);
+        points.push(p_comm);
+
     }
 }

@@ -10,11 +10,11 @@ use crate::fft::{Evaluations, Polynomial};
 use dusk_bls12_381::BlsScalar;
 
 #[derive(Debug, Eq, PartialEq, Clone)]
-pub struct ProverKey {
+pub struct PlookupProverKey {
     pub q_lookup: (Polynomial, Evaluations),
 }
 
-impl ProverKey {
+impl PlookupProverKey {
     /// Compute identity check for lookup gates
     pub(crate) fn compute_quotient_i(
         &self,
