@@ -6,14 +6,13 @@
 
 //! Tools & traits for PLONK circuits
 
-use crate::commitment_scheme::kzg10::PublicParameters;
+use crate::commitment_scheme::kzg10::{errors::KZG10Errors, PublicParameters};
+use crate::constraint_system::cs_errors::PreProcessingErrors;
 use crate::constraint_system::StandardComposer;
-use crate::proof_system::{Proof, ProverKey, VerifierKey};
-use anyhow::Result;
+use crate::proof_system::{proof_system_errors::ProofErrors, Proof, ProverKey, VerifierKey};
 use dusk_bls12_381::BlsScalar;
 use dusk_bytes::Serializable;
 use dusk_jubjub::{JubJubAffine, JubJubScalar};
-use thiserror::Error;
 
 const BLS_SCALAR: u8 = 1;
 const JUBJUB_SCALAR: u8 = 2;
@@ -103,22 +102,31 @@ where
     Self: Sized,
 {
     /// Gadget implementation used to fill the composer.
-    fn gadget(&mut self, composer: &mut StandardComposer) -> Result<()>;
+    fn gadget(&mut self, composer: &mut StandardComposer) -> Result<(), CircuitErrors>;
     /// Compiles the circuit by using a function that returns a `Result`
     /// with the `ProverKey`, `VerifierKey` and the circuit size.
-    fn compile(&mut self, pub_params: &PublicParameters) -> Result<(ProverKey, VerifierKey)> {
+    fn compile(
+        &mut self,
+        pub_params: &PublicParameters,
+    ) -> Result<(ProverKey, VerifierKey), CircuitErrors> {
         use crate::proof_system::{Prover, Verifier};
         // Setup PublicParams
-        let (ck, _) = pub_params.trim(self.get_trim_size())?;
+        let (ck, _) = pub_params
+            .trim(self.get_trim_size())
+            .map_err(|e| CircuitErrors::CouldNotTrimPubParams(e))?;
         // Generate & save `ProverKey` with some random values.
         let mut prover = Prover::new(b"CircuitCompilation");
         self.gadget(prover.mut_cs())?;
-        prover.preprocess(&ck)?;
+        prover
+            .preprocess(&ck)
+            .map_err(|e| CircuitErrors::CouldNotPreProcessCircuit(e))?;
 
         // Generate & save `VerifierKey` with some random values.
         let mut verifier = Verifier::new(b"CircuitCompilation");
         self.gadget(verifier.mut_cs())?;
-        verifier.preprocess(&ck)?;
+        verifier
+            .preprocess(&ck)
+            .map_err(|e| CircuitErrors::CouldNotPreProcessCircuit(e))?;
         Ok((
             prover
                 .prover_key
@@ -136,7 +144,7 @@ where
     fn get_pi_positions(&self) -> &Vec<PublicInput>;
 
     /// Build PI vector for Proof verifications.
-    fn build_pi(&self, pub_inputs: &[PublicInput]) -> Result<Vec<BlsScalar>> {
+    fn build_pi(&self, pub_inputs: &[PublicInput]) -> Vec<BlsScalar> {
         let mut pi = vec![BlsScalar::zero(); self.get_trim_size()];
         pub_inputs
             .iter()
@@ -153,7 +161,7 @@ where
                     }
                 };
             });
-        Ok(pi)
+        pi
     }
 
     /// Returns the size at which we trim the `PublicParameters`
@@ -171,16 +179,18 @@ where
         pub_params: &PublicParameters,
         prover_key: &ProverKey,
         transcript_initialisation: &'static [u8],
-    ) -> Result<Proof> {
+    ) -> Result<Proof, CircuitErrors> {
         use crate::proof_system::Prover;
-        let (ck, _) = pub_params.trim(self.get_trim_size())?;
+        let (ck, _) = pub_params
+            .trim(self.get_trim_size())
+            .map_err(|e| CircuitErrors::CouldNotTrimPubParams(e))?;
         // New Prover instance
         let mut prover = Prover::new(transcript_initialisation);
         // Fill witnesses for Prover
         self.gadget(prover.mut_cs())?;
         // Add ProverKey to Prover
         prover.prover_key = Some(prover_key.clone());
-        prover.prove(&ck)
+        prover.prove(&ck).map_err(|e| CircuitErrors::ProverError(e))
     }
 
     /// Verifies a proof using the provided `CircuitInputs` & `VerifierKey` instances.
@@ -191,32 +201,42 @@ where
         transcript_initialisation: &'static [u8],
         proof: &Proof,
         pub_inputs: &[PublicInput],
-    ) -> Result<()> {
+    ) -> Result<(), CircuitErrors> {
         use crate::proof_system::Verifier;
-        let (_, vk) = pub_params.trim(self.get_trim_size())?;
+        let (_, vk) = pub_params
+            .trim(self.get_trim_size())
+            .map_err(|e| CircuitErrors::CouldNotTrimPubParams(e))?;
         // New Verifier instance
         let mut verifier = Verifier::new(transcript_initialisation);
         // Fill witnesses for Verifier
         self.gadget(verifier.mut_cs())?;
         verifier.verifier_key = Some(*verifier_key);
-        verifier.verify(proof, &vk, &self.build_pi(pub_inputs)?)
+        verifier
+            .verify(proof, &vk, &self.build_pi(pub_inputs))
+            .map_err(|e| CircuitErrors::ProofVerificationFailed(e))
     }
 }
 
 /// Represents an error in the PublicParameters creation and or modification.
-#[derive(Error, Debug)]
+#[derive(core::fmt::Debug)]
 pub enum CircuitErrors {
     /// This error occurs when the circuit is not provided with all of the
     /// required inputs.
-    #[error("missing inputs for the circuit")]
     CircuitInputsNotFound,
     /// This error occurs when we want to verify a Proof but the pi_constructor
     /// attribute is uninitialized.
-    #[error("PI constructor attribute is uninitialized")]
     UninitializedPIGenerator,
     /// PublicInput serialization error
-    #[error("Invalid PublicInput bytes")]
     InvalidPublicInputBytes,
+    /// This error occurs when we can not trim the public parameters.
+    CouldNotTrimPubParams(KZG10Errors),
+    /// This error occurs when preprocessing of a circuit fails.
+    CouldNotPreProcessCircuit(PreProcessingErrors),
+    /// This error occurs when proof verification fails.
+    ProofVerificationFailed(ProofErrors),
+    /// This error occurs when anything related to proof creation fails.
+    /// It is a generic error, as the underlying error should explain the issue.
+    ProverError(ProofErrors),
 }
 
 #[cfg(test)]
@@ -224,7 +244,7 @@ mod tests {
     use super::*;
     use crate::constraint_system::StandardComposer;
     use crate::proof_system::{ProverKey, VerifierKey};
-    use anyhow::Result;
+    use anyhow::{anyhow, Result};
 
     // Implements a circuit that checks:
     // 1) a + b = c where C is a PI
@@ -248,7 +268,7 @@ mod tests {
     }
 
     impl<'a> Circuit<'a> for TestCircuit<'a> {
-        fn gadget(&mut self, composer: &mut StandardComposer) -> Result<()> {
+        fn gadget(&mut self, composer: &mut StandardComposer) -> Result<(), CircuitErrors> {
             let inputs = self
                 .inputs
                 .ok_or_else(|| CircuitErrors::CircuitInputsNotFound)?;
@@ -318,12 +338,15 @@ mod tests {
         let vk_path = tmp.clone().join("vk_testcirc");
 
         // Generate CRS
-        let pp_p = PublicParameters::setup(1 << 10, &mut rand::thread_rng())?;
+        let pp_p = PublicParameters::setup(1 << 10, &mut rand::thread_rng())
+            .map_err(|e| anyhow!("{:?}", e))?;
         File::create(&pp_path).and_then(|mut f| f.write(pp_p.to_raw_bytes().as_slice()))?;
 
         // Read PublicParameters
         let pp = fs::read(pp_path)?;
-        let pp = unsafe { PublicParameters::from_slice_unchecked(pp.as_slice())? };
+        let pp = unsafe {
+            PublicParameters::from_slice_unchecked(pp.as_slice()).map_err(|e| anyhow!("{:?}", e))?
+        };
 
         // Generate circuit compilation params
         let inputs = [
@@ -338,7 +361,7 @@ mod tests {
         circuit.inputs = Some(&inputs);
 
         // Compile the circuit
-        let (pk_p, vk_p) = circuit.compile(&pp)?;
+        let (pk_p, vk_p) = circuit.compile(&pp).map_err(|e| anyhow!("{:?}", e))?;
 
         // Write the keys
         File::create(&pk_path).and_then(|mut f| f.write(pk_p.to_bytes().as_slice()))?;
@@ -346,11 +369,11 @@ mod tests {
 
         // Read ProverKey
         let pk = fs::read(pk_path)?;
-        let pk = ProverKey::from_bytes(pk.as_slice())?;
+        let pk = ProverKey::from_bytes(pk.as_slice()).map_err(|e| anyhow!("{:?}", e))?;
 
         // Read VerifierKey
         let vk = fs::read(vk_path)?;
-        let vk = VerifierKey::from_bytes(vk.as_slice())?;
+        let vk = VerifierKey::from_bytes(vk.as_slice()).map_err(|e| anyhow!("{:?}", e))?;
 
         assert_eq!(pk, pk_p);
         assert_eq!(vk, vk_p);
@@ -371,7 +394,8 @@ mod tests {
             let mut circuit = TestCircuit::default();
             circuit.inputs = Some(&inputs2);
             circuit.gen_proof(&pp, &pk, label)
-        }?;
+        }
+        .map_err(|e| anyhow!("{:?}", e))?;
 
         // Verifier POV
         let mut circuit = TestCircuit::default();
@@ -381,7 +405,9 @@ mod tests {
             PublicInput::BlsScalar(BlsScalar::from(100u64), 0),
         ];
 
-        circuit.verify_proof(&pp, &vk, label, &proof, &public_inputs2)?;
+        circuit
+            .verify_proof(&pp, &vk, label, &proof, &public_inputs2)
+            .map_err(|e| anyhow!("{:?}", e))?;
 
         Ok(())
     }

@@ -7,7 +7,7 @@
 use super::StandardComposer;
 use crate::commitment_scheme::kzg10::PublicParameters;
 use crate::proof_system::{Prover, Verifier};
-use anyhow::{Error, Result};
+use anyhow::{anyhow, Result};
 use dusk_bls12_381::BlsScalar;
 
 /// Adds dummy constraints using arithmetic gates
@@ -29,12 +29,10 @@ pub(crate) fn dummy_gadget(n: usize, composer: &mut StandardComposer) {
 
 /// Takes a generic gadget function with no auxillary input and
 /// tests whether it passes an end-to-end test
-pub(crate) fn gadget_tester(
-    gadget: fn(composer: &mut StandardComposer),
-    n: usize,
-) -> Result<(), Error> {
+pub(crate) fn gadget_tester(gadget: fn(composer: &mut StandardComposer), n: usize) -> Result<()> {
     // Common View
-    let public_parameters = PublicParameters::setup(2 * n, &mut rand::thread_rng())?;
+    let public_parameters =
+        PublicParameters::setup(2 * n, &mut rand::thread_rng()).map_err(|e| anyhow!("{:?}", e))?;
     // Provers View
     let (proof, public_inputs) = {
         // Create a prover struct
@@ -47,17 +45,22 @@ pub(crate) fn gadget_tester(
         gadget(&mut prover.mut_cs());
 
         // Commit Key
-        let (ck, _) = public_parameters.trim(2 * prover.cs.circuit_size().next_power_of_two())?;
+        let (ck, _) = public_parameters
+            .trim(2 * prover.cs.circuit_size().next_power_of_two())
+            .map_err(|e| anyhow!("{:?}", e))?;
 
         // Preprocess circuit
-        prover.preprocess(&ck)?;
+        prover.preprocess(&ck).map_err(|e| anyhow!("{:?}", e))?;
 
         // Once the prove method is called, the public inputs are cleared
         // So pre-fetch these before calling Prove
         let public_inputs = prover.cs.public_inputs.clone();
 
         // Compute Proof
-        (prover.prove(&ck)?, public_inputs)
+        (
+            prover.prove(&ck).map_err(|e| anyhow!("{:?}", e))?,
+            public_inputs,
+        )
     };
     // Verifiers view
     //
@@ -71,11 +74,15 @@ pub(crate) fn gadget_tester(
     gadget(&mut verifier.mut_cs());
 
     // Compute Commit and Verifier Key
-    let (ck, vk) = public_parameters.trim(verifier.cs.circuit_size().next_power_of_two())?;
+    let (ck, vk) = public_parameters
+        .trim(verifier.cs.circuit_size().next_power_of_two())
+        .map_err(|e| anyhow!("{:?}", e))?;
 
     // Preprocess circuit
-    verifier.preprocess(&ck)?;
+    verifier.preprocess(&ck).map_err(|e| anyhow!("{:?}", e))?;
 
     // Verify proof
-    verifier.verify(&proof, &vk, &public_inputs)
+    verifier
+        .verify(&proof, &vk, &public_inputs)
+        .map_err(|e| anyhow!("{:?}", e))
 }

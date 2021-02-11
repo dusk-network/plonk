@@ -6,17 +6,22 @@
 
 //! Errors related to the proof_system module.
 
-use thiserror::Error;
+use crate::commitment_scheme::kzg10::errors::KZG10Errors;
+use crate::constraint_system::cs_errors::PreProcessingErrors;
+use crate::fft::fft_errors::FFTErrors;
 
 /// Defines all of the possible ProofError types that we could have when
 /// we are working with the `proof_system` module.
-#[derive(Error, Debug)]
+#[derive(core::fmt::Debug)]
 pub enum ProofErrors {
     /// This error occurs when the verification of a `Proof` fails.
-    #[error("proof verification failed")]
     ProofVerificationError,
-    /// This error occurrs when the Prover structure already contains a
-    /// preprocessed circuit inside, but you call preprocess again.
-    #[error("circuit already preprocessed")]
-    CircuitAlreadyPreprocessed,
+    /// This error occurs when the evaluation domain can not be constructed.
+    CouldNotConstructEvaluationDomain(FFTErrors),
+    /// This error occurs when preprocessing of a circuit fails.
+    CouldNotPreProcessCircuit(PreProcessingErrors),
+    /// This error occurs when a poly can not be committed to.
+    CouldNotCommitToPoly(KZG10Errors),
+    /// This error occurs when the computation of the quotient poly fails.
+    CouldNotComputeQuotientPoly(FFTErrors),
 }

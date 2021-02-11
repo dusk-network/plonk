@@ -13,7 +13,6 @@
 //! by performing an O(n log n) FFT over such a domain.
 
 use super::{fft_errors::FFTErrors, Evaluations};
-use anyhow::{Error, Result};
 use core::fmt;
 use dusk_bls12_381::{BlsScalar, GENERATOR, ROOT_OF_UNITY, TWO_ADACITY};
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefMutIterator, ParallelIterator};
@@ -49,7 +48,7 @@ impl fmt::Debug for EvaluationDomain {
 impl EvaluationDomain {
     /// Construct a domain that is large enough for evaluations of a polynomial
     /// having `num_coeffs` coefficients.
-    pub fn new(num_coeffs: usize) -> Result<Self, Error> {
+    pub fn new(num_coeffs: usize) -> Result<Self, FFTErrors> {
         // Compute the size of our evaluation domain
         let size = num_coeffs.next_power_of_two() as u64;
         let log_size_of_group = size.trailing_zeros();
@@ -58,8 +57,7 @@ impl EvaluationDomain {
             return Err(FFTErrors::InvalidEvalDomainSize {
                 log_size_of_group,
                 adacity: TWO_ADACITY,
-            }
-            .into());
+            });
         }
 
         // Compute the generator for the multiplicative subgroup.

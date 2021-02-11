@@ -6,13 +6,20 @@
 
 //! Errors related to the Constraint system
 
-use thiserror::Error;
+use crate::commitment_scheme::kzg10::errors::KZG10Errors;
+use crate::fft::fft_errors::FFTErrors;
 
 /// Represents an error on the Circuit preprocessing stage.
-#[derive(Error, Debug)]
-pub enum PreProcessingError {
+#[derive(core::fmt::Debug)]
+pub enum PreProcessingErrors {
     /// This error occurs when an error triggers during the preprocessing
     /// stage.
-    #[error("the length of the wires it's not the same")]
     MismatchedPolyLen,
+    /// This error occurs when no evaluation domain can be constructed.
+    CouldNotConstructEvaluationDomain(FFTErrors),
+    /// This error occurs when a poly can not be committed to.
+    CouldNotCommitToPoly(KZG10Errors),
+    /// This error occurs when the Prover structure already contains a
+    /// preprocessed circuit inside, but you call preprocess again.
+    CircuitAlreadyPreprocessed,
 }

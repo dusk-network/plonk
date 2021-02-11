@@ -4,9 +4,8 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use crate::fft::{EvaluationDomain, Polynomial};
+use crate::fft::{fft_errors::FFTErrors, EvaluationDomain, Polynomial};
 use crate::proof_system::widget::ProverKey;
-use anyhow::{Error, Result};
 use dusk_bls12_381::BlsScalar;
 use rayon::prelude::*;
 
@@ -37,7 +36,7 @@ pub(crate) fn compute(
         BlsScalar,
         BlsScalar,
     ),
-) -> Result<Polynomial, Error> {
+) -> Result<Polynomial, FFTErrors> {
     // Compute 4n eval of z(X)
     let domain_4n = EvaluationDomain::new(4 * domain.size())?;
     let mut z_eval_4n = domain_4n.coset_fft(&z_poly);

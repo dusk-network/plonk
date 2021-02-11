@@ -9,8 +9,7 @@ use super::{
     errors::KZG10Errors,
     key::{CommitKey, OpeningKey},
 };
-use crate::util;
-use anyhow::{anyhow, Error, Result};
+use crate::{serialisation::SerialisationErrors, util};
 use dusk_bls12_381::{G1Affine, G1Projective, G2Affine};
 use rand_core::{CryptoRng, RngCore};
 
@@ -38,10 +37,10 @@ impl PublicParameters {
     pub fn setup<R: RngCore + CryptoRng>(
         max_degree: usize,
         mut rng: &mut R,
-    ) -> Result<PublicParameters, Error> {
+    ) -> Result<PublicParameters, KZG10Errors> {
         // Cannot commit to constants
         if max_degree < 1 {
-            return Err(KZG10Errors::DegreeIsZero.into());
+            return Err(KZG10Errors::DegreeIsZero);
         }
 
         // Generate the secret scalar beta
@@ -87,9 +86,9 @@ impl PublicParameters {
     ///
     /// The bytes source is expected to be trusted and no check will be performed reggarding the
     /// points security
-    pub unsafe fn from_slice_unchecked(bytes: &[u8]) -> Result<Self, Error> {
+    pub unsafe fn from_slice_unchecked(bytes: &[u8]) -> Result<Self, SerialisationErrors> {
         if bytes.len() < OpeningKey::serialized_size() + 1 {
-            return Err(anyhow!("Not enough bytes provided!"));
+            return Err(SerialisationErrors::NotEnoughBytes);
         }
 
         let opening_key = &bytes[..OpeningKey::serialized_size()];
@@ -112,7 +111,7 @@ impl PublicParameters {
     }
 
     /// Deserialise a slice of bytes into a Public Parameter struct
-    pub fn from_bytes(bytes: &[u8]) -> Result<PublicParameters, Error> {
+    pub fn from_bytes(bytes: &[u8]) -> Result<PublicParameters, SerialisationErrors> {
         let opening_key_bytes = &bytes[0..OpeningKey::serialized_size()];
         let commit_key_bytes = &bytes[OpeningKey::serialized_size()..];
 
@@ -130,7 +129,7 @@ impl PublicParameters {
     /// Trim truncates the prover key to allow the prover to commit to polynomials up to the
     /// and including the truncated degree.
     /// Returns an error if the truncated degree is larger than the public parameters configured degree.
-    pub fn trim(&self, truncated_degree: usize) -> Result<(CommitKey, OpeningKey), Error> {
+    pub fn trim(&self, truncated_degree: usize) -> Result<(CommitKey, OpeningKey), KZG10Errors> {
         let truncated_prover_key = self.commit_key.truncate(truncated_degree)?;
         let opening_key = self.opening_key.clone();
         Ok((truncated_prover_key, opening_key))

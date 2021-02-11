@@ -15,8 +15,8 @@ use super::proof_system_errors::ProofErrors;
 use crate::commitment_scheme::kzg10::{AggregateProof, Commitment, OpeningKey};
 use crate::fft::EvaluationDomain;
 use crate::proof_system::widget::VerifierKey;
+use crate::serialisation::SerialisationErrors;
 use crate::transcript::TranscriptProtocol;
-use anyhow::{Error, Result};
 use dusk_bls12_381::{multiscalar_mul::msm_variable_base, BlsScalar, G1Affine};
 use dusk_bytes::Serializable;
 use merlin::Transcript;
@@ -112,7 +112,7 @@ impl Proof {
     }
 
     /// Deserialises a Proof struct
-    pub fn from_bytes(bytes: &[u8]) -> Result<Proof, Error> {
+    pub fn from_bytes(bytes: &[u8]) -> Result<Proof, SerialisationErrors> {
         use crate::serialisation::read_commitment;
 
         let (a_comm, rest) = read_commitment(bytes)?;
@@ -160,8 +160,9 @@ impl Proof {
         transcript: &mut Transcript,
         opening_key: &OpeningKey,
         pub_inputs: &[BlsScalar],
-    ) -> Result<(), Error> {
-        let domain = EvaluationDomain::new(verifier_key.n)?;
+    ) -> Result<(), ProofErrors> {
+        let domain = EvaluationDomain::new(verifier_key.n)
+            .map_err(|e| ProofErrors::CouldNotConstructEvaluationDomain(e))?;
 
         // Subgroup checks are done when the proof is deserialised.
 
@@ -309,7 +310,7 @@ impl Proof {
             )
             .is_err()
         {
-            return Err(ProofErrors::ProofVerificationError.into());
+            return Err(ProofErrors::ProofVerificationError);
         }
         Ok(())
     }
