@@ -228,6 +228,10 @@ pub fn compute(
     let h_2_next_eval = h_2_poly.evaluate(&(z_challenge * domain.group_gen));
     let t_next_eval = table_poly.evaluate(&(z_challenge * domain.group_gen));
 
+    let l_coeffs = domain.evaluate_all_lagrange_coefficients(*z_challenge);
+    let l1_eval = l_coeffs[0];
+    let ln_eval = l_coeffs[domain.size()];
+
     let f_1 = compute_circuit_satisfiability(
         (
             range_separation_challenge,
@@ -245,28 +249,31 @@ pub fn compute(
         &d_next_eval,
         &q_arith_eval,
         &f_eval,
+        &t_eval,
+        &t_next_eval,
+        &h_1_eval,
+        &h_1_next_eval,
+        &lookup_perm_eval,
+        &l1_eval,
+        &ln_eval,
+        &p_poly,
+        &h_1_poly,
+        &h_2_poly,
+        (delta, epsilon),
+        &z_challenge,
         &q_c_eval,
         &q_l_eval,
         &q_r_eval,
         prover_key,
     );
 
-    let f_2 = prover_key.permutation.compute_lookup_linearisation(
+    let f_2 = prover_key.permutation.compute_linearisation(
         z_challenge,
-        (alpha, beta, gamma, delta, epsilon),
+        (alpha, beta, gamma),
         (&a_eval, &b_eval, &c_eval, &d_eval),
         (&left_sigma_eval, &right_sigma_eval, &out_sigma_eval),
         &perm_eval,
         z_poly,
-        p_poly,
-        &f_eval,
-        &t_eval,
-        &t_next_eval,
-        &h_1_eval,
-        &h_1_next_eval,
-        &h_1_poly,
-        &h_2_poly,
-        &lookup_perm_eval,
     );
 
     let lin_poly = &f_1 + &f_2;
@@ -324,6 +331,18 @@ fn compute_circuit_satisfiability(
     d_next_eval: &BlsScalar,
     q_arith_eval: &BlsScalar,
     f_eval: &BlsScalar,
+    t_eval: &BlsScalar,
+    t_next_eval: &BlsScalar,
+    h_1_eval: &BlsScalar,
+    h_1_next_eval: &BlsScalar,
+    p_next_eval: &BlsScalar,
+    l1_eval: &BlsScalar,
+    ln_eval: &BlsScalar,
+    p_poly: &Polynomial,
+    h_1_poly: &Polynomial,
+    h_2_poly: &Polynomial,
+    (delta, epsilon): (&BlsScalar, &BlsScalar),
+    z_challenge: &BlsScalar,
     q_c_eval: &BlsScalar,
     q_l_eval: &BlsScalar,
     q_r_eval: &BlsScalar,
@@ -382,7 +401,22 @@ fn compute_circuit_satisfiability(
 
     let f = prover_key
         .lookup
-        .compute_linearisation(f_eval, lookup_separation_challenge);
+        .compute_linearisation(
+            f_eval,
+            t_eval,
+            t_next_eval,
+            h_1_eval,
+            h_1_next_eval,
+            p_next_eval,
+            l1_eval,
+            ln_eval,
+            p_poly,
+            h_1_poly,
+            h_2_poly,
+            (delta, epsilon),
+            z_challenge,
+            lookup_separation_challenge,
+    );
 
     let mut linearisation_poly = &a + &b;
     linearisation_poly += &c;

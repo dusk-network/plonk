@@ -557,9 +557,20 @@ impl PlookupProver {
             .map(|(w, s)| w * s)
             .collect::<Vec<BlsScalar>>();
 
-        // Compress table into vector of single elements
-        // Skips first element so that f.len() = t.len() - 1
-        let compressed_f = MultiSet::compress_four_arity(
+        // Compress all wires into a single vector
+        // Long version is checked against wire polys later and needs euql them in length (n)
+        let compressed_f_long = MultiSet::compress_four_arity(
+            [
+                &MultiSet::from(&f_1_scalar[..]),
+                &MultiSet::from(&f_2_scalar[..]),
+                &MultiSet::from(&f_3_scalar[..]),
+                &MultiSet::from(&f_4_scalar[..]),
+            ],
+            zeta,
+        );
+
+        // Short version skips the first element and is used in plookup permutation checks. Ought to be length n-1.
+        let compressed_f_short = MultiSet::compress_four_arity(
             [
                 &MultiSet::from(&f_1_scalar[1..]),
                 &MultiSet::from(&f_2_scalar[1..]),
@@ -569,8 +580,13 @@ impl PlookupProver {
             zeta,
         );
 
-        // Compute query poly
-        let f_poly = Polynomial::from_coefficients_vec(domain.ifft(&compressed_f.0.as_slice()));
+        // Compute long query poly
+        let f_poly_long =
+            Polynomial::from_coefficients_vec(domain.ifft(&compressed_f_long.0.as_slice()));
+
+        // Compute short query poly
+        let f_poly_short =
+            Polynomial::from_coefficients_vec(domain.ifft(&compressed_f_short.0.as_slice()));
 
         // Commit to query polynomial
         let f_poly_commit = commit_key.commit(&f_poly)?;
