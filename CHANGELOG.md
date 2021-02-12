@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Removed
+- Deprecated `anyhow` and `thiserror` [#343](https://github.com/dusk-network/plonk/issues/343)
+### Changed
+- Updated the native errors to all originate from the same enum
 
 ## [0.5.1] - 02-02-21
 ### Changed
