@@ -9,6 +9,7 @@
 /// Defines all possible errors that can be encountered in PLONK.
 #[derive(core::fmt::Debug)]
 pub enum Error {
+    // FFT errors
     /// This error occurs when an error triggers on any of the fft module
     /// functions.
     InvalidEvalDomainSize {
@@ -17,6 +18,8 @@ pub enum Error {
         /// Two adacity generated
         adacity: u32,
     },
+
+    // Prover/Verifier errors
     /// This error occurs when a proof verification fails.
     ProofVerificationError,
     /// This error occurs when the circuit is not provided with all of the
@@ -27,12 +30,16 @@ pub enum Error {
     UninitializedPIGenerator,
     /// PublicInput serialization error
     InvalidPublicInputBytes,
-    /// This error occurs when an error triggers during the preprocessing
-    /// stage.
-    MismatchedPolyLen,
     /// This error occurs when the Prover structure already contains a
     /// preprocessed circuit inside, but you call preprocess again.
     CircuitAlreadyPreprocessed,
+
+    // Preprocessing errors
+    /// This error occurs when an error triggers during the preprocessing
+    /// stage.
+    MismatchedPolyLen,
+
+    // KZG10 errors
     /// This error occurs when the user tries to create PublicParameters
     /// and supplies the max degree as zero.
     DegreeIsZero,
@@ -49,6 +56,8 @@ pub enum Error {
     PolynomialDegreeIsZero,
     /// This error occurs when the pairing check fails at being equal to the Identity point.
     PairingCheckFailure,
+
+    // Serialization errors
     /// This error occurs when there are not enough bytes to read out of a slice during
     /// deserialization.
     NotEnoughBytes,

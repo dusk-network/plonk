@@ -28,6 +28,4 @@ pub use dusk_bls12_381::BlsScalar;
 pub use dusk_jubjub::JubJubScalar;
 
 /// Collection of errors that the library exposes/uses.
-pub mod plonk_errors {
-    pub use crate::error::Error;
-}
+pub use crate::error::Error;
