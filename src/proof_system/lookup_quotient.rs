@@ -126,7 +126,12 @@ pub(crate) fn compute(
         (&wl_eval_4n, &wr_eval_4n, &wo_eval_4n, &w4_eval_4n),
         public_inputs_poly,
         zeta,
+        (delta, epsilon),
         &f_eval_4n,
+        &p_eval_4n,
+        &t_eval_4n,
+        &h_1_eval_4n,
+        &h_2_eval_4n,
     );
 
     let t_2 = compute_permutation_checks(
@@ -175,10 +180,17 @@ fn compute_circuit_satisfiability_equation(
     ),
     pi_poly: &Polynomial,
     zeta: &BlsScalar,
+    (delta, epsilon): (&BlsScalar, &BlsScalar),
     f_eval_4n: &[BlsScalar],
+    p_eval_4n: &[BlsScalar],
+    t_eval_4n: &[BlsScalar],
+    h_1_eval_4n: &[BlsScalar],
+    h_2_eval_4n: &[BlsScalar],
 ) -> Vec<BlsScalar> {
     let domain_4n = EvaluationDomain::new(4 * domain.size()).unwrap();
     let pi_eval_4n = domain_4n.coset_fft(pi_poly);
+    let l1_eval_4n = domain_4n.coset_fft(&compute_first_lagrange_poly_scaled(&domain_4n, BlsScalar::one()));
+    let ln_eval_4n = domain_4n.coset_fft(&compute_last_lagrange_poly_scaled(&domain_4n, BlsScalar::one()));
 
     let t: Vec<_> = (0..domain_4n.size())
         .into_par_iter()
@@ -191,7 +203,16 @@ fn compute_circuit_satisfiability_equation(
             let wr_next = &wr_eval_4n[i + 4];
             let w4_next = &w4_eval_4n[i + 4];
             let pi = &pi_eval_4n[i];
-            let f1 = &f_eval_4n[i];
+            let pi_next = &pi_eval_4n[i + 4];
+            let fi = &f_eval_4n[i];
+            let ti = &t_eval_4n[i];
+            let ti_next = &t_eval_4n[i + 4];
+            let h1 = &h_1_eval_4n[i];
+            let h2 = &h_2_eval_4n[i];
+            let h1_next = &h_1_eval_4n[i + 4];
+            let h2_next = &h_2_eval_4n[i + 4];
+            let l1i = &l1_eval_4n[i];
+            let lni = &ln_eval_4n[i];
 
             let a = prover_key.arithmetic.compute_quotient_i(i, wl, wr, wo, w4);
 
@@ -243,7 +264,18 @@ fn compute_circuit_satisfiability_equation(
                 &wr,
                 &wo,
                 &w4,
-                f1,
+                &fi,
+                &pi,
+                &pi_next,
+                &ti,
+                &ti_next,
+                &h1,
+                &h1_next,
+                &h2,
+                &h2_next,
+                &l1i,
+                &lni,
+                (&delta, &epsilon),
                 &zeta,
             );
 
@@ -295,32 +327,18 @@ fn compute_permutation_checks(
     let t: Vec<_> = (0..domain_4n.size())
         .into_par_iter()
         .map(|i| {
-            prover_key.permutation.compute_plookup_quotient_i(
+            prover_key.permutation.compute_quotient_i(
                 i,
                 &wl_eval_4n[i],
                 &wr_eval_4n[i],
                 &wo_eval_4n[i],
                 &w4_eval_4n[i],
-                &f_eval[i],
-                &t_eval_4n[i],
-                &t_eval_4n[i + 4],
-                &h_1_eval_4n[i],
-                &h_2_eval_4n[i],
-                &h_1_eval_4n[i + 4],
-                &h_2_eval_4n[i + 4],
                 &z_eval_4n[i],
                 &z_eval_4n[i + 4],
-                &p_eval_4n[i],
-                &p_eval_4n[i + 4],
                 &alpha,
                 &l1_alpha_sq_evals[i],
-                &l1_alpha_4_evals[i],
-                &ln_alpha_6_evals[i],
-                &ln_alpha_7_evals[i],
                 &beta,
                 &gamma,
-                &delta,
-                &epsilon,
             )
         })
         .collect();

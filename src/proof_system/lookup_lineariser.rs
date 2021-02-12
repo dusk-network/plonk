@@ -251,7 +251,7 @@ pub fn compute(
         prover_key,
     );
 
-    let f_2 = prover_key.permutation.compute_lookup_linearisation(
+    let f_2 = prover_key.permutation.compute_linearisation(
         z_challenge,
         (alpha, beta, gamma, delta, epsilon),
         (&a_eval, &b_eval, &c_eval, &d_eval),

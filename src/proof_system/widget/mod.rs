@@ -953,7 +953,7 @@ impl PlookupProverKey {
             q_c,
         };
 
-        let lookup = lookup::PlookupProverKey { q_lookup };
+        let lookup = lookup::PlookupProverKey { q_lookup, linear_evaluations };
 
         let permutation = permutation::ProverKey {
             left_sigma,
