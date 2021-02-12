@@ -532,6 +532,15 @@ impl PlookupProof {
             &mut scalars,
             &mut points,
             &self.evaluations,
+            z_challenge,
+            (&delta, &epsilon),
+            &l1_eval,
+            &ln_eval,
+            &t_eval,
+            &t_next_eval,
+            self.h_1_comm.0,
+            self.h_2_comm.0,
+            self.p_comm.0,
         );
 
         verifier_key.permutation.compute_linearisation_commitment(
@@ -539,15 +548,10 @@ impl PlookupProof {
             &mut points,
             &self.evaluations,
             z_challenge,
-            (alpha, beta, gamma, delta, epsilon),
+            (alpha, beta, gamma),
             &l1_eval,
             &ln_eval,
-            &t_eval,
-            &t_next_eval,
             self.z_comm.0,
-            self.h_1_comm.0,
-            self.h_2_comm.0,
-            self.p_comm.0,
         );
 
         Commitment::from_projective(msm_variable_base(&points, &scalars))

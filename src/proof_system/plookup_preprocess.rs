@@ -197,7 +197,7 @@ impl PlookupComposer {
         };
 
         // Prover key for lookup operations
-        let lookup_prover_key = widget::lookup::ProverKey {
+        let lookup_prover_key = widget::lookup::PlookupProverKey {
             q_lookup: (selectors.q_lookup, q_lookup_eval_4n),
         };
 

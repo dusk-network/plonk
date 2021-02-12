@@ -75,7 +75,7 @@ impl VerifierKey {
         points.push(self.fourth_sigma.0);
     }
 }
-/*
+
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub struct PlookupVerifierKey {
     pub left_sigma: Commitment,
@@ -102,10 +102,6 @@ impl PlookupVerifierKey {
     ) {
         // Compute powers of alpha
         let alpha_sq = alpha.square();
-        let alpha_4 = alpha_sq * alpha_sq;
-        let alpha_5 = alpha_4 * alpha;
-        let alpha_6 = alpha_5 * alpha;
-        let alpha_7 = alpha_6 * alpha;
 
         // (a_eval + beta * z + gamma)(b_eval + beta * z * k1 + gamma)(c_eval + beta * k2 * z + gamma)(d_eval + beta * k3 * z + gamma) * alpha
         let x = {
@@ -149,4 +145,3 @@ impl PlookupVerifierKey {
         points.push(self.fourth_sigma.0);
     }
 }
-*/
