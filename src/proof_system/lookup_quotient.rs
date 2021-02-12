@@ -188,6 +188,7 @@ fn compute_circuit_satisfiability_equation(
     h_2_eval_4n: &[BlsScalar],
 ) -> Vec<BlsScalar> {
     let domain_4n = EvaluationDomain::new(4 * domain.size()).unwrap();
+    let domain_4n_elements = domain_4n.elements().collect::<Vec<BlsScalar>>();
     let pi_eval_4n = domain_4n.coset_fft(pi_poly);
     let l1_eval_4n = domain_4n.coset_fft(&compute_first_lagrange_poly_scaled(&domain_4n, BlsScalar::one()));
     let ln_eval_4n = domain_4n.coset_fft(&compute_last_lagrange_poly_scaled(&domain_4n, BlsScalar::one()));
@@ -213,6 +214,7 @@ fn compute_circuit_satisfiability_equation(
             let h2_next = &h_2_eval_4n[i + 4];
             let l1i = &l1_eval_4n[i];
             let lni = &ln_eval_4n[i];
+            let xi = domain_4n_elements[i];
 
             let a = prover_key.arithmetic.compute_quotient_i(i, wl, wr, wo, w4);
 
@@ -259,6 +261,7 @@ fn compute_circuit_satisfiability_equation(
 
             let f = prover_key.lookup.compute_quotient_i(
                 i,
+                &xi,
                 lookup_challenge,
                 &wl,
                 &wr,

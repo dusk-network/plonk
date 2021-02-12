@@ -550,7 +550,6 @@ impl PlookupProof {
             z_challenge,
             (alpha, beta, gamma),
             &l1_eval,
-            &ln_eval,
             self.z_comm.0,
         );
 

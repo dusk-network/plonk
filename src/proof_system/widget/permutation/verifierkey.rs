@@ -91,16 +91,10 @@ impl PlookupVerifierKey {
         points: &mut Vec<G1Affine>,
         evaluations: &PlookupProofEvaluations,
         z_challenge: &BlsScalar,
-        (alpha, beta, gamma): (
-            &BlsScalar,
-            &BlsScalar,
-            &BlsScalar,
-        ),
+        (alpha, beta, gamma): (&BlsScalar, &BlsScalar, &BlsScalar),
         l1_eval: &BlsScalar,
-        ln_eval: &BlsScalar,
         z_comm: G1Affine,
     ) {
-        // Compute powers of alpha
         let alpha_sq = alpha.square();
 
         // (a_eval + beta * z + gamma)(b_eval + beta * z * k1 + gamma)(c_eval + beta * k2 * z + gamma)(d_eval + beta * k3 * z + gamma) * alpha
