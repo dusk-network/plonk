@@ -11,12 +11,11 @@
 //! `Proof` structure and it's methods.
 
 use super::linearisation_poly::ProofEvaluations;
-use super::proof_system_errors::ProofErrors;
 use crate::commitment_scheme::kzg10::{AggregateProof, Commitment, OpeningKey};
+use crate::error::Error;
 use crate::fft::EvaluationDomain;
 use crate::proof_system::widget::VerifierKey;
 use crate::transcript::TranscriptProtocol;
-use anyhow::{Error, Result};
 use dusk_bls12_381::{multiscalar_mul::msm_variable_base, BlsScalar, G1Affine};
 use dusk_bytes::Serializable;
 use merlin::Transcript;
@@ -309,7 +308,7 @@ impl Proof {
             )
             .is_err()
         {
-            return Err(ProofErrors::ProofVerificationError.into());
+            return Err(Error::ProofVerificationError);
         }
         Ok(())
     }

@@ -5,27 +5,15 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use crate::commitment_scheme::kzg10::Commitment;
+use crate::error::Error;
 use crate::fft::{EvaluationDomain, Evaluations, Polynomial};
-use anyhow::{Error, Result};
 use dusk_bls12_381::{BlsScalar, G1Affine, G2Affine};
 use dusk_bytes::{DeserializableSlice, Serializable};
-use thiserror::Error;
-
-/// Defines all of the possible Serialisation errors
-#[derive(Error, Debug)]
-pub enum SerialisationErrors {
-    #[error("There are not enough bytes to perform deserialisation")]
-    NotEnoughBytes,
-    #[error("Cannot decompress point, as it is not in a canonical format")]
-    PointMalformed,
-    #[error("Cannot deserialise scalar, as it is not in a canonical format")]
-    BlsScalarMalformed,
-}
 
 /// Reads n bytes from slice and returns the n bytes along with the rest of the slice
 pub fn read_n(n: usize, bytes: &[u8]) -> Result<(&[u8], &[u8]), Error> {
     if bytes.len() < n {
-        return Err(SerialisationErrors::NotEnoughBytes.into());
+        return Err(Error::NotEnoughBytes);
     }
     let bytes32 = &bytes[0..n];
     let rest = &bytes[n..];
@@ -39,7 +27,7 @@ pub fn read_scalar(bytes: &[u8]) -> Result<(BlsScalar, &[u8]), Error> {
 
     BlsScalar::from_slice(bytes)
         .map(|g| (g, rest))
-        .map_err(|_| SerialisationErrors::BlsScalarMalformed.into())
+        .map_err(|_| Error::BlsScalarMalformed)
 }
 
 /// Writes a BlsScalar into a mutable slice
@@ -54,7 +42,7 @@ pub fn read_g1_affine(bytes: &[u8]) -> Result<(G1Affine, &[u8]), Error> {
 
     G1Affine::from_slice(bytes)
         .map(|g| (g, rest))
-        .map_err(|_| SerialisationErrors::PointMalformed.into())
+        .map_err(|_| Error::PointMalformed)
 }
 
 /// Reads 48 bytes and converts it to a Commitment
@@ -80,7 +68,7 @@ pub fn read_g2_affine(bytes: &[u8]) -> Result<(G2Affine, &[u8]), Error> {
 
     G2Affine::from_slice(bytes)
         .map(|g| (g, rest))
-        .map_err(|_| SerialisationErrors::PointMalformed.into())
+        .map_err(|_| Error::PointMalformed)
 }
 
 /// Reads 8 bytes and converts it to a u64

@@ -4,9 +4,9 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
+use crate::error::Error;
 use crate::fft::{EvaluationDomain, Polynomial};
 use crate::proof_system::widget::ProverKey;
-use anyhow::{Error, Result};
 use dusk_bls12_381::BlsScalar;
 use rayon::prelude::*;
 

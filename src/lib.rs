@@ -50,7 +50,6 @@
 // Clippy does not have `broken_intra_doc_links` as a known lint.
 #![allow(unknown_lints)]
 #![deny(broken_intra_doc_links)]
-#![deny(missing_debug_implementations)]
 #![deny(missing_docs)]
 
 #[macro_use]
@@ -60,6 +59,7 @@ mod bit_iterator;
 pub mod circuit_builder;
 pub mod commitment_scheme;
 pub mod constraint_system;
+pub mod error;
 pub mod fft;
 mod permutation;
 pub mod prelude;

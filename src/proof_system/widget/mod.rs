@@ -10,9 +10,9 @@ pub mod logic;
 pub mod permutation;
 pub mod range;
 
+use crate::error::Error;
 use crate::fft::Evaluations;
 use crate::transcript::TranscriptProtocol;
-use anyhow::{Error, Result};
 use merlin::Transcript;
 use serde::de::Visitor;
 use serde::{self, Deserialize, Deserializer, Serialize, Serializer};

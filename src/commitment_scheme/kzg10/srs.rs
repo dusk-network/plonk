@@ -5,12 +5,8 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 //! The Public Parameters can also be referred to as the Structured Reference String (SRS).
-use super::{
-    errors::KZG10Errors,
-    key::{CommitKey, OpeningKey},
-};
-use crate::util;
-use anyhow::{anyhow, Error, Result};
+use super::key::{CommitKey, OpeningKey};
+use crate::{error::Error, util};
 use dusk_bls12_381::{G1Affine, G1Projective, G2Affine};
 use rand_core::{CryptoRng, RngCore};
 
@@ -41,7 +37,7 @@ impl PublicParameters {
     ) -> Result<PublicParameters, Error> {
         // Cannot commit to constants
         if max_degree < 1 {
-            return Err(KZG10Errors::DegreeIsZero.into());
+            return Err(Error::DegreeIsZero);
         }
 
         // Generate the secret scalar beta
@@ -89,7 +85,7 @@ impl PublicParameters {
     /// points security
     pub unsafe fn from_slice_unchecked(bytes: &[u8]) -> Result<Self, Error> {
         if bytes.len() < OpeningKey::serialized_size() + 1 {
-            return Err(anyhow!("Not enough bytes provided!"));
+            return Err(Error::NotEnoughBytes);
         }
 
         let opening_key = &bytes[..OpeningKey::serialized_size()];

@@ -6,8 +6,8 @@
 
 use super::StandardComposer;
 use crate::commitment_scheme::kzg10::PublicParameters;
+use crate::error::Error;
 use crate::proof_system::{Prover, Verifier};
-use anyhow::{Error, Result};
 use dusk_bls12_381::BlsScalar;
 
 /// Adds dummy constraints using arithmetic gates

@@ -6,11 +6,12 @@
 
 use crate::commitment_scheme::kzg10::{CommitKey, OpeningKey};
 use crate::constraint_system::StandardComposer;
+use crate::error::Error;
 use crate::proof_system::widget::VerifierKey;
 use crate::proof_system::Proof;
-use anyhow::{Error, Result};
 use dusk_bls12_381::BlsScalar;
 use merlin::Transcript;
+
 /// Verifier verifies a proof
 #[allow(missing_debug_implementations)]
 pub struct Verifier {

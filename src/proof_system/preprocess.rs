@@ -7,12 +7,11 @@
 //! Methods to preprocess the constraint system for use in a proof
 
 use crate::commitment_scheme::kzg10::CommitKey;
-use crate::constraint_system::cs_errors::PreProcessingError;
 use crate::constraint_system::StandardComposer;
 
+use crate::error::Error;
 use crate::fft::{EvaluationDomain, Evaluations, Polynomial};
 use crate::proof_system::widget;
-use anyhow::{Error, Result};
 use dusk_bls12_381::BlsScalar;
 use merlin::Transcript;
 
@@ -68,7 +67,7 @@ impl StandardComposer {
     }
     /// Checks that all of the wires of the composer have the same
     /// length.
-    fn check_poly_same_len(&self) -> Result<(), PreProcessingError> {
+    fn check_poly_same_len(&self) -> Result<(), Error> {
         let k = self.q_m.len();
 
         if self.q_o.len() == k
@@ -87,7 +86,7 @@ impl StandardComposer {
         {
             Ok(())
         } else {
-            Err(PreProcessingError::MismatchedPolyLen)
+            Err(Error::MismatchedPolyLen)
         }
     }
     /// These are the parts of preprocessing that the prover must compute

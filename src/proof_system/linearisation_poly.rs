@@ -4,9 +4,10 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
+use crate::error::Error;
 use crate::fft::{EvaluationDomain, Polynomial};
 use crate::proof_system::widget::ProverKey;
-use anyhow::{Error, Result};
+use crate::serialisation::read_scalar;
 use dusk_bls12_381::BlsScalar;
 use dusk_bytes::Serializable;
 
@@ -82,10 +83,8 @@ impl ProofEvaluations {
     }
     /// Deserialises a slice of bytes into a proof Evaluation struct
     pub fn from_bytes(bytes: &[u8]) -> Result<ProofEvaluations, Error> {
-        use crate::serialisation::{read_scalar, SerialisationErrors};
-
         if bytes.len() != ProofEvaluations::serialised_size() {
-            return Err(SerialisationErrors::NotEnoughBytes.into());
+            return Err(Error::NotEnoughBytes);
         }
 
         let (a_eval, rest) = read_scalar(bytes)?;
