@@ -5,7 +5,6 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 //! Implementation of the KZG10 polynomial commitment scheme.
-pub mod errors;
 pub mod key;
 pub mod srs;
 

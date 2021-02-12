@@ -11,7 +11,6 @@ mod preprocess;
 
 /// Represents a PLONK Proof
 pub mod proof;
-pub(crate) mod proof_system_errors;
 /// Represents a PLONK Prover
 pub mod prover;
 pub(crate) mod quotient_poly;

@@ -5,6 +5,7 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 #![cfg_attr(feature = "nightly", feature(external_doc))]
+#![cfg_attr(not(feature = "std"), no_std)]
 #![doc(
     html_logo_url = "https://lh3.googleusercontent.com/SmwswGxtgIANTbDrCOn5EKcRBnVdHjmYsHYxLq2HZNXWCQ9-fZyaea-bNgdX9eR0XGSqiMFi=w128-h128-e365"
 )]
@@ -50,8 +51,6 @@
 // Clippy does not have `broken_intra_doc_links` as a known lint.
 #![allow(unknown_lints)]
 #![deny(broken_intra_doc_links)]
-// XXX: This needs to go if we are moving to no_std compatibility.
-// #![deny(missing_debug_implementations)]
 #![deny(missing_docs)]
 
 #[macro_use]
@@ -61,6 +60,7 @@ mod bit_iterator;
 pub mod circuit_builder;
 pub mod commitment_scheme;
 pub mod constraint_system;
+pub mod error;
 pub mod fft;
 mod permutation;
 pub mod prelude;

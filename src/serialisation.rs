@@ -5,33 +5,15 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use crate::commitment_scheme::kzg10::Commitment;
+use crate::error::Error;
 use crate::fft::{EvaluationDomain, Evaluations, Polynomial};
 use dusk_bls12_381::{BlsScalar, G1Affine, G2Affine};
 use dusk_bytes::{DeserializableSlice, Serializable};
 
-/// Defines all of the possible Serialisation errors
-#[derive(core::fmt::Debug)]
-pub enum SerialisationErrors {
-    NotEnoughBytes,
-    PointMalformed,
-    BlsScalarMalformed,
-}
-
-// XXX: Should be covered with a conditional compilation flag
-impl std::fmt::Display for SerialisationErrors {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::NotEnoughBytes => write!(f, "not enough bytes left to read"),
-            Self::PointMalformed => write!(f, "BLS point bytes malformed"),
-            Self::BlsScalarMalformed => write!(f, "BLS scalar bytes malformed"),
-        }
-    }
-}
-
 /// Reads n bytes from slice and returns the n bytes along with the rest of the slice
-pub fn read_n(n: usize, bytes: &[u8]) -> Result<(&[u8], &[u8]), SerialisationErrors> {
+pub fn read_n(n: usize, bytes: &[u8]) -> Result<(&[u8], &[u8]), Error> {
     if bytes.len() < n {
-        return Err(SerialisationErrors::NotEnoughBytes);
+        return Err(Error::NotEnoughBytes);
     }
     let bytes32 = &bytes[0..n];
     let rest = &bytes[n..];
@@ -40,12 +22,12 @@ pub fn read_n(n: usize, bytes: &[u8]) -> Result<(&[u8], &[u8]), SerialisationErr
 
 /// Reads 32 bytes and converts it to a BlsScalar
 /// Returns the remaining bytes
-pub fn read_scalar(bytes: &[u8]) -> Result<(BlsScalar, &[u8]), SerialisationErrors> {
+pub fn read_scalar(bytes: &[u8]) -> Result<(BlsScalar, &[u8]), Error> {
     let (bytes, rest) = read_n(BlsScalar::SIZE, bytes)?;
 
     BlsScalar::from_slice(bytes)
         .map(|g| (g, rest))
-        .map_err(|_| SerialisationErrors::BlsScalarMalformed)
+        .map_err(|_| Error::BlsScalarMalformed)
 }
 
 /// Writes a BlsScalar into a mutable slice
@@ -55,17 +37,17 @@ pub fn write_scalar(scalar: &BlsScalar, bytes: &mut Vec<u8>) {
 
 /// Reads 48 bytes and converts it to a G1Affine
 /// Returns the remaining bytes
-pub fn read_g1_affine(bytes: &[u8]) -> Result<(G1Affine, &[u8]), SerialisationErrors> {
+pub fn read_g1_affine(bytes: &[u8]) -> Result<(G1Affine, &[u8]), Error> {
     let (bytes, rest) = read_n(G1Affine::SIZE, bytes)?;
 
     G1Affine::from_slice(bytes)
         .map(|g| (g, rest))
-        .map_err(|_| SerialisationErrors::PointMalformed)
+        .map_err(|_| Error::PointMalformed)
 }
 
 /// Reads 48 bytes and converts it to a Commitment
 /// Returns the remaining bytes
-pub fn read_commitment(bytes: &[u8]) -> Result<(Commitment, &[u8]), SerialisationErrors> {
+pub fn read_commitment(bytes: &[u8]) -> Result<(Commitment, &[u8]), Error> {
     let (g1, rest) = read_g1_affine(bytes)?;
     Ok((Commitment::from_affine(g1), rest))
 }
@@ -81,17 +63,17 @@ pub fn write_commitment(commitment: &Commitment, bytes: &mut Vec<u8>) {
 
 /// Reads 96 bytes and converts it to a G2Affine
 /// Returns the remaining bytes
-pub fn read_g2_affine(bytes: &[u8]) -> Result<(G2Affine, &[u8]), SerialisationErrors> {
+pub fn read_g2_affine(bytes: &[u8]) -> Result<(G2Affine, &[u8]), Error> {
     let (bytes, rest) = read_n(G2Affine::SIZE, bytes)?;
 
     G2Affine::from_slice(bytes)
         .map(|g| (g, rest))
-        .map_err(|_| SerialisationErrors::PointMalformed)
+        .map_err(|_| Error::PointMalformed)
 }
 
 /// Reads 8 bytes and converts it to a u64
 /// Returns the remaining bytes
-pub fn read_u64(bytes: &[u8]) -> Result<(u64, &[u8]), SerialisationErrors> {
+pub fn read_u64(bytes: &[u8]) -> Result<(u64, &[u8]), Error> {
     let (bytes8, rest) = read_n(8, bytes)?;
     let mut arr8 = [0u8; 8];
     arr8.copy_from_slice(bytes8);
@@ -104,7 +86,7 @@ pub fn write_u64(val: u64, bytes: &mut Vec<u8>) {
 
 /// Reads the bytes slice and parses a Vector of scalars
 /// Returns the remaining bytes
-pub fn read_scalars(bytes: &[u8]) -> Result<(Vec<BlsScalar>, &[u8]), SerialisationErrors> {
+pub fn read_scalars(bytes: &[u8]) -> Result<(Vec<BlsScalar>, &[u8]), Error> {
     let (num_scalars, mut bytes) = read_u64(bytes)?;
 
     let mut poly_vec = Vec::new();
@@ -126,7 +108,7 @@ pub fn write_scalars(val: &[BlsScalar], bytes: &mut Vec<u8>) {
 }
 /// Reads the bytes slice and parses a Polynomial
 /// Returns the remaining bytes
-pub fn read_polynomial(bytes: &[u8]) -> Result<(Polynomial, &[u8]), SerialisationErrors> {
+pub fn read_polynomial(bytes: &[u8]) -> Result<(Polynomial, &[u8]), Error> {
     let (poly_vec, rest) = read_scalars(bytes)?;
     Ok((Polynomial::from_coefficients_vec(poly_vec), rest))
 }
@@ -139,7 +121,7 @@ pub fn write_polynomial(val: &Polynomial, bytes: &mut Vec<u8>) {
 pub fn read_evaluations(
     domain: EvaluationDomain,
     bytes: &[u8],
-) -> Result<(Evaluations, &[u8]), SerialisationErrors> {
+) -> Result<(Evaluations, &[u8]), Error> {
     let (scalars, rest) = read_scalars(bytes)?;
 
     let evals = Evaluations::from_vec_and_domain(scalars, domain);

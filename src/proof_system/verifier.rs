@@ -5,10 +5,10 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use crate::commitment_scheme::kzg10::{CommitKey, OpeningKey};
-use crate::constraint_system::cs_errors::PreProcessingErrors;
 use crate::constraint_system::StandardComposer;
+use crate::error::Error;
 use crate::proof_system::widget::VerifierKey;
-use crate::proof_system::{proof_system_errors::ProofErrors, Proof};
+use crate::proof_system::Proof;
 use dusk_bls12_381::BlsScalar;
 use merlin::Transcript;
 
@@ -62,7 +62,7 @@ impl Verifier {
     }
 
     /// Preprocess a proof
-    pub fn preprocess(&mut self, commit_key: &CommitKey) -> Result<(), PreProcessingErrors> {
+    pub fn preprocess(&mut self, commit_key: &CommitKey) -> Result<(), Error> {
         let vk = self
             .cs
             .preprocess_verifier(commit_key, &mut self.preprocessed_transcript)?;
@@ -83,7 +83,7 @@ impl Verifier {
         proof: &Proof,
         opening_key: &OpeningKey,
         public_inputs: &[BlsScalar],
-    ) -> Result<(), ProofErrors> {
+    ) -> Result<(), Error> {
         let mut cloned_transcript = self.preprocessed_transcript.clone();
         let verifier_key = self.verifier_key.as_ref().unwrap();
 

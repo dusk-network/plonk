@@ -10,8 +10,8 @@ pub mod logic;
 pub mod permutation;
 pub mod range;
 
+use crate::error::Error;
 use crate::fft::Evaluations;
-use crate::serialisation::SerialisationErrors;
 use crate::transcript::TranscriptProtocol;
 use merlin::Transcript;
 use serde::de::Visitor;
@@ -106,7 +106,7 @@ impl VerifierKey {
     }
 
     /// Deserialise a slice of bytes into a VerifierKey
-    pub fn from_bytes(bytes: &[u8]) -> Result<VerifierKey, SerialisationErrors> {
+    pub fn from_bytes(bytes: &[u8]) -> Result<VerifierKey, Error> {
         use crate::serialisation::{read_commitment, read_u64};
 
         let (n, rest) = read_u64(bytes)?;
@@ -273,7 +273,7 @@ impl ProverKey {
         bytes
     }
     /// Deserialises a slice of bytes into a ProverKey
-    pub fn from_bytes(bytes: &[u8]) -> Result<ProverKey, SerialisationErrors> {
+    pub fn from_bytes(bytes: &[u8]) -> Result<ProverKey, Error> {
         use crate::serialisation::{read_evaluations, read_polynomial, read_u64};
 
         let (n, rest) = read_u64(bytes)?;

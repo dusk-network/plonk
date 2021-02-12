@@ -7,10 +7,8 @@
 //! Key module contains the utilities and data structures
 //! that support the generation and usage of Commit and
 //! Opening keys.
-use super::{errors::KZG10Errors, AggregateProof, Commitment, Proof};
-use crate::{
-    fft::Polynomial, serialisation::SerialisationErrors, transcript::TranscriptProtocol, util,
-};
+use super::{AggregateProof, Commitment, Proof};
+use crate::{error::Error, fft::Polynomial, transcript::TranscriptProtocol, util};
 use dusk_bls12_381::{
     multiscalar_mul::msm_variable_base, BlsScalar, G1Affine, G1Projective, G2Affine, G2Prepared,
 };
@@ -97,7 +95,7 @@ impl CommitKey {
     }
 
     /// Deserialises a bytes slice to a Commitment Key
-    pub fn from_bytes(bytes: &[u8]) -> Result<CommitKey, SerialisationErrors> {
+    pub fn from_bytes(bytes: &[u8]) -> Result<CommitKey, Error> {
         use crate::serialisation::{read_g1_affine, read_u64};
 
         let (num_points, rest) = read_u64(&bytes)?;
@@ -122,18 +120,18 @@ impl CommitKey {
     /// Truncates the commit key to a lower max degree.
     /// Returns an error if the truncated degree is zero or if the truncated degree
     /// is larger than the max degree of the commit key.
-    pub fn truncate(&self, mut truncated_degree: usize) -> Result<CommitKey, KZG10Errors> {
+    pub fn truncate(&self, mut truncated_degree: usize) -> Result<CommitKey, Error> {
         if truncated_degree == 1 {
             truncated_degree += 1;
         }
         // Check that the truncated degree is not zero
         if truncated_degree == 0 {
-            return Err(KZG10Errors::TruncatedDegreeIsZero);
+            return Err(Error::TruncatedDegreeIsZero);
         }
 
         // Check that max degree is less than truncated degree
         if truncated_degree > self.max_degree() {
-            return Err(KZG10Errors::TruncatedDegreeTooLarge);
+            return Err(Error::TruncatedDegreeTooLarge);
         }
 
         let truncated_powers = Self {
@@ -143,14 +141,14 @@ impl CommitKey {
         Ok(truncated_powers)
     }
 
-    fn check_commit_degree_is_within_bounds(&self, poly_degree: usize) -> Result<(), KZG10Errors> {
+    fn check_commit_degree_is_within_bounds(&self, poly_degree: usize) -> Result<(), Error> {
         check_degree_is_within_bounds(self.max_degree(), poly_degree)
     }
 
     /// Commits to a polynomial returning the corresponding `Commitment`.
     ///
     /// Returns an error if the polynomial's degree is more than the max degree of the commit key.
-    pub fn commit(&self, polynomial: &Polynomial) -> Result<Commitment, KZG10Errors> {
+    pub fn commit(&self, polynomial: &Polynomial) -> Result<Commitment, Error> {
         // Check whether we can safely commit to this polynomial
         self.check_commit_degree_is_within_bounds(polynomial.degree())?;
 
@@ -200,7 +198,7 @@ impl CommitKey {
         polynomial: &Polynomial,
         value: &BlsScalar,
         point: &BlsScalar,
-    ) -> Result<Proof, KZG10Errors> {
+    ) -> Result<Proof, Error> {
         let witness_poly = self.compute_single_witness(polynomial, point);
         Ok(Proof {
             commitment_to_witness: self.commit(&witness_poly)?,
@@ -218,7 +216,7 @@ impl CommitKey {
         evaluations: Vec<BlsScalar>,
         point: &BlsScalar,
         transcript: &mut Transcript,
-    ) -> Result<AggregateProof, KZG10Errors> {
+    ) -> Result<AggregateProof, Error> {
         // Commit to polynomials
         let mut polynomial_commitments = Vec::with_capacity(polynomials.len());
         for poly in polynomials.iter() {
@@ -275,7 +273,7 @@ impl OpeningKey {
     }
 
     /// Deserialises a byte slice into an Opening Key
-    pub fn from_bytes(bytes: &[u8]) -> Result<OpeningKey, SerialisationErrors> {
+    pub fn from_bytes(bytes: &[u8]) -> Result<OpeningKey, Error> {
         use crate::serialisation::{read_g1_affine, read_g2_affine};
 
         let (g, rest) = read_g1_affine(&bytes)?;
@@ -309,7 +307,7 @@ impl OpeningKey {
         points: &[BlsScalar],
         proofs: &[Proof],
         transcript: &mut Transcript,
-    ) -> Result<(), KZG10Errors> {
+    ) -> Result<(), Error> {
         let mut total_c = G1Projective::identity();
         let mut total_w = G1Projective::identity();
 
@@ -340,7 +338,7 @@ impl OpeningKey {
         .final_exponentiation();
 
         if pairing != dusk_bls12_381::Gt::identity() {
-            return Err(KZG10Errors::PairingCheckFailure);
+            return Err(Error::PairingCheckFailure);
         };
         Ok(())
     }
@@ -352,12 +350,12 @@ impl OpeningKey {
 ///
 ///
 /// Returns an error if any of the above conditions are true.
-fn check_degree_is_within_bounds(max_degree: usize, poly_degree: usize) -> Result<(), KZG10Errors> {
+fn check_degree_is_within_bounds(max_degree: usize, poly_degree: usize) -> Result<(), Error> {
     if poly_degree == 0 {
-        return Err(KZG10Errors::PolynomialDegreeIsZero);
+        return Err(Error::PolynomialDegreeIsZero);
     }
     if poly_degree > max_degree {
-        return Err(KZG10Errors::PolynomialDegreeTooLarge);
+        return Err(Error::PolynomialDegreeTooLarge);
     }
     Ok(())
 }

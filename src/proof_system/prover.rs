@@ -4,10 +4,9 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use super::proof_system_errors::ProofErrors;
 use crate::commitment_scheme::kzg10::CommitKey;
-use crate::constraint_system::cs_errors::PreProcessingErrors;
 use crate::constraint_system::{StandardComposer, Variable};
+use crate::error::Error;
 use crate::fft::{EvaluationDomain, Polynomial};
 use crate::proof_system::widget::ProverKey;
 use crate::proof_system::{linearisation_poly, proof::Proof, quotient_poly};
@@ -34,9 +33,9 @@ impl Prover {
         &mut self.cs
     }
     /// Preprocesses the underlying constraint system
-    pub fn preprocess(&mut self, commit_key: &CommitKey) -> Result<(), PreProcessingErrors> {
+    pub fn preprocess(&mut self, commit_key: &CommitKey) -> Result<(), Error> {
         if self.prover_key.is_some() {
-            return Err(PreProcessingErrors::CircuitAlreadyPreprocessed);
+            return Err(Error::CircuitAlreadyPreprocessed);
         }
         let pk = self
             .cs
@@ -142,9 +141,8 @@ impl Prover {
         &self,
         commit_key: &CommitKey,
         prover_key: &ProverKey,
-    ) -> Result<Proof, ProofErrors> {
-        let domain = EvaluationDomain::new(self.cs.circuit_size())
-            .map_err(|e| ProofErrors::CouldNotConstructEvaluationDomain(e))?;
+    ) -> Result<Proof, Error> {
+        let domain = EvaluationDomain::new(self.cs.circuit_size())?;
 
         // Since the caller is passing a pre-processed circuit
         // We assume that the Transcript has been seeded with the preprocessed
@@ -169,18 +167,10 @@ impl Prover {
         let w_4_poly = Polynomial::from_coefficients_vec(domain.ifft(w_4_scalar));
 
         // Commit to witness polynomials
-        let w_l_poly_commit = commit_key
-            .commit(&w_l_poly)
-            .map_err(|e| ProofErrors::CouldNotCommitToPoly(e))?;
-        let w_r_poly_commit = commit_key
-            .commit(&w_r_poly)
-            .map_err(|e| ProofErrors::CouldNotCommitToPoly(e))?;
-        let w_o_poly_commit = commit_key
-            .commit(&w_o_poly)
-            .map_err(|e| ProofErrors::CouldNotCommitToPoly(e))?;
-        let w_4_poly_commit = commit_key
-            .commit(&w_4_poly)
-            .map_err(|e| ProofErrors::CouldNotCommitToPoly(e))?;
+        let w_l_poly_commit = commit_key.commit(&w_l_poly)?;
+        let w_r_poly_commit = commit_key.commit(&w_r_poly)?;
+        let w_o_poly_commit = commit_key.commit(&w_o_poly)?;
+        let w_4_poly_commit = commit_key.commit(&w_4_poly)?;
 
         // Add witness polynomial commitments to transcript
         transcript.append_commitment(b"w_l", &w_l_poly_commit);
@@ -211,9 +201,7 @@ impl Prover {
 
         // Commit to permutation polynomial
         //
-        let z_poly_commit = commit_key
-            .commit(&z_poly)
-            .map_err(|e| ProofErrors::CouldNotCommitToPoly(e))?;
+        let z_poly_commit = commit_key.commit(&z_poly)?;
 
         // Add permutation polynomial commitment to transcript
         transcript.append_commitment(b"z", &z_poly_commit);
@@ -247,25 +235,16 @@ impl Prover {
                 fixed_base_sep_challenge,
                 var_base_sep_challenge,
             ),
-        )
-        .map_err(|e| ProofErrors::CouldNotComputeQuotientPoly(e))?;
+        )?;
 
         // Split quotient polynomial into 4 degree `n` polynomials
         let (t_1_poly, t_2_poly, t_3_poly, t_4_poly) = self.split_tx_poly(domain.size(), &t_poly);
 
         // Commit to splitted quotient polynomial
-        let t_1_commit = commit_key
-            .commit(&t_1_poly)
-            .map_err(|e| ProofErrors::CouldNotCommitToPoly(e))?;
-        let t_2_commit = commit_key
-            .commit(&t_2_poly)
-            .map_err(|e| ProofErrors::CouldNotCommitToPoly(e))?;
-        let t_3_commit = commit_key
-            .commit(&t_3_poly)
-            .map_err(|e| ProofErrors::CouldNotCommitToPoly(e))?;
-        let t_4_commit = commit_key
-            .commit(&t_4_poly)
-            .map_err(|e| ProofErrors::CouldNotCommitToPoly(e))?;
+        let t_1_commit = commit_key.commit(&t_1_poly)?;
+        let t_2_commit = commit_key.commit(&t_2_poly)?;
+        let t_3_commit = commit_key.commit(&t_3_poly)?;
+        let t_4_commit = commit_key.commit(&t_4_poly)?;
 
         // Add quotient polynomial commitments to transcript
         transcript.append_commitment(b"t_1", &t_1_commit);
@@ -346,9 +325,7 @@ impl Prover {
             &z_challenge,
             &mut transcript,
         );
-        let w_z_comm = commit_key
-            .commit(&aggregate_witness)
-            .map_err(|e| ProofErrors::CouldNotCommitToPoly(e))?;
+        let w_z_comm = commit_key.commit(&aggregate_witness)?;
 
         // Compute aggregate witness to polynomials evaluated at the shifted evaluation challenge
         let shifted_aggregate_witness = commit_key.compute_aggregate_witness(
@@ -356,9 +333,7 @@ impl Prover {
             &(z_challenge * domain.group_gen),
             &mut transcript,
         );
-        let w_zx_comm = commit_key
-            .commit(&shifted_aggregate_witness)
-            .map_err(|e| ProofErrors::CouldNotCommitToPoly(e))?;
+        let w_zx_comm = commit_key.commit(&shifted_aggregate_witness)?;
 
         // Create Proof
         Ok(Proof {
@@ -384,15 +359,14 @@ impl Prover {
     /// Proves a circuit is satisfied, then clears the witness variables
     /// If the circuit is not pre-processed, then the preprocessed circuit will
     /// also be computed
-    pub fn prove(&mut self, commit_key: &CommitKey) -> Result<Proof, ProofErrors> {
+    pub fn prove(&mut self, commit_key: &CommitKey) -> Result<Proof, Error> {
         let prover_key: &ProverKey;
 
         if self.prover_key.is_none() {
             // Preprocess circuit
             let prover_key = self
                 .cs
-                .preprocess_prover(commit_key, &mut self.preprocessed_transcript)
-                .map_err(|e| ProofErrors::CouldNotPreProcessCircuit(e))?;
+                .preprocess_prover(commit_key, &mut self.preprocessed_transcript)?;
             // Store preprocessed circuit and transcript in the Prover
             self.prover_key = Some(prover_key);
         }

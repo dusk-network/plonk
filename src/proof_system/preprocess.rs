@@ -7,9 +7,9 @@
 //! Methods to preprocess the constraint system for use in a proof
 
 use crate::commitment_scheme::kzg10::CommitKey;
-use crate::constraint_system::cs_errors::PreProcessingErrors;
 use crate::constraint_system::StandardComposer;
 
+use crate::error::Error;
 use crate::fft::{EvaluationDomain, Evaluations, Polynomial};
 use crate::proof_system::widget;
 use dusk_bls12_381::BlsScalar;
@@ -67,7 +67,7 @@ impl StandardComposer {
     }
     /// Checks that all of the wires of the composer have the same
     /// length.
-    fn check_poly_same_len(&self) -> Result<(), PreProcessingErrors> {
+    fn check_poly_same_len(&self) -> Result<(), Error> {
         let k = self.q_m.len();
 
         if self.q_o.len() == k
@@ -86,7 +86,7 @@ impl StandardComposer {
         {
             Ok(())
         } else {
-            Err(PreProcessingErrors::MismatchedPolyLen)
+            Err(Error::MismatchedPolyLen)
         }
     }
     /// These are the parts of preprocessing that the prover must compute
@@ -96,11 +96,10 @@ impl StandardComposer {
         &mut self,
         commit_key: &CommitKey,
         transcript: &mut Transcript,
-    ) -> Result<widget::ProverKey, PreProcessingErrors> {
+    ) -> Result<widget::ProverKey, Error> {
         let (_, selectors, domain) = self.preprocess_shared(commit_key, transcript)?;
 
-        let domain_4n = EvaluationDomain::new(4 * domain.size())
-            .map_err(|e| PreProcessingErrors::CouldNotConstructEvaluationDomain(e))?;
+        let domain_4n = EvaluationDomain::new(4 * domain.size())?;
         let q_m_eval_4n =
             Evaluations::from_vec_and_domain(domain_4n.coset_fft(&selectors.q_m), domain_4n);
         let q_l_eval_4n =
@@ -211,7 +210,7 @@ impl StandardComposer {
         &mut self,
         commit_key: &CommitKey,
         transcript: &mut Transcript,
-    ) -> Result<widget::VerifierKey, PreProcessingErrors> {
+    ) -> Result<widget::VerifierKey, Error> {
         let (verifier_key, _, _) = self.preprocess_shared(commit_key, transcript)?;
         Ok(verifier_key)
     }
@@ -221,10 +220,8 @@ impl StandardComposer {
         &mut self,
         commit_key: &CommitKey,
         transcript: &mut Transcript,
-    ) -> Result<(widget::VerifierKey, SelectorPolynomials, EvaluationDomain), PreProcessingErrors>
-    {
-        let domain = EvaluationDomain::new(self.circuit_size())
-            .map_err(|e| PreProcessingErrors::CouldNotConstructEvaluationDomain(e))?;
+    ) -> Result<(widget::VerifierKey, SelectorPolynomials, EvaluationDomain), Error> {
+        let domain = EvaluationDomain::new(self.circuit_size())?;
 
         // Check that the length of the wires is consistent.
         self.check_poly_same_len()?;
@@ -266,18 +263,10 @@ impl StandardComposer {
             .commit(&q_variable_group_add_poly)
             .unwrap_or_default();
 
-        let left_sigma_poly_commit = commit_key
-            .commit(&left_sigma_poly)
-            .map_err(|e| PreProcessingErrors::CouldNotCommitToPoly(e))?;
-        let right_sigma_poly_commit = commit_key
-            .commit(&right_sigma_poly)
-            .map_err(|e| PreProcessingErrors::CouldNotCommitToPoly(e))?;
-        let out_sigma_poly_commit = commit_key
-            .commit(&out_sigma_poly)
-            .map_err(|e| PreProcessingErrors::CouldNotCommitToPoly(e))?;
-        let fourth_sigma_poly_commit = commit_key
-            .commit(&fourth_sigma_poly)
-            .map_err(|e| PreProcessingErrors::CouldNotCommitToPoly(e))?;
+        let left_sigma_poly_commit = commit_key.commit(&left_sigma_poly)?;
+        let right_sigma_poly_commit = commit_key.commit(&right_sigma_poly)?;
+        let out_sigma_poly_commit = commit_key.commit(&out_sigma_poly)?;
+        let fourth_sigma_poly_commit = commit_key.commit(&fourth_sigma_poly)?;
 
         // Verifier Key for arithmetic circuits
         let arithmetic_verifier_key = widget::arithmetic::VerifierKey {
