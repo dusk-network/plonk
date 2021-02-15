@@ -230,7 +230,7 @@ pub fn compute(
 
     let l_coeffs = domain.evaluate_all_lagrange_coefficients(*z_challenge);
     let l1_eval = l_coeffs[0];
-    let ln_eval = l_coeffs[domain.size()];
+    let ln_eval = l_coeffs[domain.size()-1];
 
     let f_1 = compute_circuit_satisfiability(
         (
