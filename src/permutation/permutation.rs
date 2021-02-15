@@ -737,7 +737,7 @@ impl Permutation {
         }
 
         assert_eq!(n, p.len());
-
+        println!("lookup accumulator\n{:?}", p);
         Polynomial::from_coefficients_vec(domain.ifft(&p))
     }
 }

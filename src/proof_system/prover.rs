@@ -470,6 +470,8 @@ impl PlookupProver {
     ) -> Result<PlookupProof, Error> {
         let domain = EvaluationDomain::new(self.cs.circuit_size())?;
 
+        println!("PROVER");
+
         // Since the caller is passing a pre-processed circuit
         // We assume that the Transcript has been seeded with the preprocessed
         // Commitments
@@ -484,6 +486,8 @@ impl PlookupProver {
         let w_r_scalar = &[&self.to_scalars(&self.cs.w_r)[..], &pad].concat();
         let w_o_scalar = &[&self.to_scalars(&self.cs.w_o)[..], &pad].concat();
         let w_4_scalar = &[&self.to_scalars(&self.cs.w_4)[..], &pad].concat();
+
+        println!("w_l\n{:?}\nw_r\n{:?}\nw_o\n{:?}\nw_4\n{:?}", w_l_scalar, w_r_scalar, w_o_scalar, w_4_scalar);
 
         // Witnesses are now in evaluation form, convert them to coefficients
         // So that we may commit to them
@@ -525,6 +529,8 @@ impl PlookupProver {
         // Sort again to return t to sorted state
         // There may be a better way of inserting the padding so the sort does not need to happen twice
         compressed_t.sort();
+
+        println!("compressed table\n{:?}", compressed_t);
 
         let compressed_t_multiset = MultiSet(compressed_t);
 
@@ -568,7 +574,7 @@ impl PlookupProver {
             ],
             zeta,
         );
-
+        println!("compressed queries\n{:?}", compressed_f.0);
         // Compute query poly
         let f_poly = Polynomial::from_coefficients_vec(domain.ifft(&compressed_f.0.as_slice()));
 
@@ -619,7 +625,8 @@ impl PlookupProver {
 
         // Compute first and second halves of s, as h_1 and h_2
         let (h_1, h_2) = s.halve();
-
+        println!("h1 \n{:?}", h_1.0);
+        println!("h2 \n{:?}", h_2.0);
         // Compute h polys
         let h_1_poly = Polynomial::from_coefficients_vec(domain.ifft(&h_1.0.as_slice()));
         let h_2_poly = Polynomial::from_coefficients_vec(domain.ifft(&h_2.0.as_slice()));
@@ -643,7 +650,7 @@ impl PlookupProver {
                 &delta,
                 &epsilon,
             ));
-
+        println!("p_poly\n{:?}", p_poly);
         // Commit to permutation polynomial
         //
         let p_poly_commit = commit_key.commit(&p_poly)?;
@@ -759,6 +766,8 @@ impl PlookupProver {
         transcript.append_scalar(b"h_2_next_eval", &evaluations.proof.h_2_next_eval);
         transcript.append_scalar(b"t_eval", &evaluations.quot_eval);
         transcript.append_scalar(b"r_eval", &evaluations.proof.lin_poly_eval);
+
+        println!("quotient eval:\n{:?}", &evaluations.quot_eval);
 
         // 5. Compute Openings using KZG10
         //

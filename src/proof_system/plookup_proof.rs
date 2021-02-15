@@ -260,7 +260,8 @@ impl PlookupProof {
             &ln_eval,
             &self.evaluations.perm_eval,
         );
-
+        println!("VERIFIER");
+        println!("quotient eval:\n{:?}", t_eval);
         // Compute commitment to quotient polynomial
         // This method is necessary as we pass the `un-splitted` variation to our commitment scheme
         let t_comm = self.compute_quotient_commitment(&z_challenge, domain.size());
