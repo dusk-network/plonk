@@ -230,7 +230,7 @@ pub fn compute(
 
     let l_coeffs = domain.evaluate_all_lagrange_coefficients(*z_challenge);
     let l1_eval = l_coeffs[0];
-    let ln_eval = l_coeffs[domain.size()];
+    let ln_eval = l_coeffs[domain.size() - 1];
 
     let f_1 = compute_circuit_satisfiability(
         (
@@ -399,23 +399,21 @@ fn compute_circuit_satisfiability(
         d_next_eval,
     );
 
-    let f = prover_key
-        .lookup
-        .compute_linearisation(
-            f_eval,
-            t_eval,
-            t_next_eval,
-            h_1_eval,
-            h_1_next_eval,
-            p_next_eval,
-            l1_eval,
-            ln_eval,
-            p_poly,
-            h_1_poly,
-            h_2_poly,
-            (delta, epsilon),
-            z_challenge,
-            lookup_separation_challenge,
+    let f = prover_key.lookup.compute_linearisation(
+        f_eval,
+        t_eval,
+        t_next_eval,
+        h_1_eval,
+        h_1_next_eval,
+        p_next_eval,
+        l1_eval,
+        ln_eval,
+        p_poly,
+        h_1_poly,
+        h_2_poly,
+        (delta, epsilon),
+        z_challenge,
+        lookup_separation_challenge,
     );
 
     let mut linearisation_poly = &a + &b;

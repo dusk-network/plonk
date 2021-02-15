@@ -400,9 +400,9 @@ impl PlookupProof {
 
         // Compute powers of alpha_1
         let l_sep_2 = lookup_sep_challenge.square();
-        let l_sep_3 = lookup_sep_challenge*l_sep_2;
-        let l_sep_4 = lookup_sep_challenge*l_sep_3;
-        let l_sep_5 = lookup_sep_challenge*l_sep_4;
+        let l_sep_3 = lookup_sep_challenge * l_sep_2;
+        let l_sep_4 = lookup_sep_challenge * l_sep_3;
+        let l_sep_5 = lookup_sep_challenge * l_sep_4;
 
         // Compute power of zeta
         let zeta_sq = zeta.square();
@@ -448,7 +448,7 @@ impl PlookupProof {
         let f_0 = z_challenge - omega_inv;
         let f_1 = epsilon_one_plus_delta
             + self.evaluations.h_1_eval
-            + (delta * self.evaluations.h_1_eval);
+            + (delta * self.evaluations.h_1_next_eval);
         let f_2 = epsilon_one_plus_delta + (delta * self.evaluations.h_2_next_eval);
         let f = f_0 * self.evaluations.lookup_perm_eval * f_1 * f_2 * l_sep_3;
 

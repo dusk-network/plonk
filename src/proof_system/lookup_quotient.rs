@@ -182,11 +182,22 @@ fn compute_circuit_satisfiability_equation(
     h_1_eval_4n: &[BlsScalar],
     h_2_eval_4n: &[BlsScalar],
 ) -> Vec<BlsScalar> {
+    let omega_inv = domain.group_gen_inv;
     let domain_4n = EvaluationDomain::new(4 * domain.size()).unwrap();
-    let domain_4n_elements = domain_4n.elements().collect::<Vec<BlsScalar>>();
-    let pi_eval_4n = domain_4n.coset_fft(pi_poly);
-    let l1_eval_4n = domain_4n.coset_fft(&compute_first_lagrange_poly_scaled(&domain_4n, BlsScalar::one()));
-    let ln_eval_4n = domain_4n.coset_fft(&compute_last_lagrange_poly_scaled(&domain_4n, BlsScalar::one()));
+
+    let public_eval_4n = domain_4n.coset_fft(pi_poly);
+
+    let x_poly = Polynomial::from_coefficients_vec(vec![BlsScalar::zero(), BlsScalar::one()]);
+    let x_coset_elements = domain_4n.coset_fft(&x_poly);
+
+    let l1_eval_4n = domain_4n.coset_fft(&compute_first_lagrange_poly_scaled(
+        &domain,
+        BlsScalar::one(),
+    ));
+    let ln_eval_4n = domain_4n.coset_fft(&compute_last_lagrange_poly_scaled(
+        &domain,
+        BlsScalar::one(),
+    ));
 
     let t: Vec<_> = (0..domain_4n.size())
         .into_par_iter()
@@ -198,8 +209,9 @@ fn compute_circuit_satisfiability_equation(
             let wl_next = &wl_eval_4n[i + 4];
             let wr_next = &wr_eval_4n[i + 4];
             let w4_next = &w4_eval_4n[i + 4];
-            let pi = &pi_eval_4n[i];
-            let pi_next = &pi_eval_4n[i + 4];
+            let pi = &public_eval_4n[i];
+            let p = &p_eval_4n[i];
+            let p_next = &p_eval_4n[i + 4];
             let fi = &f_eval_4n[i];
             let ti = &t_eval_4n[i];
             let ti_next = &t_eval_4n[i + 4];
@@ -209,7 +221,7 @@ fn compute_circuit_satisfiability_equation(
             let h2_next = &h_2_eval_4n[i + 4];
             let l1i = &l1_eval_4n[i];
             let lni = &ln_eval_4n[i];
-            let xi = domain_4n_elements[i];
+            let xi = &x_coset_elements[i];
 
             let a = prover_key.arithmetic.compute_quotient_i(i, wl, wr, wo, w4);
 
@@ -257,14 +269,15 @@ fn compute_circuit_satisfiability_equation(
             let f = prover_key.lookup.compute_quotient_i(
                 i,
                 &xi,
+                &omega_inv,
                 lookup_challenge,
                 &wl,
                 &wr,
                 &wo,
                 &w4,
                 &fi,
-                &pi,
-                &pi_next,
+                &p,
+                &p_next,
                 &ti,
                 &ti_next,
                 &h1,

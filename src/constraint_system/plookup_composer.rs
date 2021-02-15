@@ -469,7 +469,7 @@ mod tests {
         let mut prover = PlookupProver::new(b"demo");
 
         // Add gadgets
-        //dummy_gadget_plookup(4, prover.mut_cs());
+        dummy_gadget_plookup(4, prover.mut_cs());
 
         // Commit Key
         let (ck, _) = public_parameters.trim(2 * 20).unwrap();
@@ -489,7 +489,7 @@ mod tests {
         let mut verifier = PlookupVerifier::new(b"demo");
 
         // Add gadgets
-        dummy_gadget_plookup(10, verifier.mut_cs());
+        dummy_gadget_plookup(4, verifier.mut_cs());
 
         // Commit and Verifier Key
         let (ck, vk) = public_parameters.trim(2 * 20).unwrap();
