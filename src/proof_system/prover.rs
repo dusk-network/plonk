@@ -19,6 +19,7 @@ use anyhow::{Error, Result};
 use dusk_bls12_381::BlsScalar;
 use merlin::Transcript;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
+use itertools::izip;
 
 /// Prover composes a circuit and builds a proof
 #[allow(missing_debug_implementations)]
@@ -129,6 +130,7 @@ impl Prover {
         let w_r_scalar = &[&self.to_scalars(&self.cs.w_r)[..], &pad].concat();
         let w_o_scalar = &[&self.to_scalars(&self.cs.w_o)[..], &pad].concat();
         let w_4_scalar = &[&self.to_scalars(&self.cs.w_4)[..], &pad].concat();
+
 
         // Witnesses are now in evaluation form, convert them to coefficients
         // So that we may commit to them
@@ -562,7 +564,8 @@ impl PlookupProver {
             .zip(&self.cs.q_lookup)
             .map(|(w, s)| w * s)
             .collect::<Vec<BlsScalar>>();
-
+            println!("f_1\n{:?}\nf_2\n{:?}\nf_3\n{:?}\nf_4\n{:?}", f_1_scalar, f_2_scalar, f_3_scalar, f_4_scalar);
+            println!("q_lookup:\n{:?}", self.cs.q_lookup);
         // Compress table into vector of single elements
         // Skips first element so that f.len() = t.len() - 1
         let compressed_f = MultiSet::compress_four_arity(
@@ -575,8 +578,19 @@ impl PlookupProver {
             zeta,
         );
         println!("compressed queries\n{:?}", compressed_f.0);
+        let zeta_poly = Polynomial::from_coefficients_vec(vec![zeta]);
+        let mut compressed_wire_polys = w_l_poly.clone();
+        compressed_wire_polys += &(&zeta_poly * &w_r_poly);
+        compressed_wire_polys += &(&(&zeta_poly * &zeta_poly) * &w_o_poly);
+        compressed_wire_polys += &(&(&zeta_poly * &zeta_poly) * &(&zeta_poly * &w_4_poly));
+        for r in domain.elements() {
+            println!("compressed values:\n{:?}", compressed_wire_polys.evaluate(&r));
+        }
+
         // Compute query poly
         let f_poly = Polynomial::from_coefficients_vec(domain.ifft(&compressed_f.0.as_slice()));
+
+        izip!(domain.elements(), self.cs.q_lookup[1..].iter()).map(|(r, q)| println!("f * q\n{:?}", q * f_poly.evaluate(&r)));
 
         // Commit to query polynomial
         let f_poly_commit = commit_key.commit(&f_poly)?;

@@ -126,8 +126,10 @@ impl PlookupProverKey {
         // q_lookup(X) * (a(X) + zeta * b(X) + (zeta^2 * c(X)) + (zeta^3 * d(X) - f(X))) * α_1
         let a = {
             let q_lookup_i = self.q_lookup.1[index];
-
+            //println!("q_lookup:\n{:?}", q_lookup_i);
+            //println!("w_l_i:\n{:?}\nw_r_i:\n{:?}\nw_o_i:\n{:?}\nw_4_i:\n{:?}", w_l_i, w_r_i, w_o_i, w_4_i);
             let compressed_tuple = compress(*w_l_i, *w_r_i, *w_o_i, *w_4_i, *zeta);
+            println!("compressed tuple: {:?}       f_i: {:?}", compressed_tuple, f_i);
     
             q_lookup_i * (compressed_tuple - f_i) * lookup_separation_challenge
         };

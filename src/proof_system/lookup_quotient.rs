@@ -313,8 +313,8 @@ fn compute_permutation_checks(
     ),
 ) -> Vec<BlsScalar> {
     let domain_4n = EvaluationDomain::new(4 * domain.size()).unwrap();
-    let l1_poly_alpha = compute_first_lagrange_poly_scaled(domain, alpha.square());
-    let l1_alpha_sq_evals = domain_4n.coset_fft(&l1_poly_alpha.coeffs);
+    let l1_poly_alpha_sq = compute_first_lagrange_poly_scaled(domain, alpha.square());
+    let l1_alpha_sq_evals = domain_4n.coset_fft(&l1_poly_alpha_sq.coeffs);
 
     let alpha_4 = alpha * alpha * alpha * alpha;
     let l1_poly_alpha_4 = compute_first_lagrange_poly_scaled(domain, alpha_4);

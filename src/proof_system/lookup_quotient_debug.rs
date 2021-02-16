@@ -250,7 +250,7 @@ fn compute_circuit_satisfiability_equation(
     for (a,b,c,d,e,f) in &checks {
         compression.push(*a);
         initial_element.push(*b);
-        accumulation.push(c-d);
+        accumulation.push(c+d);
         overlap.push(*e);
         final_element.push(*f);
     };
