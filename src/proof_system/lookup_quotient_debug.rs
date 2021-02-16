@@ -105,7 +105,11 @@ pub(crate) fn compute(
     wr_eval_4n.push(wr_eval_4n[1]);
     wr_eval_4n.push(wr_eval_4n[2]);
     wr_eval_4n.push(wr_eval_4n[3]);
-    let wo_eval_4n = domain_4n.coset_fft(&w_o_poly);
+    let mut wo_eval_4n = domain_4n.coset_fft(&w_o_poly);
+    wo_eval_4n.push(wo_eval_4n[0]);
+    wo_eval_4n.push(wo_eval_4n[1]);
+    wo_eval_4n.push(wo_eval_4n[2]);
+    wo_eval_4n.push(wo_eval_4n[3]);
 
     let mut w4_eval_4n = domain_4n.coset_fft(&w_4_poly);
     w4_eval_4n.push(w4_eval_4n[0]);
@@ -200,9 +204,6 @@ fn compute_circuit_satisfiability_equation(
         let wr = &wr_eval_4n[i];
         let wo = &wo_eval_4n[i];
         let w4 = &w4_eval_4n[i];
-        let wl_next = &wl_eval_4n[i + 4];
-        let wr_next = &wr_eval_4n[i + 4];
-        let w4_next = &w4_eval_4n[i + 4];
         let pi = &public_eval_4n[i];
         let p = &p_eval_4n[i];
         let p_next = &p_eval_4n[i + 4];
@@ -255,12 +256,13 @@ fn compute_circuit_satisfiability_equation(
         final_element.push(*f);
     };
 
-    let compression_check_poly = Polynomial::from_coefficients_vec(domain_4n.ifft(&compression));
-    let initial_element_poly = Polynomial::from_coefficients_vec(domain_4n.ifft(&initial_element));
-    let accumulation_poly = Polynomial::from_coefficients_vec(domain_4n.ifft(&accumulation));
-    let overlap_poly = Polynomial::from_coefficients_vec(domain_4n.ifft(&overlap));
-    let final_element_poly = Polynomial::from_coefficients_vec(domain_4n.ifft(&final_element));
+    let compression_check_poly = Polynomial::from_coefficients_vec(domain_4n.coset_ifft(&compression));
+    let initial_element_poly = Polynomial::from_coefficients_vec(domain_4n.coset_ifft(&initial_element));
+    let accumulation_poly = Polynomial::from_coefficients_vec(domain_4n.coset_ifft(&accumulation));
+    let overlap_poly = Polynomial::from_coefficients_vec(domain_4n.coset_ifft(&overlap));
+    let final_element_poly = Polynomial::from_coefficients_vec(domain_4n.coset_ifft(&final_element));
 
+    println!("\nQUOTIENT CHECKS\n(should all be zero)");
     println!("\ncompression check eval on domain\n{:?}", domain.elements().map(|e| compression_check_poly.evaluate(&e)).collect::<Vec<BlsScalar>>());
     println!("\ninitial check eval on domain\n{:?}", domain.elements().map(|e| initial_element_poly.evaluate(&e)).collect::<Vec<BlsScalar>>());
     println!("\naccumulation check eval on domain\n{:?}", domain.elements().map(|e| accumulation_poly.evaluate(&e)).collect::<Vec<BlsScalar>>());
