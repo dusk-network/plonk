@@ -11,7 +11,7 @@ use crate::fft::{EvaluationDomain, Polynomial};
 use crate::plookup::{MultiSet, PlookupTable4Arity, PreprocessedTable4Arity};
 use crate::proof_system::widget::{PlookupProverKey, ProverKey};
 use crate::proof_system::{
-    linearisation_poly, lookup_lineariser, lookup_quotient, plookup_proof::PlookupProof,
+    linearisation_poly, lookup_lineariser, lookup_quotient_debug, plookup_proof::PlookupProof,
     proof::Proof, quotient_poly,
 };
 use crate::transcript::TranscriptProtocol;
@@ -650,7 +650,7 @@ impl PlookupProver {
                 &delta,
                 &epsilon,
             ));
-        println!("p_poly\n{:?}", p_poly);
+
         // Commit to permutation polynomial
         //
         let p_poly_commit = commit_key.commit(&p_poly)?;
@@ -670,7 +670,7 @@ impl PlookupProver {
             transcript.challenge_scalar(b"variable base separation challenge");
         let lookup_sep_challenge = transcript.challenge_scalar(b"lookup challenge");
 
-        let t_poly = lookup_quotient::compute(
+        let t_poly = lookup_quotient_debug::compute(
             &domain,
             &prover_key,
             &z_poly,
