@@ -722,6 +722,15 @@ impl PlookupProver {
 
         // Split quotient polynomial into 4 degree `n` polynomials
         let (t_1_poly, t_2_poly, t_3_poly, t_4_poly) = split_tx_poly(domain.size(), &t_poly);
+        println!("t_1_poly:\n {:?}", t_1_poly);
+        println!("t_2_poly:\n {:?}", t_2_poly);
+        println!("t_3_poly:\n {:?}", t_3_poly);
+        println!("t_4_poly:\n {:?}", t_4_poly);
+
+        println!("t_1_poly evals:\n {:?}", domain.fft(&t_1_poly));
+        println!("t_2_poly evals:\n {:?}", domain.fft(&t_2_poly));
+        println!("t_3_poly evals:\n {:?}", domain.fft(&t_3_poly));
+        println!("t_4_poly evals:\n {:?}", domain.fft(&t_4_poly));
 
         // Commit to splitted quotient polynomial
         let t_1_commit = commit_key.commit(&t_1_poly)?;

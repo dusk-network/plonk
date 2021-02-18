@@ -160,6 +160,12 @@ pub(crate) fn compute(
         (alpha, beta, gamma, delta, epsilon),
     );
 
+    println!("t_1:\n{:?}", t_1);
+    println!("t_2:\n{:?}", t_2);
+    let q = t_1.iter().zip(t_2.iter()).map(|(a,b)| a+b).collect::<Vec<BlsScalar>>();
+
+    println!("q values on domain:\n{:?}", domain_4n.fft(&domain_4n.coset_ifft(&q)));
+
     let quotient: Vec<_> = (0..domain_4n.size())
         .into_par_iter()
         .map(|i| {
@@ -365,6 +371,7 @@ fn compute_circuit_satisfiability_equation(
             let f = prover_key.lookup.compute_quotient_i(
                 i,
                 &xi,
+                &omega_inv,
                 lookup_challenge,
                 &wl,
                 &wr,
