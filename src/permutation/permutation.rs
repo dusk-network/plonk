@@ -791,7 +791,6 @@ mod test {
             let var = perm.new_variable();
             assert_eq!(var.0, i as usize);
             assert_eq!(perm.variable_map.len(), (i as usize) + 1);
-            assert_eq!(perm.variable_map.len(), (i as usize) + 1);
         }
 
         let var_one = perm.new_variable();
