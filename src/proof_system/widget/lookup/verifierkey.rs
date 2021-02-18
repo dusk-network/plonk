@@ -37,7 +37,7 @@ impl PlookupVerifierKey {
         let l_sep_5th = lookup_separation_challenge * l_sep_4th;
 
         // - f_eval * q_lookup * alpha_1
-        let a = -evaluations.f_eval * lookup_separation_challenge;
+        let a = -evaluations.f_long_eval * lookup_separation_challenge;
         scalars.push(a);
         points.push(self.q_lookup.0);
 
@@ -66,7 +66,7 @@ impl PlookupVerifierKey {
 
             let d_1 = BlsScalar::one() + delta;
 
-            let d_2 = epsilon + evaluations.f_eval;
+            let d_2 = epsilon + evaluations.f_short_eval;
 
             let d_3 = (epsilon * d_1 + t_eval + (delta * t_next_eval)) * l_sep_cu;
 

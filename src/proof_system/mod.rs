@@ -9,7 +9,7 @@
 pub(crate) mod linearisation_poly;
 mod preprocess;
 
-pub(crate) mod lookup_quotient;
+//pub(crate) mod lookup_quotient;
 pub(crate) mod lookup_quotient_debug;
 
 pub(crate) mod lookup_lineariser;

@@ -127,7 +127,8 @@ pub(crate) fn compute(
         public_inputs_poly,
         zeta,
         (delta, epsilon),
-        &f_eval_4n,
+        &f_long_eval_4n,
+        &f_short_eval_4n,
         &p_eval_4n,
         &t_eval_4n,
         &h_1_eval_4n,
@@ -181,7 +182,8 @@ fn compute_circuit_satisfiability_equation(
     pi_poly: &Polynomial,
     zeta: &BlsScalar,
     (delta, epsilon): (&BlsScalar, &BlsScalar),
-    f_eval_4n: &[BlsScalar],
+    f_long_eval_4n: &[BlsScalar],
+    f_short_eval_4n: &[BlsScalar],
     p_eval_4n: &[BlsScalar],
     t_eval_4n: &[BlsScalar],
     h_1_eval_4n: &[BlsScalar],
@@ -206,7 +208,8 @@ fn compute_circuit_satisfiability_equation(
             let pi = &public_eval_4n[i];
             let p = &p_eval_4n[i];
             let p_next = &p_eval_4n[i + 4];
-            let fi = &f_eval_4n[i];
+            let f_long_i = &f_long_eval_4n[i];
+            let f_short_i = &f_short_4n[i];
             let ti = &t_eval_4n[i];
             let ti_next = &t_eval_4n[i + 4];
             let h1 = &h_1_eval_4n[i];
@@ -268,7 +271,8 @@ fn compute_circuit_satisfiability_equation(
                 &wr,
                 &wo,
                 &w4,
-                &fi,
+                &f_long_i,
+                &f_short_i,
                 &p,
                 &p_next,
                 &ti,
