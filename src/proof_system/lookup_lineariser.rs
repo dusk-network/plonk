@@ -239,6 +239,8 @@ pub fn compute(
     let l1_eval = l_coeffs[0];
     let ln_eval = l_coeffs[domain.size()-1];
 
+    let omega_inv = domain.group_gen_inv;
+
     let f_1 = compute_circuit_satisfiability(
         (
             range_separation_challenge,
@@ -272,6 +274,7 @@ pub fn compute(
         &q_c_eval,
         &q_l_eval,
         &q_r_eval,
+        &omega_inv,
         prover_key,
     );
 
@@ -356,6 +359,7 @@ fn compute_circuit_satisfiability(
     q_c_eval: &BlsScalar,
     q_l_eval: &BlsScalar,
     q_r_eval: &BlsScalar,
+    omega_inv: &BlsScalar,
     prover_key: &PlookupProverKey,
 ) -> Polynomial {
     let a =
@@ -412,6 +416,7 @@ fn compute_circuit_satisfiability(
     let f = prover_key
         .lookup
         .compute_linearisation(
+            omega_inv,
             f_long_eval,
             f_short_eval,
             t_eval,

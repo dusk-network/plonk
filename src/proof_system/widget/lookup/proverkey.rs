@@ -177,6 +177,7 @@ impl PlookupProverKey {
     /// Compute linearisation for lookup gates
     pub(crate) fn compute_linearisation(
         &self,
+        omega_inv: &BlsScalar,
         f_long_eval: &BlsScalar,
         f_short_eval: &BlsScalar,
         t_eval: &BlsScalar,
@@ -199,7 +200,7 @@ impl PlookupProverKey {
         let l_sep_4 = l_sep_3 * lookup_separation_challenge.square();
         let l_sep_5 = l_sep_4 * lookup_separation_challenge.square();
         
-        let z_minus_one = z_challenge - BlsScalar::one();
+        let z_minus_omega_inv = z_challenge - omega_inv;
         let one_plus_delta = delta + BlsScalar::one();
         let epsilon_one_plus_delta = epsilon * one_plus_delta;
         
@@ -218,14 +219,14 @@ impl PlookupProverKey {
             let c_0 = epsilon + f_short_eval;
             let c_1 = epsilon_one_plus_delta + t_eval + delta * t_next_eval;
 
-            p_poly * &(z_minus_one * one_plus_delta * c_0 * c_1 * l_sep_3)
+            p_poly * &(z_minus_omega_inv * one_plus_delta * c_0 * c_1 * l_sep_3)
         };
 
         // −(z−1)*pω_bar*(ε(1+δ)+h1_bar+δh1ω_bar)h2(X)α_1^3
         let d = {
             let d_0 = epsilon_one_plus_delta + h_1_eval + delta * h_1_next_eval;
 
-            h_2_poly * &(- z_minus_one * p_next_eval * d_0 * l_sep_3)
+            h_2_poly * &(- z_minus_omega_inv * p_next_eval * d_0 * l_sep_3)
         };
 
         let e = {

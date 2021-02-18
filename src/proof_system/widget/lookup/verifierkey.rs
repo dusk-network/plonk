@@ -29,6 +29,7 @@ impl PlookupVerifierKey {
         h_1_comm: G1Affine,
         h_2_comm: G1Affine,
         p_comm: G1Affine,
+        omega_inv: &BlsScalar,
     ) {
 
         let l_sep_sq = lookup_separation_challenge.square();
@@ -46,9 +47,9 @@ impl PlookupVerifierKey {
         scalars.push(b);
         points.push(h_1_comm);
 
-        // - ((z - 1)*p_next_eval*(epsilon*(1 + delta) + h_1_eval + delta*h_1_next_eval)*alpha_1^3)*h_2
+        // - ((z - omega_inv)*p_next_eval*(epsilon*(1 + delta) + h_1_eval + delta*h_1_next_eval)*alpha_1^3)*h_2
         let c = {
-            let c_0 = BlsScalar::one() - z_challenge;
+            let c_0 = omega_inv - z_challenge;
 
             let c_1 = &evaluations.lookup_perm_eval;
 
@@ -60,9 +61,9 @@ impl PlookupVerifierKey {
         points.push(h_2_comm);
 
 
-        // (z - 1)(1 + delta)(e + f_eval)(epsilon(1 + delta) + t_eval + (delta * t_next_eval) * alpha_1^3 + l_1(z) * alpha^4 + l_n(z) * alpha_1^5)
+        // (z - omega_inv)(1 + delta)(e + f_eval)(epsilon(1 + delta) + t_eval + (delta * t_next_eval) * alpha_1^3 + l_1(z) * alpha^4 + l_n(z) * alpha_1^5)
         let d = {
-            let d_0 = z_challenge - BlsScalar::one();
+            let d_0 = z_challenge - omega_inv;
 
             let d_1 = BlsScalar::one() + delta;
 
