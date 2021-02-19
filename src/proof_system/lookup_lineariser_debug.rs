@@ -206,7 +206,11 @@ pub fn compute(
     h_2_poly: &Polynomial,
     table_poly: &Polynomial,
     p_poly: &Polynomial,
-) -> (Polynomial, PlookupEvaluations, (Polynomial, Polynomial, Polynomial, Polynomial, Polynomial)) {
+) -> (
+    Polynomial,
+    PlookupEvaluations,
+    (Polynomial, Polynomial, Polynomial, Polynomial, Polynomial),
+) {
     // Compute evaluations
     let quot_eval = t_x_poly.evaluate(z_challenge);
     let a_eval = w_l_poly.evaluate(z_challenge);
@@ -363,7 +367,10 @@ fn compute_circuit_satisfiability(
     q_r_eval: &BlsScalar,
     omega_inv: &BlsScalar,
     prover_key: &PlookupProverKey,
-) -> (Polynomial, (Polynomial, Polynomial, Polynomial, Polynomial, Polynomial)) {
+) -> (
+    Polynomial,
+    (Polynomial, Polynomial, Polynomial, Polynomial, Polynomial),
+) {
     let a =
         prover_key
             .arithmetic

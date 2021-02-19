@@ -11,8 +11,8 @@ use crate::fft::{EvaluationDomain, Polynomial};
 use crate::plookup::{MultiSet, PlookupTable4Arity, PreprocessedTable4Arity};
 use crate::proof_system::widget::{PlookupProverKey, ProverKey};
 use crate::proof_system::{
-    linearisation_poly, lookup_quotient_debug, lookup_lineariser_debug, plookup_proof::PlookupProof,
-    proof::Proof, quotient_poly,
+    linearisation_poly, lookup_lineariser_debug, lookup_quotient_debug,
+    plookup_proof::PlookupProof, proof::Proof, quotient_poly,
 };
 use crate::transcript::TranscriptProtocol;
 use anyhow::{Error, Result};
@@ -786,8 +786,14 @@ impl PlookupProver {
             &p_poly,
         );
 
-        let (lin_compression_poly, lin_initial_poly, lin_accumulation_poly, lin_overlap_poly, lin_final_poly) = lin_breakdowns;
-        
+        let (
+            lin_compression_poly,
+            lin_initial_poly,
+            lin_accumulation_poly,
+            lin_overlap_poly,
+            lin_final_poly,
+        ) = lin_breakdowns;
+
         // Add evaluations to transcript
         transcript.append_scalar(b"a_eval", &evaluations.proof.a_eval);
         transcript.append_scalar(b"b_eval", &evaluations.proof.b_eval);

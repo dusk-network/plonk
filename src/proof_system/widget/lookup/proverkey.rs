@@ -251,7 +251,10 @@ impl PlookupProverKey {
         (delta, epsilon): (&BlsScalar, &BlsScalar),
         z_challenge: &BlsScalar,
         lookup_separation_challenge: &BlsScalar,
-    ) -> (Polynomial, (Polynomial, Polynomial, Polynomial, Polynomial, Polynomial)) {
+    ) -> (
+        Polynomial,
+        (Polynomial, Polynomial, Polynomial, Polynomial, Polynomial),
+    ) {
         let l_sep_2 = lookup_separation_challenge.square();
         let l_sep_3 = l_sep_2 * lookup_separation_challenge.square();
         let l_sep_4 = l_sep_3 * lookup_separation_challenge.square();
