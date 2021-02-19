@@ -12,7 +12,7 @@ mod preprocess;
 //pub(crate) mod lookup_quotient;
 pub(crate) mod lookup_quotient_debug;
 
-pub(crate) mod lookup_lineariser;
+pub(crate) mod lookup_lineariser_debug;
 mod plookup_preprocess;
 
 /// Represents PLONK Proof

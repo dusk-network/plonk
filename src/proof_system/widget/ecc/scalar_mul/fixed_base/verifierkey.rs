@@ -7,7 +7,7 @@
 use super::{check_bit_consistency, extract_bit};
 use crate::commitment_scheme::kzg10::Commitment;
 use crate::proof_system::linearisation_poly::ProofEvaluations;
-use crate::proof_system::lookup_lineariser::PlookupProofEvaluations;
+use crate::proof_system::lookup_lineariser_debug::PlookupProofEvaluations;
 use dusk_bls12_381::{BlsScalar, G1Affine};
 use dusk_jubjub::EDWARDS_D;
 

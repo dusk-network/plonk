@@ -11,7 +11,7 @@
 //! `Proof` structure and it's methods.
 
 use super::linearisation_poly::ProofEvaluations;
-use super::lookup_lineariser::PlookupProofEvaluations;
+use super::lookup_lineariser_debug::PlookupProofEvaluations;
 use super::proof_system_errors::ProofErrors;
 use crate::commitment_scheme::kzg10::{AggregateProof, Commitment, OpeningKey};
 use crate::fft::{EvaluationDomain, Polynomial};

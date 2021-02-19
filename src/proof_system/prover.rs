@@ -11,7 +11,7 @@ use crate::fft::{EvaluationDomain, Polynomial};
 use crate::plookup::{MultiSet, PlookupTable4Arity, PreprocessedTable4Arity};
 use crate::proof_system::widget::{PlookupProverKey, ProverKey};
 use crate::proof_system::{
-    linearisation_poly, lookup_lineariser, lookup_quotient_debug, plookup_proof::PlookupProof,
+    linearisation_poly, lookup_quotient_debug, lookup_lineariser_debug, plookup_proof::PlookupProof,
     proof::Proof, quotient_poly,
 };
 use crate::transcript::TranscriptProtocol;
@@ -702,7 +702,7 @@ impl PlookupProver {
             transcript.challenge_scalar(b"variable base separation challenge");
         let lookup_sep_challenge = transcript.challenge_scalar(b"lookup challenge");
 
-        let t_poly = lookup_quotient_debug::compute(
+        let t_poly_breakdown = lookup_quotient_debug::compute(
             &domain,
             &prover_key,
             &z_poly,
@@ -727,7 +727,16 @@ impl PlookupProver {
                 var_base_sep_challenge,
                 lookup_sep_challenge,
             ),
-        )?;
+        );
+
+        let t_poly = t_poly_breakdown.0;
+        let (
+            compression_check_poly,
+            initial_element_poly,
+            accumulation_poly,
+            overlap_poly,
+            final_element_poly,
+        ) = t_poly_breakdown.1;
 
         // Split quotient polynomial into 4 degree `n` polynomials
         let (t_1_poly, t_2_poly, t_3_poly, t_4_poly) = split_tx_poly(domain.size(), &t_poly);
@@ -747,7 +756,7 @@ impl PlookupProver {
         // 4. Compute linearisation polynomial
         //
 
-        let (lin_poly, evaluations) = lookup_lineariser::compute(
+        let (lin_poly, evaluations, lin_breakdowns) = lookup_lineariser_debug::compute(
             &domain,
             &prover_key,
             &(
@@ -777,6 +786,8 @@ impl PlookupProver {
             &p_poly,
         );
 
+        let (lin_compression_poly, lin_initial_poly, lin_accumulation_poly, lin_overlap_poly, lin_final_poly) = lin_breakdowns;
+        
         // Add evaluations to transcript
         transcript.append_scalar(b"a_eval", &evaluations.proof.a_eval);
         transcript.append_scalar(b"b_eval", &evaluations.proof.b_eval);

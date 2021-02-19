@@ -7,7 +7,7 @@
 use super::{delta, delta_xor_and};
 use crate::commitment_scheme::kzg10::Commitment;
 use crate::proof_system::linearisation_poly::ProofEvaluations;
-use crate::proof_system::lookup_lineariser::PlookupProofEvaluations;
+use crate::proof_system::lookup_lineariser_debug::PlookupProofEvaluations;
 use dusk_bls12_381::{BlsScalar, G1Affine};
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]

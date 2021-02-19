@@ -231,4 +231,70 @@ impl PlookupProverKey {
 
         r
     }
+
+    /// Compute linearisation for lookup gates
+    pub(crate) fn compute_linearisation_debug(
+        &self,
+        omega_inv: &BlsScalar,
+        f_long_eval: &BlsScalar,
+        f_short_eval: &BlsScalar,
+        t_eval: &BlsScalar,
+        t_next_eval: &BlsScalar,
+        h_1_eval: &BlsScalar,
+        h_1_next_eval: &BlsScalar,
+        p_next_eval: &BlsScalar,
+        l1_eval: &BlsScalar,
+        ln_eval: &BlsScalar,
+        p_poly: &Polynomial,
+        h_1_poly: &Polynomial,
+        h_2_poly: &Polynomial,
+        (delta, epsilon): (&BlsScalar, &BlsScalar),
+        z_challenge: &BlsScalar,
+        lookup_separation_challenge: &BlsScalar,
+    ) -> (Polynomial, (Polynomial, Polynomial, Polynomial, Polynomial, Polynomial)) {
+        let l_sep_2 = lookup_separation_challenge.square();
+        let l_sep_3 = l_sep_2 * lookup_separation_challenge.square();
+        let l_sep_4 = l_sep_3 * lookup_separation_challenge.square();
+        let l_sep_5 = l_sep_4 * lookup_separation_challenge.square();
+
+        let z_minus_omega_inv = z_challenge - omega_inv;
+        let one_plus_delta = delta + BlsScalar::one();
+        let epsilon_one_plus_delta = epsilon * one_plus_delta;
+
+        // - q_lookup(X) * f_eval * lookup_separation_challenge
+        let a = { &self.q_lookup.0 * &(-f_long_eval * lookup_separation_challenge) };
+
+        // p(X)*L0(z)α_1^2
+        let b = { p_poly * &(l1_eval * l_sep_2) };
+
+        // (z − 1)p(X)(1 + δ)(ε + f_bar)(ε(1+δ) + t_bar + δ*tω_bar)α_1^3
+        let c = {
+            let c_0 = epsilon + f_short_eval;
+            let c_1 = epsilon_one_plus_delta + t_eval + delta * t_next_eval;
+
+            p_poly * &(z_minus_omega_inv * one_plus_delta * c_0 * c_1 * l_sep_3)
+        };
+
+        // −(z−1)*pω_bar*(ε(1+δ)+h1_bar+δh1ω_bar)h2(X)α_1^3
+        let d = {
+            let d_0 = epsilon_one_plus_delta + h_1_eval + delta * h_1_next_eval;
+
+            h_2_poly * &(-z_minus_omega_inv * p_next_eval * d_0 * l_sep_3)
+        };
+
+        let e = { h_1_poly * &(ln_eval * l_sep_4) };
+
+        let f = { p_poly * &(ln_eval * l_sep_5) };
+
+        //let breakdown_tuple = (&a, &b, &(&c + &d), &e, &f);
+
+        let mut r = a.clone();
+        r += &b;
+        r += &c;
+        r += &d;
+        r += &e;
+        r += &f;
+
+        (r, (a, b, &c + &d, e, f))
+    }
 }

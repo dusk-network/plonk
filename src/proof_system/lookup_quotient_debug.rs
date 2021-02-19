@@ -51,9 +51,9 @@ pub(crate) fn compute(
         BlsScalar,
         BlsScalar,
     ),
-) -> Result<Polynomial, Error> {
+) -> (Polynomial, (Polynomial, Polynomial, Polynomial, Polynomial, Polynomial)) {
     // Compute 4n eval of z(X)
-    let domain_4n = EvaluationDomain::new(4 * domain.size())?;
+    let domain_4n = EvaluationDomain::new(4 * domain.size()).unwrap();
     let mut z_eval_4n = domain_4n.coset_fft(&z_poly);
     z_eval_4n.push(z_eval_4n[0]);
     z_eval_4n.push(z_eval_4n[1]);
@@ -117,7 +117,7 @@ pub(crate) fn compute(
     w4_eval_4n.push(w4_eval_4n[2]);
     w4_eval_4n.push(w4_eval_4n[3]);
 
-    let t_1 = compute_circuit_satisfiability_equation(
+    let t_1_breakdown = compute_circuit_satisfiability_equation(
         &domain,
         (
             range_challenge,
@@ -138,6 +138,8 @@ pub(crate) fn compute(
         &h_1_eval_4n,
         &h_2_eval_4n,
     );
+
+    let t_1 = t_1_breakdown.0;
 
     let t_2 = compute_permutation_checks(
         domain,
@@ -162,9 +164,11 @@ pub(crate) fn compute(
         })
         .collect();
 
-    Ok(Polynomial::from_coefficients_vec(
-        domain_4n.coset_ifft(&quotient),
-    ))
+    (
+        Polynomial::from_coefficients_vec(domain_4n.coset_ifft(&quotient)),
+        t_1_breakdown.1,
+    )
+    
 }
 
 // Ensures that the circuit is satisfied
@@ -193,7 +197,7 @@ fn compute_circuit_satisfiability_equation(
     t_eval_4n: &[BlsScalar],
     h_1_eval_4n: &[BlsScalar],
     h_2_eval_4n: &[BlsScalar],
-) -> Vec<BlsScalar> {
+) -> (Vec<BlsScalar>, (Polynomial, Polynomial, Polynomial, Polynomial, Polynomial)) {
     let omega_inv = domain.group_gen_inv;
     let domain_4n = EvaluationDomain::new(4 * domain.size()).unwrap();
     let x_poly = Polynomial::from_coefficients_vec(vec![BlsScalar::zero(), BlsScalar::one()]);
@@ -422,7 +426,15 @@ fn compute_circuit_satisfiability_equation(
             (a + pi) + b + c + d + e + f
         })
         .collect();
-    t
+    (t,
+        (
+            compression_check_poly,
+            initial_element_poly,
+            accumulation_poly,
+            overlap_poly,
+            final_element_poly,
+        ),
+    )
 }
 
 fn compute_permutation_checks(
