@@ -319,16 +319,16 @@ impl Permutation {
             beta_out_sigma_iter,
             beta_fourth_sigma_iter,
         ) {
-            // (w_l + beta * root + gamma)
+            // (w_l + beta * left_sigma + gamma)
             let prod_a = beta_left_sigma + w_l_gamma;
 
-            // (w_r + beta * root * k_1 + gamma)
+            // (w_r + beta * right_sigma + gamma)
             let prod_b = beta_right_sigma + w_r_gamma;
 
-            // (w_o + beta * root * k_2 + gamma)
+            // (w_o + beta * out_sigma + gamma)
             let prod_c = beta_out_sigma + w_o_gamma;
 
-            // (w_4 + beta * root * k_3 + gamma)
+            // (w_4 + beta * fourth_sigma + gamma)
             let prod_d = beta_fourth_sigma + w_4_gamma;
 
             let mut prod = prod_a * prod_b * prod_c * prod_d;
