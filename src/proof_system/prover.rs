@@ -17,9 +17,9 @@ use crate::proof_system::{
 use crate::transcript::TranscriptProtocol;
 use anyhow::{Error, Result};
 use dusk_bls12_381::BlsScalar;
+use itertools::izip;
 use merlin::Transcript;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
-use itertools::izip;
 
 /// Prover composes a circuit and builds a proof
 #[allow(missing_debug_implementations)]
@@ -130,7 +130,6 @@ impl Prover {
         let w_r_scalar = &[&self.to_scalars(&self.cs.w_r)[..], &pad].concat();
         let w_o_scalar = &[&self.to_scalars(&self.cs.w_o)[..], &pad].concat();
         let w_4_scalar = &[&self.to_scalars(&self.cs.w_4)[..], &pad].concat();
-
 
         // Witnesses are now in evaluation form, convert them to coefficients
         // So that we may commit to them
@@ -489,7 +488,10 @@ impl PlookupProver {
         let w_o_scalar = &[&self.to_scalars(&self.cs.w_o)[..], &pad].concat();
         let w_4_scalar = &[&self.to_scalars(&self.cs.w_4)[..], &pad].concat();
 
-        println!("w_l\n{:?}\nw_r\n{:?}\nw_o\n{:?}\nw_4\n{:?}", w_l_scalar, w_r_scalar, w_o_scalar, w_4_scalar);
+        println!(
+            "w_l\n{:?}\nw_r\n{:?}\nw_o\n{:?}\nw_4\n{:?}",
+            w_l_scalar, w_r_scalar, w_o_scalar, w_4_scalar
+        );
 
         // Witnesses are now in evaluation form, convert them to coefficients
         // So that we may commit to them
@@ -564,8 +566,11 @@ impl PlookupProver {
             .zip(&self.cs.q_lookup)
             .map(|(w, s)| w * s)
             .collect::<Vec<BlsScalar>>();
-            println!("f_1\n{:?}\nf_2\n{:?}\nf_3\n{:?}\nf_4\n{:?}\n", f_1_scalar, f_2_scalar, f_3_scalar, f_4_scalar);
-            println!("q_lookup:\n{:?}\n", self.cs.q_lookup);
+        println!(
+            "f_1\n{:?}\nf_2\n{:?}\nf_3\n{:?}\nf_4\n{:?}\n",
+            f_1_scalar, f_2_scalar, f_3_scalar, f_4_scalar
+        );
+        println!("q_lookup:\n{:?}\n", self.cs.q_lookup);
         // Compress table into vector of single elements
         // Skips first element so that f.len() = t.len() - 1
         let compressed_f_long = MultiSet::compress_four_arity(
@@ -590,7 +595,8 @@ impl PlookupProver {
         println!("compressed queries\n{:?}\n", compressed_f_long.0);
 
         // Compute query poly
-        let f_poly_long = Polynomial::from_coefficients_vec(domain.ifft(&compressed_f_long.0.as_slice()));
+        let f_poly_long =
+            Polynomial::from_coefficients_vec(domain.ifft(&compressed_f_long.0.as_slice()));
 
         // Commit to query polynomial
         let f_poly_long_commit = commit_key.commit(&f_poly_long)?;
@@ -599,7 +605,8 @@ impl PlookupProver {
         transcript.append_commitment(b"f", &f_poly_long_commit);
 
         // Compute query poly
-        let f_poly_short = Polynomial::from_coefficients_vec(domain.ifft(&compressed_f_short.0.as_slice()));
+        let f_poly_short =
+            Polynomial::from_coefficients_vec(domain.ifft(&compressed_f_short.0.as_slice()));
 
         // Commit to query polynomial
         let f_poly_short_commit = commit_key.commit(&f_poly_short)?;
@@ -644,7 +651,9 @@ impl PlookupProver {
         let z_challenge = transcript.challenge_scalar(b"z_challenge");
 
         // Compute s, as the sorted and concatenated version of f and t
-        let s = compressed_t_multiset.sorted_concat(&compressed_f_short).unwrap();
+        let s = compressed_t_multiset
+            .sorted_concat(&compressed_f_short)
+            .unwrap();
 
         // Compute first and second halves of s, as h_1 and h_2
         let (h_1, h_2) = s.halve();
@@ -722,15 +731,6 @@ impl PlookupProver {
 
         // Split quotient polynomial into 4 degree `n` polynomials
         let (t_1_poly, t_2_poly, t_3_poly, t_4_poly) = split_tx_poly(domain.size(), &t_poly);
-        println!("t_1_poly:\n {:?}", t_1_poly);
-        println!("t_2_poly:\n {:?}", t_2_poly);
-        println!("t_3_poly:\n {:?}", t_3_poly);
-        println!("t_4_poly:\n {:?}", t_4_poly);
-
-        println!("t_1_poly evals:\n {:?}", domain.fft(&t_1_poly));
-        println!("t_2_poly evals:\n {:?}", domain.fft(&t_2_poly));
-        println!("t_3_poly evals:\n {:?}", domain.fft(&t_3_poly));
-        println!("t_4_poly evals:\n {:?}", domain.fft(&t_4_poly));
 
         // Commit to splitted quotient polynomial
         let t_1_commit = commit_key.commit(&t_1_poly)?;

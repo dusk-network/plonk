@@ -78,13 +78,6 @@ pub(crate) fn compute(
     let mut f_short_eval_4n = domain_4n.coset_fft(&f_poly_short);
     let mut f_long_eval_4n = domain_4n.coset_fft(&f_poly_long);
 
-    /*
-    f_eval_4n.push(f_eval_4n[0]);
-    f_eval_4n.push(f_eval_4n[1]);
-    f_eval_4n.push(f_eval_4n[2]);
-    f_eval_4n.push(f_eval_4n[3]);
-    */
-
     // Compute 4n eval of h_1
     let mut h_1_eval_4n = domain_4n.coset_fft(&h_1_poly);
     h_1_eval_4n.push(h_1_eval_4n[0]);
@@ -160,12 +153,6 @@ pub(crate) fn compute(
         (alpha, beta, gamma, delta, epsilon),
     );
 
-    println!("t_1:\n{:?}", t_1);
-    println!("t_2:\n{:?}", t_2);
-    let q = t_1.iter().zip(t_2.iter()).map(|(a,b)| a+b).collect::<Vec<BlsScalar>>();
-
-    println!("q values on domain:\n{:?}", domain_4n.fft(&domain_4n.coset_ifft(&q)));
-
     let quotient: Vec<_> = (0..domain_4n.size())
         .into_par_iter()
         .map(|i| {
@@ -209,69 +196,75 @@ fn compute_circuit_satisfiability_equation(
 ) -> Vec<BlsScalar> {
     let omega_inv = domain.group_gen_inv;
     let domain_4n = EvaluationDomain::new(4 * domain.size()).unwrap();
-
     let x_poly = Polynomial::from_coefficients_vec(vec![BlsScalar::zero(), BlsScalar::one()]);
     let x_coset_elements = domain_4n.coset_fft(&x_poly);
     let public_eval_4n = domain_4n.coset_fft(pi_poly);
 
-    let l1_eval_4n = domain_4n.coset_fft(&compute_first_lagrange_poly_scaled(&domain, BlsScalar::one()));
-    let ln_eval_4n = domain_4n.coset_fft(&compute_last_lagrange_poly_scaled(&domain, BlsScalar::one()));
+    let l1_eval_4n = domain_4n.coset_fft(&compute_first_lagrange_poly_scaled(
+        &domain,
+        BlsScalar::one(),
+    ));
+    let ln_eval_4n = domain_4n.coset_fft(&compute_last_lagrange_poly_scaled(
+        &domain,
+        BlsScalar::one(),
+    ));
 
     let checks: Vec<_> = (0..domain_4n.size())
-    .into_par_iter()
-    .map(|i| {
-        let wl = &wl_eval_4n[i];
-        let wr = &wr_eval_4n[i];
-        let wo = &wo_eval_4n[i];
-        let w4 = &w4_eval_4n[i];
-        let wl_next = &wl_eval_4n[i+4];
-        let wr_next = &wr_eval_4n[i+4];
-        let wo_next= &wo_eval_4n[i+4];
-        let w4_next= &w4_eval_4n[i+4];
-        let pi = &public_eval_4n[i];
-        let p = &p_eval_4n[i];
-        let p_next = &p_eval_4n[i + 4];
-        let f_long_i = &f_long_eval_4n[i];
-        let f_short_i = &f_short_eval_4n[i];
-        let ti = &t_eval_4n[i];
-        let ti_next = &t_eval_4n[i + 4];
-        let h1 = &h_1_eval_4n[i];
-        let h2 = &h_2_eval_4n[i];
-        let h1_next = &h_1_eval_4n[i + 4];
-        let h2_next = &h_2_eval_4n[i + 4];
-        let l1i = &l1_eval_4n[i];
-        let lni = &ln_eval_4n[i];
-        let xi = x_coset_elements[i];
+        .into_par_iter()
+        .map(|i| {
+            let wl = &wl_eval_4n[i];
+            let wr = &wr_eval_4n[i];
+            let wo = &wo_eval_4n[i];
+            let w4 = &w4_eval_4n[i];
+            let wl_next = &wl_eval_4n[i + 4];
+            let wr_next = &wr_eval_4n[i + 4];
+            let wo_next = &wo_eval_4n[i + 4];
+            let w4_next = &w4_eval_4n[i + 4];
+            let pi = &public_eval_4n[i];
+            let p = &p_eval_4n[i];
+            let p_next = &p_eval_4n[i + 4];
+            let f_long_i = &f_long_eval_4n[i];
+            let f_short_i = &f_short_eval_4n[i];
+            let ti = &t_eval_4n[i];
+            let ti_next = &t_eval_4n[i + 4];
+            let h1 = &h_1_eval_4n[i];
+            let h2 = &h_2_eval_4n[i];
+            let h1_next = &h_1_eval_4n[i + 4];
+            let h2_next = &h_2_eval_4n[i + 4];
+            let l1i = &l1_eval_4n[i];
+            let lni = &ln_eval_4n[i];
+            let xi = x_coset_elements[i];
 
-        prover_key.lookup.compute_quotient_i_debug(
-            i,
-            &xi,
-            &omega_inv,
-            lookup_challenge,
-            &wl,
-            &wr,
-            &wo,
-            &w4,
-            &wl_next,
-            &wr_next,
-            &wo_next,
-            &w4_next,
-            &f_long_i,
-            &f_short_i,
-            &p,
-            &p_next,
-            &ti,
-            &ti_next,
-            &h1,
-            &h1_next,
-            &h2,
-            &h2_next,
-            &l1i,
-            &lni,
-            (&delta, &epsilon),
-            &zeta,
-        )
-    }).collect();
+            prover_key.lookup.compute_quotient_i_debug(
+                i,
+                &xi,
+                &omega_inv,
+                lookup_challenge,
+                &wl,
+                &wr,
+                &wo,
+                &w4,
+                &wl_next,
+                &wr_next,
+                &wo_next,
+                &w4_next,
+                &f_long_i,
+                &f_short_i,
+                &p,
+                &p_next,
+                &ti,
+                &ti_next,
+                &h1,
+                &h1_next,
+                &h2,
+                &h2_next,
+                &l1i,
+                &lni,
+                (&delta, &epsilon),
+                &zeta,
+            )
+        })
+        .collect();
 
     let mut compression: Vec<BlsScalar> = vec![];
     let mut initial_element: Vec<BlsScalar> = vec![];
@@ -279,26 +272,59 @@ fn compute_circuit_satisfiability_equation(
     let mut overlap: Vec<BlsScalar> = vec![];
     let mut final_element: Vec<BlsScalar> = vec![];
 
-    for (a,b,c,d,e,f) in &checks {
+    for (a, b, c, d, e, f) in &checks {
         compression.push(*a);
         initial_element.push(*b);
-        accumulation.push(c+d);
+        accumulation.push(c + d);
         overlap.push(*e);
         final_element.push(*f);
-    };
+    }
 
-    let compression_check_poly = Polynomial::from_coefficients_vec(domain_4n.coset_ifft(&compression));
-    let initial_element_poly = Polynomial::from_coefficients_vec(domain_4n.coset_ifft(&initial_element));
+    let compression_check_poly =
+        Polynomial::from_coefficients_vec(domain_4n.coset_ifft(&compression));
+    let initial_element_poly =
+        Polynomial::from_coefficients_vec(domain_4n.coset_ifft(&initial_element));
     let accumulation_poly = Polynomial::from_coefficients_vec(domain_4n.coset_ifft(&accumulation));
     let overlap_poly = Polynomial::from_coefficients_vec(domain_4n.coset_ifft(&overlap));
-    let final_element_poly = Polynomial::from_coefficients_vec(domain_4n.coset_ifft(&final_element));
+    let final_element_poly =
+        Polynomial::from_coefficients_vec(domain_4n.coset_ifft(&final_element));
 
     println!("\nQUOTIENT CHECKS\n(should all be zero)");
-    println!("\ncompression check eval on domain\n{:?}", domain.elements().map(|e| compression_check_poly.evaluate(&e)).collect::<Vec<BlsScalar>>());
-    println!("\ninitial check eval on domain\n{:?}", domain.elements().map(|e| initial_element_poly.evaluate(&e)).collect::<Vec<BlsScalar>>());
-    println!("\naccumulation check eval on domain\n{:?}", domain.elements().map(|e| accumulation_poly.evaluate(&e)).collect::<Vec<BlsScalar>>());
-    println!("\noverlap check eval on domain\n{:?}", domain.elements().map(|e| overlap_poly.evaluate(&e)).collect::<Vec<BlsScalar>>());
-    println!("\nfinal check eval on domain\n{:?}", domain.elements().map(|e| final_element_poly.evaluate(&e)).collect::<Vec<BlsScalar>>());
+    println!(
+        "\ncompression check eval on domain\n{:?}",
+        domain
+            .elements()
+            .map(|e| compression_check_poly.evaluate(&e))
+            .collect::<Vec<BlsScalar>>()
+    );
+    println!(
+        "\ninitial check eval on domain\n{:?}",
+        domain
+            .elements()
+            .map(|e| initial_element_poly.evaluate(&e))
+            .collect::<Vec<BlsScalar>>()
+    );
+    println!(
+        "\naccumulation check eval on domain\n{:?}",
+        domain
+            .elements()
+            .map(|e| accumulation_poly.evaluate(&e))
+            .collect::<Vec<BlsScalar>>()
+    );
+    println!(
+        "\noverlap check eval on domain\n{:?}",
+        domain
+            .elements()
+            .map(|e| overlap_poly.evaluate(&e))
+            .collect::<Vec<BlsScalar>>()
+    );
+    println!(
+        "\nfinal check eval on domain\n{:?}",
+        domain
+            .elements()
+            .map(|e| final_element_poly.evaluate(&e))
+            .collect::<Vec<BlsScalar>>()
+    );
 
     let t: Vec<_> = (0..domain_4n.size())
         .into_par_iter()

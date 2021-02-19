@@ -31,7 +31,6 @@ impl PlookupVerifierKey {
         p_comm: G1Affine,
         omega_inv: &BlsScalar,
     ) {
-
         let l_sep_sq = lookup_separation_challenge.square();
         let l_sep_cu = lookup_separation_challenge * l_sep_sq;
         let l_sep_4th = lookup_separation_challenge * l_sep_cu;
@@ -53,13 +52,14 @@ impl PlookupVerifierKey {
 
             let c_1 = &evaluations.lookup_perm_eval;
 
-            let c_2 = epsilon*(BlsScalar::one() + delta) + &evaluations.h_1_eval + delta*&evaluations.h_1_next_eval;
+            let c_2 = epsilon * (BlsScalar::one() + delta)
+                + &evaluations.h_1_eval
+                + delta * &evaluations.h_1_next_eval;
 
-            c_0 * c_1 *c_2
+            c_0 * c_1 * c_2
         };
         scalars.push(c);
         points.push(h_2_comm);
-
 
         // (z - omega_inv)(1 + delta)(e + f_eval)(epsilon(1 + delta) + t_eval + (delta * t_next_eval) * alpha_1^3 + l_1(z) * alpha^4 + l_n(z) * alpha_1^5)
         let d = {
@@ -80,6 +80,5 @@ impl PlookupVerifierKey {
 
         scalars.push(d);
         points.push(p_comm);
-
     }
 }
