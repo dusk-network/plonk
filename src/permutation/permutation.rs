@@ -916,7 +916,7 @@ mod test {
 
         // Check the fourth sigmas have been encoded properly
         // Out_sigma = {F1, F2, F3, F0}
-        // Should turn into {1 * K3, w * K3, w^2 * K3, w^3 * K3}
+        // Should turn into {w * K3, w^2 * K3, w^3 * K3, 1 * K3}
         let encoded_fourth_sigma = perm.compute_permutation_lagrange(fourth_sigma, &domain);
         assert_eq!(encoded_fourth_sigma[0], w * &K3);
         assert_eq!(encoded_fourth_sigma[1], w_squared * &K3);
