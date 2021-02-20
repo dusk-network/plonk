@@ -69,6 +69,9 @@ pub struct PlookupProof {
 
     /// Subset of all of the evaluations added to the proof.
     pub evaluations: PlookupProofEvaluations,
+
+    /// Lineariser pieces so the verifier can inspect for debugging
+    pub lin_breakdown: (Polynomial, Polynomial, Polynomial, Polynomial, Polynomial),
 }
 
 impl PlookupProof {
@@ -93,7 +96,7 @@ impl PlookupProof {
 
     /// Deserialises a Proof struct
     pub fn from_bytes(bytes: &[u8]) -> Result<PlookupProof, Error> {
-        use crate::serialisation::read_commitment;
+        use crate::serialisation::{read_commitment, read_polynomial};
 
         let (a_comm, rest) = read_commitment(bytes)?;
         let (b_comm, rest) = read_commitment(rest)?;
@@ -110,6 +113,11 @@ impl PlookupProof {
         let (t_4_comm, rest) = read_commitment(rest)?;
         let (w_z_comm, rest) = read_commitment(rest)?;
         let (w_zw_comm, rest) = read_commitment(rest)?;
+        let (lin_1, rest) = read_polynomial(rest)?;
+        let (lin_2, rest) = read_polynomial(rest)?;
+        let (lin_3, rest) = read_polynomial(rest)?;
+        let (lin_4, rest) = read_polynomial(rest)?;
+        let (lin_5, rest) = read_polynomial(rest)?;
 
         let evaluations = PlookupProofEvaluations::from_bytes(rest);
 
@@ -130,6 +138,7 @@ impl PlookupProof {
             w_z_comm,
             w_zw_comm,
             evaluations: evaluations?,
+            lin_breakdown: (lin_1, lin_2, lin_3, lin_4, lin_5),
         };
         Ok(proof)
     }

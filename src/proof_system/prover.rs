@@ -756,7 +756,7 @@ impl PlookupProver {
         // 4. Compute linearisation polynomial
         //
 
-        let (lin_poly, evaluations, lin_breakdowns) = lookup_lineariser_debug::compute(
+        let (lin_poly, evaluations, lin_breakdown) = lookup_lineariser_debug::compute(
             &domain,
             &prover_key,
             &(
@@ -785,14 +785,6 @@ impl PlookupProver {
             &table_poly,
             &p_poly,
         );
-
-        let (
-            lin_compression_poly,
-            lin_initial_poly,
-            lin_accumulation_poly,
-            lin_overlap_poly,
-            lin_final_poly,
-        ) = lin_breakdowns;
 
         // Add evaluations to transcript
         transcript.append_scalar(b"a_eval", &evaluations.proof.a_eval);
@@ -885,6 +877,7 @@ impl PlookupProver {
             w_zw_comm: w_zx_comm,
 
             evaluations: evaluations.proof,
+            lin_breakdown,
         })
     }
 

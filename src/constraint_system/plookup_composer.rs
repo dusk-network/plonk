@@ -481,6 +481,9 @@ mod tests {
 
         let proof = prover.prove(&ck).unwrap();
 
+        let lin_breakdown = &proof.lin_breakdown;
+        println!("{:?}", lin_breakdown);
+
         let mut plookup_table = PlookupTable4Arity::new();
         plookup_table.add_dummy_rows();
 
