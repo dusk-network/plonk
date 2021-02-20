@@ -42,9 +42,9 @@ impl PlookupProverKey {
         zeta: &BlsScalar,
     ) -> BlsScalar {
         let l_sep_2 = lookup_separation_challenge.square();
-        let l_sep_3 = l_sep_2 * lookup_separation_challenge.square();
-        let l_sep_4 = l_sep_3 * lookup_separation_challenge.square();
-        let l_sep_5 = l_sep_4 * lookup_separation_challenge.square();
+        let l_sep_3 = l_sep_2 * lookup_separation_challenge;
+        let l_sep_4 = l_sep_3 * lookup_separation_challenge;
+        let l_sep_5 = l_sep_4 * lookup_separation_challenge;
 
         let x_minus_omega_inv = x_i - omega_inv;
         let one_plus_delta = delta + BlsScalar::one();
@@ -123,11 +123,10 @@ impl PlookupProverKey {
         BlsScalar,
     ) {
         let l_sep_2 = lookup_separation_challenge.square();
-        let l_sep_3 = l_sep_2 * lookup_separation_challenge.square();
-        let l_sep_4 = l_sep_3 * lookup_separation_challenge.square();
-        let l_sep_5 = l_sep_4 * lookup_separation_challenge.square();
+        let l_sep_3 = l_sep_2 * lookup_separation_challenge;
+        let l_sep_4 = l_sep_3 * lookup_separation_challenge;
+        let l_sep_5 = l_sep_4 * lookup_separation_challenge;
 
-        let x_minus_one = x_i - BlsScalar::one();
         let x_minus_omega_inv = x_i - omega_inv;
         let one_plus_delta = delta + BlsScalar::one();
         let epsilon_one_plus_delta = epsilon * one_plus_delta;
@@ -143,7 +142,7 @@ impl PlookupProverKey {
         // L0(X)*(p(X)−1)*α_1^2
         let b = { l_first_i * (p_i - BlsScalar::one()) * l_sep_2 };
 
-        // (X−1)*p(X)*(1+δ)*(ε+f(X))*(ε*(1+δ)+t(X)+δt(Xω))*α_1^3
+        // (X−omega^(-1))*p(X)*(1+δ)*(ε+f(X))*(ε*(1+δ)+t(X)+δt(Xω))*α_1^3
         let c = {
             let c_1 = epsilon + f_short_i;
             let c_2 = epsilon_one_plus_delta + t_i + delta * t_i_next;
@@ -151,7 +150,7 @@ impl PlookupProverKey {
             x_minus_omega_inv * p_i * one_plus_delta * c_1 * c_2 * l_sep_3
         };
 
-        // −(X−1) * p(Xω) * (ε*(1+δ) + h1(X) + δ*h1(Xω)) * (ε*(1+δ) + h2(X) + δ*h2(Xω)) * α_1^3
+        // −(X−omega^(-1)) * p(Xω) * (ε*(1+δ) + h1(X) + δ*h1(Xω)) * (ε*(1+δ) + h2(X) + δ*h2(Xω)) * α_1^3
         let d = {
             let d_1 = epsilon_one_plus_delta + h_1_i + delta * h_1_i_next;
             let d_2 = epsilon_one_plus_delta + h_2_i + delta * h_2_i_next;
@@ -189,9 +188,9 @@ impl PlookupProverKey {
         lookup_separation_challenge: &BlsScalar,
     ) -> Polynomial {
         let l_sep_2 = lookup_separation_challenge.square();
-        let l_sep_3 = l_sep_2 * lookup_separation_challenge.square();
-        let l_sep_4 = l_sep_3 * lookup_separation_challenge.square();
-        let l_sep_5 = l_sep_4 * lookup_separation_challenge.square();
+        let l_sep_3 = l_sep_2 * lookup_separation_challenge;
+        let l_sep_4 = l_sep_3 * lookup_separation_challenge;
+        let l_sep_5 = l_sep_4 * lookup_separation_challenge;
 
         let z_minus_omega_inv = z_challenge - omega_inv;
         let one_plus_delta = delta + BlsScalar::one();
@@ -203,7 +202,7 @@ impl PlookupProverKey {
         // p(X)*L0(z)α_1^2
         let b = { p_poly * &(l1_eval * l_sep_2) };
 
-        // (z − 1)p(X)(1 + δ)(ε + f_bar)(ε(1+δ) + t_bar + δ*tω_bar)α_1^3
+        // (z − omega^(-1)) * p(X) * (1 + δ) * (ε + f_bar) * (ε(1+δ) + t_bar + δ*tω_bar) * α_1^3
         let c = {
             let c_0 = epsilon + f_short_eval;
             let c_1 = epsilon_one_plus_delta + t_eval + delta * t_next_eval;
@@ -211,7 +210,7 @@ impl PlookupProverKey {
             p_poly * &(z_minus_omega_inv * one_plus_delta * c_0 * c_1 * l_sep_3)
         };
 
-        // −(z−1)*pω_bar*(ε(1+δ)+h1_bar+δh1ω_bar)h2(X)α_1^3
+        // − (z−1omega^(-1)) * pω_bar * (ε(1+δ) + h1_bar + δh1ω_bar) * h2(X) * α_1^3
         let d = {
             let d_0 = epsilon_one_plus_delta + h_1_eval + delta * h_1_next_eval;
 

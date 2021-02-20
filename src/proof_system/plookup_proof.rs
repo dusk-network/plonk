@@ -194,6 +194,8 @@ impl PlookupProof {
         // Compute evaluation challenge
         let z_challenge = transcript.challenge_scalar(b"z_challenge");
 
+        println!("\nVERIFIER z challenge:\n{:?}", z_challenge);
+
         // Add h polynomials to transcript
         transcript.append_commitment(b"h1", &self.h_1_comm);
         transcript.append_commitment(b"h2", &self.h_2_comm);
@@ -210,6 +212,8 @@ impl PlookupProof {
         let var_base_sep_challenge =
             transcript.challenge_scalar(b"variable base separation challenge");
         let lookup_sep_challenge = transcript.challenge_scalar(b"lookup challenge");
+
+        println!("\nVERIFIER lookup challenge:\n{:?}", lookup_sep_challenge);
 
         // Add commitment to quotient polynomial to transcript
         transcript.append_commitment(b"t_1", &self.t_1_comm);
@@ -271,8 +275,7 @@ impl PlookupProof {
             &domain.group_gen_inv,
             &lookup_sep_challenge,
         );
-        println!("VERIFIER");
-        println!("quotient eval:\n{:?}", t_eval);
+        println!("\nVERIFIER quotient eval:\n{:?}\n", t_eval);
         // Compute commitment to quotient polynomial
         // This method is necessary as we pass the `un-splitted` variation to our commitment scheme
         let t_comm = self.compute_quotient_commitment(&z_challenge, domain.size());
@@ -467,6 +470,20 @@ impl PlookupProof {
 
         // l_n(z) * alpha_1^5
         let h = ln_eval * l_sep_5;
+
+        let lin_compression_eval = self.lin_breakdown.0.evaluate(z_challenge);
+        let lin_initial_eval = self.lin_breakdown.1.evaluate(z_challenge);
+        let lin_accumulation_eval = self.lin_breakdown.2.evaluate(z_challenge);
+        let lin_overlap_eval = self.lin_breakdown.3.evaluate(z_challenge);
+        let lin_final_eval = self.lin_breakdown.4.evaluate(z_challenge);
+
+        println!("\nVERIFIER QUOTIENT CHECK EVALS\n");
+        println!("compression:      {:?}", lin_compression_eval + d);
+        println!("initial element:  {:?}", lin_initial_eval + e);
+        println!("accumulation:     {:?}", lin_accumulation_eval + f);
+        println!("overlap:          {:?}", lin_overlap_eval + g);
+        println!("final element:    {:?}", lin_final_eval + h);
+
 
         // Return t_eval
         (a - b - c + d - e - f - g - h) * z_h_eval.invert().unwrap()

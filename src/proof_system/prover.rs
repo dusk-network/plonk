@@ -601,9 +601,6 @@ impl PlookupProver {
         // Commit to query polynomial
         let f_poly_long_commit = commit_key.commit(&f_poly_long)?;
 
-        // Add f_poly commitment to transcript
-        transcript.append_commitment(b"f", &f_poly_long_commit);
-
         // Compute query poly
         let f_poly_short =
             Polynomial::from_coefficients_vec(domain.ifft(&compressed_f_short.0.as_slice()));
@@ -649,6 +646,8 @@ impl PlookupProver {
 
         // Compute evaluation challenge; `z`
         let z_challenge = transcript.challenge_scalar(b"z_challenge");
+
+        println!("\nPROVER z challenge:\n{:?}", z_challenge);
 
         // Compute s, as the sorted and concatenated version of f and t
         let s = compressed_t_multiset
@@ -702,6 +701,8 @@ impl PlookupProver {
             transcript.challenge_scalar(b"variable base separation challenge");
         let lookup_sep_challenge = transcript.challenge_scalar(b"lookup challenge");
 
+        println!("\nPROVER lookup challenge:\n{:?}", lookup_sep_challenge);
+
         let t_poly_breakdown = lookup_quotient_debug::compute(
             &domain,
             &prover_key,
@@ -730,13 +731,19 @@ impl PlookupProver {
         );
 
         let t_poly = t_poly_breakdown.0;
-        let (
-            compression_check_poly,
-            initial_element_poly,
-            accumulation_poly,
-            overlap_poly,
-            final_element_poly,
-        ) = t_poly_breakdown.1;
+
+        let quotient_compression_eval = t_poly_breakdown.1.0.evaluate(&z_challenge);
+        let quotient_initial_eval = t_poly_breakdown.1.1.evaluate(&z_challenge);
+        let quotient_accumulation_eval = t_poly_breakdown.1.2.evaluate(&z_challenge);
+        let quotient_overlap_eval = t_poly_breakdown.1.3.evaluate(&z_challenge);
+        let quotient_final_eval = t_poly_breakdown.1.4.evaluate(&z_challenge);
+
+        println!("\nPROVER QUOTIENT CHECK EVALS\n");
+        println!("compression:      {:?}", quotient_compression_eval);
+        println!("initial element:  {:?}", quotient_initial_eval);
+        println!("accumulation:     {:?}", quotient_accumulation_eval);
+        println!("overlap:          {:?}", quotient_overlap_eval);
+        println!("final element:    {:?}", quotient_final_eval);
 
         // Split quotient polynomial into 4 degree `n` polynomials
         let (t_1_poly, t_2_poly, t_3_poly, t_4_poly) = split_tx_poly(domain.size(), &t_poly);
@@ -810,7 +817,7 @@ impl PlookupProver {
         transcript.append_scalar(b"t_eval", &evaluations.quot_eval);
         transcript.append_scalar(b"r_eval", &evaluations.proof.lin_poly_eval);
 
-        println!("\nquotient eval:\n{:?}", &evaluations.quot_eval);
+        println!("\nPROVER quotient eval:\n{:?}", &evaluations.quot_eval);
 
         // 5. Compute Openings using KZG10
         //
