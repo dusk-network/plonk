@@ -964,7 +964,7 @@ mod test {
         Left_Sigma : {0,1,2,3} -> {R0,O1,R2,O0}
         Right_Sigma : {0,1,2,3} -> {R1, O2, O3, L0}
         Out_Sigma : {0,1,2,3} -> {L1, L3, R3, L2}
-        Fourth_Sigma : {0,1,2,3} -> {F0, F1, F2, F3}
+        Fourth_Sigma : {0,1,2,3} -> {F1, F2, F3, F0}
         */
         let sigmas = perm.compute_sigma_permutations(num_wire_mappings);
         let left_sigma = &sigmas[0];
@@ -999,13 +999,13 @@ mod test {
         /*
         Check that the unique encodings of the sigma polynomials have been computed properly
         Left_Sigma : {R0,O1,R2,O0}
-            When encoded using w, K1,K2,K3 we have {1 * K1, w * K2, w^2 *K1, w^3 * K2}
+            When encoded using w, K1,K2,K3 we have {1 * K1, w * K2, w^2 * K1, 1 * K2}
         Right_Sigma : {R1, O2, O3, L0}
-            When encoded using w, K1,K2,K3 we have {1 * K1, w * K2, w^2 * K2, w^3}
+            When encoded using w, K1,K2,K3 we have {w * K1, w^2 * K2, w^3 * K2, 1}
         Out_Sigma : {L1, L3, R3, L2}
-            When encoded using w, K1, K2,K3 we have {1, w , w^2 * K1, w^3}
-        Fourth_Sigma : {0,1,2,3} -> {F0, F1, F2, F3}
-            When encoded using w, K1, K2,K3 we have {1 * K3, w * K3, w^2 * K3, w^3 * K3}
+            When encoded using w, K1, K2,K3 we have {w, w^3 , w^3 * K1, w^2}
+        Fourth_Sigma : {0,1,2,3} -> {F1, F2, F3, F0}
+            When encoded using w, K1, K2,K3 we have {w * K3, w^2 * K3, w^3 * K3, 1 * K3}
         */
         let domain = EvaluationDomain::new(num_wire_mappings).unwrap();
         let w: Fr = domain.group_gen;
