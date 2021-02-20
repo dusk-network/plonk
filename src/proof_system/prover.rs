@@ -732,11 +732,11 @@ impl PlookupProver {
 
         let t_poly = t_poly_breakdown.0;
 
-        let quotient_compression_eval = t_poly_breakdown.1.0.evaluate(&z_challenge);
-        let quotient_initial_eval = t_poly_breakdown.1.1.evaluate(&z_challenge);
-        let quotient_accumulation_eval = t_poly_breakdown.1.2.evaluate(&z_challenge);
-        let quotient_overlap_eval = t_poly_breakdown.1.3.evaluate(&z_challenge);
-        let quotient_final_eval = t_poly_breakdown.1.4.evaluate(&z_challenge);
+        let quotient_compression_eval = t_poly_breakdown.1 .0.evaluate(&z_challenge);
+        let quotient_initial_eval = t_poly_breakdown.1 .1.evaluate(&z_challenge);
+        let quotient_accumulation_eval = t_poly_breakdown.1 .2.evaluate(&z_challenge);
+        let quotient_overlap_eval = t_poly_breakdown.1 .3.evaluate(&z_challenge);
+        let quotient_final_eval = t_poly_breakdown.1 .4.evaluate(&z_challenge);
 
         println!("\nPROVER QUOTIENT CHECK EVALS\n");
         println!("compression:      {:?}", quotient_compression_eval);
@@ -792,6 +792,9 @@ impl PlookupProver {
             &table_poly,
             &p_poly,
         );
+
+        let prover_r_comm = commit_key.commit(&lin_poly);
+        println!("\nPROVER commitment to linearization:\n{:?}", prover_r_comm);
 
         // Add evaluations to transcript
         transcript.append_scalar(b"a_eval", &evaluations.proof.a_eval);

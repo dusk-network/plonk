@@ -327,6 +327,8 @@ impl PlookupProof {
             &verifier_key,
         );
 
+        println!("VERIFIER commitment to linearization:\n{:?}", r_comm);
+
         // Commitment Scheme
         // Now we delegate computation to the commitment scheme by batch checking two proofs
         // The `AggregateProof`, which is a proof that all the necessary polynomials evaluated at `z_challenge` are correct
@@ -455,21 +457,21 @@ impl PlookupProof {
         let d = self.evaluations.q_lookup_eval * d_0 * lookup_sep_challenge;
 
         // l_1(z) * alpha_1^2
-        let e = l1_eval * l_sep_2;
+        let e = -l1_eval * l_sep_2;
 
         // (z - omega_inv) * p_eval * (epsilon( 1+ delta) + h_1_eval +(delta * h_1_next_eval)(epsilon( 1+ delta) + delta * h_2_next_eval) * alpha_1^3
         let f_0 = z_challenge - omega_inv;
         let f_1 = epsilon_one_plus_delta
             + self.evaluations.h_1_eval
-            + (delta * self.evaluations.h_1_eval);
+            + (delta * self.evaluations.h_1_next_eval);
         let f_2 = epsilon_one_plus_delta + (delta * self.evaluations.h_2_next_eval);
-        let f = f_0 * self.evaluations.lookup_perm_eval * f_1 * f_2 * l_sep_3;
+        let f = -f_0 * self.evaluations.lookup_perm_eval * f_1 * f_2 * l_sep_3;
 
         // l_n(z) * h_2_next_eval * alpha_1^4
-        let g = ln_eval * self.evaluations.h_2_next_eval * l_sep_4;
+        let g = -ln_eval * self.evaluations.h_2_next_eval * l_sep_4;
 
         // l_n(z) * alpha_1^5
-        let h = ln_eval * l_sep_5;
+        let h = -ln_eval * l_sep_5;
 
         let lin_compression_eval = self.lin_breakdown.0.evaluate(z_challenge);
         let lin_initial_eval = self.lin_breakdown.1.evaluate(z_challenge);
@@ -484,9 +486,8 @@ impl PlookupProof {
         println!("overlap:          {:?}", lin_overlap_eval + g);
         println!("final element:    {:?}", lin_final_eval + h);
 
-
         // Return t_eval
-        (a - b - c + d - e - f - g - h) * z_h_eval.invert().unwrap()
+        (a - b - c + d + e + f + g + h) * z_h_eval.invert().unwrap()
     }
 
     fn compute_quotient_commitment(&self, z_challenge: &BlsScalar, n: usize) -> Commitment {
