@@ -20,7 +20,8 @@ pub(crate) fn compute(
     z_poly: &Polynomial,
     p_poly: &Polynomial,
     (w_l_poly, w_r_poly, w_o_poly, w_4_poly): (&Polynomial, &Polynomial, &Polynomial, &Polynomial),
-    f_poly: &Polynomial,
+    f_poly_long: &Polynomial,
+    f_poly_short: &Polynomial,
     t_poly: &Polynomial,
     h_1_poly: &Polynomial,
     h_2_poly: &Polynomial,
@@ -74,11 +75,8 @@ pub(crate) fn compute(
     t_eval_4n.push(t_eval_4n[3]);
 
     // Compute f(x)
-    let mut f_eval_4n = domain_4n.coset_fft(&f_poly);
-    f_eval_4n.push(f_eval_4n[0]);
-    f_eval_4n.push(f_eval_4n[1]);
-    f_eval_4n.push(f_eval_4n[2]);
-    f_eval_4n.push(f_eval_4n[3]);
+    let f_short_eval_4n = domain_4n.coset_fft(&f_poly_short);
+    let f_long_eval_4n = domain_4n.coset_fft(&f_poly_long);
 
     // Compute 4n eval of h_1
     let mut h_1_eval_4n = domain_4n.coset_fft(&h_1_poly);
@@ -127,7 +125,8 @@ pub(crate) fn compute(
         public_inputs_poly,
         zeta,
         (delta, epsilon),
-        &f_eval_4n,
+        &f_long_eval_4n,
+        &f_short_eval_4n,
         &p_eval_4n,
         &t_eval_4n,
         &h_1_eval_4n,
@@ -176,7 +175,8 @@ fn compute_circuit_satisfiability_equation(
     pi_poly: &Polynomial,
     zeta: &BlsScalar,
     (delta, epsilon): (&BlsScalar, &BlsScalar),
-    f_eval_4n: &[BlsScalar],
+    f_long_eval_4n: &[BlsScalar],
+    f_short_eval_4n: &[BlsScalar],
     p_eval_4n: &[BlsScalar],
     t_eval_4n: &[BlsScalar],
     h_1_eval_4n: &[BlsScalar],
@@ -184,11 +184,9 @@ fn compute_circuit_satisfiability_equation(
 ) -> Vec<BlsScalar> {
     let omega_inv = domain.group_gen_inv;
     let domain_4n = EvaluationDomain::new(4 * domain.size()).unwrap();
-
-    let public_eval_4n = domain_4n.coset_fft(pi_poly);
-
     let x_poly = Polynomial::from_coefficients_vec(vec![BlsScalar::zero(), BlsScalar::one()]);
     let x_coset_elements = domain_4n.coset_fft(&x_poly);
+    let public_eval_4n = domain_4n.coset_fft(pi_poly);
 
     let l1_eval_4n = domain_4n.coset_fft(&compute_first_lagrange_poly_scaled(
         &domain,
@@ -212,7 +210,8 @@ fn compute_circuit_satisfiability_equation(
             let pi = &public_eval_4n[i];
             let p = &p_eval_4n[i];
             let p_next = &p_eval_4n[i + 4];
-            let fi = &f_eval_4n[i];
+            let f_long_i = &f_long_eval_4n[i];
+            let f_short_i = &f_short_eval_4n[i];
             let ti = &t_eval_4n[i];
             let ti_next = &t_eval_4n[i + 4];
             let h1 = &h_1_eval_4n[i];
@@ -275,7 +274,8 @@ fn compute_circuit_satisfiability_equation(
                 &wr,
                 &wo,
                 &w4,
-                &fi,
+                &f_long_i,
+                &f_short_i,
                 &p,
                 &p_next,
                 &ti,

@@ -589,10 +589,10 @@ impl PlookupProver {
             Polynomial::from_coefficients_vec(domain.ifft(&compressed_f_short.0.as_slice()));
 
         // Commit to query polynomial
-        let f_poly_commit = commit_key.commit(&f_poly)?;
+        let f_poly_short_commit = commit_key.commit(&f_poly_short)?;
 
         // Add f_poly commitment to transcript
-        transcript.append_commitment(b"f", &f_poly_commit);
+        transcript.append_commitment(b"f", &f_poly_short_commit);
 
         // 2. Compute permutation polynomial
         //
@@ -631,7 +631,9 @@ impl PlookupProver {
         let z_challenge = transcript.challenge_scalar(b"z_challenge");
 
         // Compute s, as the sorted and concatenated version of f and t
-        let s = compressed_t_multiset.sorted_concat(&compressed_f).unwrap();
+        let s = compressed_t_multiset
+            .sorted_concat(&compressed_f_short)
+            .unwrap();
 
         // Compute first and second halves of s, as h_1 and h_2
         let (h_1, h_2) = s.halve();
@@ -652,7 +654,7 @@ impl PlookupProver {
         let p_poly =
             Polynomial::from_coefficients_slice(&self.cs.perm.compute_lookup_permutation_poly(
                 &domain,
-                &compressed_f.0,
+                &compressed_f_short.0,
                 &compressed_t_multiset.0,
                 &h_1.0,
                 &h_2.0,
@@ -685,7 +687,8 @@ impl PlookupProver {
             &z_poly,
             &p_poly,
             (&w_l_poly, &w_r_poly, &w_o_poly, &w_4_poly),
-            &f_poly,
+            &f_poly_long,
+            &f_poly_short,
             &table_poly,
             &h_1_poly,
             &h_2_poly,
@@ -745,7 +748,8 @@ impl PlookupProver {
             &w_4_poly,
             &t_poly,
             &z_poly,
-            &f_poly,
+            &f_poly_long,
+            &f_poly_short,
             &h_1_poly,
             &h_2_poly,
             &table_poly,
@@ -799,7 +803,7 @@ impl PlookupProver {
                 prover_key.permutation.left_sigma.0.clone(),
                 prover_key.permutation.right_sigma.0.clone(),
                 prover_key.permutation.out_sigma.0.clone(),
-                f_poly,
+                f_poly_short,
                 h_1_poly.clone(),
             ],
             &z_challenge,
@@ -824,7 +828,7 @@ impl PlookupProver {
             c_comm: w_o_poly_commit,
             d_comm: w_4_poly_commit,
 
-            f_comm: f_poly_commit,
+            f_comm: f_poly_short_commit,
 
             h_1_comm: h_1_poly_commit,
             h_2_comm: h_2_poly_commit,
