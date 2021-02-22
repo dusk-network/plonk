@@ -91,28 +91,11 @@ impl PlookupVerifierKey {
         points: &mut Vec<G1Affine>,
         evaluations: &PlookupProofEvaluations,
         z_challenge: &BlsScalar,
-        (alpha, beta, gamma, delta, epsilon): (
-            &BlsScalar,
-            &BlsScalar,
-            &BlsScalar,
-            &BlsScalar,
-            &BlsScalar,
-        ),
+        (alpha, beta, gamma): (&BlsScalar, &BlsScalar, &BlsScalar),
         l1_eval: &BlsScalar,
-        ln_eval: &BlsScalar,
-        t_eval: &BlsScalar,
-        t_next_eval: &BlsScalar,
         z_comm: G1Affine,
-        h_1_comm: G1Affine,
-        h_2_comm: G1Affine,
-        p_comm: G1Affine,
     ) {
-        // Compute powers of alpha
         let alpha_sq = alpha.square();
-        let alpha_4 = alpha_sq * alpha_sq;
-        let alpha_5 = alpha_4 * alpha;
-        let alpha_6 = alpha_5 * alpha;
-        let alpha_7 = alpha_6 * alpha;
 
         // (a_eval + beta * z + gamma)(b_eval + beta * z * k1 + gamma)(c_eval + beta * k2 * z + gamma)(d_eval + beta * k3 * z + gamma) * alpha
         let x = {
@@ -154,42 +137,5 @@ impl PlookupVerifierKey {
         };
         scalars.push(y);
         points.push(self.fourth_sigma.0);
-
-        // l_n(z) * alpha^6
-        let a = { ln_eval * alpha };
-        scalars.push(a);
-        points.push(h_1_comm);
-
-        // -(z - 1) * p_eval * (epsilon( 1+ delta) + h_1_eval +(delta * h_1_next_eval) * alpha^5
-        let b = {
-            let q_0 = z_challenge - BlsScalar::one();
-
-            let q_1 = epsilon * (BlsScalar::one() + delta)
-                + evaluations.h_1_eval
-                + (delta * evaluations.h_1_next_eval);
-
-            -(q_0 * evaluations.lookup_perm_eval * q_1 * alpha_5)
-        };
-        scalars.push(b);
-        points.push(h_2_comm);
-
-        // (z - 1)(1 + delta)(e + f_eval)(epsilon(1 + delta) + t_eval + (delta * t_next_eval) * alpha^5 + l_1(z) * alpha^4 + l_n(z) * alpha^7)
-        let c = {
-            let q_0 = z_challenge - BlsScalar::one();
-
-            let q_1 = BlsScalar::one() + delta;
-
-            let q_2 = epsilon + evaluations.f_eval;
-
-            let q_3 = (epsilon * q_1 + t_eval + (delta * t_next_eval)) * alpha_5;
-
-            let q_4 = l1_eval * alpha_4;
-
-            let q_5 = ln_eval * alpha_7;
-
-            (q_0 * q_1 * q_2 * q_3) + q_4 + q_5
-        };
-        scalars.push(c);
-        points.push(p_comm);
     }
 }

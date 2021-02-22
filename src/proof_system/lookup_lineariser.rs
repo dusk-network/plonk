@@ -67,7 +67,10 @@ pub struct PlookupProofEvaluations {
     pub h_2_next_eval: BlsScalar,
 
     /// Evaluations of the query polynomial at `z`
-    pub f_eval: BlsScalar,
+    pub f_long_eval: BlsScalar,
+
+    /// Evaluations of the query polynomial at `z`
+    pub f_short_eval: BlsScalar,
 }
 
 impl PlookupProofEvaluations {
@@ -123,7 +126,8 @@ impl PlookupProofEvaluations {
         let (h_1_eval, _) = read_scalar(rest)?;
         let (h_1_next_eval, _) = read_scalar(rest)?;
         let (h_2_next_eval, _) = read_scalar(rest)?;
-        let (f_eval, _) = read_scalar(rest)?;
+        let (f_long_eval, _) = read_scalar(rest)?;
+        let (f_short_eval, _) = read_scalar(rest)?;
 
         let proof_evals = PlookupProofEvaluations {
             a_eval,
@@ -147,7 +151,8 @@ impl PlookupProofEvaluations {
             h_1_eval,
             h_1_next_eval,
             h_2_next_eval,
-            f_eval,
+            f_long_eval,
+            f_short_eval,
         };
         Ok(proof_evals)
     }
@@ -195,7 +200,8 @@ pub fn compute(
     w_4_poly: &Polynomial,
     t_x_poly: &Polynomial,
     z_poly: &Polynomial,
-    f_poly: &Polynomial,
+    f_poly_long: &Polynomial,
+    f_poly_short: &Polynomial,
     h_1_poly: &Polynomial,
     h_2_poly: &Polynomial,
     table_poly: &Polynomial,
@@ -215,7 +221,8 @@ pub fn compute(
     let q_l_eval = prover_key.fixed_base.q_l.0.evaluate(z_challenge);
     let q_r_eval = prover_key.fixed_base.q_r.0.evaluate(z_challenge);
     let q_lookup_eval = prover_key.lookup.q_lookup.0.evaluate(z_challenge);
-    let f_eval = f_poly.evaluate(z_challenge);
+    let f_long_eval = f_poly_long.evaluate(z_challenge);
+    let f_short_eval = f_poly_short.evaluate(z_challenge);
     let h_1_eval = h_1_poly.evaluate(z_challenge);
     let t_eval = table_poly.evaluate(z_challenge);
 
@@ -227,6 +234,12 @@ pub fn compute(
     let h_1_next_eval = h_1_poly.evaluate(&(z_challenge * domain.group_gen));
     let h_2_next_eval = h_2_poly.evaluate(&(z_challenge * domain.group_gen));
     let t_next_eval = table_poly.evaluate(&(z_challenge * domain.group_gen));
+
+    let l_coeffs = domain.evaluate_all_lagrange_coefficients(*z_challenge);
+    let l1_eval = l_coeffs[0];
+    let ln_eval = l_coeffs[domain.size() - 1];
+
+    let omega_inv = domain.group_gen_inv;
 
     let f_1 = compute_circuit_satisfiability(
         (
@@ -244,29 +257,34 @@ pub fn compute(
         &b_next_eval,
         &d_next_eval,
         &q_arith_eval,
-        &f_eval,
-        &q_c_eval,
-        &q_l_eval,
-        &q_r_eval,
-        prover_key,
-    );
-
-    let f_2 = prover_key.permutation.compute_lookup_linearisation(
-        z_challenge,
-        (alpha, beta, gamma, delta, epsilon),
-        (&a_eval, &b_eval, &c_eval, &d_eval),
-        (&left_sigma_eval, &right_sigma_eval, &out_sigma_eval),
-        &perm_eval,
-        z_poly,
-        p_poly,
-        &f_eval,
+        &f_long_eval,
+        &f_short_eval,
         &t_eval,
         &t_next_eval,
         &h_1_eval,
         &h_1_next_eval,
+        &lookup_perm_eval,
+        &l1_eval,
+        &ln_eval,
+        &p_poly,
         &h_1_poly,
         &h_2_poly,
-        &lookup_perm_eval,
+        (delta, epsilon),
+        &z_challenge,
+        &q_c_eval,
+        &q_l_eval,
+        &q_r_eval,
+        &omega_inv,
+        prover_key,
+    );
+
+    let f_2 = prover_key.permutation.compute_linearisation(
+        z_challenge,
+        (alpha, beta, gamma),
+        (&a_eval, &b_eval, &c_eval, &d_eval),
+        (&left_sigma_eval, &right_sigma_eval, &out_sigma_eval),
+        &perm_eval,
+        z_poly,
     );
 
     let lin_poly = &f_1 + &f_2;
@@ -299,7 +317,8 @@ pub fn compute(
                 h_1_eval,
                 h_1_next_eval,
                 h_2_next_eval,
-                f_eval,
+                f_long_eval,
+                f_short_eval,
             },
             quot_eval,
         },
@@ -323,10 +342,24 @@ fn compute_circuit_satisfiability(
     b_next_eval: &BlsScalar,
     d_next_eval: &BlsScalar,
     q_arith_eval: &BlsScalar,
-    f_eval: &BlsScalar,
+    f_long_eval: &BlsScalar,
+    f_short_eval: &BlsScalar,
+    t_eval: &BlsScalar,
+    t_next_eval: &BlsScalar,
+    h_1_eval: &BlsScalar,
+    h_1_next_eval: &BlsScalar,
+    p_next_eval: &BlsScalar,
+    l1_eval: &BlsScalar,
+    ln_eval: &BlsScalar,
+    p_poly: &Polynomial,
+    h_1_poly: &Polynomial,
+    h_2_poly: &Polynomial,
+    (delta, epsilon): (&BlsScalar, &BlsScalar),
+    z_challenge: &BlsScalar,
     q_c_eval: &BlsScalar,
     q_l_eval: &BlsScalar,
     q_r_eval: &BlsScalar,
+    omega_inv: &BlsScalar,
     prover_key: &PlookupProverKey,
 ) -> Polynomial {
     let a =
@@ -380,9 +413,24 @@ fn compute_circuit_satisfiability(
         d_next_eval,
     );
 
-    let f = prover_key
-        .lookup
-        .compute_linearisation(f_eval, lookup_separation_challenge);
+    let f = prover_key.lookup.compute_linearisation(
+        omega_inv,
+        f_long_eval,
+        f_short_eval,
+        t_eval,
+        t_next_eval,
+        h_1_eval,
+        h_1_next_eval,
+        p_next_eval,
+        l1_eval,
+        ln_eval,
+        p_poly,
+        h_1_poly,
+        h_2_poly,
+        (delta, epsilon),
+        z_challenge,
+        lookup_separation_challenge,
+    );
 
     let mut linearisation_poly = &a + &b;
     linearisation_poly += &c;

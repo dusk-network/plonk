@@ -7,7 +7,7 @@
 mod proverkey;
 mod verifierkey;
 
-pub use proverkey::ProverKey;
+pub use proverkey::PlookupProverKey;
 pub use verifierkey::PlookupVerifierKey;
 
 /// Common functionality across both the ProverKey and VerifierKey is enacted below
@@ -32,7 +32,7 @@ fn compress(
 
     let c = w_o * zeta_sq;
 
-    let d = w_o * zeta_cu;
+    let d = w_4 * zeta_cu;
 
     a + b + c + d
 }
