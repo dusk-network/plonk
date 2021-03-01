@@ -83,6 +83,7 @@ impl StandardComposer {
             && self.w_l.len() == k
             && self.w_r.len() == k
             && self.w_o.len() == k
+            && self.w_4.len() == k
         {
             Ok(())
         } else {
