@@ -44,41 +44,29 @@ impl Point {
         let x_3 = composer.add_input(x_3_scalar);
         let y_3 = composer.add_input(y_3_scalar);
 
-        composer.w_l.append(&mut vec![x_1, x_3]);
-        composer.w_r.append(&mut vec![y_1, y_3]);
-        composer.w_o.append(&mut vec![x_2, composer.zero_var]);
-        composer.w_4.append(&mut vec![y_2, x_1_y_2]);
+        composer.w_l.extend(&[x_1, x_3]);
+        composer.w_r.extend(&[y_1, y_3]);
+        composer.w_o.extend(&[x_2, composer.zero_var]);
+        composer.w_4.extend(&[y_2, x_1_y_2]);
 
-        composer
-            .q_l
-            .append(&mut vec![BlsScalar::zero(), BlsScalar::zero()]);
-        composer
-            .q_r
-            .append(&mut vec![BlsScalar::zero(), BlsScalar::zero()]);
-        composer
-            .q_c
-            .append(&mut vec![BlsScalar::zero(), BlsScalar::zero()]);
-        composer
-            .q_o
-            .append(&mut vec![BlsScalar::zero(), BlsScalar::zero()]);
-        composer
-            .q_m
-            .append(&mut vec![BlsScalar::zero(), BlsScalar::zero()]);
-        composer
-            .q_4
-            .append(&mut vec![BlsScalar::zero(), BlsScalar::zero()]);
+        composer.q_l.extend(&[BlsScalar::zero(), BlsScalar::zero()]);
+        composer.q_r.extend(&[BlsScalar::zero(), BlsScalar::zero()]);
+        composer.q_c.extend(&[BlsScalar::zero(), BlsScalar::zero()]);
+        composer.q_o.extend(&[BlsScalar::zero(), BlsScalar::zero()]);
+        composer.q_m.extend(&[BlsScalar::zero(), BlsScalar::zero()]);
+        composer.q_4.extend(&[BlsScalar::zero(), BlsScalar::zero()]);
         composer
             .q_arith
-            .append(&mut vec![BlsScalar::zero(), BlsScalar::zero()]);
+            .extend(&[BlsScalar::zero(), BlsScalar::zero()]);
         composer
             .q_range
-            .append(&mut vec![BlsScalar::zero(), BlsScalar::zero()]);
+            .extend(&[BlsScalar::zero(), BlsScalar::zero()]);
         composer
             .q_logic
-            .append(&mut vec![BlsScalar::zero(), BlsScalar::zero()]);
+            .extend(&[BlsScalar::zero(), BlsScalar::zero()]);
         composer
             .q_fixed_group_add
-            .append(&mut vec![BlsScalar::zero(), BlsScalar::zero()]);
+            .extend(&[BlsScalar::zero(), BlsScalar::zero()]);
 
         composer.q_variable_group_add.push(BlsScalar::one());
         composer.q_variable_group_add.push(BlsScalar::zero());
