@@ -22,6 +22,7 @@
 use super::cs_errors::PreProcessingError;
 use crate::constraint_system::Variable;
 use crate::permutation::Permutation;
+use crate::plookup::PlookupTable4Arity;
 use dusk_bls12_381::BlsScalar;
 use std::collections::HashMap;
 
@@ -67,6 +68,9 @@ pub struct PlookupComposer {
     pub(crate) w_r: Vec<Variable>,
     pub(crate) w_o: Vec<Variable>,
     pub(crate) w_4: Vec<Variable>,
+
+    // Public lookup table
+    pub(crate) lookup_table: PlookupTable4Arity,
 
     /// A zero variable that is a part of the circuit description.
     /// We reserve a variable to be zero in the system
@@ -140,6 +144,8 @@ impl PlookupComposer {
             w_r: Vec::with_capacity(expected_size),
             w_o: Vec::with_capacity(expected_size),
             w_4: Vec::with_capacity(expected_size),
+
+            lookup_table: PlookupTable4Arity::new(),
 
             zero_var: Variable(0),
 
@@ -330,6 +336,39 @@ impl PlookupComposer {
         self.w_4.push(self.zero_var);
         self.perm
             .add_variables_to_map(var_min_twenty, var_six, var_seven, self.zero_var, self.n);
+
+        // Add dummy rows to lookup table
+        // Notice two rows here match dummy wire values above
+        self.lookup_table.0.insert(
+            0,
+            [
+                BlsScalar::from(6),
+                BlsScalar::from(7),
+                -BlsScalar::from(20),
+                BlsScalar::from(1),
+            ],
+        );
+
+        self.lookup_table.0.insert(
+            0,
+            [
+                -BlsScalar::from(20),
+                BlsScalar::from(6),
+                BlsScalar::from(7),
+                BlsScalar::from(0),
+            ],
+        );
+
+        self.lookup_table.0.insert(
+            0,
+            [
+                BlsScalar::from(3),
+                BlsScalar::from(1),
+                BlsScalar::from(4),
+                BlsScalar::from(9),
+            ],
+        );
+
         self.n += 1;
     }
 
@@ -478,11 +517,9 @@ mod tests {
         prover.preprocess(&ck).unwrap();
 
         let public_inputs = prover.cs.public_inputs.clone();
+        let lookup_table = prover.cs.lookup_table.clone();
 
         let proof = prover.prove(&ck).unwrap();
-
-        let mut plookup_table = PlookupTable4Arity::new();
-        plookup_table.add_dummy_rows();
 
         // Verifier
         //
@@ -498,7 +535,7 @@ mod tests {
         verifier.preprocess(&ck).unwrap();
 
         assert!(verifier
-            .verify(&proof, &vk, &public_inputs, &plookup_table)
+            .verify(&proof, &vk, &public_inputs, &lookup_table)
             .is_ok());
     }
 }
