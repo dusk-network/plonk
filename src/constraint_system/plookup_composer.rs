@@ -540,4 +540,64 @@ mod tests {
             .verify(&proof, &vk, &public_inputs, &lookup_table)
             .is_ok());
     }
+
+    #[test]
+    // XXX: Move this to integration tests
+    fn test_plookup_all_gates() {
+        let res = gadget_plookup_tester(
+            |composer| {
+                use rand::rngs::ThreadRng;
+                use rand::Rng;
+
+                let mut rng = rand::thread_rng();
+
+                let table_length = rng.gen_range(10, 100);
+                for i in 0..table_length {
+                    composer.lookup_table.0.push([
+                        BlsScalar::random(&mut rng),
+                        BlsScalar::random(&mut rng),
+                        BlsScalar::random(&mut rng),
+                        BlsScalar::random(&mut rng),
+                    ]);
+                }
+
+                let some_row = composer.lookup_table.0[7];
+                let (r1, r2, r3, r4) = (some_row[0], some_row[1], some_row[2], some_row[3]);
+                let r1_var = composer.add_input(r1);
+                let r2_var = composer.add_input(r2);
+                let r3_var = composer.add_input(r3);
+                let r4_var = composer.add_input(r4);
+
+                // add a lookup query gate from the table
+                composer.plookup_gate(r1_var, r2_var, r3_var, Some(r4_var), BlsScalar::zero());
+
+                // add some arithmetic gates using the random values
+                let r1_r2_sum = composer.add(
+                    (BlsScalar::one(), r1_var),
+                    (BlsScalar::one(), r2_var),
+                    BlsScalar::zero(),
+                    BlsScalar::zero(),
+                );
+
+                let r3_r4_prod = composer.mul(
+                    BlsScalar::one(),
+                    r3_var,
+                    r4_var,
+                    BlsScalar::zero(),
+                    BlsScalar::zero(),
+                );
+
+                // test logic gates
+                let r1_xor_r2 = composer.xor_gate(r1_var, r2_var, 8);
+                let r1_and_zero = composer.and_gate(r1_var, composer.zero_var, 8);
+
+                // test a range gate
+                composer.range_gate(r1_xor_r2, 8);
+
+                // test a boolean gate
+                composer.boolean_gate(r1_and_zero);
+            },
+            128,
+        );
+    }
 }
