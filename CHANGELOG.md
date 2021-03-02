@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Removed
 - Deprecated `anyhow` and `thiserror` [#343](https://github.com/dusk-network/plonk/issues/343)
+- Remove uncessary `match` branch for `var_c` [#414](https://github.com/dusk-network/plonk/issues/414)
 ### Changed
 - Updated the native errors to all originate from the same enum
 

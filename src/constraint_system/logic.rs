@@ -169,13 +169,7 @@ impl StandardComposer {
             // Get variables pointing to the previous accumulated values.
             let var_a = self.add_input(left_accumulator);
             let var_b = self.add_input(right_accumulator);
-            // On the last row of the program memory, we need to pad the
-            // output wire with a zero since we started to include it's
-            // accumulators one gate before the other wire ones.
-            let var_c = match i == num_quads {
-                true => self.zero_var,
-                false => self.add_input(prod_quad_fr),
-            };
+            let var_c = self.add_input(prod_quad_fr);
             let var_4 = self.add_input(out_accumulator);
             // Add the variables to the variable map linking them to it's
             // corresponding gate index.
