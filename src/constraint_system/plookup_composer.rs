@@ -439,8 +439,7 @@ mod tests {
         let public_parameters = PublicParameters::setup(2 * 30, &mut rand::thread_rng()).unwrap();
         let mut composer = PlookupComposer::new();
 
-        let mut lookup_table = PlookupTable4Arity::new();
-        lookup_table.insert_multi_mul(0, 3);
+        composer.lookup_table.insert_multi_mul(0, 3);
 
         // Create a prover struct
         let mut prover = PlookupProver::new(b"test");
@@ -448,7 +447,10 @@ mod tests {
         // add tp trans
         prover.key_transcript(b"key", b"additional seed information");
 
-        let output = lookup_table.lookup(BlsScalar::from(2), BlsScalar::from(3), BlsScalar::one());
+        let output =
+            composer
+                .lookup_table
+                .lookup(BlsScalar::from(2), BlsScalar::from(3), BlsScalar::one());
 
         let two = composer.add_witness_to_circuit_description(BlsScalar::from(2));
         let three = composer.add_witness_to_circuit_description(BlsScalar::from(3));
@@ -472,7 +474,7 @@ mod tests {
         // Commit Key
         let (ck, _) = public_parameters.trim(2 * 20).unwrap();
 
-        let preprocessed_table = PreprocessedTable4Arity::preprocess(lookup_table, &ck, 3);
+        let preprocessed_table = PreprocessedTable4Arity::preprocess(composer.lookup_table, &ck, 8);
 
         // Commit Key
         let (ck, _) = public_parameters.trim(2 * 20).unwrap();
