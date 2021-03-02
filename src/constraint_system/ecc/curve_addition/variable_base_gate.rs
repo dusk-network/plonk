@@ -48,32 +48,23 @@ impl Point {
         composer.w_r.extend(&[y_1, y_3]);
         composer.w_o.extend(&[x_2, composer.zero_var]);
         composer.w_4.extend(&[y_2, x_1_y_2]);
+        let zeros = [BlsScalar::zero(), BlsScalar::zero()];
 
-        composer.q_l.extend(&[BlsScalar::zero(), BlsScalar::zero()]);
-        composer.q_r.extend(&[BlsScalar::zero(), BlsScalar::zero()]);
-        composer.q_c.extend(&[BlsScalar::zero(), BlsScalar::zero()]);
-        composer.q_o.extend(&[BlsScalar::zero(), BlsScalar::zero()]);
-        composer.q_m.extend(&[BlsScalar::zero(), BlsScalar::zero()]);
-        composer.q_4.extend(&[BlsScalar::zero(), BlsScalar::zero()]);
-        composer
-            .q_arith
-            .extend(&[BlsScalar::zero(), BlsScalar::zero()]);
-        composer
-            .q_range
-            .extend(&[BlsScalar::zero(), BlsScalar::zero()]);
-        composer
-            .q_logic
-            .extend(&[BlsScalar::zero(), BlsScalar::zero()]);
-        composer
-            .q_fixed_group_add
-            .extend(&[BlsScalar::zero(), BlsScalar::zero()]);
+        composer.q_l.extend(&zeros);
+        composer.q_r.extend(&zeros);
+        composer.q_c.extend(&zeros);
+        composer.q_o.extend(&zeros);
+        composer.q_m.extend(&zeros);
+        composer.q_4.extend(&zeros);
+        composer.q_arith.extend(&zeros);
+        composer.q_range.extend(&zeros);
+        composer.q_logic.extend(&zeros);
+        composer.q_fixed_group_add.extend(&zeros);
 
         composer.q_variable_group_add.push(BlsScalar::one());
         composer.q_variable_group_add.push(BlsScalar::zero());
 
-        composer
-            .public_inputs
-            .append(&mut vec![BlsScalar::zero(), BlsScalar::zero()]);
+        composer.extend_pi_with_zeros(zeros.to_vec());
 
         composer
             .perm
