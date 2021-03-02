@@ -244,15 +244,6 @@ impl StandardComposer {
         self.q_c.push(BlsScalar::zero());
         self.q_logic.push(BlsScalar::zero());
 
-        // We also need to extend the `public_inputs` Vec with
-        // zeros since the coeffs will not be added by the user as
-        // they are not needed.
-        //
-        // It makes no sense to allow the user introduce any kind of value
-        // in the middle of the logical gate iteration.
-        let zeros = vec![BlsScalar::zero(); num_quads + 1];
-        self.public_inputs.extend(zeros.iter());
-
         // Now we need to assert that the sum of accumulated values
         // matches the original values provided to the fn.
         // Note that we're only considering the quads that are included
@@ -319,11 +310,7 @@ mod tests {
                 let witness_b = composer.add_input(BlsScalar::from(357u64));
                 let xor_res = composer.xor_gate(witness_a, witness_b, 10);
                 // Check that the XOR result is indeed what we are expecting.
-                composer.constrain_to_constant(
-                    xor_res,
-                    BlsScalar::from(500u64 ^ 357u64),
-                    BlsScalar::zero(),
-                );
+                composer.constrain_to_constant(xor_res, BlsScalar::from(500u64 ^ 357u64), None);
             },
             200,
         );
@@ -336,11 +323,7 @@ mod tests {
                 let witness_b = composer.add_input(BlsScalar::from(321u64));
                 let xor_res = composer.and_gate(witness_a, witness_b, 10);
                 // Check that the AND result is indeed what we are expecting.
-                composer.constrain_to_constant(
-                    xor_res,
-                    BlsScalar::from(469u64 & 321u64),
-                    BlsScalar::zero(),
-                );
+                composer.constrain_to_constant(xor_res, BlsScalar::from(469u64 & 321u64), None);
             },
             200,
         );
@@ -353,11 +336,7 @@ mod tests {
                 let witness_b = composer.add_input(BlsScalar::from(33u64));
                 let xor_res = composer.xor_gate(witness_a, witness_b, 10);
                 // Check that the XOR result is indeed what we are expecting.
-                composer.constrain_to_constant(
-                    xor_res,
-                    BlsScalar::from(139u64 & 33u64),
-                    BlsScalar::zero(),
-                );
+                composer.constrain_to_constant(xor_res, BlsScalar::from(139u64 & 33u64), None);
             },
             200,
         );
@@ -370,11 +349,7 @@ mod tests {
                 let witness_b = composer.add_input(BlsScalar::from(235u64));
                 let xor_res = composer.xor_gate(witness_a, witness_b, 2);
                 // Check that the XOR result is indeed what we are expecting.
-                composer.constrain_to_constant(
-                    xor_res,
-                    BlsScalar::from(256 ^ 235),
-                    BlsScalar::zero(),
-                );
+                composer.constrain_to_constant(xor_res, BlsScalar::from(256 ^ 235), None);
             },
             200,
         );
@@ -391,7 +366,7 @@ mod tests {
                 let witness_b = composer.add_input(BlsScalar::from(499u64));
                 let xor_res = composer.xor_gate(witness_a, witness_b, 9);
                 // Check that the XOR result is indeed what we are expecting.
-                composer.constrain_to_constant(xor_res, BlsScalar::from(7u64), BlsScalar::zero());
+                composer.constrain_to_constant(xor_res, BlsScalar::from(7u64), None);
             },
             200,
         );

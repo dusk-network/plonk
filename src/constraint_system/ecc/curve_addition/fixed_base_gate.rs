@@ -56,8 +56,6 @@ impl StandardComposer {
         self.q_range.push(BlsScalar::zero());
         self.q_logic.push(BlsScalar::zero());
 
-        self.public_inputs.push(BlsScalar::zero());
-
         self.perm.add_variables_to_map(
             wnaf_round.acc_x,
             wnaf_round.acc_y,

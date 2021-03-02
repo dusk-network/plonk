@@ -169,7 +169,7 @@ mod tests {
                 BlsScalar::one(),
                 BlsScalar::zero(),
                 BlsScalar::zero(),
-                -self.inputs[2],
+                Some(-self.inputs[2]),
             );
             // Check that a and b are in range
             composer.range_gate(a, 1 << 6);
@@ -185,7 +185,7 @@ mod tests {
                 BlsScalar::zero(),
                 BlsScalar::one(),
                 BlsScalar::zero(),
-                -self.inputs[3],
+                Some(-self.inputs[3]),
             );
 
             Ok(())

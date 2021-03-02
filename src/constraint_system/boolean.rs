@@ -34,8 +34,6 @@ impl StandardComposer {
         self.q_fixed_group_add.push(BlsScalar::zero());
         self.q_variable_group_add.push(BlsScalar::zero());
 
-        self.public_inputs.push(BlsScalar::zero());
-
         self.perm
             .add_variables_to_map(a, a, a, self.zero_var, self.n);
 

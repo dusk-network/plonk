@@ -43,13 +43,7 @@ fn conditional_select_zero(
     value: Variable,
 ) -> Variable {
     // returns bit * value
-    composer.mul(
-        BlsScalar::one(),
-        bit,
-        value,
-        BlsScalar::zero(),
-        BlsScalar::zero(),
-    )
+    composer.mul(BlsScalar::one(), bit, value, BlsScalar::zero(), None)
 }
 /// If bit == 0, then return 1 else return value
 /// This is the polynomial f(x) = 1 - x + xa
@@ -74,7 +68,7 @@ fn conditional_select_one(
         BlsScalar::zero(),
         -BlsScalar::one(),
         BlsScalar::one(),
-        BlsScalar::zero(),
+        None,
     );
 
     f_x
@@ -121,9 +115,8 @@ fn scalar_decomposition(
         let q_l_a = (two_pow, *bit);
         let q_r_b = (BlsScalar::one(), accumulator_var);
         let q_c = BlsScalar::zero();
-        let pi = BlsScalar::zero();
 
-        accumulator_var = composer.add(q_l_a, q_r_b, q_c, pi);
+        accumulator_var = composer.add(q_l_a, q_r_b, q_c, None);
 
         accumulator_scalar += two_pow * BlsScalar::from(scalar_bits[power] as u64);
     }

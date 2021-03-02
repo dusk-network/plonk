@@ -64,8 +64,6 @@ impl Point {
         composer.q_variable_group_add.push(BlsScalar::one());
         composer.q_variable_group_add.push(BlsScalar::zero());
 
-        composer.extend_pi_with_zeros(zeros.to_vec());
-
         composer
             .perm
             .add_variables_to_map(x_1, y_1, x_2, y_2, composer.n);

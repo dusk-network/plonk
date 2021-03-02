@@ -57,8 +57,10 @@ pub struct StandardComposer {
     // Variable base group addition selector
     pub(crate) q_variable_group_add: Vec<BlsScalar>,
 
-    /// Public inputs vector
-    pub public_inputs: Vec<BlsScalar>,
+    /// Public inputs vector which contains the values of the public inputs that are not zero.
+    pub(crate) public_input_values: Vec<BlsScalar>,
+    /// Positions that each public input `!=0` added at any point to this composer occupies.
+    pub(crate) public_input_positions: Vec<usize>,
 
     // Witness vectors
     pub(crate) w_l: Vec<Variable>,
@@ -84,6 +86,24 @@ impl StandardComposer {
     pub fn circuit_size(&self) -> usize {
         self.n
     }
+
+    /// Constructs a dense vector of the Public Inputs from the positions and the
+    /// sparse vector that contains the values.
+    pub(crate) fn construct_dense_pi_vec(&self) -> Vec<BlsScalar> {
+        let mut pi = vec![BlsScalar::zero(); self.n];
+        self.public_input_values
+            .iter()
+            .zip(self.public_input_positions.iter())
+            .for_each(|(value, pos)| {
+                pi[*pos] = *value;
+            });
+        pi
+    }
+
+    /// Returns the positions that the Public Inputs occupy in this Composer instance.
+    pub fn pi_positions(&self) -> &Vec<usize> {
+        &self.public_input_positions
+    }
 }
 
 impl Default for StandardComposer {
@@ -108,7 +128,7 @@ impl StandardComposer {
     /// Fixes a variable in the witness to be a part of the circuit description.
     pub fn add_witness_to_circuit_description(&mut self, value: BlsScalar) -> Variable {
         let var = self.add_input(value);
-        self.constrain_to_constant(var, value, BlsScalar::zero());
+        self.constrain_to_constant(var, value, None);
         var
     }
 
@@ -131,7 +151,8 @@ impl StandardComposer {
             q_logic: Vec::with_capacity(expected_size),
             q_fixed_group_add: Vec::with_capacity(expected_size),
             q_variable_group_add: Vec::with_capacity(expected_size),
-            public_inputs: Vec::with_capacity(expected_size),
+            public_input_values: Vec::new(),
+            public_input_positions: Vec::new(),
 
             w_l: Vec::with_capacity(expected_size),
             w_r: Vec::with_capacity(expected_size),
@@ -185,7 +206,7 @@ impl StandardComposer {
         q_r: BlsScalar,
         q_o: BlsScalar,
         q_c: BlsScalar,
-        pi: BlsScalar,
+        pi: Option<BlsScalar>,
     ) -> (Variable, Variable, Variable) {
         self.w_l.push(a);
         self.w_r.push(b);
@@ -206,7 +227,10 @@ impl StandardComposer {
         self.q_fixed_group_add.push(BlsScalar::zero());
         self.q_variable_group_add.push(BlsScalar::zero());
 
-        self.public_inputs.push(pi);
+        if let Some(pi) = pi {
+            self.public_input_values.push(pi);
+            self.public_input_positions.push(self.n);
+        }
 
         self.perm
             .add_variables_to_map(a, b, c, self.zero_var, self.n);
@@ -217,7 +241,12 @@ impl StandardComposer {
 
     /// Adds a gate which is designed to constrain a `Variable` to have
     /// a specific constant value which is sent as a `BlsScalar`.
-    pub fn constrain_to_constant(&mut self, a: Variable, constant: BlsScalar, pi: BlsScalar) {
+    pub fn constrain_to_constant(
+        &mut self,
+        a: Variable,
+        constant: BlsScalar,
+        pi: Option<BlsScalar>,
+    ) {
         self.poly_gate(
             a,
             a,
@@ -243,7 +272,7 @@ impl StandardComposer {
             -BlsScalar::one(),
             BlsScalar::zero(),
             BlsScalar::zero(),
-            BlsScalar::zero(),
+            None,
         );
     }
 
@@ -258,20 +287,14 @@ impl StandardComposer {
         choice_b: Variable,
     ) -> Variable {
         // bit * choice_a
-        let bit_times_a = self.mul(
-            BlsScalar::one(),
-            bit,
-            choice_a,
-            BlsScalar::zero(),
-            BlsScalar::zero(),
-        );
+        let bit_times_a = self.mul(BlsScalar::one(), bit, choice_a, BlsScalar::zero(), None);
 
         // 1 - bit
         let one_min_bit = self.add(
             (-BlsScalar::one(), bit),
             (BlsScalar::zero(), self.zero_var),
             BlsScalar::one(),
-            BlsScalar::zero(),
+            None,
         );
 
         // (1 - bit) * b
@@ -280,7 +303,7 @@ impl StandardComposer {
             one_min_bit,
             choice_b,
             BlsScalar::zero(),
-            BlsScalar::zero(),
+            None,
         );
 
         // [ (1 - bit) * b ] + [ bit * a ]
@@ -288,7 +311,7 @@ impl StandardComposer {
             (BlsScalar::one(), one_min_bit_choice_b),
             (BlsScalar::one(), bit_times_a),
             BlsScalar::zero(),
-            BlsScalar::zero(),
+            None,
         )
     }
 
@@ -308,7 +331,6 @@ impl StandardComposer {
         self.q_logic.push(BlsScalar::zero());
         self.q_fixed_group_add.push(BlsScalar::zero());
         self.q_variable_group_add.push(BlsScalar::zero());
-        self.public_inputs.push(BlsScalar::zero());
         let var_six = self.add_input(BlsScalar::from(6));
         let var_one = self.add_input(BlsScalar::from(1));
         let var_seven = self.add_input(BlsScalar::from(7));
@@ -332,7 +354,6 @@ impl StandardComposer {
         self.q_logic.push(BlsScalar::zero());
         self.q_fixed_group_add.push(BlsScalar::zero());
         self.q_variable_group_add.push(BlsScalar::zero());
-        self.public_inputs.push(BlsScalar::zero());
         self.w_l.push(var_min_twenty);
         self.w_r.push(var_six);
         self.w_o.push(var_seven);
@@ -388,7 +409,7 @@ impl StandardComposer {
             let qlogic = self.q_logic[i];
             let qfixed = self.q_fixed_group_add[i];
             let qvar = self.q_variable_group_add[i];
-            let pi = self.public_inputs[i];
+            let pi = self.construct_dense_pi_vec();
 
             let a = w_l[i];
             let a_next = w_l[(i + 1) % self.n];
@@ -513,7 +534,7 @@ mod tests {
         // Preprocess circuit
         prover.preprocess(&ck).unwrap();
 
-        let public_inputs = prover.cs.public_inputs.clone();
+        let public_inputs = prover.cs.construct_dense_pi_vec();
 
         let mut proofs = Vec::new();
 

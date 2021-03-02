@@ -711,16 +711,16 @@ mod test {
         let two = Fr::from_raw([2, 0, 0, 0]);
 
         // x1 * x4 = x2
-        cs.poly_gate(x1, x4, x2, one, zero, zero, -one, zero, zero);
+        cs.poly_gate(x1, x4, x2, one, zero, zero, -one, zero, None);
 
         // x1 + x3 = x2
-        cs.poly_gate(x1, x3, x2, zero, one, one, -one, zero, zero);
+        cs.poly_gate(x1, x3, x2, zero, one, one, -one, zero, None);
 
         // x1 + x2 = 2*x3
-        cs.poly_gate(x1, x2, x3, zero, one, one, -two, zero, zero);
+        cs.poly_gate(x1, x2, x3, zero, one, one, -two, zero, None);
 
         // x3 * x4 = 2*x2
-        cs.poly_gate(x3, x4, x2, one, zero, zero, -two, zero, zero);
+        cs.poly_gate(x3, x4, x2, one, zero, zero, -two, zero, None);
 
         let domain = EvaluationDomain::new(cs.circuit_size()).unwrap();
         let pad = vec![BlsScalar::zero(); domain.size() - cs.w_l.len()];

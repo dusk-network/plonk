@@ -85,9 +85,9 @@ pub fn scalar_mul(
         // We constrain the point accumulator to start from the Identity point
         // and the Scalar accumulator to start from zero
         if i == 0 {
-            composer.constrain_to_constant(acc_x, BlsScalar::zero(), BlsScalar::zero());
-            composer.constrain_to_constant(acc_y, BlsScalar::one(), BlsScalar::zero());
-            composer.constrain_to_constant(accumulated_bit, BlsScalar::zero(), BlsScalar::zero());
+            composer.constrain_to_constant(acc_x, BlsScalar::zero(), None);
+            composer.constrain_to_constant(acc_y, BlsScalar::one(), None);
+            composer.constrain_to_constant(accumulated_bit, BlsScalar::zero(), None);
         }
 
         let x_beta = point_multiples[i].get_x();
@@ -127,7 +127,7 @@ pub fn scalar_mul(
         BlsScalar::zero(),
         BlsScalar::zero(),
         BlsScalar::zero(),
-        BlsScalar::zero(),
+        None,
     );
 
     // Constrain the last element in the accumulator to be equal to the input jubjub scalar

@@ -207,7 +207,8 @@ impl Prover {
         transcript.append_commitment(b"z", &z_poly_commit);
 
         // 3. Compute public inputs polynomial
-        let pi_poly = Polynomial::from_coefficients_vec(domain.ifft(&self.cs.public_inputs));
+        let pi_poly =
+            Polynomial::from_coefficients_vec(domain.ifft(&self.cs.construct_dense_pi_vec()));
 
         // 4. Compute quotient polynomial
         //
