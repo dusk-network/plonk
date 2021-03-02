@@ -6,94 +6,14 @@
 
 //! Tools & traits for PLONK circuits
 
+mod pub_inputs;
 use crate::commitment_scheme::kzg10::PublicParameters;
 use crate::constraint_system::StandardComposer;
 use crate::error::Error;
 use crate::proof_system::{Proof, ProverKey, VerifierKey};
 use dusk_bls12_381::BlsScalar;
-use dusk_bytes::Serializable;
 use dusk_jubjub::{JubJubAffine, JubJubScalar};
-
-const BLS_SCALAR: u8 = 1;
-const JUBJUB_SCALAR: u8 = 2;
-const JUBJUB_AFFINE: u8 = 3;
-
-/// Public Input
-#[derive(Debug, Copy, Clone)]
-pub enum PublicInput {
-    /// Scalar Input
-    BlsScalar(BlsScalar, usize),
-    /// Embedded Scalar Input
-    JubJubScalar(JubJubScalar, usize),
-    /// Point as Public Input
-    AffinePoint(JubJubAffine, usize, usize),
-}
-
-impl PublicInput {
-    /// Returns the serialized-size of the `PublicInput` structure.
-    pub const fn serialized_size() -> usize {
-        33usize
-    }
-
-    /// Returns the byte-representation of a [`PublicInput`].
-    /// Note that the underlying variants of this enum have different
-    /// sizes on it's byte-representation. Therefore, we need to return
-    /// the biggest one to set it as the default one.
-    pub fn to_bytes(&self) -> [u8; Self::serialized_size()] {
-        let mut bytes = [0u8; Self::serialized_size()];
-        match self {
-            Self::BlsScalar(scalar, _) => {
-                bytes[0] = BLS_SCALAR;
-                bytes[1..33].copy_from_slice(&scalar.to_bytes());
-                bytes
-            }
-            Self::JubJubScalar(scalar, _) => {
-                bytes[0] = JUBJUB_SCALAR;
-                bytes[1..33].copy_from_slice(&scalar.to_bytes());
-                bytes
-            }
-            Self::AffinePoint(point, _, _) => {
-                bytes[0] = JUBJUB_AFFINE;
-                bytes[1..Self::serialized_size()].copy_from_slice(&point.to_bytes());
-                bytes
-            }
-        }
-    }
-
-    /// Generate a [`PublicInput`] structure from it's byte representation.
-    pub fn from_bytes(bytes: &[u8]) -> Result<Self, Error> {
-        if bytes.len() < Self::serialized_size() {
-            return Err(Error::InvalidPublicInputBytes);
-        } else {
-            let mut array_bytes = [0u8; 32];
-            array_bytes.copy_from_slice(&bytes[1..Self::serialized_size()]);
-            match bytes[0] {
-                BLS_SCALAR => BlsScalar::from_bytes(&array_bytes)
-                    .map(|s| Self::BlsScalar(s, 0))
-                    .map_err(|_| Error::InvalidPublicInputBytes),
-
-                JUBJUB_SCALAR => JubJubScalar::from_bytes(&array_bytes)
-                    .map(|s| Self::JubJubScalar(s, 0))
-                    .map_err(|_| Error::InvalidPublicInputBytes),
-
-                JUBJUB_AFFINE => JubJubAffine::from_bytes(&array_bytes)
-                    .map(|s| Self::AffinePoint(s, 0, 0))
-                    .map_err(|_| Error::InvalidPublicInputBytes),
-
-                _ => unreachable!(),
-            }
-        }
-    }
-
-    /// Returns the positions that of a PublicInput struct
-    fn pos(&self) -> [usize; 2] {
-        match self {
-            PublicInput::BlsScalar(_, pos) => [*pos, 0],
-            PublicInput::JubJubScalar(_, pos) => [*pos, 0],
-            PublicInput::AffinePoint(_, pos_x, pos_y) => [*pos_x, *pos_y],
-        }
-    }
-}
+pub use pub_inputs::PublicInput;
 
 /// Circuit representation for a gadget with all of the tools that it
 /// should implement.
@@ -101,6 +21,10 @@ pub trait Circuit<'a>
 where
     Self: Sized,
 {
+    /// Initialization string used to fill the transcript for both parties.
+    const TRANSCRIPT_INIT: &'static [u8];
+    /// Trimming size for the keys of the circuit.
+    const TRIM_SIZE: usize;
     /// Gadget implementation used to fill the composer.
     fn gadget(&mut self, composer: &mut StandardComposer) -> Result<(), Error>;
     /// Compiles the circuit by using a function that returns a `Result`
@@ -268,6 +192,8 @@ mod tests {
                 BlsScalar::zero(),
                 -inputs[3],
             );
+
+            plonk_gadgets::conditionally_select_zero(composer, a, b);
             Ok(())
         }
 
@@ -312,10 +238,10 @@ mod tests {
 
         // Generate circuit compilation params
         let inputs = [
-            BlsScalar::from(25u64),
-            BlsScalar::from(5u64),
-            BlsScalar::from(30u64),
-            BlsScalar::from(125u64),
+            BlsScalar::from(0u64),
+            BlsScalar::from(0u64),
+            BlsScalar::from(0u64),
+            BlsScalar::from(0u64),
         ];
 
         // Initialize the circuit
