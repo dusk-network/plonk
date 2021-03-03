@@ -22,7 +22,7 @@
 use crate::constraint_system::Variable;
 use crate::permutation::Permutation;
 use dusk_bls12_381::BlsScalar;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
 /// A composer is a circuit builder
 /// and will dictate how a circuit is built
@@ -59,7 +59,7 @@ pub struct StandardComposer {
 
     /// Sparse representation of the Public Inputs linking the positions of the
     /// non-zero ones to it's actual values.
-    pub(crate) public_inputs_sparse_store: HashMap<usize, BlsScalar>,
+    pub(crate) public_inputs_sparse_store: BTreeMap<usize, BlsScalar>,
 
     // Witness vectors
     pub(crate) w_l: Vec<Variable>,
@@ -105,7 +105,7 @@ impl StandardComposer {
         self.public_inputs_sparse_store
             .keys()
             .map(|pos| *pos)
-            .collect()
+            .collect::<Vec<usize>>()
     }
 }
 
@@ -154,7 +154,7 @@ impl StandardComposer {
             q_logic: Vec::with_capacity(expected_size),
             q_fixed_group_add: Vec::with_capacity(expected_size),
             q_variable_group_add: Vec::with_capacity(expected_size),
-            public_inputs_sparse_store: HashMap::new(),
+            public_inputs_sparse_store: BTreeMap::new(),
 
             w_l: Vec::with_capacity(expected_size),
             w_r: Vec::with_capacity(expected_size),
