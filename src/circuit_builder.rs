@@ -6,22 +6,48 @@
 
 //! Tools & traits for PLONK circuits
 
-pub(crate) mod pub_inputs;
 use crate::commitment_scheme::kzg10::PublicParameters;
 use crate::constraint_system::StandardComposer;
 use crate::error::Error;
 use crate::proof_system::{Proof, ProverKey, VerifierKey};
+#[cfg(feature = "canon")]
+use canonical::Canon;
+#[cfg(feature = "canon")]
+use canonical_derive::Canon;
 use dusk_bls12_381::BlsScalar;
-use pub_inputs::PublicInput;
+use dusk_jubjub::{JubJubAffine, JubJubScalar};
+
+#[derive(Default, Debug, Clone)]
+#[cfg_attr(feature = "canon", derive(Canon))]
+/// Structure that represents a PLONK Circuit Public Input
+/// structure converted into it's &[BlsScalar] repr.
+pub struct PublicInputValue(pub(crate) Vec<BlsScalar>);
+
+impl From<BlsScalar> for PublicInputValue {
+    fn from(scalar: BlsScalar) -> Self {
+        Self(vec![scalar])
+    }
+}
+
+impl From<JubJubScalar> for PublicInputValue {
+    fn from(scalar: JubJubScalar) -> Self {
+        Self(vec![scalar.into()])
+    }
+}
+
+impl From<JubJubAffine> for PublicInputValue {
+    fn from(point: JubJubAffine) -> Self {
+        Self(vec![point.get_x(), point.get_y()])
+    }
+}
 
 type PublicInputPositions = Vec<usize>;
 
 /// Circuit representation for a gadget with all of the tools that it
 /// should implement.
-pub trait Circuit<'a, T>
+pub trait Circuit<'a>
 where
     Self: Sized,
-    T: PublicInput,
 {
     /// Initialization string used to fill the transcript for both parties.
     const TRANSCRIPT_INIT: &'static [u8];
@@ -62,13 +88,13 @@ where
     /// Build PI vector for Proof verifications.
     fn build_pi(
         &self,
-        pub_input_values: &[T],
+        pub_input_values: &[PublicInputValue],
         pub_input_pos: &PublicInputPositions,
     ) -> Vec<BlsScalar> {
         let mut pi = vec![BlsScalar::zero(); Self::TRIM_SIZE];
         pub_input_values
             .iter()
-            .map(|pub_input| pub_input.value())
+            .map(|pub_input| pub_input.0.clone())
             .flatten()
             .zip(pub_input_pos.iter())
             .for_each(|(value, pos)| {
@@ -100,7 +126,7 @@ where
         pub_params: &PublicParameters,
         verifier_key: &VerifierKey,
         proof: &Proof,
-        pub_inputs_values: &[T],
+        pub_inputs_values: &[PublicInputValue],
         pub_inputs_positions: &PublicInputPositions,
     ) -> Result<(), Error> {
         use crate::proof_system::Verifier;
