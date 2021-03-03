@@ -57,10 +57,9 @@ pub struct StandardComposer {
     // Variable base group addition selector
     pub(crate) q_variable_group_add: Vec<BlsScalar>,
 
-    /// Public inputs vector which contains the values of the public inputs that are not zero.
-    pub(crate) public_input_values: Vec<BlsScalar>,
-    /// Positions that each public input `!=0` added at any point to this composer occupies.
-    pub(crate) public_input_positions: Vec<usize>,
+    /// Sparse representation of the Public Inputs linking the positions of the
+    /// non-zero ones to it's actual values.
+    pub(crate) public_inputs_sparse_store: HashMap<usize, BlsScalar>,
 
     // Witness vectors
     pub(crate) w_l: Vec<Variable>,
@@ -91,18 +90,22 @@ impl StandardComposer {
     /// sparse vector that contains the values.
     pub(crate) fn construct_dense_pi_vec(&self) -> Vec<BlsScalar> {
         let mut pi = vec![BlsScalar::zero(); self.n];
-        self.public_input_values
-            .iter()
-            .zip(self.public_input_positions.iter())
-            .for_each(|(value, pos)| {
+        self.public_inputs_sparse_store
+            .keys()
+            .zip(self.public_inputs_sparse_store.values())
+            .for_each(|(pos, value)| {
                 pi[*pos] = *value;
             });
         pi
     }
 
     /// Returns the positions that the Public Inputs occupy in this Composer instance.
-    pub fn pi_positions(&self) -> &Vec<usize> {
-        &self.public_input_positions
+    // TODO: Find a more performant solution which can return a ref to a Vec or Iterator.
+    pub fn pi_positions(&self) -> Vec<usize> {
+        self.public_inputs_sparse_store
+            .keys()
+            .map(|pos| *pos)
+            .collect()
     }
 }
 
@@ -151,8 +154,7 @@ impl StandardComposer {
             q_logic: Vec::with_capacity(expected_size),
             q_fixed_group_add: Vec::with_capacity(expected_size),
             q_variable_group_add: Vec::with_capacity(expected_size),
-            public_input_values: Vec::new(),
-            public_input_positions: Vec::new(),
+            public_inputs_sparse_store: HashMap::new(),
 
             w_l: Vec::with_capacity(expected_size),
             w_r: Vec::with_capacity(expected_size),
@@ -228,8 +230,7 @@ impl StandardComposer {
         self.q_variable_group_add.push(BlsScalar::zero());
 
         if let Some(pi) = pi {
-            self.public_input_values.push(pi);
-            self.public_input_positions.push(self.n);
+            assert!(self.public_inputs_sparse_store.insert(self.n, pi).is_none());
         }
 
         self.perm

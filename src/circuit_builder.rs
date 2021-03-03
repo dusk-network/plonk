@@ -67,7 +67,7 @@ where
         // Generate & save `ProverKey` with some random values.
         let mut prover = Prover::new(b"CircuitCompilation");
         self.gadget(prover.mut_cs())?;
-        let pi_pos = prover.mut_cs().pi_positions().clone();
+        let pi_pos = prover.mut_cs().pi_positions();
         prover.preprocess(&ck)?;
 
         // Generate & save `VerifierKey` with some random values.
