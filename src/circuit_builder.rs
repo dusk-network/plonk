@@ -92,15 +92,6 @@ where
         pub_input_pos: &PublicInputPositions,
     ) -> Vec<BlsScalar> {
         let mut pi = vec![BlsScalar::zero(); Self::TRIM_SIZE];
-        println!("{:?}", pub_input_pos);
-        println!(
-            "{:?}",
-            pub_input_values
-                .iter()
-                .map(|pub_input| pub_input.0.clone())
-                .flatten()
-                .collect::<Vec<BlsScalar>>()
-        );
         pub_input_values
             .iter()
             .map(|pub_input| pub_input.0.clone())
