@@ -10,7 +10,8 @@
 //! with the principal data structures of the plonk library.
 //!
 
-pub use crate::circuit_builder::{Circuit, PublicInputPositions, PublicInputValue};
+pub use crate::circuit_builder::pub_inputs::PublicInput;
+pub use crate::circuit_builder::Circuit;
 pub use crate::commitment_scheme::kzg10::{
     key::{CommitKey, OpeningKey},
     PublicParameters,

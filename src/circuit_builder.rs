@@ -6,21 +6,22 @@
 
 //! Tools & traits for PLONK circuits
 
-mod pi_pos_holder;
-mod pub_inputs;
+pub(crate) mod pub_inputs;
 use crate::commitment_scheme::kzg10::PublicParameters;
 use crate::constraint_system::StandardComposer;
 use crate::error::Error;
 use crate::proof_system::{Proof, ProverKey, VerifierKey};
 use dusk_bls12_381::BlsScalar;
-pub use pi_pos_holder::PiPositionsHolder;
-pub use pub_inputs::{PublicInputPositions, PublicInputValue};
+use pub_inputs::PublicInput;
+
+type PublicInputPositions = Vec<usize>;
 
 /// Circuit representation for a gadget with all of the tools that it
 /// should implement.
-pub trait Circuit<'a>
+pub trait Circuit<'a, T>
 where
-    Self: Sized + PiPositionsHolder,
+    Self: Sized,
+    T: PublicInput,
 {
     /// Initialization string used to fill the transcript for both parties.
     const TRANSCRIPT_INIT: &'static [u8];
@@ -40,6 +41,7 @@ where
         // Generate & save `ProverKey` with some random values.
         let mut prover = Prover::new(b"CircuitCompilation");
         self.gadget(prover.mut_cs())?;
+        let pi_pos = prover.mut_cs().pi_positions().clone();
         prover.preprocess(&ck)?;
 
         // Generate & save `VerifierKey` with some random values.
@@ -53,31 +55,24 @@ where
             verifier
                 .verifier_key
                 .expect("Unexpected error. Missing VerifierKey in compilation"),
-            self.get_mut_pi_positions().clone(),
+            pi_pos,
         ))
     }
 
     /// Build PI vector for Proof verifications.
     fn build_pi(
         &self,
-        pub_input_values: &[PublicInputValue],
+        pub_input_values: &[T],
         pub_input_pos: &PublicInputPositions,
     ) -> Vec<BlsScalar> {
         let mut pi = vec![BlsScalar::zero(); Self::TRIM_SIZE];
         pub_input_values
             .iter()
-            .zip(pub_input_pos.0.iter())
-            .for_each(|(real_value, real_pos)| {
-                match real_value {
-                    PublicInputValue::BlsScalar(value) => pi[*real_pos] = -value,
-                    PublicInputValue::JubJubScalar(value) => {
-                        pi[*real_pos] = -BlsScalar::from(*value)
-                    }
-                    PublicInputValue::AffinePoint(value) => {
-                        pi[*real_pos] = -value.get_x();
-                        pi[*real_pos + 1] = -value.get_y();
-                    }
-                };
+            .map(|pub_input| pub_input.value())
+            .flatten()
+            .zip(pub_input_pos.iter())
+            .for_each(|(value, pos)| {
+                pi[*pos] = value;
             });
         pi
     }
@@ -105,7 +100,7 @@ where
         pub_params: &PublicParameters,
         verifier_key: &VerifierKey,
         proof: &Proof,
-        pub_inputs_values: &[PublicInputValue],
+        pub_inputs_values: &[T],
         pub_inputs_positions: &PublicInputPositions,
     ) -> Result<(), Error> {
         use crate::proof_system::Verifier;
@@ -134,21 +129,13 @@ mod tests {
     // 4) a * b = d where D is a PI
     pub struct TestCircuit {
         inputs: [BlsScalar; 4],
-        pi_positions: PublicInputPositions,
     }
 
     impl Default for TestCircuit {
         fn default() -> Self {
             TestCircuit {
                 inputs: [BlsScalar::zero(); 4],
-                pi_positions: PublicInputPositions::default(),
             }
-        }
-    }
-
-    impl PiPositionsHolder for TestCircuit {
-        fn get_mut_pi_positions(&mut self) -> &mut PublicInputPositions {
-            &mut self.pi_positions
         }
     }
 
@@ -159,7 +146,6 @@ mod tests {
             let a = composer.add_input(self.inputs[0]);
             let b = composer.add_input(self.inputs[1]);
             // Make first constraint a + b = c
-            self.push_pi(composer.circuit_size());
             composer.poly_gate(
                 a,
                 b,
@@ -175,7 +161,6 @@ mod tests {
             composer.range_gate(a, 1 << 6);
             composer.range_gate(b, 1 << 5);
             // Make second constraint a * b = d
-            self.push_pi(composer.circuit_size());
             composer.poly_gate(
                 a,
                 b,
@@ -257,9 +242,10 @@ mod tests {
 
         // Verifier POV
         let mut circuit = TestCircuit::default();
-        let public_inputs2 = vec![
-            PublicInputValue::BlsScalar(BlsScalar::from(25u64)),
-            PublicInputValue::BlsScalar(BlsScalar::from(100u64)),
+        let public_inputs2: Vec<impl PublicInput> = vec![
+            BlsScalar::from(25u64),
+            BlsScalar::from(100u64),
+            AffinePoint::identity(),
         ];
 
         assert!(circuit
