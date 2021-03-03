@@ -4,8 +4,8 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use crate::constraint_system::{PlookupComposer, StandardComposer};
 use crate::constraint_system::Variable;
+use crate::constraint_system::{PlookupComposer, StandardComposer};
 use dusk_bls12_381::BlsScalar;
 
 impl StandardComposer {
