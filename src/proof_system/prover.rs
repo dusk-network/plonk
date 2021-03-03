@@ -466,7 +466,6 @@ impl PlookupProver {
         &self,
         commit_key: &CommitKey,
         prover_key: &PlookupProverKey,
-        lookup_table: &PlookupTable4Arity,
     ) -> Result<PlookupProof, Error> {
         let domain = EvaluationDomain::new(self.cs.circuit_size())?;
 
@@ -508,7 +507,9 @@ impl PlookupProver {
         let zeta = transcript.challenge_scalar(b"zeta");
 
         // Compress table into vector of single elements
-        let mut compressed_t: Vec<BlsScalar> = lookup_table
+        let mut compressed_t: Vec<BlsScalar> = self
+            .cs
+            .lookup_table
             .0
             .iter()
             .map(|arr| arr[0] + arr[1] * zeta + arr[2] * zeta * zeta + arr[3] * zeta * zeta * zeta)
@@ -854,9 +855,6 @@ impl PlookupProver {
     pub fn prove(&mut self, commit_key: &CommitKey) -> Result<PlookupProof, Error> {
         let prover_key: &PlookupProverKey;
 
-        let mut plookup_table = PlookupTable4Arity::new();
-        plookup_table.add_dummy_rows();
-
         if self.prover_key.is_none() {
             // Preprocess circuit
             let prover_key = self
@@ -868,7 +866,7 @@ impl PlookupProver {
 
         prover_key = self.prover_key.as_ref().unwrap();
 
-        let proof = self.prove_with_preprocessed(commit_key, prover_key, &plookup_table)?;
+        let proof = self.prove_with_preprocessed(commit_key, prover_key)?;
 
         // Clear witness and reset composer variables
         self.clear_witness();
