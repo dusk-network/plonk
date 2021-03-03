@@ -45,14 +45,14 @@ type PublicInputPositions = Vec<usize>;
 
 /// Circuit representation for a gadget with all of the tools that it
 /// should implement.
-pub trait Circuit<'a>
+pub trait Circuit<'a, const N: usize>
 where
     Self: Sized,
 {
     /// Initialization string used to fill the transcript for both parties.
     const TRANSCRIPT_INIT: &'static [u8];
     /// Trimming size for the keys of the circuit.
-    const TRIM_SIZE: usize;
+    const TRIM_SIZE: usize = N;
     /// Gadget implementation used to fill the composer.
     fn gadget(&mut self, composer: &mut StandardComposer) -> Result<(), Error>;
     /// Compiles the circuit by using a function that returns a `Result`
@@ -164,9 +164,8 @@ mod tests {
         f: JubJubAffine,
     }
 
-    impl Circuit<'_> for TestCircuit {
+    impl Circuit<'_, { 1 << 11 }> for TestCircuit {
         const TRANSCRIPT_INIT: &'static [u8] = b"Test";
-        const TRIM_SIZE: usize = 1 << 11;
         fn gadget(&mut self, composer: &mut StandardComposer) -> Result<(), Error> {
             let a = composer.add_input(self.a);
             let b = composer.add_input(self.b);
