@@ -41,8 +41,6 @@ impl From<JubJubAffine> for PublicInputValue {
     }
 }
 
-type PublicInputPositions = Vec<usize>;
-
 /// Circuit representation for a gadget with all of the tools that it
 /// should implement.
 pub trait Circuit<'a, const N: usize>
@@ -60,7 +58,7 @@ where
     fn compile(
         &mut self,
         pub_params: &PublicParameters,
-    ) -> Result<(ProverKey, VerifierKey, PublicInputPositions), Error> {
+    ) -> Result<(ProverKey, VerifierKey, Vec<usize>), Error> {
         use crate::proof_system::{Prover, Verifier};
         // Setup PublicParams
         let (ck, _) = pub_params.trim(Self::TRIM_SIZE)?;
@@ -89,7 +87,7 @@ where
     fn build_pi(
         &self,
         pub_input_values: &[PublicInputValue],
-        pub_input_pos: &PublicInputPositions,
+        pub_input_pos: &[usize],
     ) -> Vec<BlsScalar> {
         let mut pi = vec![BlsScalar::zero(); Self::TRIM_SIZE];
         pub_input_values
@@ -127,7 +125,7 @@ where
         verifier_key: &VerifierKey,
         proof: &Proof,
         pub_inputs_values: &[PublicInputValue],
-        pub_inputs_positions: &PublicInputPositions,
+        pub_inputs_positions: &[usize],
     ) -> Result<(), Error> {
         use crate::proof_system::Verifier;
         let (_, vk) = pub_params.trim(Self::TRIM_SIZE)?;
