@@ -104,7 +104,7 @@ impl StandardComposer {
     pub fn pi_positions(&self) -> Vec<usize> {
         self.public_inputs_sparse_store
             .keys()
-            .map(|pos| *pos)
+            .copied()
             .collect::<Vec<usize>>()
     }
 }

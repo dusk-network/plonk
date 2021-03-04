@@ -94,9 +94,9 @@ where
             .iter()
             .map(|pub_input| pub_input.0.clone())
             .flatten()
-            .zip(pub_input_pos.iter())
+            .zip(pub_input_pos.iter().copied())
             .for_each(|(value, pos)| {
-                pi[*pos] = -value;
+                pi[pos] = -value;
             });
         pi
     }
