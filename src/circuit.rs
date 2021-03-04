@@ -43,14 +43,10 @@ impl From<JubJubAffine> for PublicInputValue {
 
 /// Circuit representation for a gadget with all of the tools that it
 /// should implement.
-pub trait Circuit<'a, const N: usize>
+pub trait Circuit
 where
     Self: Sized,
 {
-    /// Initialization string used to fill the transcript for both parties.
-    const TRANSCRIPT_INIT: &'static [u8];
-    /// Trimming size for the keys of the circuit.
-    const TRIM_SIZE: usize = N;
     /// Gadget implementation used to fill the composer.
     fn gadget(&mut self, composer: &mut StandardComposer) -> Result<(), Error>;
     /// Compiles the circuit by using a function that returns a `Result`
@@ -61,7 +57,7 @@ where
     ) -> Result<(ProverKey, VerifierKey, Vec<usize>), Error> {
         use crate::proof_system::{Prover, Verifier};
         // Setup PublicParams
-        let (ck, _) = pub_params.trim(Self::TRIM_SIZE)?;
+        let (ck, _) = pub_params.trim(self.padded_circuit_size())?;
         // Generate & save `ProverKey` with some random values.
         let mut prover = Prover::new(b"CircuitCompilation");
         self.gadget(prover.mut_cs())?;
@@ -83,34 +79,17 @@ where
         ))
     }
 
-    /// Build PI vector for Proof verifications.
-    fn build_pi(
-        &self,
-        pub_input_values: &[PublicInputValue],
-        pub_input_pos: &[usize],
-    ) -> Vec<BlsScalar> {
-        let mut pi = vec![BlsScalar::zero(); Self::TRIM_SIZE];
-        pub_input_values
-            .iter()
-            .map(|pub_input| pub_input.0.clone())
-            .flatten()
-            .zip(pub_input_pos.iter().copied())
-            .for_each(|(value, pos)| {
-                pi[pos] = -value;
-            });
-        pi
-    }
-
     /// Generates a proof using the provided `CircuitInputs` & `ProverKey` instances.
     fn gen_proof(
         &mut self,
         pub_params: &PublicParameters,
         prover_key: &ProverKey,
+        transcript_init: &'static [u8],
     ) -> Result<Proof, Error> {
         use crate::proof_system::Prover;
-        let (ck, _) = pub_params.trim(Self::TRIM_SIZE)?;
+        let (ck, _) = pub_params.trim(self.padded_circuit_size())?;
         // New Prover instance
-        let mut prover = Prover::new(Self::TRANSCRIPT_INIT);
+        let mut prover = Prover::new(transcript_init);
         // Fill witnesses for Prover
         self.gadget(prover.mut_cs())?;
         // Add ProverKey to Prover
@@ -118,26 +97,48 @@ where
         prover.prove(&ck)
     }
 
-    /// Verifies a proof using the provided `CircuitInputs` & `VerifierKey` instances.
-    fn verify_proof(
-        &mut self,
-        pub_params: &PublicParameters,
-        verifier_key: &VerifierKey,
-        proof: &Proof,
-        pub_inputs_values: &[PublicInputValue],
-        pub_inputs_positions: &[usize],
-    ) -> Result<(), Error> {
-        use crate::proof_system::Verifier;
-        let (_, vk) = pub_params.trim(Self::TRIM_SIZE)?;
+    /// Returns the Circuit size padded to the next power of two.
+    fn padded_circuit_size(&self) -> usize;
+}
 
-        let mut verifier = Verifier::new(Self::TRANSCRIPT_INIT);
-        verifier.verifier_key = Some(*verifier_key);
-        verifier.verify(
-            proof,
-            &vk,
-            &self.build_pi(pub_inputs_values, pub_inputs_positions),
-        )
-    }
+/// Verifies a proof using the provided `CircuitInputs` & `VerifierKey` instances.
+pub fn verify_proof(
+    pub_params: &PublicParameters,
+    verifier_key: &VerifierKey,
+    proof: &Proof,
+    pub_inputs_values: &[PublicInputValue],
+    pub_inputs_positions: &[usize],
+    transcript_init: &'static [u8],
+) -> Result<(), Error> {
+    use crate::proof_system::Verifier;
+    let trim_size = verifier_key.padded_circuit_size();
+    let (_, vk) = pub_params.trim(trim_size)?;
+
+    let mut verifier = Verifier::new(transcript_init);
+    verifier.verifier_key = Some(*verifier_key);
+    verifier.verify(
+        proof,
+        &vk,
+        build_pi(pub_inputs_values, pub_inputs_positions, trim_size).as_slice(),
+    )
+}
+
+/// Build PI vector for Proof verifications.
+fn build_pi(
+    pub_input_values: &[PublicInputValue],
+    pub_input_pos: &[usize],
+    trim_size: usize,
+) -> Vec<BlsScalar> {
+    let mut pi = vec![BlsScalar::zero(); trim_size];
+    pub_input_values
+        .iter()
+        .map(|pub_input| pub_input.0.clone())
+        .flatten()
+        .zip(pub_input_pos.iter().copied())
+        .for_each(|(value, pos)| {
+            pi[pos] = -value;
+        });
+    pi
 }
 
 #[cfg(test)]
@@ -162,8 +163,7 @@ mod tests {
         f: JubJubAffine,
     }
 
-    impl Circuit<'_, { 1 << 11 }> for TestCircuit {
-        const TRANSCRIPT_INIT: &'static [u8] = b"Test";
+    impl Circuit for TestCircuit {
         fn gadget(&mut self, composer: &mut StandardComposer) -> Result<(), Error> {
             let a = composer.add_input(self.a);
             let b = composer.add_input(self.b);
@@ -202,13 +202,15 @@ mod tests {
                 scalar_mul::variable_base::variable_base_scalar_mul(composer, e, generator);
             // Apply the constrain
             composer.assert_equal_public_point(scalar_mul_result.into(), self.f);
-            println!("{:?}", composer.public_inputs_sparse_store.values());
             Ok(())
+        }
+        fn padded_circuit_size(&self) -> usize {
+            1 << 11
         }
     }
 
     #[test]
-    fn test_full() {
+    fn test_full() -> Result<(), Error> {
         use std::fs::{self, File};
         use std::io::Write;
         use tempdir::TempDir;
@@ -219,20 +221,20 @@ mod tests {
         let vk_path = tmp.clone().join("vk_testcirc");
 
         // Generate CRS
-        let pp_p = PublicParameters::setup(1 << 12, &mut rand::thread_rng()).unwrap();
+        let pp_p = PublicParameters::setup(1 << 12, &mut rand::thread_rng())?;
         File::create(&pp_path)
             .and_then(|mut f| f.write(pp_p.to_raw_bytes().as_slice()))
             .unwrap();
 
         // Read PublicParameters
         let pp = fs::read(pp_path).unwrap();
-        let pp = unsafe { PublicParameters::from_slice_unchecked(pp.as_slice()).unwrap() };
+        let pp = unsafe { PublicParameters::from_slice_unchecked(pp.as_slice())? };
 
         // Initialize the circuit
         let mut circuit = TestCircuit::default();
 
         // Compile the circuit
-        let (pk_p, vk_p, pi_pos) = circuit.compile(&pp).unwrap();
+        let (pk_p, vk_p, pi_pos) = circuit.compile(&pp)?;
 
         // Write the keys
         File::create(&pk_path)
@@ -244,11 +246,11 @@ mod tests {
 
         // Read ProverKey
         let pk = fs::read(pk_path).unwrap();
-        let pk = ProverKey::from_bytes(pk.as_slice()).unwrap();
+        let pk = ProverKey::from_bytes(pk.as_slice())?;
 
         // Read VerifierKey
         let vk = fs::read(vk_path).unwrap();
-        let vk = VerifierKey::from_bytes(vk.as_slice()).unwrap();
+        let vk = VerifierKey::from_bytes(vk.as_slice())?;
 
         assert_eq!(pk, pk_p);
         assert_eq!(vk, vk_p);
@@ -264,12 +266,10 @@ mod tests {
                 f: JubJubAffine::from(dusk_jubjub::GENERATOR_EXTENDED * JubJubScalar::from(2u64)),
             };
 
-            circuit.gen_proof(&pp, &pk)
-        }
-        .unwrap();
+            circuit.gen_proof(&pp, &pk, b"Test")
+        }?;
 
         // Verifier POV
-        let mut circuit = TestCircuit::default();
         let public_inputs2: Vec<PublicInputValue> = vec![
             BlsScalar::from(25u64).into(),
             BlsScalar::from(100u64).into(),
@@ -277,8 +277,6 @@ mod tests {
             JubJubAffine::from(dusk_jubjub::GENERATOR_EXTENDED * JubJubScalar::from(2u64)).into(),
         ];
 
-        assert!(circuit
-            .verify_proof(&pp, &vk, &proof, &public_inputs2, &pi_pos)
-            .is_ok());
+        verify_proof(&pp, &vk, &proof, &public_inputs2, &pi_pos, b"Test")
     }
 }
