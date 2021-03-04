@@ -75,7 +75,7 @@ impl StandardComposer {
         self.q_variable_group_add.push(BlsScalar::zero());
 
         if let Some(pi) = pi {
-            self.public_inputs_sparse_store.insert(self.n, pi);
+            assert!(self.public_inputs_sparse_store.insert(self.n, pi).is_none(),"The invariant of already having a PI inserted for this position should never exist");
         }
 
         self.perm.add_variables_to_map(a, b, c, d, self.n);
@@ -156,7 +156,9 @@ impl StandardComposer {
         self.q_variable_group_add.push(BlsScalar::zero());
 
         if let Some(pi) = pi {
-            self.public_inputs_sparse_store.insert(self.n, pi);
+            assert!(
+                self.public_inputs_sparse_store.insert(self.n, pi).is_none(),"The invariant of already having a PI inserted for this position should never exist"
+            );
         }
 
         self.perm.add_variables_to_map(a, b, c, d, self.n);
