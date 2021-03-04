@@ -57,8 +57,8 @@ impl Point {
         affine: dusk_jubjub::JubJubAffine,
     ) -> Point {
         let point = Point::from_private_affine(composer, affine);
-        composer.constrain_to_constant(point.x, BlsScalar::zero(), -affine.get_x());
-        composer.constrain_to_constant(point.y, BlsScalar::zero(), -affine.get_y());
+        composer.constrain_to_constant(point.x, BlsScalar::zero(), Some(-affine.get_x()));
+        composer.constrain_to_constant(point.y, BlsScalar::zero(), Some(-affine.get_y()));
 
         point
     }
@@ -120,52 +120,22 @@ impl Point {
         let y2 = point_b.y;
 
         // x1 * y2
-        let x1_y2 = composer.mul(
-            BlsScalar::one(),
-            x1,
-            y2,
-            BlsScalar::zero(),
-            BlsScalar::zero(),
-        );
+        let x1_y2 = composer.mul(BlsScalar::one(), x1, y2, BlsScalar::zero(), None);
         // y1 * x2
-        let y1_x2 = composer.mul(
-            BlsScalar::one(),
-            y1,
-            x2,
-            BlsScalar::zero(),
-            BlsScalar::zero(),
-        );
+        let y1_x2 = composer.mul(BlsScalar::one(), y1, x2, BlsScalar::zero(), None);
         // y1 * y2
-        let y1_y2 = composer.mul(
-            BlsScalar::one(),
-            y1,
-            y2,
-            BlsScalar::zero(),
-            BlsScalar::zero(),
-        );
+        let y1_y2 = composer.mul(BlsScalar::one(), y1, y2, BlsScalar::zero(), None);
         // x1 * x2
-        let x1_x2 = composer.mul(
-            BlsScalar::one(),
-            x1,
-            x2,
-            BlsScalar::zero(),
-            BlsScalar::zero(),
-        );
+        let x1_x2 = composer.mul(BlsScalar::one(), x1, x2, BlsScalar::zero(), None);
         // d x1x2 * y1y2
-        let d_x1_x2_y1_y2 = composer.mul(
-            EDWARDS_D,
-            x1_x2,
-            y1_y2,
-            BlsScalar::zero(),
-            BlsScalar::zero(),
-        );
+        let d_x1_x2_y1_y2 = composer.mul(EDWARDS_D, x1_x2, y1_y2, BlsScalar::zero(), None);
 
         // x1y2 + y1x2
         let x_numerator = composer.add(
             (BlsScalar::one(), x1_y2),
             (BlsScalar::one(), y1_x2),
             BlsScalar::zero(),
-            BlsScalar::zero(),
+            None,
         );
 
         // y1y2 - a * x1x2 (a=-1) => y1y2 + x1x2
@@ -173,7 +143,7 @@ impl Point {
             (BlsScalar::one(), y1_y2),
             (BlsScalar::one(), x1_x2),
             BlsScalar::zero(),
-            BlsScalar::zero(),
+            None,
         );
 
         // 1 + dx1x2y1y2
@@ -181,7 +151,7 @@ impl Point {
             (BlsScalar::one(), d_x1_x2_y1_y2),
             (BlsScalar::zero(), composer.zero_var),
             BlsScalar::one(),
-            BlsScalar::zero(),
+            None,
         );
 
         // Compute the inverse
@@ -202,7 +172,7 @@ impl Point {
             BlsScalar::one(),
             BlsScalar::zero(),
             -BlsScalar::one(),
-            BlsScalar::zero(),
+            None,
         );
 
         // 1 - dx1x2y1y2
@@ -210,7 +180,7 @@ impl Point {
             (-BlsScalar::one(), d_x1_x2_y1_y2),
             (BlsScalar::zero(), composer.zero_var),
             BlsScalar::one(),
-            BlsScalar::zero(),
+            None,
         );
         let inv_y_denom = composer
             .variables
@@ -228,7 +198,7 @@ impl Point {
             BlsScalar::one(),
             BlsScalar::zero(),
             -BlsScalar::one(),
-            BlsScalar::zero(),
+            None,
         );
 
         // We can now use the inverses
@@ -238,14 +208,14 @@ impl Point {
             inv_x_denom,
             x_numerator,
             BlsScalar::zero(),
-            BlsScalar::zero(),
+            None,
         );
         let y_3 = composer.mul(
             BlsScalar::one(),
             inv_y_denom,
             y_numerator,
             BlsScalar::zero(),
-            BlsScalar::zero(),
+            None,
         );
 
         Point { x: x_3, y: y_3 }
@@ -261,8 +231,8 @@ impl StandardComposer {
         point: Point,
         public_point: dusk_jubjub::JubJubAffine,
     ) {
-        self.constrain_to_constant(point.x, BlsScalar::zero(), -public_point.get_x());
-        self.constrain_to_constant(point.y, BlsScalar::zero(), -public_point.get_y());
+        self.constrain_to_constant(point.x, BlsScalar::zero(), Some(-public_point.get_x()));
+        self.constrain_to_constant(point.y, BlsScalar::zero(), Some(-public_point.get_y()));
     }
     /// Asserts that a point in the circuit is equal to another point in the circuit
     pub fn assert_equal_point(&mut self, point_a: Point, point_b: Point) {

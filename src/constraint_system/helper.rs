@@ -22,7 +22,7 @@ pub(crate) fn dummy_gadget(n: usize, composer: &mut StandardComposer) {
             var_one.into(),
             None,
             BlsScalar::zero(),
-            BlsScalar::zero(),
+            None,
         );
     }
 }
@@ -54,7 +54,7 @@ pub(crate) fn gadget_tester(
 
         // Once the prove method is called, the public inputs are cleared
         // So pre-fetch these before calling Prove
-        let public_inputs = prover.cs.public_inputs.clone();
+        let public_inputs = prover.cs.construct_dense_pi_vec();
 
         // Compute Proof
         (prover.prove(&ck)?, public_inputs)

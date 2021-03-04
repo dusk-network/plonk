@@ -56,7 +56,7 @@
 mod macros;
 
 mod bit_iterator;
-pub mod circuit_builder;
+pub mod circuit;
 pub mod commitment_scheme;
 pub mod constraint_system;
 pub mod error;

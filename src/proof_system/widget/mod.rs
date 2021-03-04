@@ -20,7 +20,7 @@ use serde::{self, Deserialize, Deserializer, Serialize, Serializer};
 /// PLONK circuit proving key
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct ProverKey {
-    /// Circuit size
+    /// Circuit size (Not padded to a power of two).
     pub n: usize,
     /// ProverKey for arithmetic gate
     pub arithmetic: arithmetic::ProverKey,
@@ -44,7 +44,7 @@ pub struct ProverKey {
 /// PLONK circuit verification key
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub struct VerifierKey {
-    /// Circuit size
+    /// Circuit size (not padded to a power of two).
     pub n: usize,
     /// VerifierKey for arithmetic gates
     pub arithmetic: arithmetic::VerifierKey,
@@ -64,6 +64,11 @@ impl_serde!(ProverKey);
 impl_serde!(VerifierKey);
 
 impl VerifierKey {
+    /// Returns the Circuit size padded to the next power of two.
+    pub const fn padded_circuit_size(&self) -> usize {
+        self.n.next_power_of_two()
+    }
+
     /// Serialises a VerifierKey to bytes
     pub fn to_bytes(&self) -> Vec<u8> {
         use crate::serialisation::{write_commitment, write_u64};
