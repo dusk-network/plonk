@@ -91,8 +91,7 @@ impl StandardComposer {
     pub(crate) fn construct_dense_pi_vec(&self) -> Vec<BlsScalar> {
         let mut pi = vec![BlsScalar::zero(); self.n];
         self.public_inputs_sparse_store
-            .keys()
-            .zip(self.public_inputs_sparse_store.values())
+            .iter()
             .for_each(|(pos, value)| {
                 pi[*pos] = *value;
             });

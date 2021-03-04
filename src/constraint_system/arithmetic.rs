@@ -221,11 +221,8 @@ impl StandardComposer {
         let a_eval = self.variables[&a];
         let b_eval = self.variables[&b];
         let d_eval = self.variables[&d];
-        let c_eval = (q_l * a_eval)
-            + (q_r * b_eval)
-            + (q_4 * d_eval)
-            + q_c
-            + pi.unwrap_or(BlsScalar::zero());
+        let c_eval =
+            (q_l * a_eval) + (q_r * b_eval) + (q_4 * d_eval) + q_c + pi.unwrap_or_default();
         let c = self.add_input(c_eval);
 
         self.big_add_gate(a, b, c, Some(d), q_l, q_r, q_o, q_4, q_c, pi)
@@ -278,8 +275,7 @@ impl StandardComposer {
         let a_eval = self.variables[&a];
         let b_eval = self.variables[&b];
         let d_eval = self.variables[&d];
-        let c_eval =
-            (q_m * a_eval * b_eval) + (q_4 * d_eval) + q_c + pi.unwrap_or(BlsScalar::zero());
+        let c_eval = (q_m * a_eval * b_eval) + (q_4 * d_eval) + q_c + pi.unwrap_or_default();
         let c = self.add_input(c_eval);
 
         self.big_mul_gate(a, b, c, Some(d), q_m, q_o, q_c, q_4, pi)
