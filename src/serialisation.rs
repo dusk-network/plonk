@@ -64,16 +64,6 @@ pub(crate) fn write_commitment(commitment: &Commitment, bytes: &mut Vec<u8>) {
     write_g1_affine(&commitment.0, bytes)
 }
 
-/// Reads 96 bytes and converts it to a G2Affine
-/// Returns the remaining bytes
-pub(crate) fn read_g2_affine(bytes: &[u8]) -> Result<(G2Affine, &[u8]), Error> {
-    let (bytes, rest) = read_n(G2Affine::SIZE, bytes)?;
-
-    G2Affine::from_slice(bytes)
-        .map(|g| (g, rest))
-        .map_err(|_| Error::PointMalformed)
-}
-
 /// Reads 8 bytes and converts it to a u64
 /// Returns the remaining bytes
 pub(crate) fn read_u64(bytes: &[u8]) -> Result<(u64, &[u8]), Error> {
