@@ -191,39 +191,6 @@ impl<'a, 'b> Add<&'a Polynomial> for &'b Polynomial {
     }
 }
 
-#[allow(dead_code)]
-// Addition method tht uses iterators to add polynomials
-// Benchmark this against the original method
-fn iter_add(poly_a: &Polynomial, poly_b: &Polynomial) -> Polynomial {
-    if poly_a.len() == 0 {
-        return poly_b.clone();
-    }
-    if poly_b.len() == 0 {
-        return poly_a.clone();
-    }
-
-    let max_len = std::cmp::max(poly_a.len(), poly_b.len());
-    let min_len = std::cmp::min(poly_a.len(), poly_b.len());
-    let mut data = Vec::with_capacity(max_len);
-    let (mut poly_a_iter, mut poly_b_iter) = (poly_a.iter(), poly_b.iter());
-
-    let partial_addition = poly_a_iter
-        .by_ref()
-        .zip(poly_b_iter.by_ref())
-        .map(|(&a, &b)| a + b)
-        .take(min_len);
-
-    data.extend(partial_addition);
-    data.extend(poly_a_iter);
-    data.extend(poly_b_iter);
-
-    assert_eq!(data.len(), std::cmp::max(poly_a.len(), poly_b.len()));
-
-    let mut result = Polynomial::from_coefficients_vec(data);
-    result.truncate_leading_zeros();
-    result
-}
-
 impl<'a, 'b> AddAssign<&'a Polynomial> for Polynomial {
     fn add_assign(&mut self, other: &'a Polynomial) {
         if self.is_zero() {
