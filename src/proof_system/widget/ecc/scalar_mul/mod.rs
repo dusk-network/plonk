@@ -5,4 +5,3 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 pub mod fixed_base;
-pub mod variable_base;
