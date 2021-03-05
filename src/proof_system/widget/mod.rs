@@ -10,12 +10,12 @@ pub mod logic;
 pub mod permutation;
 pub mod range;
 
+use crate::commitment_scheme::kzg10::Commitment;
 use crate::error::Error;
 use crate::fft::Evaluations;
 use crate::transcript::TranscriptProtocol;
+use dusk_bytes::{DeserializableSlice, Serializable};
 use merlin::Transcript;
-use serde::de::Visitor;
-use serde::{self, Deserialize, Deserializer, Serialize, Serializer};
 
 /// PLONK circuit verification key
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
@@ -36,83 +36,80 @@ pub struct VerifierKey {
     pub(crate) permutation: permutation::VerifierKey,
 }
 
-impl_serde!(ProverKey);
-impl_serde!(VerifierKey);
+impl Serializable<{ 15 * Commitment::SIZE + u64::SIZE }> for VerifierKey {
+    type Error = dusk_bytes::Error;
+
+    #[allow(unused_must_use)]
+    fn to_bytes(&self) -> [u8; Self::SIZE] {
+        use dusk_bytes::Write;
+        let mut buff = [0u8; Self::SIZE];
+        let mut writer = &mut buff[..];
+
+        writer.write(&self.arithmetic.q_m.to_bytes());
+        writer.write(&self.arithmetic.q_l.to_bytes());
+        writer.write(&self.arithmetic.q_r.to_bytes());
+        writer.write(&self.arithmetic.q_o.to_bytes());
+        writer.write(&self.arithmetic.q_4.to_bytes());
+        writer.write(&self.arithmetic.q_c.to_bytes());
+        writer.write(&self.arithmetic.q_arith.to_bytes());
+        writer.write(&self.logic.q_logic.to_bytes());
+        writer.write(&self.range.q_range.to_bytes());
+        writer.write(&self.fixed_base.q_fixed_group_add.to_bytes());
+        writer.write(&self.variable_base.q_variable_group_add.to_bytes());
+        writer.write(&self.permutation.left_sigma.to_bytes());
+        writer.write(&self.permutation.right_sigma.to_bytes());
+        writer.write(&self.permutation.out_sigma.to_bytes());
+        writer.write(&self.permutation.fourth_sigma.to_bytes());
+
+        buff
+    }
+
+    fn from_bytes(buf: &[u8; Self::SIZE]) -> Result<VerifierKey, Self::Error> {
+        let mut buffer = &buf[..];
+
+        Ok(Self::from_polynomial_commitments(
+            u64::from_reader(&mut buffer)? as usize,
+            Commitment::from_reader(&mut buffer)?,
+            Commitment::from_reader(&mut buffer)?,
+            Commitment::from_reader(&mut buffer)?,
+            Commitment::from_reader(&mut buffer)?,
+            Commitment::from_reader(&mut buffer)?,
+            Commitment::from_reader(&mut buffer)?,
+            Commitment::from_reader(&mut buffer)?,
+            Commitment::from_reader(&mut buffer)?,
+            Commitment::from_reader(&mut buffer)?,
+            Commitment::from_reader(&mut buffer)?,
+            Commitment::from_reader(&mut buffer)?,
+            Commitment::from_reader(&mut buffer)?,
+            Commitment::from_reader(&mut buffer)?,
+            Commitment::from_reader(&mut buffer)?,
+            Commitment::from_reader(&mut buffer)?,
+        ))
+    }
+}
 
 impl VerifierKey {
-    /// Returns the Circuit size padded to the next power of two.
-    pub const fn padded_circuit_size(&self) -> usize {
-        self.n.next_power_of_two()
-    }
-
-    /// Serialises a VerifierKey to bytes
-    pub fn to_bytes(&self) -> Vec<u8> {
-        use crate::serialisation::{write_commitment, write_u64};
-
-        let mut bytes = Vec::with_capacity(VerifierKey::serialised_size());
-
-        // Circuit size
-        // Assuming that circuits will not exceed 2^64 we cast `usize` to `u64`
-        write_u64(self.n as u64, &mut bytes);
-
-        // Arithmetic
-
-        write_commitment(&self.arithmetic.q_m, &mut bytes);
-        write_commitment(&self.arithmetic.q_l, &mut bytes);
-        write_commitment(&self.arithmetic.q_r, &mut bytes);
-        write_commitment(&self.arithmetic.q_o, &mut bytes);
-        write_commitment(&self.arithmetic.q_4, &mut bytes);
-        write_commitment(&self.arithmetic.q_c, &mut bytes);
-        write_commitment(&self.arithmetic.q_arith, &mut bytes);
-
-        // Logic
-        write_commitment(&self.logic.q_logic, &mut bytes);
-
-        // Range
-        write_commitment(&self.range.q_range, &mut bytes);
-
-        // Fixed base scalar mul
-        write_commitment(&self.fixed_base.q_fixed_group_add, &mut bytes);
-
-        // Curve addition
-        write_commitment(&self.variable_base.q_variable_group_add, &mut bytes);
-
-        // Perm
-        write_commitment(&self.permutation.left_sigma, &mut bytes);
-        write_commitment(&self.permutation.right_sigma, &mut bytes);
-        write_commitment(&self.permutation.out_sigma, &mut bytes);
-        write_commitment(&self.permutation.fourth_sigma, &mut bytes);
-
-        bytes
-    }
-
-    /// Deserialise a slice of bytes into a VerifierKey
-    pub fn from_bytes(bytes: &[u8]) -> Result<VerifierKey, Error> {
-        use crate::serialisation::{read_commitment, read_u64};
-
-        let (n, rest) = read_u64(bytes)?;
-
-        let (q_m, rest) = read_commitment(rest)?;
-        let (q_l, rest) = read_commitment(rest)?;
-        let (q_r, rest) = read_commitment(rest)?;
-        let (q_o, rest) = read_commitment(rest)?;
-        let (q_4, rest) = read_commitment(rest)?;
-        let (q_c, rest) = read_commitment(rest)?;
-        let (q_arith, rest) = read_commitment(rest)?;
-
-        let (q_logic, rest) = read_commitment(rest)?;
-
-        let (q_range, rest) = read_commitment(rest)?;
-
-        let (q_fixed_group_add, rest) = read_commitment(rest)?;
-
-        let (q_variable_group_add, rest) = read_commitment(rest)?;
-
-        let (left_sigma, rest) = read_commitment(rest)?;
-        let (right_sigma, rest) = read_commitment(rest)?;
-        let (out_sigma, rest) = read_commitment(rest)?;
-        let (fourth_sigma, _) = read_commitment(rest)?;
-
+    /// Constructs a VerifierKey from the widget VerifierKey's that are
+    /// constructed based on the selector polynomial commitments and the
+    /// sigma polynomial commitments.
+    pub(crate) fn from_polynomial_commitments(
+        n: usize,
+        q_m: Commitment,
+        q_l: Commitment,
+        q_r: Commitment,
+        q_o: Commitment,
+        q_4: Commitment,
+        q_c: Commitment,
+        q_arith: Commitment,
+        q_logic: Commitment,
+        q_range: Commitment,
+        q_fixed_group_add: Commitment,
+        q_variable_group_add: Commitment,
+        left_sigma: Commitment,
+        right_sigma: Commitment,
+        out_sigma: Commitment,
+        fourth_sigma: Commitment,
+    ) -> VerifierKey {
         let arithmetic = arithmetic::VerifierKey {
             q_m,
             q_l,
@@ -141,24 +138,15 @@ impl VerifierKey {
             fourth_sigma,
         };
 
-        let verifier_key = VerifierKey {
-            n: n as usize,
+        VerifierKey {
+            n,
             arithmetic,
             logic,
             range,
             variable_base,
             fixed_base,
             permutation,
-        };
-        Ok(verifier_key)
-    }
-
-    /// Return the serialized size of a [`VerifierKey`]
-    pub const fn serialised_size() -> usize {
-        const N_SIZE: usize = 8;
-        const NUM_COMMITMENTS: usize = 15;
-        const COMMITMENT_SIZE: usize = 48;
-        N_SIZE + NUM_COMMITMENTS * COMMITMENT_SIZE
+        }
     }
 
     /// Adds the circuit description to the transcript
