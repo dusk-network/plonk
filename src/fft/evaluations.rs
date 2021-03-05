@@ -15,7 +15,7 @@ use dusk_bls12_381::BlsScalar;
 
 /// Stores a polynomial in evaluation form.
 #[derive(PartialEq, Eq, Debug, Clone)]
-pub struct Evaluations {
+pub(crate) struct Evaluations {
     /// The evaluations of a polynomial over the domain `D`
     pub evals: Vec<BlsScalar>,
     #[doc(hidden)]

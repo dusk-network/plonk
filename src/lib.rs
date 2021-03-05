@@ -57,15 +57,15 @@ mod macros;
 
 mod bit_iterator;
 pub mod circuit;
-pub mod commitment_scheme;
+mod commitment_scheme;
 pub mod constraint_system;
-pub mod error;
-pub mod fft;
+mod error;
+mod fft;
 mod permutation;
 pub mod prelude;
 pub mod proof_system;
 mod serialisation;
-pub mod transcript;
+mod transcript;
 mod util;
 
 #[cfg(feature = "nightly")]

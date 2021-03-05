@@ -40,7 +40,7 @@ pub struct OpeningKey {
 pub struct CommitKey {
     /// Group elements of the form `{ \beta^i G }`, where `i` ranges from 0 to
     /// `degree`.
-    pub powers_of_g: Vec<G1Affine>,
+    pub(crate) powers_of_g: Vec<G1Affine>,
 }
 
 impl CommitKey {
@@ -128,7 +128,7 @@ impl CommitKey {
     /// Truncates the commit key to a lower max degree.
     /// Returns an error if the truncated degree is zero or if the truncated
     /// degree is larger than the max degree of the commit key.
-    pub fn truncate(
+    pub(crate) fn truncate(
         &self,
         mut truncated_degree: usize,
     ) -> Result<CommitKey, Error> {
@@ -152,18 +152,32 @@ impl CommitKey {
         Ok(truncated_powers)
     }
 
+    /// Checks whether the polynomial we are committing to:
+    /// - Has zero degree
+    /// - Has a degree which is more than the max supported degree
+    ///
+    /// Returns an error if any of the above conditions are true.
     fn check_commit_degree_is_within_bounds(
         &self,
         poly_degree: usize,
     ) -> Result<(), Error> {
-        check_degree_is_within_bounds(self.max_degree(), poly_degree)
+        if poly_degree == 0 {
+            return Err(Error::PolynomialDegreeIsZero);
+        }
+        if poly_degree > self.max_degree() {
+            return Err(Error::PolynomialDegreeTooLarge);
+        }
+        Ok(())
     }
 
     /// Commits to a polynomial returning the corresponding `Commitment`.
     ///
     /// Returns an error if the polynomial's degree is more than the max degree
     /// of the commit key.
-    pub fn commit(&self, polynomial: &Polynomial) -> Result<Commitment, Error> {
+    pub(crate) fn commit(
+        &self,
+        polynomial: &Polynomial,
+    ) -> Result<Commitment, Error> {
         // Check whether we can safely commit to this polynomial
         self.check_commit_degree_is_within_bounds(polynomial.degree())?;
 
@@ -171,6 +185,22 @@ impl CommitKey {
         let commitment =
             msm_variable_base(&self.powers_of_g, &polynomial.coeffs);
         Ok(Commitment::from_projective(commitment))
+    }
+
+    /// For a given polynomial `p` and a point `z`, compute the witness
+    /// for p(z) using Ruffini's method for simplicity.
+    /// The Witness is the quotient of f(x) - f(z) / x-z.
+    /// However we note that the quotient polynomial is invariant under the
+    /// value f(z) ie. only the remainder changes. We can therefore compute
+    /// the witness as f(x) / x - z and only use the remainder term f(z)
+    /// during verification.
+    fn compute_single_witness(
+        &self,
+        polynomial: &Polynomial,
+        point: &BlsScalar,
+    ) -> Polynomial {
+        // Computes `f(x) / x-z`, returning it as the witness poly
+        polynomial.ruffini(*point)
     }
 
     /// Computes a single witness for multiple polynomials at the same point, by
@@ -249,7 +279,7 @@ impl OpeningKey {
 
     /// Checks whether a batch of polynomials evaluated at different points,
     /// returned their specified value.
-    pub fn batch_check(
+    pub(crate) fn batch_check(
         &self,
         points: &[BlsScalar],
         proofs: &[Proof],
@@ -293,24 +323,6 @@ impl OpeningKey {
     }
 }
 
-/// Checks whether the polynomial we are committing to:
-/// - Has zero degree
-/// - Has a degree which is more than the max supported degree
-///
-///
-/// Returns an error if any of the above conditions are true.
-fn check_degree_is_within_bounds(
-    max_degree: usize,
-    poly_degree: usize,
-) -> Result<(), Error> {
-    if poly_degree == 0 {
-        return Err(Error::PolynomialDegreeIsZero);
-    }
-    if poly_degree > max_degree {
-        return Err(Error::PolynomialDegreeTooLarge);
-    }
-    Ok(())
-}
 #[cfg(test)]
 mod test {
     use super::super::{AggregateProof, PublicParameters};

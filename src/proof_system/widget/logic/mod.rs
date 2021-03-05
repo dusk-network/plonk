@@ -7,8 +7,8 @@
 mod proverkey;
 mod verifierkey;
 
-pub use proverkey::ProverKey;
-pub use verifierkey::VerifierKey;
+pub(crate) use proverkey::ProverKey;
+pub(crate) use verifierkey::VerifierKey;
 
 /// Common functionality across both the ProverKey and VerifierKey are
 /// listed below

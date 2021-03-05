@@ -7,12 +7,9 @@
 mod proverkey;
 mod verifierkey;
 
-pub use proverkey::ProverKey;
-pub use verifierkey::VerifierKey;
-
-/// Common functionality across both the ProverKey and VerifierKey are
-/// listed below
 use dusk_bls12_381::BlsScalar;
+pub(crate) use proverkey::ProverKey;
+pub(crate) use verifierkey::VerifierKey;
 
 // Computes f(f-1)(f-2)(f-3)
 fn delta(f: BlsScalar) -> BlsScalar {
