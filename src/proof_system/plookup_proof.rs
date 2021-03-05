@@ -259,6 +259,7 @@ impl PlookupProof {
             &l1_eval,
             &ln_eval,
             &self.evaluations.perm_eval,
+            &lookup_sep_challenge,
         );
 
         // Compute commitment to quotient polynomial
@@ -308,6 +309,7 @@ impl PlookupProof {
             ln_eval,
             table_eval,
             table_next_eval,
+            domain.group_gen_inv,
             &verifier_key,
         );
 
@@ -337,7 +339,7 @@ impl PlookupProof {
             self.evaluations.out_sigma_eval,
             verifier_key.permutation.out_sigma,
         ));
-        aggregate_proof.add_part((self.evaluations.f_eval, self.f_comm));
+        aggregate_proof.add_part((self.evaluations.f_short_eval, self.f_comm));
         aggregate_proof.add_part((self.evaluations.h_1_eval, self.h_1_comm));
         // Flatten proof with opening challenge
         let flattened_proof_a = aggregate_proof.flatten(transcript);
@@ -386,17 +388,21 @@ impl PlookupProof {
         l1_eval: &BlsScalar,
         ln_eval: &BlsScalar,
         z_hat_eval: &BlsScalar,
+        lookup_sep_challenge: &BlsScalar,
     ) -> BlsScalar {
+        let omega_inv = domain.group_gen_inv;
+
         // Compute the public input polynomial evaluated at `z_challenge`
         let pi_eval = compute_barycentric_eval(pub_inputs, z_challenge, domain);
 
-        // Compute powers of alpha
+        // Compute powers of alpha_0
         let alpha_sq = alpha.square();
-        let alpha_cu = alpha_sq * alpha;
-        let alpha_4 = alpha_cu * alpha;
-        let alpha_5 = alpha_4 * alpha;
-        let alpha_6 = alpha_5 * alpha;
-        let alpha_7 = alpha_6 * alpha;
+
+        // Compute powers of alpha_1
+        let l_sep_2 = lookup_sep_challenge.square();
+        let l_sep_3 = lookup_sep_challenge * l_sep_2;
+        let l_sep_4 = lookup_sep_challenge * l_sep_3;
+        let l_sep_5 = lookup_sep_challenge * l_sep_4;
 
         // Compute power of zeta
         let zeta_sq = zeta.square();
@@ -420,37 +426,37 @@ impl PlookupProof {
         let beta_sig3 = beta * self.evaluations.out_sigma_eval;
         let b_2 = self.evaluations.c_eval + beta_sig3 + gamma;
 
-        // ((d + gamma) * z_hat) * alpha
+        // ((d + gamma) * z_hat) * alpha_0
         let b_3 = (self.evaluations.d_eval + gamma) * z_hat_eval * alpha;
 
         let b = b_0 * b_1 * b_2 * b_3;
 
-        // l_1(z) * alpha^2
+        // l_1(z) * alpha_0^2
         let c = l1_eval * alpha_sq;
 
-        // q_lookup(z) * (a + b*zeta + c*zeta^2) * alpha^3
+        // q_lookup(z) * (a + b*zeta + c*zeta^2 + d*zeta^3) * alpha_1
         let d_0 = self.evaluations.a_eval
             + (self.evaluations.b_eval * zeta)
             + (self.evaluations.c_eval * zeta_sq)
             + (self.evaluations.d_eval * zeta_cu);
-        let d = self.evaluations.q_lookup_eval * d_0 * alpha_cu;
+        let d = self.evaluations.q_lookup_eval * d_0 * lookup_sep_challenge;
 
-        // l_1(z) * alpha^4
-        let e = l1_eval * alpha_4;
+        // l_1(z) * alpha_1^2
+        let e = l1_eval * l_sep_2;
 
-        // (z - 1) * p_eval * (epsilon( 1+ delta) + h_1_eval +(delta * h_1_next_eval)(epsilon( 1+ delta) + delta * h_2_next_eval) * alpha^5
-        let f_0 = z_challenge - BlsScalar::one();
+        // (z - omega_inv) * p_eval * (epsilon( 1+ delta) + h_1_eval +(delta * h_1_next_eval)(epsilon( 1+ delta) + delta * h_2_next_eval) * alpha_1^3
+        let f_0 = z_challenge - omega_inv;
         let f_1 = epsilon_one_plus_delta
             + self.evaluations.h_1_eval
-            + (delta * self.evaluations.h_1_eval);
+            + (delta * self.evaluations.h_1_next_eval);
         let f_2 = epsilon_one_plus_delta + (delta * self.evaluations.h_2_next_eval);
-        let f = f_0 * self.evaluations.lookup_perm_eval * f_1 * f_2 * alpha_5;
+        let f = f_0 * self.evaluations.lookup_perm_eval * f_1 * f_2 * l_sep_3;
 
-        // l_n(z) * h_2_next_eval * alpha_5
-        let g = ln_eval * self.evaluations.h_2_next_eval * alpha_5;
+        // l_n(z) * h_2_next_eval * alpha_1^4
+        let g = ln_eval * self.evaluations.h_2_next_eval * l_sep_4;
 
-        // l_n(z) * alpha^7
-        let h = ln_eval * alpha_7;
+        // l_n(z) * alpha_1^5
+        let h = ln_eval * l_sep_5;
 
         // Return t_eval
         (a - b - c + d - e - f - g - h) * z_h_eval.invert().unwrap()
@@ -488,6 +494,7 @@ impl PlookupProof {
         ln_eval: BlsScalar,
         t_eval: BlsScalar,
         t_next_eval: BlsScalar,
+        omega_inv: BlsScalar,
         verifier_key: &PlookupVerifierKey,
     ) -> Commitment {
         let mut scalars: Vec<_> = Vec::with_capacity(6);
@@ -541,6 +548,7 @@ impl PlookupProof {
             self.h_1_comm.0,
             self.h_2_comm.0,
             self.p_comm.0,
+            &omega_inv,
         );
 
         verifier_key.permutation.compute_linearisation_commitment(
