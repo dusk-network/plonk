@@ -11,8 +11,6 @@ use crate::{error::Error, util};
 use dusk_bls12_381::{G1Affine, G1Projective, G2Affine};
 use dusk_bytes::{DeserializableSlice, Serializable};
 use rand_core::{CryptoRng, RngCore};
-use serde::de::Visitor;
-use serde::{self, Deserialize, Deserializer, Serialize, Serializer};
 
 /// The Public Parameters can also be referred to as the Structured Reference
 /// String (SRS). It is available to both the prover and verifier and allows the
@@ -25,8 +23,6 @@ pub struct PublicParameters {
     /// Key used to verify proofs for composed circuits.
     pub opening_key: OpeningKey,
 }
-
-impl_serde_into!(PublicParameters);
 
 impl PublicParameters {
     /// Setup generates the public parameters using a random number generator.
@@ -74,16 +70,24 @@ impl PublicParameters {
 
     /// Serialize the `PublicParameters` into bytes.
     ///
-    /// Will consume approx. twice the bytes of `into_bytes`
+    /// This operation is designed to store the raw representation of the
+    /// contents of the PublicParameters. Therefore, the size of the bytes
+    /// outputed by this function is expected to be the double than the one
+    /// that `PublicParameters::to_bytes()`.
+    ///
+    /// # Note
+    /// This function should be used when we want to serialize the
+    /// PublicParameters allowing a really fast deserialization later.
+    /// This functions output should not be used by the regular
+    /// `PublicParaneters::from_bytes()` fn.
     pub fn to_raw_bytes(&self) -> Vec<u8> {
         let mut bytes = self.opening_key.to_bytes().to_vec();
-
         bytes.extend(&self.commit_key.to_raw_bytes());
 
         bytes
     }
 
-    /// Deserialize `PublicParameters` from a set of bytes created by
+    /// Deserialize [`PublicParameters`] from a set of bytes created by
     /// `to_raw_bytes`
     ///
     /// The bytes source is expected to be trusted and no check will be
@@ -105,14 +109,22 @@ impl PublicParameters {
         })
     }
 
-    /// Serialises a [`PublicParameters`] struct into a slice of bytes
-    pub fn into_bytes(&self) -> Vec<u8> {
+    /// Serialises a [`PublicParameters`] struct into a slice of bytes.
+    pub fn to_bytes(&self) -> Vec<u8> {
         let mut bytes = self.opening_key.to_bytes().to_vec();
         bytes.extend(self.commit_key.into_bytes());
         bytes
     }
 
-    /// Deserialise a slice of bytes into a Public Parameter struct
+    /// Deserialise a slice of bytes into a Public Parameter struct performing
+    /// security and consistency checks for each point that the bytes
+    /// contain.
+    ///
+    /// # Note
+    /// This function can be really slow if the `PublicParameters` have a
+    /// certain degree. If the bytes come from a trusted source such as a
+    /// local file, we recommend to use `from_raw_bytes()` and
+    /// `to_raw_bytes()`.
     pub fn from_bytes(bytes: &[u8]) -> Result<PublicParameters, Error> {
         let opening_key_bytes = &bytes[0..OpeningKey::SIZE];
         let commit_key_bytes = &bytes[OpeningKey::SIZE..];
