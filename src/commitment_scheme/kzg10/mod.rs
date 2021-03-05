@@ -14,6 +14,7 @@ pub use srs::PublicParameters;
 use crate::transcript::TranscriptProtocol;
 use crate::util::powers_of;
 use dusk_bls12_381::{BlsScalar, G1Affine, G1Projective};
+use dusk_bytes::{DeserializableSlice, Serializable};
 use merlin::Transcript;
 
 #[derive(Copy, Clone, Debug)]
@@ -101,6 +102,19 @@ pub(crate) struct Commitment(
     pub(crate) G1Affine,
 );
 
+impl Serializable<{ G1Affine::SIZE }> for Commitment {
+    type Error = dusk_bytes::Error;
+
+    fn to_bytes(&self) -> [u8; Self::SIZE] {
+        self.0.to_bytes()
+    }
+
+    fn from_bytes(buf: &[u8; Self::SIZE]) -> Result<Commitment, Self::Error> {
+        let g1 = G1Affine::from_slice(buf)?;
+        Ok(Commitment(g1))
+    }
+}
+
 impl Commitment {
     /// Builds a `Commitment` from a Bls12_381 `G1Projective` point.
     pub(crate) fn from_projective(g: G1Projective) -> Self {
@@ -120,5 +134,18 @@ impl Commitment {
 impl Default for Commitment {
     fn default() -> Self {
         Commitment::empty()
+    }
+}
+
+#[cfg(test)]
+mod commitment_tests {
+    use super::*;
+
+    #[test]
+    fn commitment_duks_bytes_serde() {
+        let commitment = Commitment::from_affine(dusk_bls12_381::G1Affine::generator());
+        let bytes = commitment.to_bytes();
+        let obtained_comm = Commitment::from_slice(&bytes).expect("Error on the deserialization");
+        assert_eq!(commitment, obtained_comm);
     }
 }
