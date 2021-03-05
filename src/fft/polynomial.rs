@@ -8,13 +8,13 @@
 //! Where each coefficient is represented using a position in the underlying
 //! vector.
 use super::{EvaluationDomain, Evaluations};
+use crate::error::Error;
 use crate::util;
 use dusk_bls12_381::BlsScalar;
 use rayon::iter::{
     IndexedParallelIterator, IntoParallelIterator, IntoParallelRefIterator,
     ParallelIterator,
 };
-
 use std::ops::{Add, AddAssign, Deref, DerefMut, Mul, Neg, Sub, SubAssign};
 
 #[derive(Debug, Eq, PartialEq, Clone)]
@@ -117,6 +117,36 @@ impl Polynomial {
             sum += &eval;
         }
         sum
+    }
+
+    /// Outputs a polynomial of degree `d` where each coefficient is sampled
+    /// uniformly at random from the field `F`.
+    pub fn rand<R: RngCore + CryptoRng>(d: usize, mut rng: &mut R) -> Self {
+        let mut random_coeffs = Vec::with_capacity(d + 1);
+        for _ in 0..=d {
+            random_coeffs.push(util::random_scalar(&mut rng));
+        }
+        Self::from_coefficients_vec(random_coeffs)
+    }
+
+    /// Given a Polynomial, return it in it's byte representation coefficient by
+    /// coefficient.
+    pub fn to_bytes(&self) -> Vec<u8> {
+        self.coeffs
+            .iter()
+            .map(|item| item.to_bytes().to_vec())
+            .flatten()
+            .collect()
+    }
+
+    /// Generate a Polynomial from a slice of bytes.
+    pub fn from_bytes(bytes: &[u8]) -> Result<Polynomial, Error> {
+        let coeffs = bytes
+            .chunks(BlsScalar::SIZE)
+            .map(|chunk| BlsScalar::from_slice(chunk))
+            .collect::<Result<Vec<BlsScalar>, dusk_bytes::Error>>()?;
+
+        Ok(Polynomial { coeffs })
     }
 }
 
