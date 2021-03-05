@@ -52,9 +52,6 @@
 #![deny(rustdoc::broken_intra_doc_links)]
 #![deny(missing_docs)]
 
-#[macro_use]
-mod macros;
-
 mod bit_iterator;
 pub mod circuit;
 mod commitment_scheme;
