@@ -12,8 +12,9 @@ pub mod range;
 
 use crate::commitment_scheme::kzg10::Commitment;
 use crate::error::Error;
-use crate::fft::Evaluations;
+use crate::fft::{EvaluationDomain, Evaluations, Polynomial};
 use crate::transcript::TranscriptProtocol;
+use dusk_bls12_381::BlsScalar;
 use dusk_bytes::{DeserializableSlice, Serializable};
 use merlin::Transcript;
 
@@ -45,6 +46,7 @@ impl Serializable<{ 15 * Commitment::SIZE + u64::SIZE }> for VerifierKey {
         let mut buff = [0u8; Self::SIZE];
         let mut writer = &mut buff[..];
 
+        writer.write(&(self.n as u64).to_bytes());
         writer.write(&self.arithmetic.q_m.to_bytes());
         writer.write(&self.arithmetic.q_l.to_bytes());
         writer.write(&self.arithmetic.q_r.to_bytes());
@@ -208,153 +210,191 @@ pub struct ProverKey {
 }
 
 impl ProverKey {
-    /// Serialises a ProverKey struct into bytes
+    /// Returns the number of `Polynomial`s contained in a ProverKey.
+    const fn num_polys() -> usize {
+        15
+    }
+
+    /// Returns the number of `Evaluations` contained in a ProverKey.
+    const fn num_evals() -> usize {
+        17
+    }
+
+    /// Serialises a ProverKey struct into a Vec of bytes.
+    #[allow(unused_must_use)]
     pub fn to_bytes(&self) -> Vec<u8> {
-        use crate::serialisation::{
-            write_evaluations, write_polynomial, write_u64,
-        };
+        use dusk_bytes::Write;
+        // Fetch size in bytes of each Polynomial
+        let poly_size = self.arithmetic.q_m.0.len() * BlsScalar::SIZE;
+        // Fetch size in bytes of each Evaluations
+        let evals_size = self.arithmetic.q_m.1.evals.len() * BlsScalar::SIZE
+            + EvaluationDomain::SIZE;
+        // Create the vec with the capacity counting the 3 u64's plus the 15
+        // Polys and the 17 Evaluations.
+        let mut bytes = vec![
+            0u8;
+            (Self::num_polys() * poly_size
+                + evals_size * Self::num_evals()
+                + 3 * u64::SIZE) as usize
+        ];
 
-        let mut bytes = Vec::with_capacity(ProverKey::serialised_size(self.n));
-
-        write_u64(self.n as u64, &mut bytes);
+        let mut writer = &mut bytes[..];
+        writer.write(&(self.n as u64).to_bytes());
+        // Write Polynomial len in bytes.
+        writer.write(&(poly_size as u64).to_bytes());
+        // Write Evaluation len in bytes.
+        writer.write(&(evals_size as u64).to_bytes());
 
         // Arithmetic
-        write_polynomial(&self.arithmetic.q_m.0, &mut bytes);
-        write_evaluations(&self.arithmetic.q_m.1, &mut bytes);
+        writer.write(&self.arithmetic.q_m.0.to_bytes());
+        writer.write(&self.arithmetic.q_m.1.to_bytes());
 
-        write_polynomial(&self.arithmetic.q_l.0, &mut bytes);
-        write_evaluations(&self.arithmetic.q_l.1, &mut bytes);
+        writer.write(&self.arithmetic.q_l.0.to_bytes());
+        writer.write(&self.arithmetic.q_l.1.to_bytes());
 
-        write_polynomial(&self.arithmetic.q_r.0, &mut bytes);
-        write_evaluations(&self.arithmetic.q_r.1, &mut bytes);
+        writer.write(&self.arithmetic.q_r.0.to_bytes());
+        writer.write(&self.arithmetic.q_r.1.to_bytes());
 
-        write_polynomial(&self.arithmetic.q_o.0, &mut bytes);
-        write_evaluations(&self.arithmetic.q_o.1, &mut bytes);
+        writer.write(&self.arithmetic.q_o.0.to_bytes());
+        writer.write(&self.arithmetic.q_o.1.to_bytes());
 
-        write_polynomial(&self.arithmetic.q_4.0, &mut bytes);
-        write_evaluations(&self.arithmetic.q_4.1, &mut bytes);
+        writer.write(&self.arithmetic.q_4.0.to_bytes());
+        writer.write(&self.arithmetic.q_4.1.to_bytes());
 
-        write_polynomial(&self.arithmetic.q_c.0, &mut bytes);
-        write_evaluations(&self.arithmetic.q_c.1, &mut bytes);
+        writer.write(&self.arithmetic.q_c.0.to_bytes());
+        writer.write(&self.arithmetic.q_c.1.to_bytes());
 
-        write_polynomial(&self.arithmetic.q_arith.0, &mut bytes);
-        write_evaluations(&self.arithmetic.q_arith.1, &mut bytes);
+        writer.write(&self.arithmetic.q_arith.0.to_bytes());
+        writer.write(&self.arithmetic.q_arith.1.to_bytes());
 
         // Logic
-        write_polynomial(&self.logic.q_logic.0, &mut bytes);
-        write_evaluations(&self.logic.q_logic.1, &mut bytes);
+        writer.write(&self.logic.q_logic.0.to_bytes());
+        writer.write(&self.logic.q_logic.1.to_bytes());
 
         // Range
-        write_polynomial(&self.range.q_range.0, &mut bytes);
-        write_evaluations(&self.range.q_range.1, &mut bytes);
+        writer.write(&self.range.q_range.0.to_bytes());
+        writer.write(&self.range.q_range.1.to_bytes());
 
-        // BlsScalar multiplication
-        write_polynomial(&self.fixed_base.q_fixed_group_add.0, &mut bytes);
-        write_evaluations(&self.fixed_base.q_fixed_group_add.1, &mut bytes);
+        // Fixed base multiplication
+        writer.write(&self.fixed_base.q_fixed_group_add.0.to_bytes());
+        writer.write(&self.fixed_base.q_fixed_group_add.1.to_bytes());
 
-        // Curve addition
-        write_polynomial(
-            &self.variable_base.q_variable_group_add.0,
-            &mut bytes,
-        );
-        write_evaluations(
-            &self.variable_base.q_variable_group_add.1,
-            &mut bytes,
-        );
+        // Variable base addition
+        writer.write(&self.variable_base.q_variable_group_add.0.to_bytes());
+        writer.write(&self.variable_base.q_variable_group_add.1.to_bytes());
 
         // Permutation
-        write_polynomial(&self.permutation.left_sigma.0, &mut bytes);
-        write_evaluations(&self.permutation.left_sigma.1, &mut bytes);
+        writer.write(&self.permutation.left_sigma.0.to_bytes());
+        writer.write(&self.permutation.left_sigma.1.to_bytes());
 
-        write_polynomial(&self.permutation.right_sigma.0, &mut bytes);
-        write_evaluations(&self.permutation.right_sigma.1, &mut bytes);
+        writer.write(&self.permutation.right_sigma.0.to_bytes());
+        writer.write(&self.permutation.right_sigma.1.to_bytes());
 
-        write_polynomial(&self.permutation.out_sigma.0, &mut bytes);
-        write_evaluations(&self.permutation.out_sigma.1, &mut bytes);
+        writer.write(&self.permutation.out_sigma.0.to_bytes());
+        writer.write(&self.permutation.out_sigma.1.to_bytes());
 
-        write_polynomial(&self.permutation.fourth_sigma.0, &mut bytes);
-        write_evaluations(&self.permutation.fourth_sigma.1, &mut bytes);
-        write_evaluations(&self.permutation.linear_evaluations, &mut bytes);
+        writer.write(&self.permutation.fourth_sigma.0.to_bytes());
+        writer.write(&self.permutation.fourth_sigma.1.to_bytes());
 
-        write_evaluations(&self.v_h_coset_4n, &mut bytes);
+        writer.write(&self.permutation.linear_evaluations.to_bytes());
+
+        writer.write(&self.v_h_coset_4n.to_bytes());
 
         bytes
     }
+
     /// Deserialises a slice of bytes into a ProverKey
     pub fn from_bytes(bytes: &[u8]) -> Result<ProverKey, Error> {
-        use crate::serialisation::{
-            read_evaluations, read_polynomial, read_u64,
+        let mut buffer = &bytes[..];
+        let size = u64::from_reader(&mut buffer)? as usize;
+        let poly_size = u64::from_reader(&mut buffer)? as usize;
+        let evaluations_size = u64::from_reader(&mut buffer)? as usize;
+        // let domain = crate::fft::EvaluationDomain::new(4 * size)?;
+        // TODO: By creating this we can avoid including the EvaluationDomain
+        // inside Evaluations. See: dusk-network/plonk#436
+
+        let poly_from_reader = |buf: &mut &[u8]| -> Result<Polynomial, Error> {
+            let (a, b) = buf.split_at(poly_size);
+            let poly = Polynomial::from_bytes(a);
+            *buf = b;
+
+            poly
         };
 
-        let (n, rest) = read_u64(bytes)?;
-        let domain =
-            crate::fft::EvaluationDomain::new((4 * n) as usize).unwrap();
+        let evals_from_reader =
+            |buf: &mut &[u8]| -> Result<Evaluations, Error> {
+                let (a, b) = buf.split_at(evaluations_size);
+                let eval = Evaluations::from_bytes(a);
+                *buf = b;
 
-        let (q_m_poly, rest) = read_polynomial(&rest)?;
-        let (q_m_evals, rest) = read_evaluations(domain, &rest)?;
+                eval
+            };
+
+        let q_m_poly = poly_from_reader(&mut buffer)?;
+        let q_m_evals = evals_from_reader(&mut buffer)?;
         let q_m = (q_m_poly, q_m_evals);
 
-        let (q_l_poly, rest) = read_polynomial(&rest)?;
-        let (q_l_evals, rest) = read_evaluations(domain, &rest)?;
+        let q_l_poly = poly_from_reader(&mut buffer)?;
+        let q_l_evals = evals_from_reader(&mut buffer)?;
         let q_l = (q_l_poly, q_l_evals);
 
-        let (q_r_poly, rest) = read_polynomial(&rest)?;
-        let (q_r_evals, rest) = read_evaluations(domain, &rest)?;
+        let q_r_poly = poly_from_reader(&mut buffer)?;
+        let q_r_evals = evals_from_reader(&mut buffer)?;
         let q_r = (q_r_poly, q_r_evals);
 
-        let (q_o_poly, rest) = read_polynomial(&rest)?;
-        let (q_o_evals, rest) = read_evaluations(domain, &rest)?;
+        let q_o_poly = poly_from_reader(&mut buffer)?;
+        let q_o_evals = evals_from_reader(&mut buffer)?;
         let q_o = (q_o_poly, q_o_evals);
 
-        let (q_4_poly, rest) = read_polynomial(&rest)?;
-        let (q_4_evals, rest) = read_evaluations(domain, &rest)?;
+        let q_4_poly = poly_from_reader(&mut buffer)?;
+        let q_4_evals = evals_from_reader(&mut buffer)?;
         let q_4 = (q_4_poly, q_4_evals);
 
-        let (q_c_poly, rest) = read_polynomial(&rest)?;
-        let (q_c_evals, rest) = read_evaluations(domain, &rest)?;
+        let q_c_poly = poly_from_reader(&mut buffer)?;
+        let q_c_evals = evals_from_reader(&mut buffer)?;
         let q_c = (q_c_poly, q_c_evals);
 
-        let (q_arith_poly, rest) = read_polynomial(&rest)?;
-        let (q_arith_evals, rest) = read_evaluations(domain, &rest)?;
+        let q_arith_poly = poly_from_reader(&mut buffer)?;
+        let q_arith_evals = evals_from_reader(&mut buffer)?;
         let q_arith = (q_arith_poly, q_arith_evals);
 
-        let (q_logic_poly, rest) = read_polynomial(&rest)?;
-        let (q_logic_evals, rest) = read_evaluations(domain, &rest)?;
+        let q_logic_poly = poly_from_reader(&mut buffer)?;
+        let q_logic_evals = evals_from_reader(&mut buffer)?;
         let q_logic = (q_logic_poly, q_logic_evals);
 
-        let (q_range_poly, rest) = read_polynomial(&rest)?;
-        let (q_range_evals, rest) = read_evaluations(domain, &rest)?;
+        let q_range_poly = poly_from_reader(&mut buffer)?;
+        let q_range_evals = evals_from_reader(&mut buffer)?;
         let q_range = (q_range_poly, q_range_evals);
 
-        let (q_fixed_group_add_poly, rest) = read_polynomial(&rest)?;
-        let (q_fixed_group_add_evals, rest) = read_evaluations(domain, &rest)?;
+        let q_fixed_group_add_poly = poly_from_reader(&mut buffer)?;
+        let q_fixed_group_add_evals = evals_from_reader(&mut buffer)?;
         let q_fixed_group_add =
             (q_fixed_group_add_poly, q_fixed_group_add_evals);
 
-        let (q_variable_group_add_poly, rest) = read_polynomial(&rest)?;
-        let (q_variable_group_add_evals, rest) =
-            read_evaluations(domain, &rest)?;
+        let q_variable_group_add_poly = poly_from_reader(&mut buffer)?;
+        let q_variable_group_add_evals = evals_from_reader(&mut buffer)?;
         let q_variable_group_add =
             (q_variable_group_add_poly, q_variable_group_add_evals);
 
-        let (left_sigma_poly, rest) = read_polynomial(&rest)?;
-        let (left_sigma_evals, rest) = read_evaluations(domain, &rest)?;
+        let left_sigma_poly = poly_from_reader(&mut buffer)?;
+        let left_sigma_evals = evals_from_reader(&mut buffer)?;
         let left_sigma = (left_sigma_poly, left_sigma_evals);
 
-        let (right_sigma_poly, rest) = read_polynomial(&rest)?;
-        let (right_sigma_evals, rest) = read_evaluations(domain, &rest)?;
+        let right_sigma_poly = poly_from_reader(&mut buffer)?;
+        let right_sigma_evals = evals_from_reader(&mut buffer)?;
         let right_sigma = (right_sigma_poly, right_sigma_evals);
 
-        let (out_sigma_poly, rest) = read_polynomial(&rest)?;
-        let (out_sigma_evals, rest) = read_evaluations(domain, &rest)?;
+        let out_sigma_poly = poly_from_reader(&mut buffer)?;
+        let out_sigma_evals = evals_from_reader(&mut buffer)?;
         let out_sigma = (out_sigma_poly, out_sigma_evals);
 
-        let (fourth_sigma_poly, rest) = read_polynomial(&rest)?;
-        let (fourth_sigma_evals, rest) = read_evaluations(domain, &rest)?;
+        let fourth_sigma_poly = poly_from_reader(&mut buffer)?;
+        let fourth_sigma_evals = evals_from_reader(&mut buffer)?;
         let fourth_sigma = (fourth_sigma_poly, fourth_sigma_evals);
-        let (linear_evaluations, rest) = read_evaluations(domain, rest)?;
 
-        let (v_h_coset_4n, _) = read_evaluations(domain, rest)?;
+        let perm_linear_evaluations = evals_from_reader(&mut buffer)?;
+
+        let v_h_coset_4n = evals_from_reader(&mut buffer)?;
 
         let arithmetic = arithmetic::ProverKey {
             q_m,
@@ -385,7 +425,7 @@ impl ProverKey {
             right_sigma,
             out_sigma,
             fourth_sigma,
-            linear_evaluations,
+            linear_evaluations: perm_linear_evaluations,
         };
 
         let variable_base = ecc::curve_addition::ProverKey {
@@ -393,7 +433,7 @@ impl ProverKey {
         };
 
         let prover_key = ProverKey {
-            n: n as usize,
+            n: size,
             arithmetic,
             logic,
             range,
@@ -404,19 +444,6 @@ impl ProverKey {
         };
 
         Ok(prover_key)
-    }
-
-    fn serialised_size(n: usize) -> usize {
-        const SIZE_SCALAR: usize = 32;
-
-        const NUM_POLYNOMIALS: usize = 15;
-        let num_poly_scalars = n;
-
-        const NUM_EVALUATIONS: usize = 16;
-        let num_eval_scalars = 4 * n;
-
-        (NUM_POLYNOMIALS * num_poly_scalars * SIZE_SCALAR)
-            + (NUM_EVALUATIONS * num_eval_scalars * SIZE_SCALAR)
     }
 
     pub(crate) fn v_h_coset_4n(&self) -> &Evaluations {
@@ -509,6 +536,7 @@ mod test {
         };
 
         let prover_key = ProverKey {
+            n,
             arithmetic,
             logic,
             fixed_base,
@@ -516,7 +544,6 @@ mod test {
             variable_base,
             permutation,
             v_h_coset_4n,
-            n,
         };
 
         let prover_key_bytes = prover_key.to_bytes();
