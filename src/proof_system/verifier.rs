@@ -5,17 +5,18 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use crate::commitment_scheme::kzg10::{CommitKey, OpeningKey};
-use crate::constraint_system::{PlookupComposer, StandardComposer};
-use crate::plookup::{MultiSet, PreprocessedTable4Arity};
-use crate::proof_system::widget::{PlookupVerifierKey, VerifierKey};
-use crate::proof_system::{PlookupProof, Proof};
+use crate::constraint_system::StandardComposer;
+use crate::plookup::{MultiSet, PlookupTable4Arity, PreprocessedTable4Arity};
+use crate::proof_system::widget::VerifierKey;
+use crate::proof_system::Proof;
 use anyhow::{Error, Result};
 use dusk_bls12_381::BlsScalar;
 use merlin::Transcript;
-/// Verifier verifies a proof
+
+/// Verifier verifies a plookup proof
 #[allow(missing_debug_implementations)]
 pub struct Verifier {
-    /// VerificationKey which is used to verify a specific PLONK circuit
+    /// VerificationKey which is used to verify a specific Plookup circuit
     pub verifier_key: Option<VerifierKey>,
 
     pub(crate) cs: StandardComposer,
@@ -28,7 +29,7 @@ pub struct Verifier {
 
 impl Default for Verifier {
     fn default() -> Verifier {
-        Verifier::new(b"plonk")
+        Verifier::new(b"plookup")
     }
 }
 
@@ -46,7 +47,7 @@ impl Verifier {
     pub fn with_expected_size(label: &'static [u8], size: usize) -> Verifier {
         Verifier {
             verifier_key: None,
-            cs: StandardComposer::with_expected_size(size),
+            cs:StandardComposer::with_expected_size(size),
             preprocessed_transcript: Transcript::new(label),
         }
     }
@@ -83,6 +84,7 @@ impl Verifier {
         proof: &Proof,
         opening_key: &OpeningKey,
         public_inputs: &[BlsScalar],
+        lookup_table: &PlookupTable4Arity,
     ) -> Result<(), Error> {
         let mut cloned_transcript = self.preprocessed_transcript.clone();
         let verifier_key = self.verifier_key.as_ref().unwrap();
@@ -91,6 +93,7 @@ impl Verifier {
             verifier_key,
             &mut cloned_transcript,
             opening_key,
+            lookup_table,
             public_inputs,
         )
     }
