@@ -17,18 +17,18 @@ use std::collections::HashMap;
 /// to create the permutation polynomial. In the literature, Z(X) is the "accumulator",
 /// this is what this codebase calls the permutation polynomial.  
 #[derive(Debug)]
-pub struct Permutation {
+pub(crate) struct Permutation {
     // Maps a variable to the wires that it is associated to
     pub(crate) variable_map: HashMap<Variable, Vec<WireData>>,
 }
 
 impl Permutation {
     /// Creates a permutation struct with an expected capacity of zero
-    pub fn new() -> Permutation {
+    pub(crate) fn new() -> Permutation {
         Permutation::with_capacity(0)
     }
     /// Creates a permutation struct with an expected capacity of `n`
-    pub fn with_capacity(expected_size: usize) -> Permutation {
+    pub(crate) fn with_capacity(expected_size: usize) -> Permutation {
         Permutation {
             variable_map: HashMap::with_capacity(expected_size),
         }
@@ -36,7 +36,7 @@ impl Permutation {
     /// Creates a new Variable by incrementing the index of the Variable Map
     /// This is correct as whenever we add a new Variable into the system
     /// It is always allocated in the Variable Map
-    pub fn new_variable(&mut self) -> Variable {
+    pub(crate) fn new_variable(&mut self) -> Variable {
         // Generate the Variable
         let var = Variable(self.variable_map.keys().len());
 
@@ -60,7 +60,7 @@ impl Permutation {
     }
     /// Maps a set of variables (a,b,c,d) to a set of Wires (left, right, out, fourth) with
     /// the corresponding gate index
-    pub fn add_variables_to_map(
+    pub(crate) fn add_variables_to_map(
         &mut self,
         a: Variable,
         b: Variable,
@@ -81,7 +81,7 @@ impl Permutation {
         self.add_variable_to_map(d, fourth);
     }
 
-    pub fn add_variable_to_map(&mut self, var: Variable, wire_data: WireData) {
+    pub(crate) fn add_variable_to_map(&mut self, var: Variable, wire_data: WireData) {
         assert!(self.valid_variables(&[var]));
 
         // Since we always allocate space for the Vec of WireData when a
@@ -159,7 +159,7 @@ impl Permutation {
     }
 
     /// Computes the sigma polynomials which are used to build the permutation polynomial
-    pub fn compute_sigma_polynomials(
+    pub(crate) fn compute_sigma_polynomials(
         &mut self,
         n: usize,
         domain: &EvaluationDomain,

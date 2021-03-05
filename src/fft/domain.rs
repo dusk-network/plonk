@@ -22,28 +22,22 @@ use std::ops::MulAssign;
 /// Defines a domain over which finite field (I)FFTs can be performed. Works
 /// only for fields that have a large multiplicative subgroup of size that is
 /// a power-of-2.
-#[derive(Copy, Clone, Eq, PartialEq)]
-pub struct EvaluationDomain {
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub(crate) struct EvaluationDomain {
     /// The size of the domain.
-    pub size: u64,
+    pub(crate) size: u64,
     /// `log_2(self.size)`.
-    pub log_size_of_group: u32,
+    pub(crate) log_size_of_group: u32,
     /// Size of the domain as a field element.
-    pub size_as_field_element: BlsScalar,
+    pub(crate) size_as_field_element: BlsScalar,
     /// Inverse of the size in the field.
-    pub size_inv: BlsScalar,
+    pub(crate) size_inv: BlsScalar,
     /// A generator of the subgroup.
-    pub group_gen: BlsScalar,
+    pub(crate) group_gen: BlsScalar,
     /// Inverse of the generator of the subgroup.
-    pub group_gen_inv: BlsScalar,
+    pub(crate) group_gen_inv: BlsScalar,
     /// Multiplicative generator of the finite field.
-    pub generator_inv: BlsScalar,
-}
-
-impl fmt::Debug for EvaluationDomain {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Multiplicative subgroup of size {}", self.size)
-    }
+    pub(crate) generator_inv: BlsScalar,
 }
 
 impl EvaluationDomain {

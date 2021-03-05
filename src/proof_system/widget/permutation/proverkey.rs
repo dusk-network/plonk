@@ -10,12 +10,12 @@ use crate::permutation::constants::{K1, K2, K3};
 use dusk_bls12_381::BlsScalar;
 
 #[derive(Debug, Eq, PartialEq, Clone)]
-pub struct ProverKey {
-    pub left_sigma: (Polynomial, Evaluations),
-    pub right_sigma: (Polynomial, Evaluations),
-    pub out_sigma: (Polynomial, Evaluations),
-    pub fourth_sigma: (Polynomial, Evaluations),
-    pub linear_evaluations: Evaluations, // Evaluations of f(x) = X [XXX: Remove this and benchmark if it makes a considerable difference -- These are just the domain elements]
+pub(crate) struct ProverKey {
+    pub(crate) left_sigma: (Polynomial, Evaluations),
+    pub(crate) right_sigma: (Polynomial, Evaluations),
+    pub(crate) out_sigma: (Polynomial, Evaluations),
+    pub(crate) fourth_sigma: (Polynomial, Evaluations),
+    pub(crate) linear_evaluations: Evaluations, // Evaluations of f(x) = X [XXX: Remove this and benchmark if it makes a considerable difference -- These are just the domain elements]
 }
 
 impl ProverKey {

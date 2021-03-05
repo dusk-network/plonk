@@ -7,8 +7,11 @@
 //! This module contains an implementation of a polynomial in coefficient form
 //! Where each coefficient is represented using a position in the underlying vector.
 use super::{EvaluationDomain, Evaluations};
+use crate::error::Error;
 use crate::util;
 use dusk_bls12_381::BlsScalar;
+use dusk_bytes::{DeserializableSlice, Serializable};
+#[cfg(test)]
 use rand_core::{CryptoRng, RngCore};
 use rayon::iter::{
     IndexedParallelIterator, IntoParallelIterator, IntoParallelRefIterator, ParallelIterator,
@@ -18,7 +21,7 @@ use std::ops::{Add, AddAssign, Deref, DerefMut, Mul, Neg, Sub, SubAssign};
 
 #[derive(Debug, Eq, PartialEq, Clone)]
 /// Polynomial represents a polynomial in coeffiient form.
-pub struct Polynomial {
+pub(crate) struct Polynomial {
     /// The coefficient of `x^i` is stored at location `i` in `self.coeffs`.
     pub coeffs: Vec<BlsScalar>,
 }
@@ -39,12 +42,12 @@ impl DerefMut for Polynomial {
 
 impl Polynomial {
     /// Returns the zero polynomial.
-    pub fn zero() -> Self {
+    pub(crate) const fn zero() -> Self {
         Self { coeffs: Vec::new() }
     }
 
     /// Checks if the given polynomial is zero.
-    pub fn is_zero(&self) -> bool {
+    pub(crate) fn is_zero(&self) -> bool {
         self.coeffs.is_empty()
             || self
                 .coeffs
@@ -53,7 +56,7 @@ impl Polynomial {
     }
 
     /// Constructs a new polynomial from a list of coefficients.
-    pub fn from_coefficients_slice(coeffs: &[BlsScalar]) -> Self {
+    pub(crate) fn from_coefficients_slice(coeffs: &[BlsScalar]) -> Self {
         Self::from_coefficients_vec(coeffs.to_vec())
     }
 
@@ -61,7 +64,7 @@ impl Polynomial {
     ///
     /// # Panics
     /// When the length of the coeffs is zero.
-    pub fn from_coefficients_vec(coeffs: Vec<BlsScalar>) -> Self {
+    pub(crate) fn from_coefficients_vec(coeffs: Vec<BlsScalar>) -> Self {
         let mut result = Self { coeffs };
         // While there are zeros at the end of the coefficient vector, pop them off.
         result.truncate_leading_zeros();
@@ -76,7 +79,7 @@ impl Polynomial {
     }
 
     /// Returns the degree of the polynomial.
-    pub fn degree(&self) -> usize {
+    pub(crate) fn degree(&self) -> usize {
         if self.is_zero() {
             return 0;
         }
@@ -97,7 +100,7 @@ impl Polynomial {
         }
     }
     /// Evaluates `self` at the given `point` in the field.
-    pub fn evaluate(&self, point: &BlsScalar) -> BlsScalar {
+    pub(crate) fn evaluate(&self, point: &BlsScalar) -> BlsScalar {
         if self.is_zero() {
             return BlsScalar::zero();
         }
@@ -117,9 +120,30 @@ impl Polynomial {
         sum
     }
 
+    /// Given a Polynomial, return it in it's byte representation coefficient by coefficient.
+    pub fn to_bytes(&self) -> Vec<u8> {
+        self.coeffs
+            .iter()
+            .map(|item| item.to_bytes().to_vec())
+            .flatten()
+            .collect()
+    }
+
+    /// Generate a Polynomial from a slice of bytes.
+    pub fn from_bytes(bytes: &[u8]) -> Result<Polynomial, Error> {
+        let coeffs = bytes
+            .chunks(BlsScalar::SIZE)
+            .map(|chunk| BlsScalar::from_slice(chunk))
+            .collect::<Result<Vec<BlsScalar>, dusk_bytes::Error>>()
+            .map_err(|_| Error::BlsScalarMalformed)?;
+
+        Ok(Polynomial { coeffs })
+    }
+
+    #[cfg(test)]
     /// Outputs a polynomial of degree `d` where each coefficient is sampled
     /// uniformly at random from the field `F`.
-    pub fn rand<R: RngCore + CryptoRng>(d: usize, mut rng: &mut R) -> Self {
+    pub(crate) fn rand<R: RngCore + CryptoRng>(d: usize, mut rng: &mut R) -> Self {
         let mut random_coeffs = Vec::with_capacity(d + 1);
         for _ in 0..=d {
             random_coeffs.push(util::random_scalar(&mut rng));
