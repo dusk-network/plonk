@@ -82,7 +82,7 @@ impl StandardComposer {
 
         c
     }
-    /// Adds a width-3 add gate to the circuit linking the product of the
+    /// Adds a width-3 mul gate to the circuit linking the product of the
     /// provided inputs scaled by the selector coefficient `q_m` with the output
     /// provided scaled by `q_o`.
     ///
