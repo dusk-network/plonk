@@ -136,3 +136,5 @@ impl From<DuskBytesError> for Error {
         Self::BytesError(bytes_err)
     }
 }
+
+impl std::error::Error for Error {}
