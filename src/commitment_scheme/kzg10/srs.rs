@@ -9,8 +9,8 @@
 use super::key::{CommitKey, OpeningKey};
 use crate::{error::Error, util};
 use dusk_bls12_381::{G1Affine, G1Projective, G2Affine};
+use dusk_bytes::{DeserializableSlice, Serializable};
 use rand_core::{CryptoRng, RngCore};
-
 use serde::de::Visitor;
 use serde::{self, Deserialize, Deserializer, Serialize, Serializer};
 
@@ -89,14 +89,14 @@ impl PublicParameters {
     /// The bytes source is expected to be trusted and no check will be
     /// performed reggarding the points security
     pub unsafe fn from_slice_unchecked(bytes: &[u8]) -> Result<Self, Error> {
-        if bytes.len() < OpeningKey::serialized_size() + 1 {
+        if bytes.len() < OpeningKey::SIZE + 1 {
             return Err(Error::NotEnoughBytes);
         }
 
-        let opening_key = &bytes[..OpeningKey::serialized_size()];
-        let opening_key = OpeningKey::from_bytes(opening_key)?;
+        let opening_key = &bytes[..OpeningKey::SIZE];
+        let opening_key = OpeningKey::from_slice(opening_key)?;
 
-        let commit_key = &bytes[OpeningKey::serialized_size()..];
+        let commit_key = &bytes[OpeningKey::SIZE..];
         let commit_key = CommitKey::from_slice_unchecked(commit_key);
 
         Ok(Self {
@@ -114,10 +114,10 @@ impl PublicParameters {
 
     /// Deserialise a slice of bytes into a Public Parameter struct
     pub fn from_bytes(bytes: &[u8]) -> Result<PublicParameters, Error> {
-        let opening_key_bytes = &bytes[0..OpeningKey::serialized_size()];
-        let commit_key_bytes = &bytes[OpeningKey::serialized_size()..];
+        let opening_key_bytes = &bytes[0..OpeningKey::SIZE];
+        let commit_key_bytes = &bytes[OpeningKey::SIZE..];
 
-        let opening_key = OpeningKey::from_bytes(opening_key_bytes)?;
+        let opening_key = OpeningKey::from_slice(opening_key_bytes)?;
         let commit_key = CommitKey::from_bytes(commit_key_bytes)?;
 
         let pp = PublicParameters {

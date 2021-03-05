@@ -25,7 +25,6 @@ merlin = "2.0.0"
 rand = "0.7"
 rand_core = {version="0.5", default-features=false}
 dusk-bytes = "0.1"
-# Built by default with "std", "alloc", "pairing", "groups" and "endo" features.
 dusk-bls12_381 = "0.6"
 dusk-jubjub = "0.8"
 itertools = "0.9.0"

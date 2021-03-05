@@ -15,24 +15,8 @@ use dusk_bls12_381::{
     multiscalar_mul::msm_variable_base, BlsScalar, G1Affine, G1Projective,
     G2Affine, G2Prepared,
 };
-use dusk_bytes::Serializable;
+use dusk_bytes::{DeserializableSlice, Serializable};
 use merlin::Transcript;
-
-/// Opening Key is used to verify opening proofs made about a committed
-/// polynomial.
-#[derive(Clone, Debug)]
-pub struct OpeningKey {
-    /// The generator of G1.
-    pub g: G1Affine,
-    /// The generator of G2.
-    pub h: G2Affine,
-    /// \beta times the above generator of G2.
-    pub beta_h: G2Affine,
-    /// The generator of G2, prepared for use in pairings.
-    pub prepared_h: G2Prepared,
-    /// \beta times the above generator of G2, prepared for use in pairings.
-    pub prepared_beta_h: G2Prepared,
-}
 
 /// CommitKey is used to commit to a polynomial which is bounded by the
 /// max_degree.
@@ -209,6 +193,47 @@ impl CommitKey {
     }
 }
 
+/// Opening Key is used to verify opening proofs made about a committed
+/// polynomial.
+#[derive(Clone, Debug)]
+pub struct OpeningKey {
+    /// The generator of G1.
+    pub(crate) g: G1Affine,
+    /// The generator of G2.
+    pub(crate) h: G2Affine,
+    /// \beta times the above generator of G2.
+    pub(crate) beta_h: G2Affine,
+    /// The generator of G2, prepared for use in pairings.
+    pub(crate) prepared_h: G2Prepared,
+    /// \beta times the above generator of G2, prepared for use in pairings.
+    pub(crate) prepared_beta_h: G2Prepared,
+}
+
+impl Serializable<{ G1Affine::SIZE + 2 * G2Affine::SIZE }> for OpeningKey {
+    type Error = dusk_bytes::Error;
+    #[allow(unused_must_use)]
+    fn to_bytes(&self) -> [u8; Self::SIZE] {
+        use dusk_bytes::Write;
+        let mut buf = [0u8; Self::SIZE];
+        let mut writer = &mut buf[..];
+        // This can't fail therefore we don't care about the Result nor use it.
+        writer.write(&self.g.to_bytes());
+        writer.write(&self.h.to_bytes());
+        writer.write(&self.beta_h.to_bytes());
+
+        buf
+    }
+
+    fn from_bytes(buf: &[u8; Self::SIZE]) -> Result<OpeningKey, Self::Error> {
+        let mut buffer = &buf[..];
+        let g = G1Affine::from_reader(&mut buffer)?;
+        let h = G2Affine::from_reader(&mut buffer)?;
+        let beta_h = G2Affine::from_reader(&mut buffer)?;
+
+        Ok(OpeningKey::new(g, h, beta_h))
+    }
+}
+
 impl OpeningKey {
     pub(crate) fn new(
         g: G1Affine,
@@ -224,39 +249,6 @@ impl OpeningKey {
             prepared_beta_h,
             prepared_h,
         }
-    }
-
-    /// Serialises an Opening Key to bytes
-    pub fn to_bytes(&self) -> [u8; Self::serialized_size()] {
-        let mut bytes = [0u8; Self::serialized_size()];
-
-        bytes[0..48].copy_from_slice(&self.g.to_bytes());
-        bytes[48..144].copy_from_slice(&self.h.to_bytes());
-        bytes[144..Self::serialized_size()]
-            .copy_from_slice(&self.beta_h.to_bytes());
-
-        bytes
-    }
-
-    /// Returns the serialized size of [`OpeningKey`]
-    pub const fn serialized_size() -> usize {
-        const NUM_G2: usize = 2;
-        const NUM_G1: usize = 1;
-        const G1_SIZE: usize = 48;
-        const G2_SIZE: usize = 96;
-
-        NUM_G1 * G1_SIZE + NUM_G2 * G2_SIZE
-    }
-
-    /// Deserialises a byte slice into an Opening Key
-    pub fn from_bytes(bytes: &[u8]) -> Result<OpeningKey, Error> {
-        use crate::serialisation::{read_g1_affine, read_g2_affine};
-
-        let (g, rest) = read_g1_affine(&bytes)?;
-        let (h, rest) = read_g2_affine(&rest)?;
-        let (beta_h, _) = read_g2_affine(&rest)?;
-
-        Ok(OpeningKey::new(g, h, beta_h))
     }
 
     /// Checks whether a batch of polynomials evaluated at different points,
@@ -545,7 +537,7 @@ mod test {
     }
 
     #[test]
-    fn opening_key_serde() {
+    fn opening_key_dusk_bytes() {
         let (_, opening_key) = setup_test(7);
         let ok_bytes = opening_key.to_bytes();
         let obtained_key = OpeningKey::from_bytes(&ok_bytes)
