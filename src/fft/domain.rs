@@ -81,16 +81,6 @@ impl EvaluationDomain {
             generator_inv: GENERATOR.invert().unwrap(),
         })
     }
-    /// Return the size of a domain that is large enough for evaluations of a
-    /// polynomial having `num_coeffs` coefficients.
-    pub fn compute_size_of_domain(num_coeffs: usize) -> Option<usize> {
-        let size = num_coeffs.next_power_of_two();
-        if size.trailing_zeros() < TWO_ADACITY {
-            Some(size)
-        } else {
-            None
-        }
-    }
 
     /// Return the size of `self`.
     pub fn size(&self) -> usize {
@@ -237,71 +227,6 @@ impl EvaluationDomain {
             cur_pow: 0,
             domain: *self,
         }
-    }
-
-    /// The target polynomial is the zero polynomial in our
-    /// evaluation domain, so we must perform division over
-    /// a coset.
-    pub fn divide_by_vanishing_poly_on_coset_in_place(&self, evals: &mut [BlsScalar]) {
-        let i = self
-            .evaluate_vanishing_polynomial(&GENERATOR)
-            .invert()
-            .unwrap();
-
-        evals.par_iter_mut().for_each(|eval| *eval *= &i);
-    }
-
-    /// Given an index which assumes the first elements of this domain are the
-    /// elements of another (sub)domain with size size_s,
-    /// this returns the actual index into this domain.
-    ///
-    /// # Panics
-    /// When the index of self is smaller than the other provided.
-    pub fn reindex_by_subdomain(&self, other: Self, index: usize) -> usize {
-        assert!(self.size() >= other.size());
-        // Let this subgroup be G, and the subgroup we're re-indexing by be S.
-        // Since its a subgroup, the 0th element of S is at index 0 in G, the first
-        // element of S is at index |G|/|S|, the second at 2*|G|/|S|, etc.
-        // Thus for an index i that corresponds to S, the index in G is i*|G|/|S|
-        let period = self.size() / other.size();
-        if index < other.size() {
-            index * period
-        } else {
-            // Let i now be the index of this element in G \ S
-            // Let x be the number of elements in G \ S, for every element in S. Then x =
-            // (|G|/|S| - 1). At index i in G \ S, the number of elements in S
-            // that appear before the index in G to which i corresponds to, is
-            // floor(i / x) + 1. The +1 is because index 0 of G is S_0, so the
-            // position is offset by at least one. The floor(i / x) term is
-            // because after x elements in G \ S, there is one more element from S
-            // that will have appeared in G.
-            let i = index - other.size();
-            let x = period - 1;
-            i + (i / x) + 1
-        }
-    }
-
-    /// Perform O(n) multiplication of two polynomials that are presented by
-    /// their evaluations in the domain.
-    /// Returns the evaluations of the product over the domain.
-    ///
-    /// Assumes that the domain is large enough to allow for successful
-    /// interpolation after multiplication.
-    #[must_use]
-    pub fn mul_polynomials_in_evaluation_domain(
-        &self,
-        self_evals: &[BlsScalar],
-        other_evals: &[BlsScalar],
-    ) -> Vec<BlsScalar> {
-        assert_eq!(self_evals.len(), other_evals.len());
-        let mut result = self_evals.to_vec();
-
-        result
-            .par_iter_mut()
-            .zip(other_evals)
-            .for_each(|(a, b)| *a *= b);
-
-        result
     }
 }
 
