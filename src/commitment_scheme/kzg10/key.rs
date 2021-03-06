@@ -7,7 +7,7 @@
 //! Key module contains the utilities and data structures
 //! that support the generation and usage of Commit and
 //! Opening keys.
-use super::{AggregateProof, Commitment, Proof};
+use super::{Commitment, Proof};
 use crate::{
     error::Error, fft::Polynomial, transcript::TranscriptProtocol, util,
 };
@@ -173,22 +173,6 @@ impl CommitKey {
         Ok(Commitment::from_projective(commitment))
     }
 
-    /// For a given polynomial `p` and a point `z`, compute the witness
-    /// for p(z) using Ruffini's method for simplicity.
-    /// The Witness is the quotient of f(x) - f(z) / x-z.
-    /// However we note that the quotient polynomial is invariant under the
-    /// value f(z) ie. only the remainder changes. We can therefore compute
-    /// the witness as f(x) / x - z and only use the remainder term f(z)
-    /// during verification.
-    pub fn compute_single_witness(
-        &self,
-        polynomial: &Polynomial,
-        point: &BlsScalar,
-    ) -> Polynomial {
-        // Computes `f(x) / x-z`, returning it as the witness poly
-        polynomial.ruffini(*point)
-    }
-
     /// Computes a single witness for multiple polynomials at the same point, by
     /// taking a random linear combination of the individual witnesses.
     /// We apply the same optimisation mentioned in when computing each witness;
@@ -210,55 +194,6 @@ impl CommitKey {
             .map(|(poly, challenge)| poly * challenge)
             .sum();
         numerator.ruffini(*point)
-    }
-
-    /// Creates an opening proof that a polynomial `p` was correctly evaluated
-    /// at p(z) and produced the value `v`. ie v = p(z).
-    /// Returns an error if the polynomials degree is too large.
-    pub fn open_single(
-        &self,
-        polynomial: &Polynomial,
-        value: &BlsScalar,
-        point: &BlsScalar,
-    ) -> Result<Proof, Error> {
-        let witness_poly = self.compute_single_witness(polynomial, point);
-        Ok(Proof {
-            commitment_to_witness: self.commit(&witness_poly)?,
-            evaluated_point: *value,
-            commitment_to_polynomial: self.commit(polynomial)?,
-        })
-    }
-
-    /// Creates an opening proof that multiple polynomials were evaluated at the
-    /// same point and that each evaluation produced the correct evaluation
-    /// point. Returns an error if any of the polynomial's degrees are too
-    /// large.
-    pub fn open_multiple(
-        &self,
-        polynomials: &[Polynomial],
-        evaluations: Vec<BlsScalar>,
-        point: &BlsScalar,
-        transcript: &mut Transcript,
-    ) -> Result<AggregateProof, Error> {
-        // Commit to polynomials
-        let mut polynomial_commitments = Vec::with_capacity(polynomials.len());
-        for poly in polynomials.iter() {
-            polynomial_commitments.push(self.commit(poly)?)
-        }
-
-        // Compute the aggregate witness for polynomials
-        let witness_poly =
-            self.compute_aggregate_witness(polynomials, point, transcript);
-
-        // Commit to witness polynomial
-        let witness_commitment = self.commit(&witness_poly)?;
-
-        let aggregate_proof = AggregateProof {
-            commitment_to_witness: witness_commitment,
-            evaluated_points: evaluations,
-            commitments_to_polynomials: polynomial_commitments,
-        };
-        Ok(aggregate_proof)
     }
 }
 
@@ -310,25 +245,6 @@ impl OpeningKey {
         let (beta_h, _) = read_g2_affine(&rest)?;
 
         Ok(OpeningKey::new(g, h, beta_h))
-    }
-
-    /// Checks that a polynomial `p` was evaluated at a point `z` and returned
-    /// the value specified `v`. ie. v = p(z).
-    pub fn check(&self, point: BlsScalar, proof: Proof) -> bool {
-        let inner_a: G1Affine = (proof.commitment_to_polynomial.0
-            - (self.g * proof.evaluated_point))
-            .into();
-
-        let inner_b: G2Affine = (self.beta_h - (self.h * point)).into();
-        let prepared_inner_b = G2Prepared::from(-inner_b);
-
-        let pairing = dusk_bls12_381::multi_miller_loop(&[
-            (&inner_a, &self.prepared_h),
-            (&proof.commitment_to_witness.0, &prepared_inner_b),
-        ])
-        .final_exponentiation();
-
-        pairing == dusk_bls12_381::Gt::identity()
     }
 
     /// Checks whether a batch of polynomials evaluated at different points,
