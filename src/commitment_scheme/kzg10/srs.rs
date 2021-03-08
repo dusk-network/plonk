@@ -90,23 +90,21 @@ impl PublicParameters {
     /// Deserialize [`PublicParameters`] from a set of bytes created by
     /// `to_raw_bytes`
     ///
-    /// The bytes source is expected to be trusted and no check will be
-    /// performed reggarding the points security
-    pub unsafe fn from_slice_unchecked(bytes: &[u8]) -> Result<Self, Error> {
-        if bytes.len() < OpeningKey::SIZE + 1 {
-            return Err(Error::NotEnoughBytes);
-        }
-
+    /// The bytes source is expected to be trusted and no checks will be
+    /// performed reggarding the content of the points that the bytes
+    /// contain serialized.
+    pub unsafe fn from_slice_unchecked(bytes: &[u8]) -> Self {
         let opening_key = &bytes[..OpeningKey::SIZE];
-        let opening_key = OpeningKey::from_slice(opening_key)?;
+        let opening_key = OpeningKey::from_slice(opening_key)
+            .expect("Error at OpeningKey deserialization");
 
         let commit_key = &bytes[OpeningKey::SIZE..];
         let commit_key = CommitKey::from_slice_unchecked(commit_key);
 
-        Ok(Self {
+        Self {
             commit_key,
             opening_key,
-        })
+        }
     }
 
     /// Serialises a [`PublicParameters`] struct into a slice of bytes.

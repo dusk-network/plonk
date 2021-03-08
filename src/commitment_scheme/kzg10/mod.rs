@@ -109,9 +109,9 @@ impl Serializable<{ G1Affine::SIZE }> for Commitment {
         self.0.to_bytes()
     }
 
-    fn from_bytes(buf: &[u8; Self::SIZE]) -> Result<Commitment, Self::Error> {
+    fn from_bytes(buf: &[u8; Self::SIZE]) -> Result<Self, Self::Error> {
         let g1 = G1Affine::from_slice(buf)?;
-        Ok(Commitment(g1))
+        Ok(Self(g1))
     }
 }
 

@@ -41,8 +41,9 @@ impl CommitKey {
     /// This functions output should not be used by the regular
     /// `CommitKey::from_bytes()` fn.
     pub fn to_raw_bytes(&self) -> Vec<u8> {
-        let mut bytes =
-            Vec::with_capacity(8 + self.powers_of_g.len() * G1Affine::RAW_SIZE);
+        let mut bytes = Vec::with_capacity(
+            u64::SIZE + self.powers_of_g.len() * G1Affine::RAW_SIZE,
+        );
 
         let len = self.powers_of_g.len() as u64;
         let len = len.to_le_bytes();
@@ -61,17 +62,11 @@ impl CommitKey {
     /// The bytes source is expected to be trusted and no check will be
     /// performed reggarding the points security
     pub unsafe fn from_slice_unchecked(bytes: &[u8]) -> Self {
-        if bytes.len() < 9 {
-            return Self {
-                powers_of_g: vec![],
-            };
-        }
-
-        let mut len = [0u8; 8];
-        len.copy_from_slice(&bytes[..8]);
+        let mut len = [0u8; u64::SIZE];
+        len.copy_from_slice(&bytes[..u64::SIZE]);
         let len = u64::from_le_bytes(len);
 
-        let powers_of_g = bytes[8..]
+        let powers_of_g = bytes[u64::SIZE..]
             .chunks_exact(G1Affine::RAW_SIZE)
             .zip(0..len)
             .map(|(c, _)| G1Affine::from_slice_unchecked(c))
@@ -84,8 +79,7 @@ impl CommitKey {
     pub fn to_bytes(&self) -> Vec<u8> {
         self.powers_of_g
             .iter()
-            .map(|item| item.to_bytes().to_vec())
-            .flatten()
+            .flat_map(|item| item.to_bytes().to_vec())
             .collect()
     }
 
@@ -212,7 +206,7 @@ pub struct OpeningKey {
     pub(crate) prepared_beta_h: G2Prepared,
 }
 
-impl Serializable<{ G1Affine::SIZE + 2 * G2Affine::SIZE }> for OpeningKey {
+impl Serializable<{ G1Affine::SIZE + G2Affine::SIZE * 2 }> for OpeningKey {
     type Error = dusk_bytes::Error;
     #[allow(unused_must_use)]
     fn to_bytes(&self) -> [u8; Self::SIZE] {
@@ -227,13 +221,13 @@ impl Serializable<{ G1Affine::SIZE + 2 * G2Affine::SIZE }> for OpeningKey {
         buf
     }
 
-    fn from_bytes(buf: &[u8; Self::SIZE]) -> Result<OpeningKey, Self::Error> {
+    fn from_bytes(buf: &[u8; Self::SIZE]) -> Result<Self, Self::Error> {
         let mut buffer = &buf[..];
         let g = G1Affine::from_reader(&mut buffer)?;
         let h = G2Affine::from_reader(&mut buffer)?;
         let beta_h = G2Affine::from_reader(&mut buffer)?;
 
-        Ok(OpeningKey::new(g, h, beta_h))
+        Ok(Self::new(g, h, beta_h))
     }
 }
 
@@ -243,7 +237,7 @@ impl OpeningKey {
         h: G2Affine,
         beta_h: G2Affine,
     ) -> OpeningKey {
-        let prepared_h: G2Prepared = G2Prepared::from(h);
+        let prepared_h = G2Prepared::from(h);
         let prepared_beta_h = G2Prepared::from(beta_h);
         OpeningKey {
             g,
