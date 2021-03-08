@@ -79,7 +79,8 @@ where
         ))
     }
 
-    /// Generates a proof using the provided `CircuitInputs` & `ProverKey` instances.
+    /// Generates a proof using the provided `CircuitInputs` & `ProverKey`
+    /// instances.
     fn gen_proof(
         &mut self,
         pub_params: &PublicParameters,
@@ -101,7 +102,8 @@ where
     fn padded_circuit_size(&self) -> usize;
 }
 
-/// Verifies a proof using the provided `CircuitInputs` & `VerifierKey` instances.
+/// Verifies a proof using the provided `CircuitInputs` & `VerifierKey`
+/// instances.
 pub fn verify_proof(
     pub_params: &PublicParameters,
     verifier_key: &VerifierKey,
@@ -164,7 +166,10 @@ mod tests {
     }
 
     impl Circuit for TestCircuit {
-        fn gadget(&mut self, composer: &mut StandardComposer) -> Result<(), Error> {
+        fn gadget(
+            &mut self,
+            composer: &mut StandardComposer,
+        ) -> Result<(), Error> {
             let a = composer.add_input(self.a);
             let b = composer.add_input(self.b);
             // Make first constraint a + b = c
@@ -195,13 +200,18 @@ mod tests {
                 Some(-self.d),
             );
 
-            // This adds a PI also constraining `generator` to actually be `dusk_jubjub::GENERATOR`
-            let generator = Point::from_public_affine(composer, dusk_jubjub::GENERATOR);
+            // This adds a PI also constraining `generator` to actually be
+            // `dusk_jubjub::GENERATOR`
+            let generator =
+                Point::from_public_affine(composer, dusk_jubjub::GENERATOR);
             let e = composer.add_input(self.e.into());
             let scalar_mul_result =
-                scalar_mul::variable_base::variable_base_scalar_mul(composer, e, generator);
+                scalar_mul::variable_base::variable_base_scalar_mul(
+                    composer, e, generator,
+                );
             // Apply the constrain
-            composer.assert_equal_public_point(scalar_mul_result.into(), self.f);
+            composer
+                .assert_equal_public_point(scalar_mul_result.into(), self.f);
             Ok(())
         }
         fn padded_circuit_size(&self) -> usize {
@@ -228,7 +238,8 @@ mod tests {
 
         // Read PublicParameters
         let pp = fs::read(pp_path).unwrap();
-        let pp = unsafe { PublicParameters::from_slice_unchecked(pp.as_slice())? };
+        let pp =
+            unsafe { PublicParameters::from_slice_unchecked(pp.as_slice())? };
 
         // Initialize the circuit
         let mut circuit = TestCircuit::default();
@@ -263,7 +274,9 @@ mod tests {
                 c: BlsScalar::from(25u64),
                 d: BlsScalar::from(100u64),
                 e: JubJubScalar::from(2u64),
-                f: JubJubAffine::from(dusk_jubjub::GENERATOR_EXTENDED * JubJubScalar::from(2u64)),
+                f: JubJubAffine::from(
+                    dusk_jubjub::GENERATOR_EXTENDED * JubJubScalar::from(2u64),
+                ),
             };
 
             circuit.gen_proof(&pp, &pk, b"Test")
@@ -274,7 +287,10 @@ mod tests {
             BlsScalar::from(25u64).into(),
             BlsScalar::from(100u64).into(),
             dusk_jubjub::GENERATOR.into(),
-            JubJubAffine::from(dusk_jubjub::GENERATOR_EXTENDED * JubJubScalar::from(2u64)).into(),
+            JubJubAffine::from(
+                dusk_jubjub::GENERATOR_EXTENDED * JubJubScalar::from(2u64),
+            )
+            .into(),
         ];
 
         verify_proof(&pp, &vk, &proof, &public_inputs2, &pi_pos, b"Test")

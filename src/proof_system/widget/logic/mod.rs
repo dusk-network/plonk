@@ -10,11 +10,8 @@ mod verifierkey;
 pub use proverkey::ProverKey;
 pub use verifierkey::VerifierKey;
 
-/// Common functionality across both the ProverKey and VerifierKey are listed below
-///
-///
-///
-///
+/// Common functionality across both the ProverKey and VerifierKey are
+/// listed below
 use dusk_bls12_381::BlsScalar;
 // Computes f(f-1)(f-2)(f-3)
 fn delta(f: BlsScalar) -> BlsScalar {
@@ -46,7 +43,8 @@ fn delta_xor_and(
     let eighty_three = BlsScalar::from(83);
 
     let F = w
-        * (w * (four * w - eighteen * (a + b) + eighty_one) + eighteen * (a.square() + b.square())
+        * (w * (four * w - eighteen * (a + b) + eighty_one)
+            + eighteen * (a.square() + b.square())
             - eighty_one * (a + b)
             + eighty_three);
     let E = three * (a + b + c) - (two * F);

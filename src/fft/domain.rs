@@ -16,7 +16,9 @@ use super::Evaluations;
 use crate::error::Error;
 use core::fmt;
 use dusk_bls12_381::{BlsScalar, GENERATOR, ROOT_OF_UNITY, TWO_ADACITY};
-use rayon::iter::{IndexedParallelIterator, IntoParallelRefMutIterator, ParallelIterator};
+use rayon::iter::{
+    IndexedParallelIterator, IntoParallelRefMutIterator, ParallelIterator,
+};
 use std::ops::MulAssign;
 
 /// Defines a domain over which finite field (I)FFTs can be performed. Works
@@ -155,8 +157,8 @@ impl EvaluationDomain {
         evals
     }
 
-    /// Compute an IFFT over a coset of the domain, modifying the input vector in
-    /// place.
+    /// Compute an IFFT over a coset of the domain, modifying the input vector
+    /// in place.
     pub fn coset_ifft_in_place(&self, evals: &mut Vec<BlsScalar>) {
         self.ifft_in_place(evals);
         Self::distribute_powers(evals, self.generator_inv);
@@ -165,7 +167,10 @@ impl EvaluationDomain {
     #[allow(clippy::needless_range_loop)]
     /// Evaluate all the lagrange polynomials defined by this domain at the
     /// point `tau`.
-    pub fn evaluate_all_lagrange_coefficients(&self, tau: BlsScalar) -> Vec<BlsScalar> {
+    pub fn evaluate_all_lagrange_coefficients(
+        &self,
+        tau: BlsScalar,
+    ) -> Vec<BlsScalar> {
         // Evaluate all Lagrange polynomials
         let size = self.size as usize;
         let t_size = tau.pow(&[self.size, 0, 0, 0]);
@@ -223,7 +228,8 @@ impl EvaluationDomain {
         let coset_gen = GENERATOR.pow(&[poly_degree, 0, 0, 0]);
         let v_h: Vec<_> = (0..self.size())
             .map(|i| {
-                (coset_gen * self.group_gen.pow(&[poly_degree * i as u64, 0, 0, 0]))
+                (coset_gen
+                    * self.group_gen.pow(&[poly_degree * i as u64, 0, 0, 0]))
                     - BlsScalar::one()
             })
             .collect();
@@ -242,7 +248,10 @@ impl EvaluationDomain {
     /// The target polynomial is the zero polynomial in our
     /// evaluation domain, so we must perform division over
     /// a coset.
-    pub fn divide_by_vanishing_poly_on_coset_in_place(&self, evals: &mut [BlsScalar]) {
+    pub fn divide_by_vanishing_poly_on_coset_in_place(
+        &self,
+        evals: &mut [BlsScalar],
+    ) {
         let i = self
             .evaluate_vanishing_polynomial(&GENERATOR)
             .invert()
@@ -260,21 +269,23 @@ impl EvaluationDomain {
     pub fn reindex_by_subdomain(&self, other: Self, index: usize) -> usize {
         assert!(self.size() >= other.size());
         // Let this subgroup be G, and the subgroup we're re-indexing by be S.
-        // Since its a subgroup, the 0th element of S is at index 0 in G, the first
-        // element of S is at index |G|/|S|, the second at 2*|G|/|S|, etc.
-        // Thus for an index i that corresponds to S, the index in G is i*|G|/|S|
+        // Since its a subgroup, the 0th element of S is at index 0 in G, the
+        // first element of S is at index |G|/|S|, the second at
+        // 2*|G|/|S|, etc. Thus for an index i that corresponds to S,
+        // the index in G is i*|G|/|S|
         let period = self.size() / other.size();
         if index < other.size() {
             index * period
         } else {
             // Let i now be the index of this element in G \ S
-            // Let x be the number of elements in G \ S, for every element in S. Then x =
-            // (|G|/|S| - 1). At index i in G \ S, the number of elements in S
-            // that appear before the index in G to which i corresponds to, is
-            // floor(i / x) + 1. The +1 is because index 0 of G is S_0, so the
+            // Let x be the number of elements in G \ S, for every element in S.
+            // Then x = (|G|/|S| - 1). At index i in G \ S, the
+            // number of elements in S that appear before the index
+            // in G to which i corresponds to, is floor(i / x) + 1.
+            // The +1 is because index 0 of G is S_0, so the
             // position is offset by at least one. The floor(i / x) term is
-            // because after x elements in G \ S, there is one more element from S
-            // that will have appeared in G.
+            // because after x elements in G \ S, there is one more element from
+            // S that will have appeared in G.
             let i = index - other.size();
             let x = period - 1;
             i + (i / x) + 1

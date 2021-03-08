@@ -30,8 +30,10 @@ impl VerifierKey {
 
         let b_1 = delta(evaluations.c_eval - (four * evaluations.d_eval));
         let b_2 = delta(evaluations.b_eval - four * evaluations.c_eval) * kappa;
-        let b_3 = delta(evaluations.a_eval - four * evaluations.b_eval) * kappa_sq;
-        let b_4 = delta(evaluations.d_next_eval - (four * evaluations.a_eval)) * kappa_cu;
+        let b_3 =
+            delta(evaluations.a_eval - four * evaluations.b_eval) * kappa_sq;
+        let b_4 = delta(evaluations.d_next_eval - (four * evaluations.a_eval))
+            * kappa_cu;
 
         scalars.push((b_1 + b_2 + b_3 + b_4) * range_separation_challenge);
         points.push(self.q_range.0);

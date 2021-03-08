@@ -30,14 +30,18 @@ macro_rules! impl_serde {
                         formatter: &mut ::core::fmt::Formatter,
                     ) -> ::core::fmt::Result {
                         let struct_name = String::from(stringify!($w));
-                        formatter.write_fmt(format_args!("expected a valid {}", struct_name))
+                        formatter.write_fmt(format_args!(
+                            "expected a valid {}",
+                            struct_name
+                        ))
                     }
 
                     fn visit_bytes<E>(self, v: &[u8]) -> Result<$w, E>
                     where
                         E: serde::de::Error,
                     {
-                        return $w::from_bytes(v).map_err(serde::de::Error::custom);
+                        return $w::from_bytes(v)
+                            .map_err(serde::de::Error::custom);
                     }
                 }
 
@@ -73,14 +77,18 @@ macro_rules! impl_serde_into {
                         formatter: &mut ::core::fmt::Formatter,
                     ) -> ::core::fmt::Result {
                         let struct_name = String::from(stringify!($w));
-                        formatter.write_fmt(format_args!("expected a valid {}", struct_name))
+                        formatter.write_fmt(format_args!(
+                            "expected a valid {}",
+                            struct_name
+                        ))
                     }
 
                     fn visit_bytes<E>(self, v: &[u8]) -> Result<$w, E>
                     where
                         E: serde::de::Error,
                     {
-                        return $w::from_bytes(v).map_err(serde::de::Error::custom);
+                        return $w::from_bytes(v)
+                            .map_err(serde::de::Error::custom);
                     }
                 }
 

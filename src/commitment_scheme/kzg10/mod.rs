@@ -24,7 +24,8 @@ pub struct Proof {
     pub commitment_to_witness: Commitment,
     /// This is the result of evaluating a polynomial at the point `z`.
     pub evaluated_point: BlsScalar,
-    /// This is the commitment to the polynomial that you want to prove a statement about.
+    /// This is the commitment to the polynomial that you want to prove a
+    /// statement about.
     pub commitment_to_polynomial: Commitment,
 }
 
@@ -34,9 +35,11 @@ pub struct Proof {
 pub struct AggregateProof {
     /// This is a commitment to the aggregated witness polynomial.
     pub commitment_to_witness: Commitment,
-    /// These are the results of the evaluating each polynomial at the point `z`.
+    /// These are the results of the evaluating each polynomial at the point
+    /// `z`.
     pub evaluated_points: Vec<BlsScalar>,
-    /// These are the commitments to the polynomials which you want to prove a statement about.
+    /// These are the commitments to the polynomials which you want to prove a
+    /// statement about.
     pub commitments_to_polynomials: Vec<Commitment>,
 }
 
@@ -50,17 +53,20 @@ impl AggregateProof {
         }
     }
 
-    /// Adds an evaluated point with the commitment to the polynomial which produced it.
+    /// Adds an evaluated point with the commitment to the polynomial which
+    /// produced it.
     pub fn add_part(&mut self, part: (BlsScalar, Commitment)) {
         self.evaluated_points.push(part.0);
         self.commitments_to_polynomials.push(part.1);
     }
 
     /// Flattens an `AggregateProof` into a `Proof`.
-    /// The transcript must have the same view as the transcript that was used to aggregate the witness in the proving stage.
+    /// The transcript must have the same view as the transcript that was used
+    /// to aggregate the witness in the proving stage.
     pub fn flatten(&self, transcript: &mut Transcript) -> Proof {
         let challenge = transcript.challenge_scalar(b"aggregate_witness");
-        let powers = powers_of(&challenge, self.commitments_to_polynomials.len() - 1);
+        let powers =
+            powers_of(&challenge, self.commitments_to_polynomials.len() - 1);
 
         // Flattened polynomial commitments using challenge
         let flattened_poly_commitments: G1Projective = self
@@ -80,13 +86,16 @@ impl AggregateProof {
         Proof {
             commitment_to_witness: self.commitment_to_witness,
             evaluated_point: flattened_poly_evaluations,
-            commitment_to_polynomial: Commitment::from_projective(flattened_poly_commitments),
+            commitment_to_polynomial: Commitment::from_projective(
+                flattened_poly_commitments,
+            ),
         }
     }
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
-/// Holds a commitment to a polynomial in a form of a `G1Affine` Bls12_381 point.
+/// Holds a commitment to a polynomial in a form of a `G1Affine` Bls12_381
+/// point.
 pub struct Commitment(
     /// The commitment is a group element.
     pub G1Affine,

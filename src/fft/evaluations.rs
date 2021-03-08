@@ -8,7 +8,9 @@
 
 use super::domain::EvaluationDomain;
 use super::polynomial::Polynomial;
-use core::ops::{Add, AddAssign, DivAssign, Index, Mul, MulAssign, Sub, SubAssign};
+use core::ops::{
+    Add, AddAssign, DivAssign, Index, Mul, MulAssign, Sub, SubAssign,
+};
 use dusk_bls12_381::BlsScalar;
 
 /// Stores a polynomial in evaluation form.
@@ -22,7 +24,10 @@ pub struct Evaluations {
 
 impl Evaluations {
     /// Construct `Self` from evaluations and a domain.
-    pub fn from_vec_and_domain(evals: Vec<BlsScalar>, domain: EvaluationDomain) -> Self {
+    pub fn from_vec_and_domain(
+        evals: Vec<BlsScalar>,
+        domain: EvaluationDomain,
+    ) -> Self {
         Self { evals, domain }
     }
 

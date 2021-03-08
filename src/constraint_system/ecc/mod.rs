@@ -57,8 +57,16 @@ impl Point {
         affine: dusk_jubjub::JubJubAffine,
     ) -> Point {
         let point = Point::from_private_affine(composer, affine);
-        composer.constrain_to_constant(point.x, BlsScalar::zero(), Some(-affine.get_x()));
-        composer.constrain_to_constant(point.y, BlsScalar::zero(), Some(-affine.get_y()));
+        composer.constrain_to_constant(
+            point.x,
+            BlsScalar::zero(),
+            Some(-affine.get_x()),
+        );
+        composer.constrain_to_constant(
+            point.y,
+            BlsScalar::zero(),
+            Some(-affine.get_y()),
+        );
 
         point
     }
@@ -107,12 +115,20 @@ impl From<PointScalar> for Point {
 
 impl Point {
     /// Adds two curve points together
-    pub fn add(&self, composer: &mut StandardComposer, point_b: Point) -> Point {
+    pub fn add(
+        &self,
+        composer: &mut StandardComposer,
+        point_b: Point,
+    ) -> Point {
         self.fast_add(composer, point_b)
     }
 
     /// Adds two curve points together using arithmetic gates
-    pub fn slow_add(&self, composer: &mut StandardComposer, point_b: Point) -> Point {
+    pub fn slow_add(
+        &self,
+        composer: &mut StandardComposer,
+        point_b: Point,
+    ) -> Point {
         let x1 = self.x;
         let y1 = self.y;
 
@@ -120,15 +136,20 @@ impl Point {
         let y2 = point_b.y;
 
         // x1 * y2
-        let x1_y2 = composer.mul(BlsScalar::one(), x1, y2, BlsScalar::zero(), None);
+        let x1_y2 =
+            composer.mul(BlsScalar::one(), x1, y2, BlsScalar::zero(), None);
         // y1 * x2
-        let y1_x2 = composer.mul(BlsScalar::one(), y1, x2, BlsScalar::zero(), None);
+        let y1_x2 =
+            composer.mul(BlsScalar::one(), y1, x2, BlsScalar::zero(), None);
         // y1 * y2
-        let y1_y2 = composer.mul(BlsScalar::one(), y1, y2, BlsScalar::zero(), None);
+        let y1_y2 =
+            composer.mul(BlsScalar::one(), y1, y2, BlsScalar::zero(), None);
         // x1 * x2
-        let x1_x2 = composer.mul(BlsScalar::one(), x1, x2, BlsScalar::zero(), None);
+        let x1_x2 =
+            composer.mul(BlsScalar::one(), x1, x2, BlsScalar::zero(), None);
         // d x1x2 * y1y2
-        let d_x1_x2_y1_y2 = composer.mul(EDWARDS_D, x1_x2, y1_y2, BlsScalar::zero(), None);
+        let d_x1_x2_y1_y2 =
+            composer.mul(EDWARDS_D, x1_x2, y1_y2, BlsScalar::zero(), None);
 
         // x1y2 + y1x2
         let x_numerator = composer.add(
@@ -223,7 +244,8 @@ impl Point {
 }
 
 // XXX: Should we put these as methods on the point struct instead?
-// Rationale, they only apply to points, whereas methods on the composer apply generally to Variables
+// Rationale, they only apply to points, whereas methods on the composer apply
+// generally to Variables
 impl StandardComposer {
     /// Asserts that a point in the circuit is equal to a known public point
     pub fn assert_equal_public_point(
@@ -231,10 +253,19 @@ impl StandardComposer {
         point: Point,
         public_point: dusk_jubjub::JubJubAffine,
     ) {
-        self.constrain_to_constant(point.x, BlsScalar::zero(), Some(-public_point.get_x()));
-        self.constrain_to_constant(point.y, BlsScalar::zero(), Some(-public_point.get_y()));
+        self.constrain_to_constant(
+            point.x,
+            BlsScalar::zero(),
+            Some(-public_point.get_x()),
+        );
+        self.constrain_to_constant(
+            point.y,
+            BlsScalar::zero(),
+            Some(-public_point.get_y()),
+        );
     }
-    /// Asserts that a point in the circuit is equal to another point in the circuit
+    /// Asserts that a point in the circuit is equal to another point in the
+    /// circuit
     pub fn assert_equal_point(&mut self, point_a: Point, point_b: Point) {
         self.assert_equal(point_a.x, point_b.x);
         self.assert_equal(point_b.y, point_b.y);
@@ -259,11 +290,13 @@ mod tests {
                     y: composer.add_input(BlsScalar::from(20u64)),
                 };
 
-                let choice = point_a.conditional_select(composer, bit_1, point_b);
+                let choice =
+                    point_a.conditional_select(composer, bit_1, point_b);
 
                 composer.assert_equal_point(point_a, choice);
 
-                let choice = point_a.conditional_select(composer, bit_0, point_b);
+                let choice =
+                    point_a.conditional_select(composer, bit_0, point_b);
                 composer.assert_equal_point(point_b, choice);
             },
             32,

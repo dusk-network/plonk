@@ -34,10 +34,11 @@ pub struct ProverKey {
     pub permutation: permutation::ProverKey,
     /// ProverKey for variable base curve addition gates
     pub variable_base: ecc::curve_addition::ProverKey,
-    // Pre-processes the 4n Evaluations for the vanishing polynomial, so they do not
-    // need to be computed at the proving stage.
-    // Note: With this, we can combine all parts of the quotient polynomial in their evaluation phase and
-    // divide by the quotient polynomial without having to perform IFFT
+    // Pre-processes the 4n Evaluations for the vanishing polynomial, so they
+    // do not need to be computed at the proving stage.
+    // Note: With this, we can combine all parts of the quotient polynomial in
+    // their evaluation phase and divide by the quotient polynomial without
+    // having to perform IFFT
     pub(crate) v_h_coset_4n: Evaluations,
 }
 
@@ -200,12 +201,18 @@ impl VerifierKey {
             b"q_variable_group_add",
             &self.variable_base.q_variable_group_add,
         );
-        transcript.append_commitment(b"q_fixed_group_add", &self.fixed_base.q_fixed_group_add);
+        transcript.append_commitment(
+            b"q_fixed_group_add",
+            &self.fixed_base.q_fixed_group_add,
+        );
 
-        transcript.append_commitment(b"left_sigma", &self.permutation.left_sigma);
-        transcript.append_commitment(b"right_sigma", &self.permutation.right_sigma);
+        transcript
+            .append_commitment(b"left_sigma", &self.permutation.left_sigma);
+        transcript
+            .append_commitment(b"right_sigma", &self.permutation.right_sigma);
         transcript.append_commitment(b"out_sigma", &self.permutation.out_sigma);
-        transcript.append_commitment(b"fourth_sigma", &self.permutation.fourth_sigma);
+        transcript
+            .append_commitment(b"fourth_sigma", &self.permutation.fourth_sigma);
 
         // Append circuit size to transcript
         transcript.circuit_domain_sep(self.n as u64);
@@ -215,7 +222,9 @@ impl VerifierKey {
 impl ProverKey {
     /// Serialises a ProverKey struct into bytes
     pub fn to_bytes(&self) -> Vec<u8> {
-        use crate::serialisation::{write_evaluations, write_polynomial, write_u64};
+        use crate::serialisation::{
+            write_evaluations, write_polynomial, write_u64,
+        };
 
         let mut bytes = Vec::with_capacity(ProverKey::serialised_size(self.n));
 
@@ -256,8 +265,14 @@ impl ProverKey {
         write_evaluations(&self.fixed_base.q_fixed_group_add.1, &mut bytes);
 
         // Curve addition
-        write_polynomial(&self.variable_base.q_variable_group_add.0, &mut bytes);
-        write_evaluations(&self.variable_base.q_variable_group_add.1, &mut bytes);
+        write_polynomial(
+            &self.variable_base.q_variable_group_add.0,
+            &mut bytes,
+        );
+        write_evaluations(
+            &self.variable_base.q_variable_group_add.1,
+            &mut bytes,
+        );
 
         // Permutation
         write_polynomial(&self.permutation.left_sigma.0, &mut bytes);
@@ -279,10 +294,13 @@ impl ProverKey {
     }
     /// Deserialises a slice of bytes into a ProverKey
     pub fn from_bytes(bytes: &[u8]) -> Result<ProverKey, Error> {
-        use crate::serialisation::{read_evaluations, read_polynomial, read_u64};
+        use crate::serialisation::{
+            read_evaluations, read_polynomial, read_u64,
+        };
 
         let (n, rest) = read_u64(bytes)?;
-        let domain = crate::fft::EvaluationDomain::new((4 * n) as usize).unwrap();
+        let domain =
+            crate::fft::EvaluationDomain::new((4 * n) as usize).unwrap();
 
         let (q_m_poly, rest) = read_polynomial(&rest)?;
         let (q_m_evals, rest) = read_evaluations(domain, &rest)?;
@@ -322,11 +340,14 @@ impl ProverKey {
 
         let (q_fixed_group_add_poly, rest) = read_polynomial(&rest)?;
         let (q_fixed_group_add_evals, rest) = read_evaluations(domain, &rest)?;
-        let q_fixed_group_add = (q_fixed_group_add_poly, q_fixed_group_add_evals);
+        let q_fixed_group_add =
+            (q_fixed_group_add_poly, q_fixed_group_add_evals);
 
         let (q_variable_group_add_poly, rest) = read_polynomial(&rest)?;
-        let (q_variable_group_add_evals, rest) = read_evaluations(domain, &rest)?;
-        let q_variable_group_add = (q_variable_group_add_poly, q_variable_group_add_evals);
+        let (q_variable_group_add_evals, rest) =
+            read_evaluations(domain, &rest)?;
+        let q_variable_group_add =
+            (q_variable_group_add_poly, q_variable_group_add_evals);
 
         let (left_sigma_poly, rest) = read_polynomial(&rest)?;
         let (left_sigma_evals, rest) = read_evaluations(domain, &rest)?;
@@ -534,7 +555,8 @@ mod test {
         let q_range = Commitment::from_affine(G1Affine::generator());
 
         let q_fixed_group_add = Commitment::from_affine(G1Affine::generator());
-        let q_variable_group_add = Commitment::from_affine(G1Affine::generator());
+        let q_variable_group_add =
+            Commitment::from_affine(G1Affine::generator());
 
         let q_logic = Commitment::from_affine(G1Affine::generator());
 

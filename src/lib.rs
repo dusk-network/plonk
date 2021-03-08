@@ -31,9 +31,9 @@
 //! - Zachary J. Williamson (Aztec Protocol)
 //! - Oana Ciobotaru
 //!
-//! This crate contains a pure-rust implementation done by the [DuskNetwork team](dusk.network)
-//! of this algorithm using as a reference implementation this one done
-//! by the creators of the protocol:
+//! This crate contains a pure-rust implementation done by the [DuskNetwork
+//! team](dusk.network) of this algorithm using as a reference implementation
+//! this one done by the creators of the protocol:
 //!
 //! [https://github.com/AztecProtocol/barretenberg/blob/master/barretenberg/src/aztec/plonk/](https://github.com/AztecProtocol/barretenberg/blob/master/barretenberg/src/aztec/plonk/)
 //!

@@ -5,13 +5,15 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 //! This module contains an implementation of a polynomial in coefficient form
-//! Where each coefficient is represented using a position in the underlying vector.
+//! Where each coefficient is represented using a position in the underlying
+//! vector.
 use super::{EvaluationDomain, Evaluations};
 use crate::util;
 use dusk_bls12_381::BlsScalar;
 use rand_core::{CryptoRng, RngCore};
 use rayon::iter::{
-    IndexedParallelIterator, IntoParallelIterator, IntoParallelRefIterator, ParallelIterator,
+    IndexedParallelIterator, IntoParallelIterator, IntoParallelRefIterator,
+    ParallelIterator,
 };
 
 use std::ops::{Add, AddAssign, Deref, DerefMut, Mul, Neg, Sub, SubAssign};
@@ -63,10 +65,11 @@ impl Polynomial {
     /// When the length of the coeffs is zero.
     pub fn from_coefficients_vec(coeffs: Vec<BlsScalar>) -> Self {
         let mut result = Self { coeffs };
-        // While there are zeros at the end of the coefficient vector, pop them off.
+        // While there are zeros at the end of the coefficient vector, pop them
+        // off.
         result.truncate_leading_zeros();
-        // Check that either the coefficients vec is empty or that the last coeff is
-        // non-zero.
+        // Check that either the coefficients vec is empty or that the last
+        // coeff is non-zero.
         assert!(result
             .coeffs
             .last()
@@ -335,7 +338,8 @@ impl Polynomial {
         // Reverse the results and use Ruffini's method to compute the quotient
         // The coefficients must be reversed as Ruffini's method
         // starts with the leading coefficient, while Polynomials
-        // are stored in increasing order i.e. the leading coefficient is the last element
+        // are stored in increasing order i.e. the leading coefficient is the
+        // last element
         for coeff in self.coeffs.iter().rev() {
             let t = coeff + k;
             quotient.push(t);
@@ -361,10 +365,17 @@ impl<'a, 'b> Mul<&'a Polynomial> for &'b Polynomial {
         if self.is_zero() || other.is_zero() {
             Polynomial::zero()
         } else {
-            let domain = EvaluationDomain::new(self.coeffs.len() + other.coeffs.len())
-                .expect("field is not smooth enough to construct domain");
-            let mut self_evals = Evaluations::from_vec_and_domain(domain.fft(&self.coeffs), domain);
-            let other_evals = Evaluations::from_vec_and_domain(domain.fft(&other.coeffs), domain);
+            let domain =
+                EvaluationDomain::new(self.coeffs.len() + other.coeffs.len())
+                    .expect("field is not smooth enough to construct domain");
+            let mut self_evals = Evaluations::from_vec_and_domain(
+                domain.fft(&self.coeffs),
+                domain,
+            );
+            let other_evals = Evaluations::from_vec_and_domain(
+                domain.fft(&other.coeffs),
+                domain,
+            );
             self_evals *= &other_evals;
             self_evals.interpolate()
         }
@@ -428,8 +439,10 @@ mod test {
         // Divides X^2 + 4X + 4 by X+2
         let quotient = quadratic.ruffini(-BlsScalar::from(2));
         // X+2
-        let expected_quotient =
-            Polynomial::from_coefficients_vec(vec![BlsScalar::from(2), BlsScalar::one()]);
+        let expected_quotient = Polynomial::from_coefficients_vec(vec![
+            BlsScalar::from(2),
+            BlsScalar::one(),
+        ]);
         assert_eq!(quotient, expected_quotient);
     }
     #[test]
@@ -457,8 +470,10 @@ mod test {
         // Divides X^2 + X by X
         let quotient = p.ruffini(BlsScalar::zero());
         // X + 1
-        let expected_quotient =
-            Polynomial::from_coefficients_vec(vec![BlsScalar::one(), BlsScalar::one()]);
+        let expected_quotient = Polynomial::from_coefficients_vec(vec![
+            BlsScalar::one(),
+            BlsScalar::one(),
+        ]);
         assert_eq!(quotient, expected_quotient);
     }
 }

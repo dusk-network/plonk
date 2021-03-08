@@ -34,7 +34,8 @@ pub(crate) fn gadget_tester(
     n: usize,
 ) -> Result<(), Error> {
     // Common View
-    let public_parameters = PublicParameters::setup(2 * n, &mut rand::thread_rng())?;
+    let public_parameters =
+        PublicParameters::setup(2 * n, &mut rand::thread_rng())?;
     // Provers View
     let (proof, public_inputs) = {
         // Create a prover struct
@@ -47,7 +48,8 @@ pub(crate) fn gadget_tester(
         gadget(&mut prover.mut_cs());
 
         // Commit Key
-        let (ck, _) = public_parameters.trim(2 * prover.cs.circuit_size().next_power_of_two())?;
+        let (ck, _) = public_parameters
+            .trim(2 * prover.cs.circuit_size().next_power_of_two())?;
 
         // Preprocess circuit
         prover.preprocess(&ck)?;
@@ -71,7 +73,8 @@ pub(crate) fn gadget_tester(
     gadget(&mut verifier.mut_cs());
 
     // Compute Commit and Verifier Key
-    let (ck, vk) = public_parameters.trim(verifier.cs.circuit_size().next_power_of_two())?;
+    let (ck, vk) = public_parameters
+        .trim(verifier.cs.circuit_size().next_power_of_two())?;
 
     // Preprocess circuit
     verifier.preprocess(&ck)?;

@@ -18,7 +18,8 @@ pub struct Evaluations {
     pub quot_eval: BlsScalar,
 }
 
-/// Proof Evaluations is a subset of all of the evaluations. These evaluations will be added to the proof
+/// Proof Evaluations is a subset of all of the evaluations. These evaluations
+/// will be added to the proof
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub struct ProofEvaluations {
     // Evaluation of the witness polynomial for the left wire at `z`
@@ -33,7 +34,8 @@ pub struct ProofEvaluations {
     pub a_next_eval: BlsScalar,
     //
     pub b_next_eval: BlsScalar,
-    // Evaluation of the witness polynomial for the fourth wire at `z * root of unity`
+    // Evaluation of the witness polynomial for the fourth wire at `z * root of
+    // unity`
     pub d_next_eval: BlsScalar,
     // Evaluation of the arithmetic selector polynomial at `z`
     pub q_arith_eval: BlsScalar,
@@ -53,7 +55,8 @@ pub struct ProofEvaluations {
     // Evaluation of the linearisation sigma polynomial at `z`
     pub lin_poly_eval: BlsScalar,
 
-    // (Shifted) Evaluation of the permutation polynomial at `z * root of unity`
+    // (Shifted) Evaluation of the permutation polynomial at `z * root of
+    // unity`
     pub perm_eval: BlsScalar,
 }
 
@@ -169,9 +172,12 @@ pub fn compute(
     let b_eval = w_r_poly.evaluate(z_challenge);
     let c_eval = w_o_poly.evaluate(z_challenge);
     let d_eval = w_4_poly.evaluate(z_challenge);
-    let left_sigma_eval = prover_key.permutation.left_sigma.0.evaluate(z_challenge);
-    let right_sigma_eval = prover_key.permutation.right_sigma.0.evaluate(z_challenge);
-    let out_sigma_eval = prover_key.permutation.out_sigma.0.evaluate(z_challenge);
+    let left_sigma_eval =
+        prover_key.permutation.left_sigma.0.evaluate(z_challenge);
+    let right_sigma_eval =
+        prover_key.permutation.right_sigma.0.evaluate(z_challenge);
+    let out_sigma_eval =
+        prover_key.permutation.out_sigma.0.evaluate(z_challenge);
     let q_arith_eval = prover_key.arithmetic.q_arith.0.evaluate(z_challenge);
     let q_c_eval = prover_key.logic.q_c.0.evaluate(z_challenge);
     let q_l_eval = prover_key.fixed_base.q_l.0.evaluate(z_challenge);
@@ -264,10 +270,13 @@ fn compute_circuit_satisfiability(
     q_r_eval: &BlsScalar,
     prover_key: &ProverKey,
 ) -> Polynomial {
-    let a =
-        prover_key
-            .arithmetic
-            .compute_linearisation(a_eval, b_eval, c_eval, d_eval, q_arith_eval);
+    let a = prover_key.arithmetic.compute_linearisation(
+        a_eval,
+        b_eval,
+        c_eval,
+        d_eval,
+        q_arith_eval,
+    );
 
     let b = prover_key.range.compute_linearisation(
         range_separation_challenge,
