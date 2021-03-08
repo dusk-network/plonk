@@ -34,7 +34,7 @@ pub struct OpeningKey {
 #[derive(Debug, Clone, PartialEq)]
 pub struct CommitKey {
     /// Group elements of the form `{ \beta^i G }`, where `i` ranges from 0 to `degree`.
-    pub powers_of_g: Vec<G1Affine>,
+    pub(crate) powers_of_g: Vec<G1Affine>,
 }
 
 impl CommitKey {
@@ -120,7 +120,7 @@ impl CommitKey {
     /// Truncates the commit key to a lower max degree.
     /// Returns an error if the truncated degree is zero or if the truncated degree
     /// is larger than the max degree of the commit key.
-    pub fn truncate(&self, mut truncated_degree: usize) -> Result<CommitKey, Error> {
+    pub(crate) fn truncate(&self, mut truncated_degree: usize) -> Result<CommitKey, Error> {
         if truncated_degree == 1 {
             truncated_degree += 1;
         }
@@ -141,14 +141,23 @@ impl CommitKey {
         Ok(truncated_powers)
     }
 
+    /// Checks whether the polynomial we are committing to:
+    /// - Has zero degree
+    /// - Has a degree which is more than the max supported degree
+    ///
+    /// Returns an error if any of the above conditions are true.
     fn check_commit_degree_is_within_bounds(&self, poly_degree: usize) -> Result<(), Error> {
-        check_degree_is_within_bounds(self.max_degree(), poly_degree)
+        match (poly_degree == 0, poly_degree > self.max_degree()) {
+            (true, _) => Err(Error::PolynomialDegreeIsZero),
+            (false, true) => Err(Error::PolynomialDegreeTooLarge),
+            (false, false) => Ok(()),
+        }
     }
 
     /// Commits to a polynomial returning the corresponding `Commitment`.
     ///
     /// Returns an error if the polynomial's degree is more than the max degree of the commit key.
-    pub fn commit(&self, polynomial: &Polynomial) -> Result<Commitment, Error> {
+    pub(crate) fn commit(&self, polynomial: &Polynomial) -> Result<Commitment, Error> {
         // Check whether we can safely commit to this polynomial
         self.check_commit_degree_is_within_bounds(polynomial.degree())?;
 
@@ -226,7 +235,7 @@ impl OpeningKey {
     }
 
     /// Checks whether a batch of polynomials evaluated at different points, returned their specified value.
-    pub fn batch_check(
+    pub(crate) fn batch_check(
         &self,
         points: &[BlsScalar],
         proofs: &[Proof],
@@ -268,21 +277,6 @@ impl OpeningKey {
     }
 }
 
-/// Checks whether the polynomial we are committing to:
-/// - Has zero degree
-/// - Has a degree which is more than the max supported degree
-///
-///
-/// Returns an error if any of the above conditions are true.
-fn check_degree_is_within_bounds(max_degree: usize, poly_degree: usize) -> Result<(), Error> {
-    if poly_degree == 0 {
-        return Err(Error::PolynomialDegreeIsZero);
-    }
-    if poly_degree > max_degree {
-        return Err(Error::PolynomialDegreeTooLarge);
-    }
-    Ok(())
-}
 #[cfg(test)]
 mod test {
     use super::super::{AggregateProof, PublicParameters};

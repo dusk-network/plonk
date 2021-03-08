@@ -38,32 +38,32 @@ pub const PROOF_SIZE: usize = Proof::serialised_size();
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub struct Proof {
     /// Commitment to the witness polynomial for the left wires.
-    pub a_comm: Commitment,
+    pub(crate) a_comm: Commitment,
     /// Commitment to the witness polynomial for the right wires.
-    pub b_comm: Commitment,
+    pub(crate) b_comm: Commitment,
     /// Commitment to the witness polynomial for the output wires.
-    pub c_comm: Commitment,
+    pub(crate) c_comm: Commitment,
     /// Commitment to the witness polynomial for the fourth wires.
-    pub d_comm: Commitment,
+    pub(crate) d_comm: Commitment,
 
     /// Commitment to the permutation polynomial.
-    pub z_comm: Commitment,
+    pub(crate) z_comm: Commitment,
 
     /// Commitment to the quotient polynomial.
-    pub t_1_comm: Commitment,
+    pub(crate) t_1_comm: Commitment,
     /// Commitment to the quotient polynomial.
-    pub t_2_comm: Commitment,
+    pub(crate) t_2_comm: Commitment,
     /// Commitment to the quotient polynomial.
-    pub t_3_comm: Commitment,
+    pub(crate) t_3_comm: Commitment,
     /// Commitment to the quotient polynomial.
-    pub t_4_comm: Commitment,
+    pub(crate) t_4_comm: Commitment,
 
     /// Commitment to the opening polynomial.
-    pub w_z_comm: Commitment,
+    pub(crate) w_z_comm: Commitment,
     /// Commitment to the shifted opening polynomial.
-    pub w_zw_comm: Commitment,
+    pub(crate) w_zw_comm: Commitment,
     /// Subset of all of the evaluations added to the proof.
-    pub evaluations: ProofEvaluations,
+    pub(crate) evaluations: ProofEvaluations,
 }
 
 impl_serde!(Proof);

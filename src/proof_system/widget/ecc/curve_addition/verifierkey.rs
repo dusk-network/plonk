@@ -10,8 +10,8 @@ use dusk_bls12_381::{BlsScalar, G1Affine};
 use dusk_jubjub::EDWARDS_D;
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
-pub struct VerifierKey {
-    pub q_variable_group_add: Commitment,
+pub(crate) struct VerifierKey {
+    pub(crate) q_variable_group_add: Commitment,
 }
 
 impl VerifierKey {

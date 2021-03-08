@@ -19,25 +19,25 @@ use merlin::Transcript;
 #[derive(Copy, Clone, Debug)]
 /// Proof that a polynomial `p` was correctly evaluated at a point `z`
 /// producing the evaluated point p(z).
-pub struct Proof {
+pub(crate) struct Proof {
     /// This is a commitment to the witness polynomial.
-    pub commitment_to_witness: Commitment,
+    commitment_to_witness: Commitment,
     /// This is the result of evaluating a polynomial at the point `z`.
-    pub evaluated_point: BlsScalar,
+    evaluated_point: BlsScalar,
     /// This is the commitment to the polynomial that you want to prove a statement about.
-    pub commitment_to_polynomial: Commitment,
+    commitment_to_polynomial: Commitment,
 }
 
 /// Proof that multiple polynomials were correctly evaluated at a point `z`,
 /// each producing their respective evaluated points p_i(z).
 #[derive(Debug)]
-pub struct AggregateProof {
+pub(crate) struct AggregateProof {
     /// This is a commitment to the aggregated witness polynomial.
-    pub commitment_to_witness: Commitment,
+    commitment_to_witness: Commitment,
     /// These are the results of the evaluating each polynomial at the point `z`.
-    pub evaluated_points: Vec<BlsScalar>,
+    evaluated_points: Vec<BlsScalar>,
     /// These are the commitments to the polynomials which you want to prove a statement about.
-    pub commitments_to_polynomials: Vec<Commitment>,
+    commitments_to_polynomials: Vec<Commitment>,
 }
 
 impl AggregateProof {
