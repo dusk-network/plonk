@@ -7,10 +7,8 @@
 //! This module contains an implementation of a polynomial in coefficient form
 //! Where each coefficient is represented using a position in the underlying vector.
 use super::{EvaluationDomain, Evaluations};
-use crate::error::Error;
 use crate::util;
 use dusk_bls12_381::BlsScalar;
-use dusk_bytes::{DeserializableSlice, Serializable};
 use rayon::iter::{
     IndexedParallelIterator, IntoParallelIterator, IntoParallelRefIterator, ParallelIterator,
 };
@@ -116,26 +114,6 @@ impl Polynomial {
             sum += &eval;
         }
         sum
-    }
-
-    /// Given a Polynomial, return it in it's byte representation coefficient by coefficient.
-    pub fn to_bytes(&self) -> Vec<u8> {
-        self.coeffs
-            .iter()
-            .map(|item| item.to_bytes().to_vec())
-            .flatten()
-            .collect()
-    }
-
-    /// Generate a Polynomial from a slice of bytes.
-    pub fn from_bytes(bytes: &[u8]) -> Result<Polynomial, Error> {
-        let coeffs = bytes
-            .chunks(BlsScalar::SIZE)
-            .map(|chunk| BlsScalar::from_slice(chunk))
-            .collect::<Result<Vec<BlsScalar>, dusk_bytes::Error>>()
-            .map_err(|_| Error::BlsScalarMalformed)?;
-
-        Ok(Polynomial { coeffs })
     }
 }
 
