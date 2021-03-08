@@ -9,9 +9,9 @@ use super::constants::{K1, K2, K3};
 use crate::constraint_system::{Variable, WireData};
 use crate::fft::{EvaluationDomain, Polynomial};
 use dusk_bls12_381::BlsScalar;
+use hashbrown::HashMap;
 use itertools::izip;
 use rayon::iter::*;
-use std::collections::HashMap;
 
 /// Permutation provides the necessary state information and functions
 /// to create the permutation polynomial. In the literature, Z(X) is the "accumulator",

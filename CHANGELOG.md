@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Store the sparse repr of the PI and positions in a `BTreeMap` [#427](https://github.com/dusk-network/plonk/issues/427)
 - Transcript Init and trim size are associated constants of the Circuit trait [#351](https://github.com/dusk-network/plonk/issues/351)
+- Replace `collections::HashMap` by `hashbrown::HashMap`. [#424](https://github.com/dusk-network/plonk/issues/424)
 - `Circuit` trait now only requires `padded_circuit_size` for trimming. [#351](https://github.com/dusk-network/plonk/issues/351)
 - Remove `verify_proof` & `build_pi` from `Circuit`. [#396](https://github.com/dusk-network/plonk/issues/396)
 - Updated the native errors to all originate from the same enum
