@@ -279,8 +279,8 @@ impl OpeningKey {
 
 #[cfg(test)]
 mod test {
-    use super::super::{AggregateProof, PublicParameters};
     use super::*;
+    use crate::commitment_scheme::kzg10::{AggregateProof, PublicParameters};
     use crate::fft::Polynomial;
     use dusk_bls12_381::BlsScalar;
     use merlin::Transcript;
