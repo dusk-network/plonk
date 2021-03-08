@@ -285,9 +285,87 @@ fn check_degree_is_within_bounds(max_degree: usize, poly_degree: usize) -> Resul
 }
 #[cfg(test)]
 mod test {
+    use super::super::{AggregateProof, PublicParameters};
+    use super::*;
     use crate::fft::Polynomial;
-    use crate::prelude::*;
+    use dusk_bls12_381::BlsScalar;
     use merlin::Transcript;
+
+    // Checks that a polynomial `p` was evaluated at a point `z` and returned the value specified `v`.
+    // ie. v = p(z).
+    pub fn check(op_key: &OpeningKey, point: BlsScalar, proof: Proof) -> bool {
+        let inner_a: G1Affine =
+            (proof.commitment_to_polynomial.0 - (op_key.g * proof.evaluated_point)).into();
+
+        let inner_b: G2Affine = (op_key.beta_h - (op_key.h * point)).into();
+        let prepared_inner_b = G2Prepared::from(-inner_b);
+
+        let pairing = dusk_bls12_381::multi_miller_loop(&[
+            (&inner_a, &op_key.prepared_h),
+            (&proof.commitment_to_witness.0, &prepared_inner_b),
+        ])
+        .final_exponentiation();
+
+        pairing == dusk_bls12_381::Gt::identity()
+    }
+
+    // Creates an opening proof that a polynomial `p` was correctly evaluated at p(z) and produced the value
+    // `v`. ie v = p(z).
+    // Returns an error if the polynomials degree is too large.
+    pub fn open_single(
+        ck: &CommitKey,
+        polynomial: &Polynomial,
+        value: &BlsScalar,
+        point: &BlsScalar,
+    ) -> Result<Proof, Error> {
+        let witness_poly = compute_single_witness(polynomial, point);
+        Ok(Proof {
+            commitment_to_witness: ck.commit(&witness_poly)?,
+            evaluated_point: *value,
+            commitment_to_polynomial: ck.commit(polynomial)?,
+        })
+    }
+
+    // Creates an opening proof that multiple polynomials were evaluated at the same point
+    // and that each evaluation produced the correct evaluation point.
+    // Returns an error if any of the polynomial's degrees are too large.
+    pub fn open_multiple(
+        ck: &CommitKey,
+        polynomials: &[Polynomial],
+        evaluations: Vec<BlsScalar>,
+        point: &BlsScalar,
+        transcript: &mut Transcript,
+    ) -> Result<AggregateProof, Error> {
+        // Commit to polynomials
+        let mut polynomial_commitments = Vec::with_capacity(polynomials.len());
+        for poly in polynomials.iter() {
+            polynomial_commitments.push(ck.commit(poly)?)
+        }
+
+        // Compute the aggregate witness for polynomials
+        let witness_poly = ck.compute_aggregate_witness(polynomials, point, transcript);
+
+        // Commit to witness polynomial
+        let witness_commitment = ck.commit(&witness_poly)?;
+
+        let aggregate_proof = AggregateProof {
+            commitment_to_witness: witness_commitment,
+            evaluated_points: evaluations,
+            commitments_to_polynomials: polynomial_commitments,
+        };
+        Ok(aggregate_proof)
+    }
+
+    // For a given polynomial `p` and a point `z`, compute the witness
+    // for p(z) using Ruffini's method for simplicity.
+    // The Witness is the quotient of f(x) - f(z) / x-z.
+    // However we note that the quotient polynomial is invariant under the value f(z)
+    // ie. only the remainder changes. We can therefore compute the witness as f(x) / x - z
+    // and only use the remainder term f(z) during verification.
+    pub fn compute_single_witness(polynomial: &Polynomial, point: &BlsScalar) -> Polynomial {
+        // Computes `f(x) / x-z`, returning it as the witness poly
+        polynomial.ruffini(*point)
+    }
 
     // Creates a proving key and verifier key based on a specified degree
     fn setup_test(degree: usize) -> (CommitKey, OpeningKey) {
@@ -297,21 +375,21 @@ mod test {
     #[test]
     fn test_basic_commit() {
         let degree = 25;
-        let (proving_key, opening_key) = setup_test(degree);
+        let (ck, opening_key) = setup_test(degree);
         let point = BlsScalar::from(10);
 
         let poly = Polynomial::rand(degree, &mut rand::thread_rng());
         let value = poly.evaluate(&point);
 
-        let proof = proving_key.open_single(&poly, &value, &point).unwrap();
+        let proof = open_single(&ck, &poly, &value, &point).unwrap();
 
-        let ok = opening_key.check(point, proof);
+        let ok = check(&opening_key, point, proof);
         assert!(ok);
     }
     #[test]
     fn test_batch_verification() {
         let degree = 25;
-        let (proving_key, vk) = setup_test(degree);
+        let (ck, vk) = setup_test(degree);
 
         let point_a = BlsScalar::from(10);
         let point_b = BlsScalar::from(11);
@@ -319,18 +397,14 @@ mod test {
         // Compute secret polynomial a
         let poly_a = Polynomial::rand(degree, &mut rand::thread_rng());
         let value_a = poly_a.evaluate(&point_a);
-        let proof_a = proving_key
-            .open_single(&poly_a, &value_a, &point_a)
-            .unwrap();
-        assert!(vk.check(point_a, proof_a));
+        let proof_a = open_single(&ck, &poly_a, &value_a, &point_a).unwrap();
+        assert!(check(&vk, point_a, proof_a));
 
         // Compute secret polynomial b
         let poly_b = Polynomial::rand(degree, &mut rand::thread_rng());
         let value_b = poly_b.evaluate(&point_b);
-        let proof_b = proving_key
-            .open_single(&poly_b, &value_b, &point_b)
-            .unwrap();
-        assert!(vk.check(point_b, proof_b));
+        let proof_b = open_single(&ck, &poly_b, &value_b, &point_b).unwrap();
+        assert!(check(&vk, point_b, proof_b));
 
         assert!(vk
             .batch_check(
@@ -343,7 +417,7 @@ mod test {
     #[test]
     fn test_aggregate_witness() {
         let max_degree = 27;
-        let (proving_key, opening_key) = setup_test(max_degree);
+        let (ck, opening_key) = setup_test(max_degree);
         let point = BlsScalar::from(10);
 
         // Committer's View
@@ -358,20 +432,20 @@ mod test {
             let poly_c = Polynomial::rand(27, &mut rand::thread_rng());
             let poly_c_eval = poly_c.evaluate(&point);
 
-            proving_key
-                .open_multiple(
-                    &[poly_a, poly_b, poly_c],
-                    vec![poly_a_eval, poly_b_eval, poly_c_eval],
-                    &point,
-                    &mut Transcript::new(b"agg_flatten"),
-                )
-                .unwrap()
+            open_multiple(
+                &ck,
+                &[poly_a, poly_b, poly_c],
+                vec![poly_a_eval, poly_b_eval, poly_c_eval],
+                &point,
+                &mut Transcript::new(b"agg_flatten"),
+            )
+            .unwrap()
         };
 
         // Verifier's View
         let ok = {
             let flattened_proof = aggregated_proof.flatten(&mut Transcript::new(b"agg_flatten"));
-            opening_key.check(point, flattened_proof)
+            check(&opening_key, point, flattened_proof)
         };
 
         assert!(ok);
@@ -380,7 +454,7 @@ mod test {
     #[test]
     fn test_batch_with_aggregation() {
         let max_degree = 28;
-        let (proving_key, opening_key) = setup_test(max_degree);
+        let (ck, opening_key) = setup_test(max_degree);
         let point_a = BlsScalar::from(10);
         let point_b = BlsScalar::from(11);
 
@@ -399,18 +473,16 @@ mod test {
             let poly_d = Polynomial::rand(28, &mut rand::thread_rng());
             let poly_d_eval = poly_d.evaluate(&point_b);
 
-            let aggregated_proof = proving_key
-                .open_multiple(
-                    &[poly_a, poly_b, poly_c],
-                    vec![poly_a_eval, poly_b_eval, poly_c_eval],
-                    &point_a,
-                    &mut Transcript::new(b"agg_batch"),
-                )
-                .unwrap();
+            let aggregated_proof = open_multiple(
+                &ck,
+                &[poly_a, poly_b, poly_c],
+                vec![poly_a_eval, poly_b_eval, poly_c_eval],
+                &point_a,
+                &mut Transcript::new(b"agg_batch"),
+            )
+            .unwrap();
 
-            let single_proof = proving_key
-                .open_single(&poly_d, &poly_d_eval, &point_b)
-                .unwrap();
+            let single_proof = open_single(&ck, &poly_d, &poly_d_eval, &point_b).unwrap();
 
             (aggregated_proof, single_proof)
         };
