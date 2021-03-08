@@ -21,7 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Constrained as much as possible the visibility of fn's, structs and it's fields [#438](https://github.com/dusk-network/plonk/issues/438)]
+- Constrained as much as possible the visibility of fns, structs and it's fields [#438](https://github.com/dusk-network/plonk/issues/438)]
 - Store the sparse repr of the PI and positions in a `BTreeMap` [#427](https://github.com/dusk-network/plonk/issues/427)
 - Transcript Init and trim size are associated constants of the Circuit trait [#351](https://github.com/dusk-network/plonk/issues/351)
 - `Circuit` trait now only requires `padded_circuit_size` for trimming. [#351](https://github.com/dusk-network/plonk/issues/351)
