@@ -234,13 +234,13 @@ mod tests {
         // Generate CRS
         let pp_p = PublicParameters::setup(1 << 12, &mut rand::thread_rng())?;
         File::create(&pp_path)
-            .and_then(|mut f| f.write(pp_p.to_raw_bytes().as_slice()))
+            .and_then(|mut f| f.write(pp_p.to_raw_var_bytes().as_slice()))
             .unwrap();
 
         // Read PublicParameters
         let pp = fs::read(pp_path).unwrap();
         let pp =
-            unsafe { PublicParameters::from_slice_unchecked(pp.as_slice())? };
+            unsafe { PublicParameters::from_slice_unchecked(pp.as_slice()) };
 
         // Initialize the circuit
         let mut circuit = TestCircuit::default();
@@ -250,7 +250,7 @@ mod tests {
 
         // Write the keys
         File::create(&pk_path)
-            .and_then(|mut f| f.write(pk_p.to_bytes().as_slice()))
+            .and_then(|mut f| f.write(pk_p.to_var_bytes().as_slice()))
             .unwrap();
         File::create(&vk_path)
             .and_then(|mut f| f.write(&vk_p.to_bytes()))
@@ -258,7 +258,7 @@ mod tests {
 
         // Read ProverKey
         let pk = fs::read(pk_path).unwrap();
-        let pk = ProverKey::from_bytes(pk.as_slice())?;
+        let pk = ProverKey::from_slice(pk.as_slice())?;
 
         // Read VerifierKey
         let vk = fs::read(vk_path).unwrap();

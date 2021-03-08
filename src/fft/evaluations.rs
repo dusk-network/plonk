@@ -26,7 +26,7 @@ pub(crate) struct Evaluations {
 
 impl Evaluations {
     /// Given an `Evaluations` struct, return it in it's byte representation.
-    pub fn to_bytes(&self) -> Vec<u8> {
+    pub fn to_var_bytes(&self) -> Vec<u8> {
         let mut bytes: Vec<u8> = self.domain.to_bytes().to_vec();
         bytes.extend(
             self.evals
@@ -39,7 +39,7 @@ impl Evaluations {
     }
 
     /// Generate an `Evaluations` struct from a slice of bytes.
-    pub fn from_bytes(bytes: &[u8]) -> Result<Evaluations, Error> {
+    pub fn from_slice(bytes: &[u8]) -> Result<Evaluations, Error> {
         let mut buffer = &bytes[..];
         let domain = EvaluationDomain::from_reader(&mut buffer)?;
         let evals = buffer

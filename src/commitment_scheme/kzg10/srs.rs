@@ -68,27 +68,27 @@ impl PublicParameters {
         })
     }
 
-    /// Serialize the `PublicParameters` into bytes.
+    /// Serialize the [`PublicParameters`] into bytes.
     ///
     /// This operation is designed to store the raw representation of the
     /// contents of the PublicParameters. Therefore, the size of the bytes
     /// outputed by this function is expected to be the double than the one
-    /// that `PublicParameters::to_bytes()`.
+    /// that [`PublicParameters::to_var_bytes`].
     ///
     /// # Note
     /// This function should be used when we want to serialize the
     /// PublicParameters allowing a really fast deserialization later.
     /// This functions output should not be used by the regular
-    /// `PublicParaneters::from_bytes()` fn.
-    pub fn to_raw_bytes(&self) -> Vec<u8> {
+    /// [`PublicParaneters::from_slice`] fn.
+    pub fn to_raw_var_bytes(&self) -> Vec<u8> {
         let mut bytes = self.opening_key.to_bytes().to_vec();
-        bytes.extend(&self.commit_key.to_raw_bytes());
+        bytes.extend(&self.commit_key.to_raw_var_bytes());
 
         bytes
     }
 
     /// Deserialize [`PublicParameters`] from a set of bytes created by
-    /// `to_raw_bytes`
+    /// [`PublicParameters::to_raw_var_bytes`].
     ///
     /// The bytes source is expected to be trusted and no checks will be
     /// performed reggarding the content of the points that the bytes
@@ -108,9 +108,9 @@ impl PublicParameters {
     }
 
     /// Serialises a [`PublicParameters`] struct into a slice of bytes.
-    pub fn to_bytes(&self) -> Vec<u8> {
+    pub fn to_var_bytes(&self) -> Vec<u8> {
         let mut bytes = self.opening_key.to_bytes().to_vec();
-        bytes.extend(self.commit_key.to_bytes());
+        bytes.extend(self.commit_key.to_raw_var_bytes());
         bytes
     }
 
@@ -121,14 +121,18 @@ impl PublicParameters {
     /// # Note
     /// This function can be really slow if the `PublicParameters` have a
     /// certain degree. If the bytes come from a trusted source such as a
-    /// local file, we recommend to use `from_raw_bytes()` and
-    /// `to_raw_bytes()`.
-    pub fn from_bytes(bytes: &[u8]) -> Result<PublicParameters, Error> {
+    /// local file, we recommend to use [`PublicParameters::
+    /// from_slice_unchecked`] and [`PublicParameters::to_raw_var_bytes`].
+    pub fn from_slice(bytes: &[u8]) -> Result<PublicParameters, Error> {
+        if bytes.len() <= OpeningKey::SIZE {
+            return Err(Error::NotEnoughBytes);
+        }
+
         let opening_key_bytes = &bytes[0..OpeningKey::SIZE];
         let commit_key_bytes = &bytes[OpeningKey::SIZE..];
 
         let opening_key = OpeningKey::from_slice(opening_key_bytes)?;
-        let commit_key = CommitKey::from_bytes(commit_key_bytes)?;
+        let commit_key = CommitKey::from_slice(commit_key_bytes)?;
 
         let pp = PublicParameters {
             opening_key,
@@ -162,6 +166,7 @@ impl PublicParameters {
 mod test {
     use super::*;
     use dusk_bls12_381::BlsScalar;
+
     #[test]
     fn test_powers_of() {
         let x = BlsScalar::from(10u64);
@@ -179,9 +184,10 @@ mod test {
 
     #[test]
     fn test_serialise_deserialise_public_parameter() {
-        let pp = PublicParameters::setup(100, &mut rand::thread_rng()).unwrap();
+        let pp =
+            PublicParameters::setup(1 << 7, &mut rand::thread_rng()).unwrap();
 
-        let got_pp = PublicParameters::from_bytes(&pp.to_bytes()).unwrap();
+        let got_pp = PublicParameters::from_slice(&pp.to_var_bytes()).unwrap();
 
         assert_eq!(got_pp.commit_key.powers_of_g, pp.commit_key.powers_of_g);
         assert_eq!(got_pp.opening_key.g, pp.opening_key.g);
@@ -195,8 +201,8 @@ mod test {
             PublicParameters::setup(1 << 7, &mut rand::thread_rng()).unwrap();
 
         let pp_p = unsafe {
-            let bytes = pp.to_raw_bytes();
-            PublicParameters::from_slice_unchecked(&bytes).unwrap()
+            let bytes = pp.to_raw_var_bytes();
+            PublicParameters::from_slice_unchecked(&bytes)
         };
 
         assert_eq!(pp.commit_key, pp_p.commit_key);

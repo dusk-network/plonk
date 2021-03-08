@@ -40,7 +40,7 @@ impl CommitKey {
     /// allowing a really fast deserialization later.
     /// This functions output should not be used by the regular
     /// `CommitKey::from_bytes()` fn.
-    pub fn to_raw_bytes(&self) -> Vec<u8> {
+    pub fn to_raw_var_bytes(&self) -> Vec<u8> {
         let mut bytes = Vec::with_capacity(
             u64::SIZE + self.powers_of_g.len() * G1Affine::RAW_SIZE,
         );
@@ -76,7 +76,7 @@ impl CommitKey {
     }
 
     /// Serialises the commitment Key to a byte slice.
-    pub fn to_bytes(&self) -> Vec<u8> {
+    pub fn to_var_bytes(&self) -> Vec<u8> {
         self.powers_of_g
             .iter()
             .flat_map(|item| item.to_bytes().to_vec())
@@ -92,7 +92,7 @@ impl CommitKey {
     /// degree/size. If the bytes come from a trusted source such as a local
     /// file, we recommend to use `from_slice_unchecked()` and
     /// `to_raw_bytes()`.
-    pub fn from_bytes(bytes: &[u8]) -> Result<CommitKey, Error> {
+    pub fn from_slice(bytes: &[u8]) -> Result<CommitKey, Error> {
         let powers_of_g = bytes
             .chunks(G1Affine::SIZE)
             .map(|chunk| G1Affine::from_slice(chunk))
@@ -299,7 +299,8 @@ mod test {
     use super::*;
     use crate::commitment_scheme::kzg10::{AggregateProof, PublicParameters};
     use crate::fft::Polynomial;
-    use dusk_bls12_381::BlsScalar;
+    use crate::prelude::*;
+    use dusk_bytes::Serializable;
     use merlin::Transcript;
 
     // Checks that a polynomial `p` was evaluated at a point `z` and returned
@@ -526,8 +527,8 @@ mod test {
     #[test]
     fn commit_key_serde() {
         let (commit_key, _) = setup_test(7);
-        let ck_bytes = commit_key.into_bytes();
-        let ck_bytes_safe = CommitKey::from_bytes(&ck_bytes)
+        let ck_bytes = commit_key.to_var_bytes();
+        let ck_bytes_safe = CommitKey::from_slice(&ck_bytes)
             .expect("CommitKey conversion error");
 
         assert_eq!(commit_key.powers_of_g, ck_bytes_safe.powers_of_g);
@@ -548,7 +549,7 @@ mod test {
         let (ck, _) = setup_test(7);
 
         let ck_p = unsafe {
-            let bytes = ck.to_raw_bytes();
+            let bytes = ck.to_raw_var_bytes();
             CommitKey::from_slice_unchecked(&bytes)
         };
 

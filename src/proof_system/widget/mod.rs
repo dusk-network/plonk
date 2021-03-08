@@ -220,9 +220,9 @@ impl ProverKey {
         17
     }
 
-    /// Serialises a ProverKey struct into a Vec of bytes.
+    /// Serialises a [`ProverKey`] struct into a Vec of bytes.
     #[allow(unused_must_use)]
-    pub fn to_bytes(&self) -> Vec<u8> {
+    pub fn to_var_bytes(&self) -> Vec<u8> {
         use dusk_bytes::Write;
         // Fetch size in bytes of each Polynomial
         let poly_size = self.arithmetic.q_m.0.len() * BlsScalar::SIZE;
@@ -245,87 +245,87 @@ impl ProverKey {
 
         // Arithmetic
         writer.write(&(self.arithmetic.q_m.0.len() as u64).to_bytes());
-        writer.write(&self.arithmetic.q_m.0.to_bytes());
-        writer.write(&self.arithmetic.q_m.1.to_bytes());
+        writer.write(&self.arithmetic.q_m.0.to_var_bytes());
+        writer.write(&self.arithmetic.q_m.1.to_var_bytes());
 
         writer.write(&(self.arithmetic.q_l.0.len() as u64).to_bytes());
-        writer.write(&self.arithmetic.q_l.0.to_bytes());
-        writer.write(&self.arithmetic.q_l.1.to_bytes());
+        writer.write(&self.arithmetic.q_l.0.to_var_bytes());
+        writer.write(&self.arithmetic.q_l.1.to_var_bytes());
 
         writer.write(&(self.arithmetic.q_r.0.len() as u64).to_bytes());
-        writer.write(&self.arithmetic.q_r.0.to_bytes());
-        writer.write(&self.arithmetic.q_r.1.to_bytes());
+        writer.write(&self.arithmetic.q_r.0.to_var_bytes());
+        writer.write(&self.arithmetic.q_r.1.to_var_bytes());
 
         writer.write(&(self.arithmetic.q_o.0.len() as u64).to_bytes());
-        writer.write(&self.arithmetic.q_o.0.to_bytes());
-        writer.write(&self.arithmetic.q_o.1.to_bytes());
+        writer.write(&self.arithmetic.q_o.0.to_var_bytes());
+        writer.write(&self.arithmetic.q_o.1.to_var_bytes());
 
         writer.write(&(self.arithmetic.q_4.0.len() as u64).to_bytes());
-        writer.write(&self.arithmetic.q_4.0.to_bytes());
-        writer.write(&self.arithmetic.q_4.1.to_bytes());
+        writer.write(&self.arithmetic.q_4.0.to_var_bytes());
+        writer.write(&self.arithmetic.q_4.1.to_var_bytes());
 
         writer.write(&(self.arithmetic.q_c.0.len() as u64).to_bytes());
-        writer.write(&self.arithmetic.q_c.0.to_bytes());
-        writer.write(&self.arithmetic.q_c.1.to_bytes());
+        writer.write(&self.arithmetic.q_c.0.to_var_bytes());
+        writer.write(&self.arithmetic.q_c.1.to_var_bytes());
 
         writer.write(&(self.arithmetic.q_arith.0.len() as u64).to_bytes());
-        writer.write(&self.arithmetic.q_arith.0.to_bytes());
-        writer.write(&self.arithmetic.q_arith.1.to_bytes());
+        writer.write(&self.arithmetic.q_arith.0.to_var_bytes());
+        writer.write(&self.arithmetic.q_arith.1.to_var_bytes());
 
         // Logic
         writer.write(&(self.logic.q_logic.0.len() as u64).to_bytes());
-        writer.write(&self.logic.q_logic.0.to_bytes());
-        writer.write(&self.logic.q_logic.1.to_bytes());
+        writer.write(&self.logic.q_logic.0.to_var_bytes());
+        writer.write(&self.logic.q_logic.1.to_var_bytes());
 
         // Range
         writer.write(&(self.range.q_range.0.len() as u64).to_bytes());
-        writer.write(&self.range.q_range.0.to_bytes());
-        writer.write(&self.range.q_range.1.to_bytes());
+        writer.write(&self.range.q_range.0.to_var_bytes());
+        writer.write(&self.range.q_range.1.to_var_bytes());
 
         // Fixed base multiplication
         writer.write(
             &(self.fixed_base.q_fixed_group_add.0.len() as u64).to_bytes(),
         );
-        writer.write(&self.fixed_base.q_fixed_group_add.0.to_bytes());
-        writer.write(&self.fixed_base.q_fixed_group_add.1.to_bytes());
+        writer.write(&self.fixed_base.q_fixed_group_add.0.to_var_bytes());
+        writer.write(&self.fixed_base.q_fixed_group_add.1.to_var_bytes());
 
         // Variable base addition
         writer.write(
             &(self.variable_base.q_variable_group_add.0.len() as u64)
                 .to_bytes(),
         );
-        writer.write(&self.variable_base.q_variable_group_add.0.to_bytes());
-        writer.write(&self.variable_base.q_variable_group_add.1.to_bytes());
+        writer.write(&self.variable_base.q_variable_group_add.0.to_var_bytes());
+        writer.write(&self.variable_base.q_variable_group_add.1.to_var_bytes());
 
         // Permutation
         writer.write(&(self.permutation.left_sigma.0.len() as u64).to_bytes());
-        writer.write(&self.permutation.left_sigma.0.to_bytes());
-        writer.write(&self.permutation.left_sigma.1.to_bytes());
+        writer.write(&self.permutation.left_sigma.0.to_var_bytes());
+        writer.write(&self.permutation.left_sigma.1.to_var_bytes());
 
         writer.write(&(self.permutation.right_sigma.0.len() as u64).to_bytes());
-        writer.write(&self.permutation.right_sigma.0.to_bytes());
-        writer.write(&self.permutation.right_sigma.1.to_bytes());
+        writer.write(&self.permutation.right_sigma.0.to_var_bytes());
+        writer.write(&self.permutation.right_sigma.1.to_var_bytes());
 
         writer.write(&(self.permutation.out_sigma.0.len() as u64).to_bytes());
-        writer.write(&self.permutation.out_sigma.0.to_bytes());
-        writer.write(&self.permutation.out_sigma.1.to_bytes());
+        writer.write(&self.permutation.out_sigma.0.to_var_bytes());
+        writer.write(&self.permutation.out_sigma.1.to_var_bytes());
 
         writer
             .write(&(self.permutation.fourth_sigma.0.len() as u64).to_bytes());
-        writer.write(&self.permutation.fourth_sigma.0.to_bytes());
-        writer.write(&self.permutation.fourth_sigma.1.to_bytes());
+        writer.write(&self.permutation.fourth_sigma.0.to_var_bytes());
+        writer.write(&self.permutation.fourth_sigma.1.to_var_bytes());
 
-        writer.write(&self.permutation.linear_evaluations.to_bytes());
+        writer.write(&self.permutation.linear_evaluations.to_var_bytes());
 
-        writer.write(&self.v_h_coset_4n.to_bytes());
+        writer.write(&self.v_h_coset_4n.to_var_bytes());
 
         bytes
     }
 
-    /// Deserialises a slice of bytes into a ProverKey
-    pub fn from_bytes(bytes: &[u8]) -> Result<ProverKey, Error> {
+    /// Deserialises a slice of bytes into a [`ProverKey`].
+    pub fn from_slice(bytes: &[u8]) -> Result<ProverKey, Error> {
         let mut buffer = &bytes[..];
-        let size = u64::from_reader(&mut buffer)? as usize;
+        let n = u64::from_reader(&mut buffer)? as usize;
         let evaluations_size = u64::from_reader(&mut buffer)? as usize;
         // let domain = crate::fft::EvaluationDomain::new(4 * size)?;
         // TODO: By creating this we can avoid including the EvaluationDomain
@@ -340,7 +340,7 @@ impl ProverKey {
                 return Ok(Polynomial { coeffs: vec![] });
             }
             let (a, b) = buf.split_at(serialized_poly_len);
-            let poly = Polynomial::from_bytes(a);
+            let poly = Polynomial::from_slice(a);
             *buf = b;
 
             poly
@@ -349,7 +349,7 @@ impl ProverKey {
         let evals_from_reader =
             |buf: &mut &[u8]| -> Result<Evaluations, Error> {
                 let (a, b) = buf.split_at(evaluations_size);
-                let eval = Evaluations::from_bytes(a);
+                let eval = Evaluations::from_slice(a);
                 *buf = b;
 
                 eval
@@ -458,7 +458,7 @@ impl ProverKey {
         };
 
         let prover_key = ProverKey {
-            n: size,
+            n,
             arithmetic,
             logic,
             range,
@@ -571,8 +571,8 @@ mod test {
             v_h_coset_4n,
         };
 
-        let prover_key_bytes = prover_key.to_bytes();
-        let pk = ProverKey::from_bytes(&prover_key_bytes).unwrap();
+        let prover_key_bytes = prover_key.to_var_bytes();
+        let pk = ProverKey::from_slice(&prover_key_bytes).unwrap();
 
         assert_eq!(pk, prover_key);
         assert_eq!(pk.to_bytes(), prover_key.to_bytes());

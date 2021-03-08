@@ -131,7 +131,7 @@ impl Polynomial {
 
     /// Given a Polynomial, return it in it's byte representation coefficient by
     /// coefficient.
-    pub fn to_bytes(&self) -> Vec<u8> {
+    pub fn to_var_bytes(&self) -> Vec<u8> {
         self.coeffs
             .iter()
             .map(|item| item.to_bytes().to_vec())
@@ -140,7 +140,7 @@ impl Polynomial {
     }
 
     /// Generate a Polynomial from a slice of bytes.
-    pub fn from_bytes(bytes: &[u8]) -> Result<Polynomial, Error> {
+    pub fn from_slice(bytes: &[u8]) -> Result<Polynomial, Error> {
         let coeffs = bytes
             .chunks(BlsScalar::SIZE)
             .map(|chunk| BlsScalar::from_slice(chunk))
