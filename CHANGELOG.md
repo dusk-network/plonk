@@ -9,14 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Implement `dusk_bytes::Serializable` for all possible structures that need serde. [#352](https://github.com/dusk-network/plonk/issues/352)
 - Introduced a new type that unifies the Public Inputs `PublicInputValue`. [#416](https://github.com/dusk-network/plonk/issues/416)
 - Impl `padded_circuit_size` for `VerifierKey` [#351](https://github.com/dusk-network/plonk/issues/351)
 - Impl a generic method that can verify Proofs of any `Circuit`. [#396](https://github.com/dusk-network/plonk/issues/396)
 
 ### Removed
 
+- Remove serde support completely from the repo. [#353](https://github.com/dusk-network/plonk/issues/353)
 - Removed previous implementations attached to `PublicInputValues`. [#416](https://github.com/dusk-network/plonk/issues/416)
-- Deprecated `anyhow` and `thiserror` [#343](https://github.com/dusk-network/plonk/issues/343)
+- Deprecated `anyhow` and `thiserror`. [#343](https://github.com/dusk-network/plonk/issues/343)
+- Remove `serialisation` module and use single serialization fn's. [#347](https://github.com/dusk-network/plonk/issues/347)
 - Remove uncessary `match` branch for `var_c` [#414](https://github.com/dusk-network/plonk/issues/414)
 - Remove legacy fns and move to test modules the only-for-testing ones. [#434](https://github.com/dusk-network/plonk/issues/434)
 
@@ -28,7 +31,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Replace `collections::HashMap` by `hashbrown::HashMap`. [#424](https://github.com/dusk-network/plonk/issues/424)
 - `Circuit` trait now only requires `padded_circuit_size` for trimming. [#351](https://github.com/dusk-network/plonk/issues/351)
 - Remove `verify_proof` & `build_pi` from `Circuit`. [#396](https://github.com/dusk-network/plonk/issues/396)
-- Updated the native errors to all originate from the same enum [#343](https://github.com/dusk-network/plonk/issues/343)
+- Update API naming conventions to be standard across the crate. [#354](https://github.com/dusk-network/plonk/issues/354)
+- Updated the native errors to all originate from the same enum. [#343](https://github.com/dusk-network/plonk/issues/343)
 
 ## [0.5.1] - 02-02-21
 
