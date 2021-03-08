@@ -18,7 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Removed previous implementations attached to `PublicInputValues`. [#416](https://github.com/dusk-network/plonk/issues/416)
 - Deprecated `anyhow` and `thiserror` [#343](https://github.com/dusk-network/plonk/issues/343)
 - Remove uncessary `match` branch for `var_c` [#414](https://github.com/dusk-network/plonk/issues/414)
-- Remove legacy fn's and move to test modules the only-for-testing ones. [#434](https://github.com/dusk-network/plonk/issues/434)
+- Remove legacy fns and move to test modules the only-for-testing ones. [#434](https://github.com/dusk-network/plonk/issues/434)
 
 ### Changed
 
