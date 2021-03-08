@@ -121,7 +121,7 @@ impl CommitKey {
     }
 
     /// Returns the maximum degree polynomial that you can commit to.
-    pub fn max_degree(&self) -> usize {
+    pub(crate) fn max_degree(&self) -> usize {
         self.powers_of_g.len() - 1
     }
 
@@ -183,22 +183,6 @@ impl CommitKey {
         let commitment =
             msm_variable_base(&self.powers_of_g, &polynomial.coeffs);
         Ok(Commitment::from_projective(commitment))
-    }
-
-    /// For a given polynomial `p` and a point `z`, compute the witness
-    /// for p(z) using Ruffini's method for simplicity.
-    /// The Witness is the quotient of f(x) - f(z) / x-z.
-    /// However we note that the quotient polynomial is invariant under the
-    /// value f(z) ie. only the remainder changes. We can therefore compute
-    /// the witness as f(x) / x - z and only use the remainder term f(z)
-    /// during verification.
-    fn compute_single_witness(
-        &self,
-        polynomial: &Polynomial,
-        point: &BlsScalar,
-    ) -> Polynomial {
-        // Computes `f(x) / x-z`, returning it as the witness poly
-        polynomial.ruffini(*point)
     }
 
     /// Computes a single witness for multiple polynomials at the same point, by
@@ -323,15 +307,15 @@ impl OpeningKey {
 
 #[cfg(test)]
 mod test {
-    use super::super::{AggregateProof, PublicParameters};
     use super::*;
+    use crate::commitment_scheme::kzg10::{AggregateProof, PublicParameters};
     use crate::fft::Polynomial;
     use dusk_bls12_381::BlsScalar;
     use merlin::Transcript;
 
     // Checks that a polynomial `p` was evaluated at a point `z` and returned
     // the value specified `v`. ie. v = p(z).
-    pub fn check(op_key: &OpeningKey, point: BlsScalar, proof: Proof) -> bool {
+    fn check(op_key: &OpeningKey, point: BlsScalar, proof: Proof) -> bool {
         let inner_a: G1Affine = (proof.commitment_to_polynomial.0
             - (op_key.g * proof.evaluated_point))
             .into();

@@ -78,25 +78,25 @@ impl EvaluationDomain {
     }
 
     /// Return the size of `self`.
-    pub fn size(&self) -> usize {
+    pub(crate) fn size(&self) -> usize {
         self.size as usize
     }
 
     /// Compute a FFT.
-    pub fn fft(&self, coeffs: &[BlsScalar]) -> Vec<BlsScalar> {
+    pub(crate) fn fft(&self, coeffs: &[BlsScalar]) -> Vec<BlsScalar> {
         let mut coeffs = coeffs.to_vec();
         self.fft_in_place(&mut coeffs);
         coeffs
     }
 
     /// Compute a FFT, modifying the vector in place.
-    pub fn fft_in_place(&self, coeffs: &mut Vec<BlsScalar>) {
+    fn fft_in_place(&self, coeffs: &mut Vec<BlsScalar>) {
         coeffs.resize(self.size(), BlsScalar::zero());
         best_fft(coeffs, self.group_gen, self.log_size_of_group)
     }
 
     /// Compute an IFFT.
-    pub fn ifft(&self, evals: &[BlsScalar]) -> Vec<BlsScalar> {
+    pub(crate) fn ifft(&self, evals: &[BlsScalar]) -> Vec<BlsScalar> {
         let mut evals = evals.to_vec();
         self.ifft_in_place(&mut evals);
         evals
@@ -104,7 +104,7 @@ impl EvaluationDomain {
 
     /// Compute an IFFT, modifying the vector in place.
     #[inline]
-    pub fn ifft_in_place(&self, evals: &mut Vec<BlsScalar>) {
+    pub(crate) fn ifft_in_place(&self, evals: &mut Vec<BlsScalar>) {
         evals.resize(self.size(), BlsScalar::zero());
         best_fft(evals, self.group_gen_inv, self.log_size_of_group);
         // cfg_iter_mut!(evals).for_each(|val| *val *= &self.size_inv);
@@ -120,7 +120,7 @@ impl EvaluationDomain {
     }
 
     /// Compute a FFT over a coset of the domain.
-    pub fn coset_fft(&self, coeffs: &[BlsScalar]) -> Vec<BlsScalar> {
+    pub(crate) fn coset_fft(&self, coeffs: &[BlsScalar]) -> Vec<BlsScalar> {
         let mut coeffs = coeffs.to_vec();
         self.coset_fft_in_place(&mut coeffs);
         coeffs
@@ -128,13 +128,13 @@ impl EvaluationDomain {
 
     /// Compute a FFT over a coset of the domain, modifying the input vector
     /// in place.
-    pub fn coset_fft_in_place(&self, coeffs: &mut Vec<BlsScalar>) {
+    fn coset_fft_in_place(&self, coeffs: &mut Vec<BlsScalar>) {
         Self::distribute_powers(coeffs, GENERATOR);
         self.fft_in_place(coeffs);
     }
 
     /// Compute an IFFT over a coset of the domain.
-    pub fn coset_ifft(&self, evals: &[BlsScalar]) -> Vec<BlsScalar> {
+    pub(crate) fn coset_ifft(&self, evals: &[BlsScalar]) -> Vec<BlsScalar> {
         let mut evals = evals.to_vec();
         self.coset_ifft_in_place(&mut evals);
         evals
@@ -142,7 +142,7 @@ impl EvaluationDomain {
 
     /// Compute an IFFT over a coset of the domain, modifying the input vector
     /// in place.
-    pub fn coset_ifft_in_place(&self, evals: &mut Vec<BlsScalar>) {
+    fn coset_ifft_in_place(&self, evals: &mut Vec<BlsScalar>) {
         self.ifft_in_place(evals);
         Self::distribute_powers(evals, self.generator_inv);
     }
@@ -150,7 +150,7 @@ impl EvaluationDomain {
     #[allow(clippy::needless_range_loop)]
     /// Evaluate all the lagrange polynomials defined by this domain at the
     /// point `tau`.
-    pub fn evaluate_all_lagrange_coefficients(
+    pub(crate) fn evaluate_all_lagrange_coefficients(
         &self,
         tau: BlsScalar,
     ) -> Vec<BlsScalar> {
@@ -196,14 +196,17 @@ impl EvaluationDomain {
     /// This evaluates the vanishing polynomial for this domain at tau.
     /// For multiplicative subgroups, this polynomial is `z(X) = X^self.size -
     /// 1`.
-    pub fn evaluate_vanishing_polynomial(&self, tau: &BlsScalar) -> BlsScalar {
+    pub(crate) fn evaluate_vanishing_polynomial(
+        &self,
+        tau: &BlsScalar,
+    ) -> BlsScalar {
         tau.pow(&[self.size, 0, 0, 0]) - BlsScalar::one()
     }
 
     /// Given that the domain size is `D`  
     /// This function computes the `D` evaluation points for
     /// the vanishing polynomial of degree `n` over a coset
-    pub fn compute_vanishing_poly_over_coset(
+    pub(crate) fn compute_vanishing_poly_over_coset(
         &self,            // domain to evaluate over
         poly_degree: u64, // degree of the vanishing polynomial
     ) -> Evaluations {
@@ -220,7 +223,7 @@ impl EvaluationDomain {
     }
 
     /// Return an iterator over the elements of the domain.
-    pub fn elements(&self) -> Elements {
+    pub(crate) fn elements(&self) -> Elements {
         Elements {
             cur_elem: BlsScalar::one(),
             cur_pow: 0,
@@ -280,7 +283,7 @@ pub(crate) fn serial_fft(a: &mut [BlsScalar], omega: BlsScalar, log_n: u32) {
 
 /// An iterator over the elements of the domain.
 #[derive(Debug)]
-pub struct Elements {
+pub(crate) struct Elements {
     cur_elem: BlsScalar,
     cur_pow: u64,
     domain: EvaluationDomain,

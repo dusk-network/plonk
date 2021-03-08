@@ -132,7 +132,7 @@ impl PublicParameters {
     /// polynomials up to the and including the truncated degree.
     /// Returns an error if the truncated degree is larger than the public
     /// parameters configured degree.
-    pub fn trim(
+    pub(crate) fn trim(
         &self,
         truncated_degree: usize,
     ) -> Result<(CommitKey, OpeningKey), Error> {

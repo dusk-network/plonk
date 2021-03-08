@@ -21,7 +21,7 @@ use std::ops::{Add, AddAssign, Deref, DerefMut, Mul, Neg, Sub, SubAssign};
 /// Polynomial represents a polynomial in coeffiient form.
 pub(crate) struct Polynomial {
     /// The coefficient of `x^i` is stored at location `i` in `self.coeffs`.
-    pub coeffs: Vec<BlsScalar>,
+    pub(crate) coeffs: Vec<BlsScalar>,
 }
 
 impl Deref for Polynomial {
@@ -422,7 +422,10 @@ mod test {
     impl Polynomial {
         /// Outputs a polynomial of degree `d` where each coefficient is sampled
         /// uniformly at random from the field `F`.
-        pub(crate) fn rand<R: RngCore + CryptoRng>(d: usize, mut rng: &mut R) -> Self {
+        pub(crate) fn rand<R: RngCore + CryptoRng>(
+            d: usize,
+            mut rng: &mut R,
+        ) -> Self {
             let mut random_coeffs = Vec::with_capacity(d + 1);
             for _ in 0..=d {
                 random_coeffs.push(util::random_scalar(&mut rng));

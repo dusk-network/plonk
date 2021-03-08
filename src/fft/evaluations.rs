@@ -17,14 +17,14 @@ use dusk_bls12_381::BlsScalar;
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub(crate) struct Evaluations {
     /// The evaluations of a polynomial over the domain `D`
-    pub evals: Vec<BlsScalar>,
+    pub(crate) evals: Vec<BlsScalar>,
     #[doc(hidden)]
     domain: EvaluationDomain,
 }
 
 impl Evaluations {
     /// Construct `Self` from evaluations and a domain.
-    pub fn from_vec_and_domain(
+    pub(crate) fn from_vec_and_domain(
         evals: Vec<BlsScalar>,
         domain: EvaluationDomain,
     ) -> Self {
@@ -32,7 +32,7 @@ impl Evaluations {
     }
 
     /// Interpolate a polynomial from a list of evaluations
-    pub fn interpolate(self) -> Polynomial {
+    pub(crate) fn interpolate(self) -> Polynomial {
         let Self { mut evals, domain } = self;
         domain.ifft_in_place(&mut evals);
         Polynomial::from_coefficients_vec(evals)
