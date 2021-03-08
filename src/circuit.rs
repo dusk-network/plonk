@@ -148,6 +148,7 @@ mod tests {
     use super::*;
     use crate::constraint_system::{ecc::*, StandardComposer};
     use crate::proof_system::{ProverKey, VerifierKey};
+    use dusk_bytes::{DeserializableSlice, Serializable};
 
     // Implements a circuit that checks:
     // 1) a + b = c where C is a PI
@@ -252,7 +253,7 @@ mod tests {
             .and_then(|mut f| f.write(pk_p.to_bytes().as_slice()))
             .unwrap();
         File::create(&vk_path)
-            .and_then(|mut f| f.write(vk_p.to_bytes().as_slice()))
+            .and_then(|mut f| f.write(&vk_p.to_bytes()))
             .unwrap();
 
         // Read ProverKey
@@ -261,7 +262,7 @@ mod tests {
 
         // Read VerifierKey
         let vk = fs::read(vk_path).unwrap();
-        let vk = VerifierKey::from_bytes(vk.as_slice())?;
+        let vk = VerifierKey::from_slice(vk.as_slice())?;
 
         assert_eq!(pk, pk_p);
         assert_eq!(vk, vk_p);

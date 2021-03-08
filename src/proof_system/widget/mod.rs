@@ -240,59 +240,72 @@ impl ProverKey {
 
         let mut writer = &mut bytes[..];
         writer.write(&(self.n as u64).to_bytes());
-        // Write Polynomial len in bytes.
-        writer.write(&(poly_size as u64).to_bytes());
         // Write Evaluation len in bytes.
         writer.write(&(evals_size as u64).to_bytes());
 
         // Arithmetic
+        writer.write(&(self.arithmetic.q_m.0.len() as u64).to_bytes());
         writer.write(&self.arithmetic.q_m.0.to_bytes());
         writer.write(&self.arithmetic.q_m.1.to_bytes());
 
+        writer.write(&(self.arithmetic.q_l.0.len() as u64).to_bytes());
         writer.write(&self.arithmetic.q_l.0.to_bytes());
         writer.write(&self.arithmetic.q_l.1.to_bytes());
 
+        writer.write(&(self.arithmetic.q_r.0.len() as u64).to_bytes());
         writer.write(&self.arithmetic.q_r.0.to_bytes());
         writer.write(&self.arithmetic.q_r.1.to_bytes());
 
+        writer.write(&(self.arithmetic.q_o.0.len() as u64).to_bytes());
         writer.write(&self.arithmetic.q_o.0.to_bytes());
         writer.write(&self.arithmetic.q_o.1.to_bytes());
 
+        writer.write(&(self.arithmetic.q_4.0.len() as u64).to_bytes());
         writer.write(&self.arithmetic.q_4.0.to_bytes());
         writer.write(&self.arithmetic.q_4.1.to_bytes());
 
+        writer.write(&(self.arithmetic.q_c.0.len() as u64).to_bytes());
         writer.write(&self.arithmetic.q_c.0.to_bytes());
         writer.write(&self.arithmetic.q_c.1.to_bytes());
 
+        writer.write(&(self.arithmetic.q_arith.0.len() as u64).to_bytes());
         writer.write(&self.arithmetic.q_arith.0.to_bytes());
         writer.write(&self.arithmetic.q_arith.1.to_bytes());
 
         // Logic
+        writer.write(&(self.logic.q_logic.0.len() as u64).to_bytes());
         writer.write(&self.logic.q_logic.0.to_bytes());
         writer.write(&self.logic.q_logic.1.to_bytes());
 
         // Range
+        writer.write(&(self.range.q_range.0.len() as u64).to_bytes());
         writer.write(&self.range.q_range.0.to_bytes());
         writer.write(&self.range.q_range.1.to_bytes());
 
         // Fixed base multiplication
+        writer.write(&(self.fixed_base.q_fixed_group_add.0.len() as u64).to_bytes());
         writer.write(&self.fixed_base.q_fixed_group_add.0.to_bytes());
         writer.write(&self.fixed_base.q_fixed_group_add.1.to_bytes());
 
         // Variable base addition
+        writer.write(&(self.variable_base.q_variable_group_add.0.len() as u64).to_bytes());
         writer.write(&self.variable_base.q_variable_group_add.0.to_bytes());
         writer.write(&self.variable_base.q_variable_group_add.1.to_bytes());
 
         // Permutation
+        writer.write(&(self.permutation.left_sigma.0.len() as u64).to_bytes());
         writer.write(&self.permutation.left_sigma.0.to_bytes());
         writer.write(&self.permutation.left_sigma.1.to_bytes());
 
+        writer.write(&(self.permutation.right_sigma.0.len() as u64).to_bytes());
         writer.write(&self.permutation.right_sigma.0.to_bytes());
         writer.write(&self.permutation.right_sigma.1.to_bytes());
 
+        writer.write(&(self.permutation.out_sigma.0.len() as u64).to_bytes());
         writer.write(&self.permutation.out_sigma.0.to_bytes());
         writer.write(&self.permutation.out_sigma.1.to_bytes());
 
+        writer.write(&(self.permutation.fourth_sigma.0.len() as u64).to_bytes());
         writer.write(&self.permutation.fourth_sigma.0.to_bytes());
         writer.write(&self.permutation.fourth_sigma.1.to_bytes());
 
@@ -307,14 +320,18 @@ impl ProverKey {
     pub fn from_bytes(bytes: &[u8]) -> Result<ProverKey, Error> {
         let mut buffer = &bytes[..];
         let size = u64::from_reader(&mut buffer)? as usize;
-        let poly_size = u64::from_reader(&mut buffer)? as usize;
         let evaluations_size = u64::from_reader(&mut buffer)? as usize;
         // let domain = crate::fft::EvaluationDomain::new(4 * size)?;
         // TODO: By creating this we can avoid including the EvaluationDomain
         // inside Evaluations. See: dusk-network/plonk#436
 
         let poly_from_reader = |buf: &mut &[u8]| -> Result<Polynomial, Error> {
-            let (a, b) = buf.split_at(poly_size);
+            let serialized_poly_len = u64::from_reader(buf)? as usize * BlsScalar::SIZE;
+            // If the announced len is zero, simply return an empty poly and leave the buffer intact.
+            if serialized_poly_len == 0 {
+                return Ok(Polynomial { coeffs: vec![] });
+            }
+            let (a, b) = buf.split_at(serialized_poly_len);
             let poly = Polynomial::from_bytes(a);
             *buf = b;
 
