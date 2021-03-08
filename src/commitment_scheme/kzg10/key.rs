@@ -147,13 +147,11 @@ impl CommitKey {
     ///
     /// Returns an error if any of the above conditions are true.
     fn check_commit_degree_is_within_bounds(&self, poly_degree: usize) -> Result<(), Error> {
-        if poly_degree == 0 {
-            return Err(Error::PolynomialDegreeIsZero);
+        match (poly_degree == 0, poly_degree > self.max_degree()) {
+            (true, _) => Err(Error::PolynomialDegreeIsZero),
+            (false, true) => Err(Error::PolynomialDegreeTooLarge),
+            (false, false) => Ok(()),
         }
-        if poly_degree > self.max_degree() {
-            return Err(Error::PolynomialDegreeTooLarge);
-        }
-        Ok(())
     }
 
     /// Commits to a polynomial returning the corresponding `Commitment`.
