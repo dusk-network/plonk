@@ -49,7 +49,7 @@
 #![allow(clippy::match_bool)]
 // Clippy does not have `broken_intra_doc_links` as a known lint.
 #![allow(unknown_lints)]
-#![deny(broken_intra_doc_links)]
+#![deny(rustdoc::broken_intra_doc_links)]
 #![deny(missing_docs)]
 
 #[macro_use]
