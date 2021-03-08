@@ -32,11 +32,6 @@ impl Evaluations {
     }
 
     /// Interpolate a polynomial from a list of evaluations
-    pub fn interpolate_by_ref(&self) -> Polynomial {
-        Polynomial::from_coefficients_vec(self.domain.ifft(&self.evals))
-    }
-
-    /// Interpolate a polynomial from a list of evaluations
     pub fn interpolate(self) -> Polynomial {
         let Self { mut evals, domain } = self;
         domain.ifft_in_place(&mut evals);

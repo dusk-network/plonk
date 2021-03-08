@@ -14,7 +14,6 @@
 
 use super::Evaluations;
 use crate::error::Error;
-use core::fmt;
 use dusk_bls12_381::{BlsScalar, GENERATOR, ROOT_OF_UNITY, TWO_ADACITY};
 use rayon::iter::{
     IndexedParallelIterator, IntoParallelRefMutIterator, ParallelIterator,
