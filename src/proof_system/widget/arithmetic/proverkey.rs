@@ -35,7 +35,8 @@ impl ProverKey {
         let q_4_i = &self.q_4.1[index];
         let q_arith_i = &self.q_arith.1[index];
 
-        // (a(x)b(x)q_M(x) + a(x)q_L(x) + b(X)q_R(x) + c(X)q_O(X) + d(x)q_4(X) + Q_C(X)) * Q_Arith(X)
+        // (a(x)b(x)q_M(x) + a(x)q_L(x) + b(X)q_R(x) + c(X)q_O(X) + d(x)q_4(X) +
+        // Q_C(X)) * Q_Arith(X)
         //
         let a_1 = w_l_i * w_r_i * q_m_i;
         let a_2 = w_l_i * q_l_i;
@@ -61,7 +62,8 @@ impl ProverKey {
         let q_c_poly = &self.q_c.0;
         let q_4_poly = &self.q_4.0;
 
-        // (a_eval * b_eval * q_m_poly + a_eval * q_l + b_eval * q_r + c_eval * q_o + d_eval * q_4 + q_c) * q_arith_eval * alpha
+        // (a_eval * b_eval * q_m_poly + a_eval * q_l + b_eval * q_r + c_eval *
+        // q_o + d_eval * q_4 + q_c) * q_arith_eval * alpha
         //
         // a_eval * b_eval * q_m_poly
         let ab = a_eval * b_eval;

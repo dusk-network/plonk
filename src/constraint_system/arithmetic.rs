@@ -25,7 +25,18 @@ impl StandardComposer {
         q_c: BlsScalar,
         pi: Option<BlsScalar>,
     ) -> Variable {
-        self.big_add_gate(a, b, c, None, q_l, q_r, q_o, BlsScalar::zero(), q_c, pi)
+        self.big_add_gate(
+            a,
+            b,
+            c,
+            None,
+            q_l,
+            q_r,
+            q_o,
+            BlsScalar::zero(),
+            q_c,
+            pi,
+        )
     }
 
     /// Adds a width-4 add gate to the circuit and it's corresponding
@@ -197,7 +208,8 @@ impl StandardComposer {
     /// possible. Since it defaults some of the selector coeffs = 0 in order
     /// to reduce the verbosity and complexity.
     ///
-    /// Forces `q_l * w_l + q_r * w_r + q_4 * w_4 + q_c + PI = w_o(computed by the gate)`.
+    /// Forces `q_l * w_l + q_r * w_r + q_4 * w_4 + q_c + PI = w_o(computed by
+    /// the gate)`.
     pub fn big_add(
         &mut self,
         q_l_a: (BlsScalar, Variable),
@@ -221,8 +233,11 @@ impl StandardComposer {
         let a_eval = self.variables[&a];
         let b_eval = self.variables[&b];
         let d_eval = self.variables[&d];
-        let c_eval =
-            (q_l * a_eval) + (q_r * b_eval) + (q_4 * d_eval) + q_c + pi.unwrap_or_default();
+        let c_eval = (q_l * a_eval)
+            + (q_r * b_eval)
+            + (q_4 * d_eval)
+            + q_c
+            + pi.unwrap_or_default();
         let c = self.add_input(c_eval);
 
         self.big_add_gate(a, b, c, Some(d), q_l, q_r, q_o, q_4, q_c, pi)
@@ -250,10 +265,12 @@ impl StandardComposer {
     /// possible. Since it defaults some of the selector coeffs = 0 in order
     /// to reduce the verbosity and complexity.
     ///
-    /// Forces `q_m * (w_l * w_r) + w_4 * q_4 + q_c + PI = w_o(computed by the gate)`.
+    /// Forces `q_m * (w_l * w_r) + w_4 * q_4 + q_c + PI = w_o(computed by the
+    /// gate)`.
     ///
     /// `{w_l, w_r, w_4} = {a, b, d}`
-    // XXX: This API is not consistent. It should use tuples and not individual fields
+    // XXX: This API is not consistent. It should use tuples and not individual
+    // fields
     pub fn big_mul(
         &mut self,
         q_m: BlsScalar,
@@ -275,7 +292,10 @@ impl StandardComposer {
         let a_eval = self.variables[&a];
         let b_eval = self.variables[&b];
         let d_eval = self.variables[&d];
-        let c_eval = (q_m * a_eval * b_eval) + (q_4 * d_eval) + q_c + pi.unwrap_or_default();
+        let c_eval = (q_m * a_eval * b_eval)
+            + (q_4 * d_eval)
+            + q_c
+            + pi.unwrap_or_default();
         let c = self.add_input(c_eval);
 
         self.big_mul_gate(a, b, c, Some(d), q_m, q_o, q_c, q_4, pi)
@@ -300,7 +320,11 @@ mod tests {
                     BlsScalar::zero(),
                     Some(BlsScalar::one()),
                 );
-                composer.constrain_to_constant(should_be_three, BlsScalar::from(3), None);
+                composer.constrain_to_constant(
+                    should_be_three,
+                    BlsScalar::from(3),
+                    None,
+                );
                 let should_be_four = composer.big_add(
                     var_one.into(),
                     var_one.into(),
@@ -308,7 +332,11 @@ mod tests {
                     BlsScalar::zero(),
                     Some(BlsScalar::from(2)),
                 );
-                composer.constrain_to_constant(should_be_four, BlsScalar::from(4), None);
+                composer.constrain_to_constant(
+                    should_be_four,
+                    BlsScalar::from(4),
+                    None,
+                );
             },
             200,
         );
@@ -341,13 +369,25 @@ mod tests {
                     None,
                 );
 
-                // There are quite a few ways to check the equation is correct, depending on your circumstance
-                // If we already have the output wire, we can constrain the output of the mul_gate to be equal to it
-                // If we do not, we can compute it using the `mul`
-                // If the output is public, we can also constrain the output wire of the mul gate to it. This is what this test does
-                let output =
-                    composer.mul(BlsScalar::one(), fourteen, twenty, BlsScalar::zero(), None);
-                composer.constrain_to_constant(output, BlsScalar::from(280), None);
+                // There are quite a few ways to check the equation is correct,
+                // depending on your circumstance If we already
+                // have the output wire, we can constrain the output of the
+                // mul_gate to be equal to it If we do not, we
+                // can compute it using the `mul` If the output
+                // is public, we can also constrain the output wire of the mul
+                // gate to it. This is what this test does
+                let output = composer.mul(
+                    BlsScalar::one(),
+                    fourteen,
+                    twenty,
+                    BlsScalar::zero(),
+                    None,
+                );
+                composer.constrain_to_constant(
+                    output,
+                    BlsScalar::from(280),
+                    None,
+                );
             },
             200,
         );
@@ -409,7 +449,11 @@ mod tests {
                     BlsScalar::zero(),
                     None,
                 );
-                composer.constrain_to_constant(output, BlsScalar::from(352), None);
+                composer.constrain_to_constant(
+                    output,
+                    BlsScalar::from(352),
+                    None,
+                );
             },
             200,
         );
@@ -425,11 +469,21 @@ mod tests {
                 let six = composer.add_input(BlsScalar::from(6));
                 let seven = composer.add_input(BlsScalar::from(7));
 
-                let five_plus_five =
-                    composer.big_add(five.into(), five.into(), None, BlsScalar::zero(), None);
+                let five_plus_five = composer.big_add(
+                    five.into(),
+                    five.into(),
+                    None,
+                    BlsScalar::zero(),
+                    None,
+                );
 
-                let six_plus_seven =
-                    composer.big_add(six.into(), seven.into(), None, BlsScalar::zero(), None);
+                let six_plus_seven = composer.big_add(
+                    six.into(),
+                    seven.into(),
+                    None,
+                    BlsScalar::zero(),
+                    None,
+                );
 
                 let output = composer.mul(
                     BlsScalar::one(),
@@ -438,7 +492,11 @@ mod tests {
                     BlsScalar::zero(),
                     None,
                 );
-                composer.constrain_to_constant(output, BlsScalar::from(117), None);
+                composer.constrain_to_constant(
+                    output,
+                    BlsScalar::from(117),
+                    None,
+                );
             },
             200,
         );

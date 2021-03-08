@@ -42,8 +42,10 @@ impl VerifierKey {
         let w = evaluations.c_eval;
         let c_3 = (w - a * b) * kappa_cu;
 
-        let c_4 = delta_xor_and(&a, &b, &w, &d, &evaluations.q_c_eval) * kappa_qu;
-        scalars.push((c_0 + c_1 + c_2 + c_3 + c_4) * logic_separation_challenge);
+        let c_4 =
+            delta_xor_and(&a, &b, &w, &d, &evaluations.q_c_eval) * kappa_qu;
+        scalars
+            .push((c_0 + c_1 + c_2 + c_3 + c_4) * logic_separation_challenge);
         points.push(self.q_logic.0);
     }
 }

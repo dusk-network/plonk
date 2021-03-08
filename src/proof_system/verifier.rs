@@ -20,8 +20,9 @@ pub struct Verifier {
 
     pub(crate) cs: StandardComposer,
     /// Store the messages exchanged during the preprocessing stage
-    /// This is copied each time, we make a proof, so that we can use the same verifier to
-    /// Verify multiple proofs from the same circuit. If this is not copied, then the verification procedure will modify
+    /// This is copied each time, we make a proof, so that we can use the same
+    /// verifier to Verify multiple proofs from the same circuit. If this
+    /// is not copied, then the verification procedure will modify
     /// the transcript, making it unusable for future proofs.
     pub preprocessed_transcript: Transcript,
 }
@@ -63,9 +64,10 @@ impl Verifier {
 
     /// Preprocess a proof
     pub fn preprocess(&mut self, commit_key: &CommitKey) -> Result<(), Error> {
-        let vk = self
-            .cs
-            .preprocess_verifier(commit_key, &mut self.preprocessed_transcript)?;
+        let vk = self.cs.preprocess_verifier(
+            commit_key,
+            &mut self.preprocessed_transcript,
+        )?;
 
         self.verifier_key = Some(vk);
         Ok(())

@@ -8,14 +8,18 @@
 //! that support the generation and usage of Commit and
 //! Opening keys.
 use super::{AggregateProof, Commitment, Proof};
-use crate::{error::Error, fft::Polynomial, transcript::TranscriptProtocol, util};
+use crate::{
+    error::Error, fft::Polynomial, transcript::TranscriptProtocol, util,
+};
 use dusk_bls12_381::{
-    multiscalar_mul::msm_variable_base, BlsScalar, G1Affine, G1Projective, G2Affine, G2Prepared,
+    multiscalar_mul::msm_variable_base, BlsScalar, G1Affine, G1Projective,
+    G2Affine, G2Prepared,
 };
 use dusk_bytes::Serializable;
 use merlin::Transcript;
 
-/// Opening Key is used to verify opening proofs made about a committed polynomial.
+/// Opening Key is used to verify opening proofs made about a committed
+/// polynomial.
 #[derive(Clone, Debug)]
 pub struct OpeningKey {
     /// The generator of G1.
@@ -30,10 +34,12 @@ pub struct OpeningKey {
     pub prepared_beta_h: G2Prepared,
 }
 
-/// CommitKey is used to commit to a polynomial which is bounded by the max_degree.
+/// CommitKey is used to commit to a polynomial which is bounded by the
+/// max_degree.
 #[derive(Debug, Clone, PartialEq)]
 pub struct CommitKey {
-    /// Group elements of the form `{ \beta^i G }`, where `i` ranges from 0 to `degree`.
+    /// Group elements of the form `{ \beta^i G }`, where `i` ranges from 0 to
+    /// `degree`.
     pub powers_of_g: Vec<G1Affine>,
 }
 
@@ -42,7 +48,8 @@ impl CommitKey {
     ///
     /// Will consume twice the bytes of `into_bytes`
     pub fn to_raw_bytes(&self) -> Vec<u8> {
-        let mut bytes = Vec::with_capacity(8 + self.powers_of_g.len() * G1Affine::RAW_SIZE);
+        let mut bytes =
+            Vec::with_capacity(8 + self.powers_of_g.len() * G1Affine::RAW_SIZE);
 
         let len = self.powers_of_g.len() as u64;
         let len = len.to_le_bytes();
@@ -55,10 +62,11 @@ impl CommitKey {
         bytes
     }
 
-    /// Deserialize `CommitKey` from a set of bytes created by `to_bytes_unchecked`
+    /// Deserialize `CommitKey` from a set of bytes created by
+    /// `to_bytes_unchecked`
     ///
-    /// The bytes source is expected to be trusted and no check will be performed reggarding the
-    /// points security
+    /// The bytes source is expected to be trusted and no check will be
+    /// performed reggarding the points security
     pub unsafe fn from_slice_unchecked(bytes: &[u8]) -> Self {
         if bytes.len() < 9 {
             return Self {
@@ -118,9 +126,12 @@ impl CommitKey {
     }
 
     /// Truncates the commit key to a lower max degree.
-    /// Returns an error if the truncated degree is zero or if the truncated degree
-    /// is larger than the max degree of the commit key.
-    pub fn truncate(&self, mut truncated_degree: usize) -> Result<CommitKey, Error> {
+    /// Returns an error if the truncated degree is zero or if the truncated
+    /// degree is larger than the max degree of the commit key.
+    pub fn truncate(
+        &self,
+        mut truncated_degree: usize,
+    ) -> Result<CommitKey, Error> {
         if truncated_degree == 1 {
             truncated_degree += 1;
         }
@@ -141,36 +152,47 @@ impl CommitKey {
         Ok(truncated_powers)
     }
 
-    fn check_commit_degree_is_within_bounds(&self, poly_degree: usize) -> Result<(), Error> {
+    fn check_commit_degree_is_within_bounds(
+        &self,
+        poly_degree: usize,
+    ) -> Result<(), Error> {
         check_degree_is_within_bounds(self.max_degree(), poly_degree)
     }
 
     /// Commits to a polynomial returning the corresponding `Commitment`.
     ///
-    /// Returns an error if the polynomial's degree is more than the max degree of the commit key.
+    /// Returns an error if the polynomial's degree is more than the max degree
+    /// of the commit key.
     pub fn commit(&self, polynomial: &Polynomial) -> Result<Commitment, Error> {
         // Check whether we can safely commit to this polynomial
         self.check_commit_degree_is_within_bounds(polynomial.degree())?;
 
         // Compute commitment
-        let commitment = msm_variable_base(&self.powers_of_g, &polynomial.coeffs);
+        let commitment =
+            msm_variable_base(&self.powers_of_g, &polynomial.coeffs);
         Ok(Commitment::from_projective(commitment))
     }
 
     /// For a given polynomial `p` and a point `z`, compute the witness
     /// for p(z) using Ruffini's method for simplicity.
     /// The Witness is the quotient of f(x) - f(z) / x-z.
-    /// However we note that the quotient polynomial is invariant under the value f(z)
-    /// ie. only the remainder changes. We can therefore compute the witness as f(x) / x - z
-    /// and only use the remainder term f(z) during verification.
-    pub fn compute_single_witness(&self, polynomial: &Polynomial, point: &BlsScalar) -> Polynomial {
+    /// However we note that the quotient polynomial is invariant under the
+    /// value f(z) ie. only the remainder changes. We can therefore compute
+    /// the witness as f(x) / x - z and only use the remainder term f(z)
+    /// during verification.
+    pub fn compute_single_witness(
+        &self,
+        polynomial: &Polynomial,
+        point: &BlsScalar,
+    ) -> Polynomial {
         // Computes `f(x) / x-z`, returning it as the witness poly
         polynomial.ruffini(*point)
     }
 
-    /// Computes a single witness for multiple polynomials at the same point, by taking
-    /// a random linear combination of the individual witnesses.
-    /// We apply the same optimisation mentioned in when computing each witness; removing f(z).
+    /// Computes a single witness for multiple polynomials at the same point, by
+    /// taking a random linear combination of the individual witnesses.
+    /// We apply the same optimisation mentioned in when computing each witness;
+    /// removing f(z).
     pub(crate) fn compute_aggregate_witness(
         &self,
         polynomials: &[Polynomial],
@@ -190,8 +212,8 @@ impl CommitKey {
         numerator.ruffini(*point)
     }
 
-    /// Creates an opening proof that a polynomial `p` was correctly evaluated at p(z) and produced the value
-    /// `v`. ie v = p(z).
+    /// Creates an opening proof that a polynomial `p` was correctly evaluated
+    /// at p(z) and produced the value `v`. ie v = p(z).
     /// Returns an error if the polynomials degree is too large.
     pub fn open_single(
         &self,
@@ -207,9 +229,10 @@ impl CommitKey {
         })
     }
 
-    /// Creates an opening proof that multiple polynomials were evaluated at the same point
-    /// and that each evaluation produced the correct evaluation point.
-    /// Returns an error if any of the polynomial's degrees are too large.
+    /// Creates an opening proof that multiple polynomials were evaluated at the
+    /// same point and that each evaluation produced the correct evaluation
+    /// point. Returns an error if any of the polynomial's degrees are too
+    /// large.
     pub fn open_multiple(
         &self,
         polynomials: &[Polynomial],
@@ -224,7 +247,8 @@ impl CommitKey {
         }
 
         // Compute the aggregate witness for polynomials
-        let witness_poly = self.compute_aggregate_witness(polynomials, point, transcript);
+        let witness_poly =
+            self.compute_aggregate_witness(polynomials, point, transcript);
 
         // Commit to witness polynomial
         let witness_commitment = self.commit(&witness_poly)?;
@@ -239,7 +263,11 @@ impl CommitKey {
 }
 
 impl OpeningKey {
-    pub(crate) fn new(g: G1Affine, h: G2Affine, beta_h: G2Affine) -> OpeningKey {
+    pub(crate) fn new(
+        g: G1Affine,
+        h: G2Affine,
+        beta_h: G2Affine,
+    ) -> OpeningKey {
         let prepared_h: G2Prepared = G2Prepared::from(h);
         let prepared_beta_h = G2Prepared::from(beta_h);
         OpeningKey {
@@ -257,7 +285,8 @@ impl OpeningKey {
 
         bytes[0..48].copy_from_slice(&self.g.to_bytes());
         bytes[48..144].copy_from_slice(&self.h.to_bytes());
-        bytes[144..Self::serialized_size()].copy_from_slice(&self.beta_h.to_bytes());
+        bytes[144..Self::serialized_size()]
+            .copy_from_slice(&self.beta_h.to_bytes());
 
         bytes
     }
@@ -283,11 +312,12 @@ impl OpeningKey {
         Ok(OpeningKey::new(g, h, beta_h))
     }
 
-    /// Checks that a polynomial `p` was evaluated at a point `z` and returned the value specified `v`.
-    /// ie. v = p(z).
+    /// Checks that a polynomial `p` was evaluated at a point `z` and returned
+    /// the value specified `v`. ie. v = p(z).
     pub fn check(&self, point: BlsScalar, proof: Proof) -> bool {
-        let inner_a: G1Affine =
-            (proof.commitment_to_polynomial.0 - (self.g * proof.evaluated_point)).into();
+        let inner_a: G1Affine = (proof.commitment_to_polynomial.0
+            - (self.g * proof.evaluated_point))
+            .into();
 
         let inner_b: G2Affine = (self.beta_h - (self.h * point)).into();
         let prepared_inner_b = G2Prepared::from(-inner_b);
@@ -301,7 +331,8 @@ impl OpeningKey {
         pairing == dusk_bls12_381::Gt::identity()
     }
 
-    /// Checks whether a batch of polynomials evaluated at different points, returned their specified value.
+    /// Checks whether a batch of polynomials evaluated at different points,
+    /// returned their specified value.
     pub fn batch_check(
         &self,
         points: &[BlsScalar],
@@ -313,11 +344,13 @@ impl OpeningKey {
 
         let challenge = transcript.challenge_scalar(b"batch"); // XXX: Verifier can add their own randomness at this point
         let powers = util::powers_of(&challenge, proofs.len() - 1);
-        // Instead of multiplying g and gamma_g in each turn, we simply accumulate
-        // their coefficients and perform a final multiplication at the end.
+        // Instead of multiplying g and gamma_g in each turn, we simply
+        // accumulate their coefficients and perform a final
+        // multiplication at the end.
         let mut g_multiplier = BlsScalar::zero();
 
-        for ((proof, challenge), point) in proofs.iter().zip(powers).zip(points) {
+        for ((proof, challenge), point) in proofs.iter().zip(powers).zip(points)
+        {
             let mut c = G1Projective::from(proof.commitment_to_polynomial.0);
             let w = proof.commitment_to_witness.0;
             c += w * point;
@@ -350,7 +383,10 @@ impl OpeningKey {
 ///
 ///
 /// Returns an error if any of the above conditions are true.
-fn check_degree_is_within_bounds(max_degree: usize, poly_degree: usize) -> Result<(), Error> {
+fn check_degree_is_within_bounds(
+    max_degree: usize,
+    poly_degree: usize,
+) -> Result<(), Error> {
     if poly_degree == 0 {
         return Err(Error::PolynomialDegreeIsZero);
     }
@@ -367,7 +403,8 @@ mod test {
 
     // Creates a proving key and verifier key based on a specified degree
     fn setup_test(degree: usize) -> (CommitKey, OpeningKey) {
-        let srs = PublicParameters::setup(degree, &mut rand::thread_rng()).unwrap();
+        let srs =
+            PublicParameters::setup(degree, &mut rand::thread_rng()).unwrap();
         srs.trim(degree).unwrap()
     }
     #[test]
@@ -446,7 +483,8 @@ mod test {
 
         // Verifier's View
         let ok = {
-            let flattened_proof = aggregated_proof.flatten(&mut Transcript::new(b"agg_flatten"));
+            let flattened_proof =
+                aggregated_proof.flatten(&mut Transcript::new(b"agg_flatten"));
             opening_key.check(point, flattened_proof)
         };
 
@@ -510,7 +548,8 @@ mod test {
     fn commit_key_serde() {
         let (commit_key, _) = setup_test(7);
         let ck_bytes = commit_key.into_bytes();
-        let ck_bytes_safe = CommitKey::from_bytes(&ck_bytes).expect("CommitKey conversion error");
+        let ck_bytes_safe = CommitKey::from_bytes(&ck_bytes)
+            .expect("CommitKey conversion error");
 
         assert_eq!(commit_key.powers_of_g, ck_bytes_safe.powers_of_g);
     }
@@ -519,7 +558,8 @@ mod test {
     fn opening_key_serde() {
         let (_, opening_key) = setup_test(7);
         let ok_bytes = opening_key.to_bytes();
-        let obtained_key = OpeningKey::from_bytes(&ok_bytes).expect("CommitKey conversion error");
+        let obtained_key = OpeningKey::from_bytes(&ok_bytes)
+            .expect("CommitKey conversion error");
 
         assert_eq!(opening_key.to_bytes(), obtained_key.to_bytes());
     }

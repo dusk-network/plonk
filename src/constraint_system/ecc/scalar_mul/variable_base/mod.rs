@@ -9,7 +9,8 @@ use crate::constraint_system::{variable::Variable, StandardComposer};
 use dusk_bls12_381::BlsScalar;
 use dusk_bytes::Serializable;
 
-/// Computes a BlsScalar multiplication with the input scalar and a chosen generator
+/// Computes a BlsScalar multiplication with the input scalar and a chosen
+/// generator
 pub fn variable_base_scalar_mul(
     composer: &mut StandardComposer,
     jubjub_var: Variable,
@@ -17,7 +18,8 @@ pub fn variable_base_scalar_mul(
 ) -> PointScalar {
     // Turn scalar into bits
     let raw_bls_scalar = *composer.variables.get(&jubjub_var).unwrap();
-    let scalar_bits_var = scalar_decomposition(composer, jubjub_var, raw_bls_scalar);
+    let scalar_bits_var =
+        scalar_decomposition(composer, jubjub_var, raw_bls_scalar);
 
     let identity = Point::identity(composer);
     let mut result = identity;
@@ -56,7 +58,8 @@ fn conditional_select_one(
     let value_scalar = composer.variables.get(&value).unwrap();
     let bit_scalar = composer.variables.get(&bit).unwrap();
 
-    let f_x_scalar = BlsScalar::one() - bit_scalar + (bit_scalar * value_scalar);
+    let f_x_scalar =
+        BlsScalar::one() - bit_scalar + (bit_scalar * value_scalar);
     let f_x = composer.add_input(f_x_scalar);
 
     composer.poly_gate(
@@ -118,7 +121,8 @@ fn scalar_decomposition(
 
         accumulator_var = composer.add(q_l_a, q_r_b, q_c, None);
 
-        accumulator_scalar += two_pow * BlsScalar::from(scalar_bits[power] as u64);
+        accumulator_scalar +=
+            two_pow * BlsScalar::from(scalar_bits[power] as u64);
     }
     composer.assert_equal(accumulator_var, witness_var);
 
@@ -147,12 +151,14 @@ mod tests {
         let res = gadget_tester(
             |composer| {
                 let scalar = JubJubScalar::from_bytes_wide(&[
-                    182, 44, 247, 214, 94, 14, 151, 208, 130, 16, 200, 204, 147, 32, 104, 166, 0,
-                    59, 52, 1, 1, 59, 103, 6, 169, 175, 51, 101, 234, 180, 125, 14, 0, 0, 0, 0, 0,
-                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                    0,
+                    182, 44, 247, 214, 94, 14, 151, 208, 130, 16, 200, 204,
+                    147, 32, 104, 166, 0, 59, 52, 1, 1, 59, 103, 6, 169, 175,
+                    51, 101, 234, 180, 125, 14, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                    0, 0,
                 ]);
-                let bls_scalar = BlsScalar::from_bytes(&scalar.to_bytes()).unwrap();
+                let bls_scalar =
+                    BlsScalar::from_bytes(&scalar.to_bytes()).unwrap();
                 let secret_scalar = composer.add_input(bls_scalar);
 
                 let expected_point: JubJubAffine =
@@ -160,9 +166,13 @@ mod tests {
 
                 let point = Point::from_private_affine(composer, GENERATOR);
 
-                let point_scalar = variable_base_scalar_mul(composer, secret_scalar, point);
+                let point_scalar =
+                    variable_base_scalar_mul(composer, secret_scalar, point);
 
-                composer.assert_equal_public_point(point_scalar.into(), expected_point);
+                composer.assert_equal_public_point(
+                    point_scalar.into(),
+                    expected_point,
+                );
             },
             4096,
         );

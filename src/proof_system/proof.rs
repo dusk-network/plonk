@@ -105,7 +105,8 @@ impl Proof {
         bytes[384..432].copy_from_slice(&self.t_4_comm.0.to_bytes()[..]);
         bytes[432..480].copy_from_slice(&self.w_z_comm.0.to_bytes()[..]);
         bytes[480..528].copy_from_slice(&self.w_zw_comm.0.to_bytes()[..]);
-        bytes[528..PROOF_SIZE].copy_from_slice(&self.evaluations.to_bytes()[..]);
+        bytes[528..PROOF_SIZE]
+            .copy_from_slice(&self.evaluations.to_bytes()[..]);
 
         bytes
     }
@@ -149,7 +150,8 @@ impl Proof {
     pub const fn serialised_size() -> usize {
         const NUM_COMMITMENTS: usize = 11;
         const COMMITMENT_SIZE: usize = 48;
-        (NUM_COMMITMENTS * COMMITMENT_SIZE) + ProofEvaluations::serialised_size()
+        (NUM_COMMITMENTS * COMMITMENT_SIZE)
+            + ProofEvaluations::serialised_size()
     }
 
     /// Performs the verification of a `Proof` returning a boolean result.
@@ -164,10 +166,12 @@ impl Proof {
 
         // Subgroup checks are done when the proof is deserialised.
 
-        // In order for the Verifier and Prover to have the same view in the non-interactive setting
-        // Both parties must commit the same elements into the transcript
-        // Below the verifier will simulate an interaction with the prover by adding the same elements
-        // that the prover added into the transcript, hence generating the same challenges
+        // In order for the Verifier and Prover to have the same view in the
+        // non-interactive setting Both parties must commit the same
+        // elements into the transcript Below the verifier will simulate
+        // an interaction with the prover by adding the same elements
+        // that the prover added into the transcript, hence generating the same
+        // challenges
         //
         // Add commitment to witness polynomials to transcript
         transcript.append_commitment(b"w_l", &self.a_comm);
@@ -184,8 +188,10 @@ impl Proof {
 
         // Compute quotient challenge
         let alpha = transcript.challenge_scalar(b"alpha");
-        let range_sep_challenge = transcript.challenge_scalar(b"range separation challenge");
-        let logic_sep_challenge = transcript.challenge_scalar(b"logic separation challenge");
+        let range_sep_challenge =
+            transcript.challenge_scalar(b"range separation challenge");
+        let logic_sep_challenge =
+            transcript.challenge_scalar(b"logic separation challenge");
         let fixed_base_sep_challenge =
             transcript.challenge_scalar(b"fixed base separation challenge");
         let var_base_sep_challenge =
@@ -204,7 +210,8 @@ impl Proof {
         let z_h_eval = domain.evaluate_vanishing_polynomial(&z_challenge);
 
         // Compute first lagrange polynomial evaluated at `z_challenge`
-        let l1_eval = compute_first_lagrange_evaluation(&domain, &z_h_eval, &z_challenge);
+        let l1_eval =
+            compute_first_lagrange_evaluation(&domain, &z_h_eval, &z_challenge);
 
         // Compute quotient polynomial evaluated at `z_challenge`
         let t_eval = self.compute_quotient_evaluation(
@@ -220,8 +227,10 @@ impl Proof {
         );
 
         // Compute commitment to quotient polynomial
-        // This method is necessary as we pass the `un-splitted` variation to our commitment scheme
-        let t_comm = self.compute_quotient_commitment(&z_challenge, domain.size());
+        // This method is necessary as we pass the `un-splitted` variation to
+        // our commitment scheme
+        let t_comm =
+            self.compute_quotient_commitment(&z_challenge, domain.size());
 
         // Add evaluations to transcript
         transcript.append_scalar(b"a_eval", &self.evaluations.a_eval);
@@ -231,10 +240,16 @@ impl Proof {
         transcript.append_scalar(b"a_next_eval", &self.evaluations.a_next_eval);
         transcript.append_scalar(b"b_next_eval", &self.evaluations.b_next_eval);
         transcript.append_scalar(b"d_next_eval", &self.evaluations.d_next_eval);
-        transcript.append_scalar(b"left_sig_eval", &self.evaluations.left_sigma_eval);
-        transcript.append_scalar(b"right_sig_eval", &self.evaluations.right_sigma_eval);
-        transcript.append_scalar(b"out_sig_eval", &self.evaluations.out_sigma_eval);
-        transcript.append_scalar(b"q_arith_eval", &self.evaluations.q_arith_eval);
+        transcript
+            .append_scalar(b"left_sig_eval", &self.evaluations.left_sigma_eval);
+        transcript.append_scalar(
+            b"right_sig_eval",
+            &self.evaluations.right_sigma_eval,
+        );
+        transcript
+            .append_scalar(b"out_sig_eval", &self.evaluations.out_sigma_eval);
+        transcript
+            .append_scalar(b"q_arith_eval", &self.evaluations.q_arith_eval);
         transcript.append_scalar(b"q_c_eval", &self.evaluations.q_c_eval);
         transcript.append_scalar(b"q_l_eval", &self.evaluations.q_l_eval);
         transcript.append_scalar(b"q_r_eval", &self.evaluations.q_r_eval);
@@ -259,9 +274,12 @@ impl Proof {
         );
 
         // Commitment Scheme
-        // Now we delegate computation to the commitment scheme by batch checking two proofs
-        // The `AggregateProof`, which is a proof that all the necessary polynomials evaluated at `z_challenge` are correct
-        // and a `SingleProof` which is proof that the permutation polynomial evaluated at the shifted root of unity is correct
+        // Now we delegate computation to the commitment scheme by batch
+        // checking two proofs The `AggregateProof`, which is a proof
+        // that all the necessary polynomials evaluated at `z_challenge` are
+        // correct and a `SingleProof` which is proof that the
+        // permutation polynomial evaluated at the shifted root of unity is
+        // correct
 
         // Compose the Aggregated Proof
         //
@@ -288,11 +306,16 @@ impl Proof {
         let flattened_proof_a = aggregate_proof.flatten(transcript);
 
         // Compose the shifted aggregate proof
-        let mut shifted_aggregate_proof = AggregateProof::with_witness(self.w_zw_comm);
-        shifted_aggregate_proof.add_part((self.evaluations.perm_eval, self.z_comm));
-        shifted_aggregate_proof.add_part((self.evaluations.a_next_eval, self.a_comm));
-        shifted_aggregate_proof.add_part((self.evaluations.b_next_eval, self.b_comm));
-        shifted_aggregate_proof.add_part((self.evaluations.d_next_eval, self.d_comm));
+        let mut shifted_aggregate_proof =
+            AggregateProof::with_witness(self.w_zw_comm);
+        shifted_aggregate_proof
+            .add_part((self.evaluations.perm_eval, self.z_comm));
+        shifted_aggregate_proof
+            .add_part((self.evaluations.a_next_eval, self.a_comm));
+        shifted_aggregate_proof
+            .add_part((self.evaluations.b_next_eval, self.b_comm));
+        shifted_aggregate_proof
+            .add_part((self.evaluations.d_next_eval, self.d_comm));
         let flattened_proof_b = shifted_aggregate_proof.flatten(transcript);
 
         // Add commitment to openings to transcript
@@ -357,7 +380,11 @@ impl Proof {
         (a - b - c) * z_h_eval.invert().unwrap()
     }
 
-    fn compute_quotient_commitment(&self, z_challenge: &BlsScalar, n: usize) -> Commitment {
+    fn compute_quotient_commitment(
+        &self,
+        z_challenge: &BlsScalar,
+        n: usize,
+    ) -> Commitment {
         let z_n = z_challenge.pow(&[n as u64, 0, 0, 0]);
         let z_two_n = z_challenge.pow(&[2 * n as u64, 0, 0, 0]);
         let z_three_n = z_challenge.pow(&[3 * n as u64, 0, 0, 0]);
@@ -456,8 +483,9 @@ fn compute_barycentric_eval(
     use rayon::iter::IntoParallelIterator;
     use rayon::prelude::*;
 
-    let numerator =
-        (point.pow(&[domain.size() as u64, 0, 0, 0]) - BlsScalar::one()) * domain.size_inv;
+    let numerator = (point.pow(&[domain.size() as u64, 0, 0, 0])
+        - BlsScalar::one())
+        * domain.size_inv;
 
     // Indices with non-zero evaluations
     let non_zero_evaluations: Vec<usize> = (0..evaluations.len())
@@ -475,7 +503,8 @@ fn compute_barycentric_eval(
             // index of non-zero evaluation
             let index = non_zero_evaluations[i];
 
-            (domain.group_gen_inv.pow(&[index as u64, 0, 0, 0]) * point) - BlsScalar::one()
+            (domain.group_gen_inv.pow(&[index as u64, 0, 0, 0]) * point)
+                - BlsScalar::one()
         })
         .collect();
     batch_inversion(&mut denominators);

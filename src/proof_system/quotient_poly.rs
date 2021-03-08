@@ -11,14 +11,20 @@ use dusk_bls12_381::BlsScalar;
 use rayon::prelude::*;
 
 /// This quotient polynomial can only be used for the standard composer
-/// Each composer will need to implement their own method for computing the quotient polynomial
+/// Each composer will need to implement their own method for computing the
+/// quotient polynomial
 
 /// Computes the quotient polynomial
 pub(crate) fn compute(
     domain: &EvaluationDomain,
     prover_key: &ProverKey,
     z_poly: &Polynomial,
-    (w_l_poly, w_r_poly, w_o_poly, w_4_poly): (&Polynomial, &Polynomial, &Polynomial, &Polynomial),
+    (w_l_poly, w_r_poly, w_o_poly, w_4_poly): (
+        &Polynomial,
+        &Polynomial,
+        &Polynomial,
+        &Polynomial,
+    ),
     public_inputs_poly: &Polynomial,
     (
         alpha,
@@ -103,12 +109,12 @@ pub(crate) fn compute(
 // Ensures that the circuit is satisfied
 fn compute_circuit_satisfiability_equation(
     domain: &EvaluationDomain,
-    (range_challenge, logic_challenge, fixed_base_challenge, var_base_challenge): (
-        &BlsScalar,
-        &BlsScalar,
-        &BlsScalar,
-        &BlsScalar,
-    ),
+    (
+        range_challenge,
+        logic_challenge,
+        fixed_base_challenge,
+        var_base_challenge,
+    ): (&BlsScalar, &BlsScalar, &BlsScalar, &BlsScalar),
     prover_key: &ProverKey,
     (wl_eval_4n, wr_eval_4n, wo_eval_4n, w4_eval_4n): (
         &[BlsScalar],
@@ -135,10 +141,15 @@ fn compute_circuit_satisfiability_equation(
 
             let a = prover_key.arithmetic.compute_quotient_i(i, wl, wr, wo, w4);
 
-            let b =
-                prover_key
-                    .range
-                    .compute_quotient_i(i, range_challenge, wl, wr, wo, w4, w4_next);
+            let b = prover_key.range.compute_quotient_i(
+                i,
+                range_challenge,
+                wl,
+                wr,
+                wo,
+                w4,
+                w4_next,
+            );
 
             let c = prover_key.logic.compute_quotient_i(
                 i,
@@ -195,7 +206,8 @@ fn compute_permutation_checks(
     (alpha, beta, gamma): (&BlsScalar, &BlsScalar, &BlsScalar),
 ) -> Vec<BlsScalar> {
     let domain_4n = EvaluationDomain::new(4 * domain.size()).unwrap();
-    let l1_poly_alpha = compute_first_lagrange_poly_scaled(domain, alpha.square());
+    let l1_poly_alpha =
+        compute_first_lagrange_poly_scaled(domain, alpha.square());
     let l1_alpha_sq_evals = domain_4n.coset_fft(&l1_poly_alpha.coeffs);
 
     let t: Vec<_> = (0..domain_4n.size())
@@ -218,7 +230,10 @@ fn compute_permutation_checks(
         .collect();
     t
 }
-fn compute_first_lagrange_poly_scaled(domain: &EvaluationDomain, scale: BlsScalar) -> Polynomial {
+fn compute_first_lagrange_poly_scaled(
+    domain: &EvaluationDomain,
+    scale: BlsScalar,
+) -> Polynomial {
     let mut x_evals = vec![BlsScalar::zero(); domain.size()];
     x_evals[0] = scale;
     domain.ifft_in_place(&mut x_evals);

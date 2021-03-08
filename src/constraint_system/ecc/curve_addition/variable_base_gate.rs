@@ -11,9 +11,14 @@ use dusk_jubjub::{JubJubAffine, JubJubExtended};
 
 impl Point {
     /// Adds two curve points together using a curve addition gate
-    /// Note that since the points are not fixed the generator is not a part of the
-    /// circuit description, however it is less efficient for a program width of 4.
-    pub fn fast_add(&self, composer: &mut StandardComposer, point_b: Point) -> Point {
+    /// Note that since the points are not fixed the generator is not a part of
+    /// the circuit description, however it is less efficient for a program
+    /// width of 4.
+    pub fn fast_add(
+        &self,
+        composer: &mut StandardComposer,
+        point_b: Point,
+    ) -> Point {
         // In order to verify that two points were correctly added
         // without going over a degree 4 polynomial, we will need
         // x_1, y_1, x_2, y_2
@@ -69,9 +74,13 @@ impl Point {
             .add_variables_to_map(x_1, y_1, x_2, y_2, composer.n);
         composer.n += 1;
 
-        composer
-            .perm
-            .add_variables_to_map(x_3, y_3, composer.zero_var, x_1_y_2, composer.n);
+        composer.perm.add_variables_to_map(
+            x_3,
+            y_3,
+            composer.zero_var,
+            x_1_y_2,
+            composer.n,
+        );
         composer.n += 1;
 
         Point { x: x_3, y: y_3 }
@@ -89,7 +98,9 @@ mod test {
         let res = gadget_tester(
             |composer| {
                 let expected_point: JubJubAffine =
-                    (JubJubExtended::from(GENERATOR) + JubJubExtended::from(GENERATOR)).into();
+                    (JubJubExtended::from(GENERATOR)
+                        + JubJubExtended::from(GENERATOR))
+                    .into();
                 let x = composer.add_input(GENERATOR.get_x());
                 let y = composer.add_input(GENERATOR.get_y());
                 let point_a = Point { x, y };
@@ -100,7 +111,8 @@ mod test {
 
                 composer.assert_equal_point(point, point2);
 
-                composer.assert_equal_public_point(point.into(), expected_point);
+                composer
+                    .assert_equal_public_point(point.into(), expected_point);
             },
             2000,
         );

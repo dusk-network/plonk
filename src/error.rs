@@ -49,21 +49,24 @@ pub enum Error {
     /// This error occurs when the user tries to trim PublicParameters
     /// down to a degree that is zero.
     TruncatedDegreeIsZero,
-    /// This error occurs when the user tries to commit to a polynomial whose degree is larger than
-    /// the supported degree for that proving key.
+    /// This error occurs when the user tries to commit to a polynomial whose
+    /// degree is larger than the supported degree for that proving key.
     PolynomialDegreeTooLarge,
-    /// This error occurs when the user tries to commit to a polynomial whose degree is zero.
+    /// This error occurs when the user tries to commit to a polynomial whose
+    /// degree is zero.
     PolynomialDegreeIsZero,
-    /// This error occurs when the pairing check fails at being equal to the Identity point.
+    /// This error occurs when the pairing check fails at being equal to the
+    /// Identity point.
     PairingCheckFailure,
 
     // Serialization errors
-    /// This error occurs when there are not enough bytes to read out of a slice during
-    /// deserialization.
+    /// This error occurs when there are not enough bytes to read out of a
+    /// slice during deserialization.
     NotEnoughBytes,
     /// This error occurs when a malformed point is decoded from a byte array.
     PointMalformed,
-    /// This error occurs when a malformed BLS scalar is decoded from a byte array.
+    /// This error occurs when a malformed BLS scalar is decoded from a byte
+    /// array.
     BlsScalarMalformed,
 }
 
@@ -80,22 +83,41 @@ impl std::fmt::Display for Error {
             Size: {:?} > TWO_ADACITY = {:?}",
                 log_size_of_group, adacity
             ),
-            Self::ProofVerificationError => write!(f, "proof verification failed"),
-            Self::CircuitInputsNotFound => write!(f, "circuit inputs not found"),
-            Self::UninitializedPIGenerator => write!(f, "PI generator uninitialized"),
-            Self::InvalidPublicInputBytes => write!(f, "invalid public input bytes"),
-            Self::MismatchedPolyLen => write!(f, "the length of the wires is not the same"),
-            Self::CircuitAlreadyPreprocessed => write!(f, "circuit has already been preprocessed"),
-            Self::DegreeIsZero => write!(f, "cannot create PublicParameters with max degree 0"),
-            Self::TruncatedDegreeTooLarge => write!(f, "cannot trim more than the maximum degree"),
-            Self::TruncatedDegreeIsZero => {
-                write!(f, "cannot trim PublicParameters to a maximum size of zero")
+            Self::ProofVerificationError => {
+                write!(f, "proof verification failed")
             }
+            Self::CircuitInputsNotFound => {
+                write!(f, "circuit inputs not found")
+            }
+            Self::UninitializedPIGenerator => {
+                write!(f, "PI generator uninitialized")
+            }
+            Self::InvalidPublicInputBytes => {
+                write!(f, "invalid public input bytes")
+            }
+            Self::MismatchedPolyLen => {
+                write!(f, "the length of the wires is not the same")
+            }
+            Self::CircuitAlreadyPreprocessed => {
+                write!(f, "circuit has already been preprocessed")
+            }
+            Self::DegreeIsZero => {
+                write!(f, "cannot create PublicParameters with max degree 0")
+            }
+            Self::TruncatedDegreeTooLarge => {
+                write!(f, "cannot trim more than the maximum degree")
+            }
+            Self::TruncatedDegreeIsZero => write!(
+                f,
+                "cannot trim PublicParameters to a maximum size of zero"
+            ),
             Self::PolynomialDegreeTooLarge => write!(
                 f,
                 "proving key is not large enough to commit to said polynomial"
             ),
-            Self::PolynomialDegreeIsZero => write!(f, "cannot commit to polynomial of zero degree"),
+            Self::PolynomialDegreeIsZero => {
+                write!(f, "cannot commit to polynomial of zero degree")
+            }
             Self::PairingCheckFailure => write!(f, "pairing check failed"),
             Self::NotEnoughBytes => write!(f, "not enough bytes left to read"),
             Self::PointMalformed => write!(f, "BLS point bytes malformed"),

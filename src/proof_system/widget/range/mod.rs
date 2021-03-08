@@ -10,11 +10,8 @@ mod verifierkey;
 pub use proverkey::ProverKey;
 pub use verifierkey::VerifierKey;
 
-/// Common functionality across both the ProverKey and VerifierKey are listed below
-///
-///
-///
-///
+/// Common functionality across both the ProverKey and VerifierKey are
+/// listed below
 use dusk_bls12_381::BlsScalar;
 
 // Computes f(f-1)(f-2)(f-3)

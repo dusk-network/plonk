@@ -46,7 +46,8 @@ impl VerifierKey {
         // Check bit consistency
         let bit_consistency = check_bit_consistency(bit);
 
-        let y_alpha = (bit.square() * (y_beta_eval - BlsScalar::one())) + BlsScalar::one();
+        let y_alpha = (bit.square() * (y_beta_eval - BlsScalar::one()))
+            + BlsScalar::one();
 
         let x_alpha = x_beta_poly * bit;
 
@@ -65,7 +66,10 @@ impl VerifierKey {
         let rhs = (x_alpha * acc_x) + (y_alpha * acc_y);
         let y_acc_consistency = (lhs - rhs) * kappa_cu;
 
-        let a = bit_consistency + x_acc_consistency + y_acc_consistency + xy_consistency;
+        let a = bit_consistency
+            + x_acc_consistency
+            + y_acc_consistency
+            + xy_consistency;
 
         scalars.push(a * ecc_separation_challenge);
         points.push(self.q_fixed_group_add.0);

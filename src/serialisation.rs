@@ -10,7 +10,8 @@ use crate::fft::{EvaluationDomain, Evaluations, Polynomial};
 use dusk_bls12_381::{BlsScalar, G1Affine, G2Affine};
 use dusk_bytes::{DeserializableSlice, Serializable};
 
-/// Reads n bytes from slice and returns the n bytes along with the rest of the slice
+/// Reads n bytes from slice and returns the n bytes along with the rest of the
+/// slice
 pub fn read_n(n: usize, bytes: &[u8]) -> Result<(&[u8], &[u8]), Error> {
     if bytes.len() < n {
         return Err(Error::NotEnoughBytes);
@@ -159,7 +160,8 @@ mod test {
         let polynomial = Polynomial::from_coefficients_slice(&scalars);
 
         let domain = EvaluationDomain::new(scalars.len()).unwrap();
-        let evaluations = Evaluations::from_vec_and_domain(scalars.clone(), domain);
+        let evaluations =
+            Evaluations::from_vec_and_domain(scalars.clone(), domain);
 
         write_scalars(&scalars, &mut bytes);
         write_polynomial(&polynomial, &mut bytes);
@@ -179,7 +181,8 @@ mod test {
         use rand_core::RngCore;
         let mut bytes = Vec::new();
 
-        let rand_u64s: Vec<_> = (0..100).map(|_| rand::thread_rng().next_u64()).collect();
+        let rand_u64s: Vec<_> =
+            (0..100).map(|_| rand::thread_rng().next_u64()).collect();
 
         for x in rand_u64s.iter() {
             write_u64(*x, &mut bytes);
