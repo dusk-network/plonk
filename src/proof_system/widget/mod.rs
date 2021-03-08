@@ -235,7 +235,7 @@ impl ProverKey {
             0u8;
             (Self::num_polys() * poly_size
                 + evals_size * Self::num_evals()
-                + 3 * u64::SIZE) as usize
+                + 17 * u64::SIZE) as usize
         ];
 
         let mut writer = &mut bytes[..];
@@ -283,12 +283,17 @@ impl ProverKey {
         writer.write(&self.range.q_range.1.to_bytes());
 
         // Fixed base multiplication
-        writer.write(&(self.fixed_base.q_fixed_group_add.0.len() as u64).to_bytes());
+        writer.write(
+            &(self.fixed_base.q_fixed_group_add.0.len() as u64).to_bytes(),
+        );
         writer.write(&self.fixed_base.q_fixed_group_add.0.to_bytes());
         writer.write(&self.fixed_base.q_fixed_group_add.1.to_bytes());
 
         // Variable base addition
-        writer.write(&(self.variable_base.q_variable_group_add.0.len() as u64).to_bytes());
+        writer.write(
+            &(self.variable_base.q_variable_group_add.0.len() as u64)
+                .to_bytes(),
+        );
         writer.write(&self.variable_base.q_variable_group_add.0.to_bytes());
         writer.write(&self.variable_base.q_variable_group_add.1.to_bytes());
 
@@ -305,7 +310,8 @@ impl ProverKey {
         writer.write(&self.permutation.out_sigma.0.to_bytes());
         writer.write(&self.permutation.out_sigma.1.to_bytes());
 
-        writer.write(&(self.permutation.fourth_sigma.0.len() as u64).to_bytes());
+        writer
+            .write(&(self.permutation.fourth_sigma.0.len() as u64).to_bytes());
         writer.write(&self.permutation.fourth_sigma.0.to_bytes());
         writer.write(&self.permutation.fourth_sigma.1.to_bytes());
 
@@ -326,8 +332,10 @@ impl ProverKey {
         // inside Evaluations. See: dusk-network/plonk#436
 
         let poly_from_reader = |buf: &mut &[u8]| -> Result<Polynomial, Error> {
-            let serialized_poly_len = u64::from_reader(buf)? as usize * BlsScalar::SIZE;
-            // If the announced len is zero, simply return an empty poly and leave the buffer intact.
+            let serialized_poly_len =
+                u64::from_reader(buf)? as usize * BlsScalar::SIZE;
+            // If the announced len is zero, simply return an empty poly and
+            // leave the buffer intact.
             if serialized_poly_len == 0 {
                 return Ok(Polynomial { coeffs: vec![] });
             }
