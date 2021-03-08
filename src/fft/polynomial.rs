@@ -11,8 +11,6 @@ use crate::error::Error;
 use crate::util;
 use dusk_bls12_381::BlsScalar;
 use dusk_bytes::{DeserializableSlice, Serializable};
-#[cfg(test)]
-use rand_core::{CryptoRng, RngCore};
 use rayon::iter::{
     IndexedParallelIterator, IntoParallelIterator, IntoParallelRefIterator, ParallelIterator,
 };
@@ -441,6 +439,7 @@ impl<'a, 'b> Sub<&'a BlsScalar> for &'b Polynomial {
 #[cfg(test)]
 mod test {
     use super::*;
+    use rand_core::{CryptoRng, RngCore};
     #[test]
     fn test_ruffini() {
         // X^2 + 4X + 4
