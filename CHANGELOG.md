@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Removed previous implementations attached to `PublicInputValues`. [#416](https://github.com/dusk-network/plonk/issues/416)
 - Deprecated `anyhow` and `thiserror` [#343](https://github.com/dusk-network/plonk/issues/343)
 - Remove uncessary `match` branch for `var_c` [#414](https://github.com/dusk-network/plonk/issues/414)
+- Remove legacy fn's and move to test modules the only-for-testing ones. [#434](https://github.com/dusk-network/plonk/issues/434)
 
 ### Changed
 
@@ -25,7 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Transcript Init and trim size are associated constants of the Circuit trait [#351](https://github.com/dusk-network/plonk/issues/351)
 - `Circuit` trait now only requires `padded_circuit_size` for trimming. [#351](https://github.com/dusk-network/plonk/issues/351)
 - Remove `verify_proof` & `build_pi` from `Circuit`. [#396](https://github.com/dusk-network/plonk/issues/396)
-- Updated the native errors to all originate from the same enum
+- Updated the native errors to all originate from the same enum [#343](https://github.com/dusk-network/plonk/issues/343)
 
 ## [0.5.1] - 02-02-21
 
