@@ -351,7 +351,7 @@ mod test {
     // Creates an opening proof that a polynomial `p` was correctly evaluated at
     // p(z) and produced the value `v`. ie v = p(z).
     // Returns an error if the polynomials degree is too large.
-    pub fn open_single(
+    fn open_single(
         ck: &CommitKey,
         polynomial: &Polynomial,
         value: &BlsScalar,
@@ -369,7 +369,7 @@ mod test {
     // same point and that each evaluation produced the correct evaluation
     // point. Returns an error if any of the polynomial's degrees are too
     // large.
-    pub fn open_multiple(
+    fn open_multiple(
         ck: &CommitKey,
         polynomials: &[Polynomial],
         evaluations: Vec<BlsScalar>,
@@ -404,7 +404,7 @@ mod test {
     // f(z) ie. only the remainder changes. We can therefore compute the
     // witness as f(x) / x - z and only use the remainder term f(z) during
     // verification.
-    pub fn compute_single_witness(
+    fn compute_single_witness(
         polynomial: &Polynomial,
         point: &BlsScalar,
     ) -> Polynomial {
