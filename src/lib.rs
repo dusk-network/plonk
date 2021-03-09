@@ -60,7 +60,7 @@ mod error;
 mod fft;
 mod permutation;
 pub mod prelude;
-pub mod proof_system;
+mod proof_system;
 mod transcript;
 mod util;
 
