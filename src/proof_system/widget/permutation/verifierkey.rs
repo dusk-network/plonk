@@ -12,11 +12,11 @@ use crate::proof_system::linearisation_poly::ProofEvaluations;
 use dusk_bls12_381::{BlsScalar, G1Affine};
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
-pub struct VerifierKey {
-    pub left_sigma: Commitment,
-    pub right_sigma: Commitment,
-    pub out_sigma: Commitment,
-    pub fourth_sigma: Commitment,
+pub(crate) struct VerifierKey {
+    pub(crate) left_sigma: Commitment,
+    pub(crate) right_sigma: Commitment,
+    pub(crate) out_sigma: Commitment,
+    pub(crate) fourth_sigma: Commitment,
 }
 
 impl VerifierKey {

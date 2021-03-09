@@ -11,6 +11,6 @@ pub(crate) mod domain;
 pub(crate) mod evaluations;
 pub(crate) mod polynomial;
 
-pub use domain::EvaluationDomain;
-pub use evaluations::Evaluations;
-pub use polynomial::Polynomial;
+pub(crate) use domain::EvaluationDomain;
+pub(crate) use evaluations::Evaluations;
+pub(crate) use polynomial::Polynomial;

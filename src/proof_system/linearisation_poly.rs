@@ -12,52 +12,52 @@ use dusk_bls12_381::BlsScalar;
 use dusk_bytes::Serializable;
 
 /// Evaluations at points `z` or and `z * root of unity`
-pub struct Evaluations {
-    pub proof: ProofEvaluations,
+pub(crate) struct Evaluations {
+    pub(crate) proof: ProofEvaluations,
     // Evaluation of the linearisation sigma polynomial at `z`
     pub quot_eval: BlsScalar,
 }
 
 /// Proof Evaluations is a subset of all of the evaluations. These evaluations
 /// will be added to the proof
-#[derive(Debug, Eq, PartialEq, Clone)]
-pub struct ProofEvaluations {
+#[derive(Debug, Eq, PartialEq, Clone, Default)]
+pub(crate) struct ProofEvaluations {
     // Evaluation of the witness polynomial for the left wire at `z`
-    pub a_eval: BlsScalar,
+    pub(crate) a_eval: BlsScalar,
     // Evaluation of the witness polynomial for the right wire at `z`
-    pub b_eval: BlsScalar,
+    pub(crate) b_eval: BlsScalar,
     // Evaluation of the witness polynomial for the output wire at `z`
-    pub c_eval: BlsScalar,
+    pub(crate) c_eval: BlsScalar,
     // Evaluation of the witness polynomial for the fourth wire at `z`
-    pub d_eval: BlsScalar,
+    pub(crate) d_eval: BlsScalar,
     //
-    pub a_next_eval: BlsScalar,
+    pub(crate) a_next_eval: BlsScalar,
     //
-    pub b_next_eval: BlsScalar,
+    pub(crate) b_next_eval: BlsScalar,
     // Evaluation of the witness polynomial for the fourth wire at `z * root of
     // unity`
-    pub d_next_eval: BlsScalar,
+    pub(crate) d_next_eval: BlsScalar,
     // Evaluation of the arithmetic selector polynomial at `z`
-    pub q_arith_eval: BlsScalar,
+    pub(crate) q_arith_eval: BlsScalar,
     //
-    pub q_c_eval: BlsScalar,
+    pub(crate) q_c_eval: BlsScalar,
     //
-    pub q_l_eval: BlsScalar,
+    pub(crate) q_l_eval: BlsScalar,
     //
-    pub q_r_eval: BlsScalar,
+    pub(crate) q_r_eval: BlsScalar,
     // Evaluation of the left sigma polynomial at `z`
-    pub left_sigma_eval: BlsScalar,
+    pub(crate) left_sigma_eval: BlsScalar,
     // Evaluation of the right sigma polynomial at `z`
-    pub right_sigma_eval: BlsScalar,
+    pub(crate) right_sigma_eval: BlsScalar,
     // Evaluation of the out sigma polynomial at `z`
-    pub out_sigma_eval: BlsScalar,
+    pub(crate) out_sigma_eval: BlsScalar,
 
     // Evaluation of the linearisation sigma polynomial at `z`
-    pub lin_poly_eval: BlsScalar,
+    pub(crate) lin_poly_eval: BlsScalar,
 
     // (Shifted) Evaluation of the permutation polynomial at `z * root of
     // unity`
-    pub perm_eval: BlsScalar,
+    pub(crate) perm_eval: BlsScalar,
 }
 
 impl ProofEvaluations {
@@ -137,7 +137,7 @@ impl ProofEvaluations {
 
 #[allow(clippy::too_many_arguments)]
 /// Compute the linearisation polynomial
-pub fn compute(
+pub(crate) fn compute(
     domain: &EvaluationDomain,
     prover_key: &ProverKey,
     (

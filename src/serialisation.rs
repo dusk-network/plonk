@@ -23,7 +23,7 @@ pub fn read_n(n: usize, bytes: &[u8]) -> Result<(&[u8], &[u8]), Error> {
 
 /// Reads 32 bytes and converts it to a BlsScalar
 /// Returns the remaining bytes
-pub fn read_scalar(bytes: &[u8]) -> Result<(BlsScalar, &[u8]), Error> {
+pub(crate) fn read_scalar(bytes: &[u8]) -> Result<(BlsScalar, &[u8]), Error> {
     let (bytes, rest) = read_n(BlsScalar::SIZE, bytes)?;
 
     BlsScalar::from_slice(bytes)
@@ -32,13 +32,13 @@ pub fn read_scalar(bytes: &[u8]) -> Result<(BlsScalar, &[u8]), Error> {
 }
 
 /// Writes a BlsScalar into a mutable slice
-pub fn write_scalar(scalar: &BlsScalar, bytes: &mut Vec<u8>) {
+pub(crate) fn write_scalar(scalar: &BlsScalar, bytes: &mut Vec<u8>) {
     bytes.extend_from_slice(&scalar.to_bytes());
 }
 
 /// Reads 48 bytes and converts it to a G1Affine
 /// Returns the remaining bytes
-pub fn read_g1_affine(bytes: &[u8]) -> Result<(G1Affine, &[u8]), Error> {
+pub(crate) fn read_g1_affine(bytes: &[u8]) -> Result<(G1Affine, &[u8]), Error> {
     let (bytes, rest) = read_n(G1Affine::SIZE, bytes)?;
 
     G1Affine::from_slice(bytes)
@@ -48,23 +48,25 @@ pub fn read_g1_affine(bytes: &[u8]) -> Result<(G1Affine, &[u8]), Error> {
 
 /// Reads 48 bytes and converts it to a Commitment
 /// Returns the remaining bytes
-pub fn read_commitment(bytes: &[u8]) -> Result<(Commitment, &[u8]), Error> {
+pub(crate) fn read_commitment(
+    bytes: &[u8],
+) -> Result<(Commitment, &[u8]), Error> {
     let (g1, rest) = read_g1_affine(bytes)?;
     Ok((Commitment::from_affine(g1), rest))
 }
 /// Writes a G1Affine into a mutable slice
-pub fn write_g1_affine(affine: &G1Affine, bytes: &mut Vec<u8>) {
+pub(crate) fn write_g1_affine(affine: &G1Affine, bytes: &mut Vec<u8>) {
     let bytes48 = affine.to_bytes();
     bytes.extend_from_slice(&bytes48);
 }
 /// Writes a Commitment into a mutable slice
-pub fn write_commitment(commitment: &Commitment, bytes: &mut Vec<u8>) {
+pub(crate) fn write_commitment(commitment: &Commitment, bytes: &mut Vec<u8>) {
     write_g1_affine(&commitment.0, bytes)
 }
 
 /// Reads 96 bytes and converts it to a G2Affine
 /// Returns the remaining bytes
-pub fn read_g2_affine(bytes: &[u8]) -> Result<(G2Affine, &[u8]), Error> {
+pub(crate) fn read_g2_affine(bytes: &[u8]) -> Result<(G2Affine, &[u8]), Error> {
     let (bytes, rest) = read_n(G2Affine::SIZE, bytes)?;
 
     G2Affine::from_slice(bytes)
@@ -74,20 +76,22 @@ pub fn read_g2_affine(bytes: &[u8]) -> Result<(G2Affine, &[u8]), Error> {
 
 /// Reads 8 bytes and converts it to a u64
 /// Returns the remaining bytes
-pub fn read_u64(bytes: &[u8]) -> Result<(u64, &[u8]), Error> {
+pub(crate) fn read_u64(bytes: &[u8]) -> Result<(u64, &[u8]), Error> {
     let (bytes8, rest) = read_n(8, bytes)?;
     let mut arr8 = [0u8; 8];
     arr8.copy_from_slice(bytes8);
     Ok((u64::from_be_bytes(arr8), rest))
 }
 /// Writes a u64 into a mutable slice
-pub fn write_u64(val: u64, bytes: &mut Vec<u8>) {
+pub(crate) fn write_u64(val: u64, bytes: &mut Vec<u8>) {
     bytes.extend_from_slice(&u64::to_be_bytes(val));
 }
 
 /// Reads the bytes slice and parses a Vector of scalars
 /// Returns the remaining bytes
-pub fn read_scalars(bytes: &[u8]) -> Result<(Vec<BlsScalar>, &[u8]), Error> {
+pub(crate) fn read_scalars(
+    bytes: &[u8],
+) -> Result<(Vec<BlsScalar>, &[u8]), Error> {
     let (num_scalars, mut bytes) = read_u64(bytes)?;
 
     let mut poly_vec = Vec::new();
@@ -99,7 +103,7 @@ pub fn read_scalars(bytes: &[u8]) -> Result<(Vec<BlsScalar>, &[u8]), Error> {
     Ok((poly_vec, bytes))
 }
 /// Writes a Vector of scalars into a mutable slice
-pub fn write_scalars(val: &[BlsScalar], bytes: &mut Vec<u8>) {
+pub(crate) fn write_scalars(val: &[BlsScalar], bytes: &mut Vec<u8>) {
     let num_scalars = val.len() as u64;
     write_u64(num_scalars, bytes);
 
@@ -109,17 +113,19 @@ pub fn write_scalars(val: &[BlsScalar], bytes: &mut Vec<u8>) {
 }
 /// Reads the bytes slice and parses a Polynomial
 /// Returns the remaining bytes
-pub fn read_polynomial(bytes: &[u8]) -> Result<(Polynomial, &[u8]), Error> {
+pub(crate) fn read_polynomial(
+    bytes: &[u8],
+) -> Result<(Polynomial, &[u8]), Error> {
     let (poly_vec, rest) = read_scalars(bytes)?;
     Ok((Polynomial::from_coefficients_vec(poly_vec), rest))
 }
 /// Writes a Polynomial into a mutable slice
-pub fn write_polynomial(val: &Polynomial, bytes: &mut Vec<u8>) {
+pub(crate) fn write_polynomial(val: &Polynomial, bytes: &mut Vec<u8>) {
     write_scalars(&val.coeffs, bytes);
 }
 /// Reads the bytes slice and parses an Evaluation struct
 /// Returns the remaining bytes
-pub fn read_evaluations(
+pub(crate) fn read_evaluations(
     domain: EvaluationDomain,
     bytes: &[u8],
 ) -> Result<(Evaluations, &[u8]), Error> {
@@ -130,7 +136,7 @@ pub fn read_evaluations(
     Ok((evals, rest))
 }
 /// Writes an Evaluation struct into a mutable slice
-pub fn write_evaluations(val: &Evaluations, bytes: &mut Vec<u8>) {
+pub(crate) fn write_evaluations(val: &Evaluations, bytes: &mut Vec<u8>) {
     write_scalars(&val.evals, bytes)
 }
 

@@ -7,5 +7,5 @@
 mod proverkey;
 mod verifierkey;
 
-pub use proverkey::ProverKey;
-pub use verifierkey::VerifierKey;
+pub(crate) use proverkey::ProverKey;
+pub(crate) use verifierkey::VerifierKey;

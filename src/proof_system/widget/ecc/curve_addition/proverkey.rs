@@ -9,8 +9,8 @@ use dusk_bls12_381::BlsScalar;
 use dusk_jubjub::EDWARDS_D;
 
 #[derive(Debug, Eq, PartialEq, Clone)]
-pub struct ProverKey {
-    pub q_variable_group_add: (Polynomial, Evaluations),
+pub(crate) struct ProverKey {
+    pub(crate) q_variable_group_add: (Polynomial, Evaluations),
 }
 
 impl ProverKey {

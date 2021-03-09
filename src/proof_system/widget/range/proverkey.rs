@@ -9,8 +9,8 @@ use crate::fft::{Evaluations, Polynomial};
 use dusk_bls12_381::BlsScalar;
 
 #[derive(Debug, Eq, PartialEq, Clone)]
-pub struct ProverKey {
-    pub q_range: (Polynomial, Evaluations),
+pub(crate) struct ProverKey {
+    pub(crate) q_range: (Polynomial, Evaluations),
 }
 
 impl ProverKey {

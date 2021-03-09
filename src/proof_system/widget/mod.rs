@@ -17,48 +17,23 @@ use merlin::Transcript;
 use serde::de::Visitor;
 use serde::{self, Deserialize, Deserializer, Serialize, Serializer};
 
-/// PLONK circuit proving key
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub struct ProverKey {
-    /// Circuit size (Not padded to a power of two).
-    pub n: usize,
-    /// ProverKey for arithmetic gate
-    pub arithmetic: arithmetic::ProverKey,
-    /// ProverKey for logic gate
-    pub logic: logic::ProverKey,
-    /// ProverKey for range gate
-    pub range: range::ProverKey,
-    /// ProverKey for fixed base curve addition gates
-    pub fixed_base: ecc::scalar_mul::fixed_base::ProverKey,
-    /// ProverKey for permutation checks
-    pub permutation: permutation::ProverKey,
-    /// ProverKey for variable base curve addition gates
-    pub variable_base: ecc::curve_addition::ProverKey,
-    // Pre-processes the 4n Evaluations for the vanishing polynomial, so they
-    // do not need to be computed at the proving stage.
-    // Note: With this, we can combine all parts of the quotient polynomial in
-    // their evaluation phase and divide by the quotient polynomial without
-    // having to perform IFFT
-    pub(crate) v_h_coset_4n: Evaluations,
-}
-
 /// PLONK circuit verification key
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub struct VerifierKey {
     /// Circuit size (not padded to a power of two).
-    pub n: usize,
+    pub(crate) n: usize,
     /// VerifierKey for arithmetic gates
-    pub arithmetic: arithmetic::VerifierKey,
+    pub(crate) arithmetic: arithmetic::VerifierKey,
     /// VerifierKey for logic gates
-    pub logic: logic::VerifierKey,
+    pub(crate) logic: logic::VerifierKey,
     /// VerifierKey for range gates
-    pub range: range::VerifierKey,
+    pub(crate) range: range::VerifierKey,
     /// VerifierKey for fixed base curve addition gates
-    pub fixed_base: ecc::scalar_mul::fixed_base::VerifierKey,
+    pub(crate) fixed_base: ecc::scalar_mul::fixed_base::VerifierKey,
     /// VerifierKey for variable base curve addition gates
-    pub variable_base: ecc::curve_addition::VerifierKey,
+    pub(crate) variable_base: ecc::curve_addition::VerifierKey,
     /// VerifierKey for permutation checks
-    pub permutation: permutation::VerifierKey,
+    pub(crate) permutation: permutation::VerifierKey,
 }
 
 impl_serde!(ProverKey);
@@ -217,6 +192,31 @@ impl VerifierKey {
         // Append circuit size to transcript
         transcript.circuit_domain_sep(self.n as u64);
     }
+}
+
+/// PLONK circuit proving key
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct ProverKey {
+    /// Circuit size
+    pub(crate) n: usize,
+    /// ProverKey for arithmetic gate
+    pub(crate) arithmetic: arithmetic::ProverKey,
+    /// ProverKey for logic gate
+    pub(crate) logic: logic::ProverKey,
+    /// ProverKey for range gate
+    pub(crate) range: range::ProverKey,
+    /// ProverKey for fixed base curve addition gates
+    pub(crate) fixed_base: ecc::scalar_mul::fixed_base::ProverKey,
+    /// ProverKey for permutation checks
+    pub(crate) permutation: permutation::ProverKey,
+    /// ProverKey for variable base curve addition gates
+    pub(crate) variable_base: ecc::curve_addition::ProverKey,
+    // Pre-processes the 4n Evaluations for the vanishing polynomial, so they
+    // do not need to be computed at the proving stage.
+    // Note: With this, we can combine all parts of the quotient polynomial in
+    // their evaluation phase and divide by the quotient polynomial without
+    // having to perform IFFT
+    pub(crate) v_h_coset_4n: Evaluations,
 }
 
 impl ProverKey {
@@ -458,7 +458,7 @@ mod test {
 
     #[test]
     fn test_serialise_deserialise_prover_key() {
-        let n = 2usize.pow(5);
+        let n = 1 << 11;
 
         let q_m = rand_poly_eval(n);
         let q_l = rand_poly_eval(n);
@@ -535,6 +535,7 @@ mod test {
         let pk = ProverKey::from_bytes(&prover_key_bytes).unwrap();
 
         assert_eq!(pk, prover_key);
+        assert_eq!(pk.to_bytes(), prover_key.to_bytes());
     }
 
     #[test]
