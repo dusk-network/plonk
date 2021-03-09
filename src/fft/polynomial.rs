@@ -8,13 +8,14 @@
 //! Where each coefficient is represented using a position in the underlying
 //! vector.
 use super::{EvaluationDomain, Evaluations};
+use crate::error::Error;
 use crate::util;
 use dusk_bls12_381::BlsScalar;
+use dusk_bytes::{DeserializableSlice, Serializable};
 use rayon::iter::{
     IndexedParallelIterator, IntoParallelIterator, IntoParallelRefIterator,
     ParallelIterator,
 };
-
 use std::ops::{Add, AddAssign, Deref, DerefMut, Mul, Neg, Sub, SubAssign};
 
 #[derive(Debug, Eq, PartialEq, Clone)]
@@ -118,6 +119,26 @@ impl Polynomial {
         }
         sum
     }
+
+    /// Given a Polynomial, return it in it's byte representation coefficient by
+    /// coefficient.
+    pub fn to_var_bytes(&self) -> Vec<u8> {
+        self.coeffs
+            .iter()
+            .map(|item| item.to_bytes().to_vec())
+            .flatten()
+            .collect()
+    }
+
+    /// Generate a Polynomial from a slice of bytes.
+    pub fn from_slice(bytes: &[u8]) -> Result<Polynomial, Error> {
+        let coeffs = bytes
+            .chunks(BlsScalar::SIZE)
+            .map(|chunk| BlsScalar::from_slice(chunk))
+            .collect::<Result<Vec<BlsScalar>, dusk_bytes::Error>>()?;
+
+        Ok(Polynomial { coeffs })
+    }
 }
 
 use std::iter::Sum;
@@ -159,39 +180,6 @@ impl<'a, 'b> Add<&'a Polynomial> for &'b Polynomial {
         result.truncate_leading_zeros();
         result
     }
-}
-
-#[allow(dead_code)]
-// Addition method tht uses iterators to add polynomials
-// Benchmark this against the original method
-fn iter_add(poly_a: &Polynomial, poly_b: &Polynomial) -> Polynomial {
-    if poly_a.len() == 0 {
-        return poly_b.clone();
-    }
-    if poly_b.len() == 0 {
-        return poly_a.clone();
-    }
-
-    let max_len = std::cmp::max(poly_a.len(), poly_b.len());
-    let min_len = std::cmp::min(poly_a.len(), poly_b.len());
-    let mut data = Vec::with_capacity(max_len);
-    let (mut poly_a_iter, mut poly_b_iter) = (poly_a.iter(), poly_b.iter());
-
-    let partial_addition = poly_a_iter
-        .by_ref()
-        .zip(poly_b_iter.by_ref())
-        .map(|(&a, &b)| a + b)
-        .take(min_len);
-
-    data.extend(partial_addition);
-    data.extend(poly_a_iter);
-    data.extend(poly_b_iter);
-
-    assert_eq!(data.len(), std::cmp::max(poly_a.len(), poly_b.len()));
-
-    let mut result = Polynomial::from_coefficients_vec(data);
-    result.truncate_leading_zeros();
-    result
 }
 
 impl<'a, 'b> AddAssign<&'a Polynomial> for Polynomial {
@@ -422,6 +410,9 @@ mod test {
     impl Polynomial {
         /// Outputs a polynomial of degree `d` where each coefficient is sampled
         /// uniformly at random from the field `F`.
+        /// This is only implemented for test purposes for now but inside of a
+        /// `impl` block since it's used across multiple files in the
+        /// repo.
         pub(crate) fn rand<R: RngCore + CryptoRng>(
             d: usize,
             mut rng: &mut R,

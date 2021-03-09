@@ -8,10 +8,12 @@
 
 use super::domain::EvaluationDomain;
 use super::polynomial::Polynomial;
+use crate::error::Error;
 use core::ops::{
     Add, AddAssign, DivAssign, Index, Mul, MulAssign, Sub, SubAssign,
 };
 use dusk_bls12_381::BlsScalar;
+use dusk_bytes::{DeserializableSlice, Serializable};
 
 /// Stores a polynomial in evaluation form.
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -19,12 +21,37 @@ pub(crate) struct Evaluations {
     /// The evaluations of a polynomial over the domain `D`
     pub(crate) evals: Vec<BlsScalar>,
     #[doc(hidden)]
+    // FIXME: We should probably remove that and should be an external object.
     domain: EvaluationDomain,
 }
 
 impl Evaluations {
+    /// Given an `Evaluations` struct, return it in it's byte representation.
+    pub fn to_var_bytes(&self) -> Vec<u8> {
+        let mut bytes: Vec<u8> = self.domain.to_bytes().to_vec();
+        bytes.extend(
+            self.evals
+                .iter()
+                .map(|scalar| scalar.to_bytes().to_vec())
+                .flatten(),
+        );
+
+        bytes
+    }
+
+    /// Generate an `Evaluations` struct from a slice of bytes.
+    pub fn from_slice(bytes: &[u8]) -> Result<Evaluations, Error> {
+        let mut buffer = &bytes[..];
+        let domain = EvaluationDomain::from_reader(&mut buffer)?;
+        let evals = buffer
+            .chunks(BlsScalar::SIZE)
+            .map(|chunk| BlsScalar::from_slice(chunk))
+            .collect::<Result<Vec<BlsScalar>, dusk_bytes::Error>>()?;
+        Ok(Evaluations::from_vec_and_domain(evals, domain))
+    }
+
     /// Construct `Self` from evaluations and a domain.
-    pub(crate) fn from_vec_and_domain(
+    pub(crate) const fn from_vec_and_domain(
         evals: Vec<BlsScalar>,
         domain: EvaluationDomain,
     ) -> Self {

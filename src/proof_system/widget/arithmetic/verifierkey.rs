@@ -7,6 +7,7 @@
 use crate::commitment_scheme::kzg10::Commitment;
 use crate::proof_system::linearisation_poly::ProofEvaluations;
 use dusk_bls12_381::{BlsScalar, G1Affine};
+use dusk_bytes::{DeserializableSlice, Serializable};
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub(crate) struct VerifierKey {
@@ -17,6 +18,47 @@ pub(crate) struct VerifierKey {
     pub q_c: Commitment,
     pub q_4: Commitment,
     pub q_arith: Commitment,
+}
+
+impl Serializable<{ 7 * Commitment::SIZE }> for VerifierKey {
+    type Error = dusk_bytes::Error;
+
+    #[allow(unused_must_use)]
+    fn to_bytes(&self) -> [u8; Self::SIZE] {
+        use dusk_bytes::Write;
+        let mut buff = [0u8; Self::SIZE];
+        let mut writer = &mut buff[..];
+        writer.write(&self.q_m.to_bytes());
+        writer.write(&self.q_l.to_bytes());
+        writer.write(&self.q_r.to_bytes());
+        writer.write(&self.q_o.to_bytes());
+        writer.write(&self.q_c.to_bytes());
+        writer.write(&self.q_4.to_bytes());
+        writer.write(&self.q_arith.to_bytes());
+
+        buff
+    }
+
+    fn from_bytes(buf: &[u8; Self::SIZE]) -> Result<VerifierKey, Self::Error> {
+        let mut buffer = &buf[..];
+        let q_m = Commitment::from_reader(&mut buffer)?;
+        let q_l = Commitment::from_reader(&mut buffer)?;
+        let q_r = Commitment::from_reader(&mut buffer)?;
+        let q_o = Commitment::from_reader(&mut buffer)?;
+        let q_c = Commitment::from_reader(&mut buffer)?;
+        let q_4 = Commitment::from_reader(&mut buffer)?;
+        let q_arith = Commitment::from_reader(&mut buffer)?;
+
+        Ok(VerifierKey {
+            q_m,
+            q_l,
+            q_r,
+            q_o,
+            q_c,
+            q_4,
+            q_arith,
+        })
+    }
 }
 
 impl VerifierKey {

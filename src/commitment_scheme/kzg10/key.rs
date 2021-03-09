@@ -15,24 +15,8 @@ use dusk_bls12_381::{
     multiscalar_mul::msm_variable_base, BlsScalar, G1Affine, G1Projective,
     G2Affine, G2Prepared,
 };
-use dusk_bytes::Serializable;
+use dusk_bytes::{DeserializableSlice, Serializable};
 use merlin::Transcript;
-
-/// Opening Key is used to verify opening proofs made about a committed
-/// polynomial.
-#[derive(Clone, Debug)]
-pub struct OpeningKey {
-    /// The generator of G1.
-    pub g: G1Affine,
-    /// The generator of G2.
-    pub h: G2Affine,
-    /// \beta times the above generator of G2.
-    pub beta_h: G2Affine,
-    /// The generator of G2, prepared for use in pairings.
-    pub prepared_h: G2Prepared,
-    /// \beta times the above generator of G2, prepared for use in pairings.
-    pub prepared_beta_h: G2Prepared,
-}
 
 /// CommitKey is used to commit to a polynomial which is bounded by the
 /// max_degree.
@@ -46,10 +30,20 @@ pub struct CommitKey {
 impl CommitKey {
     /// Serialize the `CommitKey` into bytes.
     ///
-    /// Will consume twice the bytes of `into_bytes`
-    pub fn to_raw_bytes(&self) -> Vec<u8> {
-        let mut bytes =
-            Vec::with_capacity(8 + self.powers_of_g.len() * G1Affine::RAW_SIZE);
+    /// This operation is designed to store the raw representation of the
+    /// contents of the CommitKey. Therefore, the size of the bytes outputed
+    /// by this function is expected to be the double than the one that
+    /// [`CommitKey::to_bytes`].
+    ///
+    /// # Note
+    /// This function should be used when we want to serialize the CommitKey
+    /// allowing a really fast deserialization later.
+    /// This functions output should not be used by the regular
+    /// [`CommitKey::from_bytes`] fn.
+    pub fn to_raw_var_bytes(&self) -> Vec<u8> {
+        let mut bytes = Vec::with_capacity(
+            u64::SIZE + self.powers_of_g.len() * G1Affine::RAW_SIZE,
+        );
 
         let len = self.powers_of_g.len() as u64;
         let len = len.to_le_bytes();
@@ -62,23 +56,17 @@ impl CommitKey {
         bytes
     }
 
-    /// Deserialize `CommitKey` from a set of bytes created by
-    /// `to_bytes_unchecked`
+    /// Deserialize [`CommitKey`] from a set of bytes created by
+    /// [`CommitKey::to_bytes_unchecked`].
     ///
     /// The bytes source is expected to be trusted and no check will be
     /// performed reggarding the points security
     pub unsafe fn from_slice_unchecked(bytes: &[u8]) -> Self {
-        if bytes.len() < 9 {
-            return Self {
-                powers_of_g: vec![],
-            };
-        }
-
-        let mut len = [0u8; 8];
-        len.copy_from_slice(&bytes[..8]);
+        let mut len = [0u8; u64::SIZE];
+        len.copy_from_slice(&bytes[..u64::SIZE]);
         let len = u64::from_le_bytes(len);
 
-        let powers_of_g = bytes[8..]
+        let powers_of_g = bytes[u64::SIZE..]
             .chunks_exact(G1Affine::RAW_SIZE)
             .zip(0..len)
             .map(|(c, _)| G1Affine::from_slice_unchecked(c))
@@ -87,35 +75,28 @@ impl CommitKey {
         Self { powers_of_g }
     }
 
-    /// Serialises the commitment Key to a byte slice
-    pub fn into_bytes(&self) -> Vec<u8> {
-        use crate::serialisation::{write_g1_affine, write_u64};
-
-        let mut bytes = Vec::with_capacity(self.powers_of_g.len() * 48);
-
-        write_u64(self.powers_of_g.len() as u64, &mut bytes);
-
-        for point in self.powers_of_g.iter() {
-            write_g1_affine(point, &mut bytes);
-        }
-
-        bytes
+    /// Serialises the [`CommitKey`] into a byte slice.
+    pub fn to_var_bytes(&self) -> Vec<u8> {
+        self.powers_of_g
+            .iter()
+            .flat_map(|item| item.to_bytes().to_vec())
+            .collect()
     }
 
-    /// Deserialises a bytes slice to a Commitment Key
-    pub fn from_bytes(bytes: &[u8]) -> Result<CommitKey, Error> {
-        use crate::serialisation::{read_g1_affine, read_u64};
-
-        let (num_points, rest) = read_u64(&bytes)?;
-
-        let mut powers_of_g = Vec::with_capacity(num_points as usize);
-
-        let mut remaining: &[u8] = &rest;
-        for _ in 0..num_points {
-            let (point, rest) = read_g1_affine(remaining)?;
-            powers_of_g.push(point);
-            remaining = rest;
-        }
+    /// Deserialise a slice of bytes into a [`CommitKey`] struct performing
+    /// security and consistency checks for each point that the bytes
+    /// contain.
+    ///
+    /// # Note
+    /// This function can be really slow if the [`CommitKey`] has a certain
+    /// degree/size. If the bytes come from a trusted source such as a local
+    /// file, we recommend to use `from_slice_unchecked()` and
+    /// [`CommitKey::to_raw_bytes`].
+    pub fn from_slice(bytes: &[u8]) -> Result<CommitKey, Error> {
+        let powers_of_g = bytes
+            .chunks(G1Affine::SIZE)
+            .map(|chunk| G1Affine::from_slice(chunk))
+            .collect::<Result<Vec<G1Affine>, dusk_bytes::Error>>()?;
 
         Ok(CommitKey { powers_of_g })
     }
@@ -128,6 +109,7 @@ impl CommitKey {
     /// Truncates the commit key to a lower max degree.
     /// Returns an error if the truncated degree is zero or if the truncated
     /// degree is larger than the max degree of the commit key.
+    // FIXME: Use a match maybe?
     pub(crate) fn truncate(
         &self,
         mut truncated_degree: usize,
@@ -209,13 +191,54 @@ impl CommitKey {
     }
 }
 
+/// Opening Key is used to verify opening proofs made about a committed
+/// polynomial.
+#[derive(Clone, Debug)]
+pub struct OpeningKey {
+    /// The generator of G1.
+    pub(crate) g: G1Affine,
+    /// The generator of G2.
+    pub(crate) h: G2Affine,
+    /// \beta times the above generator of G2.
+    pub(crate) beta_h: G2Affine,
+    /// The generator of G2, prepared for use in pairings.
+    pub(crate) prepared_h: G2Prepared,
+    /// \beta times the above generator of G2, prepared for use in pairings.
+    pub(crate) prepared_beta_h: G2Prepared,
+}
+
+impl Serializable<{ G1Affine::SIZE + G2Affine::SIZE * 2 }> for OpeningKey {
+    type Error = dusk_bytes::Error;
+    #[allow(unused_must_use)]
+    fn to_bytes(&self) -> [u8; Self::SIZE] {
+        use dusk_bytes::Write;
+        let mut buf = [0u8; Self::SIZE];
+        let mut writer = &mut buf[..];
+        // This can't fail therefore we don't care about the Result nor use it.
+        writer.write(&self.g.to_bytes());
+        writer.write(&self.h.to_bytes());
+        writer.write(&self.beta_h.to_bytes());
+
+        buf
+    }
+
+    fn from_bytes(buf: &[u8; Self::SIZE]) -> Result<Self, Self::Error> {
+        let mut buffer = &buf[..];
+        let g = G1Affine::from_reader(&mut buffer)?;
+        let h = G2Affine::from_reader(&mut buffer)?;
+        let beta_h = G2Affine::from_reader(&mut buffer)?;
+
+        Ok(Self::new(g, h, beta_h))
+    }
+}
+
 impl OpeningKey {
     pub(crate) fn new(
         g: G1Affine,
         h: G2Affine,
         beta_h: G2Affine,
     ) -> OpeningKey {
-        let prepared_h: G2Prepared = G2Prepared::from(h);
+        let prepared_h = G2Prepared::from(h);
         let prepared_beta_h = G2Prepared::from(beta_h);
         OpeningKey {
             g,
@@ -224,39 +247,6 @@ impl OpeningKey {
             prepared_beta_h,
             prepared_h,
         }
-    }
-
-    /// Serialises an Opening Key to bytes
-    pub fn to_bytes(&self) -> [u8; Self::serialized_size()] {
-        let mut bytes = [0u8; Self::serialized_size()];
-
-        bytes[0..48].copy_from_slice(&self.g.to_bytes());
-        bytes[48..144].copy_from_slice(&self.h.to_bytes());
-        bytes[144..Self::serialized_size()]
-            .copy_from_slice(&self.beta_h.to_bytes());
-
-        bytes
-    }
-
-    /// Returns the serialized size of [`OpeningKey`]
-    pub const fn serialized_size() -> usize {
-        const NUM_G2: usize = 2;
-        const NUM_G1: usize = 1;
-        const G1_SIZE: usize = 48;
-        const G2_SIZE: usize = 96;
-
-        NUM_G1 * G1_SIZE + NUM_G2 * G2_SIZE
-    }
-
-    /// Deserialises a byte slice into an Opening Key
-    pub fn from_bytes(bytes: &[u8]) -> Result<OpeningKey, Error> {
-        use crate::serialisation::{read_g1_affine, read_g2_affine};
-
-        let (g, rest) = read_g1_affine(&bytes)?;
-        let (h, rest) = read_g2_affine(&rest)?;
-        let (beta_h, _) = read_g2_affine(&rest)?;
-
-        Ok(OpeningKey::new(g, h, beta_h))
     }
 
     /// Checks whether a batch of polynomials evaluated at different points,
@@ -311,6 +301,7 @@ mod test {
     use crate::commitment_scheme::kzg10::{AggregateProof, PublicParameters};
     use crate::fft::Polynomial;
     use dusk_bls12_381::BlsScalar;
+    use dusk_bytes::Serializable;
     use merlin::Transcript;
 
     // Checks that a polynomial `p` was evaluated at a point `z` and returned
@@ -536,16 +527,16 @@ mod test {
 
     #[test]
     fn commit_key_serde() {
-        let (commit_key, _) = setup_test(7);
-        let ck_bytes = commit_key.into_bytes();
-        let ck_bytes_safe = CommitKey::from_bytes(&ck_bytes)
+        let (commit_key, _) = setup_test(11);
+        let ck_bytes = commit_key.to_var_bytes();
+        let ck_bytes_safe = CommitKey::from_slice(&ck_bytes)
             .expect("CommitKey conversion error");
 
         assert_eq!(commit_key.powers_of_g, ck_bytes_safe.powers_of_g);
     }
 
     #[test]
-    fn opening_key_serde() {
+    fn opening_key_dusk_bytes() {
         let (_, opening_key) = setup_test(7);
         let ok_bytes = opening_key.to_bytes();
         let obtained_key = OpeningKey::from_bytes(&ok_bytes)
@@ -559,7 +550,7 @@ mod test {
         let (ck, _) = setup_test(7);
 
         let ck_p = unsafe {
-            let bytes = ck.to_raw_bytes();
+            let bytes = ck.to_raw_var_bytes();
             CommitKey::from_slice_unchecked(&bytes)
         };
 

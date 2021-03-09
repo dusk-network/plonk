@@ -17,16 +17,11 @@ use crate::fft::EvaluationDomain;
 use crate::proof_system::widget::VerifierKey;
 use crate::transcript::TranscriptProtocol;
 use dusk_bls12_381::{multiscalar_mul::msm_variable_base, BlsScalar, G1Affine};
-use dusk_bytes::Serializable;
+use dusk_bytes::{DeserializableSlice, Serializable};
 use merlin::Transcript;
-use serde::de::Visitor;
-use serde::{self, Deserialize, Deserializer, Serialize, Serializer};
 
 #[cfg(feature = "canon")]
 use canonical::{Canon, InvalidEncoding, Sink, Source, Store};
-
-/// Byte-size of a serialised `Proof`.
-pub const PROOF_SIZE: usize = Proof::serialised_size();
 
 /// A Proof is a composition of `Commitments` to the witness, permutation,
 /// quotient, shifted and opening polynomials as well as the
@@ -35,7 +30,7 @@ pub const PROOF_SIZE: usize = Proof::serialised_size();
 /// It's main goal is to have a `verify()` method attached which contains the
 /// logic of the operations that the `Verifier` will need to do in order to
 /// formally verify the `Proof`.
-#[derive(Debug, Eq, PartialEq, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone, Default)]
 pub struct Proof {
     /// Commitment to the witness polynomial for the left wires.
     pub(crate) a_comm: Commitment,
@@ -66,8 +61,6 @@ pub struct Proof {
     pub(crate) evaluations: ProofEvaluations,
 }
 
-impl_serde!(Proof);
-
 #[cfg(feature = "canon")]
 impl<S: Store> Canon<S> for Proof {
     fn write(&self, sink: &mut impl Sink<S>) -> Result<(), S::Error> {
@@ -89,47 +82,50 @@ impl<S: Store> Canon<S> for Proof {
     }
 }
 
-impl Proof {
-    /// Serialises a Proof struct
-    pub fn to_bytes(&self) -> [u8; PROOF_SIZE] {
-        let mut bytes = [0u8; PROOF_SIZE];
+impl Serializable<{ 11 * Commitment::SIZE + ProofEvaluations::SIZE }>
+    for Proof
+{
+    type Error = Error;
 
-        bytes[0..48].copy_from_slice(&self.a_comm.0.to_bytes()[..]);
-        bytes[48..96].copy_from_slice(&self.b_comm.0.to_bytes()[..]);
-        bytes[96..144].copy_from_slice(&self.c_comm.0.to_bytes()[..]);
-        bytes[144..192].copy_from_slice(&self.d_comm.0.to_bytes()[..]);
-        bytes[192..240].copy_from_slice(&self.z_comm.0.to_bytes()[..]);
-        bytes[240..288].copy_from_slice(&self.t_1_comm.0.to_bytes()[..]);
-        bytes[288..336].copy_from_slice(&self.t_2_comm.0.to_bytes()[..]);
-        bytes[336..384].copy_from_slice(&self.t_3_comm.0.to_bytes()[..]);
-        bytes[384..432].copy_from_slice(&self.t_4_comm.0.to_bytes()[..]);
-        bytes[432..480].copy_from_slice(&self.w_z_comm.0.to_bytes()[..]);
-        bytes[480..528].copy_from_slice(&self.w_zw_comm.0.to_bytes()[..]);
-        bytes[528..PROOF_SIZE]
-            .copy_from_slice(&self.evaluations.to_bytes()[..]);
+    #[allow(unused_must_use)]
+    fn to_bytes(&self) -> [u8; Self::SIZE] {
+        use dusk_bytes::Write;
 
-        bytes
+        let mut buf = [0u8; Self::SIZE];
+        let mut writer = &mut buf[..];
+        writer.write(&self.a_comm.to_bytes());
+        writer.write(&self.b_comm.to_bytes());
+        writer.write(&self.c_comm.to_bytes());
+        writer.write(&self.d_comm.to_bytes());
+        writer.write(&self.z_comm.to_bytes());
+        writer.write(&self.t_1_comm.to_bytes());
+        writer.write(&self.t_2_comm.to_bytes());
+        writer.write(&self.t_3_comm.to_bytes());
+        writer.write(&self.t_4_comm.to_bytes());
+        writer.write(&self.w_z_comm.to_bytes());
+        writer.write(&self.w_zw_comm.to_bytes());
+        writer.write(&self.evaluations.to_bytes());
+
+        buf
     }
 
-    /// Deserialises a Proof struct
-    pub fn from_bytes(bytes: &[u8]) -> Result<Proof, Error> {
-        use crate::serialisation::read_commitment;
+    fn from_bytes(buf: &[u8; Self::SIZE]) -> Result<Self, Self::Error> {
+        let mut buffer = &buf[..];
 
-        let (a_comm, rest) = read_commitment(bytes)?;
-        let (b_comm, rest) = read_commitment(rest)?;
-        let (c_comm, rest) = read_commitment(rest)?;
-        let (d_comm, rest) = read_commitment(rest)?;
-        let (z_comm, rest) = read_commitment(rest)?;
-        let (t_1_comm, rest) = read_commitment(rest)?;
-        let (t_2_comm, rest) = read_commitment(rest)?;
-        let (t_3_comm, rest) = read_commitment(rest)?;
-        let (t_4_comm, rest) = read_commitment(rest)?;
-        let (w_z_comm, rest) = read_commitment(rest)?;
-        let (w_zw_comm, rest) = read_commitment(rest)?;
+        let a_comm = Commitment::from_reader(&mut buffer)?;
+        let b_comm = Commitment::from_reader(&mut buffer)?;
+        let c_comm = Commitment::from_reader(&mut buffer)?;
+        let d_comm = Commitment::from_reader(&mut buffer)?;
+        let z_comm = Commitment::from_reader(&mut buffer)?;
+        let t_1_comm = Commitment::from_reader(&mut buffer)?;
+        let t_2_comm = Commitment::from_reader(&mut buffer)?;
+        let t_3_comm = Commitment::from_reader(&mut buffer)?;
+        let t_4_comm = Commitment::from_reader(&mut buffer)?;
+        let w_z_comm = Commitment::from_reader(&mut buffer)?;
+        let w_zw_comm = Commitment::from_reader(&mut buffer)?;
+        let evaluations = ProofEvaluations::from_reader(&mut buffer)?;
 
-        let evaluations = ProofEvaluations::from_bytes(rest);
-
-        let proof = Proof {
+        Ok(Proof {
             a_comm,
             b_comm,
             c_comm,
@@ -141,19 +137,12 @@ impl Proof {
             t_4_comm,
             w_z_comm,
             w_zw_comm,
-            evaluations: evaluations?,
-        };
-        Ok(proof)
+            evaluations,
+        })
     }
+}
 
-    /// Returns the serialised size of a [`Proof`] object.
-    pub const fn serialised_size() -> usize {
-        const NUM_COMMITMENTS: usize = 11;
-        const COMMITMENT_SIZE: usize = 48;
-        (NUM_COMMITMENTS * COMMITMENT_SIZE)
-            + ProofEvaluations::serialised_size()
-    }
-
+impl Proof {
     /// Performs the verification of a `Proof` returning a boolean result.
     pub(crate) fn verify(
         &self,
@@ -522,10 +511,10 @@ fn compute_barycentric_eval(
     result * numerator
 }
 #[cfg(test)]
-mod test {
+mod proof_tests {
     use super::*;
     #[test]
-    fn test_serialise_deserialise_proof() {
+    fn test_dusk_bytes_serde_proof() {
         let proof = Proof {
             a_comm: Commitment::default(),
             b_comm: Commitment::default(),
