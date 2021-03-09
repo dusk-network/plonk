@@ -30,7 +30,14 @@ pub struct CommitKey {
 impl CommitKey {
     /// Serialize the `CommitKey` into bytes.
     ///
-    /// Will consume twice the bytes of `into_bytes`
+    /// This operation is designed to store the raw representation of the contents
+    /// of the CommitKey. Therefore, the size of the bytes outputed by this function
+    /// is expected to be the double than the one that `CommitKey::to_bytes()`.
+    ///
+    /// # Note
+    /// This function should be used when we want to serialize the CommitKey allowing
+    /// a really fast deserialization later.
+    /// This functions output should not be used by the regular `CommitKey::from_bytes()` fn.
     pub fn to_raw_bytes(&self) -> Vec<u8> {
         let mut bytes =
             Vec::with_capacity(8 + self.powers_of_g.len() * G1Affine::RAW_SIZE);
@@ -46,11 +53,18 @@ impl CommitKey {
         bytes
     }
 
+<<<<<<< HEAD
     /// Deserialize `CommitKey` from a set of bytes created by
     /// `to_bytes_unchecked`
     ///
     /// The bytes source is expected to be trusted and no check will be
     /// performed reggarding the points security
+=======
+    /// Deserialize `CommitKey` from a set of bytes created by `CommitKey::to_raw_bytes`.
+    ///
+    /// The bytes source is expected to be trusted and no checks will be performed reggarding the
+    /// content of the points that the bytes contain serialized.
+>>>>>>> 7f471d8 (Update serialization API conventions ProverKey)
     pub unsafe fn from_slice_unchecked(bytes: &[u8]) -> Self {
         if bytes.len() < 9 {
             return Self {
@@ -71,35 +85,27 @@ impl CommitKey {
         Self { powers_of_g }
     }
 
-    /// Serialises the commitment Key to a byte slice
-    pub fn into_bytes(&self) -> Vec<u8> {
-        use crate::serialisation::{write_g1_affine, write_u64};
-
-        let mut bytes = Vec::with_capacity(self.powers_of_g.len() * 48);
-
-        write_u64(self.powers_of_g.len() as u64, &mut bytes);
-
-        for point in self.powers_of_g.iter() {
-            write_g1_affine(point, &mut bytes);
-        }
-
-        bytes
+    /// Serialises the commitment Key to a byte slice.
+    pub fn to_bytes(&self) -> Vec<u8> {
+        self.powers_of_g
+            .iter()
+            .map(|item| item.to_bytes().to_vec())
+            .flatten()
+            .collect()
     }
 
-    /// Deserialises a bytes slice to a Commitment Key
+    /// Deserialise a slice of bytes into a Commit Key struct performing security
+    /// and consistency checks for each point that the bytes contain.
+    ///
+    /// # Note
+    /// This function can be really slow if the `CommitKey` has a certain degree/size.
+    /// If the bytes come from a trusted source such as a local file, we recommend to use
+    /// `from_slice_unchecked()` and `to_raw_bytes()`.
     pub fn from_bytes(bytes: &[u8]) -> Result<CommitKey, Error> {
-        use crate::serialisation::{read_g1_affine, read_u64};
-
-        let (num_points, rest) = read_u64(&bytes)?;
-
-        let mut powers_of_g = Vec::with_capacity(num_points as usize);
-
-        let mut remaining: &[u8] = &rest;
-        for _ in 0..num_points {
-            let (point, rest) = read_g1_affine(remaining)?;
-            powers_of_g.push(point);
-            remaining = rest;
-        }
+        let powers_of_g = bytes
+            .chunks(G1Affine::SIZE)
+            .map(|chunk| G1Affine::from_slice(chunk))
+            .collect::<Result<Vec<G1Affine>, dusk_bytes::Error>>()?;
 
         Ok(CommitKey { powers_of_g })
     }
@@ -529,9 +535,14 @@ mod test {
     #[test]
     fn commit_key_serde() {
         let (commit_key, _) = setup_test(7);
+<<<<<<< HEAD
         let ck_bytes = commit_key.into_bytes();
         let ck_bytes_safe = CommitKey::from_bytes(&ck_bytes)
             .expect("CommitKey conversion error");
+=======
+        let ck_bytes = commit_key.to_bytes();
+        let ck_bytes_safe = CommitKey::from_bytes(&ck_bytes).expect("CommitKey conversion error");
+>>>>>>> 7f471d8 (Update serialization API conventions ProverKey)
 
         assert_eq!(commit_key.powers_of_g, ck_bytes_safe.powers_of_g);
     }
