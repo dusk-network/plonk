@@ -120,10 +120,6 @@ impl Commitment {
     pub(crate) fn from_projective(g: G1Projective) -> Self {
         Self(g.into())
     }
-    /// Builds a `Commitment` from a Bls12_381 `G1Affine` point.
-    pub(crate) fn from_affine(g: G1Affine) -> Self {
-        Self(g)
-    }
     /// Builds an empty `Commitment` which is equivalent to the
     /// `G1Affine` identity point in Bls12_381.
     fn empty() -> Self {
@@ -143,9 +139,10 @@ mod commitment_tests {
 
     #[test]
     fn commitment_duks_bytes_serde() {
-        let commitment = Commitment::from_affine(dusk_bls12_381::G1Affine::generator());
+        let commitment = Commitment(dusk_bls12_381::G1Affine::generator());
         let bytes = commitment.to_bytes();
-        let obtained_comm = Commitment::from_slice(&bytes).expect("Error on the deserialization");
+        let obtained_comm = Commitment::from_slice(&bytes)
+            .expect("Error on the deserialization");
         assert_eq!(commitment, obtained_comm);
     }
 }

@@ -91,6 +91,11 @@ impl Serializable<{ 15 * Commitment::SIZE + u64::SIZE }> for VerifierKey {
 }
 
 impl VerifierKey {
+    /// Returns the Circuit size padded to the next power of two.
+    pub const fn padded_circuit_size(&self) -> usize {
+        self.n.next_power_of_two()
+    }
+
     /// Constructs a VerifierKey from the widget VerifierKey's that are
     /// constructed based on the selector polynomial commitments and the
     /// sigma polynomial commitments.
@@ -575,7 +580,7 @@ mod test {
         let pk = ProverKey::from_slice(&prover_key_bytes).unwrap();
 
         assert_eq!(pk, prover_key);
-        assert_eq!(pk.to_bytes(), prover_key.to_bytes());
+        assert_eq!(pk.to_var_bytes(), prover_key.to_var_bytes());
     }
 
     #[test]
@@ -585,26 +590,25 @@ mod test {
 
         let n = 2usize.pow(5);
 
-        let q_m = Commitment::from_affine(G1Affine::generator());
-        let q_l = Commitment::from_affine(G1Affine::generator());
-        let q_r = Commitment::from_affine(G1Affine::generator());
-        let q_o = Commitment::from_affine(G1Affine::generator());
-        let q_c = Commitment::from_affine(G1Affine::generator());
-        let q_4 = Commitment::from_affine(G1Affine::generator());
-        let q_arith = Commitment::from_affine(G1Affine::generator());
+        let q_m = Commitment(G1Affine::generator());
+        let q_l = Commitment(G1Affine::generator());
+        let q_r = Commitment(G1Affine::generator());
+        let q_o = Commitment(G1Affine::generator());
+        let q_c = Commitment(G1Affine::generator());
+        let q_4 = Commitment(G1Affine::generator());
+        let q_arith = Commitment(G1Affine::generator());
 
-        let q_range = Commitment::from_affine(G1Affine::generator());
+        let q_range = Commitment(G1Affine::generator());
 
-        let q_fixed_group_add = Commitment::from_affine(G1Affine::generator());
-        let q_variable_group_add =
-            Commitment::from_affine(G1Affine::generator());
+        let q_fixed_group_add = Commitment(G1Affine::generator());
+        let q_variable_group_add = Commitment(G1Affine::generator());
 
-        let q_logic = Commitment::from_affine(G1Affine::generator());
+        let q_logic = Commitment(G1Affine::generator());
 
-        let left_sigma = Commitment::from_affine(G1Affine::generator());
-        let right_sigma = Commitment::from_affine(G1Affine::generator());
-        let out_sigma = Commitment::from_affine(G1Affine::generator());
-        let fourth_sigma = Commitment::from_affine(G1Affine::generator());
+        let left_sigma = Commitment(G1Affine::generator());
+        let right_sigma = Commitment(G1Affine::generator());
+        let out_sigma = Commitment(G1Affine::generator());
+        let fourth_sigma = Commitment(G1Affine::generator());
 
         let arithmetic = arithmetic::VerifierKey {
             q_m,
