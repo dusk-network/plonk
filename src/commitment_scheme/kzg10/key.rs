@@ -33,13 +33,13 @@ impl CommitKey {
     /// This operation is designed to store the raw representation of the
     /// contents of the CommitKey. Therefore, the size of the bytes outputed
     /// by this function is expected to be the double than the one that
-    /// `CommitKey::to_bytes()`.
+    /// [`CommitKey::to_bytes`].
     ///
     /// # Note
     /// This function should be used when we want to serialize the CommitKey
     /// allowing a really fast deserialization later.
     /// This functions output should not be used by the regular
-    /// `CommitKey::from_bytes()` fn.
+    /// [`CommitKey::from_bytes`] fn.
     pub fn to_raw_var_bytes(&self) -> Vec<u8> {
         let mut bytes = Vec::with_capacity(
             u64::SIZE + self.powers_of_g.len() * G1Affine::RAW_SIZE,
@@ -56,8 +56,8 @@ impl CommitKey {
         bytes
     }
 
-    /// Deserialize `CommitKey` from a set of bytes created by
-    /// `to_bytes_unchecked`
+    /// Deserialize [`CommitKey`] from a set of bytes created by
+    /// [`CommitKey::to_bytes_unchecked`].
     ///
     /// The bytes source is expected to be trusted and no check will be
     /// performed reggarding the points security
@@ -75,7 +75,7 @@ impl CommitKey {
         Self { powers_of_g }
     }
 
-    /// Serialises the commitment Key to a byte slice.
+    /// Serialises the [`CommitKey`] into a byte slice.
     pub fn to_var_bytes(&self) -> Vec<u8> {
         self.powers_of_g
             .iter()
@@ -83,15 +83,15 @@ impl CommitKey {
             .collect()
     }
 
-    /// Deserialise a slice of bytes into a Commit Key struct performing
+    /// Deserialise a slice of bytes into a [`CommitKey`] struct performing
     /// security and consistency checks for each point that the bytes
     /// contain.
     ///
     /// # Note
-    /// This function can be really slow if the `CommitKey` has a certain
+    /// This function can be really slow if the [`CommitKey`] has a certain
     /// degree/size. If the bytes come from a trusted source such as a local
     /// file, we recommend to use `from_slice_unchecked()` and
-    /// `to_raw_bytes()`.
+    /// [`CommitKey::to_raw_bytes`].
     pub fn from_slice(bytes: &[u8]) -> Result<CommitKey, Error> {
         let powers_of_g = bytes
             .chunks(G1Affine::SIZE)
@@ -109,6 +109,7 @@ impl CommitKey {
     /// Truncates the commit key to a lower max degree.
     /// Returns an error if the truncated degree is zero or if the truncated
     /// degree is larger than the max degree of the commit key.
+    // FIXME: Use a match maybe?
     pub(crate) fn truncate(
         &self,
         mut truncated_degree: usize,
@@ -299,7 +300,7 @@ mod test {
     use super::*;
     use crate::commitment_scheme::kzg10::{AggregateProof, PublicParameters};
     use crate::fft::Polynomial;
-    use crate::prelude::*;
+    use dusk_bls12_381::BlsScalar;
     use dusk_bytes::Serializable;
     use merlin::Transcript;
 
@@ -526,7 +527,7 @@ mod test {
 
     #[test]
     fn commit_key_serde() {
-        let (commit_key, _) = setup_test(7);
+        let (commit_key, _) = setup_test(11);
         let ck_bytes = commit_key.to_var_bytes();
         let ck_bytes_safe = CommitKey::from_slice(&ck_bytes)
             .expect("CommitKey conversion error");

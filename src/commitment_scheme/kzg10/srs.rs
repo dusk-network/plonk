@@ -19,9 +19,9 @@ use rand_core::{CryptoRng, RngCore};
 #[derive(Debug, Clone)]
 pub struct PublicParameters {
     /// Key used to generate proofs for composed circuits.
-    pub commit_key: CommitKey,
+    pub(crate) commit_key: CommitKey,
     /// Key used to verify proofs for composed circuits.
-    pub opening_key: OpeningKey,
+    pub(crate) opening_key: OpeningKey,
 }
 
 impl PublicParameters {
@@ -110,7 +110,7 @@ impl PublicParameters {
     /// Serialises a [`PublicParameters`] struct into a slice of bytes.
     pub fn to_var_bytes(&self) -> Vec<u8> {
         let mut bytes = self.opening_key.to_bytes().to_vec();
-        bytes.extend(self.commit_key.to_raw_var_bytes());
+        bytes.extend(self.commit_key.to_var_bytes().iter());
         bytes
     }
 
@@ -127,12 +127,9 @@ impl PublicParameters {
         if bytes.len() <= OpeningKey::SIZE {
             return Err(Error::NotEnoughBytes);
         }
-
-        let opening_key_bytes = &bytes[0..OpeningKey::SIZE];
-        let commit_key_bytes = &bytes[OpeningKey::SIZE..];
-
-        let opening_key = OpeningKey::from_slice(opening_key_bytes)?;
-        let commit_key = CommitKey::from_slice(commit_key_bytes)?;
+        let mut buf = &bytes[..];
+        let opening_key = OpeningKey::from_reader(&mut buf)?;
+        let commit_key = CommitKey::from_slice(&buf)?;
 
         let pp = PublicParameters {
             opening_key,
