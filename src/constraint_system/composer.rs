@@ -431,7 +431,7 @@ mod tests {
     use super::*;
     use crate::commitment_scheme::kzg10::PublicParameters;
     use crate::plookup::{PlookupTable4Arity, PreprocessedTable4Arity};
-    use crate::proof_system::{PlookupProver, PlookupVerifier, Prover, Verifier};
+    use crate::proof_system::{Prover, Verifier};
 
     #[test]
     /// Tests that a circuit initially has 3 gates
@@ -497,6 +497,7 @@ mod tests {
         prover.preprocess(&ck).unwrap();
 
         let public_inputs = prover.cs.public_inputs.clone();
+        let lookup_table = prover.cs.lookup_table.clone();
 
         let mut proofs = Vec::new();
 
@@ -522,7 +523,7 @@ mod tests {
         verifier.preprocess(&ck).unwrap();
 
         for proof in proofs {
-            assert!(verifier.verify(&proof, &vk, &public_inputs).is_ok());
+            assert!(verifier.verify(&proof, &vk, &public_inputs, &lookup_table).is_ok());
         }
     }
 
@@ -535,7 +536,7 @@ mod tests {
         composer.lookup_table.insert_multi_mul(0, 3);
 
         // Create a prover struct
-        let mut prover = PlookupProver::new(b"test");
+        let mut prover = Prover::new(b"test");
 
         // add tp trans
         prover.key_transcript(b"key", b"additional seed information");
@@ -583,24 +584,13 @@ mod tests {
     }
 
     #[test]
-    /// Tests that a circuit initially has 3 gates
-    fn test_initial_circuit_size() {
-        let composer: StandardComposer = StandardComposer::new();
-        // Circuit size is n+3 because
-        // - We have an extra gate which forces the first witness to be zero. This is used when the advice wire is not being used.
-        // - We have two gates which ensure that the permutation polynomial is not the identity and
-        // - Another gate which ensures that the selector polynomials are not all zeroes
-        assert_eq!(3, composer.circuit_size())
-    }
-
-    #[test]
     #[ignore]
     // XXX: Move this to integration tests
     fn test_plookup_proof() {
         let public_parameters = PublicParameters::setup(2 * 30, &mut rand::thread_rng()).unwrap();
 
         // Create a prover struct
-        let mut prover = PlookupProver::new(b"demo");
+        let mut prover = Prover::new(b"demo");
 
         // Add gadgets
         dummy_gadget_plookup(4, prover.mut_cs());
@@ -618,7 +608,7 @@ mod tests {
 
         // Verifier
         //
-        let mut verifier = PlookupVerifier::new(b"demo");
+        let mut verifier = Verifier::new(b"demo");
 
         // Add gadgets
         dummy_gadget_plookup(4, verifier.mut_cs());

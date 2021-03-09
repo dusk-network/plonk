@@ -5,21 +5,21 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use crate::commitment_scheme::kzg10::Commitment;
-use crate::proof_system::lookup_lineariser::PlookupProofEvaluations;
+use crate::proof_system::linearisation_poly::ProofEvaluations;
 use dusk_bls12_381::{BlsScalar, G1Affine};
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
-pub struct PlookupVerifierKey {
+pub struct VerifierKey {
     pub q_lookup: Commitment,
 }
 
-impl PlookupVerifierKey {
+impl VerifierKey {
     pub(crate) fn compute_linearisation_commitment(
         &self,
         lookup_separation_challenge: &BlsScalar,
         scalars: &mut Vec<BlsScalar>,
         points: &mut Vec<G1Affine>,
-        evaluations: &PlookupProofEvaluations,
+        evaluations: &ProofEvaluations,
         z_challenge: &BlsScalar,
         (delta, epsilon): (&BlsScalar, &BlsScalar),
         l1_eval: &BlsScalar,

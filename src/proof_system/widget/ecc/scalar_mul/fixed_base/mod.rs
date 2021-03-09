@@ -8,7 +8,7 @@ mod proverkey;
 mod verifierkey;
 
 pub use proverkey::ProverKey;
-pub use verifierkey::{PlookupVerifierKey, VerifierKey};
+pub use verifierkey::VerifierKey;
 
 // Note: The ECC gadget does not check that the initial point is on the curve for two reasons:
 // - We constrain the accumulator to start from the identity point, which the verifier knows is on the curve
