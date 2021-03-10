@@ -29,8 +29,6 @@ pub struct ProverKey {
     pub logic: logic::ProverKey,
     /// ProverKey for range gate
     pub range: range::ProverKey,
-    /// ProverKey for lookup gates
-    pub lookup: lookup::ProverKey,
     /// ProverKey for fixed base curve addition gates
     pub fixed_base: ecc::scalar_mul::fixed_base::ProverKey,
     /// ProverKey for permutation checks
@@ -406,7 +404,6 @@ impl ProverKey {
             arithmetic,
             logic,
             range,
-            lookup,
             fixed_base,
             variable_base,
             lookup,
