@@ -198,8 +198,9 @@ where
         let mut verifier = Verifier::new(transcript_initialisation);
         // Fill witnesses for Verifier
         self.gadget(verifier.mut_cs())?;
+        let lookup_table = verifier.mut_cs().lookup_table.clone();
         verifier.verifier_key = Some(*verifier_key);
-        verifier.verify(proof, &vk, &self.build_pi(pub_inputs)?)
+        verifier.verify(proof, &vk, &self.build_pi(pub_inputs)?, &lookup_table)
     }
 }
 
