@@ -53,19 +53,24 @@
 #![deny(missing_docs)]
 #![no_std]
 
-#[macro_use]
-extern crate alloc;
+cfg_if::cfg_if!(
+if #[cfg(feature = "alloc")] {
+    #[macro_use]
+    extern crate alloc;
+    pub mod constraint_system;
+    pub mod circuit;
+    mod bit_iterator;
+    mod transcript;
+});
 
-mod bit_iterator;
-pub mod circuit;
+#[cfg(feature = "std")]
+extern crate std;
 mod commitment_scheme;
-pub mod constraint_system;
 mod error;
 mod fft;
 mod permutation;
 pub mod prelude;
 mod proof_system;
-mod transcript;
 mod util;
 
 #[cfg(feature = "nightly")]
