@@ -264,6 +264,7 @@ impl ProverKey {
 
         // Curve addition
         write_polynomial(&self.variable_base.q_variable_group_add.0, &mut bytes);
+        write_evaluations(&self.variable_base.q_variable_group_add.1, &mut bytes);
 
         // Lookup
         write_polynomial(&self.lookup.q_lookup.0, &mut bytes);
