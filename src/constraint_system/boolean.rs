@@ -31,6 +31,7 @@ impl StandardComposer {
 
         self.q_range.push(BlsScalar::zero());
         self.q_logic.push(BlsScalar::zero());
+        self.q_lookup.push(BlsScalar::zero());
         self.q_fixed_group_add.push(BlsScalar::zero());
         self.q_variable_group_add.push(BlsScalar::zero());
 

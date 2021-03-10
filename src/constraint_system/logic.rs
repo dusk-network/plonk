@@ -223,6 +223,7 @@ impl StandardComposer {
             self.q_o.push(BlsScalar::zero());
             self.q_4.push(BlsScalar::zero());
             self.q_range.push(BlsScalar::zero());
+            self.q_lookup.push(BlsScalar::zero());
             self.q_fixed_group_add.push(BlsScalar::zero());
             self.q_variable_group_add.push(BlsScalar::zero());
             match is_xor_gate {
@@ -244,6 +245,7 @@ impl StandardComposer {
         self.q_o.push(BlsScalar::zero());
         self.q_4.push(BlsScalar::zero());
         self.q_range.push(BlsScalar::zero());
+        self.q_lookup.push(BlsScalar::zero());
         self.q_fixed_group_add.push(BlsScalar::zero());
         self.q_variable_group_add.push(BlsScalar::zero());
 
