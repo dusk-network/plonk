@@ -30,7 +30,7 @@ impl StandardComposer {
 
     /// Adds a width-4 add gate to the plookup circuit and it's corresponding
     /// constraint.
-    fn big_add_gate(
+    pub fn big_add_gate(
         &mut self,
         a: Variable,
         b: Variable,
