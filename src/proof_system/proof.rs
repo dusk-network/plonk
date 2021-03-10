@@ -85,7 +85,7 @@ impl<S: Store> Canon<S> for Proof {
 impl Serializable<{ 11 * Commitment::SIZE + ProofEvaluations::SIZE }>
     for Proof
 {
-    type Error = Error;
+    type Error = dusk_bytes::Error;
 
     #[allow(unused_must_use)]
     fn to_bytes(&self) -> [u8; Self::SIZE] {
