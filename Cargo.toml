@@ -21,38 +21,42 @@ license = "MPL-2.0"
 edition = "2018"
 
 [dependencies]
-merlin = "2.0.0"
-rand_core = {version="0.6", default-features=false, features = ["getrandom"]}
+merlin = {version = "3.0", default-features = false}
+rand_core = {version="0.6", default-features=false}
 dusk-bytes = "0.1"
-dusk-bls12_381 = {version = "0.6", default-features = false, features = ["alloc", "groups", "pairings", "endo"]}
+dusk-bls12_381 = {version = "0.6", default-features = false, features = ["groups", "pairings", "endo"]}
 dusk-jubjub = {version = "0.8", default-features = false}
 itertools = {version = "0.9.0", default-features = false}
-rand_chacha = {version = "0.2", default-features = false}
 hashbrown = {version = "0.9", default-features=false, features = ["ahash"]}
 # Dusk related deps for WASMI serde
 canonical = {version = "0.5", optional = true}
 canonical_derive = {version = "0.5", optional = true}
+cfg-if = "1.0"
 
 [dev-dependencies]
+rand_core = {version="0.6", default-features=false}
 tempdir = "0.3"
-getrandom = "0.2"
 
 [package.metadata.docs.rs]
 rustdoc-args = [ "--html-in-header", "katex-header.html" ]
 
 [features]
+default = ["std"]
 std = [
     "rand_core/std",
-    "dusk-bls12_381/default",
+    "dusk-bls12_381/default",  # Includes parallel
     "dusk-jubjub/default",
     "itertools/default",
     "hashbrown/default",
+    "alloc"
 ]
-alloc = []
+alloc = ["dusk-bls12_381/alloc"]
 nightly = []
 trace = []
 trace-print = ["trace"]
 canon = ["dusk-bls12_381/canon", "dusk-jubjub/canon", "canonical", "canonical_derive"]
 
+
 [patch.crates-io]
-dusk-bls12_381 = {path = "../bls12_381", default-features = false, features = ["alloc", "groups", "pairings", "endo"]}
+dusk-bls12_381 = {git = "https://github.com/dusk-network/bls12_381", branch = "release-0.7", default-features = false, features = ["alloc", "groups", "pairings", "endo"]}
+dusk-jubjub = {git = "https://github.com/dusk-network/jubjub", branch = "release-0.8.2", default-features = false}
