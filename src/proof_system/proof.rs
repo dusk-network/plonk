@@ -113,14 +113,18 @@ impl Proof {
         bytes[48..96].copy_from_slice(&self.b_comm.0.to_bytes()[..]);
         bytes[96..144].copy_from_slice(&self.c_comm.0.to_bytes()[..]);
         bytes[144..192].copy_from_slice(&self.d_comm.0.to_bytes()[..]);
-        bytes[192..240].copy_from_slice(&self.z_comm.0.to_bytes()[..]);
-        bytes[240..288].copy_from_slice(&self.t_1_comm.0.to_bytes()[..]);
-        bytes[288..336].copy_from_slice(&self.t_2_comm.0.to_bytes()[..]);
-        bytes[336..384].copy_from_slice(&self.t_3_comm.0.to_bytes()[..]);
-        bytes[384..432].copy_from_slice(&self.t_4_comm.0.to_bytes()[..]);
-        bytes[432..480].copy_from_slice(&self.w_z_comm.0.to_bytes()[..]);
-        bytes[480..528].copy_from_slice(&self.w_zw_comm.0.to_bytes()[..]);
-        bytes[528..PROOF_SIZE].copy_from_slice(&self.evaluations.to_bytes()[..]);
+        bytes[192..240].copy_from_slice(&self.f_comm.0.to_bytes()[..]);
+        bytes[240..288].copy_from_slice(&self.h_1_comm.0.to_bytes()[..]);
+        bytes[288..336].copy_from_slice(&self.h_2_comm.0.to_bytes()[..]);
+        bytes[336..384].copy_from_slice(&self.z_comm.0.to_bytes()[..]);
+        bytes[384..432].copy_from_slice(&self.p_comm.0.to_bytes()[..]);
+        bytes[432..480].copy_from_slice(&self.t_1_comm.0.to_bytes()[..]);
+        bytes[480..528].copy_from_slice(&self.t_2_comm.0.to_bytes()[..]);
+        bytes[528..576].copy_from_slice(&self.t_3_comm.0.to_bytes()[..]);
+        bytes[576..624].copy_from_slice(&self.t_4_comm.0.to_bytes()[..]);
+        bytes[624..672].copy_from_slice(&self.w_z_comm.0.to_bytes()[..]);
+        bytes[672..720].copy_from_slice(&self.w_zw_comm.0.to_bytes()[..]);
+        bytes[720..PROOF_SIZE].copy_from_slice(&self.evaluations.to_bytes()[..]);
 
         bytes
     }
@@ -133,7 +137,11 @@ impl Proof {
         let (b_comm, rest) = read_commitment(rest)?;
         let (c_comm, rest) = read_commitment(rest)?;
         let (d_comm, rest) = read_commitment(rest)?;
+        let (f_comm, rest) = read_commitment(rest)?;
+        let (h_1_comm, rest) = read_commitment(rest)?;
+        let (h_2_comm, rest) = read_commitment(rest)?;
         let (z_comm, rest) = read_commitment(rest)?;
+        let (p_comm, rest) = read_commitment(rest)?;
         let (t_1_comm, rest) = read_commitment(rest)?;
         let (t_2_comm, rest) = read_commitment(rest)?;
         let (t_3_comm, rest) = read_commitment(rest)?;
@@ -148,7 +156,11 @@ impl Proof {
             b_comm,
             c_comm,
             d_comm,
+            f_comm,
+            h_1_comm,
+            h_2_comm,
             z_comm,
+            p_comm,
             t_1_comm,
             t_2_comm,
             t_3_comm,
