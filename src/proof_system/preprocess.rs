@@ -241,7 +241,10 @@ impl StandardComposer {
         ),
         Error,
     > {
-        let domain = EvaluationDomain::new(self.circuit_size())?;
+        let domain = EvaluationDomain::new(std::cmp::max(
+            self.circuit_size(),
+            self.lookup_table.0.len(),
+        ))?;
 
         // Check that the length of the wires is consistent.
         self.check_poly_same_len()?;
