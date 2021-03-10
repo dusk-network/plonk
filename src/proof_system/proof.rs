@@ -12,24 +12,22 @@
 
 use super::linearisation_poly::ProofEvaluations;
 use crate::commitment_scheme::kzg10::Commitment;
-#[cfg(feature = "alloc")]
-use crate::commitment_scheme::kzg10::{AggregateProof, OpeningKey};
+cfg_if::cfg_if!(
+    if #[cfg(feature="alloc")] {
+        use crate::commitment_scheme::kzg10::{AggregateProof, OpeningKey};
+        use crate::transcript::TranscriptProtocol;
+        use dusk_bls12_381::multiscalar_mul::msm_variable_base;
+        use alloc::vec::Vec;
+        use merlin::Transcript;
+    }
+);
 use crate::error::Error;
 use crate::fft::EvaluationDomain;
 use crate::proof_system::widget::VerifierKey;
-#[cfg(feature = "alloc")]
-use crate::transcript::TranscriptProtocol;
-#[cfg(feature = "alloc")]
-use alloc::vec::Vec;
-#[cfg(feature = "alloc")]
-use dusk_bls12_381::multiscalar_mul::msm_variable_base;
-use dusk_bls12_381::{BlsScalar, G1Affine};
-use dusk_bytes::{DeserializableSlice, Serializable};
-#[cfg(feature = "alloc")]
-use merlin::Transcript;
-
 #[cfg(feature = "canon")]
 use canonical::{Canon, InvalidEncoding, Sink, Source, Store};
+use dusk_bls12_381::{BlsScalar, G1Affine};
+use dusk_bytes::{DeserializableSlice, Serializable};
 
 /// A Proof is a composition of `Commitments` to the witness, permutation,
 /// quotient, shifted and opening polynomials as well as the
@@ -518,6 +516,7 @@ fn compute_barycentric_eval(
 
     result * numerator
 }
+#[cfg(feature = "std")]
 #[cfg(test)]
 mod proof_tests {
     use super::*;

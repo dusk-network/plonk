@@ -354,6 +354,7 @@ impl Iterator for Elements {
     }
 }
 
+#[cfg(feature = "std")]
 #[cfg(test)]
 mod tests {
     use super::*;

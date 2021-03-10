@@ -31,13 +31,13 @@ pub(crate) struct Proof {
 #[derive(Debug)]
 pub(crate) struct AggregateProof {
     /// This is a commitment to the aggregated witness polynomial.
-    commitment_to_witness: Commitment,
+    pub(crate) commitment_to_witness: Commitment,
     /// These are the results of the evaluating each polynomial at the point
     /// `z`.
-    evaluated_points: Vec<BlsScalar>,
+    pub(crate) evaluated_points: Vec<BlsScalar>,
     /// These are the commitments to the polynomials which you want to prove a
     /// statement about.
-    commitments_to_polynomials: Vec<Commitment>,
+    pub(crate) commitments_to_polynomials: Vec<Commitment>,
 }
 
 impl AggregateProof {

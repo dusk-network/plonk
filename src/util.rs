@@ -4,24 +4,72 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-#[cfg(feature = "alloc")]
-use alloc::vec::Vec;
 use dusk_bls12_381::{BlsScalar, G1Projective, G2Affine, G2Projective};
 use rand_core::{CryptoRng, RngCore};
 
-#[cfg(feature = "alloc")]
-/// Returns a vector of BlsScalars of increasing powers of x from x^0 to x^d.
-pub(crate) fn powers_of(
-    scalar: &BlsScalar,
-    max_degree: usize,
-) -> Vec<BlsScalar> {
-    let mut powers = Vec::with_capacity(max_degree + 1);
-    powers.push(BlsScalar::one());
-    for i in 1..=max_degree {
-        powers.push(powers[i - 1] * scalar);
+cfg_if::cfg_if!(
+    if #[cfg(feature = "alloc")] {
+        use alloc::vec::Vec;
+
+        /// Returns a vector of BlsScalars of increasing powers of x from x^0 to x^d.
+        pub(crate) fn powers_of(
+            scalar: &BlsScalar,
+            max_degree: usize,
+        ) -> Vec<BlsScalar> {
+            let mut powers = Vec::with_capacity(max_degree + 1);
+            powers.push(BlsScalar::one());
+            for i in 1..=max_degree {
+                powers.push(powers[i - 1] * scalar);
+            }
+            powers
+        }
+
+        /// This function is only used to generate the SRS.
+        /// The intention is just to compute the resulting points
+        /// of the operation `a*P, b*P, c*P ... (n-1)*P` into a `Vec`.
+        pub(crate) fn slow_multiscalar_mul_single_base(
+            scalars: &[BlsScalar],
+            base: G1Projective,
+        ) -> Vec<G1Projective> {
+            scalars.iter().map(|s| base * *s).collect()
+        }
+
+        // while we do not have batch inversion for scalars
+        use core::ops::MulAssign;
+        pub fn batch_inversion(v: &mut [BlsScalar]) {
+            // Montgomery’s Trick and Fast Implementation of Masked AES
+            // Genelle, Prouff and Quisquater
+            // Section 3.2
+
+            // First pass: compute [a, ab, abc, ...]
+            let mut prod = Vec::with_capacity(v.len());
+            let mut tmp = BlsScalar::one();
+            for f in v.iter().filter(|f| f != &&BlsScalar::zero()) {
+                tmp.mul_assign(f);
+                prod.push(tmp);
+            }
+
+            // Invert `tmp`.
+            tmp = tmp.invert().unwrap(); // Guaranteed to be nonzero.
+
+            // Second pass: iterate backwards to compute inverses
+            for (f, s) in v
+                .iter_mut()
+                // Backwards
+                .rev()
+                // Ignore normalized elements
+                .filter(|f| f != &&BlsScalar::zero())
+                // Backwards, skip last element, fill in one for last term.
+                .zip(prod.into_iter().rev().skip(1).chain(Some(BlsScalar::one())))
+            {
+                // tmp := tmp * f; f := tmp * s = 1/f
+                let new_tmp = tmp * *f;
+                *f = tmp * s;
+                tmp = new_tmp;
+            }
+        }
     }
-    powers
-}
+);
 
 /// Generates a random G2 point using an RNG seed.
 pub(crate) fn random_g2_point<R: RngCore + CryptoRng>(
@@ -30,52 +78,7 @@ pub(crate) fn random_g2_point<R: RngCore + CryptoRng>(
     G2Affine::generator() * BlsScalar::random(rng)
 }
 
-#[cfg(feature = "alloc")]
-/// This function is only used to generate the SRS.
-/// The intention is just to compute the resulting points
-/// of the operation `a*P, b*P, c*P ... (n-1)*P` into a `Vec`.
-pub(crate) fn slow_multiscalar_mul_single_base(
-    scalars: &[BlsScalar],
-    base: G1Projective,
-) -> Vec<G1Projective> {
-    scalars.iter().map(|s| base * *s).collect()
-}
-
-// while we do not have batch inversion for scalars
-use core::ops::MulAssign;
-#[cfg(feature = "alloc")]
-pub fn batch_inversion(v: &mut [BlsScalar]) {
-    // Montgomery’s Trick and Fast Implementation of Masked AES
-    // Genelle, Prouff and Quisquater
-    // Section 3.2
-
-    // First pass: compute [a, ab, abc, ...]
-    let mut prod = Vec::with_capacity(v.len());
-    let mut tmp = BlsScalar::one();
-    for f in v.iter().filter(|f| f != &&BlsScalar::zero()) {
-        tmp.mul_assign(f);
-        prod.push(tmp);
-    }
-
-    // Invert `tmp`.
-    tmp = tmp.invert().unwrap(); // Guaranteed to be nonzero.
-
-    // Second pass: iterate backwards to compute inverses
-    for (f, s) in v
-        .iter_mut()
-        // Backwards
-        .rev()
-        // Ignore normalized elements
-        .filter(|f| f != &&BlsScalar::zero())
-        // Backwards, skip last element, fill in one for last term.
-        .zip(prod.into_iter().rev().skip(1).chain(Some(BlsScalar::one())))
-    {
-        // tmp := tmp * f; f := tmp * s = 1/f
-        let new_tmp = tmp * *f;
-        *f = tmp * s;
-        tmp = new_tmp;
-    }
-}
+#[cfg(feature = "std")]
 #[cfg(test)]
 mod test {
     use super::*;

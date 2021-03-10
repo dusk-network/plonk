@@ -491,6 +491,7 @@ impl ProverKey {
     }
 }
 
+#[cfg(feature = "std")]
 #[cfg(test)]
 mod test {
     use super::*;

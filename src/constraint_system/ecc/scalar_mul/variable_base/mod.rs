@@ -140,6 +140,7 @@ fn scalar_to_bits(scalar: &BlsScalar) -> [u8; 256] {
     }
     res
 }
+#[cfg(feature = "std")]
 #[cfg(test)]
 mod tests {
     use super::*;

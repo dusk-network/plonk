@@ -53,6 +53,9 @@
 #![deny(missing_docs)]
 #![no_std]
 
+#[cfg(feature = "std")]
+extern crate std;
+
 cfg_if::cfg_if!(
 if #[cfg(feature = "alloc")] {
     #[macro_use]
@@ -63,8 +66,6 @@ if #[cfg(feature = "alloc")] {
     mod transcript;
 });
 
-#[cfg(feature = "std")]
-extern crate std;
 mod commitment_scheme;
 mod error;
 mod fft;

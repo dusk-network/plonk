@@ -44,7 +44,7 @@ rustdoc-args = [ "--html-in-header", "katex-header.html" ]
 default = ["std"]
 std = [
     "rand_core/std",
-    "dusk-bls12_381/default",  # Includes parallel
+    "dusk-bls12_381/default",  # Includes `parallel`
     "dusk-jubjub/default",
     "itertools/default",
     "hashbrown/default",
