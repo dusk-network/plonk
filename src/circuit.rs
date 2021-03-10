@@ -234,7 +234,7 @@ mod tests {
         let vk_path = tmp.clone().join("vk_testcirc");
 
         // Generate CRS
-        let pp_p = PublicParameters::setup(1 << 12, &mut rand::thread_rng())?;
+        let pp_p = PublicParameters::setup(1 << 12, &mut rand_core::OsRng)?;
         File::create(&pp_path)
             .and_then(|mut f| f.write(pp_p.to_raw_var_bytes().as_slice()))
             .unwrap();
