@@ -389,8 +389,7 @@ mod test {
 
     // Creates a proving key and verifier key based on a specified degree
     fn setup_test(degree: usize) -> (CommitKey, OpeningKey) {
-        let srs =
-            PublicParameters::setup(degree, &mut OsRng).unwrap();
+        let srs = PublicParameters::setup(degree, &mut OsRng).unwrap();
         srs.trim(degree).unwrap()
     }
     #[test]

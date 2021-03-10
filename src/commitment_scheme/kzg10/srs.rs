@@ -11,7 +11,7 @@ use super::key::CommitKey;
 use super::key::OpeningKey;
 use crate::{error::Error, util};
 use alloc::vec::Vec;
-use dusk_bls12_381::{G1Affine, G1Projective, G2Affine};
+use dusk_bls12_381::{BlsScalar, G1Affine, G1Projective, G2Affine};
 use dusk_bytes::{DeserializableSlice, Serializable};
 use rand_core::{CryptoRng, RngCore};
 
@@ -43,13 +43,13 @@ impl PublicParameters {
         }
 
         // Generate the secret scalar beta
-        let beta = util::random_scalar(&mut rng);
+        let beta = BlsScalar::random(&mut rng);
 
         // Compute powers of beta up to and including beta^max_degree
         let powers_of_beta = util::powers_of(&beta, max_degree);
 
         // Powers of G1 that will be used to commit to a specified polynomial
-        let g = util::random_g1_point(&mut rng);
+        let g = G1Affine::generator() * BlsScalar::random(&mut rng);
         let powers_of_g: Vec<G1Projective> =
             util::slow_multiscalar_mul_single_base(&powers_of_beta, g);
         assert_eq!(powers_of_g.len(), max_degree + 1);
