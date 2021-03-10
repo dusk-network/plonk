@@ -12,9 +12,12 @@
 //! This allows us to perform polynomial operations in O(n)
 //! by performing an O(n log n) FFT over such a domain.
 
+#[cfg(feature = "alloc")]
 use super::Evaluations;
 use crate::error::Error;
+#[cfg(feature = "alloc")]
 use alloc::vec::Vec;
+
 use core::ops::MulAssign;
 use dusk_bls12_381::{BlsScalar, GENERATOR, ROOT_OF_UNITY, TWO_ADACITY};
 use dusk_bytes::{DeserializableSlice, Serializable};
@@ -127,6 +130,17 @@ impl EvaluationDomain {
         self.size as usize
     }
 
+    fn distribute_powers(coeffs: &mut [BlsScalar], g: BlsScalar) {
+        let mut pow = BlsScalar::one();
+        coeffs.iter_mut().for_each(|c| {
+            *c *= &pow;
+            pow *= &g
+        })
+    }
+}
+
+#[cfg(feature = "alloc")]
+impl EvaluationDomain {
     /// Compute a FFT.
     pub(crate) fn fft(&self, coeffs: &[BlsScalar]) -> Vec<BlsScalar> {
         let mut coeffs = coeffs.to_vec();
@@ -154,14 +168,6 @@ impl EvaluationDomain {
         best_fft(evals, self.group_gen_inv, self.log_size_of_group);
         // cfg_iter_mut!(evals).for_each(|val| *val *= &self.size_inv);
         evals.iter_mut().for_each(|val| *val *= &self.size_inv);
-    }
-
-    fn distribute_powers(coeffs: &mut [BlsScalar], g: BlsScalar) {
-        let mut pow = BlsScalar::one();
-        coeffs.iter_mut().for_each(|c| {
-            *c *= &pow;
-            pow *= &g
-        })
     }
 
     /// Compute a FFT over a coset of the domain.
