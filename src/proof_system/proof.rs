@@ -20,9 +20,6 @@ use dusk_bls12_381::{multiscalar_mul::msm_variable_base, BlsScalar, G1Affine};
 use dusk_bytes::{DeserializableSlice, Serializable};
 use merlin::Transcript;
 
-#[cfg(feature = "canon")]
-use canonical::{Canon, InvalidEncoding, Sink, Source, Store};
-
 /// A Proof is a composition of `Commitments` to the witness, permutation,
 /// quotient, shifted and opening polynomials as well as the
 /// `ProofEvaluations`.
@@ -59,27 +56,6 @@ pub struct Proof {
     pub(crate) w_zw_comm: Commitment,
     /// Subset of all of the evaluations added to the proof.
     pub(crate) evaluations: ProofEvaluations,
-}
-
-#[cfg(feature = "canon")]
-impl<S: Store> Canon<S> for Proof {
-    fn write(&self, sink: &mut impl Sink<S>) -> Result<(), S::Error> {
-        sink.copy_bytes(&self.to_bytes());
-        Ok(())
-    }
-
-    fn read(source: &mut impl Source<S>) -> Result<Self, S::Error> {
-        let mut bytes = [0u8; PROOF_SIZE];
-        bytes.copy_from_slice(source.read_bytes(PROOF_SIZE));
-        match Proof::from_bytes(&bytes) {
-            Ok(proof) => Ok(proof),
-            _ => Err(InvalidEncoding.into()),
-        }
-    }
-
-    fn encoded_len(&self) -> usize {
-        PROOF_SIZE
-    }
 }
 
 impl Serializable<{ 11 * Commitment::SIZE + ProofEvaluations::SIZE }>
