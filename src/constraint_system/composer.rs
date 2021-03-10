@@ -19,12 +19,12 @@
 // maximum performance and minimum circuit sizes.
 #![allow(clippy::too_many_arguments)]
 
+use super::cs_errors::PreProcessingError;
 use crate::constraint_system::Variable;
 use crate::permutation::Permutation;
+use crate::plookup::PlookupTable4Arity;
 use dusk_bls12_381::BlsScalar;
 use std::collections::HashMap;
-use super::cs_errors::PreProcessingError;
-use crate::plookup::PlookupTable4Arity;
 
 /// A composer is a circuit builder
 /// and will dictate how a circuit is built
@@ -568,7 +568,9 @@ mod tests {
         verifier.preprocess(&ck).unwrap();
 
         for proof in proofs {
-            assert!(verifier.verify(&proof, &vk, &public_inputs, &lookup_table).is_ok());
+            assert!(verifier
+                .verify(&proof, &vk, &public_inputs, &lookup_table)
+                .is_ok());
         }
     }
 

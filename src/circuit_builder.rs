@@ -286,7 +286,7 @@ mod tests {
                 BlsScalar::zero(),
                 -inputs[3],
             );
-            
+
             Ok(())
         }
 

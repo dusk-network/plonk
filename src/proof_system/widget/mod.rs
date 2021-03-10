@@ -468,7 +468,7 @@ mod test {
         let q_logic = rand_poly_eval(n);
 
         let q_range = rand_poly_eval(n);
-        
+
         let q_lookup = rand_poly_eval(n);
 
         let q_fixed_group_add = rand_poly_eval(n);

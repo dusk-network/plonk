@@ -9,7 +9,7 @@ use crate::commitment_scheme::kzg10::CommitKey;
 use crate::constraint_system::{StandardComposer, Variable};
 use crate::fft::{EvaluationDomain, Polynomial};
 use crate::plookup::{MultiSet, PlookupTable4Arity, PreprocessedTable4Arity};
-use crate::proof_system::widget::{ProverKey};
+use crate::proof_system::widget::ProverKey;
 use crate::proof_system::{linearisation_poly, proof::Proof, quotient_poly};
 use crate::transcript::TranscriptProtocol;
 use anyhow::{Error, Result};
@@ -115,7 +115,7 @@ impl Prover {
         let w_r_scalar = &[&self.to_scalars(&self.cs.w_r)[..], &pad].concat();
         let w_o_scalar = &[&self.to_scalars(&self.cs.w_o)[..], &pad].concat();
         let w_4_scalar = &[&self.to_scalars(&self.cs.w_4)[..], &pad].concat();
-        
+
         // make sure q_lookup is also the right size for constructing f later
         let padded_q_lookup = [&self.cs.q_lookup[..], &pad].concat();
 
@@ -193,7 +193,6 @@ impl Prover {
             .zip(&padded_q_lookup)
             .map(|(w, s)| w * s)
             .collect::<Vec<BlsScalar>>();
-
 
         // Compress all wires into a single vector
         // Long version is checked against wire polys later and needs euql them in length (n)
@@ -546,4 +545,3 @@ pub(crate) fn split_tx_poly(
         Polynomial::from_coefficients_vec(t_x[3 * n..].to_vec()),
     )
 }
-

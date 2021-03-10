@@ -233,14 +233,7 @@ impl StandardComposer {
         &mut self,
         commit_key: &CommitKey,
         transcript: &mut Transcript,
-    ) -> Result<
-        (
-            widget::VerifierKey,
-            SelectorPolynomials,
-            EvaluationDomain,
-        ),
-        Error,
-    > {
+    ) -> Result<(widget::VerifierKey, SelectorPolynomials, EvaluationDomain), Error> {
         let domain = EvaluationDomain::new(std::cmp::max(
             self.circuit_size(),
             self.lookup_table.0.len(),
