@@ -21,9 +21,10 @@
 
 use crate::constraint_system::Variable;
 use crate::permutation::Permutation;
+use alloc::collections::BTreeMap;
+use alloc::vec::Vec;
 use dusk_bls12_381::BlsScalar;
 use hashbrown::HashMap;
-use std::collections::BTreeMap;
 
 /// A composer is a circuit builder
 /// and will dictate how a circuit is built
@@ -579,7 +580,7 @@ mod tests {
     // XXX: Move this to integration tests
     fn test_multiple_proofs() {
         let public_parameters =
-            PublicParameters::setup(2 * 30, &mut rand::thread_rng()).unwrap();
+            PublicParameters::setup(2 * 30, &mut rand_core::OsRng).unwrap();
 
         // Create a prover struct
         let mut prover = Prover::new(b"demo");

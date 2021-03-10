@@ -10,13 +10,14 @@
 use super::{EvaluationDomain, Evaluations};
 use crate::error::Error;
 use crate::util;
+use alloc::vec::Vec;
+use core::ops::{Add, AddAssign, Deref, DerefMut, Mul, Neg, Sub, SubAssign};
 use dusk_bls12_381::BlsScalar;
 use dusk_bytes::{DeserializableSlice, Serializable};
 use rayon::iter::{
     IndexedParallelIterator, IntoParallelIterator, IntoParallelRefIterator,
     ParallelIterator,
 };
-use std::ops::{Add, AddAssign, Deref, DerefMut, Mul, Neg, Sub, SubAssign};
 
 #[derive(Debug, Eq, PartialEq, Clone)]
 /// Polynomial represents a polynomial in coeffiient form.
@@ -141,7 +142,7 @@ impl Polynomial {
     }
 }
 
-use std::iter::Sum;
+use core::iter::Sum;
 
 impl Sum for Polynomial {
     fn sum<I>(iter: I) -> Self

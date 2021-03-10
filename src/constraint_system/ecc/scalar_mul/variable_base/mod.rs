@@ -6,6 +6,7 @@
 
 use crate::constraint_system::ecc::{Point, PointScalar};
 use crate::constraint_system::{variable::Variable, StandardComposer};
+use alloc::vec::Vec;
 use dusk_bls12_381::BlsScalar;
 use dusk_bytes::Serializable;
 

@@ -4,7 +4,7 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-//! proving system
+//! Proving system
 
 pub(crate) mod linearisation_poly;
 mod preprocess;

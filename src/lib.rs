@@ -51,6 +51,10 @@
 #![allow(unknown_lints)]
 #![deny(rustdoc::broken_intra_doc_links)]
 #![deny(missing_docs)]
+#![no_std]
+
+#[macro_use]
+extern crate alloc;
 
 mod bit_iterator;
 pub mod circuit;

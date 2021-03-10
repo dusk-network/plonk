@@ -14,12 +14,13 @@
 
 use super::Evaluations;
 use crate::error::Error;
+use alloc::vec::Vec;
+use core::ops::MulAssign;
 use dusk_bls12_381::{BlsScalar, GENERATOR, ROOT_OF_UNITY, TWO_ADACITY};
 use dusk_bytes::{DeserializableSlice, Serializable};
 use rayon::iter::{
     IndexedParallelIterator, IntoParallelRefMutIterator, ParallelIterator,
 };
-use std::ops::MulAssign;
 
 /// Defines a domain over which finite field (I)FFTs can be performed. Works
 /// only for fields that have a large multiplicative subgroup of size that is

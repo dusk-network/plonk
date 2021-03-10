@@ -10,6 +10,7 @@ use crate::commitment_scheme::kzg10::PublicParameters;
 use crate::constraint_system::StandardComposer;
 use crate::error::Error;
 use crate::proof_system::{Proof, ProverKey, VerifierKey};
+use alloc::vec::Vec;
 #[cfg(feature = "canon")]
 use canonical::Canon;
 #[cfg(feature = "canon")]
@@ -143,6 +144,7 @@ fn build_pi(
     pi
 }
 
+#[cfg(feature = "std")]
 #[cfg(test)]
 mod tests {
     use super::*;

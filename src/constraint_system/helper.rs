@@ -35,7 +35,7 @@ pub(crate) fn gadget_tester(
 ) -> Result<(), Error> {
     // Common View
     let public_parameters =
-        PublicParameters::setup(2 * n, &mut rand::thread_rng())?;
+        PublicParameters::setup(2 * n, &mut rand_core::OsRng)?;
     // Provers View
     let (proof, public_inputs) = {
         // Create a prover struct

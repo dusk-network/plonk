@@ -8,14 +8,14 @@
 pub mod key;
 pub mod srs;
 
-pub use key::{CommitKey, OpeningKey};
-pub use srs::PublicParameters;
-
 use crate::transcript::TranscriptProtocol;
 use crate::util::powers_of;
+use alloc::vec::Vec;
 use dusk_bls12_381::{BlsScalar, G1Affine, G1Projective};
 use dusk_bytes::{DeserializableSlice, Serializable};
+pub use key::{CommitKey, OpeningKey};
 use merlin::Transcript;
+pub use srs::PublicParameters;
 
 #[derive(Copy, Clone, Debug)]
 /// Proof that a polynomial `p` was correctly evaluated at a point `z`

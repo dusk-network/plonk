@@ -6,8 +6,11 @@
 
 //! The Public Parameters can also be referred to as the Structured Reference
 //! String (SRS).
-use super::key::{CommitKey, OpeningKey};
+
+use super::key::CommitKey;
+use super::key::OpeningKey;
 use crate::{error::Error, util};
+use alloc::vec::Vec;
 use dusk_bls12_381::{G1Affine, G1Projective, G2Affine};
 use dusk_bytes::{DeserializableSlice, Serializable};
 use rand_core::{CryptoRng, RngCore};
@@ -159,10 +162,12 @@ impl PublicParameters {
         self.commit_key.max_degree()
     }
 }
+
 #[cfg(test)]
 mod test {
     use super::*;
     use dusk_bls12_381::BlsScalar;
+    use rand_core::OsRng;
 
     #[test]
     fn test_powers_of() {
@@ -181,8 +186,7 @@ mod test {
 
     #[test]
     fn test_serialise_deserialise_public_parameter() {
-        let pp =
-            PublicParameters::setup(1 << 7, &mut rand::thread_rng()).unwrap();
+        let pp = PublicParameters::setup(1 << 7, &mut OsRng).unwrap();
 
         let got_pp = PublicParameters::from_slice(&pp.to_var_bytes()).unwrap();
 
@@ -194,8 +198,7 @@ mod test {
 
     #[test]
     fn public_parameters_bytes_unchecked() {
-        let pp =
-            PublicParameters::setup(1 << 7, &mut rand::thread_rng()).unwrap();
+        let pp = PublicParameters::setup(1 << 7, &mut OsRng).unwrap();
 
         let pp_p = unsafe {
             let bytes = pp.to_raw_var_bytes();

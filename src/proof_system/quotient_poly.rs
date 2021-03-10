@@ -7,6 +7,7 @@
 use crate::error::Error;
 use crate::fft::{EvaluationDomain, Polynomial};
 use crate::proof_system::widget::ProverKey;
+use alloc::vec::Vec;
 use dusk_bls12_381::BlsScalar;
 use rayon::prelude::*;
 

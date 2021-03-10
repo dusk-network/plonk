@@ -11,6 +11,7 @@ use crate::fft::{EvaluationDomain, Polynomial};
 use crate::proof_system::widget::ProverKey;
 use crate::proof_system::{linearisation_poly, proof::Proof, quotient_poly};
 use crate::transcript::TranscriptProtocol;
+use alloc::vec::Vec;
 use dusk_bls12_381::BlsScalar;
 use merlin::Transcript;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
