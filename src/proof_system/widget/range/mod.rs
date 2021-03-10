@@ -4,10 +4,12 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
+#[cfg(feature = "alloc")]
 mod proverkey;
 mod verifierkey;
 
 use dusk_bls12_381::BlsScalar;
+#[cfg(feature = "alloc")]
 pub(crate) use proverkey::ProverKey;
 pub(crate) use verifierkey::VerifierKey;
 

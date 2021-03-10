@@ -9,6 +9,7 @@
 use crate::commitment_scheme::kzg10::Commitment;
 use crate::permutation::constants::{K1, K2, K3};
 use crate::proof_system::linearisation_poly::ProofEvaluations;
+#[cfg(feature = "alloc")]
 use alloc::vec::Vec;
 use dusk_bls12_381::{BlsScalar, G1Affine};
 
@@ -20,6 +21,7 @@ pub(crate) struct VerifierKey {
     pub(crate) fourth_sigma: Commitment,
 }
 
+#[cfg(feature = "alloc")]
 impl VerifierKey {
     pub(crate) fn compute_linearisation_commitment(
         &self,
