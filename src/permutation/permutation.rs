@@ -8,6 +8,7 @@
 use super::constants::{K1, K2, K3};
 use crate::constraint_system::{Variable, WireData};
 use crate::fft::{EvaluationDomain, Polynomial};
+use alloc::vec::Vec;
 use dusk_bls12_381::BlsScalar;
 use hashbrown::HashMap;
 use itertools::izip;
@@ -528,7 +529,7 @@ impl Permutation {
             .collect();
 
         // Prepend ones to the beginning of each accumulator to signify L_1(x)
-        let accumulator_components = std::iter::once((
+        let accumulator_components = core::iter::once((
             BlsScalar::one(),
             BlsScalar::one(),
             BlsScalar::one(),
@@ -639,7 +640,7 @@ impl Permutation {
         let n = domain.size();
 
         // Constants defining cosets H, k1H, k2H, etc
-        let ks = vec![BlsScalar::one(), K1, K2, K3];
+        let ks = alloc::vec![BlsScalar::one(), K1, K2, K3];
 
         let sigma_mappings = (
             domain.fft(sigma_polys.0),
@@ -653,10 +654,10 @@ impl Permutation {
         // values for a single gate
         let gatewise_wires = wires
             .into_par_iter()
-            .map(|(w0, w1, w2, w3)| vec![w0, w1, w2, w3]);
+            .map(|(w0, w1, w2, w3)| alloc::vec![w0, w1, w2, w3]);
         let gatewise_sigmas = sigma_mappings
             .into_par_iter()
-            .map(|(s0, s1, s2, s3)| vec![s0, s1, s2, s3]);
+            .map(|(s0, s1, s2, s3)| alloc::vec![s0, s1, s2, s3]);
 
         // Compute all roots
         // Non-parallelizable?
@@ -729,19 +730,19 @@ mod test {
     use super::*;
     use crate::constraint_system::StandardComposer;
     use crate::fft::Polynomial;
-    use dusk_bls12_381::BlsScalar as Fr;
+    use dusk_bls12_381::BlsScalar;
 
     #[test]
     fn test_multizip_permutation_poly() {
         let mut cs = StandardComposer::with_expected_size(4);
-        let x1 = cs.add_input(Fr::from_raw([4, 0, 0, 0]));
-        let x2 = cs.add_input(Fr::from_raw([12, 0, 0, 0]));
-        let x3 = cs.add_input(Fr::from_raw([8, 0, 0, 0]));
-        let x4 = cs.add_input(Fr::from_raw([3, 0, 0, 0]));
+        let x1 = cs.add_input(BlsScalar::from_raw([4, 0, 0, 0]));
+        let x2 = cs.add_input(BlsScalar::from_raw([12, 0, 0, 0]));
+        let x3 = cs.add_input(BlsScalar::from_raw([8, 0, 0, 0]));
+        let x4 = cs.add_input(BlsScalar::from_raw([3, 0, 0, 0]));
 
-        let zero = Fr::zero();
-        let one = Fr::one();
-        let two = Fr::from_raw([2, 0, 0, 0]);
+        let zero = BlsScalar::zero();
+        let one = BlsScalar::one();
+        let two = BlsScalar::from_raw([2, 0, 0, 0]);
 
         // x1 * x4 = x2
         cs.poly_gate(x1, x4, x2, one, zero, zero, -one, zero, None);
@@ -756,7 +757,7 @@ mod test {
         cs.poly_gate(x3, x4, x2, one, zero, zero, -two, zero, None);
 
         let domain = EvaluationDomain::new(cs.circuit_size()).unwrap();
-        let pad = vec![BlsScalar::zero(); domain.size() - cs.w_l.len()];
+        let pad = alloc::vec![BlsScalar::zero(); domain.size() - cs.w_l.len()];
         let mut w_l_scalar: Vec<BlsScalar> =
             cs.w_l.iter().map(|v| cs.variables[v]).collect();
         let mut w_r_scalar: Vec<BlsScalar> =
@@ -778,8 +779,8 @@ mod test {
             .map(|wd| cs.perm.compute_permutation_lagrange(wd, &domain))
             .collect();
 
-        let beta = Fr::random(&mut rand::thread_rng());
-        let gamma = Fr::random(&mut rand::thread_rng());
+        let beta = BlsScalar::random(&mut rand::thread_rng());
+        let gamma = BlsScalar::random(&mut rand::thread_rng());
 
         let sigma_polys: Vec<Polynomial> = sigmas
             .iter()
@@ -929,10 +930,10 @@ mod test {
         // Should turn into {1 * K1, w^2, w^3, 1}
         let encoded_left_sigma =
             perm.compute_permutation_lagrange(left_sigma, &domain);
-        assert_eq!(encoded_left_sigma[0], Fr::one() * &K1);
+        assert_eq!(encoded_left_sigma[0], BlsScalar::one() * &K1);
         assert_eq!(encoded_left_sigma[1], w_squared);
         assert_eq!(encoded_left_sigma[2], w_cubed);
-        assert_eq!(encoded_left_sigma[3], Fr::one());
+        assert_eq!(encoded_left_sigma[3], BlsScalar::one());
 
         // Check the right sigmas have been encoded properly
         // Right_sigma = {L1, R1, R2, R3}
@@ -949,7 +950,7 @@ mod test {
         // Should turn into {1 * K2, w * K2, w^2 * K2, w^3 * K2}
         let encoded_output_sigma =
             perm.compute_permutation_lagrange(out_sigma, &domain);
-        assert_eq!(encoded_output_sigma[0], Fr::one() * &K2);
+        assert_eq!(encoded_output_sigma[0], BlsScalar::one() * &K2);
         assert_eq!(encoded_output_sigma[1], w * &K2);
         assert_eq!(encoded_output_sigma[2], w_squared * &K2);
         assert_eq!(encoded_output_sigma[3], w_cubed * &K2);
@@ -964,10 +965,30 @@ mod test {
         assert_eq!(encoded_fourth_sigma[2], w_cubed * &K3);
         assert_eq!(encoded_fourth_sigma[3], K3);
 
-        let w_l = vec![Fr::from(2), Fr::from(2), Fr::from(2), Fr::from(2)];
-        let w_r = vec![Fr::from(2), Fr::one(), Fr::one(), Fr::one()];
-        let w_o = vec![Fr::one(), Fr::one(), Fr::one(), Fr::one()];
-        let w_4 = vec![Fr::one(), Fr::one(), Fr::one(), Fr::one()];
+        let w_l = alloc::vec![
+            BlsScalar::from(2),
+            BlsScalar::from(2),
+            BlsScalar::from(2),
+            BlsScalar::from(2)
+        ];
+        let w_r = alloc::vec![
+            BlsScalar::from(2),
+            BlsScalar::one(),
+            BlsScalar::one(),
+            BlsScalar::one()
+        ];
+        let w_o = alloc::vec![
+            BlsScalar::one(),
+            BlsScalar::one(),
+            BlsScalar::one(),
+            BlsScalar::one()
+        ];
+        let w_4 = alloc::vec![
+            BlsScalar::one(),
+            BlsScalar::one(),
+            BlsScalar::one(),
+            BlsScalar::one()
+        ];
 
         test_correct_permutation_poly(
             num_wire_mappings,
@@ -1058,7 +1079,7 @@ mod test {
         assert_eq!(encoded_left_sigma[0], K1);
         assert_eq!(encoded_left_sigma[1], w * &K2);
         assert_eq!(encoded_left_sigma[2], w_squared * &K1);
-        assert_eq!(encoded_left_sigma[3], Fr::one() * &K2);
+        assert_eq!(encoded_left_sigma[3], BlsScalar::one() * &K2);
 
         // check the right sigmas have been encoded properly
         let encoded_right_sigma =
@@ -1066,7 +1087,7 @@ mod test {
         assert_eq!(encoded_right_sigma[0], w * &K1);
         assert_eq!(encoded_right_sigma[1], w_squared * &K2);
         assert_eq!(encoded_right_sigma[2], w_cubed * &K2);
-        assert_eq!(encoded_right_sigma[3], Fr::one());
+        assert_eq!(encoded_right_sigma[3], BlsScalar::one());
 
         // check the output sigmas have been encoded properly
         let encoded_output_sigma =
@@ -1099,10 +1120,10 @@ mod test {
         perm.add_variables_to_map(var_one, var_two, var_three, var_four, 0);
         perm.add_variables_to_map(var_three, var_two, var_one, var_four, 1);
 
-        let w_l: Vec<_> = vec![Fr::one(), Fr::from(3)];
-        let w_r: Vec<_> = vec![Fr::from(2), Fr::from(2)];
-        let w_o: Vec<_> = vec![Fr::from(3), Fr::one()];
-        let w_4: Vec<_> = vec![Fr::one(), Fr::one()];
+        let w_l: Vec<_> = alloc::vec![BlsScalar::one(), BlsScalar::from(3)];
+        let w_r: Vec<_> = alloc::vec![BlsScalar::from(2), BlsScalar::from(2)];
+        let w_o: Vec<_> = alloc::vec![BlsScalar::from(3), BlsScalar::one()];
+        let w_4: Vec<_> = alloc::vec![BlsScalar::one(), BlsScalar::one()];
 
         test_correct_permutation_poly(
             num_wire_mappings,
@@ -1185,19 +1206,19 @@ mod test {
         // Check that the vector has length `n` and that the first element is
         // `1`
         assert_eq!(z_vec.len(), n);
-        assert_eq!(&z_vec[0], &Fr::one());
+        assert_eq!(&z_vec[0], &BlsScalar::one());
         //
         // Check that the \prod{f_i} / \prod{g_i} = 1
         // Where f_i and g_i are the numerator and denominator components in the
         // permutation polynomial
-        let (mut a_0, mut b_0) = (Fr::one(), Fr::one());
+        let (mut a_0, mut b_0) = (BlsScalar::one(), BlsScalar::one());
         for n in numerator_components.iter() {
             a_0 = a_0 * n;
         }
         for n in denominator_components.iter() {
             b_0 = b_0 * n;
         }
-        assert_eq!(a_0 * b_0.invert().unwrap(), Fr::one());
+        assert_eq!(a_0 * b_0.invert().unwrap(), BlsScalar::one());
 
         //3. Now we perform the two checks that need to be done on the
         // permutation polynomial (z)
@@ -1205,9 +1226,9 @@ mod test {
         //
         // Check that z(w^{n+1}) == z(1) == 1
         // This is the first check in the protocol
-        assert_eq!(z_poly.evaluate(&Fr::one()), Fr::one());
+        assert_eq!(z_poly.evaluate(&BlsScalar::one()), BlsScalar::one());
         let n_plus_one = domain.elements().last().unwrap() * &domain.group_gen;
-        assert_eq!(z_poly.evaluate(&n_plus_one), Fr::one());
+        assert_eq!(z_poly.evaluate(&n_plus_one), BlsScalar::one());
         //
         // Check that when z is unblinded, it has the correct degree
         assert_eq!(z_poly.degree(), n - 1);
@@ -1221,10 +1242,10 @@ mod test {
             let next_root = current_root * &domain.group_gen;
 
             let current_identity_perm_product = &numerator_components[i];
-            assert_ne!(current_identity_perm_product, &Fr::zero());
+            assert_ne!(current_identity_perm_product, &BlsScalar::zero());
 
             let current_copy_perm_product = &denominator_components[i];
-            assert_ne!(current_copy_perm_product, &Fr::zero());
+            assert_ne!(current_copy_perm_product, &BlsScalar::zero());
 
             assert_ne!(
                 current_copy_perm_product,
@@ -1232,10 +1253,10 @@ mod test {
             );
 
             let z_eval = z_poly.evaluate(&current_root);
-            assert_ne!(z_eval, Fr::zero());
+            assert_ne!(z_eval, BlsScalar::zero());
 
             let z_eval_shifted = z_poly.evaluate(&next_root);
-            assert_ne!(z_eval_shifted, Fr::zero());
+            assert_ne!(z_eval_shifted, BlsScalar::zero());
 
             // Z(Xw) * copy_perm
             let lhs = z_eval_shifted * current_copy_perm_product;
@@ -1259,17 +1280,4 @@ mod test {
             assert_eq!(z_eval, shifted_z_eval)
         }
     }
-}
-
-// bls_12-381 library does not provide a `random` method for BlsScalar
-// We wil use this helper function to compensate
-use rand_core::RngCore;
-#[allow(dead_code)]
-pub(crate) fn random_scalar<R: RngCore>(rng: &mut R) -> BlsScalar {
-    BlsScalar::from_raw([
-        rng.next_u64(),
-        rng.next_u64(),
-        rng.next_u64(),
-        rng.next_u64(),
-    ])
 }
