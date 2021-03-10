@@ -4,12 +4,12 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
+#[cfg(feature = "alloc")]
 use alloc::vec::Vec;
-use dusk_bls12_381::{
-    BlsScalar, G1Affine, G1Projective, G2Affine, G2Projective,
-};
+use dusk_bls12_381::{BlsScalar, G1Projective, G2Affine, G2Projective};
 use rand_core::{CryptoRng, RngCore};
 
+#[cfg(feature = "alloc")]
 /// Returns a vector of BlsScalars of increasing powers of x from x^0 to x^d.
 pub(crate) fn powers_of(
     scalar: &BlsScalar,
@@ -23,24 +23,14 @@ pub(crate) fn powers_of(
     powers
 }
 
-/// Generates a random BlsScalar using a RNG seed.
-pub(crate) fn random_scalar<R: RngCore + CryptoRng>(rng: &mut R) -> BlsScalar {
-    BlsScalar::random(rng)
-}
-
-/// Generates a random G1 Point using an RNG seed.
-pub(crate) fn random_g1_point<R: RngCore + CryptoRng>(
-    rng: &mut R,
-) -> G1Projective {
-    G1Affine::generator() * random_scalar(rng)
-}
 /// Generates a random G2 point using an RNG seed.
 pub(crate) fn random_g2_point<R: RngCore + CryptoRng>(
     rng: &mut R,
 ) -> G2Projective {
-    G2Affine::generator() * random_scalar(rng)
+    G2Affine::generator() * BlsScalar::random(rng)
 }
 
+#[cfg(feature = "alloc")]
 /// This function is only used to generate the SRS.
 /// The intention is just to compute the resulting points
 /// of the operation `a*P, b*P, c*P ... (n-1)*P` into a `Vec`.
@@ -53,6 +43,7 @@ pub(crate) fn slow_multiscalar_mul_single_base(
 
 // while we do not have batch inversion for scalars
 use core::ops::MulAssign;
+#[cfg(feature = "alloc")]
 pub fn batch_inversion(v: &mut [BlsScalar]) {
     // Montgomery’s Trick and Fast Implementation of Masked AES
     // Genelle, Prouff and Quisquater
