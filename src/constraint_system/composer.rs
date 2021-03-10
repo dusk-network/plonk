@@ -287,6 +287,51 @@ impl StandardComposer {
         );
     }
 
+    /// Conditionally selects a Variable based on an input bit
+    /// If:
+    ///     bit == 1 => choice_a,
+    ///     bit == 0 => choice_b,
+    pub fn conditional_select(
+        &mut self,
+        bit: Variable,
+        choice_a: Variable,
+        choice_b: Variable,
+    ) -> Variable {
+        // bit * choice_a
+        let bit_times_a = self.mul(
+            BlsScalar::one(),
+            bit,
+            choice_a,
+            BlsScalar::zero(),
+            BlsScalar::zero(),
+        );
+
+        // 1 - bit
+        let one_min_bit = self.add(
+            (-BlsScalar::one(), bit),
+            (BlsScalar::zero(), self.zero_var),
+            BlsScalar::one(),
+            BlsScalar::zero(),
+        );
+
+        // (1 - bit) * b
+        let one_min_bit_choice_b = self.mul(
+            BlsScalar::one(),
+            one_min_bit,
+            choice_b,
+            BlsScalar::zero(),
+            BlsScalar::zero(),
+        );
+
+        // [ (1 - bit) * b ] + [ bit * a ]
+        self.add(
+            (BlsScalar::one(), one_min_bit_choice_b),
+            (BlsScalar::one(), bit_times_a),
+            BlsScalar::zero(),
+            BlsScalar::zero(),
+        )
+    }
+
     /// This function is used to add a blinding factor to the witness polynomials
     /// XXX: Split this into two separate functions and document
     /// XXX: We could add another section to add random witness variables, with selector polynomials all zero
