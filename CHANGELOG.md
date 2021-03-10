@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
+- Remove `Canon` impl for `Proof`. [#450](https://github.com/dusk-network/plonk/issues/450)
 - Remove serde support completely from the repo. [#353](https://github.com/dusk-network/plonk/issues/353)
 - Removed previous implementations attached to `PublicInputValues`. [#416](https://github.com/dusk-network/plonk/issues/416)
 - Deprecated `anyhow` and `thiserror`. [#343](https://github.com/dusk-network/plonk/issues/343)
