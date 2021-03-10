@@ -7,7 +7,7 @@
 #![allow(clippy::too_many_arguments)]
 
 use crate::constraint_system::Variable;
-use crate::constraint_system::{PlookupComposer, StandardComposer};
+use crate::constraint_system::StandardComposer;
 use dusk_bls12_381::BlsScalar;
 
 impl StandardComposer {
@@ -148,6 +148,7 @@ impl StandardComposer {
         self.q_logic.push(BlsScalar::zero());
         self.q_fixed_group_add.push(BlsScalar::zero());
         self.q_variable_group_add.push(BlsScalar::zero());
+        self.q_lookup.push(BlsScalar::zero());
 
         self.public_inputs.push(pi);
 
