@@ -12,7 +12,6 @@ use alloc::vec::Vec;
 use dusk_bls12_381::BlsScalar;
 use hashbrown::HashMap;
 use itertools::izip;
-use rayon::iter::*;
 
 /// Permutation provides the necessary state information and functions
 /// to create the permutation polynomial. In the literature, Z(X) is the
@@ -53,7 +52,7 @@ impl Permutation {
     /// added to the system
     fn valid_variables(&self, variables: &[Variable]) -> bool {
         let results: Vec<bool> = variables
-            .into_par_iter()
+            .into_iter()
             .map(|var| self.variable_map.contains_key(&var))
             .filter(|boolean| boolean == &false)
             .collect();
@@ -427,49 +426,47 @@ impl Permutation {
 
         // Compute beta * sigma polynomials
         let beta_left_sigmas: Vec<_> = left_sigma_mapping
-            .par_iter()
+            .iter()
             .map(|sigma| sigma * beta)
             .collect();
         let beta_right_sigmas: Vec<_> = right_sigma_mapping
-            .par_iter()
+            .iter()
             .map(|sigma| sigma * beta)
             .collect();
-        let beta_out_sigmas: Vec<_> = out_sigma_mapping
-            .par_iter()
-            .map(|sigma| sigma * beta)
-            .collect();
+        let beta_out_sigmas: Vec<_> =
+            out_sigma_mapping.iter().map(|sigma| sigma * beta).collect();
         let beta_fourth_sigmas: Vec<_> = fourth_sigma_mapping
-            .par_iter()
+            .iter()
             .map(|sigma| sigma * beta)
             .collect();
 
         // Compute beta * roots * K1
         let beta_roots_k1: Vec<_> =
-            common_roots.par_iter().map(|x| x * K1).collect();
+            common_roots.iter().map(|x| x * K1).collect();
 
         // Compute beta * roots * K2
         let beta_roots_k2: Vec<_> =
-            common_roots.par_iter().map(|x| x * K2).collect();
+            common_roots.iter().map(|x| x * K2).collect();
 
         // Compute beta * roots * K3
         let beta_roots_k3: Vec<_> =
-            common_roots.par_iter().map(|x| x * K3).collect();
+            common_roots.iter().map(|x| x * K3).collect();
 
         // Compute left_wire + gamma
-        let w_l_gamma: Vec<_> = w_l.par_iter().map(|w_l| w_l + gamma).collect();
+        let w_l_gamma: Vec<_> = w_l.iter().map(|w_l| w_l + gamma).collect();
 
         // Compute right_wire + gamma
-        let w_r_gamma: Vec<_> = w_r.par_iter().map(|w_r| w_r + gamma).collect();
+        let w_r_gamma: Vec<_> = w_r.iter().map(|w_r| w_r + gamma).collect();
 
         // Compute out_wire + gamma
-        let w_o_gamma: Vec<_> = w_o.par_iter().map(|w_o| w_o + gamma).collect();
+        let w_o_gamma: Vec<_> = w_o.iter().map(|w_o| w_o + gamma).collect();
 
         // Compute fourth_wire + gamma
-        let w_4_gamma: Vec<_> = w_4.par_iter().map(|w_4| w_4 + gamma).collect();
+        let w_4_gamma: Vec<_> = w_4.iter().map(|w_4| w_4 + gamma).collect();
 
         // Compute 6 accumulator components
         // Parallisable
-        let accumulator_components_without_l1: Vec<_> = (
+        let accumulator_components_without_l1: Vec<_> = izip!(
             w_l_gamma,
             w_r_gamma,
             w_o_gamma,
@@ -483,50 +480,49 @@ impl Permutation {
             beta_out_sigmas,
             beta_fourth_sigmas,
         )
-            .into_par_iter()
-            .map(
-                |(
-                    w_l_gamma,
-                    w_r_gamma,
-                    w_o_gamma,
-                    w_4_gamma,
-                    beta_root,
-                    beta_root_k1,
-                    beta_root_k2,
-                    beta_root_k3,
-                    beta_left_sigma,
-                    beta_right_sigma,
-                    beta_out_sigma,
-                    beta_fourth_sigma,
-                )| {
-                    // w_j + beta * root^j-1 + gamma
-                    let ac1 = w_l_gamma + beta_root;
+        .map(
+            |(
+                w_l_gamma,
+                w_r_gamma,
+                w_o_gamma,
+                w_4_gamma,
+                beta_root,
+                beta_root_k1,
+                beta_root_k2,
+                beta_root_k3,
+                beta_left_sigma,
+                beta_right_sigma,
+                beta_out_sigma,
+                beta_fourth_sigma,
+            )| {
+                // w_j + beta * root^j-1 + gamma
+                let ac1 = w_l_gamma + beta_root;
 
-                    // w_{n+j} + beta * K1 * root^j-1 + gamma
-                    let ac2 = w_r_gamma + beta_root_k1;
+                // w_{n+j} + beta * K1 * root^j-1 + gamma
+                let ac2 = w_r_gamma + beta_root_k1;
 
-                    // w_{2n+j} + beta * K2 * root^j-1 + gamma
-                    let ac3 = w_o_gamma + beta_root_k2;
+                // w_{2n+j} + beta * K2 * root^j-1 + gamma
+                let ac3 = w_o_gamma + beta_root_k2;
 
-                    // w_{3n+j} + beta * K3 * root^j-1 + gamma
-                    let ac4 = w_4_gamma + beta_root_k3;
+                // w_{3n+j} + beta * K3 * root^j-1 + gamma
+                let ac4 = w_4_gamma + beta_root_k3;
 
-                    // 1 / w_j + beta * sigma(j) + gamma
-                    let ac5 = (w_l_gamma + beta_left_sigma).invert().unwrap();
+                // 1 / w_j + beta * sigma(j) + gamma
+                let ac5 = (w_l_gamma + beta_left_sigma).invert().unwrap();
 
-                    // 1 / w_{n+j} + beta * sigma(n+j) + gamma
-                    let ac6 = (w_r_gamma + beta_right_sigma).invert().unwrap();
+                // 1 / w_{n+j} + beta * sigma(n+j) + gamma
+                let ac6 = (w_r_gamma + beta_right_sigma).invert().unwrap();
 
-                    // 1 / w_{2n+j} + beta * sigma(2n+j) + gamma
-                    let ac7 = (w_o_gamma + beta_out_sigma).invert().unwrap();
+                // 1 / w_{2n+j} + beta * sigma(2n+j) + gamma
+                let ac7 = (w_o_gamma + beta_out_sigma).invert().unwrap();
 
-                    // 1 / w_{3n+j} + beta * sigma(3n+j) + gamma
-                    let ac8 = (w_4_gamma + beta_fourth_sigma).invert().unwrap();
+                // 1 / w_{3n+j} + beta * sigma(3n+j) + gamma
+                let ac8 = (w_4_gamma + beta_fourth_sigma).invert().unwrap();
 
-                    (ac1, ac2, ac3, ac4, ac5, ac6, ac7, ac8)
-                },
-            )
-            .collect();
+                (ac1, ac2, ac3, ac4, ac5, ac6, ac7, ac8)
+            },
+        )
+        .collect();
 
         // Prepend ones to the beginning of each accumulator to signify L_1(x)
         let accumulator_components = core::iter::once((
@@ -580,7 +576,7 @@ impl Permutation {
         // [a1*b1*c1, a1 * a2 *b1 * b2 * c1 * c2,...]
         // Parallisable
         let mut z: Vec<_> = product_acumulated_components
-            .par_iter()
+            .iter()
             .map(move |current_component| {
                 let mut prev = BlsScalar::one();
                 prev *= current_component.0;
@@ -652,22 +648,24 @@ impl Permutation {
         // Transpose wires and sigma values to get "rows" in the form [wl_i,
         // wr_i, wo_i, ... ] where each row contains the wire and sigma
         // values for a single gate
-        let gatewise_wires = wires
-            .into_par_iter()
+        let gatewise_wires = izip!(wires.0, wires.1, wires.2, wires.3)
             .map(|(w0, w1, w2, w3)| vec![w0, w1, w2, w3]);
-        let gatewise_sigmas = sigma_mappings
-            .into_par_iter()
-            .map(|(s0, s1, s2, s3)| vec![s0, s1, s2, s3]);
+        let gatewise_sigmas = izip!(
+            sigma_mappings.0,
+            sigma_mappings.1,
+            sigma_mappings.2,
+            sigma_mappings.3
+        )
+        .map(|(s0, s1, s2, s3)| vec![s0, s1, s2, s3]);
 
         // Compute all roots
         // Non-parallelizable?
         let roots: Vec<BlsScalar> = domain.elements().collect();
 
-        let product_argument = (roots, gatewise_sigmas, gatewise_wires)
-            .into_par_iter()
+        let product_argument = izip!(roots, gatewise_sigmas, gatewise_wires)
             // Associate each wire value in a gate with the k defining its coset
             .map(|(gate_root, gate_sigmas, gate_wires)| {
-                (gate_root, (gate_sigmas, gate_wires, &ks).into_par_iter())
+                (gate_root, izip!(gate_sigmas, gate_wires, &ks))
             })
             // Now the ith element represents gate i and will have the form:
             //   (root_i, ((w0_i, s0_i, k0), (w1_i, s1_i, k1), ..., (wm_i, sm_i,

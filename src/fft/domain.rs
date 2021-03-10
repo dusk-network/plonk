@@ -18,9 +18,6 @@ use alloc::vec::Vec;
 use core::ops::MulAssign;
 use dusk_bls12_381::{BlsScalar, GENERATOR, ROOT_OF_UNITY, TWO_ADACITY};
 use dusk_bytes::{DeserializableSlice, Serializable};
-use rayon::iter::{
-    IndexedParallelIterator, IntoParallelRefMutIterator, ParallelIterator,
-};
 
 /// Defines a domain over which finite field (I)FFTs can be performed. Works
 /// only for fields that have a large multiplicative subgroup of size that is
@@ -156,7 +153,7 @@ impl EvaluationDomain {
         evals.resize(self.size(), BlsScalar::zero());
         best_fft(evals, self.group_gen_inv, self.log_size_of_group);
         // cfg_iter_mut!(evals).for_each(|val| *val *= &self.size_inv);
-        evals.par_iter_mut().for_each(|val| *val *= &self.size_inv);
+        evals.iter_mut().for_each(|val| *val *= &self.size_inv);
     }
 
     fn distribute_powers(coeffs: &mut [BlsScalar], g: BlsScalar) {
@@ -233,7 +230,7 @@ impl EvaluationDomain {
 
             batch_inversion(u.as_mut_slice());
 
-            u.par_iter_mut().zip(ls).for_each(|(tau_minus_r, l)| {
+            u.iter_mut().zip(ls).for_each(|(tau_minus_r, l)| {
                 *tau_minus_r = l * *tau_minus_r;
             });
 

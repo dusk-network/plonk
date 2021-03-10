@@ -28,7 +28,6 @@ dusk-bls12_381 = {version = "0.6", default-features = false, features = ["alloc"
 dusk-jubjub = {version = "0.8", default-features = false}
 itertools = {version = "0.9.0", default-features = false}
 rand_chacha = {version = "0.2", default-features = false}
-rayon = {version = "1.5"}
 hashbrown = {version = "0.9", default-features=false, features = ["ahash"]}
 # Dusk related deps for WASMI serde
 canonical = {version = "0.5", optional = true}

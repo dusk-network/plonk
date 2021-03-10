@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Remove `serialisation` module and use single serialization fn's. [#347](https://github.com/dusk-network/plonk/issues/347)
 - Remove uncessary `match` branch for `var_c` [#414](https://github.com/dusk-network/plonk/issues/414)
 - Remove legacy fns and move to test modules the only-for-testing ones. [#434](https://github.com/dusk-network/plonk/issues/434)
+- Remove rayon usage from the crate. [#345](https://github.com/dusk-network/plonk/issues/345)
 
 ### Changed
 

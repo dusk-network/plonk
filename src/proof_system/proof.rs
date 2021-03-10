@@ -470,8 +470,6 @@ fn compute_barycentric_eval(
     domain: &EvaluationDomain,
 ) -> BlsScalar {
     use crate::util::batch_inversion;
-    use rayon::iter::IntoParallelIterator;
-    use rayon::prelude::*;
 
     let numerator = (point.pow(&[domain.size() as u64, 0, 0, 0])
         - BlsScalar::one())
@@ -479,7 +477,7 @@ fn compute_barycentric_eval(
 
     // Indices with non-zero evaluations
     let non_zero_evaluations: Vec<usize> = (0..evaluations.len())
-        .into_par_iter()
+        .into_iter()
         .filter(|&i| {
             let evaluation = &evaluations[i];
             evaluation != &BlsScalar::zero()
@@ -488,7 +486,7 @@ fn compute_barycentric_eval(
 
     // Only compute the denominators with non-zero evaluations
     let mut denominators: Vec<BlsScalar> = (0..non_zero_evaluations.len())
-        .into_par_iter()
+        .into_iter()
         .map(|i| {
             // index of non-zero evaluation
             let index = non_zero_evaluations[i];
@@ -500,7 +498,7 @@ fn compute_barycentric_eval(
     batch_inversion(&mut denominators);
 
     let result: BlsScalar = (0..non_zero_evaluations.len())
-        .into_par_iter()
+        .into_iter()
         .map(|i| {
             let eval_index = non_zero_evaluations[i];
             let eval = evaluations[eval_index];
