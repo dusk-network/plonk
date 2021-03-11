@@ -6,8 +6,8 @@
 
 #![allow(clippy::too_many_arguments)]
 
-use crate::constraint_system::Variable;
 use crate::constraint_system::StandardComposer;
+use crate::constraint_system::Variable;
 use dusk_bls12_381::BlsScalar;
 
 impl StandardComposer {

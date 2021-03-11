@@ -233,14 +233,7 @@ impl StandardComposer {
         &mut self,
         commit_key: &CommitKey,
         transcript: &mut Transcript,
-    ) -> Result<
-        (
-            widget::VerifierKey,
-            SelectorPolynomials,
-            EvaluationDomain,
-        ),
-        Error,
-    > {
+    ) -> Result<(widget::VerifierKey, SelectorPolynomials, EvaluationDomain), Error> {
         let domain = EvaluationDomain::new(self.circuit_size())?;
 
         // Check that the length of the wires is consistent.

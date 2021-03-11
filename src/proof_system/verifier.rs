@@ -47,7 +47,7 @@ impl Verifier {
     pub fn with_expected_size(label: &'static [u8], size: usize) -> Verifier {
         Verifier {
             verifier_key: None,
-            cs:StandardComposer::with_expected_size(size),
+            cs: StandardComposer::with_expected_size(size),
             preprocessed_transcript: Transcript::new(label),
         }
     }

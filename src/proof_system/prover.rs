@@ -9,7 +9,7 @@ use crate::commitment_scheme::kzg10::CommitKey;
 use crate::constraint_system::{StandardComposer, Variable};
 use crate::fft::{EvaluationDomain, Polynomial};
 use crate::plookup::{MultiSet, PlookupTable4Arity, PreprocessedTable4Arity};
-use crate::proof_system::widget::{ProverKey};
+use crate::proof_system::widget::ProverKey;
 use crate::proof_system::{linearisation_poly, proof::Proof, quotient_poly};
 use crate::transcript::TranscriptProtocol;
 use anyhow::{Error, Result};
@@ -544,4 +544,3 @@ pub(crate) fn split_tx_poly(
         Polynomial::from_coefficients_vec(t_x[3 * n..].to_vec()),
     )
 }
-

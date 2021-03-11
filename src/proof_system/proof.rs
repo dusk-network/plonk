@@ -410,7 +410,7 @@ impl Proof {
         Ok(())
     }
 
- #[allow(clippy::too_many_arguments)]
+    #[allow(clippy::too_many_arguments)]
     fn compute_quotient_evaluation(
         &self,
         domain: &EvaluationDomain,
