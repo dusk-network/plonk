@@ -47,8 +47,7 @@ pub trait Circuit
 where
     Self: Sized,
 {
-    /// An identifier constant that you can use to disseminate between similar
-    /// circuits.
+    /// Circuit identifier associated constant.
     const CIRCUIT_ID: [u8; 32];
     /// Gadget implementation used to fill the composer.
     fn gadget(&mut self, composer: &mut StandardComposer) -> Result<(), Error>;
@@ -170,7 +169,7 @@ mod tests {
     }
 
     impl Circuit for TestCircuit {
-        const CIRCUIT_ID: [u8; 32] = *b"0x000000000000000000000000000000";
+        const CIRCUIT_ID: [u8; 32] = [0xff; 32];
         fn gadget(
             &mut self,
             composer: &mut StandardComposer,
