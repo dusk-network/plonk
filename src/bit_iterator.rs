@@ -4,7 +4,8 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-//! Code taken from zcash repo and generalised as we do not have access to the limbs
+//! Code taken from zcash repo and generalised as we do not have access to the
+//! limbs
 use std::mem;
 
 macro_rules! bit_iterator {
@@ -13,8 +14,9 @@ macro_rules! bit_iterator {
         pub struct $name<E> {
             // scalar is the slice of integers that wish to iterate over
             scalar: E,
-            // num_of_total_bits represents the sum of all of the bits of each integer
-            // If we have 2 u32s then the total number of bits will be 32 * 2 = 64 bits
+            // num_of_total_bits represents the sum of all of the bits of each
+            // integer If we have 2 u32s then the total number of bits will
+            // be 32 * 2 = 64 bits
             num_of_total_bits: usize,
             // bit_len represents the bit length of each integer.
             // If we have a slice of u32s, then bit_len will be 32
@@ -25,7 +27,8 @@ macro_rules! bit_iterator {
             pub fn new(t: E) -> Self {
                 let num_of_integers = t.as_ref().len();
                 let num_of_total_bits = mem::size_of::<E>() * 8;
-                let bit_len_of_each_integer = num_of_total_bits / num_of_integers;
+                let bit_len_of_each_integer =
+                    num_of_total_bits / num_of_integers;
                 $name {
                     scalar: t,
                     num_of_total_bits,

@@ -8,9 +8,8 @@
 //!
 //! Use this as the only import that you need to interact
 //! with the principal data structures of the plonk library.
-//!
 
-pub use crate::circuit_builder::{Circuit, PublicInput};
+pub use crate::circuit::{Circuit, PublicInputValue};
 pub use crate::commitment_scheme::kzg10::{
     key::{CommitKey, OpeningKey},
     PublicParameters,

@@ -114,7 +114,8 @@ impl Prover {
         vars.par_iter().map(|var| self.cs.variables[var]).collect()
     }
     /// Resets the witnesses in the prover object.
-    /// This function is used when the user wants to make multiple proofs with the same circuit.
+    /// This function is used when the user wants to make multiple proofs with
+    /// the same circuit.
     pub fn clear_witness(&mut self) {
         self.cs = StandardComposer::new();
     }
@@ -135,8 +136,9 @@ impl Prover {
     }
 
     /// Creates a Proof that a circuit is satisfied
-    /// Note that if you intend to make multiple proofs, after calling this method, the user should then
-    /// call `clear_witness`. This is automatically done when `prove` is called
+    /// Note that if you intend to make multiple proofs, after calling this
+    /// method, the user should then call `clear_witness`. This is
+    /// automatically done when `prove` is called
     pub fn prove_with_preprocessed(
         &self,
         commit_key: &CommitKey,
@@ -161,10 +163,14 @@ impl Prover {
 
         // Witnesses are now in evaluation form, convert them to coefficients
         // So that we may commit to them
-        let w_l_poly = Polynomial::from_coefficients_vec(domain.ifft(w_l_scalar));
-        let w_r_poly = Polynomial::from_coefficients_vec(domain.ifft(w_r_scalar));
-        let w_o_poly = Polynomial::from_coefficients_vec(domain.ifft(w_o_scalar));
-        let w_4_poly = Polynomial::from_coefficients_vec(domain.ifft(w_4_scalar));
+        let w_l_poly =
+            Polynomial::from_coefficients_vec(domain.ifft(w_l_scalar));
+        let w_r_poly =
+            Polynomial::from_coefficients_vec(domain.ifft(w_r_scalar));
+        let w_o_poly =
+            Polynomial::from_coefficients_vec(domain.ifft(w_o_scalar));
+        let w_4_poly =
+            Polynomial::from_coefficients_vec(domain.ifft(w_4_scalar));
 
         // Commit to witness polynomials
         let w_l_poly_commit = commit_key.commit(&w_l_poly)?;
@@ -186,18 +192,20 @@ impl Prover {
         transcript.append_scalar(b"beta", &beta);
         let gamma = transcript.challenge_scalar(b"gamma");
 
-        let z_poly = Polynomial::from_coefficients_slice(&self.cs.perm.compute_permutation_poly(
-            &domain,
-            (&w_l_scalar, &w_r_scalar, &w_o_scalar, &w_4_scalar),
-            &beta,
-            &gamma,
-            (
-                &prover_key.permutation.left_sigma.0,
-                &prover_key.permutation.right_sigma.0,
-                &prover_key.permutation.out_sigma.0,
-                &prover_key.permutation.fourth_sigma.0,
+        let z_poly = Polynomial::from_coefficients_slice(
+            &self.cs.perm.compute_permutation_poly(
+                &domain,
+                (&w_l_scalar, &w_r_scalar, &w_o_scalar, &w_4_scalar),
+                &beta,
+                &gamma,
+                (
+                    &prover_key.permutation.left_sigma.0,
+                    &prover_key.permutation.right_sigma.0,
+                    &prover_key.permutation.out_sigma.0,
+                    &prover_key.permutation.fourth_sigma.0,
+                ),
             ),
-        ));
+        );
 
         // Commit to permutation polynomial
         //
@@ -207,14 +215,18 @@ impl Prover {
         transcript.append_commitment(b"z", &z_poly_commit);
 
         // 3. Compute public inputs polynomial
-        let pi_poly = Polynomial::from_coefficients_vec(domain.ifft(&self.cs.public_inputs));
+        let pi_poly = Polynomial::from_coefficients_vec(
+            domain.ifft(&self.cs.construct_dense_pi_vec()),
+        );
 
         // 4. Compute quotient polynomial
         //
         // Compute quotient challenge; `alpha`
         let alpha = transcript.challenge_scalar(b"alpha");
-        let range_sep_challenge = transcript.challenge_scalar(b"range separation challenge");
-        let logic_sep_challenge = transcript.challenge_scalar(b"logic separation challenge");
+        let range_sep_challenge =
+            transcript.challenge_scalar(b"range separation challenge");
+        let logic_sep_challenge =
+            transcript.challenge_scalar(b"logic separation challenge");
         let fixed_base_sep_challenge =
             transcript.challenge_scalar(b"fixed base separation challenge");
         let var_base_sep_challenge =
@@ -238,7 +250,8 @@ impl Prover {
         )?;
 
         // Split quotient polynomial into 4 degree `n` polynomials
-        let (t_1_poly, t_2_poly, t_3_poly, t_4_poly) = self.split_tx_poly(domain.size(), &t_poly);
+        let (t_1_poly, t_2_poly, t_3_poly, t_4_poly) =
+            self.split_tx_poly(domain.size(), &t_poly);
 
         // Commit to splitted quotient polynomial
         let t_1_commit = commit_key.commit(&t_1_poly)?;
@@ -283,13 +296,24 @@ impl Prover {
         transcript.append_scalar(b"b_eval", &evaluations.proof.b_eval);
         transcript.append_scalar(b"c_eval", &evaluations.proof.c_eval);
         transcript.append_scalar(b"d_eval", &evaluations.proof.d_eval);
-        transcript.append_scalar(b"a_next_eval", &evaluations.proof.a_next_eval);
-        transcript.append_scalar(b"b_next_eval", &evaluations.proof.b_next_eval);
-        transcript.append_scalar(b"d_next_eval", &evaluations.proof.d_next_eval);
-        transcript.append_scalar(b"left_sig_eval", &evaluations.proof.left_sigma_eval);
-        transcript.append_scalar(b"right_sig_eval", &evaluations.proof.right_sigma_eval);
-        transcript.append_scalar(b"out_sig_eval", &evaluations.proof.out_sigma_eval);
-        transcript.append_scalar(b"q_arith_eval", &evaluations.proof.q_arith_eval);
+        transcript
+            .append_scalar(b"a_next_eval", &evaluations.proof.a_next_eval);
+        transcript
+            .append_scalar(b"b_next_eval", &evaluations.proof.b_next_eval);
+        transcript
+            .append_scalar(b"d_next_eval", &evaluations.proof.d_next_eval);
+        transcript.append_scalar(
+            b"left_sig_eval",
+            &evaluations.proof.left_sigma_eval,
+        );
+        transcript.append_scalar(
+            b"right_sig_eval",
+            &evaluations.proof.right_sigma_eval,
+        );
+        transcript
+            .append_scalar(b"out_sig_eval", &evaluations.proof.out_sigma_eval);
+        transcript
+            .append_scalar(b"q_arith_eval", &evaluations.proof.q_arith_eval);
         transcript.append_scalar(b"q_c_eval", &evaluations.proof.q_c_eval);
         transcript.append_scalar(b"q_l_eval", &evaluations.proof.q_l_eval);
         transcript.append_scalar(b"q_r_eval", &evaluations.proof.q_r_eval);
@@ -299,7 +323,8 @@ impl Prover {
 
         // 5. Compute Openings using KZG10
         //
-        // We merge the quotient polynomial using the `z_challenge` so the SRS is linear in the circuit size `n`
+        // We merge the quotient polynomial using the `z_challenge` so the SRS
+        // is linear in the circuit size `n`
         let quot = Self::compute_quotient_opening_poly(
             domain.size(),
             &t_1_poly,
@@ -309,7 +334,8 @@ impl Prover {
             &z_challenge,
         );
 
-        // Compute aggregate witness to polynomials evaluated at the evaluation challenge `z`
+        // Compute aggregate witness to polynomials evaluated at the evaluation
+        // challenge `z`
         let aggregate_witness = commit_key.compute_aggregate_witness(
             &[
                 quot,
@@ -327,7 +353,8 @@ impl Prover {
         );
         let w_z_comm = commit_key.commit(&aggregate_witness)?;
 
-        // Compute aggregate witness to polynomials evaluated at the shifted evaluation challenge
+        // Compute aggregate witness to polynomials evaluated at the shifted
+        // evaluation challenge
         let shifted_aggregate_witness = commit_key.compute_aggregate_witness(
             &[z_poly, w_l_poly, w_r_poly, w_4_poly],
             &(z_challenge * domain.group_gen),
@@ -364,9 +391,10 @@ impl Prover {
 
         if self.prover_key.is_none() {
             // Preprocess circuit
-            let prover_key = self
-                .cs
-                .preprocess_prover(commit_key, &mut self.preprocessed_transcript)?;
+            let prover_key = self.cs.preprocess_prover(
+                commit_key,
+                &mut self.preprocessed_transcript,
+            )?;
             // Store preprocessed circuit and transcript in the Prover
             self.prover_key = Some(prover_key);
         }

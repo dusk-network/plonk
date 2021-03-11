@@ -5,22 +5,24 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 //! This module contains an implementation of a polynomial in coefficient form
-//! Where each coefficient is represented using a position in the underlying vector.
+//! Where each coefficient is represented using a position in the underlying
+//! vector.
 use super::{EvaluationDomain, Evaluations};
+use crate::error::Error;
 use crate::util;
 use dusk_bls12_381::BlsScalar;
-use rand_core::{CryptoRng, RngCore};
+use dusk_bytes::{DeserializableSlice, Serializable};
 use rayon::iter::{
-    IndexedParallelIterator, IntoParallelIterator, IntoParallelRefIterator, ParallelIterator,
+    IndexedParallelIterator, IntoParallelIterator, IntoParallelRefIterator,
+    ParallelIterator,
 };
-
 use std::ops::{Add, AddAssign, Deref, DerefMut, Mul, Neg, Sub, SubAssign};
 
 #[derive(Debug, Eq, PartialEq, Clone)]
 /// Polynomial represents a polynomial in coeffiient form.
-pub struct Polynomial {
+pub(crate) struct Polynomial {
     /// The coefficient of `x^i` is stored at location `i` in `self.coeffs`.
-    pub coeffs: Vec<BlsScalar>,
+    pub(crate) coeffs: Vec<BlsScalar>,
 }
 
 impl Deref for Polynomial {
@@ -39,12 +41,12 @@ impl DerefMut for Polynomial {
 
 impl Polynomial {
     /// Returns the zero polynomial.
-    pub fn zero() -> Self {
+    pub(crate) const fn zero() -> Self {
         Self { coeffs: Vec::new() }
     }
 
     /// Checks if the given polynomial is zero.
-    pub fn is_zero(&self) -> bool {
+    pub(crate) fn is_zero(&self) -> bool {
         self.coeffs.is_empty()
             || self
                 .coeffs
@@ -53,7 +55,7 @@ impl Polynomial {
     }
 
     /// Constructs a new polynomial from a list of coefficients.
-    pub fn from_coefficients_slice(coeffs: &[BlsScalar]) -> Self {
+    pub(crate) fn from_coefficients_slice(coeffs: &[BlsScalar]) -> Self {
         Self::from_coefficients_vec(coeffs.to_vec())
     }
 
@@ -61,12 +63,13 @@ impl Polynomial {
     ///
     /// # Panics
     /// When the length of the coeffs is zero.
-    pub fn from_coefficients_vec(coeffs: Vec<BlsScalar>) -> Self {
+    pub(crate) fn from_coefficients_vec(coeffs: Vec<BlsScalar>) -> Self {
         let mut result = Self { coeffs };
-        // While there are zeros at the end of the coefficient vector, pop them off.
+        // While there are zeros at the end of the coefficient vector, pop them
+        // off.
         result.truncate_leading_zeros();
-        // Check that either the coefficients vec is empty or that the last coeff is
-        // non-zero.
+        // Check that either the coefficients vec is empty or that the last
+        // coeff is non-zero.
         assert!(result
             .coeffs
             .last()
@@ -76,7 +79,7 @@ impl Polynomial {
     }
 
     /// Returns the degree of the polynomial.
-    pub fn degree(&self) -> usize {
+    pub(crate) fn degree(&self) -> usize {
         if self.is_zero() {
             return 0;
         }
@@ -97,7 +100,7 @@ impl Polynomial {
         }
     }
     /// Evaluates `self` at the given `point` in the field.
-    pub fn evaluate(&self, point: &BlsScalar) -> BlsScalar {
+    pub(crate) fn evaluate(&self, point: &BlsScalar) -> BlsScalar {
         if self.is_zero() {
             return BlsScalar::zero();
         }
@@ -117,14 +120,24 @@ impl Polynomial {
         sum
     }
 
-    /// Outputs a polynomial of degree `d` where each coefficient is sampled
-    /// uniformly at random from the field `F`.
-    pub fn rand<R: RngCore + CryptoRng>(d: usize, mut rng: &mut R) -> Self {
-        let mut random_coeffs = Vec::with_capacity(d + 1);
-        for _ in 0..=d {
-            random_coeffs.push(util::random_scalar(&mut rng));
-        }
-        Self::from_coefficients_vec(random_coeffs)
+    /// Given a Polynomial, return it in it's byte representation coefficient by
+    /// coefficient.
+    pub fn to_var_bytes(&self) -> Vec<u8> {
+        self.coeffs
+            .iter()
+            .map(|item| item.to_bytes().to_vec())
+            .flatten()
+            .collect()
+    }
+
+    /// Generate a Polynomial from a slice of bytes.
+    pub fn from_slice(bytes: &[u8]) -> Result<Polynomial, Error> {
+        let coeffs = bytes
+            .chunks(BlsScalar::SIZE)
+            .map(|chunk| BlsScalar::from_slice(chunk))
+            .collect::<Result<Vec<BlsScalar>, dusk_bytes::Error>>()?;
+
+        Ok(Polynomial { coeffs })
     }
 }
 
@@ -167,39 +180,6 @@ impl<'a, 'b> Add<&'a Polynomial> for &'b Polynomial {
         result.truncate_leading_zeros();
         result
     }
-}
-
-#[allow(dead_code)]
-// Addition method tht uses iterators to add polynomials
-// Benchmark this against the original method
-fn iter_add(poly_a: &Polynomial, poly_b: &Polynomial) -> Polynomial {
-    if poly_a.len() == 0 {
-        return poly_b.clone();
-    }
-    if poly_b.len() == 0 {
-        return poly_a.clone();
-    }
-
-    let max_len = std::cmp::max(poly_a.len(), poly_b.len());
-    let min_len = std::cmp::min(poly_a.len(), poly_b.len());
-    let mut data = Vec::with_capacity(max_len);
-    let (mut poly_a_iter, mut poly_b_iter) = (poly_a.iter(), poly_b.iter());
-
-    let partial_addition = poly_a_iter
-        .by_ref()
-        .zip(poly_b_iter.by_ref())
-        .map(|(&a, &b)| a + b)
-        .take(min_len);
-
-    data.extend(partial_addition);
-    data.extend(poly_a_iter);
-    data.extend(poly_b_iter);
-
-    assert_eq!(data.len(), std::cmp::max(poly_a.len(), poly_b.len()));
-
-    let mut result = Polynomial::from_coefficients_vec(data);
-    result.truncate_leading_zeros();
-    result
 }
 
 impl<'a, 'b> AddAssign<&'a Polynomial> for Polynomial {
@@ -335,7 +315,8 @@ impl Polynomial {
         // Reverse the results and use Ruffini's method to compute the quotient
         // The coefficients must be reversed as Ruffini's method
         // starts with the leading coefficient, while Polynomials
-        // are stored in increasing order i.e. the leading coefficient is the last element
+        // are stored in increasing order i.e. the leading coefficient is the
+        // last element
         for coeff in self.coeffs.iter().rev() {
             let t = coeff + k;
             quotient.push(t);
@@ -361,10 +342,17 @@ impl<'a, 'b> Mul<&'a Polynomial> for &'b Polynomial {
         if self.is_zero() || other.is_zero() {
             Polynomial::zero()
         } else {
-            let domain = EvaluationDomain::new(self.coeffs.len() + other.coeffs.len())
-                .expect("field is not smooth enough to construct domain");
-            let mut self_evals = Evaluations::from_vec_and_domain(domain.fft(&self.coeffs), domain);
-            let other_evals = Evaluations::from_vec_and_domain(domain.fft(&other.coeffs), domain);
+            let domain =
+                EvaluationDomain::new(self.coeffs.len() + other.coeffs.len())
+                    .expect("field is not smooth enough to construct domain");
+            let mut self_evals = Evaluations::from_vec_and_domain(
+                domain.fft(&self.coeffs),
+                domain,
+            );
+            let other_evals = Evaluations::from_vec_and_domain(
+                domain.fft(&other.coeffs),
+                domain,
+            );
             self_evals *= &other_evals;
             self_evals.interpolate()
         }
@@ -417,6 +405,26 @@ impl<'a, 'b> Sub<&'a BlsScalar> for &'b Polynomial {
 #[cfg(test)]
 mod test {
     use super::*;
+    use rand_core::{CryptoRng, RngCore};
+
+    impl Polynomial {
+        /// Outputs a polynomial of degree `d` where each coefficient is sampled
+        /// uniformly at random from the field `F`.
+        /// This is only implemented for test purposes for now but inside of a
+        /// `impl` block since it's used across multiple files in the
+        /// repo.
+        pub(crate) fn rand<R: RngCore + CryptoRng>(
+            d: usize,
+            mut rng: &mut R,
+        ) -> Self {
+            let mut random_coeffs = Vec::with_capacity(d + 1);
+            for _ in 0..=d {
+                random_coeffs.push(util::random_scalar(&mut rng));
+            }
+            Self::from_coefficients_vec(random_coeffs)
+        }
+    }
+
     #[test]
     fn test_ruffini() {
         // X^2 + 4X + 4
@@ -428,8 +436,10 @@ mod test {
         // Divides X^2 + 4X + 4 by X+2
         let quotient = quadratic.ruffini(-BlsScalar::from(2));
         // X+2
-        let expected_quotient =
-            Polynomial::from_coefficients_vec(vec![BlsScalar::from(2), BlsScalar::one()]);
+        let expected_quotient = Polynomial::from_coefficients_vec(vec![
+            BlsScalar::from(2),
+            BlsScalar::one(),
+        ]);
         assert_eq!(quotient, expected_quotient);
     }
     #[test]
@@ -457,8 +467,10 @@ mod test {
         // Divides X^2 + X by X
         let quotient = p.ruffini(BlsScalar::zero());
         // X + 1
-        let expected_quotient =
-            Polynomial::from_coefficients_vec(vec![BlsScalar::one(), BlsScalar::one()]);
+        let expected_quotient = Polynomial::from_coefficients_vec(vec![
+            BlsScalar::one(),
+            BlsScalar::one(),
+        ]);
         assert_eq!(quotient, expected_quotient);
     }
 }

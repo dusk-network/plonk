@@ -10,9 +10,9 @@ use crate::proof_system::linearisation_poly::ProofEvaluations;
 use dusk_bls12_381::{BlsScalar, G1Affine};
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
-pub struct VerifierKey {
-    pub q_c: Commitment,
-    pub q_logic: Commitment,
+pub(crate) struct VerifierKey {
+    pub(crate) q_c: Commitment,
+    pub(crate) q_logic: Commitment,
 }
 
 impl VerifierKey {
@@ -42,8 +42,10 @@ impl VerifierKey {
         let w = evaluations.c_eval;
         let c_3 = (w - a * b) * kappa_cu;
 
-        let c_4 = delta_xor_and(&a, &b, &w, &d, &evaluations.q_c_eval) * kappa_qu;
-        scalars.push((c_0 + c_1 + c_2 + c_3 + c_4) * logic_separation_challenge);
+        let c_4 =
+            delta_xor_and(&a, &b, &w, &d, &evaluations.q_c_eval) * kappa_qu;
+        scalars
+            .push((c_0 + c_1 + c_2 + c_3 + c_4) * logic_separation_challenge);
         points.push(self.q_logic.0);
     }
 }

@@ -17,16 +17,8 @@ use crate::fft::EvaluationDomain;
 use crate::proof_system::widget::VerifierKey;
 use crate::transcript::TranscriptProtocol;
 use dusk_bls12_381::{multiscalar_mul::msm_variable_base, BlsScalar, G1Affine};
-use dusk_bytes::Serializable;
+use dusk_bytes::{DeserializableSlice, Serializable};
 use merlin::Transcript;
-use serde::de::Visitor;
-use serde::{self, Deserialize, Deserializer, Serialize, Serializer};
-
-#[cfg(feature = "canon")]
-use canonical::{Canon, InvalidEncoding, Sink, Source, Store};
-
-/// Byte-size of a serialised `Proof`.
-pub const PROOF_SIZE: usize = Proof::serialised_size();
 
 /// A Proof is a composition of `Commitments` to the witness, permutation,
 /// quotient, shifted and opening polynomials as well as the
@@ -35,100 +27,81 @@ pub const PROOF_SIZE: usize = Proof::serialised_size();
 /// It's main goal is to have a `verify()` method attached which contains the
 /// logic of the operations that the `Verifier` will need to do in order to
 /// formally verify the `Proof`.
-#[derive(Debug, Eq, PartialEq, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone, Default)]
 pub struct Proof {
     /// Commitment to the witness polynomial for the left wires.
-    pub a_comm: Commitment,
+    pub(crate) a_comm: Commitment,
     /// Commitment to the witness polynomial for the right wires.
-    pub b_comm: Commitment,
+    pub(crate) b_comm: Commitment,
     /// Commitment to the witness polynomial for the output wires.
-    pub c_comm: Commitment,
+    pub(crate) c_comm: Commitment,
     /// Commitment to the witness polynomial for the fourth wires.
-    pub d_comm: Commitment,
+    pub(crate) d_comm: Commitment,
 
     /// Commitment to the permutation polynomial.
-    pub z_comm: Commitment,
+    pub(crate) z_comm: Commitment,
 
     /// Commitment to the quotient polynomial.
-    pub t_1_comm: Commitment,
+    pub(crate) t_1_comm: Commitment,
     /// Commitment to the quotient polynomial.
-    pub t_2_comm: Commitment,
+    pub(crate) t_2_comm: Commitment,
     /// Commitment to the quotient polynomial.
-    pub t_3_comm: Commitment,
+    pub(crate) t_3_comm: Commitment,
     /// Commitment to the quotient polynomial.
-    pub t_4_comm: Commitment,
+    pub(crate) t_4_comm: Commitment,
 
     /// Commitment to the opening polynomial.
-    pub w_z_comm: Commitment,
+    pub(crate) w_z_comm: Commitment,
     /// Commitment to the shifted opening polynomial.
-    pub w_zw_comm: Commitment,
+    pub(crate) w_zw_comm: Commitment,
     /// Subset of all of the evaluations added to the proof.
-    pub evaluations: ProofEvaluations,
+    pub(crate) evaluations: ProofEvaluations,
 }
 
-impl_serde!(Proof);
+impl Serializable<{ 11 * Commitment::SIZE + ProofEvaluations::SIZE }>
+    for Proof
+{
+    type Error = dusk_bytes::Error;
 
-#[cfg(feature = "canon")]
-impl<S: Store> Canon<S> for Proof {
-    fn write(&self, sink: &mut impl Sink<S>) -> Result<(), S::Error> {
-        sink.copy_bytes(&self.to_bytes());
-        Ok(())
+    #[allow(unused_must_use)]
+    fn to_bytes(&self) -> [u8; Self::SIZE] {
+        use dusk_bytes::Write;
+
+        let mut buf = [0u8; Self::SIZE];
+        let mut writer = &mut buf[..];
+        writer.write(&self.a_comm.to_bytes());
+        writer.write(&self.b_comm.to_bytes());
+        writer.write(&self.c_comm.to_bytes());
+        writer.write(&self.d_comm.to_bytes());
+        writer.write(&self.z_comm.to_bytes());
+        writer.write(&self.t_1_comm.to_bytes());
+        writer.write(&self.t_2_comm.to_bytes());
+        writer.write(&self.t_3_comm.to_bytes());
+        writer.write(&self.t_4_comm.to_bytes());
+        writer.write(&self.w_z_comm.to_bytes());
+        writer.write(&self.w_zw_comm.to_bytes());
+        writer.write(&self.evaluations.to_bytes());
+
+        buf
     }
 
-    fn read(source: &mut impl Source<S>) -> Result<Self, S::Error> {
-        let mut bytes = [0u8; PROOF_SIZE];
-        bytes.copy_from_slice(source.read_bytes(PROOF_SIZE));
-        match Proof::from_bytes(&bytes) {
-            Ok(proof) => Ok(proof),
-            _ => Err(InvalidEncoding.into()),
-        }
-    }
+    fn from_bytes(buf: &[u8; Self::SIZE]) -> Result<Self, Self::Error> {
+        let mut buffer = &buf[..];
 
-    fn encoded_len(&self) -> usize {
-        PROOF_SIZE
-    }
-}
+        let a_comm = Commitment::from_reader(&mut buffer)?;
+        let b_comm = Commitment::from_reader(&mut buffer)?;
+        let c_comm = Commitment::from_reader(&mut buffer)?;
+        let d_comm = Commitment::from_reader(&mut buffer)?;
+        let z_comm = Commitment::from_reader(&mut buffer)?;
+        let t_1_comm = Commitment::from_reader(&mut buffer)?;
+        let t_2_comm = Commitment::from_reader(&mut buffer)?;
+        let t_3_comm = Commitment::from_reader(&mut buffer)?;
+        let t_4_comm = Commitment::from_reader(&mut buffer)?;
+        let w_z_comm = Commitment::from_reader(&mut buffer)?;
+        let w_zw_comm = Commitment::from_reader(&mut buffer)?;
+        let evaluations = ProofEvaluations::from_reader(&mut buffer)?;
 
-impl Proof {
-    /// Serialises a Proof struct
-    pub fn to_bytes(&self) -> [u8; PROOF_SIZE] {
-        let mut bytes = [0u8; PROOF_SIZE];
-
-        bytes[0..48].copy_from_slice(&self.a_comm.0.to_bytes()[..]);
-        bytes[48..96].copy_from_slice(&self.b_comm.0.to_bytes()[..]);
-        bytes[96..144].copy_from_slice(&self.c_comm.0.to_bytes()[..]);
-        bytes[144..192].copy_from_slice(&self.d_comm.0.to_bytes()[..]);
-        bytes[192..240].copy_from_slice(&self.z_comm.0.to_bytes()[..]);
-        bytes[240..288].copy_from_slice(&self.t_1_comm.0.to_bytes()[..]);
-        bytes[288..336].copy_from_slice(&self.t_2_comm.0.to_bytes()[..]);
-        bytes[336..384].copy_from_slice(&self.t_3_comm.0.to_bytes()[..]);
-        bytes[384..432].copy_from_slice(&self.t_4_comm.0.to_bytes()[..]);
-        bytes[432..480].copy_from_slice(&self.w_z_comm.0.to_bytes()[..]);
-        bytes[480..528].copy_from_slice(&self.w_zw_comm.0.to_bytes()[..]);
-        bytes[528..PROOF_SIZE].copy_from_slice(&self.evaluations.to_bytes()[..]);
-
-        bytes
-    }
-
-    /// Deserialises a Proof struct
-    pub fn from_bytes(bytes: &[u8]) -> Result<Proof, Error> {
-        use crate::serialisation::read_commitment;
-
-        let (a_comm, rest) = read_commitment(bytes)?;
-        let (b_comm, rest) = read_commitment(rest)?;
-        let (c_comm, rest) = read_commitment(rest)?;
-        let (d_comm, rest) = read_commitment(rest)?;
-        let (z_comm, rest) = read_commitment(rest)?;
-        let (t_1_comm, rest) = read_commitment(rest)?;
-        let (t_2_comm, rest) = read_commitment(rest)?;
-        let (t_3_comm, rest) = read_commitment(rest)?;
-        let (t_4_comm, rest) = read_commitment(rest)?;
-        let (w_z_comm, rest) = read_commitment(rest)?;
-        let (w_zw_comm, rest) = read_commitment(rest)?;
-
-        let evaluations = ProofEvaluations::from_bytes(rest);
-
-        let proof = Proof {
+        Ok(Proof {
             a_comm,
             b_comm,
             c_comm,
@@ -140,18 +113,12 @@ impl Proof {
             t_4_comm,
             w_z_comm,
             w_zw_comm,
-            evaluations: evaluations?,
-        };
-        Ok(proof)
+            evaluations,
+        })
     }
+}
 
-    /// Returns the serialised size of a [`Proof`] object.
-    pub const fn serialised_size() -> usize {
-        const NUM_COMMITMENTS: usize = 11;
-        const COMMITMENT_SIZE: usize = 48;
-        (NUM_COMMITMENTS * COMMITMENT_SIZE) + ProofEvaluations::serialised_size()
-    }
-
+impl Proof {
     /// Performs the verification of a `Proof` returning a boolean result.
     pub(crate) fn verify(
         &self,
@@ -164,10 +131,12 @@ impl Proof {
 
         // Subgroup checks are done when the proof is deserialised.
 
-        // In order for the Verifier and Prover to have the same view in the non-interactive setting
-        // Both parties must commit the same elements into the transcript
-        // Below the verifier will simulate an interaction with the prover by adding the same elements
-        // that the prover added into the transcript, hence generating the same challenges
+        // In order for the Verifier and Prover to have the same view in the
+        // non-interactive setting Both parties must commit the same
+        // elements into the transcript Below the verifier will simulate
+        // an interaction with the prover by adding the same elements
+        // that the prover added into the transcript, hence generating the same
+        // challenges
         //
         // Add commitment to witness polynomials to transcript
         transcript.append_commitment(b"w_l", &self.a_comm);
@@ -184,8 +153,10 @@ impl Proof {
 
         // Compute quotient challenge
         let alpha = transcript.challenge_scalar(b"alpha");
-        let range_sep_challenge = transcript.challenge_scalar(b"range separation challenge");
-        let logic_sep_challenge = transcript.challenge_scalar(b"logic separation challenge");
+        let range_sep_challenge =
+            transcript.challenge_scalar(b"range separation challenge");
+        let logic_sep_challenge =
+            transcript.challenge_scalar(b"logic separation challenge");
         let fixed_base_sep_challenge =
             transcript.challenge_scalar(b"fixed base separation challenge");
         let var_base_sep_challenge =
@@ -204,7 +175,8 @@ impl Proof {
         let z_h_eval = domain.evaluate_vanishing_polynomial(&z_challenge);
 
         // Compute first lagrange polynomial evaluated at `z_challenge`
-        let l1_eval = compute_first_lagrange_evaluation(&domain, &z_h_eval, &z_challenge);
+        let l1_eval =
+            compute_first_lagrange_evaluation(&domain, &z_h_eval, &z_challenge);
 
         // Compute quotient polynomial evaluated at `z_challenge`
         let t_eval = self.compute_quotient_evaluation(
@@ -220,8 +192,10 @@ impl Proof {
         );
 
         // Compute commitment to quotient polynomial
-        // This method is necessary as we pass the `un-splitted` variation to our commitment scheme
-        let t_comm = self.compute_quotient_commitment(&z_challenge, domain.size());
+        // This method is necessary as we pass the `un-splitted` variation to
+        // our commitment scheme
+        let t_comm =
+            self.compute_quotient_commitment(&z_challenge, domain.size());
 
         // Add evaluations to transcript
         transcript.append_scalar(b"a_eval", &self.evaluations.a_eval);
@@ -231,10 +205,16 @@ impl Proof {
         transcript.append_scalar(b"a_next_eval", &self.evaluations.a_next_eval);
         transcript.append_scalar(b"b_next_eval", &self.evaluations.b_next_eval);
         transcript.append_scalar(b"d_next_eval", &self.evaluations.d_next_eval);
-        transcript.append_scalar(b"left_sig_eval", &self.evaluations.left_sigma_eval);
-        transcript.append_scalar(b"right_sig_eval", &self.evaluations.right_sigma_eval);
-        transcript.append_scalar(b"out_sig_eval", &self.evaluations.out_sigma_eval);
-        transcript.append_scalar(b"q_arith_eval", &self.evaluations.q_arith_eval);
+        transcript
+            .append_scalar(b"left_sig_eval", &self.evaluations.left_sigma_eval);
+        transcript.append_scalar(
+            b"right_sig_eval",
+            &self.evaluations.right_sigma_eval,
+        );
+        transcript
+            .append_scalar(b"out_sig_eval", &self.evaluations.out_sigma_eval);
+        transcript
+            .append_scalar(b"q_arith_eval", &self.evaluations.q_arith_eval);
         transcript.append_scalar(b"q_c_eval", &self.evaluations.q_c_eval);
         transcript.append_scalar(b"q_l_eval", &self.evaluations.q_l_eval);
         transcript.append_scalar(b"q_r_eval", &self.evaluations.q_r_eval);
@@ -259,9 +239,12 @@ impl Proof {
         );
 
         // Commitment Scheme
-        // Now we delegate computation to the commitment scheme by batch checking two proofs
-        // The `AggregateProof`, which is a proof that all the necessary polynomials evaluated at `z_challenge` are correct
-        // and a `SingleProof` which is proof that the permutation polynomial evaluated at the shifted root of unity is correct
+        // Now we delegate computation to the commitment scheme by batch
+        // checking two proofs The `AggregateProof`, which is a proof
+        // that all the necessary polynomials evaluated at `z_challenge` are
+        // correct and a `SingleProof` which is proof that the
+        // permutation polynomial evaluated at the shifted root of unity is
+        // correct
 
         // Compose the Aggregated Proof
         //
@@ -288,11 +271,16 @@ impl Proof {
         let flattened_proof_a = aggregate_proof.flatten(transcript);
 
         // Compose the shifted aggregate proof
-        let mut shifted_aggregate_proof = AggregateProof::with_witness(self.w_zw_comm);
-        shifted_aggregate_proof.add_part((self.evaluations.perm_eval, self.z_comm));
-        shifted_aggregate_proof.add_part((self.evaluations.a_next_eval, self.a_comm));
-        shifted_aggregate_proof.add_part((self.evaluations.b_next_eval, self.b_comm));
-        shifted_aggregate_proof.add_part((self.evaluations.d_next_eval, self.d_comm));
+        let mut shifted_aggregate_proof =
+            AggregateProof::with_witness(self.w_zw_comm);
+        shifted_aggregate_proof
+            .add_part((self.evaluations.perm_eval, self.z_comm));
+        shifted_aggregate_proof
+            .add_part((self.evaluations.a_next_eval, self.a_comm));
+        shifted_aggregate_proof
+            .add_part((self.evaluations.b_next_eval, self.b_comm));
+        shifted_aggregate_proof
+            .add_part((self.evaluations.d_next_eval, self.d_comm));
         let flattened_proof_b = shifted_aggregate_proof.flatten(transcript);
 
         // Add commitment to openings to transcript
@@ -357,7 +345,11 @@ impl Proof {
         (a - b - c) * z_h_eval.invert().unwrap()
     }
 
-    fn compute_quotient_commitment(&self, z_challenge: &BlsScalar, n: usize) -> Commitment {
+    fn compute_quotient_commitment(
+        &self,
+        z_challenge: &BlsScalar,
+        n: usize,
+    ) -> Commitment {
         let z_n = z_challenge.pow(&[n as u64, 0, 0, 0]);
         let z_two_n = z_challenge.pow(&[2 * n as u64, 0, 0, 0]);
         let z_three_n = z_challenge.pow(&[3 * n as u64, 0, 0, 0]);
@@ -456,8 +448,9 @@ fn compute_barycentric_eval(
     use rayon::iter::IntoParallelIterator;
     use rayon::prelude::*;
 
-    let numerator =
-        (point.pow(&[domain.size() as u64, 0, 0, 0]) - BlsScalar::one()) * domain.size_inv;
+    let numerator = (point.pow(&[domain.size() as u64, 0, 0, 0])
+        - BlsScalar::one())
+        * domain.size_inv;
 
     // Indices with non-zero evaluations
     let non_zero_evaluations: Vec<usize> = (0..evaluations.len())
@@ -475,7 +468,8 @@ fn compute_barycentric_eval(
             // index of non-zero evaluation
             let index = non_zero_evaluations[i];
 
-            (domain.group_gen_inv.pow(&[index as u64, 0, 0, 0]) * point) - BlsScalar::one()
+            (domain.group_gen_inv.pow(&[index as u64, 0, 0, 0]) * point)
+                - BlsScalar::one()
         })
         .collect();
     batch_inversion(&mut denominators);
@@ -493,10 +487,10 @@ fn compute_barycentric_eval(
     result * numerator
 }
 #[cfg(test)]
-mod test {
+mod proof_tests {
     use super::*;
     #[test]
-    fn test_serialise_deserialise_proof() {
+    fn test_dusk_bytes_serde_proof() {
         let proof = Proof {
             a_comm: Commitment::default(),
             b_comm: Commitment::default(),

@@ -31,9 +31,9 @@
 //! - Zachary J. Williamson (Aztec Protocol)
 //! - Oana Ciobotaru
 //!
-//! This crate contains a pure-rust implementation done by the [DuskNetwork team](dusk.network)
-//! of this algorithm using as a reference implementation this one done
-//! by the creators of the protocol:
+//! This crate contains a pure-rust implementation done by the [DuskNetwork
+//! team](dusk.network) of this algorithm using as a reference implementation
+//! this one done by the creators of the protocol:
 //!
 //! [https://github.com/AztecProtocol/barretenberg/blob/master/barretenberg/src/aztec/plonk/](https://github.com/AztecProtocol/barretenberg/blob/master/barretenberg/src/aztec/plonk/)
 //!
@@ -49,23 +49,19 @@
 #![allow(clippy::match_bool)]
 // Clippy does not have `broken_intra_doc_links` as a known lint.
 #![allow(unknown_lints)]
-#![deny(broken_intra_doc_links)]
+#![deny(rustdoc::broken_intra_doc_links)]
 #![deny(missing_docs)]
 
-#[macro_use]
-mod macros;
-
 mod bit_iterator;
-pub mod circuit_builder;
-pub mod commitment_scheme;
+pub mod circuit;
+mod commitment_scheme;
 pub mod constraint_system;
-pub mod error;
-pub mod fft;
+mod error;
+mod fft;
 mod permutation;
 pub mod prelude;
-pub mod proof_system;
-mod serialisation;
-pub mod transcript;
+mod proof_system;
+mod transcript;
 mod util;
 
 #[cfg(feature = "nightly")]

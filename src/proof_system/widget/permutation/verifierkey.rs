@@ -12,11 +12,11 @@ use crate::proof_system::linearisation_poly::ProofEvaluations;
 use dusk_bls12_381::{BlsScalar, G1Affine};
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
-pub struct VerifierKey {
-    pub left_sigma: Commitment,
-    pub right_sigma: Commitment,
-    pub out_sigma: Commitment,
-    pub fourth_sigma: Commitment,
+pub(crate) struct VerifierKey {
+    pub(crate) left_sigma: Commitment,
+    pub(crate) right_sigma: Commitment,
+    pub(crate) out_sigma: Commitment,
+    pub(crate) fourth_sigma: Commitment,
 }
 
 impl VerifierKey {
@@ -32,7 +32,8 @@ impl VerifierKey {
     ) {
         let alpha_sq = alpha.square();
 
-        // (a_eval + beta * z + gamma)(b_eval + beta * z * k1 + gamma)(c_eval + beta * k2 * z + gamma)(d_eval + beta * k3 * z + gamma) * alpha
+        // (a_eval + beta * z + gamma)(b_eval + beta * z * k1 + gamma)(c_eval +
+        // beta * k2 * z + gamma)(d_eval + beta * k3 * z + gamma) * alpha
         let x = {
             let beta_z = beta * z_challenge;
             let q_0 = evaluations.a_eval + beta_z + gamma;
@@ -55,7 +56,8 @@ impl VerifierKey {
         scalars.push(x + r);
         points.push(z_comm);
 
-        // -(a_eval + beta * sigma_1_eval + gamma)(b_eval + beta * sigma_2_eval + gamma)(c_eval + beta * sigma_3_eval + gamma) * alpha^2
+        // -(a_eval + beta * sigma_1_eval + gamma)(b_eval + beta * sigma_2_eval
+        // + gamma)(c_eval + beta * sigma_3_eval + gamma) * alpha^2
         let y = {
             let beta_sigma_1 = beta * evaluations.left_sigma_eval;
             let q_0 = evaluations.a_eval + beta_sigma_1 + gamma;

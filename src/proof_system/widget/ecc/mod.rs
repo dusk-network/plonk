@@ -4,5 +4,5 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-pub mod curve_addition;
-pub mod scalar_mul;
+pub(crate) mod curve_addition;
+pub(crate) mod scalar_mul;

@@ -98,7 +98,8 @@ wires are not repeated by using
 randomness given by the verifier. 
 
 This process is better explained in 
-the permutation [notes](notes-pa).
+within the permutation section of
+the notes.
 
 After the constraints
 are made, they are formatted into a 
