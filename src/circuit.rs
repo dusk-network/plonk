@@ -47,6 +47,8 @@ pub trait Circuit
 where
     Self: Sized,
 {
+    /// Circuit identifier associated constant.
+    const CIRCUIT_ID: [u8; 32];
     /// Gadget implementation used to fill the composer.
     fn gadget(&mut self, composer: &mut StandardComposer) -> Result<(), Error>;
     /// Compiles the circuit by using a function that returns a `Result`
@@ -167,6 +169,7 @@ mod tests {
     }
 
     impl Circuit for TestCircuit {
+        const CIRCUIT_ID: [u8; 32] = [0xff; 32];
         fn gadget(
             &mut self,
             composer: &mut StandardComposer,

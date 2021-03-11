@@ -32,6 +32,7 @@ pub struct TestCircuit {
 }
 
 impl Circuit for TestCircuit {
+    const CIRCUIT_ID: [u8; 32] = [0xff; 32];
     fn gadget(&mut self, composer: &mut StandardComposer) -> Result<(), Error> {
         let a = composer.add_input(self.a);
         let b = composer.add_input(self.b);
