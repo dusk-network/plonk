@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 11-03-21
+
 ### Added
 
 - Implement `dusk_bytes::Serializable` for all possible structures that need serde. [#352](https://github.com/dusk-network/plonk/issues/352)
