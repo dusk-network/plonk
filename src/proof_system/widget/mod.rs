@@ -266,6 +266,7 @@ impl ProverKey {
 
         // Curve addition
         write_polynomial(&self.variable_base.q_variable_group_add.0, &mut bytes);
+        write_evaluations(&self.variable_base.q_variable_group_add.1, &mut bytes);
 
         // Lookup
         write_polynomial(&self.lookup.q_lookup.0, &mut bytes);
@@ -502,6 +503,8 @@ mod test {
 
         let range = range::ProverKey { q_range };
 
+        let lookup = lookup::ProverKey { q_lookup };
+
         let fixed_base = ecc::scalar_mul::fixed_base::ProverKey {
             q_fixed_group_add,
             q_l,
@@ -527,6 +530,7 @@ mod test {
             fixed_base,
             range,
             variable_base,
+            lookup,
             permutation,
             v_h_coset_4n,
             n,
@@ -559,6 +563,7 @@ mod test {
         let q_variable_group_add = Commitment::from_affine(G1Affine::generator());
 
         let q_logic = Commitment::from_affine(G1Affine::generator());
+        let q_lookup = Commitment::from_affine(G1Affine::generator());
 
         let left_sigma = Commitment::from_affine(G1Affine::generator());
         let right_sigma = Commitment::from_affine(G1Affine::generator());
@@ -578,6 +583,8 @@ mod test {
         let logic = logic::VerifierKey { q_logic, q_c };
 
         let range = range::VerifierKey { q_range };
+
+        let lookup = lookup::VerifierKey { q_lookup };
 
         let fixed_base = ecc::scalar_mul::fixed_base::VerifierKey {
             q_fixed_group_add,
@@ -602,6 +609,7 @@ mod test {
             range,
             fixed_base,
             variable_base,
+            lookup,
             permutation,
         };
 
