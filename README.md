@@ -32,6 +32,9 @@ pub struct TestCircuit {
 }
 
 impl Circuit for TestCircuit {
+    // You could generate the ID by hashing the `gadget()` fn code
+    // in a proc_macro with something like Blake3.
+    const CIRCUIT_ID: [u8; 32] = *b"0x000000000000000000000000000000";
     fn gadget(&mut self, composer: &mut StandardComposer) -> Result<(), Error> {
         let a = composer.add_input(self.a);
         let b = composer.add_input(self.b);
