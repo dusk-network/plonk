@@ -116,6 +116,9 @@ impl Prover {
         let w_o_scalar = &[&self.to_scalars(&self.cs.w_o)[..], &pad].concat();
         let w_4_scalar = &[&self.to_scalars(&self.cs.w_4)[..], &pad].concat();
 
+        // make sure q_lookup is also the right size for constructing f later
+        let padded_q_lookup = [&self.cs.q_lookup[..], &pad].concat();
+
         // Witnesses are now in evaluation form, convert them to coefficients
         // So that we may commit to them
         let w_l_poly = Polynomial::from_coefficients_vec(domain.ifft(w_l_scalar));
@@ -171,22 +174,22 @@ impl Prover {
         // If q_lookup is one the wire values are preserved
         let f_1_scalar = w_l_scalar
             .iter()
-            .zip(&self.cs.q_lookup)
+            .zip(&padded_q_lookup)
             .map(|(w, s)| w * s + (BlsScalar::one() - s) * compressed_t_multiset.0[1])
             .collect::<Vec<BlsScalar>>();
         let f_2_scalar = w_r_scalar
             .iter()
-            .zip(&self.cs.q_lookup)
+            .zip(&padded_q_lookup)
             .map(|(w, s)| w * s)
             .collect::<Vec<BlsScalar>>();
         let f_3_scalar = w_o_scalar
             .iter()
-            .zip(&self.cs.q_lookup)
+            .zip(&padded_q_lookup)
             .map(|(w, s)| w * s)
             .collect::<Vec<BlsScalar>>();
         let f_4_scalar = w_4_scalar
             .iter()
-            .zip(&self.cs.q_lookup)
+            .zip(&padded_q_lookup)
             .map(|(w, s)| w * s)
             .collect::<Vec<BlsScalar>>();
 
