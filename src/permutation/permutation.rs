@@ -341,16 +341,16 @@ impl Permutation {
             beta_out_sigma_iter,
             beta_fourth_sigma_iter,
         ) {
-            // (w_l + beta * root + gamma)
+            // (w_l + beta * left_sigma + gamma)
             let prod_a = beta_left_sigma + w_l_gamma;
 
-            // (w_r + beta * root * k_1 + gamma)
+            // (w_r + beta * right_sigma + gamma)
             let prod_b = beta_right_sigma + w_r_gamma;
 
-            // (w_o + beta * root * k_2 + gamma)
+            // (w_o + beta * out_sigma + gamma)
             let prod_c = beta_out_sigma + w_o_gamma;
 
-            // (w_4 + beta * root * k_3 + gamma)
+            // (w_4 + beta * fourth_sigma + gamma)
             let prod_d = beta_fourth_sigma + w_4_gamma;
 
             let mut prod = prod_a * prod_b * prod_c * prod_d;
@@ -876,18 +876,19 @@ mod test {
         perm.add_variables_to_map(var_zero, var_four, var_eight, var_nine, 3);
 
         /*
-        var_zero = {L0, R0,L1,L2, L3}
+        var_zero = {L0, R0, L1, L2, L3}
         var_two = {R1}
         var_three = {R2}
-        var_four = {R4}
-        var_five = {01}
-        var_six = {O2}
-        var_seven = {O3}
-        var_eight = {O4}
-        Left_sigma = {R0, L2,L3, L0}
+        var_four = {R3}
+        var_five = {O0}
+        var_six = {O1}
+        var_seven = {O2}
+        var_eight = {O3}
+        var_nine = {F0, F1, F2, F3}
+        Left_sigma = {R0, L2, L3, L0}
         Right_sigma = {L1, R1, R2, R3}
-        Out_sigma = {O0, O1, O2, O3, O4}
-        Fourth_sigma = {F0, F1, F2, F3, F4}
+        Out_sigma = {O0, O1, O2, O3}
+        Fourth_sigma = {F1, F2, F3, F0}
         */
         let sigmas = perm.compute_sigma_permutations(num_wire_mappings);
         let left_sigma = &sigmas[0];
@@ -925,7 +926,7 @@ mod test {
         let w_cubed = w.pow(&[3, 0, 0, 0]);
 
         // Check the left sigmas have been encoded properly
-        // Left_sigma = {R0, L2,L3, L0}
+        // Left_sigma = {R0, L2, L3, L0}
         // Should turn into {1 * K1, w^2, w^3, 1}
         let encoded_left_sigma =
             perm.compute_permutation_lagrange(left_sigma, &domain);
@@ -945,7 +946,7 @@ mod test {
         assert_eq!(encoded_right_sigma[3], w_cubed * &K1);
 
         // Check the output sigmas have been encoded properly
-        // Out_sigma = {O0, O1, O2, O3, O4}
+        // Out_sigma = {O0, O1, O2, O3}
         // Should turn into {1 * K2, w * K2, w^2 * K2, w^3 * K2}
         let encoded_output_sigma =
             perm.compute_permutation_lagrange(out_sigma, &domain);
@@ -955,10 +956,9 @@ mod test {
         assert_eq!(encoded_output_sigma[3], w_cubed * &K2);
 
         // Check the fourth sigmas have been encoded properly
-        // Out_sigma = {F0, F1, F2, F3, F4}
-        // Should turn into {1 * K3, w * K3, w^2 * K3, w^3 * K3}
-        let encoded_fourth_sigma =
-            perm.compute_permutation_lagrange(fourth_sigma, &domain);
+        // Out_sigma = {F1, F2, F3, F0}
+        // Should turn into {w * K3, w^2 * K3, w^3 * K3, 1 * K3}
+        let encoded_fourth_sigma = perm.compute_permutation_lagrange(fourth_sigma, &domain);
         assert_eq!(encoded_fourth_sigma[0], w * &K3);
         assert_eq!(encoded_fourth_sigma[1], w_squared * &K3);
         assert_eq!(encoded_fourth_sigma[2], w_cubed * &K3);
@@ -1005,7 +1005,7 @@ mod test {
         Left_Sigma : {0,1,2,3} -> {R0,O1,R2,O0}
         Right_Sigma : {0,1,2,3} -> {R1, O2, O3, L0}
         Out_Sigma : {0,1,2,3} -> {L1, L3, R3, L2}
-        Fourth_Sigma : {0,1,2,3} -> {F0, F1, F2, F3}
+        Fourth_Sigma : {0,1,2,3} -> {F1, F2, F3, F0}
         */
         let sigmas = perm.compute_sigma_permutations(num_wire_mappings);
         let left_sigma = &sigmas[0];
@@ -1040,13 +1040,13 @@ mod test {
         /*
         Check that the unique encodings of the sigma polynomials have been computed properly
         Left_Sigma : {R0,O1,R2,O0}
-            When encoded using w, K1,K2,K3 we have {1 * K1, w * K2, w^2 *K1, w^3 * K2}
+            When encoded using w, K1,K2,K3 we have {1 * K1, w * K2, w^2 * K1, 1 * K2}
         Right_Sigma : {R1, O2, O3, L0}
-            When encoded using w, K1,K2,K3 we have {1 * K1, w * K2, w^2 * K2, w^3}
+            When encoded using w, K1,K2,K3 we have {w * K1, w^2 * K2, w^3 * K2, 1}
         Out_Sigma : {L1, L3, R3, L2}
-            When encoded using w, K1, K2,K3 we have {1, w , w^2 * K1, w^3}
-        Fourth_Sigma : {0,1,2,3} -> {F0, F1, F2, F3}
-            When encoded using w, K1, K2,K3 we have {1 * K3, w * K3, w^2 * K3, w^3 * K3}
+            When encoded using w, K1, K2,K3 we have {w, w^3 , w^3 * K1, w^2}
+        Fourth_Sigma : {0,1,2,3} -> {F1, F2, F3, F0}
+            When encoded using w, K1, K2,K3 we have {w * K3, w^2 * K3, w^3 * K3, 1 * K3}
         */
         let domain = EvaluationDomain::new(num_wire_mappings).unwrap();
         let w: Fr = domain.group_gen;

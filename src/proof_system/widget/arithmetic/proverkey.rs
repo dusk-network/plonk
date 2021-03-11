@@ -62,8 +62,8 @@ impl ProverKey {
         let q_c_poly = &self.q_c.0;
         let q_4_poly = &self.q_4.0;
 
-        // (a_eval * b_eval * q_m_poly + a_eval * q_l + b_eval * q_r + c_eval *
-        // q_o + d_eval * q_4 + q_c) * q_arith_eval * alpha
+        // (a_eval * b_eval * q_m_poly + a_eval * q_l + b_eval * q_r + c_eval 
+        // * q_o + d_eval * q_4 + q_c) * q_arith_eval
         //
         // a_eval * b_eval * q_m_poly
         let ab = a_eval * b_eval;
