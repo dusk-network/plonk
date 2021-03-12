@@ -90,7 +90,7 @@ impl StandardComposer {
 
     /// Constructs a dense vector of the Public Inputs from the positions and
     /// the sparse vector that contains the values.
-    pub(crate) fn construct_dense_pi_vec(&self) -> Vec<BlsScalar> {
+    pub fn construct_dense_pi_vec(&self) -> Vec<BlsScalar> {
         let mut pi = vec![BlsScalar::zero(); self.n];
         self.public_inputs_sparse_store
             .iter()
