@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.1] - 12-03-21
+
+### Changed
+
+- Change `PublicParameters::trim` visibility to `pub`. [#460](https://github.com/dusk-network/plonk/issues/460)
+- Change `StandardComposer::construct_dense_pi_vec` visibility to `pub`.[#461](https://github.com/dusk-network/plonk/issues/461)
+
 ## [0.6.0] - 11-03-21
 
 ### Added
