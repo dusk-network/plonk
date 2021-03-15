@@ -15,6 +15,7 @@ use canonical::Canon;
 #[cfg(feature = "canon")]
 use canonical_derive::Canon;
 use dusk_bls12_381::BlsScalar;
+use dusk_bytes::{DeserializableSlice, Serializable, Write};
 use dusk_jubjub::{JubJubAffine, JubJubScalar};
 
 #[derive(Default, Debug, Clone)]
@@ -38,6 +39,69 @@ impl From<JubJubScalar> for PublicInputValue {
 impl From<JubJubAffine> for PublicInputValue {
     fn from(point: JubJubAffine) -> Self {
         Self(vec![point.get_x(), point.get_y()])
+    }
+}
+
+#[derive(Debug, Clone)]
+/// Collection of structs/objects that the Verifier will use in order to
+/// de/serialize data needed for Circuit proof verification.
+/// This structure can be seen as a link between the [`Circuit`] public input
+/// positions and the [`VerifierKey`] that the Verifier needs to use.
+pub struct VerifierData {
+    pub(self) key: VerifierKey,
+    pub(self) pi_pos: Vec<usize>,
+}
+
+impl VerifierData {
+    /// Creates a new [`VerifierData`] from a [`VerifierKey`] and the public
+    /// input positions of the circuit that it represents.
+    pub const fn new(key: VerifierKey, pi_pos: Vec<usize>) -> Self {
+        Self { key, pi_pos }
+    }
+
+    /// Returns a reference to the contained [`VerifierKey`].
+    pub const fn key(&self) -> &VerifierKey {
+        &self.key
+    }
+
+    /// Returns a reference to the contained Public Input positions.
+    pub const fn pi_pos(&self) -> &Vec<usize> {
+        &self.pi_pos
+    }
+
+    /// Deserializes the [`VerifierData`] into a vector of bytes.
+    #[allow(unused_must_use)]
+    pub fn to_var_bytes(&self) -> Vec<u8> {
+        let mut buff =
+            vec![
+                0u8;
+                VerifierKey::SIZE + u32::SIZE + self.pi_pos.len() * u32::SIZE
+            ];
+        let mut writer = &mut buff[..];
+
+        writer.write(&self.key.to_bytes());
+        writer.write(&(self.pi_pos.len() as u32).to_bytes());
+        self.pi_pos.iter().copied().for_each(|pos| {
+            // Omit the result since disk_bytes write can't fail here
+            // due to the fact that we're writing into a vector basically.
+            let _ = writer.write(&(pos as u32).to_bytes());
+        });
+
+        buff
+    }
+
+    /// Serializes [`VerifierData`] from a slice of bytes.
+    pub fn from_slice(buf: &[u8]) -> Result<Self, Error> {
+        let mut buffer = &buf[..];
+        let key = VerifierKey::from_reader(&mut buffer)?;
+        let pos_num = u32::from_reader(&mut buffer)? as usize;
+
+        let mut pi_pos = vec![];
+        for _ in 0..pos_num {
+            pi_pos.push(u32::from_reader(&mut buffer)? as usize);
+        }
+
+        Ok(Self { key, pi_pos })
     }
 }
 
@@ -233,6 +297,7 @@ mod tests {
         let pp_path = tmp.clone().join("pp_testcirc");
         let pk_path = tmp.clone().join("pk_testcirc");
         let vk_path = tmp.clone().join("vk_testcirc");
+        let vd_path = tmp.clone().join("vd_testcirc");
 
         // Generate CRS
         let pp_p = PublicParameters::setup(1 << 12, &mut rand::thread_rng())?;
@@ -269,6 +334,16 @@ mod tests {
 
         assert_eq!(pk, pk_p);
         assert_eq!(vk, vk_p);
+
+        // Alternatively, store the VerifierData just for the verifier side:
+        let verif_data = VerifierData::new(vk, pi_pos.clone());
+        File::create(&vd_path)
+            .and_then(|mut f| f.write(verif_data.to_var_bytes().as_slice()))
+            .unwrap();
+        let vd = fs::read(vd_path).unwrap();
+        let verif_data = VerifierData::from_slice(vd.as_slice())?;
+        assert_eq!(&vk, verif_data.key());
+        assert_eq!(&pi_pos, verif_data.pi_pos());
 
         // Prover POV
         let proof = {
