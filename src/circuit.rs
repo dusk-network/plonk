@@ -48,8 +48,8 @@ impl From<JubJubAffine> for PublicInputValue {
 /// This structure can be seen as a link between the [`Circuit`] public input
 /// positions and the [`VerifierKey`] that the Verifier needs to use.
 pub struct VerifierData {
-    pub(self) key: VerifierKey,
-    pub(self) pi_pos: Vec<usize>,
+    key: VerifierKey,
+    pi_pos: Vec<usize>,
 }
 
 impl VerifierData {
@@ -293,7 +293,9 @@ mod tests {
         use std::io::Write;
         use tempdir::TempDir;
 
-        let tmp = TempDir::new("plonk-keys-test-full").unwrap().into_path();
+        let tmp = TempDir::new("plonk-keys-test-full")
+            .expect("IO error")
+            .into_path();
         let pp_path = tmp.clone().join("pp_testcirc");
         let pk_path = tmp.clone().join("pk_testcirc");
         let vd_path = tmp.clone().join("vd_testcirc");
@@ -302,10 +304,10 @@ mod tests {
         let pp_p = PublicParameters::setup(1 << 12, &mut rand::thread_rng())?;
         File::create(&pp_path)
             .and_then(|mut f| f.write(pp_p.to_raw_var_bytes().as_slice()))
-            .unwrap();
+            .expect("IO error");
 
         // Read PublicParameters
-        let pp = fs::read(pp_path).unwrap();
+        let pp = fs::read(pp_path).expect("IO error");
         let pp =
             unsafe { PublicParameters::from_slice_unchecked(pp.as_slice()) };
 
@@ -318,10 +320,10 @@ mod tests {
         // Write the keys
         File::create(&pk_path)
             .and_then(|mut f| f.write(pk_p.to_var_bytes().as_slice()))
-            .unwrap();
+            .expect("IO error");
 
         // Read ProverKey
-        let pk = fs::read(pk_path).unwrap();
+        let pk = fs::read(pk_path).expect("IO error");
         let pk = ProverKey::from_slice(pk.as_slice())?;
 
         assert_eq!(pk, pk_p);
@@ -332,8 +334,8 @@ mod tests {
             .and_then(|mut f| {
                 f.write(og_verifier_data.to_var_bytes().as_slice())
             })
-            .unwrap();
-        let vd = fs::read(vd_path).unwrap();
+            .expect("IO error");
+        let vd = fs::read(vd_path).expect("IO error");
         let verif_data = VerifierData::from_slice(vd.as_slice())?;
         assert_eq!(og_verifier_data.key(), verif_data.key());
         assert_eq!(og_verifier_data.pi_pos(), verif_data.pi_pos());
