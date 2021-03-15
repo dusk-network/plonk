@@ -120,7 +120,7 @@ where
     fn compile(
         &mut self,
         pub_params: &PublicParameters,
-    ) -> Result<(ProverKey, VerifierKey, Vec<usize>), Error> {
+    ) -> Result<(ProverKey, VerifierData), Error> {
         use crate::proof_system::{Prover, Verifier};
         // Setup PublicParams
         let (ck, _) = pub_params.trim(self.padded_circuit_size())?;
@@ -138,10 +138,12 @@ where
             prover
                 .prover_key
                 .expect("Unexpected error. Missing ProverKey in compilation"),
-            verifier
-                .verifier_key
-                .expect("Unexpected error. Missing VerifierKey in compilation"),
-            pi_pos,
+            VerifierData::new(
+                verifier.verifier_key.expect(
+                    "Unexpected error. Missing VerifierKey in compilation",
+                ),
+                pi_pos,
+            ),
         ))
     }
 
@@ -213,8 +215,7 @@ fn build_pi(
 mod tests {
     use super::*;
     use crate::constraint_system::{ecc::*, StandardComposer};
-    use crate::proof_system::{ProverKey, VerifierKey};
-    use dusk_bytes::{DeserializableSlice, Serializable};
+    use crate::proof_system::ProverKey;
 
     // Implements a circuit that checks:
     // 1) a + b = c where C is a PI
@@ -296,7 +297,6 @@ mod tests {
         let tmp = TempDir::new("plonk-keys-test-full").unwrap().into_path();
         let pp_path = tmp.clone().join("pp_testcirc");
         let pk_path = tmp.clone().join("pk_testcirc");
-        let vk_path = tmp.clone().join("vk_testcirc");
         let vd_path = tmp.clone().join("vd_testcirc");
 
         // Generate CRS
@@ -314,36 +314,30 @@ mod tests {
         let mut circuit = TestCircuit::default();
 
         // Compile the circuit
-        let (pk_p, vk_p, pi_pos) = circuit.compile(&pp)?;
+        let (pk_p, og_verifier_data) = circuit.compile(&pp)?;
 
         // Write the keys
         File::create(&pk_path)
             .and_then(|mut f| f.write(pk_p.to_var_bytes().as_slice()))
-            .unwrap();
-        File::create(&vk_path)
-            .and_then(|mut f| f.write(&vk_p.to_bytes()))
             .unwrap();
 
         // Read ProverKey
         let pk = fs::read(pk_path).unwrap();
         let pk = ProverKey::from_slice(pk.as_slice())?;
 
-        // Read VerifierKey
-        let vk = fs::read(vk_path).unwrap();
-        let vk = VerifierKey::from_slice(vk.as_slice())?;
-
         assert_eq!(pk, pk_p);
-        assert_eq!(vk, vk_p);
 
-        // Alternatively, store the VerifierData just for the verifier side:
-        let verif_data = VerifierData::new(vk, pi_pos.clone());
+        // Store the VerifierData just for the verifier side:
+        // (You could also store pi_pos and VerifierKey sepparatedly).
         File::create(&vd_path)
-            .and_then(|mut f| f.write(verif_data.to_var_bytes().as_slice()))
+            .and_then(|mut f| {
+                f.write(og_verifier_data.to_var_bytes().as_slice())
+            })
             .unwrap();
         let vd = fs::read(vd_path).unwrap();
         let verif_data = VerifierData::from_slice(vd.as_slice())?;
-        assert_eq!(&vk, verif_data.key());
-        assert_eq!(&pi_pos, verif_data.pi_pos());
+        assert_eq!(og_verifier_data.key(), verif_data.key());
+        assert_eq!(og_verifier_data.pi_pos(), verif_data.pi_pos());
 
         // Prover POV
         let proof = {
@@ -372,6 +366,13 @@ mod tests {
             .into(),
         ];
 
-        verify_proof(&pp, &vk, &proof, &public_inputs2, &pi_pos, b"Test")
+        verify_proof(
+            &pp,
+            &verif_data.key(),
+            &proof,
+            &public_inputs2,
+            &verif_data.pi_pos(),
+            b"Test",
+        )
     }
 }
