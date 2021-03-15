@@ -91,14 +91,13 @@ impl VerifierData {
     }
 
     /// Serializes [`VerifierData`] from a slice of bytes.
-    pub fn from_slice(buf: &[u8]) -> Result<Self, Error> {
-        let mut buffer = &buf[..];
-        let key = VerifierKey::from_reader(&mut buffer)?;
-        let pos_num = u32::from_reader(&mut buffer)? as usize;
+    pub fn from_slice(mut buf: &[u8]) -> Result<Self, Error> {
+        let key = VerifierKey::from_reader(&mut buf)?;
+        let pos_num = u32::from_reader(&mut buf)? as usize;
 
         let mut pi_pos = vec![];
         for _ in 0..pos_num {
-            pi_pos.push(u32::from_reader(&mut buffer)? as usize);
+            pi_pos.push(u32::from_reader(&mut buf)? as usize);
         }
 
         Ok(Self { key, pi_pos })
