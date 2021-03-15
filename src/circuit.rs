@@ -15,6 +15,7 @@ use canonical::Canon;
 #[cfg(feature = "canon")]
 use canonical_derive::Canon;
 use dusk_bls12_381::BlsScalar;
+use dusk_bytes::{DeserializableSlice, Serializable, Write};
 use dusk_jubjub::{JubJubAffine, JubJubScalar};
 
 #[derive(Default, Debug, Clone)]
@@ -41,6 +42,68 @@ impl From<JubJubAffine> for PublicInputValue {
     }
 }
 
+#[derive(Debug, Clone)]
+/// Collection of structs/objects that the Verifier will use in order to
+/// de/serialize data needed for Circuit proof verification.
+/// This structure can be seen as a link between the [`Circuit`] public input
+/// positions and the [`VerifierKey`] that the Verifier needs to use.
+pub struct VerifierData {
+    key: VerifierKey,
+    pi_pos: Vec<usize>,
+}
+
+impl VerifierData {
+    /// Creates a new [`VerifierData`] from a [`VerifierKey`] and the public
+    /// input positions of the circuit that it represents.
+    pub const fn new(key: VerifierKey, pi_pos: Vec<usize>) -> Self {
+        Self { key, pi_pos }
+    }
+
+    /// Returns a reference to the contained [`VerifierKey`].
+    pub const fn key(&self) -> &VerifierKey {
+        &self.key
+    }
+
+    /// Returns a reference to the contained Public Input positions.
+    pub const fn pi_pos(&self) -> &Vec<usize> {
+        &self.pi_pos
+    }
+
+    /// Deserializes the [`VerifierData`] into a vector of bytes.
+    #[allow(unused_must_use)]
+    pub fn to_var_bytes(&self) -> Vec<u8> {
+        let mut buff =
+            vec![
+                0u8;
+                VerifierKey::SIZE + u32::SIZE + self.pi_pos.len() * u32::SIZE
+            ];
+        let mut writer = &mut buff[..];
+
+        writer.write(&self.key.to_bytes());
+        writer.write(&(self.pi_pos.len() as u32).to_bytes());
+        self.pi_pos.iter().copied().for_each(|pos| {
+            // Omit the result since disk_bytes write can't fail here
+            // due to the fact that we're writing into a vector basically.
+            let _ = writer.write(&(pos as u32).to_bytes());
+        });
+
+        buff
+    }
+
+    /// Serializes [`VerifierData`] from a slice of bytes.
+    pub fn from_slice(mut buf: &[u8]) -> Result<Self, Error> {
+        let key = VerifierKey::from_reader(&mut buf)?;
+        let pos_num = u32::from_reader(&mut buf)? as usize;
+
+        let mut pi_pos = vec![];
+        for _ in 0..pos_num {
+            pi_pos.push(u32::from_reader(&mut buf)? as usize);
+        }
+
+        Ok(Self { key, pi_pos })
+    }
+}
+
 /// Circuit representation for a gadget with all of the tools that it
 /// should implement.
 pub trait Circuit
@@ -56,7 +119,7 @@ where
     fn compile(
         &mut self,
         pub_params: &PublicParameters,
-    ) -> Result<(ProverKey, VerifierKey, Vec<usize>), Error> {
+    ) -> Result<(ProverKey, VerifierData), Error> {
         use crate::proof_system::{Prover, Verifier};
         // Setup PublicParams
         let (ck, _) = pub_params.trim(self.padded_circuit_size())?;
@@ -74,10 +137,12 @@ where
             prover
                 .prover_key
                 .expect("Unexpected error. Missing ProverKey in compilation"),
-            verifier
-                .verifier_key
-                .expect("Unexpected error. Missing VerifierKey in compilation"),
-            pi_pos,
+            VerifierData::new(
+                verifier.verifier_key.expect(
+                    "Unexpected error. Missing VerifierKey in compilation",
+                ),
+                pi_pos,
+            ),
         ))
     }
 
@@ -149,8 +214,7 @@ fn build_pi(
 mod tests {
     use super::*;
     use crate::constraint_system::{ecc::*, StandardComposer};
-    use crate::proof_system::{ProverKey, VerifierKey};
-    use dusk_bytes::{DeserializableSlice, Serializable};
+    use crate::proof_system::ProverKey;
 
     // Implements a circuit that checks:
     // 1) a + b = c where C is a PI
@@ -229,19 +293,21 @@ mod tests {
         use std::io::Write;
         use tempdir::TempDir;
 
-        let tmp = TempDir::new("plonk-keys-test-full").unwrap().into_path();
+        let tmp = TempDir::new("plonk-keys-test-full")
+            .expect("IO error")
+            .into_path();
         let pp_path = tmp.clone().join("pp_testcirc");
         let pk_path = tmp.clone().join("pk_testcirc");
-        let vk_path = tmp.clone().join("vk_testcirc");
+        let vd_path = tmp.clone().join("vd_testcirc");
 
         // Generate CRS
         let pp_p = PublicParameters::setup(1 << 12, &mut rand::thread_rng())?;
         File::create(&pp_path)
             .and_then(|mut f| f.write(pp_p.to_raw_var_bytes().as_slice()))
-            .unwrap();
+            .expect("IO error");
 
         // Read PublicParameters
-        let pp = fs::read(pp_path).unwrap();
+        let pp = fs::read(pp_path).expect("IO error");
         let pp =
             unsafe { PublicParameters::from_slice_unchecked(pp.as_slice()) };
 
@@ -249,26 +315,30 @@ mod tests {
         let mut circuit = TestCircuit::default();
 
         // Compile the circuit
-        let (pk_p, vk_p, pi_pos) = circuit.compile(&pp)?;
+        let (pk_p, og_verifier_data) = circuit.compile(&pp)?;
 
         // Write the keys
         File::create(&pk_path)
             .and_then(|mut f| f.write(pk_p.to_var_bytes().as_slice()))
-            .unwrap();
-        File::create(&vk_path)
-            .and_then(|mut f| f.write(&vk_p.to_bytes()))
-            .unwrap();
+            .expect("IO error");
 
         // Read ProverKey
-        let pk = fs::read(pk_path).unwrap();
+        let pk = fs::read(pk_path).expect("IO error");
         let pk = ProverKey::from_slice(pk.as_slice())?;
 
-        // Read VerifierKey
-        let vk = fs::read(vk_path).unwrap();
-        let vk = VerifierKey::from_slice(vk.as_slice())?;
-
         assert_eq!(pk, pk_p);
-        assert_eq!(vk, vk_p);
+
+        // Store the VerifierData just for the verifier side:
+        // (You could also store pi_pos and VerifierKey sepparatedly).
+        File::create(&vd_path)
+            .and_then(|mut f| {
+                f.write(og_verifier_data.to_var_bytes().as_slice())
+            })
+            .expect("IO error");
+        let vd = fs::read(vd_path).expect("IO error");
+        let verif_data = VerifierData::from_slice(vd.as_slice())?;
+        assert_eq!(og_verifier_data.key(), verif_data.key());
+        assert_eq!(og_verifier_data.pi_pos(), verif_data.pi_pos());
 
         // Prover POV
         let proof = {
@@ -297,6 +367,13 @@ mod tests {
             .into(),
         ];
 
-        verify_proof(&pp, &vk, &proof, &public_inputs2, &pi_pos, b"Test")
+        verify_proof(
+            &pp,
+            &verif_data.key(),
+            &proof,
+            &public_inputs2,
+            &verif_data.pi_pos(),
+            b"Test",
+        )
     }
 }
