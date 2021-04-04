@@ -164,7 +164,7 @@ impl CommitKey {
         // Compute commitment
         let commitment =
             msm_variable_base(&self.powers_of_g, &polynomial.coeffs);
-        Ok(Commitment::from_projective(commitment))
+        Ok(Commitment(G1Affine::from(commitment)))
     }
 
     /// Computes a single witness for multiple polynomials at the same point, by

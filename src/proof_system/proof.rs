@@ -357,7 +357,7 @@ impl Proof {
             + self.t_2_comm.0 * z_n
             + self.t_3_comm.0 * z_two_n
             + self.t_4_comm.0 * z_three_n;
-        Commitment::from_projective(t_comm)
+        Commitment(G1Affine::from(t_comm))
     }
 
     // Commitment to [r]_1
@@ -424,7 +424,7 @@ impl Proof {
             self.z_comm.0,
         );
 
-        Commitment::from_projective(msm_variable_base(&points, &scalars))
+        Commitment(G1Affine::from(msm_variable_base(&points, &scalars)))
     }
 }
 
