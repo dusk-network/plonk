@@ -353,11 +353,10 @@ impl Proof {
         let z_n = z_challenge.pow(&[n as u64, 0, 0, 0]);
         let z_two_n = z_challenge.pow(&[2 * n as u64, 0, 0, 0]);
         let z_three_n = z_challenge.pow(&[3 * n as u64, 0, 0, 0]);
-        let t_comm = self.t_1_comm.0
+        Commitment::from(self.t_1_comm.0
             + self.t_2_comm.0 * z_n
             + self.t_3_comm.0 * z_two_n
-            + self.t_4_comm.0 * z_three_n;
-        Commitment::from_projective(t_comm)
+            + self.t_4_comm.0 * z_three_n)
     }
 
     // Commitment to [r]_1
@@ -424,7 +423,7 @@ impl Proof {
             self.z_comm.0,
         );
 
-        Commitment::from_projective(msm_variable_base(&points, &scalars))
+        Commitment::from(msm_variable_base(&points, &scalars))
     }
 }
 
