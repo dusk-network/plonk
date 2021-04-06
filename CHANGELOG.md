@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 06-04-21
+
 ### Added
 
 - Implement `VerifierData` structure. [#466](https://github.com/dusk-network/plonk/issues/466)

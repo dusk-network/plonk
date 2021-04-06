@@ -1,6 +1,6 @@
 [package]
 name = "dusk-plonk"
-version = "0.7.0-pre.0"
+version = "0.7.0"
 authors = ["Kevaundray Wedderburn <kevtheappdev@gmail.com>",
            "Luke Pearson <luke@dusk.network>", 
            "CPerezz <carlos@dusk.network>"] 
