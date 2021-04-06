@@ -18,4 +18,6 @@ trait CommitmentScheme {
     type Proof;
 }
 
-pub mod kzg10;
+pub(crate) mod kzg10;
+pub use kzg10::key;
+pub use kzg10::PublicParameters;

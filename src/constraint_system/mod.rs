@@ -24,5 +24,6 @@ pub mod logic;
 /// Range gate
 pub mod range;
 
+pub(crate) use variable::WireData;
 pub use composer::StandardComposer;
-pub use variable::{Variable, WireData};
+pub use variable::Variable;
