@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Implement `VerifierData` structure. [#466](https://github.com/dusk-network/plonk/issues/466)
 
+### Fixed
+
+- Fix circuit debuggger compilation issues. [#488](https://github.com/dusk-network/plonk/issues/488)
+
 ## [0.6.1] - 12-03-21
 
 ### Changed
