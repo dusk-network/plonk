@@ -54,13 +54,13 @@
 
 mod bit_iterator;
 pub mod circuit;
-mod commitment_scheme;
+pub mod commitment_scheme;
 pub mod constraint_system;
-mod error;
+pub mod error;
 mod fft;
 mod permutation;
 pub mod prelude;
-mod proof_system;
+pub mod proof_system;
 mod transcript;
 mod util;
 

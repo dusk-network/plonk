@@ -423,6 +423,7 @@ impl StandardComposer {
             let f_3 = f - BlsScalar::from(3);
             f * f_1 * f_2 * f_3
         };
+        let pi_vec = self.construct_dense_pi_vec();
         let four = BlsScalar::from(4);
         for i in 0..self.n {
             let qm = self.q_m[i];
@@ -436,7 +437,7 @@ impl StandardComposer {
             let qlogic = self.q_logic[i];
             let qfixed = self.q_fixed_group_add[i];
             let qvar = self.q_variable_group_add[i];
-            let pi = self.construct_dense_pi_vec();
+            let pi = pi_vec[i];
 
             let a = w_l[i];
             let a_next = w_l[(i + 1) % self.n];

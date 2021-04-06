@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 06-04-21
+
+### Added
+
+- Implement `VerifierData` structure. [#466](https://github.com/dusk-network/plonk/issues/466)
+
+### Fixed
+
+- Fix circuit debuggger compilation issues. [#488](https://github.com/dusk-network/plonk/issues/488)
+- Fix import paths for lib components. [#489](https://github.com/dusk-network/plonk/issues/489)
+
 ## [0.6.1] - 12-03-21
 
 ### Changed
