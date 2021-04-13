@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `alloc` feature to the crate. [#345](https://github.com/dusk-network/plonk/issues/345)
+
+### Changed
+
+- Make the crate `no_std`. [#350](https://github.com/dusk-network/plonk/issues/350)
+
 ## [0.7.0] - 06-04-21
 
 ### Added
