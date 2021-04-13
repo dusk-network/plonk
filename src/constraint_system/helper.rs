@@ -4,7 +4,7 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use super::{PlookupComposer, StandardComposer};
+use super::StandardComposer;
 use crate::commitment_scheme::kzg10::PublicParameters;
 use crate::plookup::PreprocessedTable4Arity;
 use crate::proof_system::{Prover, Verifier};
@@ -29,7 +29,7 @@ pub(crate) fn dummy_gadget(n: usize, composer: &mut StandardComposer) {
 }
 
 /// Adds dummy constraints using arithmetic gates
-pub(crate) fn dummy_gadget_plookup(n: usize, composer: &mut PlookupComposer) {
+pub(crate) fn dummy_gadget_plookup(n: usize, composer: &mut StandardComposer) {
     let one = BlsScalar::one();
 
     let var_one = composer.add_input(one);
@@ -54,7 +54,7 @@ pub(crate) fn gadget_tester(
     // Common View
     let public_parameters = PublicParameters::setup(2 * n, &mut rand::thread_rng())?;
     // Provers View
-    let (proof, public_inputs) = {
+    let (proof, public_inputs, lookup_table) = {
         // Create a prover struct
         let mut prover = Prover::new(b"demo");
 
@@ -73,9 +73,10 @@ pub(crate) fn gadget_tester(
         // Once the prove method is called, the public inputs are cleared
         // So pre-fetch these before calling Prove
         let public_inputs = prover.cs.public_inputs.clone();
+        let lookup_table = prover.cs.lookup_table.clone();
 
         // Compute Proof
-        (prover.prove(&ck)?, public_inputs)
+        (prover.prove(&ck)?, public_inputs, lookup_table)
     };
     // Verifiers view
     //
@@ -95,7 +96,7 @@ pub(crate) fn gadget_tester(
     verifier.preprocess(&ck)?;
 
     // Verify proof
-    verifier.verify(&proof, &vk, &public_inputs)
+    verifier.verify(&proof, &vk, &public_inputs, &lookup_table)
 }
 
 // /// Takes a generic gadget function with no auxillary input and

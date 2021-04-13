@@ -55,6 +55,7 @@ impl StandardComposer {
         self.q_arith.push(BlsScalar::zero());
         self.q_range.push(BlsScalar::zero());
         self.q_logic.push(BlsScalar::zero());
+        self.q_lookup.push(BlsScalar::zero());
 
         self.public_inputs.push(BlsScalar::zero());
 

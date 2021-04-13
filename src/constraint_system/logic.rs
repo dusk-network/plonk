@@ -225,6 +225,7 @@ impl StandardComposer {
             self.q_range.push(BlsScalar::zero());
             self.q_fixed_group_add.push(BlsScalar::zero());
             self.q_variable_group_add.push(BlsScalar::zero());
+            self.q_lookup.push(BlsScalar::zero());
             match is_xor_gate {
                 true => {
                     self.q_c.push(-BlsScalar::one());
@@ -246,6 +247,7 @@ impl StandardComposer {
         self.q_range.push(BlsScalar::zero());
         self.q_fixed_group_add.push(BlsScalar::zero());
         self.q_variable_group_add.push(BlsScalar::zero());
+        self.q_lookup.push(BlsScalar::zero());
 
         self.q_c.push(BlsScalar::zero());
         self.q_logic.push(BlsScalar::zero());

@@ -7,8 +7,8 @@
 mod proverkey;
 mod verifierkey;
 
-pub use proverkey::PlookupProverKey;
-pub use verifierkey::PlookupVerifierKey;
+pub use proverkey::ProverKey;
+pub use verifierkey::VerifierKey;
 
 /// Common functionality across both the ProverKey and VerifierKey is enacted below
 ///
