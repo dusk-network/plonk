@@ -6,7 +6,7 @@
 
 use crate::commitment_scheme::kzg10::{CommitKey, OpeningKey};
 use crate::constraint_system::StandardComposer;
-use crate::plookup::{MultiSet, PlookupTable4Arity, PreprocessedTable4Arity};
+use crate::plookup::PlookupTable4Arity;
 use crate::proof_system::widget::VerifierKey;
 use crate::proof_system::Proof;
 use anyhow::{Error, Result};

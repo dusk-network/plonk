@@ -8,7 +8,7 @@ use super::proof_system_errors::ProofErrors;
 use crate::commitment_scheme::kzg10::CommitKey;
 use crate::constraint_system::{StandardComposer, Variable};
 use crate::fft::{EvaluationDomain, Polynomial};
-use crate::plookup::{MultiSet, PlookupTable4Arity, PreprocessedTable4Arity};
+use crate::plookup::MultiSet;
 use crate::proof_system::widget::ProverKey;
 use crate::proof_system::{linearisation_poly, proof::Proof, quotient_poly};
 use crate::transcript::TranscriptProtocol;
@@ -41,7 +41,7 @@ impl Prover {
 
 impl Default for Prover {
     fn default() -> Prover {
-        Prover::new(b"plookup")
+        Prover::new(b"plonk")
     }
 }
 

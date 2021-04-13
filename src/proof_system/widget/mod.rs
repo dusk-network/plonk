@@ -15,8 +15,6 @@ use crate::fft::Evaluations;
 use crate::transcript::TranscriptProtocol;
 use anyhow::{Error, Result};
 use merlin::Transcript;
-use serde::de::Visitor;
-use serde::{self, Deserialize, Deserializer, Serialize, Serializer};
 
 /// PLONK circuit proving key
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -29,7 +27,7 @@ pub struct ProverKey {
     pub logic: logic::ProverKey,
     /// ProverKey for range gate
     pub range: range::ProverKey,
-    /// ProverKey for lookup gates
+    /// ProverKey for fixed base curve multiplication gates
     pub fixed_base: ecc::scalar_mul::fixed_base::ProverKey,
     /// ProverKey for permutation checks
     pub permutation: permutation::ProverKey,

@@ -14,7 +14,7 @@ use super::linearisation_poly::ProofEvaluations;
 use super::proof_system_errors::ProofErrors;
 use crate::commitment_scheme::kzg10::{AggregateProof, Commitment, OpeningKey};
 use crate::fft::{EvaluationDomain, Polynomial};
-use crate::plookup::{MultiSet, PlookupTable4Arity, PreprocessedTable4Arity};
+use crate::plookup::{MultiSet, PlookupTable4Arity};
 use crate::proof_system::widget::VerifierKey;
 use crate::transcript::TranscriptProtocol;
 use anyhow::{Error, Result};
