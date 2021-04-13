@@ -7,6 +7,7 @@
 use crate::error::Error;
 use crate::fft::{EvaluationDomain, Polynomial};
 use crate::proof_system::widget::ProverKey;
+use alloc::vec::Vec;
 use dusk_bls12_381::BlsScalar;
 
 /// This quotient polynomial can only be used for the standard composer

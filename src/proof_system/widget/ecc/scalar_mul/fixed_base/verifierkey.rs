@@ -7,6 +7,8 @@
 use super::{check_bit_consistency, extract_bit};
 use crate::commitment_scheme::kzg10::Commitment;
 use crate::proof_system::linearisation_poly::ProofEvaluations;
+#[cfg(feature = "alloc")]
+use alloc::vec::Vec;
 use dusk_bls12_381::{BlsScalar, G1Affine};
 use dusk_jubjub::EDWARDS_D;
 

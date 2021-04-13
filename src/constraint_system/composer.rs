@@ -22,6 +22,7 @@
 use crate::constraint_system::Variable;
 use crate::permutation::Permutation;
 use alloc::collections::BTreeMap;
+use alloc::vec::Vec;
 use dusk_bls12_381::BlsScalar;
 use hashbrown::HashMap;
 

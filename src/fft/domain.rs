@@ -14,6 +14,8 @@
 
 use super::Evaluations;
 use crate::error::Error;
+#[cfg(feature = "alloc")]
+use alloc::vec::Vec;
 use core::ops::MulAssign;
 use dusk_bls12_381::{BlsScalar, GENERATOR, ROOT_OF_UNITY, TWO_ADACITY};
 use dusk_bytes::{DeserializableSlice, Serializable};
@@ -85,6 +87,7 @@ impl Serializable<{ u64::SIZE + u32::SIZE + 5 * BlsScalar::SIZE }>
     }
 }
 
+#[cfg(feature = "alloc")]
 impl EvaluationDomain {
     /// Construct a domain that is large enough for evaluations of a polynomial
     /// having `num_coeffs` coefficients.

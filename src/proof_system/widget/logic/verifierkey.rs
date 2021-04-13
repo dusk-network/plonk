@@ -7,6 +7,8 @@
 use super::{delta, delta_xor_and};
 use crate::commitment_scheme::kzg10::Commitment;
 use crate::proof_system::linearisation_poly::ProofEvaluations;
+#[cfg(feature = "alloc")]
+use alloc::vec::Vec;
 use dusk_bls12_381::{BlsScalar, G1Affine};
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]

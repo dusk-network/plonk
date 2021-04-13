@@ -16,6 +16,7 @@ use crate::error::Error;
 use crate::fft::EvaluationDomain;
 use crate::proof_system::widget::VerifierKey;
 use crate::transcript::TranscriptProtocol;
+use alloc::vec::Vec;
 use dusk_bls12_381::{multiscalar_mul::msm_variable_base, BlsScalar, G1Affine};
 use dusk_bytes::{DeserializableSlice, Serializable};
 use merlin::Transcript;

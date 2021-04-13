@@ -8,6 +8,7 @@ use super::StandardComposer;
 use crate::commitment_scheme::kzg10::PublicParameters;
 use crate::error::Error;
 use crate::proof_system::{Prover, Verifier};
+use alloc::vec::Vec;
 use dusk_bls12_381::BlsScalar;
 use rand_core::OsRng;
 

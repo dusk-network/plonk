@@ -10,6 +10,8 @@ use crate::commitment_scheme::kzg10::PublicParameters;
 use crate::constraint_system::StandardComposer;
 use crate::error::Error;
 use crate::proof_system::{Proof, ProverKey, VerifierKey};
+#[cfg(feature = "alloc")]
+use alloc::vec::Vec;
 #[cfg(feature = "canon")]
 use canonical::Canon;
 #[cfg(feature = "canon")]
