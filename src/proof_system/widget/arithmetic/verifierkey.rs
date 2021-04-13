@@ -63,6 +63,7 @@ impl Serializable<{ 7 * Commitment::SIZE }> for VerifierKey {
     }
 }
 
+#[cfg(feature = "alloc")]
 impl VerifierKey {
     pub(crate) fn compute_linearisation_commitment(
         &self,

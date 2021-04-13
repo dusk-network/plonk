@@ -21,6 +21,7 @@ pub(crate) struct VerifierKey {
     pub(crate) fourth_sigma: Commitment,
 }
 
+#[cfg(feature = "alloc")]
 impl VerifierKey {
     pub(crate) fn compute_linearisation_commitment(
         &self,

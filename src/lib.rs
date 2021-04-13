@@ -61,9 +61,8 @@ if #[cfg(feature = "alloc")] {
     #[macro_use]
     extern crate alloc;
     pub mod constraint_system;
-    pub mod circuit;
     mod bit_iterator;
-    mod transcript;
+    pub mod circuit;
 });
 
 pub mod commitment_scheme;
@@ -72,6 +71,7 @@ mod fft;
 mod permutation;
 pub mod prelude;
 pub mod proof_system;
+mod transcript;
 mod util;
 
 #[cfg(feature = "nightly")]

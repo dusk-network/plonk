@@ -9,16 +9,18 @@
 //! Use this as the only import that you need to interact
 //! with the principal data structures of the plonk library.
 
-pub use crate::circuit::{Circuit, PublicInputValue};
-pub use crate::commitment_scheme::kzg10::{
-    key::{CommitKey, OpeningKey},
-    PublicParameters,
-};
-pub use crate::constraint_system::{StandardComposer, Variable};
-pub use crate::proof_system::{
-    widget::{ProverKey, VerifierKey},
-    Proof, Prover, Verifier,
-};
+cfg_if::cfg_if!(
+if #[cfg(feature = "alloc")] {
+    pub use crate::commitment_scheme::kzg10::{
+        key::{CommitKey, OpeningKey},
+        PublicParameters,
+    };
+    pub use crate::circuit::{self, Circuit, PublicInputValue, VerifierData};
+    pub use crate::constraint_system::{StandardComposer, Variable};
+    pub use crate::proof_system::{widget::ProverKey, Prover, Verifier};
+});
+
+pub use crate::proof_system::{widget::VerifierKey, Proof};
 
 /// Re-exported `dusk-bls12_381::BlsScalar`.
 pub use dusk_bls12_381::BlsScalar;

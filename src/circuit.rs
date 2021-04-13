@@ -9,8 +9,7 @@
 use crate::commitment_scheme::kzg10::PublicParameters;
 use crate::constraint_system::StandardComposer;
 use crate::error::Error;
-use crate::proof_system::{Proof, ProverKey, VerifierKey};
-#[cfg(feature = "alloc")]
+use crate::proof_system::{Proof, Prover, ProverKey, Verifier, VerifierKey};
 use alloc::vec::Vec;
 #[cfg(feature = "canon")]
 use canonical::Canon;
@@ -28,19 +27,19 @@ pub struct PublicInputValue(pub(crate) Vec<BlsScalar>);
 
 impl From<BlsScalar> for PublicInputValue {
     fn from(scalar: BlsScalar) -> Self {
-        Self(vec![scalar])
+        PublicInputValue(vec![scalar])
     }
 }
 
 impl From<JubJubScalar> for PublicInputValue {
     fn from(scalar: JubJubScalar) -> Self {
-        Self(vec![scalar.into()])
+        PublicInputValue(vec![scalar.into()])
     }
 }
 
 impl From<JubJubAffine> for PublicInputValue {
     fn from(point: JubJubAffine) -> Self {
-        Self(vec![point.get_x(), point.get_y()])
+        PublicInputValue(vec![point.get_x(), point.get_y()])
     }
 }
 
@@ -122,7 +121,6 @@ where
         &mut self,
         pub_params: &PublicParameters,
     ) -> Result<(ProverKey, VerifierData), Error> {
-        use crate::proof_system::{Prover, Verifier};
         // Setup PublicParams
         let (ck, _) = pub_params.trim(self.padded_circuit_size())?;
         // Generate & save `ProverKey` with some random values.
@@ -156,7 +154,6 @@ where
         prover_key: &ProverKey,
         transcript_init: &'static [u8],
     ) -> Result<Proof, Error> {
-        use crate::proof_system::Prover;
         let (ck, _) = pub_params.trim(self.padded_circuit_size())?;
         // New Prover instance
         let mut prover = Prover::new(transcript_init);
@@ -181,7 +178,6 @@ pub fn verify_proof(
     pub_inputs_positions: &[usize],
     transcript_init: &'static [u8],
 ) -> Result<(), Error> {
-    use crate::proof_system::Verifier;
     let trim_size = verifier_key.padded_circuit_size();
     let (_, vk) = pub_params.trim(trim_size)?;
 

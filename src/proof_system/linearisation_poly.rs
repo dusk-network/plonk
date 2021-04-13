@@ -4,7 +4,10 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use crate::fft::{EvaluationDomain, Polynomial};
+use crate::fft::EvaluationDomain;
+#[cfg(feature = "alloc")]
+use crate::fft::Polynomial;
+#[cfg(feature = "alloc")]
 use crate::proof_system::widget::ProverKey;
 use dusk_bls12_381::BlsScalar;
 use dusk_bytes::{DeserializableSlice, Serializable};
@@ -129,6 +132,7 @@ impl Serializable<{ 16 * BlsScalar::SIZE }> for ProofEvaluations {
     }
 }
 
+#[cfg(feature = "alloc")]
 #[allow(clippy::too_many_arguments)]
 /// Compute the linearisation polynomial
 pub(crate) fn compute(
@@ -243,6 +247,7 @@ pub(crate) fn compute(
     )
 }
 
+#[cfg(feature = "alloc")]
 #[allow(clippy::too_many_arguments)]
 fn compute_circuit_satisfiability(
     (

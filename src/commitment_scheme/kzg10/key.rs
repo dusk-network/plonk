@@ -11,6 +11,7 @@ use super::{Commitment, Proof};
 use crate::{
     error::Error, fft::Polynomial, transcript::TranscriptProtocol, util,
 };
+use alloc::vec::Vec;
 use dusk_bls12_381::{
     multiscalar_mul::msm_variable_base, BlsScalar, G1Affine, G1Projective,
     G2Affine, G2Prepared,

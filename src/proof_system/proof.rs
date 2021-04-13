@@ -10,14 +10,20 @@
 //! This module contains the implementation of the `StandardComposer`s
 //! `Proof` structure and it's methods.
 
+cfg_if::cfg_if!(
+    if #[cfg(feature = "alloc")] {
+        use alloc::vec::Vec;
+        use dusk_bls12_381::multiscalar_mul::msm_variable_base;
+        use crate::commitment_scheme::kzg10::{AggregateProof, OpeningKey};
+});
+
 use super::linearisation_poly::ProofEvaluations;
-use crate::commitment_scheme::kzg10::{AggregateProof, Commitment, OpeningKey};
+use crate::commitment_scheme::kzg10::Commitment;
 use crate::error::Error;
 use crate::fft::EvaluationDomain;
 use crate::proof_system::widget::VerifierKey;
 use crate::transcript::TranscriptProtocol;
-use alloc::vec::Vec;
-use dusk_bls12_381::{multiscalar_mul::msm_variable_base, BlsScalar, G1Affine};
+use dusk_bls12_381::{BlsScalar, G1Affine};
 use dusk_bytes::{DeserializableSlice, Serializable};
 use merlin::Transcript;
 
@@ -119,6 +125,7 @@ impl Serializable<{ 11 * Commitment::SIZE + ProofEvaluations::SIZE }>
     }
 }
 
+#[cfg(feature = "alloc")]
 impl Proof {
     /// Performs the verification of a `Proof` returning a boolean result.
     pub(crate) fn verify(
@@ -439,6 +446,7 @@ fn compute_first_lagrange_evaluation(
     z_h_eval * denom.invert().unwrap()
 }
 
+#[cfg(feature = "alloc")]
 #[warn(clippy::needless_range_loop)]
 fn compute_barycentric_eval(
     evaluations: &[BlsScalar],

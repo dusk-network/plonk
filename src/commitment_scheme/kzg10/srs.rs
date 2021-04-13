@@ -8,6 +8,7 @@
 //! String (SRS).
 use super::key::{CommitKey, OpeningKey};
 use crate::{error::Error, util};
+use alloc::vec::Vec;
 use dusk_bls12_381::{G1Affine, G1Projective, G2Affine};
 use dusk_bytes::{DeserializableSlice, Serializable};
 use rand_core::{CryptoRng, RngCore};

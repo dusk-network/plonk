@@ -16,6 +16,7 @@ pub(crate) struct VerifierKey {
     pub(crate) q_variable_group_add: Commitment,
 }
 
+#[cfg(feature = "alloc")]
 impl VerifierKey {
     pub(crate) fn compute_linearisation_commitment(
         &self,

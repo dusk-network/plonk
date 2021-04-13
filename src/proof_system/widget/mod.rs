@@ -10,19 +10,17 @@ pub mod logic;
 pub mod permutation;
 pub mod range;
 
-cfg_if::cfg_if!(
-    if #[cfg(feature = "alloc")] {
-        use crate::fft::{EvaluationDomain, Evaluations, Polynomial};
-        use crate::transcript::TranscriptProtocol;
-        use alloc::vec::Vec;
-        use merlin::Transcript;
-    }
-);
+#[cfg(feature = "alloc")]
+use crate::fft::{EvaluationDomain, Evaluations, Polynomial};
+#[cfg(feature = "alloc")]
+use alloc::vec::Vec;
 
 use crate::commitment_scheme::kzg10::Commitment;
 use crate::error::Error;
+use crate::transcript::TranscriptProtocol;
 use dusk_bls12_381::BlsScalar;
 use dusk_bytes::{DeserializableSlice, Serializable};
+use merlin::Transcript;
 
 /// PLONK circuit verification key
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
@@ -221,6 +219,7 @@ pub struct ProverKey {
     pub(crate) v_h_coset_4n: Evaluations,
 }
 
+#[cfg(feature = "alloc")]
 impl ProverKey {
     /// Returns the number of `Polynomial`s contained in a ProverKey.
     const fn num_polys() -> usize {

@@ -8,9 +8,13 @@
 //! to know and use the logic behind Polynomials. As well as
 //! the operations that the `Composer` needs to peform with them.
 pub(crate) mod domain;
+#[cfg(feature = "alloc")]
 pub(crate) mod evaluations;
+#[cfg(feature = "alloc")]
 pub(crate) mod polynomial;
 
 pub(crate) use domain::EvaluationDomain;
+#[cfg(feature = "alloc")]
 pub(crate) use evaluations::Evaluations;
+#[cfg(feature = "alloc")]
 pub(crate) use polynomial::Polynomial;
