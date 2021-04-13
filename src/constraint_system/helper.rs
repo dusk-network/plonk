@@ -9,6 +9,7 @@ use crate::commitment_scheme::kzg10::PublicParameters;
 use crate::error::Error;
 use crate::proof_system::{Prover, Verifier};
 use dusk_bls12_381::BlsScalar;
+use rand_core::OsRng;
 
 /// Adds dummy constraints using arithmetic gates
 pub(crate) fn dummy_gadget(n: usize, composer: &mut StandardComposer) {
@@ -34,8 +35,7 @@ pub(crate) fn gadget_tester(
     n: usize,
 ) -> Result<(), Error> {
     // Common View
-    let public_parameters =
-        PublicParameters::setup(2 * n, &mut rand::thread_rng())?;
+    let public_parameters = PublicParameters::setup(2 * n, &mut OsRng)?;
     // Provers View
     let (proof, public_inputs) = {
         // Create a prover struct

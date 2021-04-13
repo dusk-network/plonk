@@ -486,17 +486,17 @@ mod test {
     use super::*;
     use crate::fft::{EvaluationDomain, Polynomial};
     use dusk_bls12_381::BlsScalar;
+    use rand_core::OsRng;
 
     fn rand_poly_eval(n: usize) -> (Polynomial, Evaluations) {
-        let polynomial = Polynomial::rand(n, &mut rand::thread_rng());
+        let polynomial = Polynomial::rand(n, &mut OsRng);
         (polynomial, rand_evaluations(n))
     }
 
     fn rand_evaluations(n: usize) -> Evaluations {
         let domain = EvaluationDomain::new(4 * n).unwrap();
-        let values: Vec<_> = (0..4 * n)
-            .map(|_| BlsScalar::random(&mut rand::thread_rng()))
-            .collect();
+        let values: Vec<_> =
+            (0..4 * n).map(|_| BlsScalar::random(&mut OsRng)).collect();
         let evaluations = Evaluations::from_vec_and_domain(values, domain);
         evaluations
     }

@@ -524,6 +524,7 @@ mod tests {
     use super::*;
     use crate::commitment_scheme::kzg10::PublicParameters;
     use crate::proof_system::{Prover, Verifier};
+    use rand_core::OsRng;
 
     #[test]
     /// Tests that a circuit initially has 3 gates
@@ -580,7 +581,7 @@ mod tests {
     // XXX: Move this to integration tests
     fn test_multiple_proofs() {
         let public_parameters =
-            PublicParameters::setup(2 * 30, &mut rand::thread_rng()).unwrap();
+            PublicParameters::setup(2 * 30, &mut OsRng).unwrap();
 
         // Create a prover struct
         let mut prover = Prover::new(b"demo");

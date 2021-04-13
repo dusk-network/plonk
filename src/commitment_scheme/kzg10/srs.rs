@@ -163,6 +163,7 @@ impl PublicParameters {
 mod test {
     use super::*;
     use dusk_bls12_381::BlsScalar;
+    use rand_core::OsRng;
 
     #[test]
     fn test_powers_of() {
@@ -181,8 +182,7 @@ mod test {
 
     #[test]
     fn test_serialise_deserialise_public_parameter() {
-        let pp =
-            PublicParameters::setup(1 << 7, &mut rand::thread_rng()).unwrap();
+        let pp = PublicParameters::setup(1 << 7, &mut OsRng).unwrap();
 
         let got_pp = PublicParameters::from_slice(&pp.to_var_bytes()).unwrap();
 
@@ -194,8 +194,7 @@ mod test {
 
     #[test]
     fn public_parameters_bytes_unchecked() {
-        let pp =
-            PublicParameters::setup(1 << 7, &mut rand::thread_rng()).unwrap();
+        let pp = PublicParameters::setup(1 << 7, &mut OsRng).unwrap();
 
         let pp_p = unsafe {
             let bytes = pp.to_raw_var_bytes();

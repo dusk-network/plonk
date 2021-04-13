@@ -489,6 +489,8 @@ fn compute_barycentric_eval(
 #[cfg(test)]
 mod proof_tests {
     use super::*;
+    use rand_core::OsRng;
+
     #[test]
     fn test_dusk_bytes_serde_proof() {
         let proof = Proof {
@@ -504,22 +506,22 @@ mod proof_tests {
             w_z_comm: Commitment::default(),
             w_zw_comm: Commitment::default(),
             evaluations: ProofEvaluations {
-                a_eval: BlsScalar::random(&mut rand::thread_rng()),
-                b_eval: BlsScalar::random(&mut rand::thread_rng()),
-                c_eval: BlsScalar::random(&mut rand::thread_rng()),
-                d_eval: BlsScalar::random(&mut rand::thread_rng()),
-                a_next_eval: BlsScalar::random(&mut rand::thread_rng()),
-                b_next_eval: BlsScalar::random(&mut rand::thread_rng()),
-                d_next_eval: BlsScalar::random(&mut rand::thread_rng()),
-                q_arith_eval: BlsScalar::random(&mut rand::thread_rng()),
-                q_c_eval: BlsScalar::random(&mut rand::thread_rng()),
-                q_l_eval: BlsScalar::random(&mut rand::thread_rng()),
-                q_r_eval: BlsScalar::random(&mut rand::thread_rng()),
-                left_sigma_eval: BlsScalar::random(&mut rand::thread_rng()),
-                right_sigma_eval: BlsScalar::random(&mut rand::thread_rng()),
-                out_sigma_eval: BlsScalar::random(&mut rand::thread_rng()),
-                lin_poly_eval: BlsScalar::random(&mut rand::thread_rng()),
-                perm_eval: BlsScalar::random(&mut rand::thread_rng()),
+                a_eval: BlsScalar::random(&mut OsRng),
+                b_eval: BlsScalar::random(&mut OsRng),
+                c_eval: BlsScalar::random(&mut OsRng),
+                d_eval: BlsScalar::random(&mut OsRng),
+                a_next_eval: BlsScalar::random(&mut OsRng),
+                b_next_eval: BlsScalar::random(&mut OsRng),
+                d_next_eval: BlsScalar::random(&mut OsRng),
+                q_arith_eval: BlsScalar::random(&mut OsRng),
+                q_c_eval: BlsScalar::random(&mut OsRng),
+                q_l_eval: BlsScalar::random(&mut OsRng),
+                q_r_eval: BlsScalar::random(&mut OsRng),
+                left_sigma_eval: BlsScalar::random(&mut OsRng),
+                right_sigma_eval: BlsScalar::random(&mut OsRng),
+                out_sigma_eval: BlsScalar::random(&mut OsRng),
+                lin_poly_eval: BlsScalar::random(&mut OsRng),
+                perm_eval: BlsScalar::random(&mut OsRng),
             },
         };
 

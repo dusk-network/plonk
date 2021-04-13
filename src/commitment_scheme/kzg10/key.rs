@@ -303,6 +303,7 @@ mod test {
     use dusk_bls12_381::BlsScalar;
     use dusk_bytes::Serializable;
     use merlin::Transcript;
+    use rand_core::OsRng;
 
     // Checks that a polynomial `p` was evaluated at a point `z` and returned
     // the value specified `v`. ie. v = p(z).
@@ -389,8 +390,7 @@ mod test {
 
     // Creates a proving key and verifier key based on a specified degree
     fn setup_test(degree: usize) -> (CommitKey, OpeningKey) {
-        let srs =
-            PublicParameters::setup(degree, &mut rand::thread_rng()).unwrap();
+        let srs = PublicParameters::setup(degree, &mut OsRng).unwrap();
         srs.trim(degree).unwrap()
     }
     #[test]
@@ -399,7 +399,7 @@ mod test {
         let (ck, opening_key) = setup_test(degree);
         let point = BlsScalar::from(10);
 
-        let poly = Polynomial::rand(degree, &mut rand::thread_rng());
+        let poly = Polynomial::rand(degree, &mut OsRng);
         let value = poly.evaluate(&point);
 
         let proof = open_single(&ck, &poly, &value, &point).unwrap();
@@ -416,13 +416,13 @@ mod test {
         let point_b = BlsScalar::from(11);
 
         // Compute secret polynomial a
-        let poly_a = Polynomial::rand(degree, &mut rand::thread_rng());
+        let poly_a = Polynomial::rand(degree, &mut OsRng);
         let value_a = poly_a.evaluate(&point_a);
         let proof_a = open_single(&ck, &poly_a, &value_a, &point_a).unwrap();
         assert!(check(&vk, point_a, proof_a));
 
         // Compute secret polynomial b
-        let poly_b = Polynomial::rand(degree, &mut rand::thread_rng());
+        let poly_b = Polynomial::rand(degree, &mut OsRng);
         let value_b = poly_b.evaluate(&point_b);
         let proof_b = open_single(&ck, &poly_b, &value_b, &point_b).unwrap();
         assert!(check(&vk, point_b, proof_b));
@@ -444,13 +444,13 @@ mod test {
         // Committer's View
         let aggregated_proof = {
             // Compute secret polynomials and their evaluations
-            let poly_a = Polynomial::rand(25, &mut rand::thread_rng());
+            let poly_a = Polynomial::rand(25, &mut OsRng);
             let poly_a_eval = poly_a.evaluate(&point);
 
-            let poly_b = Polynomial::rand(26 + 1, &mut rand::thread_rng());
+            let poly_b = Polynomial::rand(26 + 1, &mut OsRng);
             let poly_b_eval = poly_b.evaluate(&point);
 
-            let poly_c = Polynomial::rand(27, &mut rand::thread_rng());
+            let poly_c = Polynomial::rand(27, &mut OsRng);
             let poly_c_eval = poly_c.evaluate(&point);
 
             open_multiple(
@@ -483,16 +483,16 @@ mod test {
         // Committer's View
         let (aggregated_proof, single_proof) = {
             // Compute secret polynomial and their evaluations
-            let poly_a = Polynomial::rand(25, &mut rand::thread_rng());
+            let poly_a = Polynomial::rand(25, &mut OsRng);
             let poly_a_eval = poly_a.evaluate(&point_a);
 
-            let poly_b = Polynomial::rand(26, &mut rand::thread_rng());
+            let poly_b = Polynomial::rand(26, &mut OsRng);
             let poly_b_eval = poly_b.evaluate(&point_a);
 
-            let poly_c = Polynomial::rand(27, &mut rand::thread_rng());
+            let poly_c = Polynomial::rand(27, &mut OsRng);
             let poly_c_eval = poly_c.evaluate(&point_a);
 
-            let poly_d = Polynomial::rand(28, &mut rand::thread_rng());
+            let poly_d = Polynomial::rand(28, &mut OsRng);
             let poly_d_eval = poly_d.evaluate(&point_b);
 
             let aggregated_proof = open_multiple(

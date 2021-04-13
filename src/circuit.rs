@@ -289,6 +289,7 @@ mod tests {
 
     #[test]
     fn test_full() -> Result<(), Error> {
+        use rand_core::OsRng;
         use std::fs::{self, File};
         use std::io::Write;
         use tempdir::TempDir;
@@ -301,7 +302,7 @@ mod tests {
         let vd_path = tmp.clone().join("vd_testcirc");
 
         // Generate CRS
-        let pp_p = PublicParameters::setup(1 << 12, &mut rand::thread_rng())?;
+        let pp_p = PublicParameters::setup(1 << 12, &mut OsRng)?;
         File::create(&pp_path)
             .and_then(|mut f| f.write(pp_p.to_raw_var_bytes().as_slice()))
             .expect("IO error");
