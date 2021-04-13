@@ -723,6 +723,7 @@ impl Permutation {
     }
 }
 
+#[cfg(feature = "std")]
 #[cfg(test)]
 mod test {
     use super::*;

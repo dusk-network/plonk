@@ -393,6 +393,8 @@ impl<'a, 'b> Sub<&'a BlsScalar> for &'b Polynomial {
         self + &negated_constant
     }
 }
+
+#[cfg(feature = "std")]
 #[cfg(test)]
 mod test {
     use super::*;

@@ -43,6 +43,8 @@ impl StandardComposer {
         a
     }
 }
+
+#[cfg(feature = "std")]
 #[cfg(test)]
 mod tests {
     use super::super::helper::*;

@@ -208,6 +208,7 @@ fn build_pi(
     pi
 }
 
+#[cfg(feature = "std")]
 #[cfg(test)]
 mod tests {
     use super::*;

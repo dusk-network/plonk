@@ -160,6 +160,8 @@ impl PublicParameters {
         self.commit_key.max_degree()
     }
 }
+
+#[cfg(feature = "std")]
 #[cfg(test)]
 mod test {
     use super::*;
