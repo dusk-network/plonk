@@ -4,7 +4,7 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-mod hash_tables;
+// mod hash_tables;
 /// modules containing different table groups
 pub mod lookup_table;
 /// module containing preprocessed table
