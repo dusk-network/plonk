@@ -162,9 +162,10 @@ impl CommitKey {
         self.check_commit_degree_is_within_bounds(polynomial.degree())?;
 
         // Compute commitment
-        let commitment =
-            msm_variable_base(&self.powers_of_g, &polynomial.coeffs);
-        Ok(Commitment(G1Affine::from(commitment)))
+        Ok(Commitment::from(msm_variable_base(
+            &self.powers_of_g,
+            &polynomial.coeffs,
+        )))
     }
 
     /// Computes a single witness for multiple polynomials at the same point, by

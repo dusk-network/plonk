@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Change 'from_projective' method for the implementation of the ::from trait.  [#433] (https://github.com/dusk-network/plonk/issues/433)
+
 ## [0.7.0] - 06-04-21
 
 ### Added
