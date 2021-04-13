@@ -14,7 +14,7 @@ impl StandardComposer {
     /// Adds a width-3 add gate to the circuit, linking the addition of the
     /// provided inputs, scaled by the selector coefficients with the output
     /// provided.
-    fn add_gate(
+    pub fn add_gate(
         &mut self,
         a: Variable,
         b: Variable,
