@@ -13,7 +13,6 @@ use crate::proof_system::{linearisation_poly, proof::Proof, quotient_poly};
 use crate::transcript::TranscriptProtocol;
 use dusk_bls12_381::BlsScalar;
 use merlin::Transcript;
-use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
 /// Prover composes a circuit and builds a proof
 #[allow(missing_debug_implementations)]
@@ -111,7 +110,7 @@ impl Prover {
     }
     /// Convert variables to their actual witness values.
     pub(crate) fn to_scalars(&self, vars: &[Variable]) -> Vec<BlsScalar> {
-        vars.par_iter().map(|var| self.cs.variables[var]).collect()
+        vars.iter().map(|var| self.cs.variables[var]).collect()
     }
     /// Resets the witnesses in the prover object.
     /// This function is used when the user wants to make multiple proofs with

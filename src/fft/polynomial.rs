@@ -12,10 +12,6 @@ use crate::error::Error;
 use crate::util;
 use dusk_bls12_381::BlsScalar;
 use dusk_bytes::{DeserializableSlice, Serializable};
-use rayon::iter::{
-    IndexedParallelIterator, IntoParallelIterator, IntoParallelRefIterator,
-    ParallelIterator,
-};
 use std::ops::{Add, AddAssign, Deref, DerefMut, Mul, Neg, Sub, SubAssign};
 
 #[derive(Debug, Eq, PartialEq, Clone)]
@@ -48,10 +44,7 @@ impl Polynomial {
     /// Checks if the given polynomial is zero.
     pub(crate) fn is_zero(&self) -> bool {
         self.coeffs.is_empty()
-            || self
-                .coeffs
-                .par_iter()
-                .all(|coeff| coeff == &BlsScalar::zero())
+            || self.coeffs.iter().all(|coeff| coeff == &BlsScalar::zero())
     }
 
     /// Constructs a new polynomial from a list of coefficients.
@@ -109,8 +102,8 @@ impl Polynomial {
         let powers = util::powers_of(point, self.len());
 
         let p_evals: Vec<_> = self
-            .par_iter()
-            .zip(powers.into_par_iter())
+            .iter()
+            .zip(powers.into_iter())
             .map(|(c, p)| p * c)
             .collect();
         let mut sum = BlsScalar::zero();
@@ -367,11 +360,8 @@ impl<'a, 'b> Mul<&'a BlsScalar> for &'b Polynomial {
         if self.is_zero() || (constant == &BlsScalar::zero()) {
             return Polynomial::zero();
         }
-        let scaled_coeffs: Vec<_> = self
-            .coeffs
-            .par_iter()
-            .map(|coeff| coeff * constant)
-            .collect();
+        let scaled_coeffs: Vec<_> =
+            self.coeffs.iter().map(|coeff| coeff * constant).collect();
         Polynomial::from_coefficients_vec(scaled_coeffs)
     }
 }
