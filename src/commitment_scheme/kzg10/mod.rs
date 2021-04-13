@@ -16,8 +16,6 @@ use crate::util::powers_of;
 use dusk_bls12_381::{BlsScalar, G1Affine, G1Projective};
 use dusk_bytes::{DeserializableSlice, Serializable};
 use merlin::Transcript;
-//use std::convert::From;
-
 
 #[derive(Copy, Clone, Debug)]
 /// Proof that a polynomial `p` was correctly evaluated at a point `z`
@@ -91,7 +89,7 @@ impl AggregateProof {
             evaluated_point: flattened_poly_evaluations,
             commitment_to_polynomial: Commitment::from(
                 flattened_poly_commitments,
-            )
+            ),
         }
     }
 }
@@ -128,12 +126,6 @@ impl Serializable<{ G1Affine::SIZE }> for Commitment {
         Ok(Self(g1))
     }
 }
-
-//impl From<G1Projective> for G1Affine {
-  //  fn from(item: G1Projective) -> Self {
-    //    G1Affine { value: item }
-    //}
-//}
 
 impl Commitment {
     /// Builds an empty `Commitment` which is equivalent to the
