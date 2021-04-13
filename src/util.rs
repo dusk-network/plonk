@@ -51,7 +51,7 @@ pub(crate) fn slow_multiscalar_mul_single_base(
 }
 
 // while we do not have batch inversion for scalars
-use std::ops::MulAssign;
+use core::ops::MulAssign;
 pub fn batch_inversion(v: &mut [BlsScalar]) {
     // Montgomery’s Trick and Fast Implementation of Masked AES
     // Genelle, Prouff and Quisquater

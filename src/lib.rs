@@ -52,6 +52,8 @@
 #![deny(rustdoc::broken_intra_doc_links)]
 #![deny(missing_docs)]
 
+extern crate alloc;
+
 mod bit_iterator;
 pub mod circuit;
 pub mod commitment_scheme;

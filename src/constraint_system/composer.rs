@@ -21,9 +21,9 @@
 
 use crate::constraint_system::Variable;
 use crate::permutation::Permutation;
+use alloc::collections::BTreeMap;
 use dusk_bls12_381::BlsScalar;
 use hashbrown::HashMap;
-use std::collections::BTreeMap;
 
 /// A composer is a circuit builder
 /// and will dictate how a circuit is built

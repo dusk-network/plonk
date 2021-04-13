@@ -524,7 +524,7 @@ impl Permutation {
         .collect();
 
         // Prepend ones to the beginning of each accumulator to signify L_1(x)
-        let accumulator_components = std::iter::once((
+        let accumulator_components = core::iter::once((
             BlsScalar::one(),
             BlsScalar::one(),
             BlsScalar::one(),
