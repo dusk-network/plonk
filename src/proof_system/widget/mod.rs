@@ -10,17 +10,21 @@ pub mod logic;
 pub mod permutation;
 pub mod range;
 
-#[cfg(feature = "alloc")]
-use crate::fft::{EvaluationDomain, Evaluations, Polynomial};
-#[cfg(feature = "alloc")]
-use alloc::vec::Vec;
+cfg_if::cfg_if!(
+    if #[cfg(feature = "alloc")]
+    {
+        use crate::fft::{EvaluationDomain, Evaluations, Polynomial};
+        use alloc::vec::Vec;
+        use crate::error::Error;
+        use dusk_bls12_381::BlsScalar;
+        use merlin::Transcript;
+        use crate::transcript::TranscriptProtocol;
+    }
+);
 
 use crate::commitment_scheme::kzg10::Commitment;
-use crate::error::Error;
-use crate::transcript::TranscriptProtocol;
-use dusk_bls12_381::BlsScalar;
+
 use dusk_bytes::{DeserializableSlice, Serializable};
-use merlin::Transcript;
 
 /// PLONK circuit verification key
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
@@ -160,6 +164,7 @@ impl VerifierKey {
         }
     }
 
+    #[cfg(feature = "alloc")]
     /// Adds the circuit description to the transcript
     pub(crate) fn seed_transcript(&self, transcript: &mut Transcript) {
         transcript.append_commitment(b"q_m", &self.arithmetic.q_m);

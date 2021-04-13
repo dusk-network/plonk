@@ -4,14 +4,18 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use crate::fft::EvaluationDomain;
-#[cfg(feature = "alloc")]
-use crate::fft::Polynomial;
-#[cfg(feature = "alloc")]
-use crate::proof_system::widget::ProverKey;
+cfg_if::cfg_if!(
+    if #[cfg(feature = "alloc")]
+    {
+        use crate::fft::EvaluationDomain;
+        use crate::fft::Polynomial;
+        use crate::proof_system::widget::ProverKey;
+    }
+);
+
 use dusk_bls12_381::BlsScalar;
 use dusk_bytes::{DeserializableSlice, Serializable};
-
+#[allow(dead_code)]
 /// Evaluations at points `z` or and `z * root of unity`
 pub(crate) struct Evaluations {
     pub(crate) proof: ProofEvaluations,

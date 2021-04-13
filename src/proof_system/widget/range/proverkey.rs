@@ -4,7 +4,6 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use super::delta;
 use crate::fft::{Evaluations, Polynomial};
 use dusk_bls12_381::BlsScalar;
 
@@ -70,4 +69,12 @@ impl ProverKey {
 
         q_range_poly * &t
     }
+}
+
+// Computes f(f-1)(f-2)(f-3)
+pub(crate) fn delta(f: BlsScalar) -> BlsScalar {
+    let f_1 = f - BlsScalar::one();
+    let f_2 = f - BlsScalar::from(2);
+    let f_3 = f - BlsScalar::from(3);
+    f * f_1 * f_2 * f_3
 }

@@ -63,16 +63,16 @@ if #[cfg(feature = "alloc")] {
     pub mod constraint_system;
     mod bit_iterator;
     pub mod circuit;
+    mod util;
+    mod permutation;
 });
 
 pub mod commitment_scheme;
 pub mod error;
 mod fft;
-mod permutation;
 pub mod prelude;
 pub mod proof_system;
 mod transcript;
-mod util;
 
 #[cfg(feature = "nightly")]
 #[doc(include = "../docs/notes-intro.md")]

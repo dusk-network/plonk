@@ -14,9 +14,9 @@ if #[cfg(feature = "alloc")]
     pub use key::{CommitKey, OpeningKey};
     pub(crate) use proof::AggregateProof;
     pub use srs::PublicParameters;
+    pub(crate) use proof::Proof;
 });
 
 pub(crate) mod commitment;
 pub(crate) mod proof;
 pub(crate) use commitment::Commitment;
-pub(crate) use proof::Proof;

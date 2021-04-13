@@ -4,13 +4,18 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use super::{check_bit_consistency, extract_bit};
+cfg_if::cfg_if!(
+    if #[cfg(feature = "alloc")]
+    {
+        use crate::proof_system::linearisation_poly::ProofEvaluations;
+        use alloc::vec::Vec;
+        use dusk_bls12_381::{BlsScalar, G1Affine};
+        use dusk_jubjub::EDWARDS_D;
+        use super::proverkey::{check_bit_consistency, extract_bit};
+    }
+);
+
 use crate::commitment_scheme::kzg10::Commitment;
-use crate::proof_system::linearisation_poly::ProofEvaluations;
-#[cfg(feature = "alloc")]
-use alloc::vec::Vec;
-use dusk_bls12_381::{BlsScalar, G1Affine};
-use dusk_jubjub::EDWARDS_D;
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub(crate) struct VerifierKey {

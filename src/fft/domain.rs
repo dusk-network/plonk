@@ -12,13 +12,16 @@
 //! This allows us to perform polynomial operations in O(n)
 //! by performing an O(n log n) FFT over such a domain.
 
-#[cfg(feature = "alloc")]
-use super::Evaluations;
-use crate::error::Error;
-#[cfg(feature = "alloc")]
-use alloc::vec::Vec;
-use core::ops::MulAssign;
-use dusk_bls12_381::{BlsScalar, GENERATOR, ROOT_OF_UNITY, TWO_ADACITY};
+cfg_if::cfg_if!(
+if #[cfg(feature = "alloc")] {
+    use super::Evaluations;
+    use crate::error::Error;
+    use alloc::vec::Vec;
+    use core::ops::MulAssign;
+    use dusk_bls12_381::{GENERATOR, ROOT_OF_UNITY, TWO_ADACITY};
+});
+
+use dusk_bls12_381::BlsScalar;
 use dusk_bytes::{DeserializableSlice, Serializable};
 
 /// Defines a domain over which finite field (I)FFTs can be performed. Works
@@ -88,10 +91,11 @@ impl Serializable<{ u64::SIZE + u32::SIZE + 5 * BlsScalar::SIZE }>
     }
 }
 
+#[cfg(feature = "alloc")]
 impl EvaluationDomain {
     /// Construct a domain that is large enough for evaluations of a polynomial
     /// having `num_coeffs` coefficients.
-    pub fn new(num_coeffs: usize) -> Result<Self, Error> {
+    pub(crate) fn new(num_coeffs: usize) -> Result<Self, Error> {
         // Compute the size of our evaluation domain
         let size = num_coeffs.next_power_of_two() as u64;
         let log_size_of_group = size.trailing_zeros();
@@ -129,7 +133,6 @@ impl EvaluationDomain {
         self.size as usize
     }
 
-    #[cfg(feature = "alloc")]
     /// Compute a FFT.
     pub(crate) fn fft(&self, coeffs: &[BlsScalar]) -> Vec<BlsScalar> {
         let mut coeffs = coeffs.to_vec();
@@ -137,14 +140,12 @@ impl EvaluationDomain {
         coeffs
     }
 
-    #[cfg(feature = "alloc")]
     /// Compute a FFT, modifying the vector in place.
     fn fft_in_place(&self, coeffs: &mut Vec<BlsScalar>) {
         coeffs.resize(self.size(), BlsScalar::zero());
         best_fft(coeffs, self.group_gen, self.log_size_of_group)
     }
 
-    #[cfg(feature = "alloc")]
     /// Compute an IFFT.
     pub(crate) fn ifft(&self, evals: &[BlsScalar]) -> Vec<BlsScalar> {
         let mut evals = evals.to_vec();
@@ -152,7 +153,6 @@ impl EvaluationDomain {
         evals
     }
 
-    #[cfg(feature = "alloc")]
     /// Compute an IFFT, modifying the vector in place.
     #[inline]
     pub(crate) fn ifft_in_place(&self, evals: &mut Vec<BlsScalar>) {
@@ -170,7 +170,6 @@ impl EvaluationDomain {
         })
     }
 
-    #[cfg(feature = "alloc")]
     /// Compute a FFT over a coset of the domain.
     pub(crate) fn coset_fft(&self, coeffs: &[BlsScalar]) -> Vec<BlsScalar> {
         let mut coeffs = coeffs.to_vec();
@@ -178,7 +177,6 @@ impl EvaluationDomain {
         coeffs
     }
 
-    #[cfg(feature = "alloc")]
     /// Compute a FFT over a coset of the domain, modifying the input vector
     /// in place.
     fn coset_fft_in_place(&self, coeffs: &mut Vec<BlsScalar>) {
@@ -186,7 +184,6 @@ impl EvaluationDomain {
         self.fft_in_place(coeffs);
     }
 
-    #[cfg(feature = "alloc")]
     /// Compute an IFFT over a coset of the domain.
     pub(crate) fn coset_ifft(&self, evals: &[BlsScalar]) -> Vec<BlsScalar> {
         let mut evals = evals.to_vec();
@@ -194,7 +191,6 @@ impl EvaluationDomain {
         evals
     }
 
-    #[cfg(feature = "alloc")]
     /// Compute an IFFT over a coset of the domain, modifying the input vector
     /// in place.
     fn coset_ifft_in_place(&self, evals: &mut Vec<BlsScalar>) {
@@ -202,7 +198,6 @@ impl EvaluationDomain {
         Self::distribute_powers(evals, self.generator_inv);
     }
 
-    #[cfg(feature = "alloc")]
     #[allow(clippy::needless_range_loop)]
     /// Evaluate all the lagrange polynomials defined by this domain at the
     /// point `tau`.
@@ -259,7 +254,6 @@ impl EvaluationDomain {
         tau.pow(&[self.size, 0, 0, 0]) - BlsScalar::one()
     }
 
-    #[cfg(feature = "alloc")]
     /// Given that the domain size is `D`  
     /// This function computes the `D` evaluation points for
     /// the vanishing polynomial of degree `n` over a coset
@@ -289,10 +283,12 @@ impl EvaluationDomain {
     }
 }
 
+#[cfg(feature = "alloc")]
 fn best_fft(a: &mut [BlsScalar], omega: BlsScalar, log_n: u32) {
     serial_fft(a, omega, log_n)
 }
 
+#[cfg(feature = "alloc")]
 #[inline]
 fn bitreverse(mut n: u32, l: u32) -> u32 {
     let mut r = 0;
@@ -303,6 +299,7 @@ fn bitreverse(mut n: u32, l: u32) -> u32 {
     r
 }
 
+#[cfg(feature = "alloc")]
 pub(crate) fn serial_fft(a: &mut [BlsScalar], omega: BlsScalar, log_n: u32) {
     let n = a.len() as u32;
     assert_eq!(n, 1 << log_n);

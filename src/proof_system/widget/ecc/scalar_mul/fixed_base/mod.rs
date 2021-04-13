@@ -23,15 +23,3 @@ pub(crate) use verifierkey::VerifierKey;
 
 // Bits are accumulated in base2. So we use d(Xw) - 2d(X) to extract the base2
 // bit
-
-use dusk_bls12_381::BlsScalar;
-fn extract_bit(curr_acc: &BlsScalar, next_acc: &BlsScalar) -> BlsScalar {
-    // Next - 2 * current
-    next_acc - (curr_acc + curr_acc)
-}
-
-// Ensures that the bit is either +1, -1 or 0
-fn check_bit_consistency(bit: BlsScalar) -> BlsScalar {
-    let one = BlsScalar::one();
-    bit * (bit - one) * (bit + one)
-}

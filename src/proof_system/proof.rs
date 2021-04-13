@@ -15,17 +15,18 @@ cfg_if::cfg_if!(
         use alloc::vec::Vec;
         use dusk_bls12_381::multiscalar_mul::msm_variable_base;
         use crate::commitment_scheme::kzg10::{AggregateProof, OpeningKey};
+        use crate::error::Error;
+        use crate::proof_system::widget::VerifierKey;
+        use crate::transcript::TranscriptProtocol;
+        use merlin::Transcript;
+        use dusk_bls12_381::G1Affine;
+        use crate::fft::EvaluationDomain;
+        use dusk_bls12_381::BlsScalar;
 });
 
 use super::linearisation_poly::ProofEvaluations;
 use crate::commitment_scheme::kzg10::Commitment;
-use crate::error::Error;
-use crate::fft::EvaluationDomain;
-use crate::proof_system::widget::VerifierKey;
-use crate::transcript::TranscriptProtocol;
-use dusk_bls12_381::{BlsScalar, G1Affine};
 use dusk_bytes::{DeserializableSlice, Serializable};
-use merlin::Transcript;
 
 /// A Proof is a composition of `Commitments` to the witness, permutation,
 /// quotient, shifted and opening polynomials as well as the
@@ -436,6 +437,7 @@ impl Proof {
     }
 }
 
+#[cfg(feature = "alloc")]
 fn compute_first_lagrange_evaluation(
     domain: &EvaluationDomain,
     z_h_eval: &BlsScalar,

@@ -6,7 +6,5 @@
 
 pub(crate) mod constants;
 #[allow(clippy::module_inception)]
-#[cfg(feature = "alloc")]
 pub(crate) mod permutation;
-#[cfg(feature = "alloc")]
 pub(crate) use permutation::Permutation;

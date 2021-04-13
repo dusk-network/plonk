@@ -4,7 +4,6 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use super::{check_bit_consistency, extract_bit};
 use crate::fft::{Evaluations, Polynomial};
 use dusk_bls12_381::BlsScalar;
 use dusk_jubjub::EDWARDS_D;
@@ -150,4 +149,18 @@ impl ProverKey {
 
         q_fixed_group_add_poly * &(a * ecc_separation_challenge)
     }
+}
+
+pub(crate) fn extract_bit(
+    curr_acc: &BlsScalar,
+    next_acc: &BlsScalar,
+) -> BlsScalar {
+    // Next - 2 * current
+    next_acc - (curr_acc + curr_acc)
+}
+
+// Ensures that the bit is either +1, -1 or 0
+pub(crate) fn check_bit_consistency(bit: BlsScalar) -> BlsScalar {
+    let one = BlsScalar::one();
+    bit * (bit - one) * (bit + one)
 }

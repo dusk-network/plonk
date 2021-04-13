@@ -4,14 +4,17 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
+cfg_if::cfg_if!(
+if #[cfg(feature = "alloc")] {
+    use crate::util::powers_of;
+    use crate::transcript::TranscriptProtocol;
+    use alloc::vec::Vec;
+    use merlin::Transcript;
+    use dusk_bls12_381::G1Projective;
+});
+
 use super::Commitment;
-use crate::transcript::TranscriptProtocol;
-#[cfg(feature = "alloc")]
-use crate::util::powers_of;
-#[cfg(feature = "alloc")]
-use alloc::vec::Vec;
-use dusk_bls12_381::{BlsScalar, G1Projective};
-use merlin::Transcript;
+use dusk_bls12_381::BlsScalar;
 
 #[derive(Copy, Clone, Debug)]
 /// Proof that a polynomial `p` was correctly evaluated at a point `z`

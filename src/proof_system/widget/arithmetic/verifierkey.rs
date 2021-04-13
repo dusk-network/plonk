@@ -5,10 +5,12 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use crate::commitment_scheme::kzg10::Commitment;
-use crate::proof_system::linearisation_poly::ProofEvaluations;
-#[cfg(feature = "alloc")]
-use alloc::vec::Vec;
-use dusk_bls12_381::{BlsScalar, G1Affine};
+cfg_if::cfg_if!(
+if #[cfg(feature = "alloc")] {
+    use crate::proof_system::linearisation_poly::ProofEvaluations;
+    use alloc::vec::Vec;
+    use dusk_bls12_381::{BlsScalar, G1Affine};
+});
 use dusk_bytes::{DeserializableSlice, Serializable};
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]

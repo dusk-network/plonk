@@ -29,6 +29,7 @@ impl Serializable<{ G1Affine::SIZE }> for Commitment {
 }
 
 impl Commitment {
+    #[allow(dead_code)]
     /// Builds a `Commitment` from a Bls12_381 `G1Projective` point.
     pub(crate) fn from_projective(g: G1Projective) -> Self {
         Self(g.into())

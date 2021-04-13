@@ -13,6 +13,7 @@ pub(crate) mod evaluations;
 #[cfg(feature = "alloc")]
 pub(crate) mod polynomial;
 
+#[allow(unused_imports)]
 pub(crate) use domain::EvaluationDomain;
 #[cfg(feature = "alloc")]
 pub(crate) use evaluations::Evaluations;
