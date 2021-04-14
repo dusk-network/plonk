@@ -20,4 +20,3 @@ if #[cfg(feature = "alloc")]
 pub(crate) mod commitment;
 pub(crate) mod proof;
 pub(crate) use commitment::Commitment;
-
