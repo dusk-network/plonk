@@ -59,7 +59,7 @@ mod commitment_tests {
     use super::*;
 
     #[test]
-    fn commitment_duks_bytes_serde() {
+    fn commitment_dusk_bytes_serde() {
         let commitment = Commitment(dusk_bls12_381::G1Affine::generator());
         let bytes = commitment.to_bytes();
         let obtained_comm = Commitment::from_slice(&bytes)
