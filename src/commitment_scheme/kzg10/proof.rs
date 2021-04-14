@@ -88,7 +88,7 @@ impl AggregateProof {
         Proof {
             commitment_to_witness: self.commitment_to_witness,
             evaluated_point: flattened_poly_evaluations,
-            commitment_to_polynomial: Commitment::from_projective(
+            commitment_to_polynomial: Commitment::from(
                 flattened_poly_commitments,
             ),
         }

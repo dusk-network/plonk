@@ -15,6 +15,18 @@ pub(crate) struct Commitment(
     pub(crate) G1Affine,
 );
 
+impl From<G1Affine> for Commitment {
+    fn from(point: G1Affine) -> Commitment {
+        Commitment(point)
+    }
+}
+
+impl From<G1Projective> for Commitment {
+    fn from(point: G1Projective) -> Commitment {
+        Commitment(point.into())
+    }
+}
+
 impl Serializable<{ G1Affine::SIZE }> for Commitment {
     type Error = dusk_bytes::Error;
 
@@ -29,11 +41,6 @@ impl Serializable<{ G1Affine::SIZE }> for Commitment {
 }
 
 impl Commitment {
-    #[allow(dead_code)]
-    /// Builds a `Commitment` from a Bls12_381 `G1Projective` point.
-    pub(crate) fn from_projective(g: G1Projective) -> Self {
-        Self(g.into())
-    }
     /// Builds an empty `Commitment` which is equivalent to the
     /// `G1Affine` identity point in Bls12_381.
     fn empty() -> Self {
