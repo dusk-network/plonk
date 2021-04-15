@@ -36,7 +36,7 @@ canonical = {version = "0.5", optional = true}
 canonical_derive = {version = "0.5", optional = true}
 
 [dev-dependencies]
-tempdir = "0.3"
+tempfile = "3.2"
 
 [package.metadata.docs.rs]
 rustdoc-args = [ "--html-in-header", "katex-header.html" ]

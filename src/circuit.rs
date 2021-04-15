@@ -291,7 +291,7 @@ mod tests {
     fn test_full() -> Result<(), Error> {
         use std::fs::{self, File};
         use std::io::Write;
-        use tempdir::TempDir;
+        use tempfile::TempDir;
 
         let tmp = TempDir::new("plonk-keys-test-full")
             .expect("IO error")
