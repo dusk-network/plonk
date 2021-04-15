@@ -41,16 +41,16 @@ impl Serializable<{ G1Affine::SIZE }> for Commitment {
 }
 
 impl Commitment {
-    /// Builds an empty `Commitment` which is equivalent to the
+    /// Builds an identity `Commitment` which is equivalent to the
     /// `G1Affine` identity point in Bls12_381.
-    fn empty() -> Self {
+    fn identity() -> Self {
         Commitment(G1Affine::identity())
     }
 }
 
 impl Default for Commitment {
     fn default() -> Self {
-        Commitment::empty()
+        Commitment::identity()
     }
 }
 
