@@ -27,19 +27,19 @@ pub struct PublicInputValue(pub(crate) Vec<BlsScalar>);
 
 impl From<BlsScalar> for PublicInputValue {
     fn from(scalar: BlsScalar) -> Self {
-        PublicInputValue(vec![scalar])
+        Self(vec![scalar])
     }
 }
 
 impl From<JubJubScalar> for PublicInputValue {
     fn from(scalar: JubJubScalar) -> Self {
-        PublicInputValue(vec![scalar.into()])
+        Self(vec![scalar.into()])
     }
 }
 
 impl From<JubJubAffine> for PublicInputValue {
     fn from(point: JubJubAffine) -> Self {
-        PublicInputValue(vec![point.get_x(), point.get_y()])
+        Self(vec![point.get_x(), point.get_y()])
     }
 }
 
