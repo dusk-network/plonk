@@ -55,10 +55,8 @@ pub fn scalar_mul(
     assert_eq!(wnaf_entries.len(), num_bits);
 
     // Initialise the accumulators
-    let mut scalar_acc: Vec<BlsScalar> = Vec::new();
-    scalar_acc.push(BlsScalar::zero());
-    let mut point_acc: Vec<JubJubAffine> = Vec::new();
-    point_acc.push(JubJubAffine::identity());
+    let mut scalar_acc = vec![BlsScalar::zero()];
+    let mut point_acc = vec![JubJubAffine::identity()];
 
     // Auxillary point to help with checks on the backend
     let mut xy_alphas = Vec::new();

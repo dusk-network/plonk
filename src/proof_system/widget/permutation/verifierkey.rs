@@ -4,8 +4,6 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-#![allow(clippy::too_many_arguments)]
-
 use crate::commitment_scheme::kzg10::Commitment;
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]

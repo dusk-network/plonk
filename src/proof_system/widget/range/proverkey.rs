@@ -13,7 +13,6 @@ pub(crate) struct ProverKey {
 }
 
 impl ProverKey {
-    #[allow(clippy::too_many_arguments)]
     pub(crate) fn compute_quotient_i(
         &self,
         index: usize,
