@@ -4,9 +4,11 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use crate::error::Error;
-use crate::fft::{EvaluationDomain, Polynomial};
-use crate::proof_system::widget::ProverKey;
+use crate::{
+    error::Error,
+    fft::{EvaluationDomain, Polynomial},
+    proof_system::ProverKey,
+};
 use alloc::vec::Vec;
 use dusk_bls12_381::BlsScalar;
 

@@ -4,14 +4,11 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-cfg_if::cfg_if!(
-    if #[cfg(feature = "alloc")]
-    {
-        use crate::fft::EvaluationDomain;
-        use crate::fft::Polynomial;
-        use crate::proof_system::widget::ProverKey;
-    }
-);
+#[cfg(feature = "alloc")]
+use crate::{
+    fft::{EvaluationDomain, Polynomial},
+    proof_system::ProverKey,
+};
 
 use dusk_bls12_381::BlsScalar;
 use dusk_bytes::{DeserializableSlice, Serializable};

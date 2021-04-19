@@ -7,7 +7,7 @@
 //! Key module contains the utilities and data structures
 //! that support the generation and usage of Commit and
 //! Opening keys.
-use super::{Commitment, Proof};
+use super::{proof::Proof, Commitment};
 use crate::{
     error::Error, fft::Polynomial, transcript::TranscriptProtocol, util,
 };

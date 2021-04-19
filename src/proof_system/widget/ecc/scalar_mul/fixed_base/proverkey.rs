@@ -156,7 +156,7 @@ pub(crate) fn extract_bit(
     next_acc: &BlsScalar,
 ) -> BlsScalar {
     // Next - 2 * current
-    next_acc - (curr_acc + curr_acc)
+    next_acc - curr_acc - curr_acc
 }
 
 // Ensures that the bit is either +1, -1 or 0

@@ -11,12 +11,13 @@ cfg_if::cfg_if!(
         mod preprocess;
         /// Represents a PLONK Prover
         pub mod prover;
+        pub use proof::alloc::*;
         pub(crate) mod quotient_poly;
         /// Represents a PLONK Verifier
         pub mod verifier;
         pub use prover::Prover;
         pub use verifier::Verifier;
-        pub use widget::ProverKey;
+        pub use widget::alloc::*;
     }
 );
 

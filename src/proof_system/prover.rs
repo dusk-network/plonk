@@ -4,13 +4,16 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use crate::commitment_scheme::kzg10::CommitKey;
-use crate::constraint_system::{StandardComposer, Variable};
-use crate::error::Error;
-use crate::fft::{EvaluationDomain, Polynomial};
-use crate::proof_system::widget::ProverKey;
-use crate::proof_system::{linearisation_poly, proof::Proof, quotient_poly};
-use crate::transcript::TranscriptProtocol;
+use crate::{
+    commitment_scheme::kzg10::CommitKey,
+    constraint_system::{StandardComposer, Variable},
+    error::Error,
+    fft::{EvaluationDomain, Polynomial},
+    proof_system::{
+        linearisation_poly, proof::Proof, quotient_poly, ProverKey,
+    },
+    transcript::TranscriptProtocol,
+};
 use alloc::vec::Vec;
 use dusk_bls12_381::BlsScalar;
 use merlin::Transcript;

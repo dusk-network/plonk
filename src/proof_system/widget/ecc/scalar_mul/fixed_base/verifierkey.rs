@@ -4,17 +4,6 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-cfg_if::cfg_if!(
-    if #[cfg(feature = "alloc")]
-    {
-        use crate::proof_system::linearisation_poly::ProofEvaluations;
-        use alloc::vec::Vec;
-        use dusk_bls12_381::{BlsScalar, G1Affine};
-        use dusk_jubjub::EDWARDS_D;
-        use super::proverkey::{check_bit_consistency, extract_bit};
-    }
-);
-
 use crate::commitment_scheme::kzg10::Commitment;
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
@@ -25,61 +14,73 @@ pub(crate) struct VerifierKey {
 }
 
 #[cfg(feature = "alloc")]
-impl VerifierKey {
-    pub(crate) fn compute_linearisation_commitment(
-        &self,
-        ecc_separation_challenge: &BlsScalar,
-        scalars: &mut Vec<BlsScalar>,
-        points: &mut Vec<G1Affine>,
-        evaluations: &ProofEvaluations,
-    ) {
-        let kappa = ecc_separation_challenge.square();
-        let kappa_sq = kappa.square();
-        let kappa_cu = kappa_sq * kappa;
+mod alloc {
+    use super::*;
+    use crate::proof_system::linearisation_poly::ProofEvaluations;
+    use crate::proof_system::widget::ecc::scalar_mul::fixed_base::proverkey::{
+        check_bit_consistency, extract_bit,
+    };
+    use ::alloc::vec::Vec;
+    use dusk_bls12_381::{BlsScalar, G1Affine};
+    use dusk_jubjub::EDWARDS_D;
 
-        let x_beta_poly = evaluations.q_l_eval;
-        let y_beta_eval = evaluations.q_r_eval;
+    impl VerifierKey {
+        pub(crate) fn compute_linearisation_commitment(
+            &self,
+            ecc_separation_challenge: &BlsScalar,
+            scalars: &mut Vec<BlsScalar>,
+            points: &mut Vec<G1Affine>,
+            evaluations: &ProofEvaluations,
+        ) {
+            let kappa = ecc_separation_challenge.square();
+            let kappa_sq = kappa.square();
+            let kappa_cu = kappa_sq * kappa;
 
-        let acc_x = evaluations.a_eval;
-        let acc_x_next = evaluations.a_next_eval;
-        let acc_y = evaluations.b_eval;
-        let acc_y_next = evaluations.b_next_eval;
+            let x_beta_poly = evaluations.q_l_eval;
+            let y_beta_eval = evaluations.q_r_eval;
 
-        let xy_alpha = evaluations.c_eval;
+            let acc_x = evaluations.a_eval;
+            let acc_x_next = evaluations.a_next_eval;
+            let acc_y = evaluations.b_eval;
+            let acc_y_next = evaluations.b_next_eval;
 
-        let accumulated_bit = evaluations.d_eval;
-        let accumulated_bit_next = evaluations.d_next_eval;
-        let bit = extract_bit(&accumulated_bit, &accumulated_bit_next);
+            let xy_alpha = evaluations.c_eval;
 
-        // Check bit consistency
-        let bit_consistency = check_bit_consistency(bit);
+            let accumulated_bit = evaluations.d_eval;
+            let accumulated_bit_next = evaluations.d_next_eval;
+            let bit = extract_bit(&accumulated_bit, &accumulated_bit_next);
 
-        let y_alpha = (bit.square() * (y_beta_eval - BlsScalar::one()))
-            + BlsScalar::one();
+            // Check bit consistency
+            let bit_consistency = check_bit_consistency(bit);
 
-        let x_alpha = x_beta_poly * bit;
+            let y_alpha = (bit.square() * (y_beta_eval - BlsScalar::one()))
+                + BlsScalar::one();
 
-        // xy_alpha consistency check
-        let xy_consistency = ((bit * evaluations.q_c_eval) - xy_alpha) * kappa;
+            let x_alpha = x_beta_poly * bit;
 
-        // x accumulator consistency check
-        let x_3 = acc_x_next;
-        let lhs = x_3 + (x_3 * xy_alpha * acc_x * acc_y * EDWARDS_D);
-        let rhs = (x_alpha * acc_y) + (y_alpha * acc_x);
-        let x_acc_consistency = (lhs - rhs) * kappa_sq;
+            // xy_alpha consistency check
+            let xy_consistency =
+                ((bit * evaluations.q_c_eval) - xy_alpha) * kappa;
 
-        // y accumulator consistency check
-        let y_3 = acc_y_next;
-        let lhs = y_3 - (y_3 * xy_alpha * acc_x * acc_y * EDWARDS_D);
-        let rhs = (x_alpha * acc_x) + (y_alpha * acc_y);
-        let y_acc_consistency = (lhs - rhs) * kappa_cu;
+            // x accumulator consistency check
+            let x_3 = acc_x_next;
+            let lhs = x_3 + (x_3 * xy_alpha * acc_x * acc_y * EDWARDS_D);
+            let rhs = (x_alpha * acc_y) + (y_alpha * acc_x);
+            let x_acc_consistency = (lhs - rhs) * kappa_sq;
 
-        let a = bit_consistency
-            + x_acc_consistency
-            + y_acc_consistency
-            + xy_consistency;
+            // y accumulator consistency check
+            let y_3 = acc_y_next;
+            let lhs = y_3 - (y_3 * xy_alpha * acc_x * acc_y * EDWARDS_D);
+            let rhs = (x_alpha * acc_x) + (y_alpha * acc_y);
+            let y_acc_consistency = (lhs - rhs) * kappa_cu;
 
-        scalars.push(a * ecc_separation_challenge);
-        points.push(self.q_fixed_group_add.0);
+            let a = bit_consistency
+                + x_acc_consistency
+                + y_acc_consistency
+                + xy_consistency;
+
+            scalars.push(a * ecc_separation_challenge);
+            points.push(self.q_fixed_group_add.0);
+        }
     }
 }
