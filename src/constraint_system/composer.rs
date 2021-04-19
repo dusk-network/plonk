@@ -21,9 +21,10 @@
 
 use crate::constraint_system::Variable;
 use crate::permutation::Permutation;
+use alloc::collections::BTreeMap;
+use alloc::vec::Vec;
 use dusk_bls12_381::BlsScalar;
 use hashbrown::HashMap;
-use std::collections::BTreeMap;
 
 /// A composer is a circuit builder
 /// and will dictate how a circuit is built
@@ -518,12 +519,14 @@ impl StandardComposer {
     }
 }
 
+#[cfg(feature = "std")]
 #[cfg(test)]
 mod tests {
     use super::super::helper::*;
     use super::*;
     use crate::commitment_scheme::kzg10::PublicParameters;
     use crate::proof_system::{Prover, Verifier};
+    use rand_core::OsRng;
 
     #[test]
     /// Tests that a circuit initially has 3 gates
@@ -580,7 +583,7 @@ mod tests {
     // XXX: Move this to integration tests
     fn test_multiple_proofs() {
         let public_parameters =
-            PublicParameters::setup(2 * 30, &mut rand::thread_rng()).unwrap();
+            PublicParameters::setup(2 * 30, &mut OsRng).unwrap();
 
         // Create a prover struct
         let mut prover = Prover::new(b"demo");

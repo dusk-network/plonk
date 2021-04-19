@@ -7,10 +7,11 @@
 //! Key module contains the utilities and data structures
 //! that support the generation and usage of Commit and
 //! Opening keys.
-use super::{Commitment, Proof};
+use super::{proof::Proof, Commitment};
 use crate::{
     error::Error, fft::Polynomial, transcript::TranscriptProtocol, util,
 };
+use alloc::vec::Vec;
 use dusk_bls12_381::{
     multiscalar_mul::msm_variable_base, BlsScalar, G1Affine, G1Projective,
     G2Affine, G2Prepared,
@@ -296,6 +297,7 @@ impl OpeningKey {
     }
 }
 
+#[cfg(feature = "std")]
 #[cfg(test)]
 mod test {
     use super::*;
@@ -304,6 +306,7 @@ mod test {
     use dusk_bls12_381::BlsScalar;
     use dusk_bytes::Serializable;
     use merlin::Transcript;
+    use rand_core::OsRng;
 
     // Checks that a polynomial `p` was evaluated at a point `z` and returned
     // the value specified `v`. ie. v = p(z).
@@ -389,69 +392,67 @@ mod test {
     }
 
     // Creates a proving key and verifier key based on a specified degree
-    fn setup_test(degree: usize) -> (CommitKey, OpeningKey) {
-        let srs =
-            PublicParameters::setup(degree, &mut rand::thread_rng()).unwrap();
-        srs.trim(degree).unwrap()
+    fn setup_test(degree: usize) -> Result<(CommitKey, OpeningKey), Error> {
+        let srs = PublicParameters::setup(degree, &mut OsRng)?;
+        srs.trim(degree)
     }
     #[test]
-    fn test_basic_commit() {
+    fn test_basic_commit() -> Result<(), Error> {
         let degree = 25;
-        let (ck, opening_key) = setup_test(degree);
+        let (ck, opening_key) = setup_test(degree)?;
         let point = BlsScalar::from(10);
 
-        let poly = Polynomial::rand(degree, &mut rand::thread_rng());
+        let poly = Polynomial::rand(degree, &mut OsRng);
         let value = poly.evaluate(&point);
 
-        let proof = open_single(&ck, &poly, &value, &point).unwrap();
+        let proof = open_single(&ck, &poly, &value, &point)?;
 
         let ok = check(&opening_key, point, proof);
         assert!(ok);
+        Ok(())
     }
     #[test]
-    fn test_batch_verification() {
+    fn test_batch_verification() -> Result<(), Error> {
         let degree = 25;
-        let (ck, vk) = setup_test(degree);
+        let (ck, vk) = setup_test(degree)?;
 
         let point_a = BlsScalar::from(10);
         let point_b = BlsScalar::from(11);
 
         // Compute secret polynomial a
-        let poly_a = Polynomial::rand(degree, &mut rand::thread_rng());
+        let poly_a = Polynomial::rand(degree, &mut OsRng);
         let value_a = poly_a.evaluate(&point_a);
-        let proof_a = open_single(&ck, &poly_a, &value_a, &point_a).unwrap();
+        let proof_a = open_single(&ck, &poly_a, &value_a, &point_a)?;
         assert!(check(&vk, point_a, proof_a));
 
         // Compute secret polynomial b
-        let poly_b = Polynomial::rand(degree, &mut rand::thread_rng());
+        let poly_b = Polynomial::rand(degree, &mut OsRng);
         let value_b = poly_b.evaluate(&point_b);
-        let proof_b = open_single(&ck, &poly_b, &value_b, &point_b).unwrap();
+        let proof_b = open_single(&ck, &poly_b, &value_b, &point_b)?;
         assert!(check(&vk, point_b, proof_b));
 
-        assert!(vk
-            .batch_check(
-                &[point_a, point_b],
-                &[proof_a, proof_b],
-                &mut Transcript::new(b""),
-            )
-            .is_ok());
+        vk.batch_check(
+            &[point_a, point_b],
+            &[proof_a, proof_b],
+            &mut Transcript::new(b""),
+        )
     }
     #[test]
-    fn test_aggregate_witness() {
+    fn test_aggregate_witness() -> Result<(), Error> {
         let max_degree = 27;
-        let (ck, opening_key) = setup_test(max_degree);
+        let (ck, opening_key) = setup_test(max_degree)?;
         let point = BlsScalar::from(10);
 
         // Committer's View
         let aggregated_proof = {
             // Compute secret polynomials and their evaluations
-            let poly_a = Polynomial::rand(25, &mut rand::thread_rng());
+            let poly_a = Polynomial::rand(25, &mut OsRng);
             let poly_a_eval = poly_a.evaluate(&point);
 
-            let poly_b = Polynomial::rand(26 + 1, &mut rand::thread_rng());
+            let poly_b = Polynomial::rand(26 + 1, &mut OsRng);
             let poly_b_eval = poly_b.evaluate(&point);
 
-            let poly_c = Polynomial::rand(27, &mut rand::thread_rng());
+            let poly_c = Polynomial::rand(27, &mut OsRng);
             let poly_c_eval = poly_c.evaluate(&point);
 
             open_multiple(
@@ -460,8 +461,7 @@ mod test {
                 vec![poly_a_eval, poly_b_eval, poly_c_eval],
                 &point,
                 &mut Transcript::new(b"agg_flatten"),
-            )
-            .unwrap()
+            )?
         };
 
         // Verifier's View
@@ -472,28 +472,29 @@ mod test {
         };
 
         assert!(ok);
+        Ok(())
     }
 
     #[test]
-    fn test_batch_with_aggregation() {
+    fn test_batch_with_aggregation() -> Result<(), Error> {
         let max_degree = 28;
-        let (ck, opening_key) = setup_test(max_degree);
+        let (ck, opening_key) = setup_test(max_degree)?;
         let point_a = BlsScalar::from(10);
         let point_b = BlsScalar::from(11);
 
         // Committer's View
         let (aggregated_proof, single_proof) = {
             // Compute secret polynomial and their evaluations
-            let poly_a = Polynomial::rand(25, &mut rand::thread_rng());
+            let poly_a = Polynomial::rand(25, &mut OsRng);
             let poly_a_eval = poly_a.evaluate(&point_a);
 
-            let poly_b = Polynomial::rand(26, &mut rand::thread_rng());
+            let poly_b = Polynomial::rand(26, &mut OsRng);
             let poly_b_eval = poly_b.evaluate(&point_a);
 
-            let poly_c = Polynomial::rand(27, &mut rand::thread_rng());
+            let poly_c = Polynomial::rand(27, &mut OsRng);
             let poly_c_eval = poly_c.evaluate(&point_a);
 
-            let poly_d = Polynomial::rand(28, &mut rand::thread_rng());
+            let poly_d = Polynomial::rand(28, &mut OsRng);
             let poly_d_eval = poly_d.evaluate(&point_b);
 
             let aggregated_proof = open_multiple(
@@ -502,53 +503,49 @@ mod test {
                 vec![poly_a_eval, poly_b_eval, poly_c_eval],
                 &point_a,
                 &mut Transcript::new(b"agg_batch"),
-            )
-            .unwrap();
+            )?;
 
             let single_proof =
-                open_single(&ck, &poly_d, &poly_d_eval, &point_b).unwrap();
+                open_single(&ck, &poly_d, &poly_d_eval, &point_b)?;
 
             (aggregated_proof, single_proof)
         };
 
         // Verifier's View
-        let ok = {
-            let mut transcript = Transcript::new(b"agg_batch");
-            let flattened_proof = aggregated_proof.flatten(&mut transcript);
 
-            opening_key.batch_check(
-                &[point_a, point_b],
-                &[flattened_proof, single_proof],
-                &mut transcript,
-            )
-        };
+        let mut transcript = Transcript::new(b"agg_batch");
+        let flattened_proof = aggregated_proof.flatten(&mut transcript);
 
-        assert!(ok.is_ok());
+        opening_key.batch_check(
+            &[point_a, point_b],
+            &[flattened_proof, single_proof],
+            &mut transcript,
+        )
     }
 
     #[test]
-    fn commit_key_serde() {
-        let (commit_key, _) = setup_test(11);
+    fn commit_key_serde() -> Result<(), Error> {
+        let (commit_key, _) = setup_test(11)?;
         let ck_bytes = commit_key.to_var_bytes();
-        let ck_bytes_safe = CommitKey::from_slice(&ck_bytes)
-            .expect("CommitKey conversion error");
+        let ck_bytes_safe = CommitKey::from_slice(&ck_bytes)?;
 
         assert_eq!(commit_key.powers_of_g, ck_bytes_safe.powers_of_g);
+        Ok(())
     }
 
     #[test]
-    fn opening_key_dusk_bytes() {
-        let (_, opening_key) = setup_test(7);
+    fn opening_key_dusk_bytes() -> Result<(), Error> {
+        let (_, opening_key) = setup_test(7)?;
         let ok_bytes = opening_key.to_bytes();
-        let obtained_key = OpeningKey::from_bytes(&ok_bytes)
-            .expect("CommitKey conversion error");
+        let obtained_key = OpeningKey::from_bytes(&ok_bytes)?;
 
         assert_eq!(opening_key.to_bytes(), obtained_key.to_bytes());
+        Ok(())
     }
 
     #[test]
-    fn commit_key_bytes_unchecked() {
-        let (ck, _) = setup_test(7);
+    fn commit_key_bytes_unchecked() -> Result<(), Error> {
+        let (ck, _) = setup_test(7)?;
 
         let ck_p = unsafe {
             let bytes = ck.to_raw_var_bytes();
@@ -556,5 +553,6 @@ mod test {
         };
 
         assert_eq!(ck, ck_p);
+        Ok(())
     }
 }

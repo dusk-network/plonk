@@ -11,7 +11,7 @@ use crate::constraint_system::StandardComposer;
 
 use crate::error::Error;
 use crate::fft::{EvaluationDomain, Evaluations, Polynomial};
-use crate::proof_system::widget;
+use crate::proof_system::{widget, ProverKey};
 use dusk_bls12_381::BlsScalar;
 use merlin::Transcript;
 
@@ -98,7 +98,7 @@ impl StandardComposer {
         &mut self,
         commit_key: &CommitKey,
         transcript: &mut Transcript,
-    ) -> Result<widget::ProverKey, Error> {
+    ) -> Result<ProverKey, Error> {
         let (_, selectors, domain) =
             self.preprocess_shared(commit_key, transcript)?;
 
@@ -221,7 +221,7 @@ impl StandardComposer {
                 ),
             };
 
-        let prover_key = widget::ProverKey {
+        let prover_key = ProverKey {
             n: domain.size(),
             arithmetic: arithmetic_prover_key,
             logic: logic_prover_key,
@@ -398,6 +398,7 @@ impl StandardComposer {
     }
 }
 
+#[cfg(feature = "std")]
 #[cfg(test)]
 mod test {
     use super::*;

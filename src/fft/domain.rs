@@ -12,14 +12,8 @@
 //! This allows us to perform polynomial operations in O(n)
 //! by performing an O(n log n) FFT over such a domain.
 
-use super::Evaluations;
-use crate::error::Error;
-use dusk_bls12_381::{BlsScalar, GENERATOR, ROOT_OF_UNITY, TWO_ADACITY};
+use dusk_bls12_381::BlsScalar;
 use dusk_bytes::{DeserializableSlice, Serializable};
-use rayon::iter::{
-    IndexedParallelIterator, IntoParallelRefMutIterator, ParallelIterator,
-};
-use std::ops::MulAssign;
 
 /// Defines a domain over which finite field (I)FFTs can be performed. Works
 /// only for fields that have a large multiplicative subgroup of size that is
@@ -88,264 +82,287 @@ impl Serializable<{ u64::SIZE + u32::SIZE + 5 * BlsScalar::SIZE }>
     }
 }
 
-impl EvaluationDomain {
-    /// Construct a domain that is large enough for evaluations of a polynomial
-    /// having `num_coeffs` coefficients.
-    pub fn new(num_coeffs: usize) -> Result<Self, Error> {
-        // Compute the size of our evaluation domain
-        let size = num_coeffs.next_power_of_two() as u64;
-        let log_size_of_group = size.trailing_zeros();
+#[cfg(feature = "alloc")]
+pub(crate) mod alloc {
 
-        if log_size_of_group >= TWO_ADACITY {
-            return Err(Error::InvalidEvalDomainSize {
+    use super::*;
+    use crate::error::Error;
+    use crate::fft::Evaluations;
+    use ::alloc::vec::Vec;
+    use core::ops::MulAssign;
+    use dusk_bls12_381::{GENERATOR, ROOT_OF_UNITY, TWO_ADACITY};
+
+    impl EvaluationDomain {
+        /// Construct a domain that is large enough for evaluations of a
+        /// polynomial having `num_coeffs` coefficients.
+        pub(crate) fn new(num_coeffs: usize) -> Result<Self, Error> {
+            // Compute the size of our evaluation domain
+            let size = num_coeffs.next_power_of_two() as u64;
+            let log_size_of_group = size.trailing_zeros();
+
+            if log_size_of_group >= TWO_ADACITY {
+                return Err(Error::InvalidEvalDomainSize {
+                    log_size_of_group,
+                    adacity: TWO_ADACITY,
+                });
+            }
+
+            // Compute the generator for the multiplicative subgroup.
+            // It should be 2^(log_size_of_group) root of unity.
+
+            let mut group_gen = ROOT_OF_UNITY;
+            for _ in log_size_of_group..TWO_ADACITY {
+                group_gen = group_gen.square();
+            }
+            let size_as_field_element = BlsScalar::from(size);
+            let size_inv = size_as_field_element.invert().unwrap();
+
+            Ok(EvaluationDomain {
+                size,
                 log_size_of_group,
-                adacity: TWO_ADACITY,
-            });
-        }
-
-        // Compute the generator for the multiplicative subgroup.
-        // It should be 2^(log_size_of_group) root of unity.
-
-        let mut group_gen = ROOT_OF_UNITY;
-        for _ in log_size_of_group..TWO_ADACITY {
-            group_gen = group_gen.square();
-        }
-        let size_as_field_element = BlsScalar::from(size);
-        let size_inv = size_as_field_element.invert().unwrap();
-
-        Ok(EvaluationDomain {
-            size,
-            log_size_of_group,
-            size_as_field_element,
-            size_inv,
-            group_gen,
-            group_gen_inv: group_gen.invert().unwrap(),
-            generator_inv: GENERATOR.invert().unwrap(),
-        })
-    }
-
-    /// Return the size of `self`.
-    pub(crate) fn size(&self) -> usize {
-        self.size as usize
-    }
-
-    /// Compute a FFT.
-    pub(crate) fn fft(&self, coeffs: &[BlsScalar]) -> Vec<BlsScalar> {
-        let mut coeffs = coeffs.to_vec();
-        self.fft_in_place(&mut coeffs);
-        coeffs
-    }
-
-    /// Compute a FFT, modifying the vector in place.
-    fn fft_in_place(&self, coeffs: &mut Vec<BlsScalar>) {
-        coeffs.resize(self.size(), BlsScalar::zero());
-        best_fft(coeffs, self.group_gen, self.log_size_of_group)
-    }
-
-    /// Compute an IFFT.
-    pub(crate) fn ifft(&self, evals: &[BlsScalar]) -> Vec<BlsScalar> {
-        let mut evals = evals.to_vec();
-        self.ifft_in_place(&mut evals);
-        evals
-    }
-
-    /// Compute an IFFT, modifying the vector in place.
-    #[inline]
-    pub(crate) fn ifft_in_place(&self, evals: &mut Vec<BlsScalar>) {
-        evals.resize(self.size(), BlsScalar::zero());
-        best_fft(evals, self.group_gen_inv, self.log_size_of_group);
-        // cfg_iter_mut!(evals).for_each(|val| *val *= &self.size_inv);
-        evals.par_iter_mut().for_each(|val| *val *= &self.size_inv);
-    }
-
-    fn distribute_powers(coeffs: &mut [BlsScalar], g: BlsScalar) {
-        let mut pow = BlsScalar::one();
-        coeffs.iter_mut().for_each(|c| {
-            *c *= &pow;
-            pow *= &g
-        })
-    }
-
-    /// Compute a FFT over a coset of the domain.
-    pub(crate) fn coset_fft(&self, coeffs: &[BlsScalar]) -> Vec<BlsScalar> {
-        let mut coeffs = coeffs.to_vec();
-        self.coset_fft_in_place(&mut coeffs);
-        coeffs
-    }
-
-    /// Compute a FFT over a coset of the domain, modifying the input vector
-    /// in place.
-    fn coset_fft_in_place(&self, coeffs: &mut Vec<BlsScalar>) {
-        Self::distribute_powers(coeffs, GENERATOR);
-        self.fft_in_place(coeffs);
-    }
-
-    /// Compute an IFFT over a coset of the domain.
-    pub(crate) fn coset_ifft(&self, evals: &[BlsScalar]) -> Vec<BlsScalar> {
-        let mut evals = evals.to_vec();
-        self.coset_ifft_in_place(&mut evals);
-        evals
-    }
-
-    /// Compute an IFFT over a coset of the domain, modifying the input vector
-    /// in place.
-    fn coset_ifft_in_place(&self, evals: &mut Vec<BlsScalar>) {
-        self.ifft_in_place(evals);
-        Self::distribute_powers(evals, self.generator_inv);
-    }
-
-    #[allow(clippy::needless_range_loop)]
-    /// Evaluate all the lagrange polynomials defined by this domain at the
-    /// point `tau`.
-    pub(crate) fn evaluate_all_lagrange_coefficients(
-        &self,
-        tau: BlsScalar,
-    ) -> Vec<BlsScalar> {
-        // Evaluate all Lagrange polynomials
-        let size = self.size as usize;
-        let t_size = tau.pow(&[self.size, 0, 0, 0]);
-        let one = BlsScalar::one();
-        if t_size == BlsScalar::one() {
-            let mut u = vec![BlsScalar::zero(); size];
-            let mut omega_i = one;
-            for i in 0..size {
-                if omega_i == tau {
-                    u[i] = one;
-                    break;
-                }
-                omega_i *= &self.group_gen;
-            }
-            u
-        } else {
-            use crate::util::batch_inversion;
-
-            let mut l = (t_size - one) * self.size_inv;
-            let mut r = one;
-            let mut u = vec![BlsScalar::zero(); size];
-            let mut ls = vec![BlsScalar::zero(); size];
-            for i in 0..size {
-                u[i] = tau - r;
-                ls[i] = l;
-                l *= &self.group_gen;
-                r *= &self.group_gen;
-            }
-
-            batch_inversion(u.as_mut_slice());
-
-            u.par_iter_mut().zip(ls).for_each(|(tau_minus_r, l)| {
-                *tau_minus_r = l * *tau_minus_r;
-            });
-
-            u
-        }
-    }
-
-    /// This evaluates the vanishing polynomial for this domain at tau.
-    /// For multiplicative subgroups, this polynomial is `z(X) = X^self.size -
-    /// 1`.
-    pub(crate) fn evaluate_vanishing_polynomial(
-        &self,
-        tau: &BlsScalar,
-    ) -> BlsScalar {
-        tau.pow(&[self.size, 0, 0, 0]) - BlsScalar::one()
-    }
-
-    /// Given that the domain size is `D`  
-    /// This function computes the `D` evaluation points for
-    /// the vanishing polynomial of degree `n` over a coset
-    pub(crate) fn compute_vanishing_poly_over_coset(
-        &self,            // domain to evaluate over
-        poly_degree: u64, // degree of the vanishing polynomial
-    ) -> Evaluations {
-        assert!((self.size() as u64) > poly_degree);
-        let coset_gen = GENERATOR.pow(&[poly_degree, 0, 0, 0]);
-        let v_h: Vec<_> = (0..self.size())
-            .map(|i| {
-                (coset_gen
-                    * self.group_gen.pow(&[poly_degree * i as u64, 0, 0, 0]))
-                    - BlsScalar::one()
+                size_as_field_element,
+                size_inv,
+                group_gen,
+                group_gen_inv: group_gen.invert().unwrap(),
+                generator_inv: GENERATOR.invert().unwrap(),
             })
-            .collect();
-        Evaluations::from_vec_and_domain(v_h, *self)
-    }
+        }
 
-    /// Return an iterator over the elements of the domain.
-    pub(crate) fn elements(&self) -> Elements {
-        Elements {
-            cur_elem: BlsScalar::one(),
-            cur_pow: 0,
-            domain: *self,
+        /// Return the size of `self`.
+        pub(crate) fn size(&self) -> usize {
+            self.size as usize
+        }
+
+        /// Compute a FFT.
+        pub(crate) fn fft(&self, coeffs: &[BlsScalar]) -> Vec<BlsScalar> {
+            let mut coeffs = coeffs.to_vec();
+            self.fft_in_place(&mut coeffs);
+            coeffs
+        }
+
+        /// Compute a FFT, modifying the vector in place.
+        fn fft_in_place(&self, coeffs: &mut Vec<BlsScalar>) {
+            coeffs.resize(self.size(), BlsScalar::zero());
+            best_fft(coeffs, self.group_gen, self.log_size_of_group)
+        }
+
+        /// Compute an IFFT.
+        pub(crate) fn ifft(&self, evals: &[BlsScalar]) -> Vec<BlsScalar> {
+            let mut evals = evals.to_vec();
+            self.ifft_in_place(&mut evals);
+            evals
+        }
+
+        /// Compute an IFFT, modifying the vector in place.
+        #[inline]
+        pub(crate) fn ifft_in_place(&self, evals: &mut Vec<BlsScalar>) {
+            evals.resize(self.size(), BlsScalar::zero());
+            best_fft(evals, self.group_gen_inv, self.log_size_of_group);
+            // cfg_iter_mut!(evals).for_each(|val| *val *= &self.size_inv);
+            evals.iter_mut().for_each(|val| *val *= &self.size_inv);
+        }
+
+        fn distribute_powers(coeffs: &mut [BlsScalar], g: BlsScalar) {
+            let mut pow = BlsScalar::one();
+            coeffs.iter_mut().for_each(|c| {
+                *c *= &pow;
+                pow *= &g
+            })
+        }
+
+        /// Compute a FFT over a coset of the domain.
+        pub(crate) fn coset_fft(&self, coeffs: &[BlsScalar]) -> Vec<BlsScalar> {
+            let mut coeffs = coeffs.to_vec();
+            self.coset_fft_in_place(&mut coeffs);
+            coeffs
+        }
+
+        /// Compute a FFT over a coset of the domain, modifying the input vector
+        /// in place.
+        fn coset_fft_in_place(&self, coeffs: &mut Vec<BlsScalar>) {
+            Self::distribute_powers(coeffs, GENERATOR);
+            self.fft_in_place(coeffs);
+        }
+
+        /// Compute an IFFT over a coset of the domain.
+        pub(crate) fn coset_ifft(&self, evals: &[BlsScalar]) -> Vec<BlsScalar> {
+            let mut evals = evals.to_vec();
+            self.coset_ifft_in_place(&mut evals);
+            evals
+        }
+
+        /// Compute an IFFT over a coset of the domain, modifying the input
+        /// vector in place.
+        fn coset_ifft_in_place(&self, evals: &mut Vec<BlsScalar>) {
+            self.ifft_in_place(evals);
+            Self::distribute_powers(evals, self.generator_inv);
+        }
+
+        #[allow(clippy::needless_range_loop)]
+        /// Evaluate all the lagrange polynomials defined by this domain at the
+        /// point `tau`.
+        pub(crate) fn evaluate_all_lagrange_coefficients(
+            &self,
+            tau: BlsScalar,
+        ) -> Vec<BlsScalar> {
+            // Evaluate all Lagrange polynomials
+            let size = self.size as usize;
+            let t_size = tau.pow(&[self.size, 0, 0, 0]);
+            let one = BlsScalar::one();
+            if t_size == BlsScalar::one() {
+                let mut u = vec![BlsScalar::zero(); size];
+                let mut omega_i = one;
+                for i in 0..size {
+                    if omega_i == tau {
+                        u[i] = one;
+                        break;
+                    }
+                    omega_i *= &self.group_gen;
+                }
+                u
+            } else {
+                use crate::util::batch_inversion;
+
+                let mut l = (t_size - one) * self.size_inv;
+                let mut r = one;
+                let mut u = vec![BlsScalar::zero(); size];
+                let mut ls = vec![BlsScalar::zero(); size];
+                for i in 0..size {
+                    u[i] = tau - r;
+                    ls[i] = l;
+                    l *= &self.group_gen;
+                    r *= &self.group_gen;
+                }
+
+                batch_inversion(u.as_mut_slice());
+
+                u.iter_mut().zip(ls).for_each(|(tau_minus_r, l)| {
+                    *tau_minus_r = l * *tau_minus_r;
+                });
+
+                u
+            }
+        }
+
+        /// This evaluates the vanishing polynomial for this domain at tau.
+        /// For multiplicative subgroups, this polynomial is `z(X) = X^self.size
+        /// - 1`.
+        pub(crate) fn evaluate_vanishing_polynomial(
+            &self,
+            tau: &BlsScalar,
+        ) -> BlsScalar {
+            tau.pow(&[self.size, 0, 0, 0]) - BlsScalar::one()
+        }
+
+        /// Given that the domain size is `D`  
+        /// This function computes the `D` evaluation points for
+        /// the vanishing polynomial of degree `n` over a coset
+        pub(crate) fn compute_vanishing_poly_over_coset(
+            &self,            // domain to evaluate over
+            poly_degree: u64, // degree of the vanishing polynomial
+        ) -> Evaluations {
+            assert!((self.size() as u64) > poly_degree);
+            let coset_gen = GENERATOR.pow(&[poly_degree, 0, 0, 0]);
+            let v_h: Vec<_> = (0..self.size())
+                .map(|i| {
+                    (coset_gen
+                        * self.group_gen.pow(&[
+                            poly_degree * i as u64,
+                            0,
+                            0,
+                            0,
+                        ]))
+                        - BlsScalar::one()
+                })
+                .collect();
+            Evaluations::from_vec_and_domain(v_h, *self)
+        }
+
+        /// Return an iterator over the elements of the domain.
+        pub(crate) fn elements(&self) -> Elements {
+            Elements {
+                cur_elem: BlsScalar::one(),
+                cur_pow: 0,
+                domain: *self,
+            }
         }
     }
-}
 
-fn best_fft(a: &mut [BlsScalar], omega: BlsScalar, log_n: u32) {
-    serial_fft(a, omega, log_n)
-}
-
-#[inline]
-fn bitreverse(mut n: u32, l: u32) -> u32 {
-    let mut r = 0;
-    for _ in 0..l {
-        r = (r << 1) | (n & 1);
-        n >>= 1;
+    #[cfg(feature = "alloc")]
+    fn best_fft(a: &mut [BlsScalar], omega: BlsScalar, log_n: u32) {
+        serial_fft(a, omega, log_n)
     }
-    r
-}
 
-pub(crate) fn serial_fft(a: &mut [BlsScalar], omega: BlsScalar, log_n: u32) {
-    let n = a.len() as u32;
-    assert_eq!(n, 1 << log_n);
-
-    for k in 0..n {
-        let rk = bitreverse(k, log_n);
-        if k < rk {
-            a.swap(rk as usize, k as usize);
+    #[cfg(feature = "alloc")]
+    #[inline]
+    fn bitreverse(mut n: u32, l: u32) -> u32 {
+        let mut r = 0;
+        for _ in 0..l {
+            r = (r << 1) | (n & 1);
+            n >>= 1;
         }
+        r
     }
 
-    let mut m = 1;
-    for _ in 0..log_n {
-        let w_m = omega.pow(&[(n / (2 * m)) as u64, 0, 0, 0]);
+    #[cfg(feature = "alloc")]
+    pub(crate) fn serial_fft(
+        a: &mut [BlsScalar],
+        omega: BlsScalar,
+        log_n: u32,
+    ) {
+        let n = a.len() as u32;
+        assert_eq!(n, 1 << log_n);
 
-        let mut k = 0;
-        while k < n {
-            let mut w = BlsScalar::one();
-            for j in 0..m {
-                let mut t = a[(k + j + m) as usize];
-                t *= &w;
-                let mut tmp = a[(k + j) as usize];
-                tmp -= &t;
-                a[(k + j + m) as usize] = tmp;
-                a[(k + j) as usize] += &t;
-                w.mul_assign(&w_m);
+        for k in 0..n {
+            let rk = bitreverse(k, log_n);
+            if k < rk {
+                a.swap(rk as usize, k as usize);
+            }
+        }
+
+        let mut m = 1;
+        for _ in 0..log_n {
+            let w_m = omega.pow(&[(n / (2 * m)) as u64, 0, 0, 0]);
+
+            let mut k = 0;
+            while k < n {
+                let mut w = BlsScalar::one();
+                for j in 0..m {
+                    let mut t = a[(k + j + m) as usize];
+                    t *= &w;
+                    let mut tmp = a[(k + j) as usize];
+                    tmp -= &t;
+                    a[(k + j + m) as usize] = tmp;
+                    a[(k + j) as usize] += &t;
+                    w.mul_assign(&w_m);
+                }
+
+                k += 2 * m;
             }
 
-            k += 2 * m;
+            m *= 2;
         }
-
-        m *= 2;
     }
-}
 
-/// An iterator over the elements of the domain.
-#[derive(Debug)]
-pub(crate) struct Elements {
-    cur_elem: BlsScalar,
-    cur_pow: u64,
-    domain: EvaluationDomain,
-}
+    /// An iterator over the elements of the domain.
+    #[derive(Debug)]
+    pub(crate) struct Elements {
+        cur_elem: BlsScalar,
+        cur_pow: u64,
+        domain: EvaluationDomain,
+    }
 
-impl Iterator for Elements {
-    type Item = BlsScalar;
-    fn next(&mut self) -> Option<BlsScalar> {
-        if self.cur_pow == self.domain.size {
-            None
-        } else {
-            let cur_elem = self.cur_elem;
-            self.cur_elem *= &self.domain.group_gen;
-            self.cur_pow += 1;
-            Some(cur_elem)
+    impl Iterator for Elements {
+        type Item = BlsScalar;
+        fn next(&mut self) -> Option<BlsScalar> {
+            if self.cur_pow == self.domain.size {
+                None
+            } else {
+                let cur_elem = self.cur_elem;
+                self.cur_elem *= &self.domain.group_gen;
+                self.cur_pow += 1;
+                Some(cur_elem)
+            }
         }
     }
 }

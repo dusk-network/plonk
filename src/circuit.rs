@@ -9,7 +9,8 @@
 use crate::commitment_scheme::kzg10::PublicParameters;
 use crate::constraint_system::StandardComposer;
 use crate::error::Error;
-use crate::proof_system::{Proof, ProverKey, VerifierKey};
+use crate::proof_system::{Proof, Prover, ProverKey, Verifier, VerifierKey};
+use alloc::vec::Vec;
 #[cfg(feature = "canon")]
 use canonical::Canon;
 #[cfg(feature = "canon")]
@@ -120,7 +121,6 @@ where
         &mut self,
         pub_params: &PublicParameters,
     ) -> Result<(ProverKey, VerifierData), Error> {
-        use crate::proof_system::{Prover, Verifier};
         // Setup PublicParams
         let (ck, _) = pub_params.trim(self.padded_circuit_size())?;
         // Generate & save `ProverKey` with some random values.
@@ -154,7 +154,6 @@ where
         prover_key: &ProverKey,
         transcript_init: &'static [u8],
     ) -> Result<Proof, Error> {
-        use crate::proof_system::Prover;
         let (ck, _) = pub_params.trim(self.padded_circuit_size())?;
         // New Prover instance
         let mut prover = Prover::new(transcript_init);
@@ -179,7 +178,6 @@ pub fn verify_proof(
     pub_inputs_positions: &[usize],
     transcript_init: &'static [u8],
 ) -> Result<(), Error> {
-    use crate::proof_system::Verifier;
     let trim_size = verifier_key.padded_circuit_size();
     let (_, vk) = pub_params.trim(trim_size)?;
 
@@ -210,6 +208,7 @@ fn build_pi(
     pi
 }
 
+#[cfg(feature = "std")]
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -289,6 +288,7 @@ mod tests {
 
     #[test]
     fn test_full() -> Result<(), Error> {
+        use rand_core::OsRng;
         use std::fs::{self, File};
         use std::io::Write;
         use tempdir::TempDir;
@@ -301,7 +301,7 @@ mod tests {
         let vd_path = tmp.clone().join("vd_testcirc");
 
         // Generate CRS
-        let pp_p = PublicParameters::setup(1 << 12, &mut rand::thread_rng())?;
+        let pp_p = PublicParameters::setup(1 << 12, &mut OsRng)?;
         File::create(&pp_path)
             .and_then(|mut f| f.write(pp_p.to_raw_var_bytes().as_slice()))
             .expect("IO error");

@@ -19,5 +19,3 @@ trait CommitmentScheme {
 }
 
 pub(crate) mod kzg10;
-pub use kzg10::key;
-pub use kzg10::PublicParameters;

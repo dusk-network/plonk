@@ -51,18 +51,28 @@
 #![allow(unknown_lints)]
 #![deny(rustdoc::broken_intra_doc_links)]
 #![deny(missing_docs)]
+#![no_std]
 
-mod bit_iterator;
-pub mod circuit;
+#[cfg(feature = "std")]
+extern crate std;
+
+cfg_if::cfg_if!(
+if #[cfg(feature = "alloc")] {
+    #[macro_use]
+    extern crate alloc;
+    pub mod constraint_system;
+    mod bit_iterator;
+    pub mod circuit;
+    mod util;
+    mod permutation;
+});
+
 pub mod commitment_scheme;
-pub mod constraint_system;
 pub mod error;
 mod fft;
-mod permutation;
 pub mod prelude;
 pub mod proof_system;
 mod transcript;
-mod util;
 
 #[cfg(feature = "nightly")]
 #[doc(include = "../docs/notes-intro.md")]

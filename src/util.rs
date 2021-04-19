@@ -4,11 +4,11 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
+use alloc::vec::Vec;
 use dusk_bls12_381::{
     BlsScalar, G1Affine, G1Projective, G2Affine, G2Projective,
 };
 use rand_core::{CryptoRng, RngCore};
-use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
 /// Returns a vector of BlsScalars of increasing powers of x from x^0 to x^d.
 pub(crate) fn powers_of(
@@ -48,11 +48,12 @@ pub(crate) fn slow_multiscalar_mul_single_base(
     scalars: &[BlsScalar],
     base: G1Projective,
 ) -> Vec<G1Projective> {
-    scalars.par_iter().map(|s| base * *s).collect()
+    scalars.iter().map(|s| base * *s).collect()
 }
 
 // while we do not have batch inversion for scalars
-use std::ops::MulAssign;
+use core::ops::MulAssign;
+
 pub fn batch_inversion(v: &mut [BlsScalar]) {
     // Montgomery’s Trick and Fast Implementation of Masked AES
     // Genelle, Prouff and Quisquater
