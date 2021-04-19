@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Make the crate `no_std`. [#350](https://github.com/dusk-network/plonk/issues/350)
 - Change 'from_projective' method for the implementation of the ::from trait.  [#433] (https://github.com/dusk-network/plonk/issues/433)
+- Update to `canonical-0.6`. [#494](https://github.com/dusk-network/plonk/issues/494)
 
 ## [0.7.0] - 06-04-21
 
