@@ -9,6 +9,7 @@
 use super::domain::EvaluationDomain;
 use super::polynomial::Polynomial;
 use crate::error::Error;
+use alloc::vec::Vec;
 use core::ops::{
     Add, AddAssign, DivAssign, Index, Mul, MulAssign, Sub, SubAssign,
 };

@@ -6,6 +6,7 @@
 
 use crate::constraint_system::ecc::{Point, PointScalar};
 use crate::constraint_system::{variable::Variable, StandardComposer};
+use alloc::vec::Vec;
 use dusk_bls12_381::BlsScalar;
 use dusk_bytes::Serializable;
 
@@ -139,6 +140,8 @@ fn scalar_to_bits(scalar: &BlsScalar) -> [u8; 256] {
     }
     res
 }
+
+#[cfg(feature = "std")]
 #[cfg(test)]
 mod tests {
     use super::*;

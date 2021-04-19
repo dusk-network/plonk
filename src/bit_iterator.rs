@@ -6,7 +6,7 @@
 
 //! Code taken from zcash repo and generalised as we do not have access to the
 //! limbs
-use std::mem;
+use core::mem;
 
 macro_rules! bit_iterator {
     ($sty : ty, $name : ident) => {
@@ -57,9 +57,11 @@ macro_rules! bit_iterator {
 }
 bit_iterator!(u8, BitIterator8);
 
+#[cfg(feature = "std")]
 #[cfg(test)]
 mod test {
     use super::*;
+    use alloc::vec::Vec;
     use dusk_bls12_381::BlsScalar;
     use dusk_bytes::Serializable;
 

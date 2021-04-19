@@ -7,6 +7,7 @@
 use crate::bit_iterator::*;
 use crate::constraint_system::StandardComposer;
 use crate::constraint_system::{Variable, WireData};
+use alloc::vec::Vec;
 use dusk_bls12_381::BlsScalar;
 use dusk_bytes::Serializable;
 
@@ -184,6 +185,8 @@ impl StandardComposer {
         accumulators[last_accumulator] = witness;
     }
 }
+
+#[cfg(feature = "std")]
 #[cfg(test)]
 mod tests {
     use super::super::helper::*;

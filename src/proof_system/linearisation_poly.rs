@@ -4,11 +4,15 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use crate::fft::{EvaluationDomain, Polynomial};
-use crate::proof_system::widget::ProverKey;
+#[cfg(feature = "alloc")]
+use crate::{
+    fft::{EvaluationDomain, Polynomial},
+    proof_system::ProverKey,
+};
+
 use dusk_bls12_381::BlsScalar;
 use dusk_bytes::{DeserializableSlice, Serializable};
-
+#[allow(dead_code)]
 /// Evaluations at points `z` or and `z * root of unity`
 pub(crate) struct Evaluations {
     pub(crate) proof: ProofEvaluations,
@@ -129,6 +133,7 @@ impl Serializable<{ 16 * BlsScalar::SIZE }> for ProofEvaluations {
     }
 }
 
+#[cfg(feature = "alloc")]
 #[allow(clippy::too_many_arguments)]
 /// Compute the linearisation polynomial
 pub(crate) fn compute(
@@ -243,6 +248,7 @@ pub(crate) fn compute(
     )
 }
 
+#[cfg(feature = "alloc")]
 #[allow(clippy::too_many_arguments)]
 fn compute_circuit_satisfiability(
     (

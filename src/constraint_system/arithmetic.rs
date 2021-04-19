@@ -302,9 +302,10 @@ impl StandardComposer {
     }
 }
 
+#[cfg(feature = "std")]
 #[cfg(test)]
 mod tests {
-    use super::super::helper::*;
+    use crate::constraint_system::helper::*;
     use dusk_bls12_381::BlsScalar;
 
     #[test]
