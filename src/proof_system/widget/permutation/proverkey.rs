@@ -4,7 +4,6 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-
 use crate::fft::{EvaluationDomain, Evaluations, Polynomial};
 use crate::permutation::constants::{K1, K2, K3};
 use dusk_bls12_381::BlsScalar;

@@ -18,7 +18,6 @@
 // it is intended to be like this in order to provide
 // maximum performance and minimum circuit sizes.
 
-
 use crate::constraint_system::Variable;
 use crate::permutation::Permutation;
 use alloc::collections::BTreeMap;
