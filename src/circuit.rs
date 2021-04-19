@@ -291,9 +291,7 @@ mod tests {
         use std::io::Write;
         use tempfile::TempDir;
 
-        let tmp = TempDir::new("plonk-keys-test-full")
-            .expect("IO error")
-            .into_path();
+        let tmp = TempDir::new().expect("IO error").into_path();
         let pp_path = tmp.clone().join("pp_testcirc");
         let pk_path = tmp.clone().join("pk_testcirc");
         let vd_path = tmp.clone().join("vd_testcirc");
