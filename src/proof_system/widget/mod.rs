@@ -354,7 +354,7 @@ pub(crate) mod alloc {
 
         /// Deserialises a slice of bytes into a [`ProverKey`].
         pub fn from_slice(bytes: &[u8]) -> Result<ProverKey, Error> {
-            let mut buffer = &bytes[..];
+            let mut buffer = bytes;
             let n = u64::from_reader(&mut buffer)? as usize;
             let evaluations_size = u64::from_reader(&mut buffer)? as usize;
             // let domain = crate::fft::EvaluationDomain::new(4 * size)?;

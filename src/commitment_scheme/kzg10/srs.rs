@@ -134,7 +134,7 @@ impl PublicParameters {
         if bytes.len() <= OpeningKey::SIZE {
             return Err(Error::NotEnoughBytes);
         }
-        let mut buf = &bytes[..];
+        let mut buf = bytes;
         let opening_key = OpeningKey::from_reader(&mut buf)?;
         let commit_key = CommitKey::from_slice(&buf)?;
 
