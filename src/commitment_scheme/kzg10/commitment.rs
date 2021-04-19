@@ -43,13 +43,13 @@ impl Serializable<{ G1Affine::SIZE }> for Commitment {
 impl Commitment {
     /// Builds an identity `Commitment` which is equivalent to the
     /// `G1Affine` identity point in Bls12_381.
-    fn identity() -> Self {
+    fn identity() -> Commitment {
         Commitment(G1Affine::identity())
     }
 }
 
 impl Default for Commitment {
-    fn default() -> Self {
+    fn default() -> Commitment {
         Commitment::identity()
     }
 }
