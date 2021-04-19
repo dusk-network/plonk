@@ -6,44 +6,44 @@
 
 use crate::commitment_scheme::kzg10::Commitment;
 
-cfg_if::cfg_if!(
-    if #[cfg(feature = "alloc")]
-    {
-        use crate::proof_system::linearisation_poly::ProofEvaluations;
-        use alloc::vec::Vec;
-        use dusk_bls12_381::{BlsScalar, G1Affine};
-        use super::proverkey::delta;
-    }
-);
-
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub(crate) struct VerifierKey {
     pub(crate) q_range: Commitment,
 }
 
 #[cfg(feature = "alloc")]
-impl VerifierKey {
-    pub(crate) fn compute_linearisation_commitment(
-        &self,
-        range_separation_challenge: &BlsScalar,
-        scalars: &mut Vec<BlsScalar>,
-        points: &mut Vec<G1Affine>,
-        evaluations: &ProofEvaluations,
-    ) {
-        let four = BlsScalar::from(4);
+mod alloc {
+    use super::*;
+    use crate::proof_system::linearisation_poly::ProofEvaluations;
+    use crate::proof_system::widget::range::proverkey::delta;
+    use ::alloc::vec::Vec;
+    use dusk_bls12_381::{BlsScalar, G1Affine};
 
-        let kappa = range_separation_challenge.square();
-        let kappa_sq = kappa.square();
-        let kappa_cu = kappa_sq * kappa;
+    impl VerifierKey {
+        pub(crate) fn compute_linearisation_commitment(
+            &self,
+            range_separation_challenge: &BlsScalar,
+            scalars: &mut Vec<BlsScalar>,
+            points: &mut Vec<G1Affine>,
+            evaluations: &ProofEvaluations,
+        ) {
+            let four = BlsScalar::from(4);
 
-        let b_1 = delta(evaluations.c_eval - (four * evaluations.d_eval));
-        let b_2 = delta(evaluations.b_eval - four * evaluations.c_eval) * kappa;
-        let b_3 =
-            delta(evaluations.a_eval - four * evaluations.b_eval) * kappa_sq;
-        let b_4 = delta(evaluations.d_next_eval - (four * evaluations.a_eval))
-            * kappa_cu;
+            let kappa = range_separation_challenge.square();
+            let kappa_sq = kappa.square();
+            let kappa_cu = kappa_sq * kappa;
 
-        scalars.push((b_1 + b_2 + b_3 + b_4) * range_separation_challenge);
-        points.push(self.q_range.0);
+            let b_1 = delta(evaluations.c_eval - (four * evaluations.d_eval));
+            let b_2 =
+                delta(evaluations.b_eval - four * evaluations.c_eval) * kappa;
+            let b_3 = delta(evaluations.a_eval - four * evaluations.b_eval)
+                * kappa_sq;
+            let b_4 =
+                delta(evaluations.d_next_eval - (four * evaluations.a_eval))
+                    * kappa_cu;
+
+            scalars.push((b_1 + b_2 + b_3 + b_4) * range_separation_challenge);
+            points.push(self.q_range.0);
+        }
     }
 }

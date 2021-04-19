@@ -10,11 +10,7 @@ pub mod logic;
 pub mod permutation;
 pub mod range;
 use crate::commitment_scheme::kzg10::Commitment;
-#[cfg(feature = "alloc")]
-use crate::transcript::TranscriptProtocol;
 use dusk_bytes::{DeserializableSlice, Serializable};
-#[cfg(feature = "alloc")]
-use merlin::Transcript;
 
 /// PLONK circuit verification key
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
@@ -153,48 +149,58 @@ impl VerifierKey {
             permutation,
         }
     }
-
-    #[cfg(feature = "alloc")]
-    /// Adds the circuit description to the transcript
-    pub(crate) fn seed_transcript(&self, transcript: &mut Transcript) {
-        transcript.append_commitment(b"q_m", &self.arithmetic.q_m);
-        transcript.append_commitment(b"q_l", &self.arithmetic.q_l);
-        transcript.append_commitment(b"q_r", &self.arithmetic.q_r);
-        transcript.append_commitment(b"q_o", &self.arithmetic.q_o);
-        transcript.append_commitment(b"q_c", &self.arithmetic.q_c);
-        transcript.append_commitment(b"q_4", &self.arithmetic.q_4);
-        transcript.append_commitment(b"q_arith", &self.arithmetic.q_arith);
-        transcript.append_commitment(b"q_range", &self.range.q_range);
-        transcript.append_commitment(b"q_logic", &self.logic.q_logic);
-        transcript.append_commitment(
-            b"q_variable_group_add",
-            &self.variable_base.q_variable_group_add,
-        );
-        transcript.append_commitment(
-            b"q_fixed_group_add",
-            &self.fixed_base.q_fixed_group_add,
-        );
-
-        transcript
-            .append_commitment(b"left_sigma", &self.permutation.left_sigma);
-        transcript
-            .append_commitment(b"right_sigma", &self.permutation.right_sigma);
-        transcript.append_commitment(b"out_sigma", &self.permutation.out_sigma);
-        transcript
-            .append_commitment(b"fourth_sigma", &self.permutation.fourth_sigma);
-
-        // Append circuit size to transcript
-        transcript.circuit_domain_sep(self.n as u64);
-    }
 }
 
 #[cfg(feature = "alloc")]
 pub(crate) mod alloc {
     use super::*;
-    use crate::error::Error;
-    use crate::fft::{EvaluationDomain, Evaluations, Polynomial};
+    use crate::{
+        error::Error,
+        fft::{EvaluationDomain, Evaluations, Polynomial},
+        transcript::TranscriptProtocol,
+    };
     use ::alloc::vec::Vec;
     use dusk_bls12_381::BlsScalar;
+    use merlin::Transcript;
+
+    impl VerifierKey {
+        /// Adds the circuit description to the transcript
+        pub(crate) fn seed_transcript(&self, transcript: &mut Transcript) {
+            transcript.append_commitment(b"q_m", &self.arithmetic.q_m);
+            transcript.append_commitment(b"q_l", &self.arithmetic.q_l);
+            transcript.append_commitment(b"q_r", &self.arithmetic.q_r);
+            transcript.append_commitment(b"q_o", &self.arithmetic.q_o);
+            transcript.append_commitment(b"q_c", &self.arithmetic.q_c);
+            transcript.append_commitment(b"q_4", &self.arithmetic.q_4);
+            transcript.append_commitment(b"q_arith", &self.arithmetic.q_arith);
+            transcript.append_commitment(b"q_range", &self.range.q_range);
+            transcript.append_commitment(b"q_logic", &self.logic.q_logic);
+            transcript.append_commitment(
+                b"q_variable_group_add",
+                &self.variable_base.q_variable_group_add,
+            );
+            transcript.append_commitment(
+                b"q_fixed_group_add",
+                &self.fixed_base.q_fixed_group_add,
+            );
+
+            transcript
+                .append_commitment(b"left_sigma", &self.permutation.left_sigma);
+            transcript.append_commitment(
+                b"right_sigma",
+                &self.permutation.right_sigma,
+            );
+            transcript
+                .append_commitment(b"out_sigma", &self.permutation.out_sigma);
+            transcript.append_commitment(
+                b"fourth_sigma",
+                &self.permutation.fourth_sigma,
+            );
+
+            // Append circuit size to transcript
+            transcript.circuit_domain_sep(self.n as u64);
+        }
+    }
 
     /// PLONK circuit proving key
     #[derive(Debug, PartialEq, Eq, Clone)]
