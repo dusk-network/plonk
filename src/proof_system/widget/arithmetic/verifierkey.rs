@@ -13,8 +13,8 @@ pub(crate) struct VerifierKey {
     pub q_l: Commitment,
     pub q_r: Commitment,
     pub q_o: Commitment,
-    pub q_c: Commitment,
     pub q_4: Commitment,
+    pub q_c: Commitment,
     pub q_arith: Commitment,
 }
 
@@ -52,8 +52,8 @@ impl Serializable<{ 7 * Commitment::SIZE }> for VerifierKey {
             q_l,
             q_r,
             q_o,
-            q_c,
             q_4,
+            q_c,
             q_arith,
         })
     }

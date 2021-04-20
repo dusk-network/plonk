@@ -14,7 +14,6 @@ pub(crate) struct ProverKey {
 }
 
 impl ProverKey {
-    #[allow(clippy::too_many_arguments)]
     pub(crate) fn compute_quotient_i(
         &self,
         index: usize,
@@ -63,7 +62,6 @@ impl ProverKey {
         identity * q_variable_group_add_i * curve_add_separation_challenge
     }
 
-    #[allow(clippy::too_many_arguments)]
     pub(crate) fn compute_linearisation(
         &self,
         curve_add_separation_challenge: &BlsScalar,

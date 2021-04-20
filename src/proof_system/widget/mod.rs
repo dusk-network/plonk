@@ -123,9 +123,9 @@ impl VerifierKey {
         let logic = logic::VerifierKey { q_c, q_logic };
         let range = range::VerifierKey { q_range };
         let fixed_base = ecc::scalar_mul::fixed_base::VerifierKey {
-            q_fixed_group_add,
             q_l,
             q_r,
+            q_fixed_group_add,
         };
 
         let variable_base = ecc::curve_addition::VerifierKey {
@@ -144,8 +144,8 @@ impl VerifierKey {
             arithmetic,
             logic,
             range,
-            variable_base,
             fixed_base,
+            variable_base,
             permutation,
         }
     }
@@ -215,10 +215,10 @@ pub(crate) mod alloc {
         pub(crate) range: range::ProverKey,
         /// ProverKey for fixed base curve addition gates
         pub(crate) fixed_base: ecc::scalar_mul::fixed_base::ProverKey,
-        /// ProverKey for permutation checks
-        pub(crate) permutation: permutation::ProverKey,
         /// ProverKey for variable base curve addition gates
         pub(crate) variable_base: ecc::curve_addition::ProverKey,
+        /// ProverKey for permutation checks
+        pub(crate) permutation: permutation::ProverKey,
         // Pre-processes the 4n Evaluations for the vanishing polynomial, so
         // they do not need to be computed at the proving stage.
         // Note: With this, we can combine all parts of the quotient polynomial
@@ -354,7 +354,7 @@ pub(crate) mod alloc {
 
         /// Deserialises a slice of bytes into a [`ProverKey`].
         pub fn from_slice(bytes: &[u8]) -> Result<ProverKey, Error> {
-            let mut buffer = &bytes[..];
+            let mut buffer = bytes;
             let n = u64::from_reader(&mut buffer)? as usize;
             let evaluations_size = u64::from_reader(&mut buffer)? as usize;
             // let domain = crate::fft::EvaluationDomain::new(4 * size)?;
@@ -471,10 +471,10 @@ pub(crate) mod alloc {
             let range = range::ProverKey { q_range };
 
             let fixed_base = ecc::scalar_mul::fixed_base::ProverKey {
-                q_fixed_group_add,
                 q_l,
                 q_r,
                 q_c,
+                q_fixed_group_add,
             };
 
             let permutation = permutation::ProverKey {

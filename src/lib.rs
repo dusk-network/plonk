@@ -47,8 +47,9 @@
 #![allow(clippy::many_single_char_names)]
 // Bool expr are usually easier to read with match statements.
 #![allow(clippy::match_bool)]
-// Clippy does not have `broken_intra_doc_links` as a known lint.
-#![allow(unknown_lints)]
+// We have quite some functions that require quite some args by it's nature.
+// It can be refactored but for now, we avoid these warns.
+#![allow(clippy::too_many_arguments)]
 #![deny(rustdoc::broken_intra_doc_links)]
 #![deny(missing_docs)]
 #![no_std]

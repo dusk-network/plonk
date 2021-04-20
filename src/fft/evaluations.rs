@@ -42,7 +42,7 @@ impl Evaluations {
 
     /// Generate an `Evaluations` struct from a slice of bytes.
     pub fn from_slice(bytes: &[u8]) -> Result<Evaluations, Error> {
-        let mut buffer = &bytes[..];
+        let mut buffer = bytes;
         let domain = EvaluationDomain::from_reader(&mut buffer)?;
         let evals = buffer
             .chunks(BlsScalar::SIZE)
