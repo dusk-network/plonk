@@ -26,9 +26,9 @@ pub fn variable_base_scalar_mul(
     let mut result = identity;
 
     for bit in scalar_bits_var.into_iter().rev() {
-        result = result.fast_add(composer, result);
+        result = composer.point_addition_gate(result, result);
         let point_to_add = conditional_select_identity(composer, bit, point);
-        result = result.fast_add(composer, point_to_add);
+        result = composer.point_addition_gate(result, point_to_add);
     }
 
     PointScalar {
@@ -48,6 +48,7 @@ fn conditional_select_zero(
     // returns bit * value
     composer.mul(BlsScalar::one(), bit, value, BlsScalar::zero(), None)
 }
+
 /// If bit == 0, then return 1 else return value
 /// This is the polynomial f(x) = 1 - x + xa
 /// Where x is the bit
@@ -167,7 +168,7 @@ mod tests {
                 let expected_point: JubJubAffine =
                     (JubJubExtended::from(GENERATOR) * scalar).into();
 
-                let point = Point::from_private_affine(composer, GENERATOR);
+                let point = composer.new_private_affine(GENERATOR);
 
                 let point_scalar =
                     variable_base_scalar_mul(composer, secret_scalar, point);
