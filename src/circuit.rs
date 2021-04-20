@@ -267,8 +267,7 @@ mod tests {
 
             // This adds a PI also constraining `generator` to actually be
             // `dusk_jubjub::GENERATOR`
-            let generator =
-                Point::from_public_affine(composer, dusk_jubjub::GENERATOR);
+            let generator = composer.new_public_affine(dusk_jubjub::GENERATOR);
             let e = composer.add_input(self.e.into());
             let scalar_mul_result =
                 scalar_mul::variable_base::variable_base_scalar_mul(
