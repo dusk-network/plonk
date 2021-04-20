@@ -14,13 +14,21 @@ use super::linearisation_poly::ProofEvaluations;
 use crate::commitment_scheme::kzg10::Commitment;
 use dusk_bytes::{DeserializableSlice, Serializable};
 
-/// A Proof is a composition of `Commitments` to the witness, permutation,
-/// quotient, shifted and opening polynomials as well as the
-/// `ProofEvaluations`.
+/// A Proof is a composition of [`Commitment`]s to the Witness, Permutation,
+/// Quotient, Shifted and Opening polynomials as well as the
+/// [`ProofEvaluations`].
 ///
-/// It's main goal is to have a `verify()` method attached which contains the
-/// logic of the operations that the `Verifier` will need to do in order to
-/// formally verify the `Proof`.
+/// It's main goal is to allow the `Verifier` to
+/// formally verify that the secret witnesses used to generate the [`Proof`]
+/// satisfy a circuit that both [`Prover`](super::Prover) and
+/// [`Verifier`](super::Verifier) have in common succintly and without any
+/// capabilities of adquiring any kind of knowledge about the witness used to
+/// construct the [`Proof`].
+///
+/// [`Commitment`]: struct.Commitment.html
+/// [`ProofEvaluations`]: struct.ProofEvaluations.html
+/// [`Prover`]: struct.Prover.html
+/// [`Verifier`]: struct.Verifier.html
 #[derive(Debug, Eq, PartialEq, Clone, Default)]
 pub struct Proof {
     /// Commitment to the witness polynomial for the left wires.
@@ -129,7 +137,7 @@ pub(crate) mod alloc {
     use merlin::Transcript;
 
     impl Proof {
-        /// Performs the verification of a `Proof` returning a boolean result.
+        /// Performs the verification of a [`Proof`] returning a boolean result.
         pub(crate) fn verify(
             &self,
             verifier_key: &VerifierKey,

@@ -46,6 +46,9 @@ impl From<JubJubAffine> for PublicInputValue {
 /// de/serialize data needed for Circuit proof verification.
 /// This structure can be seen as a link between the [`Circuit`] public input
 /// positions and the [`VerifierKey`] that the Verifier needs to use.
+///
+/// [`VerifierKey`]: struct.VerifierKey.html
+/// [`Circuit`]: struct.Circuit.html
 pub struct VerifierData {
     key: VerifierKey,
     pi_pos: Vec<usize>,
@@ -54,11 +57,15 @@ pub struct VerifierData {
 impl VerifierData {
     /// Creates a new [`VerifierData`] from a [`VerifierKey`] and the public
     /// input positions of the circuit that it represents.
+    ///
+    /// [`VerifierKey`]: struct.VerifierKey.html
     pub const fn new(key: VerifierKey, pi_pos: Vec<usize>) -> Self {
         Self { key, pi_pos }
     }
 
     /// Returns a reference to the contained [`VerifierKey`].
+    ///
+    /// [`VerifierKey`]: struct.VerifierKey.html
     pub const fn key(&self) -> &VerifierKey {
         &self.key
     }
@@ -103,8 +110,129 @@ impl VerifierData {
     }
 }
 
-/// Circuit representation for a gadget with all of the tools that it
-/// should implement.
+/// Trait that should be implemented for any circuit function to provide to it
+/// the capabilities of automatically being able to generate, and verify proofs
+/// as well as compile the circuit.
+/// # Example
+///
+/// ```
+/// use dusk_plonk::prelude::*;
+/// use rand_core::OsRng;
+///
+/// fn main() -> Result<(), Error> {
+/// // Implements a circuit that checks:
+/// // 1) a + b = c where C is a PI
+/// // 2) a <= 2^6
+/// // 3) b <= 2^5
+/// // 4) a * b = d where D is a PI
+/// // 5) JubJub::GENERATOR * e(JubJubScalar) = f where F is a PI
+/// #[derive(Debug, Default)]
+/// pub struct TestCircuit {
+///     a: BlsScalar,
+///     b: BlsScalar,
+///     c: BlsScalar,
+///     d: BlsScalar,
+///     e: JubJubScalar,
+///     f: JubJubAffine,
+/// }
+///
+/// impl Circuit for TestCircuit {
+///     const CIRCUIT_ID: [u8; 32] = [0xff; 32];
+///     fn gadget(
+///         &mut self,
+///         composer: &mut StandardComposer,
+///     ) -> Result<(), Error> {
+///         let a = composer.add_input(self.a);
+///         let b = composer.add_input(self.b);
+///         // Make first constraint a + b = c
+///         composer.poly_gate(
+///             a,
+///             b,
+///             composer.zero_var,
+///             BlsScalar::zero(),
+///             BlsScalar::one(),
+///             BlsScalar::one(),
+///             BlsScalar::zero(),
+///             BlsScalar::zero(),
+///             Some(-self.c),
+///         );
+///         // Check that a and b are in range
+///         composer.range_gate(a, 1 << 6);
+///         composer.range_gate(b, 1 << 5);
+///         // Make second constraint a * b = d
+///         composer.poly_gate(
+///             a,
+///             b,
+///             composer.zero_var,
+///             BlsScalar::one(),
+///             BlsScalar::zero(),
+///             BlsScalar::zero(),
+///             BlsScalar::one(),
+///             BlsScalar::zero(),
+///             Some(-self.d),
+///         )///
+
+///         // This adds a PI also constraining `generator` to actually be
+///         // `dusk_jubjub::GENERATOR`
+///         let generator =
+///             Point::from_public_affine(composer, dusk_jubjub::GENERATOR);
+///         let e = composer.add_input(self.e.into());
+///         let scalar_mul_result =
+///             scalar_mul::variable_base::variable_base_scalar_mul(
+///                 composer, e, generator,
+///             );
+///         // Apply the constrain
+///         composer
+///             .assert_equal_public_point(scalar_mul_result.into(), self.f);
+///         Ok(())
+///     }
+///     fn padded_circuit_size(&self) -> usize {
+///         1 << 11
+///     }
+/// }
+///
+/// let pp_p = PublicParameters::setup(1 << 12, &mut OsRng)?;
+/// // Initialize the circuit
+/// let mut circuit = TestCircuit::default();
+/// // Compile the circuit
+/// let (pk_p, og_verifier_data) = circuit.compile(&pp)?;
+///
+/// // Prover POV
+/// let proof = {
+///     let mut circuit = TestCircuit {
+///         a: BlsScalar::from(20u64),
+///         b: BlsScalar::from(5u64),
+///         c: BlsScalar::from(25u64),
+///         d: BlsScalar::from(100u64),
+///         e: JubJubScalar::from(2u64),
+///         f: JubJubAffine::from(
+///             dusk_jubjub::GENERATOR_EXTENDED * JubJubScalar::from(2u64),
+///         ),
+///     }
+///
+///     circuit.gen_proof(&pp, &pk, b"Test")
+/// }?;
+///
+/// // Verifier POV
+/// let public_inputs2: Vec<PublicInputValue> = vec![
+///     BlsScalar::from(25u64).into(),
+///     BlsScalar::from(100u64).into(),
+///     dusk_jubjub::GENERATOR.into(),
+///     JubJubAffine::from(
+///         dusk_jubjub::GENERATOR_EXTENDED * JubJubScalar::from(2u64),
+///     )
+///     .into(),
+/// ];
+///
+/// verify_proof(
+///     &pp,
+///     &verif_data.key(),
+///     &proof,
+///     &public_inputs2,
+///     &verif_data.pi_pos(),
+///     b"Test",
+/// )
+/// }
 pub trait Circuit
 where
     Self: Sized,

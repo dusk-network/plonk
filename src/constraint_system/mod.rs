@@ -27,5 +27,6 @@ pub mod logic;
 pub mod range;
 
 pub use composer::StandardComposer;
+pub use ecc::Point;
 pub use variable::Variable;
 pub(crate) use variable::WireData;

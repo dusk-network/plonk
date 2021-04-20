@@ -12,9 +12,8 @@ use dusk_bls12_381::BlsScalar;
 use dusk_bytes::Serializable;
 
 impl StandardComposer {
-    // Performs a logical AND or XOR op between the inputs provided for the
-    // specified
-    /// number of bits.
+    /// Performs a logical AND or XOR op between the inputs provided for the
+    /// specified number of bits.
     ///
     /// Each logic gate adds `(num_bits / 2) + 1` gates to the circuit to
     /// perform the whole operation.
@@ -25,9 +24,9 @@ impl StandardComposer {
     /// - is_xor_gate = 0 -> Performs AND between the first `num_bits` for `a`
     ///   and `b`.
     ///
-    /// ## Panics
-    /// This function will panic if the num_bits specified is not even `num_bits
-    /// % 2 != 0`.
+    /// # Panics
+    /// This function will panic if the num_bits specified is not even, ie.
+    /// `num_bits % 2 != 0`.
     fn logic_gate(
         &mut self,
         a: Variable,
@@ -52,7 +51,6 @@ impl StandardComposer {
         let a_bits: Vec<_> = a_bit_iter.skip(256 - num_bits).collect();
         let b_bit_iter = BitIterator8::new(self.variables[&b].to_bytes());
         let b_bits: Vec<_> = b_bit_iter.skip(256 - num_bits).collect();
-        // XXX Doc this
         assert!(a_bits.len() >= num_bits);
         assert!(b_bits.len() >= num_bits);
 
@@ -293,11 +291,13 @@ impl StandardComposer {
     }
 
     /// Adds a logical XOR gate that performs the XOR between two values for the
-    /// specified first `num_bits` returning a `Variable` holding the result.
+    /// specified first `num_bits` returning a [`Variable`] holding the result.
     ///
     /// # Panics
     ///
     /// If the `num_bits` specified in the fn params is odd.
+    ///
+    /// [`Variable`]: struct.Variable.html
     pub fn xor_gate(
         &mut self,
         a: Variable,
@@ -308,12 +308,14 @@ impl StandardComposer {
     }
 
     /// Adds a logical AND gate that performs the bitwise AND between two values
-    /// for the specified first `num_bits` returning a `Variable` holding the
+    /// for the specified first `num_bits` returning a [`Variable`] holding the
     /// result.
     ///
     /// # Panics
     ///
     /// If the `num_bits` specified in the fn params is odd.
+    ///
+    /// [`Variable`]: struct.Variable.html
     pub fn and_gate(
         &mut self,
         a: Variable,

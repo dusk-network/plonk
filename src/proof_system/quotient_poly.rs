@@ -12,11 +12,12 @@ use crate::{
 use alloc::vec::Vec;
 use dusk_bls12_381::BlsScalar;
 
-/// This quotient polynomial can only be used for the standard composer
-/// Each composer will need to implement their own method for computing the
-/// quotient polynomial
-
-/// Computes the quotient polynomial
+/// Computes the Quotient [`Polynomial`] given the [`EvaluationDomain`], a
+/// [`ProverKey`] and some other info.
+///
+/// [`Polynomial`]: struct.Polynomial.html
+/// [`EvaluationDomain`]: struct.EvaluationDomain.html
+/// [`ProverKey`]: struct.ProverKey.html
 pub(crate) fn compute(
     domain: &EvaluationDomain,
     prover_key: &ProverKey,

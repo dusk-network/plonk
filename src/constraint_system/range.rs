@@ -13,7 +13,16 @@ use dusk_bytes::Serializable;
 
 impl StandardComposer {
     /// Adds a range-constraint gate that checks and constrains a
-    /// `Variable` to be inside of the range \[0,num_bits\].
+    /// [`Variable`] to be inside of the range \[0,num_bits\].
+    ///
+    /// This function adds `num_bits/4` gates to the circuit description in
+    /// order to add the range constraint.
+    ///
+    ///# Panics
+    /// This function will panic if the num_bits specified is not even, ie.
+    /// `num_bits % 2 != 0`.
+    ///
+    /// [`Variable`]: struct.Variable.html
     pub fn range_gate(&mut self, witness: Variable, num_bits: usize) {
         // Adds `variable` into the appropriate witness position
         // based on the accumulator number a_i
