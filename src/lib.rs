@@ -75,25 +75,21 @@ pub mod prelude;
 pub mod proof_system;
 mod transcript;
 
+// `#[doc(include)]` is experimental
+// Note: see issue #44732 <https://github.com/rust-lang/rust/issues/44732>
 #[cfg(feature = "nightly")]
 #[doc(include = "../docs/notes-intro.md")]
 pub mod notes {
-    #[cfg(feature = "nightly")]
     #[doc(include = "../docs/notes-commitments.md")]
     pub mod commitment_schemes {}
-    #[cfg(feature = "nightly")]
     #[doc(include = "../docs/notes-pa.md")]
     pub mod permutation_arguments {}
-    #[cfg(feature = "nightly")]
     #[doc(include = "../docs/notes-snark.md")]
     pub mod snark_construction {}
-    #[cfg(feature = "nightly")]
     #[doc(include = "../docs/notes-prove-verify.md")]
     pub mod prove_verify {}
-    #[cfg(feature = "nightly")]
     #[doc(include = "../docs/notes-pa.md")]
     pub mod unbalanced_perm_args {}
-    #[cfg(feature = "nightly")]
     #[doc(include = "../docs/notes-KZG10.md")]
     pub mod kzg10_docs {}
 }
