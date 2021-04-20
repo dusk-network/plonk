@@ -35,10 +35,10 @@
 //! team](dusk.network) of this algorithm using as a reference implementation
 //! this one done by the creators of the protocol:
 //!
-//! [https://github.com/AztecProtocol/barretenberg/blob/master/barretenberg/src/aztec/plonk/](https://github.com/AztecProtocol/barretenberg/blob/master/barretenberg/src/aztec/plonk/)
+//! <https://github.com/AztecProtocol/barretenberg/blob/master/barretenberg/src/aztec/plonk/>
 //!
 //! If you want to see library usage examples, please check:
-//! [https://github.com/dusk-network/plonk/tree/v0.1.0/examples](https://github.com/dusk-network/plonk/tree/v0.1.0/examples)
+//! <https://github.com/dusk-network/plonk/tree/v0.1.0/examples>
 // Bitshift/Bitwise ops are allowed to gain performance.
 #![allow(clippy::suspicious_arithmetic_impl)]
 // Some structs do not have AddAssign or MulAssign impl.

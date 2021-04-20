@@ -13,7 +13,7 @@ use dusk_bytes::Serializable;
 
 impl StandardComposer {
     /// Adds a range-constraint gate that checks and constrains a
-    /// `Variable` to be inside of the range [0,num_bits].
+    /// `Variable` to be inside of the range \[0,num_bits\].
     pub fn range_gate(&mut self, witness: Variable, num_bits: usize) {
         // Adds `variable` into the appropriate witness position
         // based on the accumulator number a_i
