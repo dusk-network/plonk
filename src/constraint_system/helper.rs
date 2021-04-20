@@ -19,8 +19,8 @@ pub(crate) fn dummy_gadget(n: usize, composer: &mut StandardComposer) {
 
     for _ in 0..n {
         composer.big_add(
-            var_one.into(),
-            var_one.into(),
+            (BlsScalar::one(), var_one),
+            (BlsScalar::one(), var_one),
             None,
             BlsScalar::zero(),
             None,

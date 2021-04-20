@@ -17,7 +17,6 @@
 // Gate fn's have a large number of attributes but
 // it is intended to be like this in order to provide
 // maximum performance and minimum circuit sizes.
-#![allow(clippy::too_many_arguments)]
 
 use crate::constraint_system::Variable;
 use crate::permutation::Permutation;

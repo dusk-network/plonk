@@ -4,7 +4,6 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-#![allow(clippy::too_many_arguments)]
 use crate::fft::{Evaluations, Polynomial};
 
 use dusk_bls12_381::BlsScalar;

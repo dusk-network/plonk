@@ -134,7 +134,7 @@ impl Serializable<{ 16 * BlsScalar::SIZE }> for ProofEvaluations {
 }
 
 #[cfg(feature = "alloc")]
-#[allow(clippy::too_many_arguments)]
+
 /// Compute the linearisation polynomial
 pub(crate) fn compute(
     domain: &EvaluationDomain,
@@ -249,7 +249,7 @@ pub(crate) fn compute(
 }
 
 #[cfg(feature = "alloc")]
-#[allow(clippy::too_many_arguments)]
+
 fn compute_circuit_satisfiability(
     (
         range_separation_challenge,

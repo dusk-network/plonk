@@ -4,8 +4,6 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-#![allow(clippy::too_many_arguments)]
-
 use crate::constraint_system::StandardComposer;
 use crate::constraint_system::Variable;
 use dusk_bls12_381::BlsScalar;
@@ -315,8 +313,8 @@ mod tests {
                 let var_one = composer.add_input(BlsScalar::one());
 
                 let should_be_three = composer.big_add(
-                    var_one.into(),
-                    var_one.into(),
+                    (BlsScalar::one(), var_one),
+                    (BlsScalar::one(), var_one),
                     None,
                     BlsScalar::zero(),
                     Some(BlsScalar::one()),
@@ -327,8 +325,8 @@ mod tests {
                     None,
                 );
                 let should_be_four = composer.big_add(
-                    var_one.into(),
-                    var_one.into(),
+                    (BlsScalar::one(), var_one),
+                    (BlsScalar::one(), var_one),
                     None,
                     BlsScalar::zero(),
                     Some(BlsScalar::from(2)),
@@ -355,17 +353,17 @@ mod tests {
                 let seven = composer.add_input(BlsScalar::from(7));
 
                 let fourteen = composer.big_add(
-                    four.into(),
-                    five.into(),
-                    Some(five.into()),
+                    (BlsScalar::one(), four),
+                    (BlsScalar::one(), five),
+                    Some((BlsScalar::one(), five)),
                     BlsScalar::zero(),
                     None,
                 );
 
                 let twenty = composer.big_add(
-                    six.into(),
-                    seven.into(),
-                    Some(seven.into()),
+                    (BlsScalar::one(), six),
+                    (BlsScalar::one(), seven),
+                    Some((BlsScalar::one(), seven)),
                     BlsScalar::zero(),
                     None,
                 );
@@ -427,17 +425,17 @@ mod tests {
                 let nine = composer.add_input(BlsScalar::from(9));
 
                 let fourteen = composer.big_add(
-                    four.into(),
-                    five.into(),
-                    Some(five.into()),
+                    (BlsScalar::one(), four),
+                    (BlsScalar::one(), five),
+                    Some((BlsScalar::one(), five)),
                     BlsScalar::zero(),
                     None,
                 );
 
                 let twenty = composer.big_add(
-                    six.into(),
-                    seven.into(),
-                    Some(seven.into()),
+                    (BlsScalar::one(), six),
+                    (BlsScalar::one(), seven),
+                    Some((BlsScalar::one(), seven)),
                     BlsScalar::zero(),
                     None,
                 );
@@ -471,16 +469,16 @@ mod tests {
                 let seven = composer.add_input(BlsScalar::from(7));
 
                 let five_plus_five = composer.big_add(
-                    five.into(),
-                    five.into(),
+                    (BlsScalar::one(), five),
+                    (BlsScalar::one(), five),
                     None,
                     BlsScalar::zero(),
                     None,
                 );
 
                 let six_plus_seven = composer.big_add(
-                    six.into(),
-                    seven.into(),
+                    (BlsScalar::one(), six),
+                    (BlsScalar::one(), seven),
                     None,
                     BlsScalar::zero(),
                     None,

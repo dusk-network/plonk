@@ -323,7 +323,6 @@ pub(crate) mod alloc {
             Ok(())
         }
 
-        #[allow(clippy::too_many_arguments)]
         fn compute_quotient_evaluation(
             &self,
             domain: &EvaluationDomain,
@@ -385,7 +384,6 @@ pub(crate) mod alloc {
         }
 
         // Commitment to [r]_1
-        #[allow(clippy::too_many_arguments)]
         fn compute_linearisation_commitment(
             &self,
             alpha: &BlsScalar,
