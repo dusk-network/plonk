@@ -117,6 +117,7 @@ impl VerifierData {
 ///
 /// ```
 /// use dusk_plonk::prelude::*;
+/// use dusk_plonk::constraint_system::ecc::scalar_mul;
 /// use rand_core::OsRng;
 ///
 /// fn main() -> Result<(), Error> {
@@ -142,13 +143,15 @@ impl VerifierData {
 ///         &mut self,
 ///         composer: &mut StandardComposer,
 ///     ) -> Result<(), Error> {
+///         // Add fixed witness zero
+///         let zero = composer.add_witness_to_circuit_description(BlsScalar::zero());
 ///         let a = composer.add_input(self.a);
 ///         let b = composer.add_input(self.b);
 ///         // Make first constraint a + b = c
 ///         composer.poly_gate(
 ///             a,
 ///             b,
-///             composer.zero_var,
+///             zero,
 ///             BlsScalar::zero(),
 ///             BlsScalar::one(),
 ///             BlsScalar::one(),
@@ -163,15 +166,15 @@ impl VerifierData {
 ///         composer.poly_gate(
 ///             a,
 ///             b,
-///             composer.zero_var,
+///             zero,
 ///             BlsScalar::one(),
 ///             BlsScalar::zero(),
 ///             BlsScalar::zero(),
 ///             BlsScalar::one(),
 ///             BlsScalar::zero(),
 ///             Some(-self.d),
-///         )///
-
+///         );
+///
 ///         // This adds a PI also constraining `generator` to actually be
 ///         // `dusk_jubjub::GENERATOR`
 ///         let generator =
@@ -191,11 +194,11 @@ impl VerifierData {
 ///     }
 /// }
 ///
-/// let pp_p = PublicParameters::setup(1 << 12, &mut OsRng)?;
+/// let pp = PublicParameters::setup(1 << 12, &mut OsRng)?;
 /// // Initialize the circuit
 /// let mut circuit = TestCircuit::default();
 /// // Compile the circuit
-/// let (pk_p, og_verifier_data) = circuit.compile(&pp)?;
+/// let (pk, vd) = circuit.compile(&pp)?;
 ///
 /// // Prover POV
 /// let proof = {
@@ -208,7 +211,7 @@ impl VerifierData {
 ///         f: JubJubAffine::from(
 ///             dusk_jubjub::GENERATOR_EXTENDED * JubJubScalar::from(2u64),
 ///         ),
-///     }
+///     };
 ///
 ///     circuit.gen_proof(&pp, &pk, b"Test")
 /// }?;
@@ -224,12 +227,12 @@ impl VerifierData {
 ///     .into(),
 /// ];
 ///
-/// verify_proof(
+/// circuit::verify_proof(
 ///     &pp,
-///     &verif_data.key(),
+///     &vd.key(),
 ///     &proof,
 ///     &public_inputs2,
-///     &verif_data.pi_pos(),
+///     &vd.pi_pos(),
 ///     b"Test",
 /// )
 /// }

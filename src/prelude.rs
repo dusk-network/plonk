@@ -22,11 +22,12 @@ pub use crate::{
 
 pub use crate::proof_system::{Proof, VerifierKey};
 
-/// Re-exported `dusk-bls12_381::BlsScalar`.
+/// Re-exported [`dusk-bls12_381::BlsScalar`].
 pub use dusk_bls12_381::BlsScalar;
 
-/// Re-exported `dusk-jubjub::JubJubScalar`.
-pub use dusk_jubjub::JubJubScalar;
+/// Re-exported [`dusk-jubjub::JubJubScalar`] &
+/// [`dusk-jubjub::JubJubAffine`].
+pub use dusk_jubjub::{JubJubAffine, JubJubScalar};
 
 /// Collection of errors that the library exposes/uses.
 pub use crate::error::Error;
