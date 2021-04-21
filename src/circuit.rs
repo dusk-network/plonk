@@ -206,10 +206,9 @@ impl VerifierData {
 /// }?;
 ///
 /// // Verifier POV
-/// let public_inputs2: Vec<PublicInputValue> = vec![
+/// let public_inputs: Vec<PublicInputValue> = vec![
 ///     BlsScalar::from(25u64).into(),
 ///     BlsScalar::from(100u64).into(),
-///     dusk_jubjub::GENERATOR.into(),
 ///     JubJubAffine::from(
 ///         dusk_jubjub::GENERATOR_EXTENDED * JubJubScalar::from(2u64),
 ///     )
@@ -220,7 +219,7 @@ impl VerifierData {
 ///     &pp,
 ///     &vd.key(),
 ///     &proof,
-///     &public_inputs2,
+///     &public_inputs,
 ///     &vd.pi_pos(),
 ///     b"Test",
 /// )
@@ -330,7 +329,7 @@ fn build_pi(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::constraint_system::{ecc::*, StandardComposer};
+    use crate::constraint_system::StandardComposer;
     use crate::proof_system::ProverKey;
 
     // Implements a circuit that checks:
@@ -385,14 +384,9 @@ mod tests {
                 Some(-self.d),
             );
 
-            // This adds a PI also constraining `generator` to actually be
-            // `dusk_jubjub::GENERATOR`
-            let generator = composer.add_public_affine(dusk_jubjub::GENERATOR);
             let e = composer.add_input(self.e.into());
-            let scalar_mul_result =
-                scalar_mul::variable_base::variable_base_scalar_mul(
-                    composer, e, generator,
-                );
+            let scalar_mul_result = composer
+                .fixed_base_scalar_mul(e, dusk_jubjub::GENERATOR_EXTENDED);
             // Apply the constrain
             composer.assert_equal_public_point(scalar_mul_result, self.f);
             Ok(())
@@ -473,10 +467,9 @@ mod tests {
         }?;
 
         // Verifier POV
-        let public_inputs2: Vec<PublicInputValue> = vec![
+        let public_inputs: Vec<PublicInputValue> = vec![
             BlsScalar::from(25u64).into(),
             BlsScalar::from(100u64).into(),
-            dusk_jubjub::GENERATOR.into(),
             JubJubAffine::from(
                 dusk_jubjub::GENERATOR_EXTENDED * JubJubScalar::from(2u64),
             )
@@ -487,7 +480,7 @@ mod tests {
             &pp,
             &verif_data.key(),
             &proof,
-            &public_inputs2,
+            &public_inputs,
             &verif_data.pi_pos(),
             b"Test",
         )

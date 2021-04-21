@@ -70,13 +70,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-      - uses: actions-rs/cargo@v1
-        with:
-          command: doc
-          args: --features nightly --lib -- --html-in-header docs/katex-header.html -D warnings
+      - run: make doc
+      - run: make doc-internal
 
   fmt:
       name: Rustfmt
