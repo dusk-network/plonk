@@ -5,7 +5,7 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use crate::constraint_system::ecc::curve_addition::fixed_base_gate::WnafRound;
-use crate::constraint_system::ecc::{Point, PointScalar};
+use crate::constraint_system::ecc::Point;
 use crate::constraint_system::{variable::Variable, StandardComposer};
 use alloc::vec::Vec;
 use dusk_bls12_381::BlsScalar;
@@ -28,13 +28,22 @@ fn compute_wnaf_point_multiples(
 }
 
 impl StandardComposer {
-    /// Computes a BlsScalar multiplication with the input scalar and a chosen
-    /// generator
-    pub fn scalar_mul(
+    /// Adds an elliptic curve Scalar multiplication gate to the circuit
+    /// description.
+    ///
+    /// # Note
+    /// This function is optimized for fixed base ops **ONLY** and therefore,
+    /// the **ONLY** `generator` inputs that should be passed to this
+    /// function as inputs are [`dusk_jubjub::GENERATOR`] or
+    /// [`dusk_jubjub::GENERATOR_NUMS`].
+    ///
+    /// [`dusk_jubjub::GENERATOR`]: struct.dusk_jubjub::GENERATOR.html
+    /// [`dusk_jubjub::GENERATOR_NUMS`]: struct.dusk_jubjub::GENERATOR_NUMS.html
+    pub fn fixed_base_scalar_mul(
         &mut self,
         jubjub_scalar: Variable,
         generator: JubJubExtended,
-    ) -> PointScalar {
+    ) -> Point {
         // XXX: we can slice off 3 bits from the top of wnaf, since F_r prime
         // has 252 bits. XXX :We can also move to base4 and have half
         // the number of gates since wnaf adjacent entries product is
@@ -149,10 +158,7 @@ impl StandardComposer {
         // input jubjub scalar
         self.assert_equal(last_accumulated_bit, jubjub_scalar);
 
-        PointScalar {
-            point: Point { x: acc_x, y: acc_y },
-            scalar: last_accumulated_bit,
-        }
+        Point { x: acc_x, y: acc_y }
     }
 }
 
@@ -181,13 +187,11 @@ mod tests {
                 let expected_point: JubJubAffine =
                     (JubJubExtended::from(GENERATOR) * scalar).into();
 
-                let point_scalar =
-                    composer.scalar_mul(secret_scalar, GENERATOR.into());
+                let point_scalar = composer
+                    .fixed_base_scalar_mul(secret_scalar, GENERATOR.into());
 
-                composer.assert_equal_public_point(
-                    point_scalar.into(),
-                    expected_point,
-                );
+                composer
+                    .assert_equal_public_point(point_scalar, expected_point);
             },
             600,
         );
@@ -206,13 +210,11 @@ mod tests {
                 let expected_point: JubJubAffine =
                     (JubJubExtended::from(GENERATOR) * scalar).into();
 
-                let point_scalar =
-                    composer.scalar_mul(secret_scalar, GENERATOR.into());
+                let point_scalar = composer
+                    .fixed_base_scalar_mul(secret_scalar, GENERATOR.into());
 
-                composer.assert_equal_public_point(
-                    point_scalar.into(),
-                    expected_point,
-                );
+                composer
+                    .assert_equal_public_point(point_scalar, expected_point);
             },
             600,
         );
@@ -233,13 +235,11 @@ mod tests {
 
                 let expected_point: JubJubAffine = (double_gen * scalar).into();
 
-                let point_scalar =
-                    composer.scalar_mul(secret_scalar, GENERATOR.into());
+                let point_scalar = composer
+                    .fixed_base_scalar_mul(secret_scalar, GENERATOR.into());
 
-                composer.assert_equal_public_point(
-                    point_scalar.into(),
-                    expected_point,
-                );
+                composer
+                    .assert_equal_public_point(point_scalar, expected_point);
             },
             600,
         );
@@ -312,18 +312,19 @@ mod tests {
                 // - One curve addition
                 //
                 // Scalar multiplications
-                let aG = composer.scalar_mul(secret_scalar_a, point_a);
-                let bH = composer.scalar_mul(secret_scalar_b, point_b);
+                let aG =
+                    composer.fixed_base_scalar_mul(secret_scalar_a, point_a);
+                let bH =
+                    composer.fixed_base_scalar_mul(secret_scalar_b, point_b);
 
                 // Depending on the context, one can check if the resulting aG
                 // and bH are as expected
                 //
-                composer.assert_equal_public_point(aG.into(), c_a);
-                composer.assert_equal_public_point(bH.into(), c_b);
+                composer.assert_equal_public_point(aG, c_a);
+                composer.assert_equal_public_point(bH, c_b);
 
                 // Curve addition
-                let commitment =
-                    composer.point_addition_gate(Point::from(aG), bH.into());
+                let commitment = composer.point_addition_gate(aG, bH);
 
                 // Add final constraints to ensure that the commitment that we
                 // computed is equal to the public point
@@ -365,15 +366,13 @@ mod tests {
                 let expected_rhs: JubJubAffine =
                     (gen * (scalar_c + scalar_d)).into();
 
-                let P1 = composer.scalar_mul(secret_scalar_a, gen);
-                let P2 = composer.scalar_mul(secret_scalar_b, gen);
-                let P3 = composer.scalar_mul(secret_scalar_c, gen);
-                let P4 = composer.scalar_mul(secret_scalar_d, gen);
+                let P1 = composer.fixed_base_scalar_mul(secret_scalar_a, gen);
+                let P2 = composer.fixed_base_scalar_mul(secret_scalar_b, gen);
+                let P3 = composer.fixed_base_scalar_mul(secret_scalar_c, gen);
+                let P4 = composer.fixed_base_scalar_mul(secret_scalar_d, gen);
 
-                let commitment_a =
-                    composer.point_addition_gate(Point::from(P1), P2.into());
-                let commitment_b =
-                    composer.point_addition_gate(Point::from(P3), P4.into());
+                let commitment_a = composer.point_addition_gate(P1, P2);
+                let commitment_b = composer.point_addition_gate(P3, P4);
 
                 composer.assert_equal_point(commitment_a, commitment_b);
 

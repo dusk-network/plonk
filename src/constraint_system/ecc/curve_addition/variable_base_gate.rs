@@ -93,8 +93,10 @@ mod test {
     use dusk_jubjub::GENERATOR;
     use dusk_jubjub::{JubJubAffine, JubJubExtended, EDWARDS_D};
 
-    /// Adds two curve points together using arithmetic gates
-    pub fn slow_add(
+    /// Adds two curve points together using the classical point addition
+    /// algorithm. This method is slower than WNaf and is just meant to be the
+    /// source of truth to test the WNaf method.
+    pub fn classical_point_addition(
         composer: &mut StandardComposer,
         point_a: Point,
         point_b: Point,
@@ -226,7 +228,8 @@ mod test {
                 let point_b = Point { x, y };
 
                 let point = composer.point_addition_gate(point_a, point_b);
-                let point2 = slow_add(composer, point_a, point_b);
+                let point2 =
+                    classical_point_addition(composer, point_a, point_b);
 
                 composer.assert_equal_point(point, point2);
 

@@ -39,49 +39,22 @@ impl Point {
     }
 }
 
-/// The result of a scalar multiplication
-#[derive(Debug, Clone, Copy)]
-pub struct PointScalar {
-    point: Point,
-    scalar: Variable,
-}
-
-impl PointScalar {
-    /// Return the generated point
-    pub fn point(&self) -> &Point {
-        &self.point
-    }
-
-    /// Return the internal scalar
-    pub fn scalar(&self) -> &Variable {
-        &self.scalar
-    }
-}
-
-impl From<PointScalar> for Point {
-    fn from(ps: PointScalar) -> Point {
-        ps.point
-    }
-}
-
 impl StandardComposer {
     /// Converts an JubJubAffine into a constraint system Point
     /// without constraining the values
-    pub fn new_private_affine(
-        &mut self,
-        affine: dusk_jubjub::JubJubAffine,
-    ) -> Point {
+    pub fn add_affine(&mut self, affine: dusk_jubjub::JubJubAffine) -> Point {
         let x = self.add_input(affine.get_x());
         let y = self.add_input(affine.get_y());
         Point { x, y }
     }
+
     /// Converts an JubJubAffine into a constraint system Point
     /// without constraining the values
-    pub fn new_public_affine(
+    pub fn add_public_affine(
         &mut self,
         affine: dusk_jubjub::JubJubAffine,
     ) -> Point {
-        let point = self.new_private_affine(affine);
+        let point = self.add_affine(affine);
         self.constrain_to_constant(
             point.x,
             BlsScalar::zero(),
@@ -96,7 +69,8 @@ impl StandardComposer {
         point
     }
 
-    /// Asserts that a point in the circuit is equal to a known public point
+    /// Asserts that a [`Point`] in the circuit is equal to a known public
+    /// point.
     pub fn assert_equal_public_point(
         &mut self,
         point: Point,
@@ -120,10 +94,18 @@ impl StandardComposer {
         self.assert_equal(point_b.y, point_b.y);
     }
 
-    /// Conditionally selects a Point based on an input bit
-    /// If:
-    /// bit == 1 => self,
+    /// Adds to the circuit description the conditional selection of the
+    /// a point between two of them.
+    /// bit == 1 => point_a,
     /// bit == 0 => point_b,
+    ///
+    /// # Note
+    /// The `bit` used as input which is a [`Variable`] should had previously
+    /// been constrained to be either 1 or 0 using a bool constrain. See:
+    /// [`StandardComposer::boolean_gate`].
+    ///
+    /// [`StandardComposer::bool_gate`]:
+    /// struct.StandardComposer.html#tymethod.bool_gate
     pub fn conditional_point_select(
         &mut self,
         point_a: Point,
@@ -132,6 +114,29 @@ impl StandardComposer {
     ) -> Point {
         let x = self.conditional_select(bit, *point_a.x(), *point_b.x());
         let y = self.conditional_select(bit, *point_a.y(), *point_b.y());
+
+        Point { x, y }
+    }
+
+    /// Adds to the circuit description the conditional selection of the
+    /// identity point:
+    /// bit == 1 => value,
+    /// bit == 0 => 1,
+    ///
+    /// # Note
+    /// The `bit` used as input which is a [`Variable`] should had previously
+    /// been constrained to be either 1 or 0 using a bool constrain. See:
+    /// [`StandardComposer::boolean_gate`].
+    ///
+    /// [`StandardComposer::bool_gate`]:
+    /// struct.StandardComposer.html#tymethod.bool_gate
+    fn conditional_select_identity(
+        &mut self,
+        bit: Variable,
+        point_b: Point,
+    ) -> Point {
+        let x = self.conditional_select_zero(bit, *point_b.x());
+        let y = self.conditional_select_one(bit, *point_b.y());
 
         Point { x, y }
     }
