@@ -16,8 +16,6 @@ impl StandardComposer {
     /// Note that using this constraint with whatever [`Variable`] that is not
     /// representing a value equalling 0 or 1, will always force the equation to
     /// fail.
-    ///
-    /// [`Variable`]: struct.Variable.html
     pub fn boolean_gate(&mut self, a: Variable) -> Variable {
         self.w_l.push(a);
         self.w_r.push(a);

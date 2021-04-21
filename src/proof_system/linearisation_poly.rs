@@ -21,9 +21,7 @@ pub(crate) struct Evaluations {
 }
 
 /// Subset of all of the evaluations. These evaluations
-/// are added to the [`Proof`].
-///
-/// [`super::Proof`]: struct.Proof.html
+/// are added to the [`Proof`](super::Proof).
 #[derive(Debug, Eq, PartialEq, Clone, Default)]
 pub(crate) struct ProofEvaluations {
     // Evaluation of the witness polynomial for the left wire at `z`

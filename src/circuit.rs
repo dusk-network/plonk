@@ -19,8 +19,8 @@ use dusk_jubjub::{JubJubAffine, JubJubScalar};
 
 #[derive(Default, Debug, Clone)]
 #[cfg_attr(feature = "canon", derive(Canon))]
-/// Structure that represents a PLONK Circuit Public Input
-/// structure converted into it's &[BlsScalar] repr.
+/// Structure that represents a PLONK Circuit Public Input converted into it's
+/// &\[[`BlsScalar`]\] repr.
 pub struct PublicInputValue(pub(crate) Vec<BlsScalar>);
 
 impl From<BlsScalar> for PublicInputValue {
@@ -46,26 +46,19 @@ impl From<JubJubAffine> for PublicInputValue {
 /// de/serialize data needed for Circuit proof verification.
 /// This structure can be seen as a link between the [`Circuit`] public input
 /// positions and the [`VerifierKey`] that the Verifier needs to use.
-///
-/// [`VerifierKey`]: struct.VerifierKey.html
-/// [`Circuit`]: struct.Circuit.html
 pub struct VerifierData {
     key: VerifierKey,
     pi_pos: Vec<usize>,
 }
 
 impl VerifierData {
-    /// Creates a new [`VerifierData`] from a [`VerifierKey`] and the public
+    /// Creates a new `VerifierData` from a [`VerifierKey`] and the public
     /// input positions of the circuit that it represents.
-    ///
-    /// [`VerifierKey`]: struct.VerifierKey.html
     pub const fn new(key: VerifierKey, pi_pos: Vec<usize>) -> Self {
         Self { key, pi_pos }
     }
 
     /// Returns a reference to the contained [`VerifierKey`].
-    ///
-    /// [`VerifierKey`]: struct.VerifierKey.html
     pub const fn key(&self) -> &VerifierKey {
         &self.key
     }
@@ -75,7 +68,7 @@ impl VerifierData {
         &self.pi_pos
     }
 
-    /// Deserializes the [`VerifierData`] into a vector of bytes.
+    /// Deserializes the `VerifierData` into a vector of bytes.
     #[allow(unused_must_use)]
     pub fn to_var_bytes(&self) -> Vec<u8> {
         let mut buff =
@@ -96,7 +89,7 @@ impl VerifierData {
         buff
     }
 
-    /// Serializes [`VerifierData`] from a slice of bytes.
+    /// Serializes `VerifierData` from a slice of bytes.
     pub fn from_slice(mut buf: &[u8]) -> Result<Self, Error> {
         let key = VerifierKey::from_reader(&mut buf)?;
         let pos_num = u32::from_reader(&mut buf)? as usize;
@@ -175,18 +168,14 @@ impl VerifierData {
 ///             Some(-self.d),
 ///         );
 ///
-///         // This adds a PI also constraining `generator` to actually be
-///         // `dusk_jubjub::GENERATOR`
-///         let generator =
-///             Point::from_public_affine(composer, dusk_jubjub::GENERATOR);
 ///         let e = composer.add_input(self.e.into());
 ///         let scalar_mul_result =
-///             scalar_mul::variable_base::variable_base_scalar_mul(
-///                 composer, e, generator,
+///             composer.fixed_base_scalar_mul(
+///                 e, dusk_jubjub::GENERATOR_EXTENDED,
 ///             );
 ///         // Apply the constrain
 ///         composer
-///             .assert_equal_public_point(scalar_mul_result.into(), self.f);
+///             .assert_equal_public_point(scalar_mul_result, self.f);
 ///         Ok(())
 ///     }
 ///     fn padded_circuit_size(&self) -> usize {

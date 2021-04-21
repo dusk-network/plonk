@@ -244,8 +244,6 @@ impl StandardComposer {
     /// The verifier only requires the commitments in order to verify a
     /// [`Proof`](super::Proof) We can therefore speed up preprocessing for the
     /// verifier by skipping the FFTs needed to compute the 4n evaluations.
-    ///
-    /// [`Proof`]: struct.Proof.html
     pub fn preprocess_verifier(
         &mut self,
         commit_key: &CommitKey,
@@ -256,12 +254,10 @@ impl StandardComposer {
         Ok(verifier_key)
     }
 
-    /// Both the [`Prover`] and [`Verifier`] must perform IFFTs on the selector
-    /// polynomials and permutation polynomials in order to commit to them
-    /// and have the same transcript view.
-    ///
-    /// [`super::Prover`]: struct.Prover.html
-    /// [`super::Verifier`]: struct.Verifier.html
+    /// Both the [`Prover`](super::Prover) and [`Verifier`](super::Verifier)
+    /// must perform IFFTs on the selector polynomials and permutation
+    /// polynomials in order to commit to them and have the same transcript
+    /// view.
     fn preprocess_shared(
         &mut self,
         commit_key: &CommitKey,

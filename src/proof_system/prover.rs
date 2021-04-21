@@ -20,8 +20,6 @@ use merlin::Transcript;
 
 /// Abstraction structure designed to construct a circuit and generate
 /// [`Proof`]s for it.
-///
-/// [`Proof`]: struct.Proof.html
 #[allow(missing_debug_implementations)]
 pub struct Prover {
     /// ProverKey which is used to create proofs about a specific PLONK circuit
@@ -35,8 +33,6 @@ pub struct Prover {
 
 impl Prover {
     /// Returns a mutable copy of the underlying [`StandardComposer`].
-    ///
-    /// [`StandardComposer`]: struct.StandardComposer.html
     pub fn mut_cs(&mut self) -> &mut StandardComposer {
         &mut self.cs
     }
@@ -61,7 +57,7 @@ impl Default for Prover {
 }
 
 impl Prover {
-    /// Creates a new [`Prover`] instance.
+    /// Creates a new `Prover` instance.
     pub fn new(label: &'static [u8]) -> Prover {
         Prover {
             prover_key: None,
@@ -70,7 +66,7 @@ impl Prover {
         }
     }
 
-    /// Creates a new [`Prover`] object with some expected size.
+    /// Creates a new `Prover` object with some expected size.
     pub fn with_expected_size(label: &'static [u8], size: usize) -> Prover {
         Prover {
             prover_key: None,
@@ -79,7 +75,7 @@ impl Prover {
         }
     }
 
-    /// Returns the number of gates in the circuit thet the [`Prover`] actually
+    /// Returns the number of gates in the circuit thet the `Prover` actually
     /// stores inside.
     pub fn circuit_size(&self) -> usize {
         self.cs.circuit_size()
@@ -100,8 +96,6 @@ impl Prover {
     }
 
     /// Computes the quotient Opening [`Polynomial`].
-    ///
-    /// [`Polynomial`]: struct.Polynomial.html
     fn compute_quotient_opening_poly(
         n: usize,
         t_1_poly: &Polynomial,
@@ -135,11 +129,9 @@ impl Prover {
         self.cs = StandardComposer::new();
     }
 
-    /// Clears all data in the [`Prover`] instance.
-    /// This function is used when the user wants to use the same [`Prover`] to
+    /// Clears all data in the `Prover` instance.
+    /// This function is used when the user wants to use the same `Prover` to
     /// make a [`Proof`] regarding a different circuit.
-    ///
-    /// [`Proof`]: struct.Proof.html
     pub fn clear(&mut self) {
         self.clear_witness();
         self.prover_key = None;
@@ -148,10 +140,6 @@ impl Prover {
 
     /// Keys the [`Transcript`] with additional seed information
     /// Wrapper around [`Transcript::append_message`].
-    ///
-    /// [`Transcript`]: struct.Transcript.html
-    /// [`Transcript::append_message`]:
-    /// struct.Transcript.html#tymethod.append_message
     pub fn key_transcript(&mut self, label: &'static [u8], message: &[u8]) {
         self.preprocessed_transcript.append_message(label, message);
     }
@@ -162,12 +150,6 @@ impl Prover {
     /// after calling this method, the user should then call
     /// [`Prover::clear_witness`].
     /// This is automatically done when [`Prover::prove`] is called.
-    ///
-    /// [`Proof`]: struct.Proof.html
-    /// [`Prover::clear_witness`]:
-    /// struct.Transcript.html#tymethod.clear_witness
-    /// /// [`Prover::prove`]:
-    /// struct.Transcript.html#tymethod.prove
     pub fn prove_with_preprocessed(
         &self,
         commit_key: &CommitKey,

@@ -21,8 +21,6 @@ impl StandardComposer {
     ///# Panics
     /// This function will panic if the num_bits specified is not even, ie.
     /// `num_bits % 2 != 0`.
-    ///
-    /// [`Variable`]: struct.Variable.html
     pub fn range_gate(&mut self, witness: Variable, num_bits: usize) {
         // Adds `variable` into the appropriate witness position
         // based on the accumulator number a_i

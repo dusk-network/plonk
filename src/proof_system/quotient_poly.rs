@@ -14,10 +14,6 @@ use dusk_bls12_381::BlsScalar;
 
 /// Computes the Quotient [`Polynomial`] given the [`EvaluationDomain`], a
 /// [`ProverKey`] and some other info.
-///
-/// [`Polynomial`]: struct.Polynomial.html
-/// [`EvaluationDomain`]: struct.EvaluationDomain.html
-/// [`ProverKey`]: struct.ProverKey.html
 pub(crate) fn compute(
     domain: &EvaluationDomain,
     prover_key: &ProverKey,

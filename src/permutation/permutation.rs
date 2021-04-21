@@ -22,12 +22,12 @@ pub(crate) struct Permutation {
 }
 
 impl Permutation {
-    /// Creates a [`Permutation`] struct with an expected capacity of zero.
+    /// Creates a Permutation struct with an expected capacity of zero.
     pub(crate) fn new() -> Permutation {
         Permutation::with_capacity(0)
     }
 
-    /// Creates a [`Permutation`] struct with an expected capacity of `n`.
+    /// Creates a Permutation struct with an expected capacity of `n`.
     pub(crate) fn with_capacity(expected_size: usize) -> Permutation {
         Permutation {
             variable_map: HashMap::with_capacity(expected_size),
@@ -37,8 +37,6 @@ impl Permutation {
     /// Creates a new [`Variable`] by incrementing the index of the
     /// `variable_map`. This is correct as whenever we add a new [`Variable`]
     /// into the system It is always allocated in the `variable_map`.
-    ///
-    /// [`Variable`]: struct.Variable.html
     pub(crate) fn new_variable(&mut self) -> Variable {
         // Generate the Variable
         let var = Variable(self.variable_map.keys().len());
@@ -53,8 +51,6 @@ impl Permutation {
 
     /// Checks that the [`Variable`]s are valid by determining if they have been
     /// added to the system
-    ///
-    /// [`Variable`]: struct.Variable.html
     fn valid_variables(&self, variables: &[Variable]) -> bool {
         let results: Vec<bool> = variables
             .iter()
@@ -65,11 +61,8 @@ impl Permutation {
         results.is_empty()
     }
 
-    /// Maps a set of [`Variables`] (a,b,c,d) to a set of [`Wire`]s (left,
-    /// right, out, fourth) with the corresponding gate index
-    ///
-    /// [`Variable`]: struct.Variable.html
-    /// [`Wire`]: struct.WireData.html
+    /// Maps a set of [`Variable`]s (a,b,c,d) to a set of [`Wire`](WireData)s
+    /// (left, right, out, fourth) with the corresponding gate index
     pub fn add_variables_to_map(
         &mut self,
         a: Variable,

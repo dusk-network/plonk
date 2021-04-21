@@ -13,8 +13,6 @@
 //!
 //! It allows us not only to build Add and Mul constraints but also to build
 //! ECC op. gates, Range checks, Logical gates (Bitwise ops) etc.
-//!
-//! [`StandardComposer`]: struct.StandardComposer.html
 
 // Gate fn's have a large number of attributes but
 // it is intended to be like this in order to provide
@@ -27,22 +25,22 @@ use alloc::vec::Vec;
 use dusk_bls12_381::BlsScalar;
 use hashbrown::HashMap;
 
-/// The [`StandardComposer`] is the circuit-builder tool that the `dusk-plonk`
+/// The StandardComposer is the circuit-builder tool that the `dusk-plonk`
 /// repository provides so that circuit descriptions can be written, stored and
-/// transformed into a [`Proof`] at some point.
+/// transformed into a [`Proof`](crate::proof_system::Proof) at some point.
 ///
-/// A [`StandardComposer`] stores all of the circuit information, being this one
+/// A StandardComposer stores all of the circuit information, being this one
 /// all of the witness and circuit descriptors info (values, positions in the
 /// circuits, gates and Wires that occupy..), the public inputs, the connection
 /// relationships between the witnesses and how they're repesented as Wires (so
-/// basically the [`Permutation`] argument etc..).
+/// basically the Permutation argument etc..).
 ///
-/// The [`StandardComposer`] also grants us a way to introduce our secret
+/// The StandardComposer also grants us a way to introduce our secret
 /// witnesses in a for of a [`Variable`] into the circuit description as well as
 /// the public inputs. We can do this with methods like
 /// [`StandardComposer::add_input`].
 ///
-/// The [`StandardComposer`] also contains as associated functions all the
+/// The StandardComposer also contains as associated functions all the
 /// neccessary tools to be able to istrument the circuits that the user needs
 /// through the addition of gates. There are functions that may add a single
 /// gate to the circuit as for example [`StandardComposer::add_gate`] and others
@@ -51,19 +49,14 @@ use hashbrown::HashMap;
 ///
 /// Each gate or group of gates adds an specific functionallity or operation to
 /// de circuit description, and so, that's why we can understand
-/// the [`StandardComposer`] as a builder.
+/// the StandardComposer as a builder.
 ///
-/// [`Variable`]: struct.Variable.html
-/// [`Proof`]: struct.Proof.html
-/// [`Permutation`]: struct.Permutation.html
-/// [`StandardComposer`]: struct.StandardComposer.html
 /// [`StandardComposer::add_gate`]:
-/// struct.StandardComposer.html#tymethod.add_gate
+/// struct.StandardComposer.html#method.add_gate
 /// [`StandardComposer::conditional_select`]:
-/// struct.StandardComposer.html#tymethod.conditional_select
+/// struct.StandardComposer.html#method.conditional_select
 /// [`StandardComposer::add_input`]:
-/// struct.StandardComposer.html#tymethod.add_input
-
+/// struct.StandardComposer.html#method.add_input
 #[derive(Debug)]
 pub struct StandardComposer {
     /// Number of arithmetic gates in the circuit
@@ -107,12 +100,10 @@ pub struct StandardComposer {
     /// Fourth wire witness vector.
     pub(crate) w_4: Vec<Variable>,
 
-    /// A zero [`Variable`] that is a part of the circuit description.
+    /// A zero Variable that is a part of the circuit description.
     /// We reserve a variable to be zero in the system
     /// This is so that when a gate only uses three wires, we set the fourth
     /// wire to be the variable that references zero
-    ///
-    /// [`Variable`]: struct.Variable.html
     pub(crate) zero_var: Variable,
 
     /// These are the actual variable values.
@@ -159,7 +150,7 @@ impl Default for StandardComposer {
 }
 
 impl StandardComposer {
-    /// Generates a new empty [`StandardComposer`] with all of it's fields
+    /// Generates a new empty `StandardComposer` with all of it's fields
     /// set to hold an initial capacity of 0.
     ///
     /// # Note
@@ -167,15 +158,12 @@ impl StandardComposer {
     /// The usage of this may cause lots of re-allocations since the `Composer`
     /// holds `Vec` for every polynomial, and these will need to be re-allocated
     /// each time the circuit grows considerably.
-    /// [`StandardComposer`]: struct.StandardComposer.html
     pub fn new() -> Self {
         StandardComposer::with_expected_size(0)
     }
 
     /// Fixes a [`Variable`] in the witness to be a part of the circuit
     /// description.
-    ///
-    /// [`Variable`]: struct.Variable.html
     pub fn add_witness_to_circuit_description(
         &mut self,
         value: BlsScalar,
@@ -228,15 +216,11 @@ impl StandardComposer {
         composer
     }
 
-    /// Add Input first calls the [`Permutation`]
+    /// Add Input first calls the Permutation
     /// to generate and allocate a new [`Variable`] `var`.
     ///
-    /// The Composer then links the [`Variable`] to the [`BlsScalar`]
+    /// The Composer then links the variable to the [`BlsScalar`]
     /// and returns it for its use in the system.
-    ///
-    /// [`Permutation`]: struct.Permutation.html
-    /// [`Variable`]: struct.Variable.html
-    /// [`BlsScalar`]: struct.BlsScalar.html
     pub fn add_input(&mut self, s: BlsScalar) -> Variable {
         // Get a new Variable from the permutation
         let var = self.perm.new_variable();
@@ -304,10 +288,7 @@ impl StandardComposer {
     /// Constrain a [`Variable`] to be equal to
     /// a specific constant value which is part of the circuit description and
     /// **NOT** a Public Input. ie. this value will be the same for all of the
-    /// circuit instances and [`Proof`]s generated.
-    ///
-    /// [`Variable`]: struct.Variable.html
-    /// [`Proof`]: struct.Proof.html
+    /// circuit instances and [`Proof`](crate::proof_system::Proof)s generated.
     pub fn constrain_to_constant(
         &mut self,
         a: Variable,
@@ -329,8 +310,6 @@ impl StandardComposer {
 
     /// Add a constraint into the circuit description that states that two
     /// [`Variable`]s are equal.
-    ///
-    /// [`Variable`]: struct.Variable.html
     pub fn assert_equal(&mut self, a: Variable, b: Variable) {
         self.poly_gate(
             a,
@@ -356,10 +335,8 @@ impl StandardComposer {
     /// been constrained to be either 1 or 0 using a bool constrain. See:
     /// [`StandardComposer::boolean_gate`].
     ///
-    /// [`Variable`]: struct.Variable.html
-    /// [`StandardComposer`]: struct.StandardComposer.html
     /// [`StandardComposer::bool_gate`]:
-    /// struct.StandardComposer.html#tymethod.bool_gate
+    /// struct.StandardComposer.html#method.bool_gate
     pub fn conditional_select(
         &mut self,
         bit: Variable,
@@ -407,7 +384,7 @@ impl StandardComposer {
     /// [`StandardComposer::boolean_gate`].
     ///
     /// [`StandardComposer::bool_gate`]:
-    /// struct.StandardComposer.html#tymethod.bool_gate
+    /// struct.StandardComposer.html#method.bool_gate
     pub fn conditional_select_zero(
         &mut self,
         bit: Variable,
@@ -428,7 +405,7 @@ impl StandardComposer {
     /// [`StandardComposer::boolean_gate`].
     ///
     /// [`StandardComposer::bool_gate`]:
-    /// struct.StandardComposer.html#tymethod.bool_gate
+    /// struct.StandardComposer.html#method.bool_gate
     pub fn conditional_select_one(
         &mut self,
         bit: Variable,
@@ -526,8 +503,6 @@ impl StandardComposer {
     /// The function by itself will print each circuit gate info until one of
     /// the gates does not satisfy the equation or there are no more gates. If
     /// the cause is an unsatisfied gate equation, the function will panic.
-    ///
-    /// [`StandardComposer`]: struct.StandardComposer.html
     #[cfg(feature = "trace")]
     pub fn check_circuit_satisfied(&self) {
         let w_l: Vec<&BlsScalar> = self

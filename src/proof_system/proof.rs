@@ -14,21 +14,16 @@ use super::linearisation_poly::ProofEvaluations;
 use crate::commitment_scheme::kzg10::Commitment;
 use dusk_bytes::{DeserializableSlice, Serializable};
 
-/// A Proof is a composition of [`Commitment`]s to the Witness, Permutation,
+/// A Proof is a composition of `Commitment`s to the Witness, Permutation,
 /// Quotient, Shifted and Opening polynomials as well as the
-/// [`ProofEvaluations`].
+/// `ProofEvaluations`.
 ///
 /// It's main goal is to allow the `Verifier` to
 /// formally verify that the secret witnesses used to generate the [`Proof`]
 /// satisfy a circuit that both [`Prover`](super::Prover) and
 /// [`Verifier`](super::Verifier) have in common succintly and without any
 /// capabilities of adquiring any kind of knowledge about the witness used to
-/// construct the [`Proof`].
-///
-/// [`Commitment`]: struct.Commitment.html
-/// [`ProofEvaluations`]: struct.ProofEvaluations.html
-/// [`Prover`]: struct.Prover.html
-/// [`Verifier`]: struct.Verifier.html
+/// construct the Proof.
 #[derive(Debug, Eq, PartialEq, Clone, Default)]
 pub struct Proof {
     /// Commitment to the witness polynomial for the left wires.

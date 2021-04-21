@@ -12,9 +12,9 @@ pub(crate) mod composer;
 pub(crate) mod variable;
 
 /// Simple Arithmetic gates
-pub mod arithmetic;
+mod arithmetic;
 /// Boolean gate
-pub mod boolean;
+mod boolean;
 /// Elliptic Curve Crypto gates
 pub mod ecc;
 
