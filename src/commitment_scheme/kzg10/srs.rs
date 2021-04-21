@@ -26,6 +26,18 @@ pub struct PublicParameters {
 }
 
 impl PublicParameters {
+    /// Returns an untrimmed [`CommitKey`] reference contained in the
+    /// `PublicParameters` instance.
+    pub fn commit_key(&self) -> &CommitKey {
+        &self.commit_key
+    }
+
+    /// Returns an [`OpeningKey`] reference contained in the
+    /// `PublicParameters` instance.
+    pub fn opening_key(&self) -> &OpeningKey {
+        &self.opening_key
+    }
+
     /// Setup generates the public parameters using a random number generator.
     /// This method will in most cases be used for testing and exploration.
     /// In reality, a `Trusted party` or a `Multiparty Computation` will used to
@@ -146,7 +158,7 @@ impl PublicParameters {
         Ok(pp)
     }
 
-    /// Trim truncates the prover key to allow the prover to commit to
+    /// Truncates the prover key to allow the prover to commit to
     /// polynomials up to the and including the truncated degree.
     /// Returns an error if the truncated degree is larger than the public
     /// parameters configured degree.
