@@ -296,8 +296,6 @@ impl StandardComposer {
     /// # Panics
     ///
     /// If the `num_bits` specified in the fn params is odd.
-    ///
-    /// [`Variable`]: struct.Variable.html
     pub fn xor_gate(
         &mut self,
         a: Variable,
@@ -314,8 +312,6 @@ impl StandardComposer {
     /// # Panics
     ///
     /// If the `num_bits` specified in the fn params is odd.
-    ///
-    /// [`Variable`]: struct.Variable.html
     pub fn and_gate(
         &mut self,
         a: Variable,

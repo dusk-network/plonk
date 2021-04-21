@@ -50,13 +50,6 @@ use hashbrown::HashMap;
 /// Each gate or group of gates adds an specific functionallity or operation to
 /// de circuit description, and so, that's why we can understand
 /// the StandardComposer as a builder.
-///
-/// [`StandardComposer::add_gate`]:
-/// struct.StandardComposer.html#method.add_gate
-/// [`StandardComposer::conditional_select`]:
-/// struct.StandardComposer.html#method.conditional_select
-/// [`StandardComposer::add_input`]:
-/// struct.StandardComposer.html#method.add_input
 #[derive(Debug)]
 pub struct StandardComposer {
     /// Number of arithmetic gates in the circuit
@@ -334,9 +327,6 @@ impl StandardComposer {
     /// The `bit` used as input which is a [`Variable`] should had previously
     /// been constrained to be either 1 or 0 using a bool constrain. See:
     /// [`StandardComposer::boolean_gate`].
-    ///
-    /// [`StandardComposer::bool_gate`]:
-    /// struct.StandardComposer.html#method.bool_gate
     pub fn conditional_select(
         &mut self,
         bit: Variable,
@@ -382,9 +372,6 @@ impl StandardComposer {
     /// The `bit` used as input which is a [`Variable`] should had previously
     /// been constrained to be either 1 or 0 using a bool constrain. See:
     /// [`StandardComposer::boolean_gate`].
-    ///
-    /// [`StandardComposer::bool_gate`]:
-    /// struct.StandardComposer.html#method.bool_gate
     pub fn conditional_select_zero(
         &mut self,
         bit: Variable,
@@ -403,9 +390,6 @@ impl StandardComposer {
     /// The `bit` used as input which is a [`Variable`] should had previously
     /// been constrained to be either 1 or 0 using a bool constrain. See:
     /// [`StandardComposer::boolean_gate`].
-    ///
-    /// [`StandardComposer::bool_gate`]:
-    /// struct.StandardComposer.html#method.bool_gate
     pub fn conditional_select_one(
         &mut self,
         bit: Variable,

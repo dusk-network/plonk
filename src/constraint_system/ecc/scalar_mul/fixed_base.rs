@@ -36,9 +36,6 @@ impl StandardComposer {
     /// the **ONLY** `generator` inputs that should be passed to this
     /// function as inputs are [`dusk_jubjub::GENERATOR`] or
     /// [`dusk_jubjub::GENERATOR_NUMS`].
-    ///
-    /// [`dusk_jubjub::GENERATOR`]: struct.dusk_jubjub::GENERATOR.html
-    /// [`dusk_jubjub::GENERATOR_NUMS`]: struct.dusk_jubjub::GENERATOR_NUMS.html
     pub fn fixed_base_scalar_mul(
         &mut self,
         jubjub_scalar: Variable,

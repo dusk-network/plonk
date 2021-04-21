@@ -16,9 +16,6 @@ use dusk_bytes::Serializable;
 /// If you're planning to multiply always by the generator of the Scalar field,
 /// you should use [`StandardComposer::fixed_base_scalar_mul`] which is
 /// optimized for fixed_base ops.
-///
-/// [`StandardComposer::fixed_base_scalar_mul`]:
-/// struct.StandardComposer.html#tymethod.fixed_base_scalar_mul
 pub fn variable_base_scalar_mul(
     composer: &mut StandardComposer,
     jubjub_var: Variable,

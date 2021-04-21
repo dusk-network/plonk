@@ -188,9 +188,6 @@ impl StandardComposer {
     /// to reduce the verbosity and complexity.
     ///
     /// Forces `q_l * w_l + q_r * w_r + q_c + PI = w_o(computed by the gate)`.
-    ///
-    /// [`StandardComposer::big_add_gate`]:
-    /// struct.StandardComposer.html#method.big_add_gate
     pub fn add(
         &mut self,
         q_l_a: (BlsScalar, Variable),
@@ -213,9 +210,6 @@ impl StandardComposer {
     ///
     /// Forces `q_l * w_l + q_r * w_r + q_4 * w_4 + q_c + PI = w_o(computed by
     /// the gate)`.
-    ///
-    /// [`StandardComposer::big_add_gate`]:
-    /// struct.StandardComposer.html#method.big_add_gate
     pub fn big_add(
         &mut self,
         q_l_a: (BlsScalar, Variable),
@@ -263,9 +257,6 @@ impl StandardComposer {
     /// gate)`.
     ///
     /// `{w_l, w_r, w_4} = {a, b, d}`
-    ///
-    /// [`StandardComposer::big_mul_gate`]:
-    /// struct.StandardComposer.html#tymethod.big_mul_gate
     pub fn mul(
         &mut self,
         q_m: BlsScalar,
@@ -291,9 +282,6 @@ impl StandardComposer {
     /// gate)`.
     ///
     /// `{w_l, w_r, w_4} = {a, b, d}`
-    ///
-    /// [`StandardComposer::big_mul_gate`]:
-    /// struct.StandardComposer.html#method.big_mul_gate
     pub fn big_mul(
         &mut self,
         q_m: BlsScalar,

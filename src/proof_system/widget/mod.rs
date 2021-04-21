@@ -16,8 +16,6 @@ use dusk_bytes::{DeserializableSlice, Serializable};
 ///
 /// This structure is used by the Verifier in order to verify a
 /// [`Proof`](super::Proof).
-///
-/// [`Proof`]: struct.Proof.html
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub struct VerifierKey {
     /// Circuit size (not padded to a power of two).
@@ -211,8 +209,6 @@ pub(crate) mod alloc {
     ///
     /// This structure is used by the Prover in order to construct a
     /// [`Proof`](crate::proof_system::Proof).
-    ///
-    /// [`Proof`]: struct.Proof.html
     #[derive(Debug, PartialEq, Eq, Clone)]
     pub struct ProverKey {
         /// Circuit size
@@ -240,15 +236,11 @@ pub(crate) mod alloc {
     #[cfg(feature = "alloc")]
     impl ProverKey {
         /// Returns the number of [`Polynomial`]s contained in a ProverKey.
-        ///
-        /// [`Polynomial`]: struct.Polynomial.html
         const fn num_polys() -> usize {
             15
         }
 
         /// Returns the number of [`Evaluations`] contained in a ProverKey.
-        ///
-        /// [`Evaluations`]: struct.Evaluations.html
         const fn num_evals() -> usize {
             17
         }
