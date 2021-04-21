@@ -1,6 +1,7 @@
 [package]
 name = "dusk-plonk"
 version = "0.7.0"
+resolver = "2"
 authors = ["Kevaundray Wedderburn <kevtheappdev@gmail.com>",
            "Luke Pearson <luke@dusk.network>", 
            "CPerezz <carlos@dusk.network>"] 
@@ -35,7 +36,12 @@ canonical = {version = "0.6", optional = true}
 canonical_derive = {version = "0.6", optional = true}
 
 [dev-dependencies]
+criterion = "0.3"
 tempdir = "0.3"
+
+[[bench]]
+name = "plonk"
+harness = false
 
 [package.metadata.docs.rs]
 rustdoc-args = [ "--html-in-header", "katex-header.html" ]
