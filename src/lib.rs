@@ -82,14 +82,10 @@ mod transcript;
 pub mod notes {
     #[doc(include = "../docs/notes-commitments.md")]
     pub mod commitment_schemes {}
-    #[doc(include = "../docs/notes-pa.md")]
-    pub mod permutation_arguments {}
     #[doc(include = "../docs/notes-snark.md")]
     pub mod snark_construction {}
     #[doc(include = "../docs/notes-prove-verify.md")]
     pub mod prove_verify {}
-    #[doc(include = "../docs/notes-pa.md")]
-    pub mod unbalanced_perm_args {}
     #[doc(include = "../docs/notes-KZG10.md")]
     pub mod kzg10_docs {}
 }

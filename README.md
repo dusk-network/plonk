@@ -125,8 +125,7 @@ There are two main types of documentation in this repository:
   the [documentation page](https://dusk-network.github.io/plonk/dusk_plonk/index.html)
 
 - **Notes**. This is a specific subset of documentation which explains the mathematical key concepts
-  of PLONK and how they work with mathematical demonstrations. It can be found inside of the documentation
-  page in the [notes sub-section](https://dusk-network.github.io/plonk/dusk_plonk/notes/index.html)
+  of PLONK and how they work with mathematical demonstrations.
 
 ## Performance
 

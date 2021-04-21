@@ -4,4 +4,7 @@ help: ## Display this help screen
 doc: ## Generate documentation
 	@cargo rustdoc --features nightly --lib -- --html-in-header docs/katex-header.html -D warnings
 
-.PHONY: help doc 
+doc-internal: ## Generate documentation with private items
+	@cargo rustdoc --lib -- --document-private-items -D warnings
+
+.PHONY: help doc doc-internal 
