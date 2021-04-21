@@ -122,7 +122,7 @@ impl StandardComposer {
     /// Generates a new empty `StandardComposer` with all of it's fields
     /// set to hold an initial capacity of 0.
     ///
-    /// # Warning
+    /// # Note
     ///
     /// The usage of this may cause lots of re-allocations since the `Composer`
     /// holds `Vec` for every polynomial, and these will need to be re-allocated
@@ -328,6 +328,66 @@ impl StandardComposer {
             BlsScalar::zero(),
             None,
         )
+    }
+
+    /// Adds the polynomial f(x) = x * a to the circuit description where
+    /// `x = bit`. If:
+    /// bit == 1 => value,
+    /// bit == 0 => 0,
+    ///
+    /// # Note
+    /// The `bit` used as input which is a [`Variable`] should had previously
+    /// been constrained to be either 1 or 0 using a bool constrain. See:
+    /// [`StandardComposer::boolean_gate`].
+    ///
+    /// [`StandardComposer::bool_gate`]:
+    /// struct.StandardComposer.html#tymethod.bool_gate
+    pub fn conditional_select_zero(
+        &mut self,
+        bit: Variable,
+        value: Variable,
+    ) -> Variable {
+        // returns bit * value
+        self.mul(BlsScalar::one(), bit, value, BlsScalar::zero(), None)
+    }
+
+    /// Adds the polynomial f(x) = 1 - x + xa to the circuit description where
+    /// `x = bit`. If:
+    /// bit == 1 => value,
+    /// bit == 0 => 1,
+    ///
+    /// # Note
+    /// The `bit` used as input which is a [`Variable`] should had previously
+    /// been constrained to be either 1 or 0 using a bool constrain. See:
+    /// [`StandardComposer::boolean_gate`].
+    ///
+    /// [`StandardComposer::bool_gate`]:
+    /// struct.StandardComposer.html#tymethod.bool_gate
+    pub fn conditional_select_one(
+        &mut self,
+        bit: Variable,
+        value: Variable,
+    ) -> Variable {
+        let value_scalar = self.variables.get(&value).unwrap();
+        let bit_scalar = self.variables.get(&bit).unwrap();
+
+        let f_x_scalar =
+            BlsScalar::one() - bit_scalar + (bit_scalar * value_scalar);
+        let f_x = self.add_input(f_x_scalar);
+
+        self.poly_gate(
+            bit,
+            value,
+            f_x,
+            BlsScalar::one(),
+            -BlsScalar::one(),
+            BlsScalar::zero(),
+            -BlsScalar::one(),
+            BlsScalar::one(),
+            None,
+        );
+
+        f_x
     }
 
     /// This function is used to add a blinding factor to the witness

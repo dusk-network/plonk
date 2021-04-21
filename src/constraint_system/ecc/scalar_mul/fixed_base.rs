@@ -5,7 +5,7 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use crate::constraint_system::ecc::curve_addition::fixed_base_gate::WnafRound;
-use crate::constraint_system::ecc::{Point, PointScalar};
+use crate::constraint_system::ecc::Point;
 use crate::constraint_system::{variable::Variable, StandardComposer};
 use alloc::vec::Vec;
 use dusk_bls12_381::BlsScalar;
@@ -27,129 +27,138 @@ fn compute_wnaf_point_multiples(
     dusk_jubjub::batch_normalize(&mut multiples).collect()
 }
 
-/// Computes a BlsScalar multiplication with the input scalar and a chosen
-/// generator
-pub fn scalar_mul(
-    composer: &mut StandardComposer,
-    jubjub_scalar: Variable,
-    generator: JubJubExtended,
-) -> PointScalar {
-    // XXX: we can slice off 3 bits from the top of wnaf, since F_r prime has
-    // 252 bits. XXX :We can also move to base4 and have half the number of
-    // gates since wnaf adjacent entries product is zero, we will not go over
-    // the specified amount
-    let num_bits = 256;
+impl StandardComposer {
+    /// Adds an elliptic curve Scalar multiplication gate to the circuit
+    /// description.
+    ///
+    /// # Note
+    /// This function is optimized for fixed base ops **ONLY** and therefore,
+    /// the **ONLY** `generator` inputs that should be passed to this
+    /// function as inputs are [`dusk_jubjub::GENERATOR`] or
+    /// [`dusk_jubjub::GENERATOR_NUMS`].
+    ///
+    /// [`dusk_jubjub::GENERATOR`]: struct.dusk_jubjub::GENERATOR.html
+    /// [`dusk_jubjub::GENERATOR_NUMS`]: struct.dusk_jubjub::GENERATOR_NUMS.html
+    pub fn fixed_base_scalar_mul(
+        &mut self,
+        jubjub_scalar: Variable,
+        generator: JubJubExtended,
+    ) -> Point {
+        // XXX: we can slice off 3 bits from the top of wnaf, since F_r prime
+        // has 252 bits. XXX :We can also move to base4 and have half
+        // the number of gates since wnaf adjacent entries product is
+        // zero, we will not go over the specified amount
+        let num_bits = 256;
 
-    // compute 2^iG
-    let mut point_multiples = compute_wnaf_point_multiples(generator, num_bits);
-    point_multiples.reverse();
+        // compute 2^iG
+        let mut point_multiples =
+            compute_wnaf_point_multiples(generator, num_bits);
+        point_multiples.reverse();
 
-    // Fetch the raw scalar value as bls scalar, then convert to a jubjub scalar
-    // XXX: Not very Tidy, impl From function in JubJub
-    let raw_bls_scalar = composer.variables.get(&jubjub_scalar).unwrap();
-    let raw_jubjub_scalar =
-        JubJubScalar::from_bytes(&raw_bls_scalar.to_bytes()).unwrap();
+        // Fetch the raw scalar value as bls scalar, then convert to a jubjub
+        // scalar XXX: Not very Tidy, impl From function in JubJub
+        let raw_bls_scalar = self.variables.get(&jubjub_scalar).unwrap();
+        let raw_jubjub_scalar =
+            JubJubScalar::from_bytes(&raw_bls_scalar.to_bytes()).unwrap();
 
-    // Convert scalar to wnaf_2(k)
-    let wnaf_entries = raw_jubjub_scalar.compute_windowed_naf(2);
-    assert_eq!(wnaf_entries.len(), num_bits);
+        // Convert scalar to wnaf_2(k)
+        let wnaf_entries = raw_jubjub_scalar.compute_windowed_naf(2);
+        assert_eq!(wnaf_entries.len(), num_bits);
 
-    // Initialise the accumulators
-    let mut scalar_acc = vec![BlsScalar::zero()];
-    let mut point_acc = vec![JubJubAffine::identity()];
+        // Initialise the accumulators
+        let mut scalar_acc = vec![BlsScalar::zero()];
+        let mut point_acc = vec![JubJubAffine::identity()];
 
-    // Auxillary point to help with checks on the backend
-    let mut xy_alphas = Vec::new();
+        // Auxillary point to help with checks on the backend
+        let mut xy_alphas = Vec::new();
 
-    // Load values into accumulators based on wnaf entries
-    for (i, entry) in wnaf_entries.iter().rev().enumerate() {
-        // Based on the WNAF, we decide what scalar and point to add
-        let (scalar_to_add, point_to_add) = match entry {
+        // Load values into accumulators based on wnaf entries
+        for (i, entry) in wnaf_entries.iter().rev().enumerate() {
+            // Based on the WNAF, we decide what scalar and point to add
+            let (scalar_to_add, point_to_add) = match entry {
             0 => { (BlsScalar::zero(), JubJubAffine::identity())},
             -1 => {(BlsScalar::one().neg(), -point_multiples[i])},
             1 => {(BlsScalar::one(), point_multiples[i])},
             _ => unreachable!("Currently WNAF_2(k) is supported. The possible values are 1, -1 and 0. Current entry is {}", entry),
         };
 
-        let prev_accumulator = BlsScalar::from(2u64) * scalar_acc[i];
-        scalar_acc.push(prev_accumulator + scalar_to_add);
-        point_acc.push(
-            (JubJubExtended::from(point_acc[i])
-                + JubJubExtended::from(point_to_add))
-            .into(),
-        );
-
-        let x_alpha = point_to_add.get_x();
-        let y_alpha = point_to_add.get_y();
-
-        xy_alphas.push(x_alpha * y_alpha);
-    }
-
-    for i in 0..num_bits {
-        let acc_x = composer.add_input(point_acc[i].get_x());
-        let acc_y = composer.add_input(point_acc[i].get_y());
-
-        let accumulated_bit = composer.add_input(scalar_acc[i]);
-
-        // We constrain the point accumulator to start from the Identity point
-        // and the Scalar accumulator to start from zero
-        if i == 0 {
-            composer.constrain_to_constant(acc_x, BlsScalar::zero(), None);
-            composer.constrain_to_constant(acc_y, BlsScalar::one(), None);
-            composer.constrain_to_constant(
-                accumulated_bit,
-                BlsScalar::zero(),
-                None,
+            let prev_accumulator = BlsScalar::from(2u64) * scalar_acc[i];
+            scalar_acc.push(prev_accumulator + scalar_to_add);
+            point_acc.push(
+                (JubJubExtended::from(point_acc[i])
+                    + JubJubExtended::from(point_to_add))
+                .into(),
             );
+
+            let x_alpha = point_to_add.get_x();
+            let y_alpha = point_to_add.get_y();
+
+            xy_alphas.push(x_alpha * y_alpha);
         }
 
-        let x_beta = point_multiples[i].get_x();
-        let y_beta = point_multiples[i].get_y();
+        for i in 0..num_bits {
+            let acc_x = self.add_input(point_acc[i].get_x());
+            let acc_y = self.add_input(point_acc[i].get_y());
 
-        let xy_alpha = composer.add_input(xy_alphas[i]);
+            let accumulated_bit = self.add_input(scalar_acc[i]);
 
-        let xy_beta = x_beta * y_beta;
+            // We constrain the point accumulator to start from the Identity
+            // point and the Scalar accumulator to start from zero
+            if i == 0 {
+                self.constrain_to_constant(acc_x, BlsScalar::zero(), None);
+                self.constrain_to_constant(acc_y, BlsScalar::one(), None);
+                self.constrain_to_constant(
+                    accumulated_bit,
+                    BlsScalar::zero(),
+                    None,
+                );
+            }
 
-        let wnaf_round = WnafRound {
+            let x_beta = point_multiples[i].get_x();
+            let y_beta = point_multiples[i].get_y();
+
+            let xy_alpha = self.add_input(xy_alphas[i]);
+
+            let xy_beta = x_beta * y_beta;
+
+            let wnaf_round = WnafRound {
+                acc_x,
+                acc_y,
+                accumulated_bit,
+                xy_alpha,
+                x_beta,
+                y_beta,
+                xy_beta,
+            };
+
+            self.fixed_group_add(wnaf_round);
+        }
+
+        // Add last gate, but do not activate it for ECC
+        // It is for use with the previous gate
+        let acc_x = self.add_input(point_acc[num_bits].get_x());
+        let acc_y = self.add_input(point_acc[num_bits].get_y());
+        let xy_alpha = self.zero_var;
+        let last_accumulated_bit = self.add_input(scalar_acc[num_bits]);
+
+        self.big_add_gate(
             acc_x,
             acc_y,
-            accumulated_bit,
             xy_alpha,
-            x_beta,
-            y_beta,
-            xy_beta,
-        };
+            Some(last_accumulated_bit),
+            BlsScalar::zero(),
+            BlsScalar::zero(),
+            BlsScalar::zero(),
+            BlsScalar::zero(),
+            BlsScalar::zero(),
+            None,
+        );
 
-        composer.fixed_group_add(wnaf_round);
-    }
+        // Constrain the last element in the accumulator to be equal to the
+        // input jubjub scalar
+        self.assert_equal(last_accumulated_bit, jubjub_scalar);
 
-    // Add last gate, but do not activate it for ECC
-    // It is for use with the previous gate
-    let acc_x = composer.add_input(point_acc[num_bits].get_x());
-    let acc_y = composer.add_input(point_acc[num_bits].get_y());
-    let xy_alpha = composer.zero_var;
-    let last_accumulated_bit = composer.add_input(scalar_acc[num_bits]);
-
-    composer.big_add_gate(
-        acc_x,
-        acc_y,
-        xy_alpha,
-        Some(last_accumulated_bit),
-        BlsScalar::zero(),
-        BlsScalar::zero(),
-        BlsScalar::zero(),
-        BlsScalar::zero(),
-        BlsScalar::zero(),
-        None,
-    );
-
-    // Constrain the last element in the accumulator to be equal to the input
-    // jubjub scalar
-    composer.assert_equal(last_accumulated_bit, jubjub_scalar);
-
-    PointScalar {
-        point: Point { x: acc_x, y: acc_y },
-        scalar: last_accumulated_bit,
+        Point { x: acc_x, y: acc_y }
     }
 }
 
@@ -178,13 +187,11 @@ mod tests {
                 let expected_point: JubJubAffine =
                     (JubJubExtended::from(GENERATOR) * scalar).into();
 
-                let point_scalar =
-                    scalar_mul(composer, secret_scalar, GENERATOR.into());
+                let point_scalar = composer
+                    .fixed_base_scalar_mul(secret_scalar, GENERATOR.into());
 
-                composer.assert_equal_public_point(
-                    point_scalar.into(),
-                    expected_point,
-                );
+                composer
+                    .assert_equal_public_point(point_scalar, expected_point);
             },
             600,
         );
@@ -203,13 +210,11 @@ mod tests {
                 let expected_point: JubJubAffine =
                     (JubJubExtended::from(GENERATOR) * scalar).into();
 
-                let point_scalar =
-                    scalar_mul(composer, secret_scalar, GENERATOR.into());
+                let point_scalar = composer
+                    .fixed_base_scalar_mul(secret_scalar, GENERATOR.into());
 
-                composer.assert_equal_public_point(
-                    point_scalar.into(),
-                    expected_point,
-                );
+                composer
+                    .assert_equal_public_point(point_scalar, expected_point);
             },
             600,
         );
@@ -230,13 +235,11 @@ mod tests {
 
                 let expected_point: JubJubAffine = (double_gen * scalar).into();
 
-                let point_scalar =
-                    scalar_mul(composer, secret_scalar, GENERATOR.into());
+                let point_scalar = composer
+                    .fixed_base_scalar_mul(secret_scalar, GENERATOR.into());
 
-                composer.assert_equal_public_point(
-                    point_scalar.into(),
-                    expected_point,
-                );
+                composer
+                    .assert_equal_public_point(point_scalar, expected_point);
             },
             600,
         );
@@ -267,7 +270,7 @@ mod tests {
                     x: var_point_b_x,
                     y: var_point_b_y,
                 };
-                let new_point = point_a.add(composer, point_b);
+                let new_point = composer.point_addition_gate(point_a, point_b);
 
                 composer.assert_equal_public_point(
                     new_point,
@@ -309,17 +312,19 @@ mod tests {
                 // - One curve addition
                 //
                 // Scalar multiplications
-                let aG = scalar_mul(composer, secret_scalar_a, point_a);
-                let bH = scalar_mul(composer, secret_scalar_b, point_b);
+                let aG =
+                    composer.fixed_base_scalar_mul(secret_scalar_a, point_a);
+                let bH =
+                    composer.fixed_base_scalar_mul(secret_scalar_b, point_b);
 
                 // Depending on the context, one can check if the resulting aG
                 // and bH are as expected
                 //
-                composer.assert_equal_public_point(aG.into(), c_a);
-                composer.assert_equal_public_point(bH.into(), c_b);
+                composer.assert_equal_public_point(aG, c_a);
+                composer.assert_equal_public_point(bH, c_b);
 
                 // Curve addition
-                let commitment = Point::from(aG).add(composer, bH.into());
+                let commitment = composer.point_addition_gate(aG, bH);
 
                 // Add final constraints to ensure that the commitment that we
                 // computed is equal to the public point
@@ -361,13 +366,13 @@ mod tests {
                 let expected_rhs: JubJubAffine =
                     (gen * (scalar_c + scalar_d)).into();
 
-                let P1 = scalar_mul(composer, secret_scalar_a, gen);
-                let P2 = scalar_mul(composer, secret_scalar_b, gen);
-                let P3 = scalar_mul(composer, secret_scalar_c, gen);
-                let P4 = scalar_mul(composer, secret_scalar_d, gen);
+                let P1 = composer.fixed_base_scalar_mul(secret_scalar_a, gen);
+                let P2 = composer.fixed_base_scalar_mul(secret_scalar_b, gen);
+                let P3 = composer.fixed_base_scalar_mul(secret_scalar_c, gen);
+                let P4 = composer.fixed_base_scalar_mul(secret_scalar_d, gen);
 
-                let commitment_a = Point::from(P1).add(composer, P2.into());
-                let commitment_b = Point::from(P3).add(composer, P4.into());
+                let commitment_a = composer.point_addition_gate(P1, P2);
+                let commitment_b = composer.point_addition_gate(P3, P4);
 
                 composer.assert_equal_point(commitment_a, commitment_b);
 

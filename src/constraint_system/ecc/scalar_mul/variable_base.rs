@@ -4,19 +4,26 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use crate::constraint_system::ecc::{Point, PointScalar};
+use crate::constraint_system::ecc::Point;
 use crate::constraint_system::{variable::Variable, StandardComposer};
 use alloc::vec::Vec;
 use dusk_bls12_381::BlsScalar;
 use dusk_bytes::Serializable;
 
-/// Computes a BlsScalar multiplication with the input scalar and a chosen
-/// generator
+/// Adds a variable-base scalar multiplication to the circuit description.
+///
+/// # Note
+/// If you're planning to multiply always by the generator of the Scalar field,
+/// you should use [`StandardComposer::fixed_base_scalar_mul`] which is
+/// optimized for fixed_base ops.
+///
+/// [`StandardComposer::fixed_base_scalar_mul`]:
+/// struct.StandardComposer.html#tymethod.fixed_base_scalar_mul
 pub fn variable_base_scalar_mul(
     composer: &mut StandardComposer,
     jubjub_var: Variable,
     point: Point,
-) -> PointScalar {
+) -> Point {
     // Turn scalar into bits
     let raw_bls_scalar = *composer.variables.get(&jubjub_var).unwrap();
     let scalar_bits_var =
@@ -26,68 +33,12 @@ pub fn variable_base_scalar_mul(
     let mut result = identity;
 
     for bit in scalar_bits_var.into_iter().rev() {
-        result = result.fast_add(composer, result);
-        let point_to_add = conditional_select_identity(composer, bit, point);
-        result = result.fast_add(composer, point_to_add);
+        result = composer.point_addition_gate(result, result);
+        let point_to_add = composer.conditional_select_identity(bit, point);
+        result = composer.point_addition_gate(result, point_to_add);
     }
 
-    PointScalar {
-        point: result,
-        scalar: jubjub_var,
-    }
-}
-
-/// If bit == 0, then return zero else return value
-/// This is the polynomial f(x) = x * a
-/// Where x is the bit
-fn conditional_select_zero(
-    composer: &mut StandardComposer,
-    bit: Variable,
-    value: Variable,
-) -> Variable {
-    // returns bit * value
-    composer.mul(BlsScalar::one(), bit, value, BlsScalar::zero(), None)
-}
-/// If bit == 0, then return 1 else return value
-/// This is the polynomial f(x) = 1 - x + xa
-/// Where x is the bit
-fn conditional_select_one(
-    composer: &mut StandardComposer,
-    bit: Variable,
-    value: Variable,
-) -> Variable {
-    let value_scalar = composer.variables.get(&value).unwrap();
-    let bit_scalar = composer.variables.get(&bit).unwrap();
-
-    let f_x_scalar =
-        BlsScalar::one() - bit_scalar + (bit_scalar * value_scalar);
-    let f_x = composer.add_input(f_x_scalar);
-
-    composer.poly_gate(
-        bit,
-        value,
-        f_x,
-        BlsScalar::one(),
-        -BlsScalar::one(),
-        BlsScalar::zero(),
-        -BlsScalar::one(),
-        BlsScalar::one(),
-        None,
-    );
-
-    f_x
-}
-
-// If bit == 0 choose identity, if bit == 1 choose point_b
-fn conditional_select_identity(
-    composer: &mut StandardComposer,
-    bit: Variable,
-    point_b: Point,
-) -> Point {
-    let x = conditional_select_zero(composer, bit, *point_b.x());
-    let y = conditional_select_one(composer, bit, *point_b.y());
-
-    Point { x, y }
+    result
 }
 
 fn scalar_decomposition(
@@ -167,15 +118,13 @@ mod tests {
                 let expected_point: JubJubAffine =
                     (JubJubExtended::from(GENERATOR) * scalar).into();
 
-                let point = Point::from_private_affine(composer, GENERATOR);
+                let point = composer.add_affine(GENERATOR);
 
                 let point_scalar =
                     variable_base_scalar_mul(composer, secret_scalar, point);
 
-                composer.assert_equal_public_point(
-                    point_scalar.into(),
-                    expected_point,
-                );
+                composer
+                    .assert_equal_public_point(point_scalar, expected_point);
             },
             4096,
         );

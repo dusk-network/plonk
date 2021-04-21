@@ -267,16 +267,14 @@ mod tests {
 
             // This adds a PI also constraining `generator` to actually be
             // `dusk_jubjub::GENERATOR`
-            let generator =
-                Point::from_public_affine(composer, dusk_jubjub::GENERATOR);
+            let generator = composer.add_public_affine(dusk_jubjub::GENERATOR);
             let e = composer.add_input(self.e.into());
             let scalar_mul_result =
                 scalar_mul::variable_base::variable_base_scalar_mul(
                     composer, e, generator,
                 );
             // Apply the constrain
-            composer
-                .assert_equal_public_point(scalar_mul_result.into(), self.f);
+            composer.assert_equal_public_point(scalar_mul_result, self.f);
             Ok(())
         }
         fn padded_circuit_size(&self) -> usize {
