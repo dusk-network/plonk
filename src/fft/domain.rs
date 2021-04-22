@@ -91,6 +91,8 @@ pub(crate) mod alloc {
     use ::alloc::vec::Vec;
     use core::ops::MulAssign;
     use dusk_bls12_381::{GENERATOR, ROOT_OF_UNITY, TWO_ADACITY};
+    #[cfg(feature = "std")]
+    use rayon::prelude::*;
 
     impl EvaluationDomain {
         /// Construct a domain that is large enough for evaluations of a
@@ -158,8 +160,12 @@ pub(crate) mod alloc {
         pub(crate) fn ifft_in_place(&self, evals: &mut Vec<BlsScalar>) {
             evals.resize(self.size(), BlsScalar::zero());
             best_fft(evals, self.group_gen_inv, self.log_size_of_group);
-            // cfg_iter_mut!(evals).for_each(|val| *val *= &self.size_inv);
+
+            #[cfg(not(feature = "std"))]
             evals.iter_mut().for_each(|val| *val *= &self.size_inv);
+
+            #[cfg(feature = "std")]
+            evals.par_iter_mut().for_each(|val| *val *= &self.size_inv);
         }
 
         fn distribute_powers(coeffs: &mut [BlsScalar], g: BlsScalar) {
@@ -236,7 +242,13 @@ pub(crate) mod alloc {
 
                 batch_inversion(u.as_mut_slice());
 
+                #[cfg(not(feature = "std"))]
                 u.iter_mut().zip(ls).for_each(|(tau_minus_r, l)| {
+                    *tau_minus_r = l * *tau_minus_r;
+                });
+
+                #[cfg(feature = "std")]
+                u.par_iter_mut().zip(ls).for_each(|(tau_minus_r, l)| {
                     *tau_minus_r = l * *tau_minus_r;
                 });
 
