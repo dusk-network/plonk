@@ -35,10 +35,10 @@
 //! team](dusk.network) of this algorithm using as a reference implementation
 //! this one done by the creators of the protocol:
 //!
-//! [https://github.com/AztecProtocol/barretenberg/blob/master/barretenberg/src/aztec/plonk/](https://github.com/AztecProtocol/barretenberg/blob/master/barretenberg/src/aztec/plonk/)
+//! <https://github.com/AztecProtocol/barretenberg/blob/master/barretenberg/src/aztec/plonk/>
 //!
 //! If you want to see library usage examples, please check:
-//! [https://github.com/dusk-network/plonk/tree/v0.1.0/examples](https://github.com/dusk-network/plonk/tree/v0.1.0/examples)
+//! <https://github.com/dusk-network/plonk/tree/v0.1.0/examples>
 // Bitshift/Bitwise ops are allowed to gain performance.
 #![allow(clippy::suspicious_arithmetic_impl)]
 // Some structs do not have AddAssign or MulAssign impl.
@@ -75,25 +75,17 @@ pub mod prelude;
 pub mod proof_system;
 mod transcript;
 
+// `#[doc(include)]` is experimental
+// Note: see issue #44732 <https://github.com/rust-lang/rust/issues/44732>
 #[cfg(feature = "nightly")]
 #[doc(include = "../docs/notes-intro.md")]
 pub mod notes {
-    #[cfg(feature = "nightly")]
     #[doc(include = "../docs/notes-commitments.md")]
     pub mod commitment_schemes {}
-    #[cfg(feature = "nightly")]
-    #[doc(include = "../docs/notes-pa.md")]
-    pub mod permutation_arguments {}
-    #[cfg(feature = "nightly")]
     #[doc(include = "../docs/notes-snark.md")]
     pub mod snark_construction {}
-    #[cfg(feature = "nightly")]
     #[doc(include = "../docs/notes-prove-verify.md")]
     pub mod prove_verify {}
-    #[cfg(feature = "nightly")]
-    #[doc(include = "../docs/notes-pa.md")]
-    pub mod unbalanced_perm_args {}
-    #[cfg(feature = "nightly")]
     #[doc(include = "../docs/notes-KZG10.md")]
     pub mod kzg10_docs {}
 }

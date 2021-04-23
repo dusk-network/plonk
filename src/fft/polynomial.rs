@@ -16,7 +16,7 @@ use dusk_bls12_381::BlsScalar;
 use dusk_bytes::{DeserializableSlice, Serializable};
 
 #[derive(Debug, Eq, PartialEq, Clone)]
-/// Polynomial represents a polynomial in coeffiient form.
+/// Represents a polynomial in coeffiient form.
 pub(crate) struct Polynomial {
     /// The coefficient of `x^i` is stored at location `i` in `self.coeffs`.
     pub(crate) coeffs: Vec<BlsScalar>,
@@ -72,7 +72,7 @@ impl Polynomial {
         result
     }
 
-    /// Returns the degree of the polynomial.
+    /// Returns the degree of the [`Polynomial`].
     pub(crate) fn degree(&self) -> usize {
         if self.is_zero() {
             return 0;
@@ -93,7 +93,8 @@ impl Polynomial {
             self.coeffs.pop();
         }
     }
-    /// Evaluates `self` at the given `point` in the field.
+
+    /// Evaluates a [`Polynomial`] at a given point in the field.
     pub(crate) fn evaluate(&self, point: &BlsScalar) -> BlsScalar {
         if self.is_zero() {
             return BlsScalar::zero();
@@ -114,8 +115,8 @@ impl Polynomial {
         sum
     }
 
-    /// Given a Polynomial, return it in it's byte representation coefficient by
-    /// coefficient.
+    /// Given a [`Polynomial`], return it in it's bytes representation
+    /// coefficient by coefficient.
     pub fn to_var_bytes(&self) -> Vec<u8> {
         self.coeffs
             .iter()
@@ -301,7 +302,7 @@ impl Polynomial {
         self.iter().cloned().enumerate().collect()
     }
 
-    /// Divides `self` by x-z using Ruffinis method
+    /// Divides a [`Polynomial`] by x-z using Ruffinis method.
     pub fn ruffini(&self, z: BlsScalar) -> Polynomial {
         let mut quotient: Vec<BlsScalar> = Vec::with_capacity(self.degree());
         let mut k = BlsScalar::zero();
@@ -352,7 +353,7 @@ impl<'a, 'b> Mul<&'a Polynomial> for &'b Polynomial {
         }
     }
 }
-/// Convenience Trait to multiply a scalar and polynomial
+
 impl<'a, 'b> Mul<&'a BlsScalar> for &'b Polynomial {
     type Output = Polynomial;
 
@@ -366,7 +367,7 @@ impl<'a, 'b> Mul<&'a BlsScalar> for &'b Polynomial {
         Polynomial::from_coefficients_vec(scaled_coeffs)
     }
 }
-/// Convenience Trait to sub a scalar and polynomial
+
 impl<'a, 'b> Add<&'a BlsScalar> for &'b Polynomial {
     type Output = Polynomial;
 
@@ -384,6 +385,7 @@ impl<'a, 'b> Add<&'a BlsScalar> for &'b Polynomial {
         result
     }
 }
+
 impl<'a, 'b> Sub<&'a BlsScalar> for &'b Polynomial {
     type Output = Polynomial;
 

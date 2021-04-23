@@ -17,24 +17,26 @@ use itertools::izip;
 /// "accumulator", this is what this codebase calls the permutation polynomial.
 #[derive(Debug)]
 pub(crate) struct Permutation {
-    // Maps a variable to the wires that it is associated to
+    // Maps a variable to the wires that it is associated to.
     pub(crate) variable_map: HashMap<Variable, Vec<WireData>>,
 }
 
 impl Permutation {
-    /// Creates a permutation struct with an expected capacity of zero
+    /// Creates a Permutation struct with an expected capacity of zero.
     pub(crate) fn new() -> Permutation {
         Permutation::with_capacity(0)
     }
-    /// Creates a permutation struct with an expected capacity of `n`
+
+    /// Creates a Permutation struct with an expected capacity of `n`.
     pub(crate) fn with_capacity(expected_size: usize) -> Permutation {
         Permutation {
             variable_map: HashMap::with_capacity(expected_size),
         }
     }
-    /// Creates a new Variable by incrementing the index of the Variable Map
-    /// This is correct as whenever we add a new Variable into the system
-    /// It is always allocated in the Variable Map
+
+    /// Creates a new [`Variable`] by incrementing the index of the
+    /// `variable_map`. This is correct as whenever we add a new [`Variable`]
+    /// into the system It is always allocated in the `variable_map`.
     pub(crate) fn new_variable(&mut self) -> Variable {
         // Generate the Variable
         let var = Variable(self.variable_map.keys().len());
@@ -47,7 +49,7 @@ impl Permutation {
         var
     }
 
-    /// Checks that the variables are valid by determining if they have been
+    /// Checks that the [`Variable`]s are valid by determining if they have been
     /// added to the system
     fn valid_variables(&self, variables: &[Variable]) -> bool {
         let results: Vec<bool> = variables
@@ -58,8 +60,9 @@ impl Permutation {
 
         results.is_empty()
     }
-    /// Maps a set of variables (a,b,c,d) to a set of Wires (left, right, out,
-    /// fourth) with the corresponding gate index
+
+    /// Maps a set of [`Variable`]s (a,b,c,d) to a set of [`Wire`](WireData)s
+    /// (left, right, out, fourth) with the corresponding gate index
     pub fn add_variables_to_map(
         &mut self,
         a: Variable,

@@ -65,6 +65,13 @@ jobs:
             command: build
             args: --release --no-default-features --target thumbv6m-none-eabi
 
+  test_nightly_docs:
+    name: Nightly doc tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - run: make doc
+      - run: make doc-internal
 
   fmt:
       name: Rustfmt

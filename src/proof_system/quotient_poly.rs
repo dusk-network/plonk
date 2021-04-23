@@ -14,11 +14,8 @@ use dusk_bls12_381::BlsScalar;
 #[cfg(feature = "std")]
 use rayon::prelude::*;
 
-/// This quotient polynomial can only be used for the standard composer
-/// Each composer will need to implement their own method for computing the
-/// quotient polynomial
-
-/// Computes the quotient polynomial
+/// Computes the Quotient [`Polynomial`] given the [`EvaluationDomain`], a
+/// [`ProverKey`] and some other info.
 pub(crate) fn compute(
     domain: &EvaluationDomain,
     prover_key: &ProverKey,

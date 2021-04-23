@@ -36,9 +36,6 @@ impl StandardComposer {
     /// the **ONLY** `generator` inputs that should be passed to this
     /// function as inputs are [`dusk_jubjub::GENERATOR`] or
     /// [`dusk_jubjub::GENERATOR_NUMS`].
-    ///
-    /// [`dusk_jubjub::GENERATOR`]: struct.dusk_jubjub::GENERATOR.html
-    /// [`dusk_jubjub::GENERATOR_NUMS`]: struct.dusk_jubjub::GENERATOR_NUMS.html
     pub fn fixed_base_scalar_mul(
         &mut self,
         jubjub_scalar: Variable,
@@ -167,7 +164,7 @@ impl StandardComposer {
 mod tests {
     use super::*;
     use crate::constraint_system::helper::*;
-    use dusk_jubjub::GENERATOR;
+    use dusk_jubjub::GENERATOR_EXTENDED;
 
     #[test]
     fn test_ecc_constraint() {
@@ -185,10 +182,10 @@ mod tests {
                 let secret_scalar = composer.add_input(bls_scalar);
 
                 let expected_point: JubJubAffine =
-                    (JubJubExtended::from(GENERATOR) * scalar).into();
+                    (GENERATOR_EXTENDED * scalar).into();
 
                 let point_scalar = composer
-                    .fixed_base_scalar_mul(secret_scalar, GENERATOR.into());
+                    .fixed_base_scalar_mul(secret_scalar, GENERATOR_EXTENDED);
 
                 composer
                     .assert_equal_public_point(point_scalar, expected_point);
@@ -208,10 +205,10 @@ mod tests {
                 let secret_scalar = composer.add_input(bls_scalar);
 
                 let expected_point: JubJubAffine =
-                    (JubJubExtended::from(GENERATOR) * scalar).into();
+                    (GENERATOR_EXTENDED * scalar).into();
 
                 let point_scalar = composer
-                    .fixed_base_scalar_mul(secret_scalar, GENERATOR.into());
+                    .fixed_base_scalar_mul(secret_scalar, GENERATOR_EXTENDED);
 
                 composer
                     .assert_equal_public_point(point_scalar, expected_point);
@@ -231,12 +228,12 @@ mod tests {
                 // Fails because we are not multiplying by the GENERATOR, it is
                 // double
 
-                let double_gen = JubJubExtended::from(GENERATOR).double();
+                let double_gen = GENERATOR_EXTENDED.double();
 
                 let expected_point: JubJubAffine = (double_gen * scalar).into();
 
                 let point_scalar = composer
-                    .fixed_base_scalar_mul(secret_scalar, GENERATOR.into());
+                    .fixed_base_scalar_mul(secret_scalar, GENERATOR_EXTENDED);
 
                 composer
                     .assert_equal_public_point(point_scalar, expected_point);
@@ -250,7 +247,7 @@ mod tests {
     fn test_point_addition() {
         let res = gadget_tester(
             |composer| {
-                let point_a = JubJubExtended::from(GENERATOR);
+                let point_a = GENERATOR_EXTENDED;
                 let point_b = point_a.double();
                 let expected_point = point_a + point_b;
 
@@ -292,7 +289,7 @@ mod tests {
                 let bls_scalar =
                     BlsScalar::from_bytes(&scalar_a.to_bytes()).unwrap();
                 let secret_scalar_a = composer.add_input(bls_scalar);
-                let point_a = JubJubExtended::from(GENERATOR);
+                let point_a = GENERATOR_EXTENDED;
                 let c_a: JubJubAffine = (point_a * scalar_a).into();
 
                 // Second component
@@ -360,7 +357,7 @@ mod tests {
                     BlsScalar::from_bytes(&scalar_d.to_bytes()).unwrap();
                 let secret_scalar_d = composer.add_input(bls_scalar_d);
 
-                let gen = JubJubExtended::from(GENERATOR);
+                let gen = GENERATOR_EXTENDED;
                 let expected_lhs: JubJubAffine =
                     (gen * (scalar_a + scalar_b)).into();
                 let expected_rhs: JubJubAffine =
