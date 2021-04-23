@@ -120,24 +120,23 @@ circuit::verify_proof(
 ### Features
 
 This crate includes a variety of features which will be shortly explained below:
-- `alloc`: Enables the usage of an allocator and with it the capability of performing `Proof` constructions and
-verifications. Without this feature **IS NOT** possible to prove or verify anything. It's lack only makes `dusk-plonk` 
-export certain fixed-size data structures such as `Proof` which can be useful in no_std envoirments where we don't have
-allocators either.
-- `std`: Enables `std` usage as well as `rayon` parallelization in some proving and verifying ops. It also uses the `std`
-versions of the elliptic curve deps which also pull in the `parallel` feature from `dusk-bls12-381`.
-By default this is the feature that comes enabled with the crate.
-- `nightly`: This feature is used to compile the extended docs with KateX rendering enabled. See the `Documentation`
-section below.
+- `alloc`: Enables the usage of an allocator and with it the capability of performing `Proof` constructions and 
+  verifications. Without this feature **IS NOT** possible to prove or verify anything. 
+  It's lack only makes `dusk-plonk` export certain fixed-size data structures such as `Proof` which can be useful in no_std envoirments where we don't have allocators either.
+- `std`: Enables `std` usage as well as `rayon` parallelization in some proving and verifying ops. 
+  It also uses the `std` versions of the elliptic curve deps which also pull in the `parallel` feature 
+  from `dusk-bls12-381`. By default this is the feature that comes enabled with the crate.
+- `nightly`: This feature is used to compile the extended docs with KateX rendering enabled. 
+  See the `Documentation`section below.
 - `trace`: Enables the Circuit debugger tooling. Essentially the capability of using the 
-`StandardComposer::check_circuit_satisfied` function. The function will compute each circuit gate info until 
-one of the gates does not satisfy the equation or there are no more gates. If the cause is an unsatisfied gate
- equation, the function will panic pointing out the gate number.
-- `trace-print`: Goes a step further than `trace` and prints each `gate` component data, giving a clear look to all of the
-values that compose the circuit that we're composing. 
-__The recommended usage is to derive the std output and the std error to a text file and analyze there the gates.__
+  `StandardComposer::check_circuit_satisfied` function. The function will compute each circuit gate info until 
+  one of the gates does not satisfy the equation or there are no more gates. If the cause is an unsatisfied gate 
+  equation, the function will panic pointing out the gate number.
+- `trace-print`: Goes a step further than `trace` and prints each `gate` component data, giving a clear look to all of the 
+  values that compose the circuit that we're composing. 
+  __The recommended usage is to derive the std output and the std error to a text file and analyze there the gates.__
 - `canon`: Enables `canonical` serialization for particular data structures which is something mostly useful to accomodate
-with the rest of Dusk's stack. Specially for storage.
+  with the rest of Dusk's stack. Specially for storage.
 
 
 ## Documentation
@@ -146,10 +145,11 @@ There are two main types of documentation in this repository:
 
 - **Crate documentation**. This provides info about all of the functions that the library provides as well
   as the documentation regarding the data structures that it exports. To check it, please feel free to go to
-  the [documentation page](https://docs.rs/dusk-plonk/)
+  the [documentation page](https://docs.rs/dusk-plonk/) or run `make doc` or `make doc-internal`.
 
 - **Notes**. This is a specific subset of documentation which explains the mathematical key concepts
-  of PLONK and how they work with mathematical demonstrations.
+  of PLONK and how they work with mathematical demonstrations. To check it, run `make doc` and open the resulting docs
+  which will be located under `/target` with your browser.
 
 ## Performance
 
