@@ -154,11 +154,11 @@ There are two main types of documentation in this repository:
 
 ## Performance
 
-Benchmarks taken on `Intel(R) Core(TM) i5-7300HQ CPU @ 2.50GHz`
-For a proof-size of `2^16` constraints/gates:
+Benchmarks taken on `Intel(R) Core(TM) i9-9900X CPU @ 3.50GHz`
+For a circuit-size of `2^16` constraints/gates:
 
 - Proving time: `5.46s`
-- Verification time: `6.13ms`. **(This time will not vary depending on the circuit-size.)**
+- Verification time: `9.34ms`. **(This time will not vary depending on the circuit-size.)**
 
 ## Acknowledgements
 
