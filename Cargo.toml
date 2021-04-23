@@ -43,9 +43,6 @@ tempdir = "0.3"
 name = "plonk"
 harness = false
 
-[package.metadata.docs.rs]
-rustdoc-args = [ "--html-in-header", "katex-header.html" ]
-
 [features]
 default = ["std"]
 std = [
@@ -63,10 +60,10 @@ trace = []
 trace-print = ["trace"]
 canon = ["dusk-bls12_381/canon", "dusk-jubjub/canon", "canonical", "canonical_derive"]
 
-
 [profile.release]
 debug = false
 panic = 'abort'
 lto = true
 incremental = false
 codegen-units = 1
+

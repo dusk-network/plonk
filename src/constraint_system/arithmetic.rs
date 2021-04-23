@@ -177,9 +177,10 @@ impl StandardComposer {
         c
     }
 
-    /// Adds a `big_addition_gate` with the left and right inputs
-    /// and it's scaling factors, computing & returning the output (result)
-    /// `Variable`, and adding the corresponding addition constraint.
+    /// Adds a [`StandardComposer::big_add_gate`] with the left and right
+    /// inputs and it's scaling factors, computing & returning the output
+    /// (result) [`Variable`], and adding the corresponding addition
+    /// constraint.
     ///
     /// This type of gate is usually used when we don't need to have
     /// the largest amount of performance as well as the minimum circuit-size
@@ -197,9 +198,10 @@ impl StandardComposer {
         self.big_add(q_l_a, q_r_b, None, q_c, pi)
     }
 
-    /// Adds a `big_addition_gate` with the left, right and fourth inputs
-    /// and it's scaling factors, computing & returning the output (result)
-    /// `Variable` and adding the corresponding addition constraint.
+    /// Adds a [`StandardComposer::big_add_gate`] with the left, right and
+    /// fourth inputs and it's scaling factors, computing & returning the
+    /// output (result) [`Variable`] and adding the corresponding addition
+    /// constraint.
     ///
     /// This type of gate is usually used when we don't need to have
     /// the largest amount of performance and the minimum circuit-size
@@ -241,8 +243,20 @@ impl StandardComposer {
         self.big_add_gate(a, b, c, Some(d), q_l, q_r, q_o, q_4, q_c, pi)
     }
 
-    /// Adds a simple and basic addition to the circuit between to `Variable`s
-    /// returning the resulting `Variable`.
+    /// Adds a [`StandardComposer::big_mul_gate`] with the left, right
+    /// and fourth inputs and it's scaling factors, computing & returning
+    /// the output (result) [`Variable`] and adding the corresponding mul
+    /// constraint.
+    ///
+    /// This type of gate is usually used when we don't need to have
+    /// the largest amount of performance and the minimum circuit-size
+    /// possible. Since it defaults some of the selector coeffs = 0 in order
+    /// to reduce the verbosity and complexity.
+    ///
+    /// Forces `q_m * (w_l * w_r) + w_4 * q_4 + q_c + PI = w_o(computed by the
+    /// gate)`.
+    ///
+    /// `{w_l, w_r, w_4} = {a, b, d}`
     pub fn mul(
         &mut self,
         q_m: BlsScalar,
@@ -254,9 +268,10 @@ impl StandardComposer {
         self.big_mul(q_m, a, b, None, q_c, pi)
     }
 
-    /// Adds a width-4 `big_mul_gate` with the left, right and fourth inputs
-    /// and it's scaling factors, computing & returning the output (result)
-    /// `Variable` and adding the corresponding mul constraint.
+    /// Adds a width-4 [`StandardComposer::big_mul_gate`] with the left, right
+    /// and fourth inputs and it's scaling factors, computing & returning
+    /// the output (result) [`Variable`] and adding the corresponding mul
+    /// constraint.
     ///
     /// This type of gate is usually used when we don't need to have
     /// the largest amount of performance and the minimum circuit-size
@@ -267,8 +282,6 @@ impl StandardComposer {
     /// gate)`.
     ///
     /// `{w_l, w_r, w_4} = {a, b, d}`
-    // XXX: This API is not consistent. It should use tuples and not individual
-    // fields
     pub fn big_mul(
         &mut self,
         q_m: BlsScalar,

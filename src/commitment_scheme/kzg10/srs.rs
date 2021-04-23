@@ -92,7 +92,7 @@ impl PublicParameters {
     /// This function should be used when we want to serialize the
     /// PublicParameters allowing a really fast deserialization later.
     /// This functions output should not be used by the regular
-    /// [`PublicParaneters::from_slice`] fn.
+    /// [`PublicParameters::from_slice`] fn.
     pub fn to_raw_var_bytes(&self) -> Vec<u8> {
         let mut bytes = self.opening_key.to_bytes().to_vec();
         bytes.extend(&self.commit_key.to_raw_var_bytes());
@@ -138,10 +138,11 @@ impl PublicParameters {
     /// contain.
     ///
     /// # Note
-    /// This function can be really slow if the `PublicParameters` have a
+    /// This function can be really slow if the [`PublicParameters`] have a
     /// certain degree. If the bytes come from a trusted source such as a
-    /// local file, we recommend to use [`PublicParameters::
-    /// from_slice_unchecked`] and [`PublicParameters::to_raw_var_bytes`].
+    /// local file, we recommend to use
+    /// [`PublicParameters::from_slice_unchecked`] and
+    /// [`PublicParameters::to_raw_var_bytes`].
     pub fn from_slice(bytes: &[u8]) -> Result<PublicParameters, Error> {
         if bytes.len() <= OpeningKey::SIZE {
             return Err(Error::NotEnoughBytes);
@@ -158,8 +159,11 @@ impl PublicParameters {
         Ok(pp)
     }
 
-    /// Truncates the prover key to allow the prover to commit to
+    /// Trim truncates the [`PublicParameters`] to allow the prover to commit to
     /// polynomials up to the and including the truncated degree.
+    /// Returns the [`CommitKey`] and [`OpeningKey`] used to generate and verify
+    /// proofs.
+    ///
     /// Returns an error if the truncated degree is larger than the public
     /// parameters configured degree.
     pub fn trim(
@@ -172,8 +176,8 @@ impl PublicParameters {
         Ok((truncated_prover_key, opening_key))
     }
 
-    /// Max degree specifies the largest polynomial that this prover key can
-    /// commit to.
+    /// Max degree specifies the largest Polynomial
+    /// that this prover key can commit to.
     pub fn max_degree(&self) -> usize {
         self.commit_key.max_degree()
     }

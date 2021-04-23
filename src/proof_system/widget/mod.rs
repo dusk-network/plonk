@@ -12,7 +12,10 @@ pub mod range;
 use crate::commitment_scheme::kzg10::Commitment;
 use dusk_bytes::{DeserializableSlice, Serializable};
 
-/// PLONK circuit verification key
+/// PLONK circuit Verification Key.
+///
+/// This structure is used by the Verifier in order to verify a
+/// [`Proof`](super::Proof).
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub struct VerifierKey {
     /// Circuit size (not padded to a power of two).
@@ -90,7 +93,7 @@ impl VerifierKey {
         self.n.next_power_of_two()
     }
 
-    /// Constructs a VerifierKey from the widget VerifierKey's that are
+    /// Constructs a [`VerifierKey`] from the widget VerifierKey's that are
     /// constructed based on the selector polynomial commitments and the
     /// sigma polynomial commitments.
     pub(crate) fn from_polynomial_commitments(
@@ -202,7 +205,10 @@ pub(crate) mod alloc {
         }
     }
 
-    /// PLONK circuit proving key
+    /// PLONK circuit Proving Key.
+    ///
+    /// This structure is used by the Prover in order to construct a
+    /// [`Proof`](crate::proof_system::Proof).
     #[derive(Debug, PartialEq, Eq, Clone)]
     pub struct ProverKey {
         /// Circuit size
@@ -229,12 +235,12 @@ pub(crate) mod alloc {
 
     #[cfg(feature = "alloc")]
     impl ProverKey {
-        /// Returns the number of `Polynomial`s contained in a ProverKey.
+        /// Returns the number of [`Polynomial`]s contained in a ProverKey.
         const fn num_polys() -> usize {
             15
         }
 
-        /// Returns the number of `Evaluations` contained in a ProverKey.
+        /// Returns the number of [`Evaluations`] contained in a ProverKey.
         const fn num_evals() -> usize {
             17
         }

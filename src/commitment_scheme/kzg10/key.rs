@@ -29,18 +29,18 @@ pub struct CommitKey {
 }
 
 impl CommitKey {
-    /// Serialize the `CommitKey` into bytes.
+    /// Serialize the [`CommitKey`] into bytes.
     ///
     /// This operation is designed to store the raw representation of the
     /// contents of the CommitKey. Therefore, the size of the bytes outputed
     /// by this function is expected to be the double than the one that
-    /// [`CommitKey::to_bytes`].
+    /// `CommitKey::to_bytes`.
     ///
     /// # Note
     /// This function should be used when we want to serialize the CommitKey
     /// allowing a really fast deserialization later.
     /// This functions output should not be used by the regular
-    /// [`CommitKey::from_bytes`] fn.
+    /// `CommitKey::from_bytes` fn.
     pub fn to_raw_var_bytes(&self) -> Vec<u8> {
         let mut bytes = Vec::with_capacity(
             u64::SIZE + self.powers_of_g.len() * G1Affine::RAW_SIZE,
@@ -58,7 +58,7 @@ impl CommitKey {
     }
 
     /// Deserialize [`CommitKey`] from a set of bytes created by
-    /// [`CommitKey::to_bytes_unchecked`].
+    /// [`CommitKey::to_raw_var_bytes`].
     ///
     /// The bytes source is expected to be trusted and no check will be
     /// performed reggarding the points security
@@ -97,8 +97,8 @@ impl CommitKey {
     /// # Note
     /// This function can be really slow if the [`CommitKey`] has a certain
     /// degree/size. If the bytes come from a trusted source such as a local
-    /// file, we recommend to use `from_slice_unchecked()` and
-    /// [`CommitKey::to_raw_bytes`].
+    /// file, we recommend to use [`CommitKey::from_slice_unchecked`] and
+    /// [`CommitKey::to_raw_var_bytes`].
     pub fn from_slice(bytes: &[u8]) -> Result<CommitKey, Error> {
         let powers_of_g = bytes
             .chunks(G1Affine::SIZE)
@@ -157,7 +157,7 @@ impl CommitKey {
         }
     }
 
-    /// Commits to a polynomial returning the corresponding `Commitment`.
+    /// Commits to a [`Polynomial`] returning the corresponding [`Commitment`].
     ///
     /// Returns an error if the polynomial's degree is more than the max degree
     /// of the commit key.

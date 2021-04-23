@@ -20,8 +20,8 @@ pub(crate) struct Evaluations {
     pub(crate) quot_eval: BlsScalar,
 }
 
-/// Proof Evaluations is a subset of all of the evaluations. These evaluations
-/// will be added to the proof
+/// Subset of all of the evaluations. These evaluations
+/// are added to the [`Proof`](super::Proof).
 #[derive(Debug, Eq, PartialEq, Clone, Default)]
 pub(crate) struct ProofEvaluations {
     // Evaluation of the witness polynomial for the left wire at `z`
@@ -135,7 +135,7 @@ impl Serializable<{ 16 * BlsScalar::SIZE }> for ProofEvaluations {
 
 #[cfg(feature = "alloc")]
 
-/// Compute the linearisation polynomial
+/// Compute the linearisation polynomial.
 pub(crate) fn compute(
     domain: &EvaluationDomain,
     prover_key: &ProverKey,
@@ -249,7 +249,6 @@ pub(crate) fn compute(
 }
 
 #[cfg(feature = "alloc")]
-
 fn compute_circuit_satisfiability(
     (
         range_separation_challenge,
