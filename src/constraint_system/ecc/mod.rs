@@ -103,9 +103,6 @@ impl StandardComposer {
     /// The `bit` used as input which is a [`Variable`] should had previously
     /// been constrained to be either 1 or 0 using a bool constrain. See:
     /// [`StandardComposer::boolean_gate`].
-    ///
-    /// [`StandardComposer::bool_gate`]:
-    /// struct.StandardComposer.html#tymethod.bool_gate
     pub fn conditional_point_select(
         &mut self,
         point_a: Point,
@@ -127,9 +124,6 @@ impl StandardComposer {
     /// The `bit` used as input which is a [`Variable`] should had previously
     /// been constrained to be either 1 or 0 using a bool constrain. See:
     /// [`StandardComposer::boolean_gate`].
-    ///
-    /// [`StandardComposer::bool_gate`]:
-    /// struct.StandardComposer.html#tymethod.bool_gate
     fn conditional_select_identity(
         &mut self,
         bit: Variable,

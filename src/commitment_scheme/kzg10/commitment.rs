@@ -4,11 +4,12 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
+//! Module containing the representation of a Commitment to a Polynomial.
 use dusk_bls12_381::{G1Affine, G1Projective};
 use dusk_bytes::{DeserializableSlice, Serializable};
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
-/// Holds a commitment to a polynomial in a form of a `G1Affine` Bls12_381
+/// Holds a commitment to a polynomial in a form of a [`G1Affine`]-bls12_381
 /// point.
 pub(crate) struct Commitment(
     /// The commitment is a group element.
@@ -41,8 +42,8 @@ impl Serializable<{ G1Affine::SIZE }> for Commitment {
 }
 
 impl Commitment {
-    /// Builds an identity `Commitment` which is equivalent to the
-    /// `G1Affine` identity point in Bls12_381.
+    /// Builds an identity [`Commitment`] which is equivalent to the
+    /// [`G1Affine`] identity point in bls12_381.
     fn identity() -> Commitment {
         Commitment(G1Affine::identity())
     }
