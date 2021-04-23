@@ -28,6 +28,8 @@ pub(crate) mod alloc {
     use ::alloc::vec::Vec;
     use dusk_bls12_381::G1Projective;
     use merlin::Transcript;
+    #[cfg(feature = "std")]
+    use rayon::prelude::*;
 
     /// Proof that multiple polynomials were correctly evaluated at a point `z`,
     /// each producing their respective evaluated points p_i(z).
@@ -70,20 +72,32 @@ pub(crate) mod alloc {
                 self.commitments_to_polynomials.len() - 1,
             );
 
-            // Flattened polynomial commitments using challenge
-            let flattened_poly_commitments: G1Projective = self
+            #[cfg(not(feature = "std"))]
+            let flattened_poly_commitments_iter =
+                self.commitments_to_polynomials.iter().zip(powers.iter());
+            #[cfg(not(feature = "std"))]
+            let flattened_poly_evaluations_iter =
+                self.evaluated_points.iter().zip(powers.iter());
+
+            #[cfg(feature = "std")]
+            let flattened_poly_commitments_iter = self
                 .commitments_to_polynomials
-                .iter()
-                .zip(powers.iter())
-                .map(|(poly, challenge)| poly.0 * challenge)
-                .sum();
+                .par_iter()
+                .zip(powers.par_iter());
+            #[cfg(feature = "std")]
+            let flattened_poly_evaluations_iter =
+                self.evaluated_points.par_iter().zip(powers.par_iter());
+
+            // Flattened polynomial commitments using challenge
+            let flattened_poly_commitments: G1Projective =
+                flattened_poly_commitments_iter
+                    .map(|(poly, challenge)| poly.0 * challenge)
+                    .sum();
             // Flattened evaluation points
-            let flattened_poly_evaluations: BlsScalar = self
-                .evaluated_points
-                .iter()
-                .zip(powers.iter())
-                .map(|(eval, challenge)| eval * challenge)
-                .fold(BlsScalar::zero(), |acc, current_val| acc + current_val);
+            let flattened_poly_evaluations: BlsScalar =
+                flattened_poly_evaluations_iter
+                    .map(|(eval, challenge)| eval * challenge)
+                    .sum();
 
             Proof {
                 commitment_to_witness: self.commitment_to_witness,
