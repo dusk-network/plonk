@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `alloc` feature to the crate. [#345](https://github.com/dusk-network/plonk/issues/345)
 - Add `rayon` behind `std` feature to boost proving performance.[#512](https://github.com/dusk-network/plonk/issues/512)
 - Add `rayon` behind `std` feature to boost verifying performance.[#514](https://github.com/dusk-network/plonk/issues/514)
+- Add alternative getters for `OpeningKey` & `CommitKey` in `PublicParameters`. [#510](https://github.com/dusk-network/plonk/issues/510)
 
 ### Changed
 
@@ -19,6 +20,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Make the crate `no_std`. [#350](https://github.com/dusk-network/plonk/issues/350)
 - Change 'from_projective' method for the implementation of the ::from trait.  [#433] (https://github.com/dusk-network/plonk/issues/433)
 - Update to `canonical-0.6`. [#494](https://github.com/dusk-network/plonk/issues/494)
+
+### Removed
+
+- Removed trimming step from `Circuit::Verify_proof`. [#510](https://github.com/dusk-network/plonk/issues/510)
 
 ## [0.7.0] - 06-04-21
 
