@@ -295,15 +295,17 @@ pub fn verify_proof(
     pub_inputs_positions: &[usize],
     transcript_init: &'static [u8],
 ) -> Result<(), Error> {
-    let trim_size = verifier_key.padded_circuit_size();
-    let (_, vk) = pub_params.trim(trim_size)?;
-
     let mut verifier = Verifier::new(transcript_init);
     verifier.verifier_key = Some(*verifier_key);
     verifier.verify(
         proof,
-        &vk,
-        build_pi(pub_inputs_values, pub_inputs_positions, trim_size).as_slice(),
+        pub_params.opening_key(),
+        build_pi(
+            pub_inputs_values,
+            pub_inputs_positions,
+            verifier_key.padded_circuit_size(),
+        )
+        .as_slice(),
     )
 }
 

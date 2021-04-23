@@ -124,12 +124,15 @@ pub(crate) mod alloc {
         fft::EvaluationDomain,
         proof_system::widget::VerifierKey,
         transcript::TranscriptProtocol,
+        util::batch_inversion,
     };
     use ::alloc::vec::Vec;
     use dusk_bls12_381::{
         multiscalar_mul::msm_variable_base, BlsScalar, G1Affine,
     };
     use merlin::Transcript;
+    #[cfg(feature = "std")]
+    use rayon::prelude::*;
 
     impl Proof {
         /// Performs the verification of a [`Proof`] returning a boolean result.
@@ -264,9 +267,11 @@ pub(crate) mod alloc {
 
             // Commitment Scheme
             // Now we delegate computation to the commitment scheme by batch
-            // checking two proofs The `AggregateProof`, which is a proof
-            // that all the necessary polynomials evaluated at `z_challenge` are
-            // correct and a `SingleProof` which is proof that the
+            // checking two proofs.
+            //
+            // The `AggregateProof`, which proves that all the necessary
+            // polynomials evaluated at `z_challenge` are
+            // correct and a `Proof` which is proof that the
             // permutation polynomial evaluated at the shifted root of unity is
             // correct
 
@@ -463,21 +468,23 @@ pub(crate) mod alloc {
         z_h_eval * denom.invert().unwrap()
     }
 
-    #[warn(clippy::needless_range_loop)]
     fn compute_barycentric_eval(
         evaluations: &[BlsScalar],
         point: &BlsScalar,
         domain: &EvaluationDomain,
     ) -> BlsScalar {
-        use crate::util::batch_inversion;
-
         let numerator = (point.pow(&[domain.size() as u64, 0, 0, 0])
             - BlsScalar::one())
             * domain.size_inv;
 
         // Indices with non-zero evaluations
-        let non_zero_evaluations: Vec<usize> = (0..evaluations.len())
-            .into_iter()
+        #[cfg(not(feature = "std"))]
+        let range = (0..evaluations.len()).into_iter();
+
+        #[cfg(feature = "std")]
+        let range = (0..evaluations.len()).into_par_iter();
+
+        let non_zero_evaluations: Vec<usize> = range
             .filter(|&i| {
                 let evaluation = &evaluations[i];
                 evaluation != &BlsScalar::zero()
@@ -485,8 +492,14 @@ pub(crate) mod alloc {
             .collect();
 
         // Only compute the denominators with non-zero evaluations
-        let mut denominators: Vec<BlsScalar> = (0..non_zero_evaluations.len())
-            .into_iter()
+        #[cfg(not(feature = "std"))]
+        let range = (0..non_zero_evaluations.len()).into_iter();
+
+        #[cfg(feature = "std")]
+        let range = (0..non_zero_evaluations.len()).into_par_iter();
+
+        let mut denominators: Vec<BlsScalar> = range
+            .clone()
             .map(|i| {
                 // index of non-zero evaluation
                 let index = non_zero_evaluations[i];
@@ -497,8 +510,7 @@ pub(crate) mod alloc {
             .collect();
         batch_inversion(&mut denominators);
 
-        let result: BlsScalar = (0..non_zero_evaluations.len())
-            .into_iter()
+        let result: BlsScalar = range
             .map(|i| {
                 let eval_index = non_zero_evaluations[i];
                 let eval = evaluations[eval_index];
