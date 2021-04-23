@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add `alloc` feature to the crate. [#345](https://github.com/dusk-network/plonk/issues/345)
+- Add `rayon` behind `std` feature to boost proving performance.[#512](https://github.com/dusk-network/plonk/issues/512)
+- Add `rayon` behind `std` feature to boost verifying performance.[#514](https://github.com/dusk-network/plonk/issues/514)
 
 ### Changed
 
