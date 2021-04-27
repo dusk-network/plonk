@@ -10,72 +10,82 @@ use alloc::vec::Vec;
 use dusk_bls12_381::BlsScalar;
 use dusk_bytes::Serializable;
 
-/// Adds a variable-base scalar multiplication to the circuit description.
-///
-/// # Note
-/// If you're planning to multiply always by the generator of the Scalar field,
-/// you should use [`StandardComposer::fixed_base_scalar_mul`] which is
-/// optimized for fixed_base ops.
-pub fn variable_base_scalar_mul(
-    composer: &mut StandardComposer,
-    jubjub_var: Variable,
-    point: Point,
-) -> Point {
-    // Turn scalar into bits
-    let raw_bls_scalar = *composer.variables.get(&jubjub_var).unwrap();
-    let scalar_bits_var =
-        scalar_decomposition(composer, jubjub_var, raw_bls_scalar);
+impl StandardComposer {
+    /// Adds a variable-base scalar multiplication to the circuit description.
+    ///
+    /// # Note
+    /// If you're planning to multiply always by the generator of the Scalar
+    /// field, you should use [`StandardComposer::fixed_base_scalar_mul`]
+    /// which is optimized for fixed_base ops.
+    pub fn variable_base_scalar_mul(
+        &mut self,
+        jubjub_var: Variable,
+        point: Point,
+    ) -> Point {
+        // Turn scalar into bits
+        let raw_bls_scalar = *self
+            .variables
+            .get(&jubjub_var)
+            // We can unwrap safely here since it should be impossible to obtain
+            // a `Variable` without first linking it inside of the
+            // HashMap from which we are calling the `get()` now. Therefore, if
+            // the `get()` fn fails now, somethig is going really
+            // bad.
+            .expect("Variable in existance without referenced scalar");
+        let scalar_bits_var =
+            self.scalar_decomposition(jubjub_var, raw_bls_scalar);
 
-    let identity = Point::identity(composer);
-    let mut result = identity;
+        let identity = Point::identity(self);
+        let mut result = identity;
 
-    for bit in scalar_bits_var.into_iter().rev() {
-        result = composer.point_addition_gate(result, result);
-        let point_to_add = composer.conditional_select_identity(bit, point);
-        result = composer.point_addition_gate(result, point_to_add);
+        for bit in scalar_bits_var.into_iter().rev() {
+            result = self.point_addition_gate(result, result);
+            let point_to_add = self.conditional_select_identity(bit, point);
+            result = self.point_addition_gate(result, point_to_add);
+        }
+
+        result
     }
 
-    result
-}
+    fn scalar_decomposition(
+        &mut self,
+        witness_var: Variable,
+        witness_scalar: BlsScalar,
+    ) -> Vec<Variable> {
+        // Decompose the bits
+        let scalar_bits = scalar_to_bits(&witness_scalar);
 
-fn scalar_decomposition(
-    composer: &mut StandardComposer,
-    witness_var: Variable,
-    witness_scalar: BlsScalar,
-) -> Vec<Variable> {
-    // Decompose the bits
-    let scalar_bits = scalar_to_bits(&witness_scalar);
+        // Add all the bits into the composer
+        let scalar_bits_var: Vec<Variable> = scalar_bits
+            .iter()
+            .map(|bit| self.add_input(BlsScalar::from(*bit as u64)))
+            .collect();
 
-    // Add all the bits into the composer
-    let scalar_bits_var: Vec<Variable> = scalar_bits
-        .iter()
-        .map(|bit| composer.add_input(BlsScalar::from(*bit as u64)))
-        .collect();
+        // Take the first 252 bits
+        let scalar_bits_var = scalar_bits_var[..252].to_vec();
 
-    // Take the first 252 bits
-    let scalar_bits_var = scalar_bits_var[0..252].to_vec();
+        // Now ensure that the bits correctly accumulate to the witness given
+        let mut accumulator_var = self.zero_var;
+        let mut accumulator_scalar = BlsScalar::zero();
 
-    // Now ensure that the bits correctly accumulate to the witness given
-    let mut accumulator_var = composer.zero_var;
-    let mut accumulator_scalar = BlsScalar::zero();
+        for (power, bit) in scalar_bits_var.iter().enumerate() {
+            self.boolean_gate(*bit);
 
-    for (power, bit) in scalar_bits_var.iter().enumerate() {
-        composer.boolean_gate(*bit);
+            let two_pow = BlsScalar::pow_of_2(power as u64);
 
-        let two_pow = BlsScalar::pow_of_2(power as u64);
+            let q_l_a = (two_pow, *bit);
+            let q_r_b = (BlsScalar::one(), accumulator_var);
+            let q_c = BlsScalar::zero();
 
-        let q_l_a = (two_pow, *bit);
-        let q_r_b = (BlsScalar::one(), accumulator_var);
-        let q_c = BlsScalar::zero();
+            accumulator_var = self.add(q_l_a, q_r_b, q_c, None);
 
-        accumulator_var = composer.add(q_l_a, q_r_b, q_c, None);
+            accumulator_scalar +=
+                two_pow * BlsScalar::from(scalar_bits[power] as u64);
+        }
+        self.assert_equal(accumulator_var, witness_var);
 
-        accumulator_scalar +=
-            two_pow * BlsScalar::from(scalar_bits[power] as u64);
+        scalar_bits_var
     }
-    composer.assert_equal(accumulator_var, witness_var);
-
-    scalar_bits_var
 }
 
 fn scalar_to_bits(scalar: &BlsScalar) -> [u8; 256] {
@@ -118,7 +128,7 @@ mod tests {
                 let point = composer.add_affine(GENERATOR);
 
                 let point_scalar =
-                    variable_base_scalar_mul(composer, secret_scalar, point);
+                    composer.variable_base_scalar_mul(secret_scalar, point);
 
                 composer
                     .assert_equal_public_point(point_scalar, expected_point);
