@@ -23,7 +23,15 @@ impl StandardComposer {
         point: Point,
     ) -> Point {
         // Turn scalar into bits
-        let raw_bls_scalar = *self.variables.get(&jubjub_var).unwrap();
+        let raw_bls_scalar = *self
+            .variables
+            .get(&jubjub_var)
+            // We can unwrap safely here since it should be impossible to obtain
+            // a `Variable` without first linking it inside of the
+            // HashMap from which we are calling the `get()` now. Therefore, if
+            // the `get()` fn fails now, somethig is going really
+            // bad.
+            .expect("Variable in existance without referenced scalar");
         let scalar_bits_var =
             self.scalar_decomposition(jubjub_var, raw_bls_scalar);
 
@@ -54,7 +62,7 @@ impl StandardComposer {
             .collect();
 
         // Take the first 252 bits
-        let scalar_bits_var = scalar_bits_var[0..252].to_vec();
+        let scalar_bits_var = scalar_bits_var[..252].to_vec();
 
         // Now ensure that the bits correctly accumulate to the witness given
         let mut accumulator_var = self.zero_var;
