@@ -24,8 +24,8 @@ edition = "2018"
 merlin = {version = "3.0", default-features = false}
 rand_core = {version="0.6", default-features=false}
 dusk-bytes = "0.1"
-dusk-bls12_381 = {version = "0.8.0-rc.0", default-features = false, features = ["groups", "pairings", "endo"]}
-dusk-jubjub = {version = "0.10.0-rc.0", default-features = false}
+dusk-bls12_381 = {version = "0.8.0", default-features = false, features = ["groups", "pairings", "endo"]}
+dusk-jubjub = {version = "0.10.0", default-features = false}
 itertools = {version = "0.9", default-features = false}
 hashbrown = {version = "0.9", default-features=false, features = ["ahash"]}
 rayon = {version = "1.3", optional = true}
