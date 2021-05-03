@@ -614,9 +614,9 @@ impl StandardComposer {
 #[cfg(feature = "std")]
 #[cfg(test)]
 mod tests {
-    use super::super::helper::*;
     use super::*;
     use crate::commitment_scheme::kzg10::PublicParameters;
+    use crate::constraint_system::helper::*;
     use crate::proof_system::{Prover, Verifier};
     use rand_core::OsRng;
 
