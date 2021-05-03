@@ -9,9 +9,8 @@
 use crate::commitment_scheme::kzg10::PublicParameters;
 use crate::constraint_system::StandardComposer;
 use crate::error::Error;
-use crate::proof_system::{Proof, ProverKey, VerifierKey};
-#[cfg(feature = "canon")]
-use canonical::Canon;
+use crate::proof_system::{Proof, Prover, ProverKey, Verifier, VerifierKey};
+use alloc::vec::Vec;
 #[cfg(feature = "canon")]
 use canonical_derive::Canon;
 use dusk_bls12_381::BlsScalar;
@@ -20,8 +19,8 @@ use dusk_jubjub::{JubJubAffine, JubJubScalar};
 
 #[derive(Default, Debug, Clone)]
 #[cfg_attr(feature = "canon", derive(Canon))]
-/// Structure that represents a PLONK Circuit Public Input
-/// structure converted into it's &[BlsScalar] repr.
+/// Structure that represents a PLONK Circuit Public Input converted into it's
+/// &\[[`BlsScalar`]\] repr.
 pub struct PublicInputValue(pub(crate) Vec<BlsScalar>);
 
 impl From<BlsScalar> for PublicInputValue {
@@ -53,7 +52,7 @@ pub struct VerifierData {
 }
 
 impl VerifierData {
-    /// Creates a new [`VerifierData`] from a [`VerifierKey`] and the public
+    /// Creates a new `VerifierData` from a [`VerifierKey`] and the public
     /// input positions of the circuit that it represents.
     pub const fn new(key: VerifierKey, pi_pos: Vec<usize>) -> Self {
         Self { key, pi_pos }
@@ -69,7 +68,7 @@ impl VerifierData {
         &self.pi_pos
     }
 
-    /// Deserializes the [`VerifierData`] into a vector of bytes.
+    /// Deserializes the `VerifierData` into a vector of bytes.
     #[allow(unused_must_use)]
     pub fn to_var_bytes(&self) -> Vec<u8> {
         let mut buff =
@@ -90,7 +89,7 @@ impl VerifierData {
         buff
     }
 
-    /// Serializes [`VerifierData`] from a slice of bytes.
+    /// Serializes `VerifierData` from a slice of bytes.
     pub fn from_slice(mut buf: &[u8]) -> Result<Self, Error> {
         let key = VerifierKey::from_reader(&mut buf)?;
         let pos_num = u32::from_reader(&mut buf)? as usize;
@@ -104,8 +103,127 @@ impl VerifierData {
     }
 }
 
-/// Circuit representation for a gadget with all of the tools that it
-/// should implement.
+/// Trait that should be implemented for any circuit function to provide to it
+/// the capabilities of automatically being able to generate, and verify proofs
+/// as well as compile the circuit.
+/// # Example
+///
+/// ```
+/// use dusk_plonk::prelude::*;
+/// use dusk_plonk::constraint_system::ecc::scalar_mul;
+/// use rand_core::OsRng;
+///
+/// fn main() -> Result<(), Error> {
+/// // Implements a circuit that checks:
+/// // 1) a + b = c where C is a PI
+/// // 2) a <= 2^6
+/// // 3) b <= 2^5
+/// // 4) a * b = d where D is a PI
+/// // 5) JubJub::GENERATOR * e(JubJubScalar) = f where F is a PI
+/// #[derive(Debug, Default)]
+/// pub struct TestCircuit {
+///     a: BlsScalar,
+///     b: BlsScalar,
+///     c: BlsScalar,
+///     d: BlsScalar,
+///     e: JubJubScalar,
+///     f: JubJubAffine,
+/// }
+///
+/// impl Circuit for TestCircuit {
+///     const CIRCUIT_ID: [u8; 32] = [0xff; 32];
+///     fn gadget(
+///         &mut self,
+///         composer: &mut StandardComposer,
+///     ) -> Result<(), Error> {
+///         // Add fixed witness zero
+///         let zero = composer.add_witness_to_circuit_description(BlsScalar::zero());
+///         let a = composer.add_input(self.a);
+///         let b = composer.add_input(self.b);
+///         // Make first constraint a + b = c
+///         composer.poly_gate(
+///             a,
+///             b,
+///             zero,
+///             BlsScalar::zero(),
+///             BlsScalar::one(),
+///             BlsScalar::one(),
+///             BlsScalar::zero(),
+///             BlsScalar::zero(),
+///             Some(-self.c),
+///         );
+///         // Check that a and b are in range
+///         composer.range_gate(a, 1 << 6);
+///         composer.range_gate(b, 1 << 5);
+///         // Make second constraint a * b = d
+///         composer.poly_gate(
+///             a,
+///             b,
+///             zero,
+///             BlsScalar::one(),
+///             BlsScalar::zero(),
+///             BlsScalar::zero(),
+///             BlsScalar::one(),
+///             BlsScalar::zero(),
+///             Some(-self.d),
+///         );
+///
+///         let e = composer.add_input(self.e.into());
+///         let scalar_mul_result =
+///             composer.fixed_base_scalar_mul(
+///                 e, dusk_jubjub::GENERATOR_EXTENDED,
+///             );
+///         // Apply the constrain
+///         composer
+///             .assert_equal_public_point(scalar_mul_result, self.f);
+///         Ok(())
+///     }
+///     fn padded_circuit_size(&self) -> usize {
+///         1 << 11
+///     }
+/// }
+///
+/// let pp = PublicParameters::setup(1 << 12, &mut OsRng)?;
+/// // Initialize the circuit
+/// let mut circuit = TestCircuit::default();
+/// // Compile the circuit
+/// let (pk, vd) = circuit.compile(&pp)?;
+///
+/// // Prover POV
+/// let proof = {
+///     let mut circuit = TestCircuit {
+///         a: BlsScalar::from(20u64),
+///         b: BlsScalar::from(5u64),
+///         c: BlsScalar::from(25u64),
+///         d: BlsScalar::from(100u64),
+///         e: JubJubScalar::from(2u64),
+///         f: JubJubAffine::from(
+///             dusk_jubjub::GENERATOR_EXTENDED * JubJubScalar::from(2u64),
+///         ),
+///     };
+///
+///     circuit.gen_proof(&pp, &pk, b"Test")
+/// }?;
+///
+/// // Verifier POV
+/// let public_inputs: Vec<PublicInputValue> = vec![
+///     BlsScalar::from(25u64).into(),
+///     BlsScalar::from(100u64).into(),
+///     JubJubAffine::from(
+///         dusk_jubjub::GENERATOR_EXTENDED * JubJubScalar::from(2u64),
+///     )
+///     .into(),
+/// ];
+///
+/// circuit::verify_proof(
+///     &pp,
+///     &vd.key(),
+///     &proof,
+///     &public_inputs,
+///     &vd.pi_pos(),
+///     b"Test",
+/// )
+/// }
 pub trait Circuit
 where
     Self: Sized,
@@ -120,7 +238,6 @@ where
         &mut self,
         pub_params: &PublicParameters,
     ) -> Result<(ProverKey, VerifierData), Error> {
-        use crate::proof_system::{Prover, Verifier};
         // Setup PublicParams
         let (ck, _) = pub_params.trim(self.padded_circuit_size())?;
         // Generate & save `ProverKey` with some random values.
@@ -154,7 +271,6 @@ where
         prover_key: &ProverKey,
         transcript_init: &'static [u8],
     ) -> Result<Proof, Error> {
-        use crate::proof_system::Prover;
         let (ck, _) = pub_params.trim(self.padded_circuit_size())?;
         // New Prover instance
         let mut prover = Prover::new(transcript_init);
@@ -179,16 +295,17 @@ pub fn verify_proof(
     pub_inputs_positions: &[usize],
     transcript_init: &'static [u8],
 ) -> Result<(), Error> {
-    use crate::proof_system::Verifier;
-    let trim_size = verifier_key.padded_circuit_size();
-    let (_, vk) = pub_params.trim(trim_size)?;
-
     let mut verifier = Verifier::new(transcript_init);
     verifier.verifier_key = Some(*verifier_key);
     verifier.verify(
         proof,
-        &vk,
-        build_pi(pub_inputs_values, pub_inputs_positions, trim_size).as_slice(),
+        pub_params.opening_key(),
+        build_pi(
+            pub_inputs_values,
+            pub_inputs_positions,
+            verifier_key.padded_circuit_size(),
+        )
+        .as_slice(),
     )
 }
 
@@ -210,10 +327,11 @@ fn build_pi(
     pi
 }
 
+#[cfg(feature = "std")]
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::constraint_system::{ecc::*, StandardComposer};
+    use crate::constraint_system::StandardComposer;
     use crate::proof_system::ProverKey;
 
     // Implements a circuit that checks:
@@ -268,18 +386,11 @@ mod tests {
                 Some(-self.d),
             );
 
-            // This adds a PI also constraining `generator` to actually be
-            // `dusk_jubjub::GENERATOR`
-            let generator =
-                Point::from_public_affine(composer, dusk_jubjub::GENERATOR);
             let e = composer.add_input(self.e.into());
-            let scalar_mul_result =
-                scalar_mul::variable_base::variable_base_scalar_mul(
-                    composer, e, generator,
-                );
+            let scalar_mul_result = composer
+                .fixed_base_scalar_mul(e, dusk_jubjub::GENERATOR_EXTENDED);
             // Apply the constrain
-            composer
-                .assert_equal_public_point(scalar_mul_result.into(), self.f);
+            composer.assert_equal_public_point(scalar_mul_result, self.f);
             Ok(())
         }
         fn padded_circuit_size(&self) -> usize {
@@ -289,6 +400,7 @@ mod tests {
 
     #[test]
     fn test_full() -> Result<(), Error> {
+        use rand_core::OsRng;
         use std::fs::{self, File};
         use std::io::Write;
         use tempdir::TempDir;
@@ -301,7 +413,7 @@ mod tests {
         let vd_path = tmp.clone().join("vd_testcirc");
 
         // Generate CRS
-        let pp_p = PublicParameters::setup(1 << 12, &mut rand::thread_rng())?;
+        let pp_p = PublicParameters::setup(1 << 12, &mut OsRng)?;
         File::create(&pp_path)
             .and_then(|mut f| f.write(pp_p.to_raw_var_bytes().as_slice()))
             .expect("IO error");
@@ -357,10 +469,9 @@ mod tests {
         }?;
 
         // Verifier POV
-        let public_inputs2: Vec<PublicInputValue> = vec![
+        let public_inputs: Vec<PublicInputValue> = vec![
             BlsScalar::from(25u64).into(),
             BlsScalar::from(100u64).into(),
-            dusk_jubjub::GENERATOR.into(),
             JubJubAffine::from(
                 dusk_jubjub::GENERATOR_EXTENDED * JubJubScalar::from(2u64),
             )
@@ -371,7 +482,7 @@ mod tests {
             &pp,
             &verif_data.key(),
             &proof,
-            &public_inputs2,
+            &public_inputs,
             &verif_data.pi_pos(),
             b"Test",
         )

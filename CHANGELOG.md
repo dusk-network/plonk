@@ -5,7 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.8.0] - 03-05-21
+
+### Added
+
+- Add `alloc` feature to the crate [#345](https://github.com/dusk-network/plonk/issues/345)
+- Add `rayon` behind `std` feature to boost proving performance [#512](https://github.com/dusk-network/plonk/issues/512)
+- Add `rayon` behind `std` feature to boost verifying performance [#514](https://github.com/dusk-network/plonk/issues/514)
+- Add alternative getters for `OpeningKey` & `CommitKey` in `PublicParameters` [#510](https://github.com/dusk-network/plonk/issues/510)
+
+### Changed
+
+- Change `constraint_system/ecc` module API improving usability and consistency [#456](https://github.com/dusk-network/plonk/issues/456)
+- Change the crate to be `no_std` [#350](https://github.com/dusk-network/plonk/issues/350)
+- Replace `Commitment::from_projective` for `From` trait impl  [#433] (https://github.com/dusk-network/plonk/issues/433)
+- Update `canonical` from `0.5` to `0.6` [#494](https://github.com/dusk-network/plonk/issues/494)
+
+### Removed
+
+- Remove trimming step from `Circuit::Verify_proof` [#510](https://github.com/dusk-network/plonk/issues/510)
 
 ## [0.7.0] - 06-04-21
 

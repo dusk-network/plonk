@@ -10,16 +10,13 @@
 use super::{EvaluationDomain, Evaluations};
 use crate::error::Error;
 use crate::util;
+use alloc::vec::Vec;
+use core::ops::{Add, AddAssign, Deref, DerefMut, Mul, Neg, Sub, SubAssign};
 use dusk_bls12_381::BlsScalar;
 use dusk_bytes::{DeserializableSlice, Serializable};
-use rayon::iter::{
-    IndexedParallelIterator, IntoParallelIterator, IntoParallelRefIterator,
-    ParallelIterator,
-};
-use std::ops::{Add, AddAssign, Deref, DerefMut, Mul, Neg, Sub, SubAssign};
 
 #[derive(Debug, Eq, PartialEq, Clone)]
-/// Polynomial represents a polynomial in coeffiient form.
+/// Represents a polynomial in coeffiient form.
 pub(crate) struct Polynomial {
     /// The coefficient of `x^i` is stored at location `i` in `self.coeffs`.
     pub(crate) coeffs: Vec<BlsScalar>,
@@ -48,10 +45,7 @@ impl Polynomial {
     /// Checks if the given polynomial is zero.
     pub(crate) fn is_zero(&self) -> bool {
         self.coeffs.is_empty()
-            || self
-                .coeffs
-                .par_iter()
-                .all(|coeff| coeff == &BlsScalar::zero())
+            || self.coeffs.iter().all(|coeff| coeff == &BlsScalar::zero())
     }
 
     /// Constructs a new polynomial from a list of coefficients.
@@ -78,7 +72,7 @@ impl Polynomial {
         result
     }
 
-    /// Returns the degree of the polynomial.
+    /// Returns the degree of the [`Polynomial`].
     pub(crate) fn degree(&self) -> usize {
         if self.is_zero() {
             return 0;
@@ -99,7 +93,8 @@ impl Polynomial {
             self.coeffs.pop();
         }
     }
-    /// Evaluates `self` at the given `point` in the field.
+
+    /// Evaluates a [`Polynomial`] at a given point in the field.
     pub(crate) fn evaluate(&self, point: &BlsScalar) -> BlsScalar {
         if self.is_zero() {
             return BlsScalar::zero();
@@ -109,8 +104,8 @@ impl Polynomial {
         let powers = util::powers_of(point, self.len());
 
         let p_evals: Vec<_> = self
-            .par_iter()
-            .zip(powers.into_par_iter())
+            .iter()
+            .zip(powers.into_iter())
             .map(|(c, p)| p * c)
             .collect();
         let mut sum = BlsScalar::zero();
@@ -120,8 +115,8 @@ impl Polynomial {
         sum
     }
 
-    /// Given a Polynomial, return it in it's byte representation coefficient by
-    /// coefficient.
+    /// Given a [`Polynomial`], return it in it's bytes representation
+    /// coefficient by coefficient.
     pub fn to_var_bytes(&self) -> Vec<u8> {
         self.coeffs
             .iter()
@@ -141,7 +136,7 @@ impl Polynomial {
     }
 }
 
-use std::iter::Sum;
+use core::iter::Sum;
 
 impl Sum for Polynomial {
     fn sum<I>(iter: I) -> Self
@@ -307,7 +302,7 @@ impl Polynomial {
         self.iter().cloned().enumerate().collect()
     }
 
-    /// Divides `self` by x-z using Ruffinis method
+    /// Divides a [`Polynomial`] by x-z using Ruffinis method.
     pub fn ruffini(&self, z: BlsScalar) -> Polynomial {
         let mut quotient: Vec<BlsScalar> = Vec::with_capacity(self.degree());
         let mut k = BlsScalar::zero();
@@ -358,7 +353,7 @@ impl<'a, 'b> Mul<&'a Polynomial> for &'b Polynomial {
         }
     }
 }
-/// Convenience Trait to multiply a scalar and polynomial
+
 impl<'a, 'b> Mul<&'a BlsScalar> for &'b Polynomial {
     type Output = Polynomial;
 
@@ -367,15 +362,12 @@ impl<'a, 'b> Mul<&'a BlsScalar> for &'b Polynomial {
         if self.is_zero() || (constant == &BlsScalar::zero()) {
             return Polynomial::zero();
         }
-        let scaled_coeffs: Vec<_> = self
-            .coeffs
-            .par_iter()
-            .map(|coeff| coeff * constant)
-            .collect();
+        let scaled_coeffs: Vec<_> =
+            self.coeffs.iter().map(|coeff| coeff * constant).collect();
         Polynomial::from_coefficients_vec(scaled_coeffs)
     }
 }
-/// Convenience Trait to sub a scalar and polynomial
+
 impl<'a, 'b> Add<&'a BlsScalar> for &'b Polynomial {
     type Output = Polynomial;
 
@@ -393,6 +385,7 @@ impl<'a, 'b> Add<&'a BlsScalar> for &'b Polynomial {
         result
     }
 }
+
 impl<'a, 'b> Sub<&'a BlsScalar> for &'b Polynomial {
     type Output = Polynomial;
 
@@ -402,6 +395,8 @@ impl<'a, 'b> Sub<&'a BlsScalar> for &'b Polynomial {
         self + &negated_constant
     }
 }
+
+#[cfg(feature = "std")]
 #[cfg(test)]
 mod test {
     use super::*;

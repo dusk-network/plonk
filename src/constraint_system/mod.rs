@@ -12,11 +12,13 @@ pub(crate) mod composer;
 pub(crate) mod variable;
 
 /// Simple Arithmetic gates
-pub mod arithmetic;
+mod arithmetic;
 /// Boolean gate
-pub mod boolean;
+mod boolean;
 /// Elliptic Curve Crypto gates
 pub mod ecc;
+
+#[cfg(feature = "std")]
 #[cfg(test)]
 pub(crate) mod helper;
 /// XOR and AND gates
@@ -25,5 +27,6 @@ pub mod logic;
 pub mod range;
 
 pub use composer::StandardComposer;
+pub use ecc::Point;
 pub use variable::Variable;
 pub(crate) use variable::WireData;

@@ -4,18 +4,22 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use crate::commitment_scheme::kzg10::CommitKey;
-use crate::constraint_system::{StandardComposer, Variable};
-use crate::error::Error;
-use crate::fft::{EvaluationDomain, Polynomial};
-use crate::proof_system::widget::ProverKey;
-use crate::proof_system::{linearisation_poly, proof::Proof, quotient_poly};
-use crate::transcript::TranscriptProtocol;
+use crate::{
+    commitment_scheme::kzg10::CommitKey,
+    constraint_system::{StandardComposer, Variable},
+    error::Error,
+    fft::{EvaluationDomain, Polynomial},
+    proof_system::{
+        linearisation_poly, proof::Proof, quotient_poly, ProverKey,
+    },
+    transcript::TranscriptProtocol,
+};
+use alloc::vec::Vec;
 use dusk_bls12_381::BlsScalar;
 use merlin::Transcript;
-use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
-/// Prover composes a circuit and builds a proof
+/// Abstraction structure designed to construct a circuit and generate
+/// [`Proof`]s for it.
 #[allow(missing_debug_implementations)]
 pub struct Prover {
     /// ProverKey which is used to create proofs about a specific PLONK circuit
@@ -28,11 +32,12 @@ pub struct Prover {
 }
 
 impl Prover {
-    /// Returns a mutable copy of the underlying composer
+    /// Returns a mutable copy of the underlying [`StandardComposer`].
     pub fn mut_cs(&mut self) -> &mut StandardComposer {
         &mut self.cs
     }
-    /// Preprocesses the underlying constraint system
+
+    /// Preprocesses the underlying constraint system.
     pub fn preprocess(&mut self, commit_key: &CommitKey) -> Result<(), Error> {
         if self.prover_key.is_some() {
             return Err(Error::CircuitAlreadyPreprocessed);
@@ -52,7 +57,7 @@ impl Default for Prover {
 }
 
 impl Prover {
-    /// Creates a new prover object
+    /// Creates a new `Prover` instance.
     pub fn new(label: &'static [u8]) -> Prover {
         Prover {
             prover_key: None,
@@ -61,7 +66,7 @@ impl Prover {
         }
     }
 
-    /// Creates a new prover object with some expected size.
+    /// Creates a new `Prover` object with some expected size.
     pub fn with_expected_size(label: &'static [u8], size: usize) -> Prover {
         Prover {
             prover_key: None,
@@ -70,7 +75,8 @@ impl Prover {
         }
     }
 
-    /// Returns the number of gates in the circuit
+    /// Returns the number of gates in the circuit thet the `Prover` actually
+    /// stores inside.
     pub fn circuit_size(&self) -> usize {
         self.cs.circuit_size()
     }
@@ -88,7 +94,8 @@ impl Prover {
             Polynomial::from_coefficients_vec(t_x[3 * n..].to_vec()),
         )
     }
-    /// Computes the quotient opening polynomial.
+
+    /// Computes the quotient Opening [`Polynomial`].
     fn compute_quotient_opening_poly(
         n: usize,
         t_1_poly: &Polynomial,
@@ -109,10 +116,12 @@ impl Prover {
         let abc = &(a + &b) + &c;
         &abc + &d
     }
+
     /// Convert variables to their actual witness values.
     pub(crate) fn to_scalars(&self, vars: &[Variable]) -> Vec<BlsScalar> {
-        vars.par_iter().map(|var| self.cs.variables[var]).collect()
+        vars.iter().map(|var| self.cs.variables[var]).collect()
     }
+
     /// Resets the witnesses in the prover object.
     /// This function is used when the user wants to make multiple proofs with
     /// the same circuit.
@@ -120,25 +129,27 @@ impl Prover {
         self.cs = StandardComposer::new();
     }
 
-    /// Clears all data in the Prover
-    /// This function is used when the user wants to use the same Prover to
-    /// make a proof regarding a different circuit.
+    /// Clears all data in the `Prover` instance.
+    /// This function is used when the user wants to use the same `Prover` to
+    /// make a [`Proof`] regarding a different circuit.
     pub fn clear(&mut self) {
         self.clear_witness();
         self.prover_key = None;
         self.preprocessed_transcript = Transcript::new(b"plonk");
     }
 
-    /// Keys the transcript with additional seed information
-    /// Wrapper around transcript.append_message
+    /// Keys the [`Transcript`] with additional seed information
+    /// Wrapper around [`Transcript::append_message`].
     pub fn key_transcript(&mut self, label: &'static [u8], message: &[u8]) {
         self.preprocessed_transcript.append_message(label, message);
     }
 
-    /// Creates a Proof that a circuit is satisfied
-    /// Note that if you intend to make multiple proofs, after calling this
-    /// method, the user should then call `clear_witness`. This is
-    /// automatically done when `prove` is called
+    /// Creates a [`Proof]` that demonstrates that a circuit is satisfied.
+    /// # Note
+    /// If you intend to construct multiple [`Proof`]s with different witnesses,
+    /// after calling this method, the user should then call
+    /// [`Prover::clear_witness`].
+    /// This is automatically done when [`Prover::prove`] is called.
     pub fn prove_with_preprocessed(
         &self,
         commit_key: &CommitKey,
@@ -385,7 +396,7 @@ impl Prover {
 
     /// Proves a circuit is satisfied, then clears the witness variables
     /// If the circuit is not pre-processed, then the preprocessed circuit will
-    /// also be computed
+    /// also be computed.
     pub fn prove(&mut self, commit_key: &CommitKey) -> Result<Proof, Error> {
         let prover_key: &ProverKey;
 

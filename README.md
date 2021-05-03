@@ -1,26 +1,24 @@
-# PLONK [![Build Status](https://travis-ci.com/dusk-network/plonk.svg?branch=master)](https://travis-ci.com/dusk-network/plonk) ![GitHub issues](https://img.shields.io/github/issues-raw/dusk-network/plonk?style=plastic) ![GitHub](https://img.shields.io/github/license/dusk-network/plonk?color=%230E55EF)
+# PLONK 
+![Build Status](https://github.com/dusk-network/plonk/workflows/Continuous%20integration/badge.svg)
+[![Repository](https://img.shields.io/badge/github-plonk-blueviolet?logo=github)](https://github.com/dusk-network/plonk)
+[![Documentation](https://img.shields.io/badge/docs-plonk-blue?logo=rust)](https://docs.rs/plonk/)
+
 
 _This is a pure Rust implementation of the PLONK proving system over BLS12-381_
-
-_This code is highly experimental, use at your own risk_.
 
 This library contains a modularised implementation of KZG10 as the default polynomial commitment scheme.
 
 ## Usage
 
 ```rust
-use dusk_plonk::prelude::*
-use dusk_plonk::circuit;
-use dusk-bls12_381::BlsScalar;
-use dusk-jubjub::{GENERATOR, JubJubScalar, JubJubAffine};
+use dusk_plonk::prelude::*;
 
-// Implement the `Circuit` trait for the circuit you want to construct.
-// Implements a circuit that checks:
+// Implement a circuit that checks:
 // 1) a + b = c where C is a PI
 // 2) a <= 2^6
 // 3) b <= 2^5
 // 4) a * b = d where D is a PI
-// 5) JubJub::GENERATOR * e(JubJubScalar) = f where F is a PI
+// 5) JubJub::GENERATOR * e(JubJubScalar) = f where F is a Public Input
 #[derive(Debug, Default)]
 pub struct TestCircuit {
     a: BlsScalar,
@@ -33,7 +31,10 @@ pub struct TestCircuit {
 
 impl Circuit for TestCircuit {
     const CIRCUIT_ID: [u8; 32] = [0xff; 32];
-    fn gadget(&mut self, composer: &mut StandardComposer) -> Result<(), Error> {
+    fn gadget(
+        &mut self,
+        composer: &mut StandardComposer,
+    ) -> Result<(), Error> {
         let a = composer.add_input(self.a);
         let b = composer.add_input(self.b);
         // Make first constraint a + b = c
@@ -64,31 +65,26 @@ impl Circuit for TestCircuit {
             Some(-self.d),
         );
 
-        // This adds a PI also constraining `generator` to actually be `dusk_jubjub::GENERATOR`
-        let generator = Point::from_public_affine(composer, dusk_jubjub::GENERATOR);
         let e = composer.add_input(self.e.into());
-        let scalar_mul_result =
-            scalar_mul::variable_base::variable_base_scalar_mul(composer, e, generator);
+        let scalar_mul_result = composer
+            .fixed_base_scalar_mul(e, dusk_jubjub::GENERATOR_EXTENDED);
         // Apply the constrain
-        composer.assert_equal_public_point(scalar_mul_result.into(), self.f);
+        composer.assert_equal_public_point(scalar_mul_result, self.f);
         Ok(())
     }
     fn padded_circuit_size(&self) -> usize {
         1 << 11
     }
+}
 
-// Generate CRS (Or read it from file if already have it).
-let pp_p = PublicParameters::setup(1 << 12, &mut rand::thread_rng())?;
+// Now let's use the Circuit we've just implemented!
 
-// Initialize the circuit (with dummy inputs if you want, doesn't matter).
+let pp = PublicParameters::setup(1 << 12, &mut OsRng)?;
+// Initialize the circuit
 let mut circuit = TestCircuit::default();
-
-// Compile the circuit. This will produce the Prover and Verifier keys as well
-// as the public input positions vector.
-// You can now store that to use it later on to generate proofs or verify them.
-let (pk_p, vk_p, pi_pos) = circuit.compile(&pp)?;
-
-// Prover PoV
+// Compile the circuit
+let (pk, vd) = circuit.compile(&pp)?;
+// Prover POV
 let proof = {
     let mut circuit = TestCircuit {
         a: BlsScalar::from(20u64),
@@ -96,50 +92,78 @@ let proof = {
         c: BlsScalar::from(25u64),
         d: BlsScalar::from(100u64),
         e: JubJubScalar::from(2u64),
-        f: JubJubAffine::from(dusk_jubjub::GENERATOR_EXTENDED * JubJubScalar::from(2u64)),
+        f: JubJubAffine::from(
+            dusk_jubjub::GENERATOR_EXTENDED * JubJubScalar::from(2u64),
+        ),
     };
-
     circuit.gen_proof(&pp, &pk, b"Test")
 }?;
-
-// Verifier PoV
-
-// Generate the `PublicInputValue`s vector containing your Circuit Pi's **ordered**.
-let public_input_vals: Vec<PublicInputValue> = vec![
+// Verifier POV
+let public_inputs: Vec<PublicInputValue> = vec![
     BlsScalar::from(25u64).into(),
     BlsScalar::from(100u64).into(),
-    dusk_jubjub::GENERATOR.into(),
-    JubJubAffine::from(dusk_jubjub::GENERATOR_EXTENDED * JubJubScalar::from(2u64)).into(),
+    JubJubAffine::from(
+        dusk_jubjub::GENERATOR_EXTENDED * JubJubScalar::from(2u64),
+    )
+    .into(),
 ];
-
-// Verify the proof.
-assert!(circuit::verify_proof(&pp, &vk, &proof, &public_input_vals, &pi_pos, b"Test").is_ok());
+circuit::verify_proof(
+    &pp,
+    &vd.key(),
+    &proof,
+    &public_inputs,
+    &vd.pi_pos(),
+    b"Test",
+)
 ```
+
+### Features
+
+This crate includes a variety of features which will briefly be explained below:
+- `alloc`: Enables the usage of an allocator and with it the capability of performing `Proof` constructions and 
+  verifications. Without this feature it **IS NOT** possible to prove or verify anything. 
+  Its absence only makes `dusk-plonk` export certain fixed-size data structures such as `Proof` which can be useful in no_std envoirments where we don't have allocators either.
+- `std`: Enables `std` usage as well as `rayon` parallelisation in some proving and verifying ops. 
+  It also uses the `std` versions of the elliptic curve deps, which utilises the `parallel` feature 
+  from `dusk-bls12-381`. By default, this is the feature that comes enabled with the crate.
+- `nightly`: This feature is used to compile the extended docs and has KateX rendering enabled. 
+  See the `Documentation`section below.
+- `trace`: Enables the Circuit debugger tooling. This is essentially the capability of using the 
+  `StandardComposer::check_circuit_satisfied` function. The function will output information about each circuit gate until 
+  one of the gates does not satisfy the equation, or there are no more gates. If there is an unsatisfied gate 
+  equation, the function will panic and return the gate number.
+- `trace-print`: Goes a step further than `trace` and prints each `gate` component data, giving a clear overview of all the 
+  values which make up the circuit that we're constructing. 
+  __The recommended method is to derive the std output, and the std error, and then place them in text file 
+    which can be used to efficiently analyse the gates.__
+- `canon`: Enables `canonical` serialisation for particular data structures, which is very useful in integrating
+  this library within the rest of the Dusk stack - especially for storage purposes.
+
 
 ## Documentation
 
 There are two main types of documentation in this repository:
 
-- **Crate documentation**. This provides info about all of the functions that the library provides as well
-  as the documentation regarding the data structures that it exports. To check it, please feel free to go to
-  the [documentation page](https://dusk-network.github.io/plonk/dusk_plonk/index.html)
+- **Crate documentation**. This provides info about all of the functions that the library provides, as well
+  as the documentation regarding the data structures that it exports. To check this, please feel free to go to
+  the [documentation page](https://docs.rs/dusk-plonk/) or run `make doc` or `make doc-internal`.
 
-- **Notes**. This is a specific subset of documentation which explains the mathematical key concepts
-  of PLONK and how they work with mathematical demonstrations. It can be found inside of the documentation
-  page in the [notes sub-section](https://dusk-network.github.io/plonk/dusk_plonk/notes/index.html)
+- **Notes**. This is a specific subset of documentation which explains the key mathematical concepts
+  of PLONK and how they work with mathematical demonstrations. To check it, run `make doc` and open the resulting docs,
+  which will be located under `/target` with your browser.
 
 ## Performance
 
-Benchmarks taken on `Intel(R) Core(TM) i5-7300HQ CPU @ 2.50GHz`
-For a proof-size of `2^16` constraints/gates:
+Benchmarks taken on `Intel(R) Core(TM) i9-9900X CPU @ 3.50GHz`
+For a circuit-size of `2^16` constraints/gates:
 
 - Proving time: `5.46s`
-- Verification time: `6.13ms`. **(This time will not vary depending on the circuit-size.)**
+- Verification time: `9.34ms`. **(This time will not vary depending on the circuit-size.)**
 
 ## Acknowledgements
 
 - Reference implementation AztecProtocol/Barretenberg
-- FFT Module and KZG10 Module were taken and modified from zexe/zcash and scipr-lab respectively.
+- FFT Module and KZG10 Module were taken and modified from zexe/zcash and scipr-lab, respectively.
 
 ## Licensing
 

@@ -10,10 +10,10 @@ use dusk_bls12_381::BlsScalar;
 
 impl StandardComposer {
     /// Adds a boolean constraint (also known as binary constraint) where
-    /// the gate eq. will enforce that the `Variable` received is either `0`
+    /// the gate eq. will enforce that the [`Variable`] received is either `0`
     /// or `1` by adding a constraint in the circuit.
     ///
-    /// Note that using this constraint with whatever `Variable` that is not
+    /// Note that using this constraint with whatever [`Variable`] that is not
     /// representing a value equalling 0 or 1, will always force the equation to
     /// fail.
     pub fn boolean_gate(&mut self, a: Variable) -> Variable {
@@ -43,6 +43,8 @@ impl StandardComposer {
         a
     }
 }
+
+#[cfg(feature = "std")]
 #[cfg(test)]
 mod tests {
     use super::super::helper::*;

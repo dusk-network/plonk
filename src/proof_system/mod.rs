@@ -4,21 +4,26 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-//! proving system
+//! Proving system
 
-pub(crate) mod linearisation_poly;
-mod preprocess;
+cfg_if::cfg_if!(
+    if #[cfg(feature = "alloc")] {
+        mod preprocess;
+        /// Represents a PLONK Prover
+        pub mod prover;
+        pub use proof::alloc::*;
+        pub(crate) mod quotient_poly;
+        /// Represents a PLONK Verifier
+        pub mod verifier;
+        pub use prover::Prover;
+        pub use verifier::Verifier;
+        pub use widget::alloc::*;
+    }
+);
 
 /// Represents a PLONK Proof
-pub(crate) mod proof;
-/// Represents a PLONK Prover
-pub(crate) mod prover;
-pub(crate) mod quotient_poly;
-/// Represents a PLONK Verifier
-pub(crate) mod verifier;
+pub mod proof;
 pub(crate) mod widget;
-
 pub use proof::Proof;
-pub use prover::Prover;
-pub use verifier::Verifier;
-pub use widget::{ProverKey, VerifierKey};
+pub use widget::VerifierKey;
+pub(crate) mod linearisation_poly;

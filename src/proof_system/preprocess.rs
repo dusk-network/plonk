@@ -11,12 +11,12 @@ use crate::constraint_system::StandardComposer;
 
 use crate::error::Error;
 use crate::fft::{EvaluationDomain, Evaluations, Polynomial};
-use crate::proof_system::widget;
+use crate::proof_system::{widget, ProverKey};
 use dusk_bls12_381::BlsScalar;
 use merlin::Transcript;
 
-/// Struct that contains all of the selector and permutation polynomials in
-/// PLONK These polynomials are in coefficient form
+/// Struct that contains all of the selector and permutation [`Polynomial`]s in
+/// PLONK.
 pub(crate) struct SelectorPolynomials {
     q_m: Polynomial,
     q_l: Polynomial,
@@ -36,7 +36,9 @@ pub(crate) struct SelectorPolynomials {
 }
 
 impl StandardComposer {
-    /// Pads the circuit to the next power of two
+    /// Pads the circuit to the next power of two.
+    ///
+    /// # Note
     /// `diff` is the difference between circuit size and next power of two.
     fn pad(&mut self, diff: usize) {
         // Add a zero variable to circuit
@@ -65,6 +67,7 @@ impl StandardComposer {
 
         self.n += diff;
     }
+
     /// Checks that all of the wires of the composer have the same
     /// length.
     fn check_poly_same_len(&self) -> Result<(), Error> {
@@ -90,6 +93,7 @@ impl StandardComposer {
             Err(Error::MismatchedPolyLen)
         }
     }
+
     /// These are the parts of preprocessing that the prover must compute
     /// Although the prover does not need the verification key, he must compute
     /// the commitments in order to seed the transcript, allowing both the
@@ -98,7 +102,7 @@ impl StandardComposer {
         &mut self,
         commit_key: &CommitKey,
         transcript: &mut Transcript,
-    ) -> Result<widget::ProverKey, Error> {
+    ) -> Result<ProverKey, Error> {
         let (_, selectors, domain) =
             self.preprocess_shared(commit_key, transcript)?;
 
@@ -221,7 +225,7 @@ impl StandardComposer {
                 ),
             };
 
-        let prover_key = widget::ProverKey {
+        let prover_key = ProverKey {
             n: domain.size(),
             arithmetic: arithmetic_prover_key,
             logic: logic_prover_key,
@@ -236,9 +240,10 @@ impl StandardComposer {
 
         Ok(prover_key)
     }
-    /// The verifier only requires the commitments in order to verify a proof
-    /// We can therefore speed up preprocessing for the verifier by skipping the
-    /// FFTs needed to compute the 4n evaluations
+
+    /// The verifier only requires the commitments in order to verify a
+    /// [`Proof`](super::Proof) We can therefore speed up preprocessing for the
+    /// verifier by skipping the FFTs needed to compute the 4n evaluations.
     pub fn preprocess_verifier(
         &mut self,
         commit_key: &CommitKey,
@@ -248,9 +253,11 @@ impl StandardComposer {
             self.preprocess_shared(commit_key, transcript)?;
         Ok(verifier_key)
     }
-    // Both the prover and verifier must perform IFFTs on the selector
-    // polynomials and permutation polynomials In order to commit to them
-    // and have the same transcript view
+
+    /// Both the [`Prover`](super::Prover) and [`Verifier`](super::Verifier)
+    /// must perform IFFTs on the selector polynomials and permutation
+    /// polynomials in order to commit to them and have the same transcript
+    /// view.
     fn preprocess_shared(
         &mut self,
         commit_key: &CommitKey,
@@ -398,6 +405,7 @@ impl StandardComposer {
     }
 }
 
+#[cfg(feature = "std")]
 #[cfg(test)]
 mod test {
     use super::*;

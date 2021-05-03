@@ -4,11 +4,15 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use crate::fft::{EvaluationDomain, Polynomial};
-use crate::proof_system::widget::ProverKey;
+#[cfg(feature = "alloc")]
+use crate::{
+    fft::{EvaluationDomain, Polynomial},
+    proof_system::ProverKey,
+};
+
 use dusk_bls12_381::BlsScalar;
 use dusk_bytes::{DeserializableSlice, Serializable};
-
+#[allow(dead_code)]
 /// Evaluations at points `z` or and `z * root of unity`
 pub(crate) struct Evaluations {
     pub(crate) proof: ProofEvaluations,
@@ -16,8 +20,8 @@ pub(crate) struct Evaluations {
     pub(crate) quot_eval: BlsScalar,
 }
 
-/// Proof Evaluations is a subset of all of the evaluations. These evaluations
-/// will be added to the proof
+/// Subset of all of the evaluations. These evaluations
+/// are added to the [`Proof`](super::Proof).
 #[derive(Debug, Eq, PartialEq, Clone, Default)]
 pub(crate) struct ProofEvaluations {
     // Evaluation of the witness polynomial for the left wire at `z`
@@ -129,8 +133,9 @@ impl Serializable<{ 16 * BlsScalar::SIZE }> for ProofEvaluations {
     }
 }
 
-#[allow(clippy::too_many_arguments)]
-/// Compute the linearisation polynomial
+#[cfg(feature = "alloc")]
+
+/// Compute the linearisation polynomial.
 pub(crate) fn compute(
     domain: &EvaluationDomain,
     prover_key: &ProverKey,
@@ -243,7 +248,7 @@ pub(crate) fn compute(
     )
 }
 
-#[allow(clippy::too_many_arguments)]
+#[cfg(feature = "alloc")]
 fn compute_circuit_satisfiability(
     (
         range_separation_challenge,
