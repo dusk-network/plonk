@@ -11,7 +11,7 @@ This library contains a modularised implementation of KZG10 as the default polyn
 ## Usage
 
 ```rust
-use dusk-plonk::prelude::*;
+use dusk_plonk::prelude::*;
 
 // Implement a circuit that checks:
 // 1) a + b = c where C is a PI
