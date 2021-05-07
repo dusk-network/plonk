@@ -20,89 +20,100 @@ use crate::prelude::BlsScalar;
 /// A vector x in (F_p)^t goes through r rounds of a round function R.
 /// The result is another vector y in (F_p)^t.
 #[derive(Debug)]
-pub struct HashTable {
+pub struct HashTableOne {
     pub first_rows: [[BlsScalar; 4]; V + 1],
     pub middle_rows: [[BlsScalar; 4]; 787],
     pub end_rows: [[BlsScalar; 4]; 16],
 }
 
-impl HashTable {
-    /// Create a new hash table and makes
-    /// empty vectors for each field.
-    pub fn new() -> Self {
-        Self {
-            first_rows: [[BlsScalar::zero(); 4]; V + 1],
-            middle_rows: [[BlsScalar::zero(); 4]; 787],
-            end_rows: [[BlsScalar::zero(); 4]; 16],
-        }
-    }
+// impl HashTableOne {
+//     /// Create a new hash table and makes
+//     /// empty vectors for each field.
+//     pub fn new() -> Self {
+//         Self {
+//             first_rows: [[BlsScalar::zero(); 4]; V + 1],
+//             middle_rows: [[BlsScalar::zero(); 4]; 787],
+//             end_rows: [[BlsScalar::zero(); 4]; 16],
+//         }
+//     }
 
-    // The whole lookup table will be constructed in 3 parts: the first rows where the third
-    // entry is derived from the function F, i.e. the rows are of the form (_, _, F(i), ...).
-    // The middle rows are where the first entries are between V+1 and s_i for some i.
-    // The binary rows are at the bottom of the table, and they enumerate all binary possibilities
-    // on T_S bits.
-    fn f_rows(&mut self, f: &Polynomial) {
-        for i in 0..(V + 1) {
-            let eval = f.evaluate(&BlsScalar::from(i as u64));
-            let row = [
-                BlsScalar::from(i as u64),
-                BlsScalar::zero(),
-                eval,
-                -BlsScalar::one(),
-            ];
+//     // The whole lookup table will be constructed in 3 parts: the first rows where the third
+//     // entry is derived from the function F, i.e. the rows are of the form (_, _, F(i), ...).
+//     // The middle rows are where the first entries are between V+1 and s_i for some i.
+//     // The binary rows are at the bottom of the table, and they enumerate all binary possibilities
+//     // on T_S bits.
+//     fn f_rows(&mut self, f: &Polynomial) {
+//         for i in 0..(V + 1) {
+//             let eval = f.evaluate(&BlsScalar::from(i as u64));
+//             let row = [
+//                 BlsScalar::from(i as u64),
+//                 BlsScalar::zero(),
+//                 eval,
+//                 -BlsScalar::one(),
+//             ];
 
-            self.first_rows[i] = row;
-        }
-    }
+//             self.first_rows[i] = row;
+//         }
+//     }
 
-    // This function fills in the middle section of the hash table
-    // where the entry is defined as being between V+1 and s_i
-    // for a chosen i. The i here depends on the intialisation
-    // of the first rows.
-    fn m_rows(&mut self) {
-        let mut idx = 0;
-        for i in 0..N {
-            let distance = S[i as usize] - V as u64;
+//     // This function fills in the middle section of the hash table
+//     // where the entry is defined as being between V+1 and s_i
+//     // for a chosen i. The i here depends on the intialisation
+//     // of the first rows.
+//     fn m_rows(&mut self) {
+//         let mut idx = 0;
+//         for i in 0..N {
+//             let distance = S[i as usize] - V as u64;
 
-            for j in 1..(distance + 1) {
-                let row = [
-                    BlsScalar::from(V as u64 + j),
-                    BlsScalar::from(i as u64 + 1),
-                    BlsScalar::from(V as u64 + j),
-                    -BlsScalar::one(),
-                ];
+//             for j in 1..(distance + 1) {
+//                 let row = [
+//                     BlsScalar::from(V as u64 + j),
+//                     BlsScalar::from(i as u64 + 1),
+//                     BlsScalar::from(V as u64 + j),
+//                     -BlsScalar::one(),
+//                 ];
 
-                self.middle_rows[idx] = row;
-                idx += 1;
-            }
-        }
-    }
+//                 self.middle_rows[idx] = row;
+//                 idx += 1;
+//             }
+//         }
+//     }
 
-    // A function that creates all binary values of word of length T_S.
-    // For a width T_S, these are the binary possibilites for numbers
-    // between 0 and 15.
-    fn binary_end_rows(&mut self) {
-        let mut row = [BlsScalar::zero(); 4];
-        self.end_rows[0] = row;
+//     // A function that creates all binary values of word of length T_S.
+//     // For a width T_S, these are the binary possibilites for numbers
+//     // between 0 and 15.
+//     fn binary_end_rows(&mut self) {
+//         let mut row = [BlsScalar::zero(); 4];
+//         self.end_rows[0] = row;
 
-        for i in 1..(2i32.pow(T_S)) {
-            incrementer(&mut row, 0);
-            self.end_rows[i as usize] = row;
-        }
-    }
+//         for i in 1..(2i32.pow(T_S)) {
+//             incrementer(&mut row, 0);
+//             self.end_rows[i as usize] = row;
+//         }
+//     }
 
-    /// This function constructs a hash table based on the
-    /// constants declared.
-    pub fn construct_table(f: &Polynomial) -> Self {
-        let mut table = HashTable::new();
-        table.f_rows(f);
-        table.m_rows();
-        table.binary_end_rows();
+//     /// This function constructs a hash table based on the
+//     /// constants declared.
+//     pub fn construct_table(f: &Polynomial) -> Self {
+//         let mut table = HashTable::new();
+//         table.f_rows(f);
+//         table.m_rows();
+//         table.binary_end_rows();
 
-        table
-    }
-}
+//         table
+//     }
+// }
+
+/// Hash Table containing all binary possibilities,
+/// for an arity 4 tabl. Intended to make constraints
+/// for Hashing function Reinforced Concrete.
+#[derive(Debug)]
+pub struct HashTableTwo(pub [[BlsScalar; 4]; 16]);
+
+/// This table contains the montgomery form of the BLS
+/// Scalars from the paper
+#[derive(Debug)]
+pub struct HashTableThree(pub [[BlsScalar; 4]; 24]);
 
 /// The binary end rows section of the a hash table requires
 /// a function which fills out the whole vector, of arity 4,
@@ -119,91 +130,91 @@ pub fn incrementer(mut row: &mut [BlsScalar; 4], i: usize) {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use crate::fft::Polynomial;
-    use crate::plookup::table::hash_tables::constants::{S, V};
-    use crate::plookup::table::hash_tables::tables::HashTable;
-    use crate::prelude::BlsScalar;
+// #[cfg(test)]
+// mod tests {
+//     use crate::fft::Polynomial;
+//     use crate::plookup::table::hash_tables::constants::{S, V};
+//     use crate::plookup::table::hash_tables::tables::HashTable;
+//     use crate::prelude::BlsScalar;
 
-    #[test]
-    fn test_first() {
-        let mut table = HashTable::new();
-        let f: Polynomial = Polynomial {
-            coeffs: vec![BlsScalar::from(3), BlsScalar::one()],
-        };
-        table.f_rows(&f);
-        // Check that second row of first rows equals [1,0,f(1),-1],
-        // when f(x) = x+3.
-        assert_eq!(
-            table.first_rows[1],
-            [
-                BlsScalar::one(),
-                BlsScalar::zero(),
-                BlsScalar::from(4),
-                -BlsScalar::one()
-            ]
-        );
-        // Here there is a check that 1 + (-1) = 0, (as BlsScalars).
-        // This is done only for the second row.
-        let expected_zero = table.first_rows[1][0] + table.first_rows[1][3];
-        assert_eq!(expected_zero, BlsScalar::zero());
-    }
+//     #[test]
+//     fn test_first() {
+//         let mut table = HashTable::new();
+//         let f: Polynomial = Polynomial {
+//             coeffs: vec![BlsScalar::from(3), BlsScalar::one()],
+//         };
+//         table.f_rows(&f);
+//         // Check that second row of first rows equals [1,0,f(1),-1],
+//         // when f(x) = x+3.
+//         assert_eq!(
+//             table.first_rows[1],
+//             [
+//                 BlsScalar::one(),
+//                 BlsScalar::zero(),
+//                 BlsScalar::from(4),
+//                 -BlsScalar::one()
+//             ]
+//         );
+//         // Here there is a check that 1 + (-1) = 0, (as BlsScalars).
+//         // This is done only for the second row.
+//         let expected_zero = table.first_rows[1][0] + table.first_rows[1][3];
+//         assert_eq!(expected_zero, BlsScalar::zero());
+//     }
 
-    #[test]
-    fn test_middle() {
-        let mut table = HashTable::new();
-        table.m_rows();
-        let check_first = S[0] as usize - V - 1 as usize;
-        // Check that the first entry of the S[0]-V-1'th row of middle rows is s_1 (i.e. is equal to S[0]).
-        assert_eq!(table.middle_rows[check_first][0], BlsScalar::from(S[0]));
-        let check_last = table.middle_rows.len();
-        // Check that the first entry if the final row is equal to s_27, i.e. equal to S[26].
-        assert_eq!(table.middle_rows[check_last - 1][0], BlsScalar::from(S[26]));
-    }
-    #[test]
-    fn test_end() {
-        let mut table = HashTable::new();
-        table.binary_end_rows();
-        // Check that first binary row is [0,0,0,0].
-        assert_eq!(table.end_rows[0], [BlsScalar::zero(); 4]);
-        // Check that last binary row is [1,1,1,1]. This is assuming T_S = 4.
-        assert_eq!(table.end_rows[15], [BlsScalar::one(); 4]);
-    }
+//     #[test]
+//     fn test_middle() {
+//         let mut table = HashTable::new();
+//         table.m_rows();
+//         let check_first = S[0] as usize - V - 1 as usize;
+//         // Check that the first entry of the S[0]-V-1'th row of middle rows is s_1 (i.e. is equal to S[0]).
+//         assert_eq!(table.middle_rows[check_first][0], BlsScalar::from(S[0]));
+//         let check_last = table.middle_rows.len();
+//         // Check that the first entry if the final row is equal to s_27, i.e. equal to S[26].
+//         assert_eq!(table.middle_rows[check_last - 1][0], BlsScalar::from(S[26]));
+//     }
+//     #[test]
+//     fn test_end() {
+//         let mut table = HashTable::new();
+//         table.binary_end_rows();
+//         // Check that first binary row is [0,0,0,0].
+//         assert_eq!(table.end_rows[0], [BlsScalar::zero(); 4]);
+//         // Check that last binary row is [1,1,1,1]. This is assuming T_S = 4.
+//         assert_eq!(table.end_rows[15], [BlsScalar::one(); 4]);
+//     }
 
-    #[test]
-    fn test_whole_table() {
-        let f: Polynomial = Polynomial {
-            coeffs: vec![BlsScalar::from(3), BlsScalar::one()],
-        };
-        let table = HashTable::construct_table(&f);
+//     #[test]
+//     fn test_whole_table() {
+//         let f: Polynomial = Polynomial {
+//             coeffs: vec![BlsScalar::from(3), BlsScalar::one()],
+//         };
+//         let table = HashTable::construct_table(&f);
 
-        // Assert the fixed length of the three parts of the
-        // hash table
-        assert_eq!(644, table.first_rows.len() as usize);
-        assert_eq!(787, table.middle_rows.len() as usize);
-        assert_eq!(16, table.end_rows.len() as usize);
-    }
+//         // Assert the fixed length of the three parts of the
+//         // hash table
+//         assert_eq!(644, table.first_rows.len() as usize);
+//         assert_eq!(787, table.middle_rows.len() as usize);
+//         assert_eq!(16, table.end_rows.len() as usize);
+//     }
 
-    #[test]
-    fn test_incorrect_poly() {
-        // Create polynomial for first table
-        let f_1: Polynomial = Polynomial {
-            coeffs: vec![BlsScalar::from(3), BlsScalar::one()],
-        };
-        // Build complete table
-        let table = HashTable::construct_table(&f_1);
+//     #[test]
+//     fn test_incorrect_poly() {
+//         // Create polynomial for first table
+//         let f_1: Polynomial = Polynomial {
+//             coeffs: vec![BlsScalar::from(3), BlsScalar::one()],
+//         };
+//         // Build complete table
+//         let table = HashTable::construct_table(&f_1);
 
-        // Create polynomial for second table
-        let f_2: Polynomial = Polynomial {
-            coeffs: vec![BlsScalar::from(6), BlsScalar::one()],
-        };
+//         // Create polynomial for second table
+//         let f_2: Polynomial = Polynomial {
+//             coeffs: vec![BlsScalar::from(6), BlsScalar::one()],
+//         };
 
-        // Create table and insert first rows from second poly
-        let mut table_2 = HashTable::new();
-        table_2.f_rows(&f_2);
+//         // Create table and insert first rows from second poly
+//         let mut table_2 = HashTable::new();
+//         table_2.f_rows(&f_2);
 
-        // Assert the tables have different values
-        assert_ne!(table.first_rows, table_2.first_rows);
-    }
-}
+//         // Assert the tables have different values
+//         assert_ne!(table.first_rows, table_2.first_rows);
+//     }
+// }

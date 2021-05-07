@@ -8,6 +8,9 @@
 //! tables defined in this file
 
 mod constants;
-pub mod tables;
+
+mod tables;
+
+pub use tables::{HashTableTwo, HashTableThree};
 
 pub use constants::{N, S, T_S, V};

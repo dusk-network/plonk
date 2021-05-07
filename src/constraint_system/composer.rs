@@ -575,7 +575,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn test_plookup_full() {
         let public_parameters = PublicParameters::setup(2 * 30, &mut rand::thread_rng()).unwrap();
         let mut composer = StandardComposer::new();
@@ -631,7 +630,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     // XXX: Move this to integration tests
     fn test_plookup_proof() {
         let public_parameters = PublicParameters::setup(2 * 30, &mut rand::thread_rng()).unwrap();
