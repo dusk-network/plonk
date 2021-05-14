@@ -26,36 +26,6 @@ pub struct HashTableOne {
     pub end_rows: [[BlsScalar; 4]; 16],
 }
 
-// impl HashTableOne {
-//     /// Create a new hash table and makes
-//     /// empty vectors for each field.
-//     pub fn new() -> Self {
-//         Self {
-//             first_rows: [[BlsScalar::zero(); 4]; V + 1],
-//             middle_rows: [[BlsScalar::zero(); 4]; 787],
-//             end_rows: [[BlsScalar::zero(); 4]; 16],
-//         }
-//     }
-
-//     // The whole lookup table will be constructed in 3 parts: the first rows where the third
-//     // entry is derived from the function F, i.e. the rows are of the form (_, _, F(i), ...).
-//     // The middle rows are where the first entries are between V+1 and s_i for some i.
-//     // The binary rows are at the bottom of the table, and they enumerate all binary possibilities
-//     // on T_S bits.
-//     fn f_rows(&mut self, f: &Polynomial) {
-//         for i in 0..(V + 1) {
-//             let eval = f.evaluate(&BlsScalar::from(i as u64));
-//             let row = [
-//                 BlsScalar::from(i as u64),
-//                 BlsScalar::zero(),
-//                 eval,
-//                 -BlsScalar::one(),
-//             ];
-
-//             self.first_rows[i] = row;
-//         }
-//     }
-
 //     // This function fills in the middle section of the hash table
 //     // where the entry is defined as being between V+1 and s_i
 //     // for a chosen i. The i here depends on the intialisation
@@ -134,8 +104,57 @@ pub fn incrementer(mut row: &mut [BlsScalar; 4], i: usize) {
 // mod tests {
 //     use crate::fft::Polynomial;
 //     use crate::plookup::table::hash_tables::constants::{S, V};
-//     use crate::plookup::table::hash_tables::tables::HashTable;
 //     use crate::prelude::BlsScalar;
+//     // This test allows us to print Table 1, which is hardcoded
+//     // but long. So it is archived here to be used when necessary.
+//     #[ignore = "Not required unless table needs to be printed"]
+//     #[test]
+//     fn table_3() {
+//         for i in 0..659 {
+//             let first = BlsScalar::from(i);
+//             let third = BlsScalar::from_raw(SBOX_BLS[i as usize].0);
+//             println!(
+//                 "[BlsScalar({:?}), 0, BlsScalar({:?}), 1],",
+//                 first.0, third.0
+//             );
+//         }
+
+//         for i in (0..27).rev() {
+//             let s_rev_i = DECOMPOSITION_S_I[i].as_u64();
+//             let v_rev_i = BLS_SCALAR_REAL[i].as_u64();
+//             if i == 26 {
+//                 for j in 659..679 {
+//                     if j == s_rev_i {
+//                         let first = BlsScalar::from(j);
+//                         let second = BlsScalar::from((27 - i) as u64);
+//                         println!("[BlsScalar({:?}), BlsScalar({:?}), BlsScalar({:?}), BlsScalar({:?})]", first.0, second.0, first.0, BlsScalar::zero().0);
+//                     } else {
+//                         let first = BlsScalar::from(j);
+//                         let second = BlsScalar::from((27 - i) as u64);
+//                         println!("[BlsScalar({:?}), BlsScalar({:?}), BlsScalar({:?}), BlsScalar({:?})]", first.0, second.0, first.0, BlsScalar::one().0);
+//                     }
+//                 }
+//             } else {
+//                 for j in 659..v_rev_i {
+//                     let first = BlsScalar::from(j);
+//                     let second = BlsScalar::from((27 - i) as u64);
+//                     println!("[BlsScalar({:?}), BlsScalar({:?}), BlsScalar({:?}), BlsScalar({:?})]", first.0, second.0, first.0, BlsScalar::one().0);
+//                 }
+
+//                 let first = BlsScalar::from(v_rev_i);
+//                 let second = BlsScalar::from((27 - i) as u64);
+//                 println!("[BlsScalar({:?}), BlsScalar({:?}), BlsScalar({:?}), BlsScalar({:?})]", first.0, second.0, first.0, BlsScalar::zero().0);
+//                 println!("[BlsScalar({:?}), BlsScalar({:?}), BlsScalar({:?}), BlsScalar([17179869180, 12756850513266774020, 3681868479150465002, 3479420709561305823])]", first.0, second.0, first.0);
+
+//                 for j in (v_rev_i + 1)..s_rev_i {
+//                     let first = BlsScalar::from(j);
+//                     let second = BlsScalar::from((27 - i) as u64);
+//                     println!("[BlsScalar({:?}), BlsScalar({:?}), BlsScalar({:?}), BlsScalar([17179869180, 12756850513266774020, 3681868479150465002, 3479420709561305823])]", first.0, second.0, first.0);
+//                 }
+//             }
+//         }
+//     }
+// }
 
 //     #[test]
 //     fn test_first() {

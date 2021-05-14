@@ -4,13 +4,6 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-//! In circuit hashing can be conducted using table lookups from the
-//! tables defined in this file
-
-mod constants;
-
-mod tables;
-
-pub use tables::{HashTableThree, HashTableTwo};
-
-pub use constants::{N, S, T_S, V};
+/// This file contains a hard-coded version of the 
+/// first constraint table required in the zelbet 
+/// hash function.
