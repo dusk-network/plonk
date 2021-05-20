@@ -97,7 +97,6 @@ mod tests {
     #[test]
     fn decompo_test() {
         let composer = &mut StandardComposer::new();
-        let table = PlookupTable3Arity::s_box_table();
         let eight = composer.add_witness_to_circuit_description(BlsScalar::from(8));
         composer.decomposition_gadget(eight, [BlsScalar::from(8); 27], [BlsScalar::from(8); 27]);
         println!("{:?}", composer.circuit_size());
