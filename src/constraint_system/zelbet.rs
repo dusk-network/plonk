@@ -6,12 +6,9 @@
 
 #![allow(clippy::too_many_arguments)]
 
-use std::collections::btree_map::VacantEntry;
-
 use crate::constraint_system::StandardComposer;
 use crate::constraint_system::Variable;
 use crate::plookup::PlookupTable3Arity;
-// use crate::constraint_system::zelbet;
 use bigint::U256 as u256;
 use dusk_bls12_381::BlsScalar;
 
@@ -76,20 +73,17 @@ impl StandardComposer {
     pub fn s_box(
         &mut self,
         input: Variable,
-        table: PlookupTable3Arity,
         bar_table: PlookupTable3Arity,
     ) -> Variable {
         let value = u256(self.variables[&input].0);
-        let permutation = match value < 659 {
-            true => bar_table.lookup(value, value),
-            false => value,
+        let permutation = match value < u256([659, 0, 0, 0]) {
+            true => bar_table.lookup(BlsScalar(value.0), BlsScalar(value.0)).unwrap(),
+            false => BlsScalar(value.0),
         };
 
-        let new_var = self.add_input(BlsScalar(permutation.0));
-        self.plookup_gate(input, input, permutation, None, BlsScalar::zero())
+        let permutation_var = self.add_input(permutation);
+        self.plookup_gate(input, input, permutation_var, None, BlsScalar::zero())
     }
-
-    pub fn mod_gate() {}
 }
 
 #[cfg(test)]
