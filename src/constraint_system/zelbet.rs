@@ -44,10 +44,7 @@ impl StandardComposer {
             }
 
             nibbles[k] = self.add_input(BlsScalar(remainder.0));
-            self.range_gate(
-                nibbles[k],
-                s_i.as_u32() as usize,
-            );
+            self.range_gate(nibbles[k], s_i.as_u32() as usize);
         });
 
         let mut acc = self.big_mul(
@@ -76,7 +73,12 @@ impl StandardComposer {
     /// S-box using hash tables
     /// Assumes input BlsScalar value is reduced form,
     /// and permuted value is also reduced form.
-    pub fn s_box(&mut self, input: Variable, table: PlookupTable3Arity, bar_table: PlookupTable3Arity) -> Variable {
+    pub fn s_box(
+        &mut self,
+        input: Variable,
+        table: PlookupTable3Arity,
+        bar_table: PlookupTable3Arity,
+    ) -> Variable {
         let value = u256(self.variables[&input].0);
         let permutation = match value < 659 {
             true => bar_table.lookup(value, value),
@@ -87,16 +89,14 @@ impl StandardComposer {
         self.plookup_gate(input, input, permutation, None, BlsScalar::zero())
     }
 
-    pub fn mod_gate() {
-
-    }
+    pub fn mod_gate() {}
 }
 
 #[cfg(test)]
 mod tests {
     use super::super::helper::*;
-    use dusk_bls12_381::BlsScalar;
     use crate::constraint_system::StandardComposer;
+    use dusk_bls12_381::BlsScalar;
 
     #[test]
     fn decompo_test() {
@@ -104,6 +104,5 @@ mod tests {
         let eight = composer.add_witness_to_circuit_description(BlsScalar::from(8));
         composer.decomposition_gadget(eight, [eight; 27], [BlsScalar::from(8); 27]);
         println!("{:?}", composer.circuit_size());
-        
     }
 }
