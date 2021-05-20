@@ -69,8 +69,8 @@ pub struct StandardComposer {
     pub(crate) w_o: Vec<Variable>,
     pub(crate) w_4: Vec<Variable>,
 
-    // Public lookup table
-    pub(crate) lookup_table: PlookupTable4Arity,
+    /// Public lookup table
+    pub lookup_table: PlookupTable4Arity,
 
     /// A zero variable that is a part of the circuit description.
     /// We reserve a variable to be zero in the system
