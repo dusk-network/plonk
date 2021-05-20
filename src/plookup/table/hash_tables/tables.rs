@@ -21,8 +21,11 @@ use crate::prelude::BlsScalar;
 /// The result is another vector y in (F_p)^t.
 #[derive(Debug)]
 pub struct HashTable {
+    /// First rows
     pub first_rows: [[BlsScalar; 4]; V + 1],
+    /// Middle rows
     pub middle_rows: [[BlsScalar; 4]; 787],
+    /// End rows
     pub end_rows: [[BlsScalar; 4]; 16],
 }
 

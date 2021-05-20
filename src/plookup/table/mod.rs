@@ -11,3 +11,5 @@ pub mod lookup_table;
 pub mod preprocess;
 /// module containing witness table
 pub mod witness_table;
+/// module containing reinforced concrete's hash tables
+pub mod hash_tables;

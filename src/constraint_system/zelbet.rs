@@ -20,7 +20,7 @@ impl StandardComposer {
     pub fn decomposition_gadget(
         &mut self,
         x: Variable,
-        s_i_var: [Variable; 27],
+        s_i: [BlsScalar; 27],
         s_i_inv: [BlsScalar; 27],
     ) -> [Variable; 27] {
         let mut nibbles = [x; 27];
@@ -28,8 +28,8 @@ impl StandardComposer {
         let mut remainder = u256::zero();
 
         (0..27).for_each(|k| {
-            let s_i = u256(self.variables[&s_i_var[k]].0);
-            remainder = intermediate % s_i;
+            let s_ik = u256(s_i[k].0);
+            remainder = intermediate % s_ik;
 
             match k < 26 {
                 true => {
@@ -41,23 +41,25 @@ impl StandardComposer {
             }
 
             nibbles[k] = self.add_input(BlsScalar(remainder.0));
-            self.range_gate(nibbles[k], s_i.as_u32() as usize);
+            self.range_gate(nibbles[k], s_ik.as_u32() as usize);
         });
 
+        let s_ik_var = self.add_input(s_i[25]);
         let mut acc = self.big_mul(
             BlsScalar::one(),
             nibbles[26],
-            s_i_var[25],
+            s_ik_var,
             Some((BlsScalar::one(), nibbles[25])),
             BlsScalar::zero(),
             BlsScalar::zero(),
         );
 
         (1..26).for_each(|k| {
+            let s_ik_var = self.add_input(s_i[25-k]);
             acc = self.big_mul(
                 BlsScalar::one(),
                 acc,
-                s_i_var[25 - k],
+                s_ik_var,
                 Some((BlsScalar::one(), nibbles[25 - k])),
                 BlsScalar::zero(),
                 BlsScalar::zero(),
@@ -89,14 +91,15 @@ impl StandardComposer {
 #[cfg(test)]
 mod tests {
     use super::super::helper::*;
-    use crate::constraint_system::StandardComposer;
+    use crate::{constraint_system::StandardComposer, plookup::PlookupTable3Arity};
     use dusk_bls12_381::BlsScalar;
 
     #[test]
     fn decompo_test() {
         let composer = &mut StandardComposer::new();
+        let table = PlookupTable3Arity::s_box_table();
         let eight = composer.add_witness_to_circuit_description(BlsScalar::from(8));
-        composer.decomposition_gadget(eight, [eight; 27], [BlsScalar::from(8); 27]);
+        composer.decomposition_gadget(eight, [BlsScalar::from(8); 27], [BlsScalar::from(8); 27]);
         println!("{:?}", composer.circuit_size());
     }
 }
