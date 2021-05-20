@@ -332,6 +332,7 @@ impl StandardComposer {
         )
     }
 
+
     /// This function is used to add a blinding factor to the witness polynomials
     /// XXX: Split this into two separate functions and document
     /// XXX: We could add another section to add random witness variables, with selector polynomials all zero

@@ -24,6 +24,8 @@ pub(crate) mod helper;
 pub mod logic;
 /// Range gate
 pub mod range;
+/// Zelbet Functionality
+pub mod zelbet;
 
 pub use composer::StandardComposer;
 pub use variable::{Variable, WireData};

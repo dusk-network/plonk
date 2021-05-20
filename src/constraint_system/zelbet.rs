@@ -19,8 +19,7 @@ impl StandardComposer {
     /// Gadget that conducts the bar decomposition
     /// and returns the 27-entry breakdown, whilst
     /// adding all the relevant gates. The 27 Scalars
-    /// are kept in raw form, not Montgomery - will 
-    /// this cause a problem in the proof system?
+    /// are kept in raw form, not Montgomery.
     pub fn decomposition_gadget(
         &mut self,
         x: Variable,
@@ -77,15 +76,34 @@ impl StandardComposer {
     /// S-box using hash tables
     /// Assumes input BlsScalar value is reduced form,
     /// and permuted value is also reduced form.
-    pub fn s_box(&mut self, input: Variable, table: PlookupTable3Arity) -> Variable {
+    pub fn s_box(&mut self, input: Variable, table: PlookupTable3Arity, bar_table: PlookupTable3Arity) -> Variable {
         let value = u256(self.variables[&input].0);
-        let bar_table = PlookupTable3Arity::s_box_table();
         let permutation = match value < 659 {
             true => bar_table.lookup(value, value),
             false => value,
         };
 
         let new_var = self.add_input(BlsScalar(permutation.0));
-        self.plookup_gate(input, input, permutation, None, BlsScalar::one(), BlsScalar::one(), BlsScalar::one(), BlsScalar::zero(), BlsScalar::zero(), BlsScalar::zero())
+        self.plookup_gate(input, input, permutation, None, BlsScalar::zero())
+    }
+
+    pub fn mod_gate() {
+
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::super::helper::*;
+    use dusk_bls12_381::BlsScalar;
+    use crate::constraint_system::StandardComposer;
+
+    #[test]
+    fn decompo_test() {
+        let composer = &mut StandardComposer::new();
+        let eight = composer.add_witness_to_circuit_description(BlsScalar::from(8));
+        composer.decomposition_gadget(eight, [eight; 27], [BlsScalar::from(8); 27]);
+        println!("{:?}", composer.circuit_size());
+        
     }
 }
