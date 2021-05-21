@@ -17,6 +17,7 @@ impl StandardComposer {
     /// and returns the 27-entry breakdown, whilst
     /// adding all the relevant gates. The 27 Scalars
     /// are kept in raw form, not Montgomery.
+    /// [x_27, ..., x_2, x_1]
     pub fn decomposition_gadget(
         &mut self,
         x: Variable,
@@ -83,7 +84,7 @@ impl StandardComposer {
             false => BlsScalar(value.0),
         };
 
-        let permutation_var = self.add_input(permutation);
+        let permutation_var = self.add_input(BlsScalar::from_raw(permutation.0));
         self.plookup_gate(input, input, permutation_var, None, BlsScalar::zero())
     }
 }
