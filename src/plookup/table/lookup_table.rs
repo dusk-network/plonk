@@ -7,10 +7,10 @@
 //! Structs and functions for LookupTables
 //! Denoted as 't' in Plookup paper.
 
+use crate::plookup::table::hash_tables::constants::SBOX_U256;
 use crate::plookup::MultiSet;
 use crate::plookup::PlookupErrors;
 use crate::prelude::BlsScalar;
-use crate::plookup::table::hash_tables::constants::SBOX_U256;
 
 /// For the implemenation of look up tables in PLONK, aptly named PLOOKup tables,
 /// there will be different fucntions depending on the type of table that needs
@@ -164,7 +164,11 @@ impl PlookupTable3Arity {
     pub fn s_box_table() -> Self {
         let mut s_box = Vec::with_capacity(659);
         (0..659).for_each(|k| {
-            s_box.push([BlsScalar([k, 0, 0, 0]), BlsScalar([k, 0, 0, 0]), BlsScalar(SBOX_U256[k as usize].0)]);
+            s_box.push([
+                BlsScalar([k, 0, 0, 0]),
+                BlsScalar([k, 0, 0, 0]),
+                BlsScalar(SBOX_U256[k as usize].0),
+            ]);
         });
 
         PlookupTable3Arity(s_box)
