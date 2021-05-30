@@ -45,30 +45,35 @@ impl StandardComposer {
 
             nibbles[k] = self.add_input(BlsScalar(remainder.0));
             nibbles_montgomery[k] = self.add_input(BlsScalar::from_raw(remainder.0));
-            let range = if (s_ik.as_u32() % 2) == 1 {
-                s_ik.as_u32() + 1
-            } else {
-                s_ik.as_u32()
-            };
+            
+            // Check that x_i >= 0 for each i
+            self.range_gate(nibbles_montgomery[k], 10);
         });
 
+        let one = self.add_input(BlsScalar::one());
+        let s_ik_var = self.add_input(BlsScalar::from_raw(s_i[26].0));
+        let mut difference = self.big_add(
+            (BlsScalar::one(), s_ik_var),
+            (-BlsScalar::one(), nibbles_montgomery[26]),
+            Some((-BlsScalar::one(), one)),
+            BlsScalar::zero(),
+            BlsScalar::zero(),
+        );
+
+        // Check that s_i-x_i-1 >= 0 for i=27, and subsequently for all i
+        self.range_gate(difference, 10);
+
         let s_ik_var = self.add_input(BlsScalar::from_raw(s_i[25].0));
-        let s_ik_var_reduced = self.add_input(BlsScalar(s_i[25].0));
-        let difference = self.big_add(
+        difference = self.big_add(
             (BlsScalar::one(), s_ik_var),
             (-BlsScalar::one(), nibbles_montgomery[25]),
-            None,
+            Some((-BlsScalar::one(), one)),
             BlsScalar::zero(),
             BlsScalar::zero(),
         );
-        let difference_reduced = self.big_add(
-            (BlsScalar::one(), s_ik_var_reduced),
-            (-BlsScalar::one(), nibbles[25]),
-            None,
-            BlsScalar::zero(),
-            BlsScalar::zero(),
-        );
-  
+        self.range_gate(difference, 10);
+
+        // x' = x_1 * s_2 + x_2, this is the start of the composition
         let mut acc = self.big_mul(
             BlsScalar::one(),
             nibbles[26],
@@ -80,6 +85,14 @@ impl StandardComposer {
 
         (1..26).for_each(|k| {
             let s_ik_var = self.add_input(BlsScalar::from_raw(s_i[25 - k].0));
+            let difference = self.big_add(
+                (BlsScalar::one(), s_ik_var),
+                (-BlsScalar::one(), nibbles_montgomery[25 - k]),
+                Some((-BlsScalar::one(), one)),
+                BlsScalar::zero(),
+                BlsScalar::zero(),
+            );
+            self.range_gate(difference, 12);
             acc = self.big_mul(
                 BlsScalar::one(),
                 acc,
@@ -96,7 +109,7 @@ impl StandardComposer {
     }
 
     /// S-box using hash tables
-    /// Assumes input BlsScalar value is reduced form,
+    /// Assumes input BlsScalar value is in reduced form,
     /// but outputs the result in Montgomery
     pub fn s_box(&mut self, input: Variable) -> Variable {
         let value = u256(self.variables[&input].0);
@@ -113,40 +126,7 @@ impl StandardComposer {
     }
 }
 
-/// Bar function
-pub fn bar_gadget(composer: &mut StandardComposer, input: Variable) -> Variable {
-    let mut tuple = composer.decomposition_gadget(input, DECOMPOSITION_S_I, INVERSES_S_I);
 
-    // let s_box_table = PlookupTable4Arity::s_box_table();
-    // composer.lookup_table = s_box_table;
-    (0..27).for_each(|k| {
-        tuple[k] = composer.s_box(tuple[k]);
-    });
-
-    let mut accumulator_var = composer.zero_var;
-    (1..27).rev().for_each(|k| {
-        if k == 26 {
-            accumulator_var = composer.big_add(
-                (BlsScalar::one(), accumulator_var),
-                (BlsScalar::one(), tuple[k]),
-                None,
-                BlsScalar::zero(),
-                BlsScalar::zero(),
-            );
-        }
-        let s_i_var = composer.add_input(BlsScalar::from_raw(DECOMPOSITION_S_I[k - 1].0));
-        accumulator_var = composer.big_mul(
-            BlsScalar::one(),
-            accumulator_var,
-            s_i_var,
-            Some((BlsScalar::one(), tuple[k - 1])),
-            BlsScalar::zero(),
-            BlsScalar::zero(),
-        );
-    });
-
-    accumulator_var
-}
 
 #[cfg(test)]
 mod tests {
@@ -156,72 +136,22 @@ mod tests {
     use dusk_bls12_381::BlsScalar;
 
     #[test]
-    fn test_new_bar() {
-        // let mut composer = StandardComposer::new();
+    fn test_decomposition() {
         let res = gadget_tester(
             |composer| {
                 let one = composer.add_input(BlsScalar::one());
-                //check that the output is what we expected (in Montgomery)
-                let output = composer.big_add(
-                    (BlsScalar::one(), one),
-                    (BlsScalar::one(), one),
-                    Some((-BlsScalar::one(), one)),
-                    BlsScalar::zero(),
-                    BlsScalar::zero(),
-                );
-                composer.constrain_to_constant(output, BlsScalar::one(), BlsScalar::zero());
-                println!("first circuit is {:?}", composer.circuit_size());
-                bar_gadget(composer, one);
-                println!("second circuit is {:?}", composer.circuit_size());
-                composer.check_circuit_satisfied();
+                let output = composer.decomposition_gadget(one, DECOMPOSITION_S_I, INVERSES_S_I);
+                (1..27).for_each(|k| {
+                    composer.constrain_to_constant(output[k], BlsScalar::zero(), BlsScalar::zero());
+                });
+                // Check x_27 = 1, bearing in mind that x_1 is not in Montgomery form
+                composer.constrain_to_constant(output[0], BlsScalar::one().reduce(), BlsScalar::zero());
             },
-            100,
+            800,
         );
         assert!(res.is_ok());
     }
 
-    #[test]
-    #[ignore]
-    fn test_bar() {
-        // let mut composer = StandardComposer::new();
-        let res = gadget_tester(
-            |composer| {
-                let one = composer.add_input(BlsScalar::one());
-                let output = bar_gadget(composer, one);
-                // println!("circuit is {:?}", composer.circuit_size());
-                // check that the output is what we expected (in Montgomery)
-                // composer.constrain_to_constant(
-                //     output,
-                //     BlsScalar([
-                //         2921300856332839541,
-                //         8943181998193365483,
-                //         12554333934768435622,
-                //         1625679107374292725,
-                //     ]),
-                //     None,
-                // );
-                // // let five = composer.add_input(BlsScalar::from(703));
-                // composer.range_gate(five, 10);
-                // composer.check_circuit_satisfied();
-                println!("circuit is {:?}", composer.circuit_size());
-                // let number = composer.add_input(BlsScalar::from(50));
-                // let number2 = composer.add_input(BlsScalar::from(700));
-                // composer.range_gate(number, 10);
-                // composer.range_gate(number2, 10);
-            },
-            100,
-        );
-        assert!(res.is_ok());
-    }
-
-    #[test]
-    #[ignore]
-    fn print_test() {
-        let composer = &mut StandardComposer::new();
-        let one = composer.add_input(BlsScalar::one());
-        let output = bar_gadget(composer, one);
-        println!("output is {:?}", output);
-    }
 }
 
 /// decomposition = [s_n, s_{n-1} ..., s_1]
