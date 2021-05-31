@@ -7,10 +7,12 @@
 //! Structs and functions for LookupTables
 //! Denoted as 't' in Plookup paper.
 
-use crate::plookup::table::hash_tables::constants::SBOX_U256;
+
 use crate::plookup::MultiSet;
 use crate::plookup::PlookupErrors;
 use crate::prelude::BlsScalar;
+use super::hash_tables::constants::{DECOMPOSITION_S_I, SBOX_U256, BLS_SCALAR_REAL};
+
 
 /// For the implemenation of look up tables in PLONK, aptly named PLOOKup tables,
 /// there will be different fucntions depending on the type of table that needs
@@ -465,7 +467,6 @@ impl PlookupTable4Arity {
             let third = BlsScalar::from_raw(SBOX_U256[k as usize].0);
             table.push([first, BlsScalar::zero(), third, BlsScalar::one()]);
         }
-
         // Build the remaining 27 sections that range from p' to s_i (except
         // when i=1)
         for k in (0..27).rev() {
