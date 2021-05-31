@@ -10,7 +10,7 @@ use crate::fft::Polynomial;
 /// This currently assumes that T_S = 4. It is possible that in future T_S > 4,
 /// in which case this file will have to be adjusted. T_S is the arity of the
 /// vectors.
-use crate::plookup::table::hash_tables::constants::{N, S, T_S, V};
+use crate::plookup::table::hash_tables::constants::{N, T_S, V};
 use crate::prelude::BlsScalar;
 
 /// A HashTable consists of three different segments, each of arity
@@ -20,11 +20,12 @@ use crate::prelude::BlsScalar;
 /// A vector x in (F_p)^t goes through r rounds of a round function R.
 /// The result is another vector y in (F_p)^t.
 #[derive(Debug)]
-pub struct HashTableOne {
-    pub first_rows: [[BlsScalar; 4]; V + 1],
-    pub middle_rows: [[BlsScalar; 4]; 787],
-    pub end_rows: [[BlsScalar; 4]; 16],
+pub struct LookupHashTable {
+    pub first_rows: HashTableOne,
+    pub middle_rows: HashTableTwo,
+    pub end_rows: HashTableThree,
 }
+
 
 //     // This function fills in the middle section of the hash table
 //     // where the entry is defined as being between V+1 and s_i
@@ -74,31 +75,7 @@ pub struct HashTableOne {
 //     }
 // }
 
-/// Hash Table containing all binary possibilities,
-/// for an arity 4 tabl. Intended to make constraints
-/// for Hashing function Reinforced Concrete.
-#[derive(Debug)]
-pub struct HashTableTwo(pub [[BlsScalar; 4]; 16]);
 
-/// This table contains the montgomery form of the BLS
-/// Scalars from the paper
-#[derive(Debug)]
-pub struct HashTableThree(pub [[BlsScalar; 4]; 24]);
-
-/// The binary end rows section of the a hash table requires
-/// a function which fills out the whole vector, of arity 4,
-/// dependant on the given initial entry.
-///
-/// Note: if `i` is greater than 4, this function will panic.
-pub fn incrementer(mut row: &mut [BlsScalar; 4], i: usize) {
-    assert!(i < 4);
-    if row[3 - i] == BlsScalar::zero() {
-        row[3 - i] = BlsScalar::one();
-    } else {
-        row[3 - i] = BlsScalar::zero();
-        incrementer(&mut row, i + 1);
-    }
-}
 
 // #[cfg(test)]
 // mod tests {

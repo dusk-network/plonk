@@ -4,13 +4,15 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-/// This file contains a hard-coded version of the 
-/// third constraint table required in the zelbet 
+use crate::plookup::PlookupTable4Arity;
+/// This file contains a hard-coded version of the
+/// third constraint table required in the zelbet
 /// hash function.
-
+///
+use crate::prelude::BlsScalar;
 /// Hash table containing fixed binary
 /// possibilities for Hash
-pub const HASH_TABLE_THREE: HashTableThree = HashTableThree([
+pub const HASH_TABLE_THREE: PlookupTable4Arity = PlookupTable4Arity(vec![
     [
         BlsScalar::zero(),
         BlsScalar::zero(),

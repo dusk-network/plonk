@@ -9,8 +9,6 @@
 
 mod constants;
 
-mod tables;
+mod bls_tables;
 
-pub use tables::{HashTableThree, HashTableTwo};
-
-pub use constants::{N, S, T_S, V};
+pub use constants::{N, T_S, V};

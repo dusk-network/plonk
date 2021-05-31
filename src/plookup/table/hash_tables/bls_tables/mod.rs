@@ -4,6 +4,6 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-/// This file contains a hard-coded version of the 
-/// first constraint table required in the zelbet 
-/// hash function.
+mod first_table;
+mod second_table;
+mod third_table;
