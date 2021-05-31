@@ -28,7 +28,6 @@ impl StandardComposer {
         s_i_inv: [BlsScalar; 27],
     ) -> [Variable; 27] {
         let mut nibbles = [x; 27];
-        let mut nibbles_montgomery = [x; 27];
         let reduced_input = self.variables[&x].reduce();
         let mut intermediate = u256(reduced_input.0);
         let mut remainder = u256::zero();
@@ -47,35 +46,9 @@ impl StandardComposer {
             }
 
             nibbles[k] = self.add_input(BlsScalar(remainder.0));
-            nibbles_montgomery[k] = self.add_input(BlsScalar::from_raw(remainder.0));
-
-            // Check that x_i >= 0 for each i
-            self.range_gate(nibbles_montgomery[k], 10);
         });
 
-        let one = self.add_input(BlsScalar::one());
-        let s_ik_var = self.add_input(BlsScalar::from_raw(s_i[26].0));
-        let mut difference = self.big_add(
-            (BlsScalar::one(), s_ik_var),
-            (-BlsScalar::one(), nibbles_montgomery[26]),
-            Some((-BlsScalar::one(), one)),
-            BlsScalar::zero(),
-            BlsScalar::zero(),
-        );
-
-        // Check that s_i-x_i-1 >= 0 for i=27, and subsequently for all i
-        self.range_gate(difference, 10);
-
         let s_ik_var = self.add_input(BlsScalar::from_raw(s_i[25].0));
-        difference = self.big_add(
-            (BlsScalar::one(), s_ik_var),
-            (-BlsScalar::one(), nibbles_montgomery[25]),
-            Some((-BlsScalar::one(), one)),
-            BlsScalar::zero(),
-            BlsScalar::zero(),
-        );
-        self.range_gate(difference, 10);
-
         // x' = x_1 * s_2 + x_2, this is the start of the composition
         let mut acc = self.big_mul(
             BlsScalar::one(),
@@ -88,14 +61,6 @@ impl StandardComposer {
 
         (1..26).for_each(|k| {
             let s_ik_var = self.add_input(BlsScalar::from_raw(s_i[25 - k].0));
-            let difference = self.big_add(
-                (BlsScalar::one(), s_ik_var),
-                (-BlsScalar::one(), nibbles_montgomery[25 - k]),
-                Some((-BlsScalar::one(), one)),
-                BlsScalar::zero(),
-                BlsScalar::zero(),
-            );
-            self.range_gate(difference, 12);
             acc = self.big_mul(
                 BlsScalar::one(),
                 acc,
@@ -112,20 +77,48 @@ impl StandardComposer {
     }
 
     /// S-box using hash tables
-    /// Assumes input BlsScalar value is in reduced form,
-    /// but outputs the result in Montgomery
-    pub fn s_box(&mut self, input: Variable) -> Variable {
+    /// Assumes input BlsScalar value is in reduced form, but outputs the result
+    /// in Montgomery form. Also outputs c_i, z_i, and a boolean counter used to determine c_i
+    pub fn s_box(
+        &mut self,
+        input: Variable,
+        counter: bool,
+    ) -> (Variable, Variable, bool, Variable) {
         let value = u256(self.variables[&input].0);
-        let permutation = match value < u256([659, 0, 0, 0]) {
-            true => BlsScalar(SBOX_U256[value.0[0] as usize].0),
-            false => BlsScalar(value.0),
-        };
+        let mut permutation = BlsScalar::zero();
+        let mut c_i = self.zero_var;
+        let mut counter_new = false;
+        let mut z_i = self.zero_var;
+        if value < u256([659, 0, 0, 0]) {
+            permutation = BlsScalar(SBOX_U256[value.0[0] as usize].0);
+            c_i = self.add_input(BlsScalar::one());
+            counter_new = true;
+        } else {
+            permutation = BlsScalar(value.0);
+            z_i = self.add_input(BlsScalar::one());
+            if value > u256([659, 0, 0, 0]) {
+                c_i = self.add_input(BlsScalar::from(2));
+                counter_new = true
+            } else {
+                if counter == true {
+                    c_i = self.add_input(BlsScalar::from(2));
+                    counter_new = true
+                } else {
+                    c_i = self.zero_var
+                }
+            }
+        }
 
         // let permutation_var =
         // self.add_input(BlsScalar::from_raw(permutation.0));
         // self.plookup_gate(input, input, permutation_var, None,
         // BlsScalar::zero())
-        self.add_input(BlsScalar::from_raw(permutation.0))
+        (
+            self.add_input(BlsScalar::from_raw(permutation.0)),
+            c_i,
+            counter_new,
+            z_i,
+        )
     }
 }
 
@@ -133,7 +126,6 @@ impl StandardComposer {
 mod tests {
     use super::super::helper::*;
     use super::*;
-    use crate::{constraint_system::StandardComposer, plookup::PlookupTable3Arity};
     use dusk_bls12_381::BlsScalar;
 
     #[test]
@@ -156,4 +148,35 @@ mod tests {
         );
         assert!(res.is_ok());
     }
+
+    // #[test]
+    // fn test_s_box() {
+    //     let res = gadget_tester(
+    //         |composer| {
+    //             let one = composer.add_input(BlsScalar::one().reduce());
+    //             let counter = false;
+    //             let output = composer.s_box(one, counter);
+
+    //             // composer.constrain_to_constant(
+    //             //     output.0,
+    //             //     BlsScalar::from_raw([187, 0, 0, 0]),
+    //             //     BlsScalar::zero(),
+    //             // );
+    //             (0..30).for_each(|k| {
+    //                 composer.constrain_to_constant(
+    //                 one,
+    //                 BlsScalar::one(),
+    //                 BlsScalar::zero(),
+    //             );
+    //         });
+    //             assert_eq!(composer.variables[&output.1], BlsScalar::one());
+    //             assert_eq!(output.2, true);
+    //             assert_eq!(composer.variables[&output.3], BlsScalar::zero());
+    //             println!("circuit size is {:?}", composer.circuit_size());
+    //             composer.check_circuit_satisfied();
+    //         },
+    //         5,
+    //     );
+    //     assert!(res.is_ok());
+    // }
 }

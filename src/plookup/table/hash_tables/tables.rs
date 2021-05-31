@@ -29,7 +29,6 @@ pub struct HashTable {
     pub end_rows: [[BlsScalar; 4]; 16],
 }
 
-
 //     // This function fills in the middle section of the hash table
 //     // where the entry is defined as being between V+1 and s_i
 //     // for a chosen i. The i here depends on the intialisation
@@ -77,8 +76,6 @@ pub struct HashTable {
 //         table
 //     }
 // }
-
-
 
 // #[cfg(test)]
 // mod tests {

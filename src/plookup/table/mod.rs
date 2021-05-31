@@ -4,8 +4,6 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-
-
 /// modules containing different table groups
 pub mod lookup_table;
 /// Module containing preprocessed table

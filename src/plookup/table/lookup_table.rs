@@ -7,12 +7,10 @@
 //! Structs and functions for LookupTables
 //! Denoted as 't' in Plookup paper.
 
-
+use super::hash_tables::constants::{BLS_SCALAR_REAL, DECOMPOSITION_S_I, SBOX_U256};
 use crate::plookup::MultiSet;
 use crate::plookup::PlookupErrors;
 use crate::prelude::BlsScalar;
-use super::hash_tables::constants::{DECOMPOSITION_S_I, SBOX_U256, BLS_SCALAR_REAL};
-
 
 /// For the implemenation of look up tables in PLONK, aptly named PLOOKup tables,
 /// there will be different fucntions depending on the type of table that needs
