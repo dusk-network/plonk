@@ -7,7 +7,9 @@
 //! In circuit hashing can be conducted using table lookups from the
 //! tables defined in this file
 
-mod constants;
+/// Module containing constants required in reinforced concrete
+pub mod constants;
+/// Preliminary file building reinforced concrete's tables
 pub mod tables;
 
-pub use constants::{N, S, T_S, V};
+pub use constants::{DECOMPOSITION_S_I, INVERSES_S_I, N, S, SBOX_U256, T_S, V};

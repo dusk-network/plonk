@@ -7,6 +7,7 @@
 //! Structs and functions for LookupTables
 //! Denoted as 't' in Plookup paper.
 
+use crate::plookup::table::hash_tables::constants::SBOX_U256;
 use crate::plookup::MultiSet;
 use crate::plookup::PlookupErrors;
 use crate::prelude::BlsScalar;
@@ -157,6 +158,20 @@ impl PlookupTable3Arity {
         }
 
         PlookupTable3Arity(table)
+    }
+
+    /// Function that generates the S-box used in reinforced concrete
+    pub fn s_box_table() -> Self {
+        let mut s_box = Vec::with_capacity(659);
+        (0..659).for_each(|k| {
+            s_box.push([
+                BlsScalar([k, 0, 0, 0]),
+                BlsScalar([k, 0, 0, 0]),
+                BlsScalar(SBOX_U256[k as usize].0),
+            ]);
+        });
+
+        PlookupTable3Arity(s_box)
     }
 
     /// Takes in a table, which is a list of vectors containing
