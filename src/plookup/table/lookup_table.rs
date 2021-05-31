@@ -382,6 +382,118 @@ impl PlookupTable4Arity {
 
         Ok(self.0[pos][2])
     }
+
+    /// Function that creates the table needed for reinforced concrete.
+    /// Creates one table that is the concatenation T_2 || T_3 || T_1
+    /// from the paper
+    pub fn create_hash_table() -> Self {
+        let mut table = Vec::new();
+        let two = BlsScalar::from(2);
+
+        // Build the T_2 part
+        (0..2).for_each(|i| {
+            (0..2).for_each(|j| {
+                (0..2).for_each(|k| {
+                    (0..2).for_each(|m| {
+                        table.push([
+                            BlsScalar::from(i),
+                            BlsScalar::from(j),
+                            BlsScalar::from(k),
+                            BlsScalar::from(m),
+                        ])
+                    })
+                })
+            })
+        });
+
+        // Build the T_3 part
+        (0..2).for_each(|i| {
+            table.push([
+                BlsScalar::zero(),
+                BlsScalar::zero(),
+                BlsScalar::zero(),
+                BlsScalar::from(i),
+            ])
+        });
+        (0..2).for_each(|i| {
+            (1..3).for_each(|j| {
+                table.push([
+                    BlsScalar::zero(),
+                    BlsScalar::from(i),
+                    BlsScalar::one(),
+                    BlsScalar::from(j),
+                ])
+            })
+        });
+        (1..3).for_each(|i| {
+            table.push([BlsScalar::zero(), BlsScalar::one(), two, BlsScalar::from(i)])
+        });
+        (1..3).for_each(|i| {
+            (1..3).for_each(|j| {
+                (1..3).for_each(|k| {
+                    (1..3).for_each(|m| {
+                        table.push([
+                            BlsScalar::from(i),
+                            BlsScalar::from(j),
+                            BlsScalar::from(k),
+                            BlsScalar::from(m),
+                        ])
+                    })
+                })
+            })
+        });
+
+        // Construct the T_1 part
+        // Build the permutation part of the table (the top section)
+        for k in 0..659 {
+            let first = BlsScalar::from(k);
+            let third = BlsScalar::from_raw(SBOX_U256[k as usize].0);
+            table.push([first, BlsScalar::zero(), third, BlsScalar::one()]);
+        }
+
+        // Build the remaining 27 sections that range from p' to s_i (except
+        // when i=1)
+        for k in (0..27).rev() {
+            // The rev denotes that it is inverted, so s_rev_26 will actually be s_1
+            // (i.e. i = 27-k)
+            let s_rev_k = DECOMPOSITION_S_I[k].0[0];
+            let v_rev_k = BLS_SCALAR_REAL[k].as_u64();
+            // If i=1, then we go to v_1 and not s_1
+            if k == 26 {
+                // v_1 = 678
+                for j in 659..(v_rev_k + 1) {
+                    // Fourth column is 1, unless j=v_i, in which case it is 0
+                    if j == v_rev_k {
+                        let first = BlsScalar::from(j);
+                        table.push([first, BlsScalar::one(), first, BlsScalar::zero()]);
+                    } else {
+                        let first = BlsScalar::from(j);
+                        table.push([first, BlsScalar::one(), first, BlsScalar::one()]);
+                    }
+                }
+            } else {
+                // When j is between p' and v_i the fourth column is always 1
+                let second = BlsScalar::from((27 - k) as u64);
+                for j in 659..v_rev_k {
+                    let first = BlsScalar::from(j);
+                    table.push([first, second, first, BlsScalar::one()]);
+                }
+
+                // When we get to j=v_i the fourth column can be either 0 or 2
+                let first = BlsScalar::from(v_rev_k);
+                table.push([first, second, first, BlsScalar::zero()]);
+                table.push([first, second, first, two]);
+
+                // For j between v_i and s_i the fourth column is always 2
+                for j in (v_rev_k + 1)..s_rev_k {
+                    let first = BlsScalar::from(j);
+                    table.push([first, second, first, two]);
+                }
+            }
+        }
+
+        PlookupTable4Arity(table)
+    }
 }
 
 #[cfg(test)]

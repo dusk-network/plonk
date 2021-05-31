@@ -10,105 +10,22 @@ use crate::plookup::PlookupTable4Arity;
 /// hash function.
 use crate::prelude::BlsScalar;
 
-/// Struct for the meantime 
-#[derive(Clone, Eq, PartialEq, Debug)]
-pub struct PlookupTable5Arity = [[BlsScalar; 4]; 16];
+pub fn table_2() -> PlookupTable4Arity {
+    let mut table_2 = Vec::new();
+    (0..2).for_each(|i| {
+        (0..2).for_each(|j| {
+            (0..2).for_each(|k| {
+                (0..2).for_each(|m| {
+                    table_2.push([
+                        BlsScalar::from(i),
+                        BlsScalar::from(j),
+                        BlsScalar::from(k),
+                        BlsScalar::from(m),
+                    ])
+                })
+            })
+        })
+    });
 
-/// Hash table containing fixed binary
-/// possibilities for Hash
-pub const HASH_TABLE_TWO: PlookupTable5Arity = PlookupTable5Arity([
-    BlsScalar::zero(),
-    BlsScalar::zero(),
-    BlsScalar::zero(),
-    BlsScalar::zero(),
-],
-[
-    BlsScalar::zero(),
-    BlsScalar::zero(),
-    BlsScalar::zero(),
-    BlsScalar::one(),
-],
-[
-    BlsScalar::zero(),
-    BlsScalar::zero(),
-    BlsScalar::one(),
-    BlsScalar::zero(),
-],
-[
-    BlsScalar::zero(),
-    BlsScalar::zero(),
-    BlsScalar::one(),
-    BlsScalar::one(),
-],
-[
-    BlsScalar::zero(),
-    BlsScalar::one(),
-    BlsScalar::zero(),
-    BlsScalar::zero(),
-],
-[
-    BlsScalar::zero(),
-    BlsScalar::one(),
-    BlsScalar::zero(),
-    BlsScalar::one(),
-],
-[
-    BlsScalar::zero(),
-    BlsScalar::one(),
-    BlsScalar::one(),
-    BlsScalar::zero(),
-],
-[
-    BlsScalar::zero(),
-    BlsScalar::one(),
-    BlsScalar::one(),
-    BlsScalar::one(),
-],
-[
-    BlsScalar::one(),
-    BlsScalar::zero(),
-    BlsScalar::zero(),
-    BlsScalar::zero(),
-],
-[
-    BlsScalar::one(),
-    BlsScalar::zero(),
-    BlsScalar::zero(),
-    BlsScalar::one(),
-],
-[
-    BlsScalar::one(),
-    BlsScalar::zero(),
-    BlsScalar::one(),
-    BlsScalar::zero(),
-],
-[
-    BlsScalar::one(),
-    BlsScalar::zero(),
-    BlsScalar::one(),
-    BlsScalar::one(),
-],
-[
-    BlsScalar::one(),
-    BlsScalar::one(),
-    BlsScalar::zero(),
-    BlsScalar::zero(),
-],
-[
-    BlsScalar::one(),
-    BlsScalar::one(),
-    BlsScalar::zero(),
-    BlsScalar::one(),
-],
-[
-    BlsScalar::one(),
-    BlsScalar::one(),
-    BlsScalar::one(),
-    BlsScalar::zero(),
-],
-[
-    BlsScalar::one(),
-    BlsScalar::one(),
-    BlsScalar::one(),
-    BlsScalar::one(),
-]);
+    PlookupTable4Arity(table_2)
+}
