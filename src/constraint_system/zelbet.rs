@@ -45,7 +45,7 @@ impl StandardComposer {
 
             nibbles[k] = self.add_input(BlsScalar(remainder.0));
             nibbles_montgomery[k] = self.add_input(BlsScalar::from_raw(remainder.0));
-            
+
             // Check that x_i >= 0 for each i
             self.range_gate(nibbles_montgomery[k], 10);
         });
@@ -126,8 +126,6 @@ impl StandardComposer {
     }
 }
 
-
-
 #[cfg(test)]
 mod tests {
     use super::super::helper::*;
@@ -145,13 +143,16 @@ mod tests {
                     composer.constrain_to_constant(output[k], BlsScalar::zero(), BlsScalar::zero());
                 });
                 // Check x_27 = 1, bearing in mind that x_1 is not in Montgomery form
-                composer.constrain_to_constant(output[0], BlsScalar::one().reduce(), BlsScalar::zero());
+                composer.constrain_to_constant(
+                    output[0],
+                    BlsScalar::one().reduce(),
+                    BlsScalar::zero(),
+                );
             },
             800,
         );
         assert!(res.is_ok());
     }
-
 }
 
 /// decomposition = [s_n, s_{n-1} ..., s_1]

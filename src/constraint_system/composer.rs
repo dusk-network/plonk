@@ -499,41 +499,15 @@ impl StandardComposer {
             - w_r -> {:?}\n
             - w_o -> {:?}\n
             - w_4 -> {:?}\n",
-                i,
-                qm,
-                ql,
-                qr,
-                q4,
-                qo,
-                qc,
-                qarith,
-                qrange,
-                qlogic,
-                qfixed,
-                qvar,
-                a,
-                b,
-                c,
-                d
+                i, qm, ql, qr, q4, qo, qc, qarith, qrange, qlogic, qfixed, qvar, a, b, c, d
             );
-            let k = qarith
-                * ((qm * a * b)
-                    + (ql * a)
-                    + (qr * b)
-                    + (qo * c)
-                    + (q4 * d)
-                    + pi
-                    + qc)
+            let k = qarith * ((qm * a * b) + (ql * a) + (qr * b) + (qo * c) + (q4 * d) + pi + qc)
                 + qlogic
-                    * (((delta(a_next - four * a) - delta(b_next - four * b))
-                        * c)
+                    * (((delta(a_next - four * a) - delta(b_next - four * b)) * c)
                         + delta(a_next - four * a)
                         + delta(b_next - four * b)
                         + delta(d_next - four * d)
-                        + match (
-                            qlogic == BlsScalar::one(),
-                            qlogic == -BlsScalar::one(),
-                        ) {
+                        + match (qlogic == BlsScalar::one(), qlogic == -BlsScalar::one()) {
                             (true, false) => (a & b) - d,
                             (false, true) => (a ^ b) - d,
                             (false, false) => BlsScalar::zero(),
