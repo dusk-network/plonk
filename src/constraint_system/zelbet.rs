@@ -6,14 +6,16 @@
 
 #![allow(clippy::too_many_arguments)]
 
+
 use crate::constraint_system::StandardComposer;
 use crate::constraint_system::Variable;
 use crate::plookup::{
     table::hash_tables::{DECOMPOSITION_S_I, INVERSES_S_I, SBOX_U256},
-    PlookupTable3Arity,
+    PlookupTable4Arity,
 };
 use bigint::U256 as u256;
 use dusk_bls12_381::BlsScalar;
+
 
 impl StandardComposer {
     /// Gadget that conducts the bar decomposition
@@ -84,19 +86,20 @@ impl StandardComposer {
         input: Variable,
         counter: bool,
     ) -> (Variable, Variable, bool, Variable) {
-        let value = u256(self.variables[&input].0);
-        let mut permutation = BlsScalar::zero();
+        let value = self.variables[&input];
+        let mut y_i = BlsScalar::zero();
+        let limit = value.reduce();
         let mut c_i = self.zero_var;
         let mut counter_new = false;
         let mut z_i = self.zero_var;
-        if value < u256([659, 0, 0, 0]) {
-            permutation = BlsScalar(SBOX_U256[value.0[0] as usize].0);
+        if limit.0[0] < 659 {
+            y_i = BlsScalar(SBOX_U256[limit.0[0] as usize].0);
             c_i = self.add_input(BlsScalar::one());
             counter_new = true;
         } else {
-            permutation = BlsScalar(value.0);
+            y_i = limit;
             z_i = self.add_input(BlsScalar::one());
-            if value > u256([659, 0, 0, 0]) {
+            if limit.0[0] > 659 {
                 c_i = self.add_input(BlsScalar::from(2));
                 counter_new = true
             } else {
@@ -109,16 +112,17 @@ impl StandardComposer {
             }
         }
 
-        // let permutation_var =
-        // self.add_input(BlsScalar::from_raw(permutation.0));
-        // self.plookup_gate(input, input, permutation_var, None,
+        // let y_i_var =
+        // self.add_input(BlsScalar::from_raw(y_i.0));
+        // self.plookup_gate(input, input, y_i_var, None,
         // BlsScalar::zero())
         (
-            self.add_input(BlsScalar::from_raw(permutation.0)),
+            self.add_input(BlsScalar::from_raw(y_i.0)),
             c_i,
             counter_new,
             z_i,
         )
+
     }
 }
 
@@ -127,6 +131,63 @@ mod tests {
     use super::super::helper::*;
     use super::*;
     use dusk_bls12_381::BlsScalar;
+
+
+    #[test]
+    fn test_s_box() {
+        let res = gadget_tester(
+            |composer| {
+                let one = composer.add_input(BlsScalar::from(700));
+                let counter = true;
+                let output = composer.s_box(one, counter);
+                composer.constrain_to_constant(
+                    output.0,
+                    BlsScalar::from_raw([700, 0, 0, 0]),
+                    BlsScalar::zero(),
+                );
+                composer.constrain_to_constant(
+                    output.0,
+                    BlsScalar::from_raw([700, 0, 0, 0]),
+                    BlsScalar::zero(),
+                );
+                composer.constrain_to_constant(
+                    output.0,
+                    BlsScalar::from_raw([700, 0, 0, 0]),
+                    BlsScalar::zero(),
+                );
+            },
+            100,
+        );
+        assert!(res.is_ok());
+    }
+
+    #[test]
+    fn test_s_box_fails() {
+        let res = gadget_tester(
+            |composer| {
+                let one = composer.add_input(BlsScalar::from(100));
+                let counter = true;
+                let output = composer.s_box(one, counter);
+                composer.constrain_to_constant(
+                    output.0,
+                    BlsScalar::from_raw([200, 0, 0, 0]),
+                    BlsScalar::zero(),
+                );
+                composer.constrain_to_constant(
+                    output.0,
+                    BlsScalar::from_raw([200, 0, 0, 0]),
+                    BlsScalar::zero(),
+                );
+                composer.constrain_to_constant(
+                    output.0,
+                    BlsScalar::from_raw([200, 0, 0, 0]),
+                    BlsScalar::zero(),
+                );
+            },
+            100,
+        );
+        assert!(res.is_err());
+    }
 
     #[test]
     fn test_decomposition() {
@@ -149,34 +210,27 @@ mod tests {
         assert!(res.is_ok());
     }
 
-    // #[test]
-    // fn test_s_box() {
-    //     let res = gadget_tester(
-    //         |composer| {
-    //             let one = composer.add_input(BlsScalar::one().reduce());
-    //             let counter = false;
-    //             let output = composer.s_box(one, counter);
-
-    //             // composer.constrain_to_constant(
-    //             //     output.0,
-    //             //     BlsScalar::from_raw([187, 0, 0, 0]),
-    //             //     BlsScalar::zero(),
-    //             // );
-    //             (0..30).for_each(|k| {
-    //                 composer.constrain_to_constant(
-    //                 one,
-    //                 BlsScalar::one(),
-    //                 BlsScalar::zero(),
-    //             );
-    //         });
-    //             assert_eq!(composer.variables[&output.1], BlsScalar::one());
-    //             assert_eq!(output.2, true);
-    //             assert_eq!(composer.variables[&output.3], BlsScalar::zero());
-    //             println!("circuit size is {:?}", composer.circuit_size());
-    //             composer.check_circuit_satisfied();
-    //         },
-    //         5,
-    //     );
-    //     assert!(res.is_ok());
-    // }
+    #[test]
+    fn first_test() {
+        let res = gadget_tester(
+            |composer| {
+                let one = composer.add_input(BlsScalar::one());
+                composer.range_gate(one, 32);
+                composer.range_gate(one, 32);
+                composer.range_gate(one, 32);
+                composer.range_gate(one, 32);
+                composer.range_gate(one, 32);
+                let var = composer.variables[&one];
+                composer.constrain_to_constant(
+                    one,
+                    var,
+                    BlsScalar::zero(),
+                );
+            },
+            800,
+        );
+        assert!(res.is_ok());
+    }
 }
+
+

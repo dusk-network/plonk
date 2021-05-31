@@ -719,7 +719,7 @@ pub const BLS_SCALAR_REAL: [u256; 27] = [
     u256([678, 0, 0, 0]),
 ];
 
-/// Decomposition = [s_n, s_{n-1} ..., s_1]
+/// decomposition = [s_n, s_{n-1} ..., s_1]
 pub const DECOMPOSITION_S_I: [BlsScalar; 27] = [
     BlsScalar([693, 0, 0, 0]),
     BlsScalar([696, 0, 0, 0]),
