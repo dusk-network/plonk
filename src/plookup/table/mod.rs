@@ -4,7 +4,10 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-/// Modules containing different table groups
+
+/// module containing reinforced concrete's hash tables
+pub mod hash_tables;
+/// modules containing different table groups
 pub mod lookup_table;
 /// Module containing preprocessed table
 pub mod preprocess;

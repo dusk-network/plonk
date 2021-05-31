@@ -20,10 +20,13 @@ use crate::prelude::BlsScalar;
 /// A vector x in (F_p)^t goes through r rounds of a round function R.
 /// The result is another vector y in (F_p)^t.
 #[derive(Debug)]
-pub struct LookupHashTable {
-    pub first_rows: HashTableOne,
-    pub middle_rows: HashTableTwo,
-    pub end_rows: HashTableThree,
+pub struct HashTable {
+    /// First rows
+    pub first_rows: [[BlsScalar; 4]; V + 1],
+    /// Middle rows
+    pub middle_rows: [[BlsScalar; 4]; 787],
+    /// End rows
+    pub end_rows: [[BlsScalar; 4]; 16],
 }
 
 

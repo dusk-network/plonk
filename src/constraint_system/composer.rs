@@ -69,8 +69,8 @@ pub struct StandardComposer {
     pub(crate) w_o: Vec<Variable>,
     pub(crate) w_4: Vec<Variable>,
 
-    // Public lookup table
-    pub(crate) lookup_table: PlookupTable4Arity,
+    /// Public lookup table
+    pub lookup_table: PlookupTable4Arity,
 
     /// A zero variable that is a part of the circuit description.
     /// We reserve a variable to be zero in the system
@@ -415,6 +415,112 @@ impl StandardComposer {
         );
 
         self.n += 1;
+    }
+
+    /// Utility function that allows to check on the "front-end"
+    /// side of the PLONK implementation if the identity polynomial
+    /// is satisfied for each one of the [`StandardComposer`]'s gates.
+    ///
+    /// The recommended usage is to derive the std output and the std error to a
+    /// text file and analyze there the gates.
+    ///
+    /// # Panic
+    /// The function by itself will print each circuit gate info until one of
+    /// the gates does not satisfy the equation or there are no more gates. If
+    /// the cause is an unsatisfied gate equation, the function will panic.
+    pub fn check_circuit_satisfied(&self) {
+        let w_l: Vec<&BlsScalar> = self
+            .w_l
+            .iter()
+            .map(|w_l_i| self.variables.get(&w_l_i).unwrap())
+            .collect();
+        let w_r: Vec<&BlsScalar> = self
+            .w_r
+            .iter()
+            .map(|w_r_i| self.variables.get(&w_r_i).unwrap())
+            .collect();
+        let w_o: Vec<&BlsScalar> = self
+            .w_o
+            .iter()
+            .map(|w_o_i| self.variables.get(&w_o_i).unwrap())
+            .collect();
+        let w_4: Vec<&BlsScalar> = self
+            .w_4
+            .iter()
+            .map(|w_4_i| self.variables.get(&w_4_i).unwrap())
+            .collect();
+        // Computes f(f-1)(f-2)(f-3)
+        let delta = |f: BlsScalar| -> BlsScalar {
+            let f_1 = f - BlsScalar::one();
+            let f_2 = f - BlsScalar::from(2);
+            let f_3 = f - BlsScalar::from(3);
+            f * f_1 * f_2 * f_3
+        };
+        let pi_vec = self.public_inputs.clone();
+        let four = BlsScalar::from(4);
+        for i in 0..self.n {
+            let qm = self.q_m[i];
+            let ql = self.q_l[i];
+            let qr = self.q_r[i];
+            let qo = self.q_o[i];
+            let qc = self.q_c[i];
+            let q4 = self.q_4[i];
+            let qarith = self.q_arith[i];
+            let qrange = self.q_range[i];
+            let qlogic = self.q_logic[i];
+            let qfixed = self.q_fixed_group_add[i];
+            let qvar = self.q_variable_group_add[i];
+            let pi = pi_vec[i];
+
+            let a = w_l[i];
+            let a_next = w_l[(i + 1) % self.n];
+            let b = w_r[i];
+            let b_next = w_r[(i + 1) % self.n];
+            let c = w_o[i];
+            let d = w_4[i];
+            let d_next = w_4[(i + 1) % self.n];
+            println!(
+                "--------------------------------------------\n
+            #Gate Index = {}
+            #Selector Polynomials:\n
+            - qm -> {:?}\n
+            - ql -> {:?}\n
+            - qr -> {:?}\n
+            - q4 -> {:?}\n
+            - qo -> {:?}\n
+            - qc -> {:?}\n
+            - q_arith -> {:?}\n
+            - q_range -> {:?}\n
+            - q_logic -> {:?}\n
+            - q_fixed_group_add -> {:?}\n
+            - q_variable_group_add -> {:?}\n
+            # Witness polynomials:\n
+            - w_l -> {:?}\n
+            - w_r -> {:?}\n
+            - w_o -> {:?}\n
+            - w_4 -> {:?}\n",
+                i, qm, ql, qr, q4, qo, qc, qarith, qrange, qlogic, qfixed, qvar, a, b, c, d
+            );
+            let k = qarith * ((qm * a * b) + (ql * a) + (qr * b) + (qo * c) + (q4 * d) + pi + qc)
+                + qlogic
+                    * (((delta(a_next - four * a) - delta(b_next - four * b)) * c)
+                        + delta(a_next - four * a)
+                        + delta(b_next - four * b)
+                        + delta(d_next - four * d)
+                        + match (qlogic == BlsScalar::one(), qlogic == -BlsScalar::one()) {
+                            (true, false) => (a & b) - d,
+                            (false, true) => (a ^ b) - d,
+                            (false, false) => BlsScalar::zero(),
+                            _ => unreachable!(),
+                        })
+                + qrange
+                    * (delta(c - four * d)
+                        + delta(b - four * c)
+                        + delta(a - four * b)
+                        + delta(d_next - four * a));
+
+            assert_eq!(k, BlsScalar::zero(), "Check failed at gate {}", i,);
+        }
     }
 
     /// Adds a plookup gate to the circuit with its corresponding
