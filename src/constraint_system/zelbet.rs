@@ -6,7 +6,6 @@
 
 #![allow(clippy::too_many_arguments)]
 
-
 use crate::constraint_system::StandardComposer;
 use crate::constraint_system::Variable;
 use crate::plookup::{
@@ -16,12 +15,10 @@ use crate::plookup::{
 use bigint::U256 as u256;
 use dusk_bls12_381::BlsScalar;
 
-
 impl StandardComposer {
-    /// Gadget that conducts the bar decomposition
-    /// and returns the 27-entry breakdown, whilst
-    /// adding all the relevant gates. The 27 Scalars
-    /// are kept in raw form, not Montgomery.
+    /// Gadget that conducts the bar decomposition, returning the 27-entry
+    /// breakdown and adding relevant gates. The input and output variables
+    /// are all in Montgomery form, but non-Montgomery form is used within.
     /// [x_27, ..., x_2, x_1]
     pub fn decomposition_gadget(
         &mut self,
@@ -30,6 +27,7 @@ impl StandardComposer {
         s_i_inv: [BlsScalar; 27],
     ) -> [Variable; 27] {
         let mut nibbles = [x; 27];
+        // Reduced form needed for the modular operations
         let reduced_input = self.variables[&x].reduce();
         let mut intermediate = u256(reduced_input.0);
         let mut remainder = u256::zero();
@@ -47,7 +45,7 @@ impl StandardComposer {
                 false => remainder = intermediate,
             }
 
-            nibbles[k] = self.add_input(BlsScalar(remainder.0));
+            nibbles[k] = self.add_input(BlsScalar::from_raw(remainder.0));
         });
 
         let s_ik_var = self.add_input(BlsScalar::from_raw(s_i[25].0));
@@ -73,56 +71,56 @@ impl StandardComposer {
             );
         });
 
-        self.constrain_to_constant(acc, reduced_input, BlsScalar::zero());
+        self.constrain_to_constant(acc, self.variables[&x], BlsScalar::zero());
 
         nibbles
     }
 
-    /// S-box using hash tables
-    /// Assumes input BlsScalar value is in reduced form, but outputs the result
-    /// in Montgomery form. Also outputs c_i, z_i, and a boolean counter used to determine c_i
-    pub fn s_box(
+    /// S-box using hash tables, and outputs constraints c_i, z_i and a boolean
+    /// counter to help determine the c_i
+    pub fn s_box_and_constraints(
         &mut self,
         input: Variable,
-        counter: bool,
+        counter: u64,
+        conditional: bool
     ) -> (Variable, Variable, bool, Variable) {
-        let value = self.variables[&input];
-        let mut y_i = BlsScalar::zero();
-        let limit = value.reduce();
+        // Need to convert input scalar value to non-Montgomery
+        // to allow size comparison
+        let value = self.variables[&input].reduce();
+        let mut y_i = input;
         let mut c_i = self.zero_var;
-        let mut counter_new = false;
+        let mut conditional_new = conditional;
         let mut z_i = self.zero_var;
-        if limit.0[0] < 659 {
-            y_i = BlsScalar(SBOX_U256[limit.0[0] as usize].0);
+        if value.0[0] < 659 {
+            y_i = self.add_input(BlsScalar::from_raw(SBOX_U256[value.0[0] as usize].0));
             c_i = self.add_input(BlsScalar::one());
-            counter_new = true;
+            conditional_new = true;
         } else {
-            y_i = limit;
+            y_i = input;
             z_i = self.add_input(BlsScalar::one());
-            if limit.0[0] > 659 {
+            if value.0[0] > 659 {
                 c_i = self.add_input(BlsScalar::from(2));
-                counter_new = true
+                conditional_new = true
             } else {
-                if counter == true {
+                if conditional == true {
                     c_i = self.add_input(BlsScalar::from(2));
-                    counter_new = true
+                    conditional_new = true
                 } else {
                     c_i = self.zero_var
                 }
             }
         }
 
-        // let y_i_var =
-        // self.add_input(BlsScalar::from_raw(y_i.0));
-        // self.plookup_gate(input, input, y_i_var, None,
-        // BlsScalar::zero())
+        let scaled_z_i = self.add_input(BlsScalar::from(counter) * self.variables[&z_i]);
+        // self.plookup_gate(input, scaled_z_i, y_i, Some(c_i),
+        // BlsScalar::zero());
+
         (
-            self.add_input(BlsScalar::from_raw(y_i.0)),
+            y_i,
             c_i,
-            counter_new,
+            conditional_new,
             z_i,
         )
-
     }
 }
 
@@ -132,29 +130,51 @@ mod tests {
     use super::*;
     use dusk_bls12_381::BlsScalar;
 
-
     #[test]
-    fn test_s_box() {
+    fn test_s_box_and_constraints() {
         let res = gadget_tester(
             |composer| {
-                let one = composer.add_input(BlsScalar::from(700));
-                let counter = true;
-                let output = composer.s_box(one, counter);
+                let seven_hundred = composer.add_input(BlsScalar::from(700));
+                let one = composer.add_input(BlsScalar::one());
+                let prime = composer.add_input(BlsScalar::from(659));
+                let counter: u64 = 1;
+                let conditional = true;
+                let output_700 = composer.s_box_and_constraints(seven_hundred, counter, conditional);
+                let output_one = composer.s_box_and_constraints(one, counter, conditional);
+                let output_prime = composer.s_box_and_constraints(prime, counter, conditional);
+                let output_prime_false = composer.s_box_and_constraints(prime, counter, false);
+
+                // Check that the s-box works as expected
                 composer.constrain_to_constant(
-                    output.0,
+                    output_700.0,
                     BlsScalar::from_raw([700, 0, 0, 0]),
                     BlsScalar::zero(),
                 );
                 composer.constrain_to_constant(
-                    output.0,
-                    BlsScalar::from_raw([700, 0, 0, 0]),
+                    output_one.0,
+                    BlsScalar::from_raw([187, 0, 0, 0]),
                     BlsScalar::zero(),
                 );
                 composer.constrain_to_constant(
-                    output.0,
-                    BlsScalar::from_raw([700, 0, 0, 0]),
+                    output_prime.0,
+                    BlsScalar::from_raw([659, 0, 0, 0]),
                     BlsScalar::zero(),
                 );
+                // Check that the c_i are output as expected
+                assert_eq!(composer.variables[&output_700.1], BlsScalar::from(2));
+                assert_eq!(composer.variables[&output_one.1], BlsScalar::from(1));
+                assert_eq!(composer.variables[&output_prime.1], BlsScalar::from(2));
+
+                // Check that the counter is output correctly
+                assert!(output_700.2);
+                assert!(output_one.2);
+                assert!(output_prime.2);
+                assert!(!output_prime_false.2);
+
+                // Check that z_i is output correctly
+                assert_eq!(composer.variables[&output_700.3], BlsScalar::from(1));
+                assert_eq!(composer.variables[&output_one.3], BlsScalar::from(0));
+                assert_eq!(composer.variables[&output_prime.3], BlsScalar::from(1));
             },
             100,
         );
@@ -162,12 +182,13 @@ mod tests {
     }
 
     #[test]
-    fn test_s_box_fails() {
+    fn test_s_box_and_constraints_fails() {
         let res = gadget_tester(
             |composer| {
                 let one = composer.add_input(BlsScalar::from(100));
-                let counter = true;
-                let output = composer.s_box(one, counter);
+                let counter: u64 = 1;
+                let conditional = true;
+                let output = composer.s_box_and_constraints(one, counter, conditional);
                 composer.constrain_to_constant(
                     output.0,
                     BlsScalar::from_raw([200, 0, 0, 0]),
@@ -199,11 +220,7 @@ mod tests {
                     composer.constrain_to_constant(output[k], BlsScalar::zero(), BlsScalar::zero());
                 });
                 // Check x_27 = 1, bearing in mind that x_1 is not in Montgomery form
-                composer.constrain_to_constant(
-                    output[0],
-                    BlsScalar::one().reduce(),
-                    BlsScalar::zero(),
-                );
+                composer.constrain_to_constant(output[0], BlsScalar::one(), BlsScalar::zero());
             },
             800,
         );
@@ -221,16 +238,10 @@ mod tests {
                 composer.range_gate(one, 32);
                 composer.range_gate(one, 32);
                 let var = composer.variables[&one];
-                composer.constrain_to_constant(
-                    one,
-                    var,
-                    BlsScalar::zero(),
-                );
+                composer.constrain_to_constant(one, var, BlsScalar::zero());
             },
             800,
         );
         assert!(res.is_ok());
     }
 }
-
-
