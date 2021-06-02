@@ -111,9 +111,9 @@ impl StandardComposer {
             }
         }
 
-        let scaled_z_i = self.add_input(BlsScalar::from(counter) * self.variables[&z_i]);
-        // self.plookup_gate(input, scaled_z_i, y_i, Some(c_i),
-        // BlsScalar::zero());
+        
+        // let scaled_z_i = self.add_input(BlsScalar::from(counter) * self.variables[&z_i]);
+        // self.plookup_gate(input, scaled_z_i, y_i, Some(c_i), BlsScalar::zero());
 
         (
             y_i,
@@ -175,8 +175,9 @@ mod tests {
                 assert_eq!(composer.variables[&output_700.3], BlsScalar::from(1));
                 assert_eq!(composer.variables[&output_one.3], BlsScalar::from(0));
                 assert_eq!(composer.variables[&output_prime.3], BlsScalar::from(1));
+                composer.check_circuit_satisfied();
             },
-            100,
+            200,
         );
         assert!(res.is_ok());
     }
@@ -241,6 +242,24 @@ mod tests {
                 composer.constrain_to_constant(one, var, BlsScalar::zero());
             },
             800,
+        );
+        assert!(res.is_ok());
+    }
+
+    #[test]
+    fn test_bos() {
+        let res = gadget_tester(
+            |composer| {
+                let one = composer.add_input(BlsScalar::from(100));
+                let output_1 = composer.decomposition_gadget(one, DECOMPOSITION_S_I, INVERSES_S_I);
+                println!("{:?}", composer.circuit_size());
+                let counter: u64 = 1;
+                let conditional = true;
+                let output = composer.s_box_and_constraints(one, counter, conditional);
+                println!("{:?}", composer.circuit_size());
+
+            },
+            200,
         );
         assert!(res.is_ok());
     }

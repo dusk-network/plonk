@@ -198,7 +198,7 @@ impl Prover {
             .collect::<Vec<BlsScalar>>();
 
         // Compress all wires into a single vector
-        // Long version is checked against wire polys later and needs euql them in length (n)
+        // Long version is checked against wire polys later and needs equal them in length (n)
         let compressed_f_long = MultiSet::compress_four_arity(
             [
                 &MultiSet::from(&f_1_scalar[..]),

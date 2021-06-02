@@ -11,6 +11,7 @@ use super::hash_tables::constants::{BLS_SCALAR_REAL, DECOMPOSITION_S_I, SBOX_U25
 use crate::plookup::MultiSet;
 use crate::plookup::PlookupErrors;
 use crate::prelude::BlsScalar;
+use crate::constraint_system::StandardComposer;
 
 /// For the implemenation of look up tables in PLONK, aptly named PLOOKup tables,
 /// there will be different fucntions depending on the type of table that needs
@@ -238,6 +239,18 @@ impl PlookupTable4Arity {
             BlsScalar::from(b),
             BlsScalar::from(c),
             BlsScalar::zero(),
+        ]);
+    }
+
+    /// Insert a new row for an addition operation.
+    /// This function needs to know the upper bound of the amount of addition
+    /// operations that will be done in the plookup table.
+    pub fn insert_special_row(&mut self, a: BlsScalar, b: BlsScalar, c: BlsScalar, d: BlsScalar) {
+        self.0.push([
+            a,
+            b,
+            c,
+            d,
         ]);
     }
 

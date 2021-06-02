@@ -530,7 +530,7 @@ impl StandardComposer {
     /// the largest amount of performance and the minimum circuit-size
     /// possible. Since it allows the end-user to set every selector coefficient
     /// as scaling value on the gate eq.
-    pub fn plookup_gate(
+    pub fn  plookup_gate(
         &mut self,
         a: Variable,
         b: Variable,
@@ -544,10 +544,10 @@ impl StandardComposer {
             None => self.zero_var,
         };
 
-        self.w_l.push(self.zero_var);
-        self.w_r.push(self.zero_var);
-        self.w_o.push(self.zero_var);
-        self.w_4.push(self.zero_var);
+        self.w_l.push(a);
+        self.w_r.push(b);
+        self.w_o.push(c);
+        self.w_4.push(d);
 
         // Add selector vectors
         self.q_l.push(BlsScalar::zero());
@@ -610,22 +610,65 @@ mod tests {
     }
 
     #[test]
-    fn test_conditional_select() {
+    fn test_luke() {
         let res = gadget_tester(
             |composer| {
-                let bit_1 = composer.add_input(BlsScalar::one());
-                let bit_0 = composer.add_input(BlsScalar::zero());
-
-                let choice_a = composer.add_input(BlsScalar::from(10u64));
-                let choice_b = composer.add_input(BlsScalar::from(20u64));
-
-                let choice = composer.conditional_select(bit_1, choice_a, choice_b);
-                composer.assert_equal(choice, choice_a);
-
-                let choice = composer.conditional_select(bit_0, choice_a, choice_b);
-                composer.assert_equal(choice, choice_b);
+                let table = PlookupTable4Arity::create_hash_table();
+                composer.lookup_table = table;
+                let one = composer.add_witness_to_circuit_description(BlsScalar::one());
+                composer.plookup_gate(one, one, one, Some(one), BlsScalar::zero());
+                //composer.check_circuit_satisfied();
             },
-            32,
+            1000,
+        );
+        assert!(res.is_ok());
+    }
+
+
+    #[test]
+    fn test_eight_luke_() {
+        let mut t = PlookupTable4Arity::new();
+        t.insert_special_row(BlsScalar::one(), BlsScalar::one(), BlsScalar::one(), BlsScalar::one());
+        t.insert_special_row(BlsScalar::from(8), BlsScalar::from(8), BlsScalar::from(8), BlsScalar::from(8));
+        t.insert_special_row(BlsScalar::from(12), BlsScalar::from(12), BlsScalar::from(12), BlsScalar::from(12));
+        t.insert_special_row(BlsScalar::from(13), BlsScalar::from(13), BlsScalar::from(13), BlsScalar::from(13));
+        t.insert_special_row(BlsScalar::from(13), BlsScalar::from(8), BlsScalar::from(8), BlsScalar::from(8));
+        let res = gadget_plookup_tester(
+            |composer| {
+                // let table = PlookupTable4Arity::create_hash_table();
+                //println!("first we gave {:?}", table);
+                let mut table_one = PlookupTable4Arity::new();
+                table_one.insert_special_row(BlsScalar::one(), BlsScalar::one(), BlsScalar::one(), BlsScalar::one());
+                table_one.insert_special_row(BlsScalar::from(8), BlsScalar::from(8), BlsScalar::from(8), BlsScalar::from(8));
+                table_one.insert_special_row(BlsScalar::from(12), BlsScalar::from(12), BlsScalar::from(12), BlsScalar::from(12));
+                table_one.insert_special_row(BlsScalar::from(13), BlsScalar::from(13), BlsScalar::from(13), BlsScalar::from(13));
+                table_one.insert_special_row(BlsScalar::from(13), BlsScalar::from(8), BlsScalar::from(8), BlsScalar::from(8));
+                println!("first we gave {:?}", table_one);
+                composer.lookup_table = table_one;
+                println!("then we have {:?}", composer.lookup_table);
+
+                let one = composer.add_witness_to_circuit_description(BlsScalar::from(8));
+                // let counter: u64 = 1;
+                // let conditional = true;
+                // composer.s_box_and_constraints(one, counter, conditional);
+                // let zero = composer.add_witness_to_circuit_description(BlsScalar::zero());
+                //composer.plookup_gate(one, one, one, Some(one), BlsScalar::zero());
+                //composer.plookup_gate(one, one, one, Some(one), BlsScalar::zero());
+                // composer.plookup_gate(one, one, one, Some(one), BlsScalar::zero());
+                // composer.plookup_gate(one, one, one, Some(one), BlsScalar::zero());
+                // composer.plookup_gate(one, one, one, Some(one), BlsScalar::zero());
+                // composer.plookup_gate(one, one, one, Some(one), BlsScalar::zero());
+                // composer.plookup_gate(one, one, one, Some(one), BlsScalar::zero());
+                // composer.plookup_gate(one, one, one, Some(one), BlsScalar::zero());
+                // composer.plookup_gate(one, one, one, Some(one), BlsScalar::zero());
+                // composer.plookup_gate(one, one, one, Some(one), BlsScalar::zero());
+                // composer.plookup_gate(one, one, one, Some(one), BlsScalar::zero());
+                // println!("{:?}", output);
+                // println!{"table is {:?}", composer.lookup_table.0}
+                // composer.check_circuit_satisfied();
+            },
+            800,
+            t,
         );
         assert!(res.is_ok());
     }
@@ -708,7 +751,8 @@ mod tests {
         composer.plookup_gate(two, three, result, Some(one), BlsScalar::one());
         composer.plookup_gate(two, three, result, Some(one), BlsScalar::one());
         composer.plookup_gate(two, three, result, Some(one), BlsScalar::one());
-
+        composer.plookup_gate(two, two, two, Some(two), BlsScalar::one());
+        
         composer.big_add(
             (BlsScalar::one(), two),
             (BlsScalar::one(), three),
@@ -745,7 +789,8 @@ mod tests {
 
         // Add gadgets
         dummy_gadget_plookup(4, prover.mut_cs());
-
+        prover.cs.lookup_table.insert_multi_mul(0, 3);
+        // prover.cs.
         // Commit Key
         let (ck, _) = public_parameters.trim(2 * 20).unwrap();
 
