@@ -6,7 +6,7 @@
 
 use super::StandardComposer;
 use crate::commitment_scheme::kzg10::PublicParameters;
-use crate::plookup::{PreprocessedTable4Arity, PlookupTable4Arity};
+use crate::plookup::{PlookupTable4Arity, PreprocessedTable4Arity};
 use crate::proof_system::{Prover, Verifier};
 use anyhow::{Error, Result};
 use dusk_bls12_381::BlsScalar;
@@ -100,7 +100,8 @@ pub(crate) fn gadget_tester(
 }
 
 /// Takes a generic gadget function with no auxillary input and
-/// tests whether it passes an end-to-end test
+/// tests whether it passes an end-to-end test. If using a lookup table,
+/// all plookup gates must correspond to rows in lookup_table
 pub(crate) fn gadget_plookup_tester(
     gadget: fn(composer: &mut StandardComposer),
     n: usize,
@@ -112,6 +113,9 @@ pub(crate) fn gadget_plookup_tester(
     let (proof, public_inputs) = {
         // Create a prover struct
         let mut prover = Prover::new(b"demo");
+
+        // Add lookup table to the composer
+        prover.mut_cs().append_lookup_table(&lookup_table);
 
         // Additionally key the transcript
         prover.key_transcript(b"key", b"additional seed information");
@@ -136,6 +140,10 @@ pub(crate) fn gadget_plookup_tester(
     //
     // Create a Verifier object
     let mut verifier = Verifier::new(b"demo");
+
+    // Add lookup table to the composer
+    verifier.mut_cs().append_lookup_table(&lookup_table);
+    let lookup_table = verifier.mut_cs().lookup_table.clone();
 
     // Additionally key the transcript
     verifier.key_transcript(b"key", b"additional seed information");

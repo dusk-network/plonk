@@ -9,7 +9,7 @@
 use crate::constraint_system::StandardComposer;
 use crate::constraint_system::Variable;
 use crate::plookup::{
-    table::hash_tables::{DECOMPOSITION_S_I, INVERSES_S_I, SBOX_U256},
+    table::hash_tables::{BLS_SCALAR_REAL, DECOMPOSITION_S_I, INVERSES_S_I, SBOX_U256},
     PlookupTable4Arity,
 };
 use bigint::U256 as u256;
@@ -82,26 +82,25 @@ impl StandardComposer {
         &mut self,
         input: Variable,
         counter: u64,
-        conditional: bool
+        conditional: bool,
     ) -> (Variable, Variable, bool, Variable) {
         // Need to convert input scalar value to non-Montgomery
         // to allow size comparison
         let value = self.variables[&input].reduce();
         let mut y_i = input;
-        let mut c_i = self.zero_var;
+        let mut c_i = self.add_input(BlsScalar::one());
         let mut conditional_new = conditional;
         let mut z_i = self.zero_var;
         if value.0[0] < 659 {
             y_i = self.add_input(BlsScalar::from_raw(SBOX_U256[value.0[0] as usize].0));
-            c_i = self.add_input(BlsScalar::one());
             conditional_new = true;
         } else {
             y_i = input;
             z_i = self.add_input(BlsScalar::one());
-            if value.0[0] > 659 {
+            if value.0[0] > BLS_SCALAR_REAL[27 - counter as usize].0[0] {
                 c_i = self.add_input(BlsScalar::from(2));
                 conditional_new = true
-            } else {
+            } else if value.0[0] == BLS_SCALAR_REAL[27 - counter as usize].0[0] {
                 if conditional == true {
                     c_i = self.add_input(BlsScalar::from(2));
                     conditional_new = true
@@ -111,16 +110,10 @@ impl StandardComposer {
             }
         }
 
-        
-        // let scaled_z_i = self.add_input(BlsScalar::from(counter) * self.variables[&z_i]);
-        // self.plookup_gate(input, scaled_z_i, y_i, Some(c_i), BlsScalar::zero());
+        let scaled_z_i = self.add_input(BlsScalar::from(counter) * self.variables[&z_i]);
+        self.plookup_gate(input, scaled_z_i, y_i, Some(c_i), BlsScalar::zero());
 
-        (
-            y_i,
-            c_i,
-            conditional_new,
-            z_i,
-        )
+        (y_i, c_i, conditional_new, z_i)
     }
 }
 
@@ -134,14 +127,18 @@ mod tests {
     fn test_s_box_and_constraints() {
         let res = gadget_tester(
             |composer| {
+                let hash_table = PlookupTable4Arity::create_hash_table();
+                composer.append_lookup_table(&hash_table);
                 let seven_hundred = composer.add_input(BlsScalar::from(700));
                 let one = composer.add_input(BlsScalar::one());
                 let prime = composer.add_input(BlsScalar::from(659));
                 let counter: u64 = 1;
+                let counter2: u64 = 2;
                 let conditional = true;
-                let output_700 = composer.s_box_and_constraints(seven_hundred, counter, conditional);
+                let output_700 =
+                    composer.s_box_and_constraints(seven_hundred, counter2, conditional);
                 let output_one = composer.s_box_and_constraints(one, counter, conditional);
-                let output_prime = composer.s_box_and_constraints(prime, counter, conditional);
+                let output_prime = composer.s_box_and_constraints(prime, counter2, conditional);
                 let output_prime_false = composer.s_box_and_constraints(prime, counter, false);
 
                 // Check that the s-box works as expected
@@ -160,10 +157,19 @@ mod tests {
                     BlsScalar::from_raw([659, 0, 0, 0]),
                     BlsScalar::zero(),
                 );
+
+                (0..1100).for_each(|k| {
+                    composer.plookup_gate(prime, one, prime, Some(one), BlsScalar::zero());
+                });
+
                 // Check that the c_i are output as expected
                 assert_eq!(composer.variables[&output_700.1], BlsScalar::from(2));
                 assert_eq!(composer.variables[&output_one.1], BlsScalar::from(1));
-                assert_eq!(composer.variables[&output_prime.1], BlsScalar::from(2));
+                assert_eq!(composer.variables[&output_prime.1], BlsScalar::from(1));
+                assert_eq!(
+                    composer.variables[&output_prime_false.1],
+                    BlsScalar::from(1)
+                );
 
                 // Check that the counter is output correctly
                 assert!(output_700.2);
@@ -175,9 +181,12 @@ mod tests {
                 assert_eq!(composer.variables[&output_700.3], BlsScalar::from(1));
                 assert_eq!(composer.variables[&output_one.3], BlsScalar::from(0));
                 assert_eq!(composer.variables[&output_prime.3], BlsScalar::from(1));
-                composer.check_circuit_satisfied();
+                assert_eq!(
+                    composer.variables[&output_prime_false.3],
+                    BlsScalar::from(1)
+                );
             },
-            200,
+            4000,
         );
         assert!(res.is_ok());
     }
@@ -186,6 +195,8 @@ mod tests {
     fn test_s_box_and_constraints_fails() {
         let res = gadget_tester(
             |composer| {
+                let hash_table = PlookupTable4Arity::create_hash_table();
+                composer.append_lookup_table(&hash_table);
                 let one = composer.add_input(BlsScalar::from(100));
                 let counter: u64 = 1;
                 let conditional = true;
@@ -205,8 +216,13 @@ mod tests {
                     BlsScalar::from_raw([200, 0, 0, 0]),
                     BlsScalar::zero(),
                 );
+
+                let prime = composer.add_input(BlsScalar::from(659));
+                (0..1100).for_each(|k| {
+                    composer.plookup_gate(prime, one, prime, Some(one), BlsScalar::zero());
+                });
             },
-            100,
+            2000,
         );
         assert!(res.is_err());
     }
@@ -224,42 +240,6 @@ mod tests {
                 composer.constrain_to_constant(output[0], BlsScalar::one(), BlsScalar::zero());
             },
             800,
-        );
-        assert!(res.is_ok());
-    }
-
-    #[test]
-    fn first_test() {
-        let res = gadget_tester(
-            |composer| {
-                let one = composer.add_input(BlsScalar::one());
-                composer.range_gate(one, 32);
-                composer.range_gate(one, 32);
-                composer.range_gate(one, 32);
-                composer.range_gate(one, 32);
-                composer.range_gate(one, 32);
-                let var = composer.variables[&one];
-                composer.constrain_to_constant(one, var, BlsScalar::zero());
-            },
-            800,
-        );
-        assert!(res.is_ok());
-    }
-
-    #[test]
-    fn test_bos() {
-        let res = gadget_tester(
-            |composer| {
-                let one = composer.add_input(BlsScalar::from(100));
-                let output_1 = composer.decomposition_gadget(one, DECOMPOSITION_S_I, INVERSES_S_I);
-                println!("{:?}", composer.circuit_size());
-                let counter: u64 = 1;
-                let conditional = true;
-                let output = composer.s_box_and_constraints(one, counter, conditional);
-                println!("{:?}", composer.circuit_size());
-
-            },
-            200,
         );
         assert!(res.is_ok());
     }

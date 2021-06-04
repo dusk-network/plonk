@@ -156,7 +156,12 @@ impl Prover {
 
         // Sort table so we can be sure to choose an element that is not the highest or lowest
         compressed_t.sort();
-        let second_element = compressed_t[1];
+        let mut second_element = compressed_t[1];
+        let mut k = 1;
+        if second_element == compressed_t[0] {
+            k = k + 1;
+            second_element = compressed_t[k];
+        }
 
         // Pad the table to the correct size with an element that is not the highest or lowest
         let pad = vec![second_element; domain.size() - compressed_t.len()];

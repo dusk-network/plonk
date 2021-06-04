@@ -8,10 +8,10 @@
 //! Denoted as 't' in Plookup paper.
 
 use super::hash_tables::constants::{BLS_SCALAR_REAL, DECOMPOSITION_S_I, SBOX_U256};
+use crate::constraint_system::StandardComposer;
 use crate::plookup::MultiSet;
 use crate::plookup::PlookupErrors;
 use crate::prelude::BlsScalar;
-use crate::constraint_system::StandardComposer;
 
 /// For the implemenation of look up tables in PLONK, aptly named PLOOKup tables,
 /// there will be different fucntions depending on the type of table that needs
@@ -246,12 +246,7 @@ impl PlookupTable4Arity {
     /// This function needs to know the upper bound of the amount of addition
     /// operations that will be done in the plookup table.
     pub fn insert_special_row(&mut self, a: BlsScalar, b: BlsScalar, c: BlsScalar, d: BlsScalar) {
-        self.0.push([
-            a,
-            b,
-            c,
-            d,
-        ]);
+        self.0.push([a, b, c, d]);
     }
 
     /// Insert a new row for an multiplication operation.
@@ -419,20 +414,20 @@ impl PlookupTable4Arity {
         let two = BlsScalar::from(2);
 
         // Build the T_2 part
-        (0..2).for_each(|i| {
-            (0..2).for_each(|j| {
-                (0..2).for_each(|k| {
-                    (0..2).for_each(|m| {
-                        table.push([
-                            BlsScalar::from(i),
-                            BlsScalar::from(j),
-                            BlsScalar::from(k),
-                            BlsScalar::from(m),
-                        ])
-                    })
-                })
-            })
-        });
+        // (0..2).for_each(|i| {
+        //     (0..2).for_each(|j| {
+        //         (0..2).for_each(|k| {
+        //             (0..2).for_each(|m| {
+        //                 table.push([
+        //                     BlsScalar::from(i),
+        //                     BlsScalar::from(j),
+        //                     BlsScalar::from(k),
+        //                     BlsScalar::from(m),
+        //                 ])
+        //             })
+        //         })
+        //     })
+        // });
 
         // Build the T_3 part
         (0..2).for_each(|i| {
