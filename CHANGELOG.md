@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- Add `zero_var` to composer [#526](https://github.com/dusk-network/plonk/issues/526)
+
+### Removed
+
+- Remove `external_doc` and `nightly` feature [#536](https://github.com/dusk-network/plonk/issues/536)
+
 ## [0.8.0] - 03-05-21
 
 ### Added

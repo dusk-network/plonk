@@ -410,7 +410,7 @@ mod tests {
     fn test_correct_add_gate() {
         let res = gadget_tester(
             |composer| {
-                let zero = composer.add_input(BlsScalar::zero());
+                let zero = composer.zero_var();
                 let one = composer.add_input(BlsScalar::one());
 
                 let c = composer.add(
