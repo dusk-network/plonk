@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `zero_var` to composer [#526](https://github.com/dusk-network/plonk/issues/526)
+
 ### Removed
 
 - Remove `external_doc` and `nightly` feature [#536](https://github.com/dusk-network/plonk/issues/536)
