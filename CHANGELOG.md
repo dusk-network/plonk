@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add `zero_var` to composer [#526](https://github.com/dusk-network/plonk/issues/526)
+- Add `add_affine_to_circuit_description`to composer [#534](https://github.com/dusk-network/plonk/issues/534)
 
 ### Removed
 
