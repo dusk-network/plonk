@@ -69,6 +69,19 @@ impl StandardComposer {
         point
     }
 
+    /// Add the provided affine point as a circuit description and return its
+    /// constrained witness value
+    pub fn add_affine_to_circuit_description(
+        &mut self,
+        affine: dusk_jubjub::JubJubAffine,
+    ) -> Point {
+        // Not using individual gates because one of these may be zero
+        let x = self.add_witness_to_circuit_description(affine.get_x());
+        let y = self.add_witness_to_circuit_description(affine.get_y());
+
+        Point { x, y }
+    }
+
     /// Asserts that a [`Point`] in the circuit is equal to a known public
     /// point.
     pub fn assert_equal_public_point(
