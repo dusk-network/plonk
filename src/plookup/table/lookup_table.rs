@@ -435,7 +435,7 @@ impl PlookupTable4Arity {
                 (0..2).for_each(|k| {
                     if (i, j, k) != (1, 1, 1) {
                         table.push([
-                            BlsScalar::zero(),
+                            BlsScalar::one(),
                             BlsScalar::from(i),
                             BlsScalar::from(j),
                             BlsScalar::from(k),
