@@ -429,6 +429,40 @@ impl PlookupTable4Arity {
         //     })
         // });
 
+        // Add the part of T_2 that aren't in T_3
+        (0..2).for_each(|i| {
+            (0..2).for_each(|j| {
+                (0..2).for_each(|k| {
+                    if (i, j, k) != (1, 1, 1) {
+                        table.push([
+                            BlsScalar::zero(),
+                            BlsScalar::from(i),
+                            BlsScalar::from(j),
+                            BlsScalar::from(k),
+                        ])
+                    }
+                })
+            })
+        });
+        (0..2).for_each(|i| {
+            (0..2).for_each(|j| {
+                if (i, j) != (1, 1) {
+                    table.push([
+                        BlsScalar::zero(),
+                        BlsScalar::one(),
+                        BlsScalar::from(i),
+                        BlsScalar::from(j),
+                    ])
+                }
+            })
+        });
+        table.push([
+            BlsScalar::zero(),
+            BlsScalar::zero(),
+            BlsScalar::one(),
+            BlsScalar::zero(),
+        ]);
+
         // Build the T_3 part
         (0..2).for_each(|i| {
             table.push([

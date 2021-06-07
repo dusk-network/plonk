@@ -8,10 +8,7 @@
 
 use crate::constraint_system::StandardComposer;
 use crate::constraint_system::Variable;
-use crate::plookup::{
-    table::hash_tables::{BLS_SCALAR_REAL, DECOMPOSITION_S_I, INVERSES_S_I, SBOX_U256},
-    PlookupTable4Arity,
-};
+use crate::plookup::table::hash_tables::{BLS_SCALAR_REAL, SBOX_U256};
 use bigint::U256 as u256;
 use dusk_bls12_381::BlsScalar;
 
@@ -77,7 +74,7 @@ impl StandardComposer {
     }
 
     /// S-box using hash tables, and outputs constraints c_i, z_i and a boolean
-    /// counter to help determine the c_i
+    /// counter to help determine the c_i. (y_i, c_i, conditional, z_i)
     pub fn s_box_and_constraints(
         &mut self,
         input: Variable,
@@ -121,6 +118,8 @@ impl StandardComposer {
 mod tests {
     use super::super::helper::*;
     use super::*;
+    use crate::plookup::table::hash_tables::{DECOMPOSITION_S_I, INVERSES_S_I};
+    use crate::plookup::PlookupTable4Arity;
     use dusk_bls12_381::BlsScalar;
 
     #[test]
