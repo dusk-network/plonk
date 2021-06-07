@@ -43,7 +43,7 @@ impl StandardComposer {
     fn pad(&mut self, diff: usize) {
         // Add a zero variable to circuit
         let zero_scalar = BlsScalar::zero();
-        let zero_var = self.add_input(zero_scalar);
+        let zero_var = self.zero_var();
 
         let zeroes_scalar = vec![zero_scalar; diff];
         let zeroes_var = vec![zero_var; diff];

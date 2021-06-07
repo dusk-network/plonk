@@ -12,6 +12,7 @@ This library contains a modularised implementation of KZG10 as the default polyn
 
 ```rust
 use dusk_plonk::prelude::*;
+use rand_core::OsRng;
 
 // Implement a circuit that checks:
 // 1) a + b = c where C is a PI
@@ -41,7 +42,7 @@ impl Circuit for TestCircuit {
         composer.poly_gate(
             a,
             b,
-            composer.zero_var,
+            composer.zero_var(),
             BlsScalar::zero(),
             BlsScalar::one(),
             BlsScalar::one(),
@@ -56,7 +57,7 @@ impl Circuit for TestCircuit {
         composer.poly_gate(
             a,
             b,
-            composer.zero_var,
+            composer.zero_var(),
             BlsScalar::one(),
             BlsScalar::zero(),
             BlsScalar::zero(),
@@ -79,11 +80,11 @@ impl Circuit for TestCircuit {
 
 // Now let's use the Circuit we've just implemented!
 
-let pp = PublicParameters::setup(1 << 12, &mut OsRng)?;
+let pp = PublicParameters::setup(1 << 12, &mut OsRng).unwrap();
 // Initialize the circuit
 let mut circuit = TestCircuit::default();
 // Compile the circuit
-let (pk, vd) = circuit.compile(&pp)?;
+let (pk, vd) = circuit.compile(&pp).unwrap();
 // Prover POV
 let proof = {
     let mut circuit = TestCircuit {
@@ -96,8 +97,8 @@ let proof = {
             dusk_jubjub::GENERATOR_EXTENDED * JubJubScalar::from(2u64),
         ),
     };
-    circuit.gen_proof(&pp, &pk, b"Test")
-}?;
+    circuit.gen_proof(&pp, &pk, b"Test").unwrap()
+};
 // Verifier POV
 let public_inputs: Vec<PublicInputValue> = vec![
     BlsScalar::from(25u64).into(),
@@ -114,7 +115,7 @@ circuit::verify_proof(
     &public_inputs,
     &vd.pi_pos(),
     b"Test",
-)
+).unwrap();
 ```
 
 ### Features
@@ -126,8 +127,6 @@ This crate includes a variety of features which will briefly be explained below:
 - `std`: Enables `std` usage as well as `rayon` parallelisation in some proving and verifying ops. 
   It also uses the `std` versions of the elliptic curve deps, which utilises the `parallel` feature 
   from `dusk-bls12-381`. By default, this is the feature that comes enabled with the crate.
-- `nightly`: This feature is used to compile the extended docs and has KateX rendering enabled. 
-  See the `Documentation`section below.
 - `trace`: Enables the Circuit debugger tooling. This is essentially the capability of using the 
   `StandardComposer::check_circuit_satisfied` function. The function will output information about each circuit gate until 
   one of the gates does not satisfy the equation, or there are no more gates. If there is an unsatisfied gate 

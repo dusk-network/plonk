@@ -209,6 +209,11 @@ impl StandardComposer {
         composer
     }
 
+    /// Witness representation of zero of the first variable of any circuit
+    pub const fn zero_var(&self) -> Variable {
+        self.zero_var
+    }
+
     /// Add Input first calls the Permutation
     /// to generate and allocate a new [`Variable`] `var`.
     ///
@@ -539,8 +544,9 @@ impl StandardComposer {
             let c = w_o[i];
             let d = w_4[i];
             let d_next = w_4[(i + 1) % self.n];
-            #[cfg(feature = "trace-print")]
-            println!(
+
+            #[cfg(all(feature = "trace-print", feature = "std"))]
+            std::println!(
                 "--------------------------------------------\n
             #Gate Index = {}
             #Selector Polynomials:\n
@@ -577,6 +583,7 @@ impl StandardComposer {
                 c,
                 d
             );
+
             let k = qarith
                 * ((qm * a * b)
                     + (ql * a)
@@ -653,7 +660,7 @@ mod tests {
         let res = gadget_tester(
             |composer| {
                 let bit_1 = composer.add_input(BlsScalar::one());
-                let bit_0 = composer.add_input(BlsScalar::zero());
+                let bit_0 = composer.zero_var();
 
                 let choice_a = composer.add_input(BlsScalar::from(10u64));
                 let choice_b = composer.add_input(BlsScalar::from(20u64));

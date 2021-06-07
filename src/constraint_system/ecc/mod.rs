@@ -160,7 +160,7 @@ mod tests {
         let res = gadget_tester(
             |composer| {
                 let bit_1 = composer.add_input(BlsScalar::one());
-                let bit_0 = composer.add_input(BlsScalar::zero());
+                let bit_0 = composer.zero_var();
 
                 let point_a = Point::identity(composer);
                 let point_b = Point {
