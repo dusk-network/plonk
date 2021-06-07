@@ -126,8 +126,6 @@ This crate includes a variety of features which will briefly be explained below:
 - `std`: Enables `std` usage as well as `rayon` parallelisation in some proving and verifying ops. 
   It also uses the `std` versions of the elliptic curve deps, which utilises the `parallel` feature 
   from `dusk-bls12-381`. By default, this is the feature that comes enabled with the crate.
-- `nightly`: This feature is used to compile the extended docs and has KateX rendering enabled. 
-  See the `Documentation`section below.
 - `trace`: Enables the Circuit debugger tooling. This is essentially the capability of using the 
   `StandardComposer::check_circuit_satisfied` function. The function will output information about each circuit gate until 
   one of the gates does not satisfy the equation, or there are no more gates. If there is an unsatisfied gate 

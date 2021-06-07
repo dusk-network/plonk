@@ -4,7 +4,7 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-#![cfg_attr(feature = "nightly", feature(external_doc))]
+#![doc = include_str!("../README.md")]
 #![doc(
     html_logo_url = "https://lh3.googleusercontent.com/SmwswGxtgIANTbDrCOn5EKcRBnVdHjmYsHYxLq2HZNXWCQ9-fZyaea-bNgdX9eR0XGSqiMFi=w128-h128-e365"
 )]
@@ -75,18 +75,15 @@ pub mod prelude;
 pub mod proof_system;
 mod transcript;
 
-// `#[doc(include)]` is experimental
-// Note: see issue #44732 <https://github.com/rust-lang/rust/issues/44732>
-#[cfg(feature = "nightly")]
-#[doc(include = "../docs/notes-intro.md")]
+#[doc = include_str!("../docs/notes-intro.md")]
 pub mod notes {
-    #[doc(include = "../docs/notes-commitments.md")]
+    #[doc = include_str!("../docs/notes-commitments.md")]
     pub mod commitment_schemes {}
-    #[doc(include = "../docs/notes-snark.md")]
+    #[doc = include_str!("../docs/notes-snark.md")]
     pub mod snark_construction {}
-    #[doc(include = "../docs/notes-prove-verify.md")]
+    #[doc = include_str!("../docs/notes-prove-verify.md")]
     pub mod prove_verify {}
-    #[doc(include = "../docs/notes-KZG10.md")]
+    #[doc = include_str!("../docs/notes-KZG10.md")]
     pub mod kzg10_docs {}
 }
 

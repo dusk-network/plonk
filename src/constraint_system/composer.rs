@@ -539,8 +539,9 @@ impl StandardComposer {
             let c = w_o[i];
             let d = w_4[i];
             let d_next = w_4[(i + 1) % self.n];
-            #[cfg(feature = "trace-print")]
-            println!(
+
+            #[cfg(all(feature = "trace-print", feature = "std"))]
+            std::println!(
                 "--------------------------------------------\n
             #Gate Index = {}
             #Selector Polynomials:\n
@@ -577,6 +578,7 @@ impl StandardComposer {
                 c,
                 d
             );
+
             let k = qarith
                 * ((qm * a * b)
                     + (ql * a)
