@@ -6,7 +6,7 @@
 
 use super::StandardComposer;
 use crate::commitment_scheme::kzg10::PublicParameters;
-use crate::plookup::{PlookupTable4Arity, PreprocessedTable4Arity};
+use crate::plookup::PlookupTable4Arity;
 use crate::proof_system::{Prover, Verifier};
 use anyhow::{Error, Result};
 use dusk_bls12_381::BlsScalar;

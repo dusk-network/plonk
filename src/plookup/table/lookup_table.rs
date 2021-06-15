@@ -429,7 +429,7 @@ impl PlookupTable4Arity {
         //     })
         // });
 
-        // Add the part of T_2 that aren't in T_3
+        // Add the parts of T_2 that aren't in T_3
         (0..2).for_each(|i| {
             (0..2).for_each(|j| {
                 (0..2).for_each(|k| {
