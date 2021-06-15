@@ -43,11 +43,6 @@ impl StandardComposer {
             }
 
             nibbles[k] = self.add_input(BlsScalar::from_raw(remainder.0));
-            // println!(
-            //     "nibble {} is {:?}",
-            //     k,
-            //     self.variables[&nibbles[k]].reduce().0
-            // );
         });
 
         // x' = x_1 * s_2 + x_2, this is the start of the composition
@@ -72,8 +67,6 @@ impl StandardComposer {
         });
 
         self.constrain_to_constant(acc, self.variables[&x], BlsScalar::zero());
-        // println!("acc is {:?}", self.variables[&acc].reduce().0);
-        // println!("input was {:?}", self.variables[&x].reduce().0);
 
         nibbles
     }
