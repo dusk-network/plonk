@@ -53,10 +53,10 @@ impl StandardComposer {
         point_multiples.reverse();
 
         // Fetch the raw scalar value as bls scalar, then convert to a jubjub
-        // scalar XXX: Not very Tidy, impl From function in JubJub
+        // scalar.
         let raw_bls_scalar = self.variables.get(&jubjub_scalar).unwrap();
         let raw_jubjub_scalar =
-            JubJubScalar::from_bytes(&raw_bls_scalar.to_bytes()).unwrap();
+            JubJubScalar::from_raw(raw_bls_scalar.reduce().0);
 
         // Convert scalar to wnaf_2(k)
         let wnaf_entries = raw_jubjub_scalar.compute_windowed_naf(2);

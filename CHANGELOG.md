@@ -5,9 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.2] - 17-06-21
+
 ### Fixed
 
 - Fix the document references and typos [#533](https://github.com/dusk-network/plonk/pull/533)
+- Fix `BlsScalar` to `JubJubScalar` raw conversion in ecc module. [#540](https://github.com/dusk-network/plonk/issues/540)
 
 ## [0.8.1] - 07-06-21
 
