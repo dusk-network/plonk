@@ -4,12 +4,12 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-// mod hash_tables;
-/// module containing reinforced concrete's hash tables
-pub mod hash_tables;
 /// modules containing different table groups
 pub mod lookup_table;
-/// module containing preprocessed table
+/// Module containing preprocessed table
 pub mod preprocess;
-/// module containing witness table
+/// Module containing witness table
 pub mod witness_table;
+
+/// Module containing fixed lookup tables for hash function
+pub mod hash_tables;

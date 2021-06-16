@@ -156,7 +156,10 @@ impl Prover {
 
         // Sort table so we can be sure to choose an element that is not the highest or lowest
         compressed_t.sort();
-        let second_element = compressed_t[1];
+        let second_element = match compressed_t[0] == compressed_t[1] {
+            true => compressed_t[2],
+            false => compressed_t[1],
+        };
 
         // Pad the table to the correct size with an element that is not the highest or lowest
         let pad = vec![second_element; domain.size() - compressed_t.len()];
@@ -198,7 +201,7 @@ impl Prover {
             .collect::<Vec<BlsScalar>>();
 
         // Compress all wires into a single vector
-        // Long version is checked against wire polys later and needs euql them in length (n)
+        // Long version is checked against wire polys later and needs equal them in length (n)
         let compressed_f_long = MultiSet::compress_four_arity(
             [
                 &MultiSet::from(&f_1_scalar[..]),

@@ -9,7 +9,5 @@
 
 /// Module containing constants required in reinforced concrete
 pub mod constants;
-/// Preliminary file building reinforced concrete's tables
-pub mod tables;
 
-pub use constants::{DECOMPOSITION_S_I, INVERSES_S_I, N, S, SBOX_U256, T_S, V};
+pub use constants::{BLS_SCALAR_REAL, DECOMPOSITION_S_I, INVERSES_S_I, N, S, SBOX_U256, T_S, V};

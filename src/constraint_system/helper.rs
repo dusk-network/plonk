@@ -6,7 +6,7 @@
 
 use super::StandardComposer;
 use crate::commitment_scheme::kzg10::PublicParameters;
-use crate::plookup::PreprocessedTable4Arity;
+use crate::plookup::PlookupTable4Arity;
 use crate::proof_system::{Prover, Verifier};
 use anyhow::{Error, Result};
 use dusk_bls12_381::BlsScalar;
@@ -99,56 +99,64 @@ pub(crate) fn gadget_tester(
     verifier.verify(&proof, &vk, &public_inputs, &lookup_table)
 }
 
-// /// Takes a generic gadget function with no auxillary input and
-// /// tests whether it passes an end-to-end test
-// pub(crate) fn gadget_plookup_tester(
-//     gadget: fn(composer: &mut PlookupComposer),
-//     n: usize,
-//     lookup_table: PreprocessedTable4Arity,
-// ) -> Result<(), Error> {
-//     // Common View
-//     let public_parameters = PublicParameters::setup(2 * n, &mut rand::thread_rng())?;
-//     // Provers View
-//     let (proof, public_inputs) = {
-//         // Create a prover struct
-//         let mut prover = Prover::new(b"demo");
+/// Takes a generic gadget function with no auxillary input and
+/// tests whether it passes an end-to-end test. If using a lookup table,
+/// all plookup gates must correspond to rows in lookup_table
+pub(crate) fn gadget_plookup_tester(
+    gadget: fn(composer: &mut StandardComposer),
+    n: usize,
+    lookup_table: PlookupTable4Arity,
+) -> Result<(), Error> {
+    // Common View
+    let public_parameters = PublicParameters::setup(2 * n, &mut rand::thread_rng())?;
+    // Provers View
+    let (proof, public_inputs) = {
+        // Create a prover struct
+        let mut prover = Prover::new(b"demo");
 
-//         // Additionally key the transcript
-//         prover.key_transcript(b"key", b"additional seed information");
+        // Add lookup table to the composer
+        prover.mut_cs().append_lookup_table(&lookup_table);
 
-//         // Add gadgets
-//         gadget(&mut prover.mut_cs());
+        // Additionally key the transcript
+        prover.key_transcript(b"key", b"additional seed information");
 
-//         // Commit Key
-//         let (ck, _) = public_parameters.trim(2 * prover.cs.circuit_size().next_power_of_two())?;
+        // Add gadgets
+        gadget(&mut prover.mut_cs());
 
-//         // Preprocess circuit
-//         prover.preprocess(&ck)?;
+        // Commit Key
+        let (ck, _) = public_parameters.trim(2 * prover.cs.circuit_size().next_power_of_two())?;
 
-//         // Once the prove method is called, the public inputs are cleared
-//         // So pre-fetch these before calling Prove
-//         let public_inputs = prover.cs.public_inputs.clone();
+        // Preprocess circuit
+        prover.preprocess(&ck)?;
 
-//         // Compute Proof
-//         (prover.prove(&ck)?, public_inputs)
-//     };
-//     // Verifiers view
-//     //
-//     // Create a Verifier object
-//     let mut verifier = PlookupVerifier::new(b"demo");
+        // Once the prove method is called, the public inputs are cleared
+        // So pre-fetch these before calling Prove
+        let public_inputs = prover.cs.public_inputs.clone();
 
-//     // Additionally key the transcript
-//     verifier.key_transcript(b"key", b"additional seed information");
+        // Compute Proof
+        (prover.prove(&ck)?, public_inputs)
+    };
+    // Verifiers view
+    //
+    // Create a Verifier object
+    let mut verifier = Verifier::new(b"demo");
 
-//     // Add gadgets
-//     gadget(&mut verifier.mut_cs());
+    // Add lookup table to the composer
+    verifier.mut_cs().append_lookup_table(&lookup_table);
+    let lookup_table = verifier.mut_cs().lookup_table.clone();
 
-//     // Compute Commit and Verifier Key
-//     let (ck, vk) = public_parameters.trim(verifier.cs.circuit_size().next_power_of_two())?;
+    // Additionally key the transcript
+    verifier.key_transcript(b"key", b"additional seed information");
 
-//     // Preprocess circuit
-//     verifier.preprocess(&ck)?;
+    // Add gadgets
+    gadget(&mut verifier.mut_cs());
 
-//     // Verify proof
-//     verifier.verify(&proof, &vk, &public_inputs)
-// }
+    // Compute Commit and Verifier Key
+    let (ck, vk) = public_parameters.trim(verifier.cs.circuit_size().next_power_of_two())?;
+
+    // Preprocess circuit
+    verifier.preprocess(&ck)?;
+
+    // Verify proof
+    verifier.verify(&proof, &vk, &public_inputs, &lookup_table)
+}

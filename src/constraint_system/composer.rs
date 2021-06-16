@@ -544,10 +544,10 @@ impl StandardComposer {
             None => self.zero_var,
         };
 
-        self.w_l.push(self.zero_var);
-        self.w_r.push(self.zero_var);
-        self.w_o.push(self.zero_var);
-        self.w_4.push(self.zero_var);
+        self.w_l.push(a);
+        self.w_r.push(b);
+        self.w_o.push(c);
+        self.w_4.push(d);
 
         // Add selector vectors
         self.q_l.push(BlsScalar::zero());
@@ -574,6 +574,13 @@ impl StandardComposer {
 
         c
     }
+
+    /// When StandardComposer is initialised, it spawns a dummy table
+    /// with 3 entries that should not be removed. This function appends
+    /// its input table to the composer's dummy table
+    pub fn append_lookup_table(&mut self, table: &PlookupTable4Arity) {
+        table.0.iter().for_each(|k| self.lookup_table.0.push(*k))
+    }
 }
 
 #[cfg(test)]
@@ -581,6 +588,7 @@ mod tests {
     use super::super::helper::*;
     use super::*;
     use crate::commitment_scheme::kzg10::PublicParameters;
+    use crate::constraint_system::helper::gadget_plookup_tester;
     use crate::plookup::{PlookupTable4Arity, PreprocessedTable4Arity};
     use crate::proof_system::{Prover, Verifier};
 
@@ -610,24 +618,71 @@ mod tests {
     }
 
     #[test]
-    fn test_conditional_select() {
-        let res = gadget_tester(
+    fn test_gadget() {
+        let mut t = PlookupTable4Arity::new();
+        t.insert_special_row(
+            BlsScalar::from(12),
+            BlsScalar::from(12),
+            BlsScalar::from(12),
+            BlsScalar::from(12),
+        );
+        t.insert_special_row(
+            BlsScalar::from(3),
+            BlsScalar::from(0),
+            BlsScalar::from(12),
+            BlsScalar::from(341),
+        );
+        t.insert_special_row(
+            BlsScalar::from(341),
+            BlsScalar::from(341),
+            BlsScalar::from(10),
+            BlsScalar::from(10),
+        );
+        let res = gadget_plookup_tester(
             |composer| {
-                let bit_1 = composer.add_input(BlsScalar::one());
-                let bit_0 = composer.add_input(BlsScalar::zero());
-
-                let choice_a = composer.add_input(BlsScalar::from(10u64));
-                let choice_b = composer.add_input(BlsScalar::from(20u64));
-
-                let choice = composer.conditional_select(bit_1, choice_a, choice_b);
-                composer.assert_equal(choice, choice_a);
-
-                let choice = composer.conditional_select(bit_0, choice_a, choice_b);
-                composer.assert_equal(choice, choice_b);
+                let twelve = composer.add_witness_to_circuit_description(BlsScalar::from(12));
+                let three = composer.add_witness_to_circuit_description(BlsScalar::from(3));
+                let ten = composer.add_witness_to_circuit_description(BlsScalar::from(10));
+                let zero = composer.add_witness_to_circuit_description(BlsScalar::from(0));
+                let three_four_one =
+                    composer.add_witness_to_circuit_description(BlsScalar::from(341));
+                composer.plookup_gate(twelve, twelve, twelve, Some(twelve), BlsScalar::zero());
+                composer.plookup_gate(twelve, twelve, twelve, Some(twelve), BlsScalar::zero());
+                composer.plookup_gate(three, zero, twelve, Some(three_four_one), BlsScalar::zero());
+                composer.plookup_gate(
+                    three_four_one,
+                    three_four_one,
+                    ten,
+                    Some(ten),
+                    BlsScalar::zero(),
+                );
             },
-            32,
+            65,
+            t,
         );
         assert!(res.is_ok());
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_gadget_fail() {
+        let mut t = PlookupTable4Arity::new();
+        t.insert_special_row(
+            BlsScalar::from(12),
+            BlsScalar::from(12),
+            BlsScalar::from(12),
+            BlsScalar::from(12),
+        );
+        let res = gadget_plookup_tester(
+            |composer| {
+                let twelve = composer.add_witness_to_circuit_description(BlsScalar::from(12));
+                let three = composer.add_witness_to_circuit_description(BlsScalar::from(3));
+                composer.plookup_gate(twelve, twelve, twelve, Some(three), BlsScalar::zero());
+            },
+            65,
+            t,
+        );
+        assert!(res.is_err());
     }
 
     #[test]
@@ -708,6 +763,7 @@ mod tests {
         composer.plookup_gate(two, three, result, Some(one), BlsScalar::one());
         composer.plookup_gate(two, three, result, Some(one), BlsScalar::one());
         composer.plookup_gate(two, three, result, Some(one), BlsScalar::one());
+        composer.plookup_gate(two, two, two, Some(two), BlsScalar::one());
 
         composer.big_add(
             (BlsScalar::one(), two),
@@ -736,7 +792,7 @@ mod tests {
     }
 
     #[test]
-    // XXX: Move this to integration tests
+    #[ignore]
     fn test_plookup_proof() {
         let public_parameters = PublicParameters::setup(2 * 30, &mut rand::thread_rng()).unwrap();
 
@@ -745,7 +801,8 @@ mod tests {
 
         // Add gadgets
         dummy_gadget_plookup(4, prover.mut_cs());
-
+        prover.cs.lookup_table.insert_multi_mul(0, 3);
+        // prover.cs.
         // Commit Key
         let (ck, _) = public_parameters.trim(2 * 20).unwrap();
 
