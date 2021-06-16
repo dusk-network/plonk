@@ -8,7 +8,7 @@ To employ a commitment scheme, is simply to select a value
 from a finite set and commit to the value such that the 
 new 'committed' value cannot be changed. 
 Commitment schemes are used in cryptography, 
-oft in conjuction with zero knowlegde proofs to 
+oft in conjunction with zero knowlegde proofs to 
 allow a prover to commit to a polynomial, with values
 represented by a short reference string. This is 
 then used by verifiers to confirm or deny the claims 
@@ -16,7 +16,7 @@ made by the orginal committing party. With this process,
 the commitment, which the committer publishes, is bound, 
 meaning it cannot be changed. This process is called *binding*. 
 Additionally, the prover is able to make this commitment 
-without revaling it - this is called *hiding*. After
+without revealing it - this is called *hiding*. After
 the commitment has been made, a prover is able to 
 reveal the committed message to a verifier so that 
 the message can be compared, for consistency, with the 
@@ -31,7 +31,7 @@ In a game of players P and V:
 2. \\(P\\) places the message in a box and locks it using a padlock 
 3. \\(P\\) gives the locked box and key to \\(V\\) 
 
-From the above game, it can been that \\(V\\) is able to 
+From the above game, it can be that \\(V\\) is able to 
 open the box, and see the committed message. \\(P\\) is 
 unable to change the value after giving the 
 box to \\(V\\), thus the message is *binding*. As \\(V\\) 

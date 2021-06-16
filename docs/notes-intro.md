@@ -5,9 +5,9 @@ Table of Contents
 =================
 
 The following section explains the workings of PLONK components:
-* [Commitment schemes](commitment_schemes/index.html)
-* [Proof construction components](snark_construction/index.html)
-* [Permutation polynomials](permutation_arguments/index.html)
+* [Commitment schemes](notes-commitments.md#commitment-schemes)
+* [Proof construction components](notes-prove-verify.md#plonk-proof-construction)
+* [Permutation polynomials](notes-prove-verify.md#lagrangian-polynomials)
 
 
 
