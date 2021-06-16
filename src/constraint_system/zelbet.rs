@@ -18,7 +18,8 @@ impl StandardComposer {
     /// Gadget that conducts the bar decomposition, returning the 27-entry
     /// breakdown and adding relevant gates. The input and output variables
     /// are all in Montgomery form, but non-Montgomery form is used within.
-    /// [x_27, ..., x_2, x_1]
+    /// [x_27, ..., x_2, x_1] & note that s_i_decomposition should be input
+    /// in Montgomery form
     pub fn decomposition_gadget(
         &mut self,
         x: Variable,
@@ -117,6 +118,7 @@ impl StandardComposer {
 mod tests {
     use super::super::helper::*;
     use super::*;
+    use crate::plookup::table::hash_tables::constants::S_I_DECOMPOSITION_MONTGOMERY;
     use crate::plookup::table::hash_tables::DECOMPOSITION_S_I;
     use crate::plookup::PlookupTable4Arity;
     use dusk_bls12_381::BlsScalar;
@@ -237,7 +239,7 @@ mod tests {
                 let one = composer.add_input(BlsScalar::one());
                 let mut s_i_decomposition = [one; 27];
                 (0..27).for_each(|k| {
-                    s_i_decomposition[k] = composer.add_input(DECOMPOSITION_S_I[k]);
+                    s_i_decomposition[k] = composer.add_input(S_I_DECOMPOSITION_MONTGOMERY[k]);
                 });
                 let output = composer.decomposition_gadget(one, s_i_decomposition);
                 (1..27).for_each(|k| {
@@ -245,8 +247,27 @@ mod tests {
                 });
                 // Check x_27 = 1, bearing in mind that x_1 is not in Montgomery form
                 composer.constrain_to_constant(output[0], BlsScalar::one(), BlsScalar::zero());
+
+                let minus_three = composer.add_input(-BlsScalar::from(3));
+                let output2 = composer.decomposition_gadget(minus_three, s_i_decomposition);
+                // Expetced output derived from out of circuit version
+                let expected_output = [
+                    658, 660, 673, 663, 674, 682, 687, 683, 669, 684, 672, 666, 680, 662, 686, 668,
+                    661, 678, 692, 686, 689, 660, 690, 687, 683, 674, 678, 658, 660, 673, 663, 674,
+                    682, 687, 683, 669, 684, 672, 666, 680, 662, 686, 668, 661, 678, 692, 686, 689,
+                    660, 690, 687, 683, 674, 678, 658, 660, 673, 663, 674, 682, 687, 683, 669, 684,
+                    672, 666, 680, 662, 686, 668, 661, 678, 692, 686, 689, 660, 690, 687, 683, 674,
+                    678,
+                ];
+                (0..27).for_each(|k| {
+                    composer.constrain_to_constant(
+                        output2[k],
+                        BlsScalar::from(expected_output[k]),
+                        BlsScalar::zero(),
+                    );
+                })
             },
-            800,
+            500,
         );
         assert!(res.is_ok());
     }
