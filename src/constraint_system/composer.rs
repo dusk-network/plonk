@@ -579,7 +579,7 @@ impl StandardComposer {
     /// with 3 entries that should not be removed. This function appends
     /// its input table to the composer's dummy table
     pub fn append_lookup_table(&mut self, table: &PlookupTable4Arity) {
-        (0..table.0.len()).for_each(|k| self.lookup_table.0.push(table.0[k]))
+        table.0.iter().for_each(|k| self.lookup_table.0.push(*k))
     }
 }
 
@@ -682,6 +682,7 @@ mod tests {
             65,
             t,
         );
+        assert!(res.is_err());
     }
 
     #[test]
@@ -792,7 +793,6 @@ mod tests {
 
     #[test]
     #[ignore]
-    // XXX: Test works in principle, fails due to table size Vs number of lookups
     fn test_plookup_proof() {
         let public_parameters = PublicParameters::setup(2 * 30, &mut rand::thread_rng()).unwrap();
 
