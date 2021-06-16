@@ -205,7 +205,13 @@ mod tests {
                 let two = composer.add_input(BlsScalar::from(2));
                 let counter: u64 = 1;
                 let conditional = true;
-                let output = composer.s_box_and_constraints(one_hundred, counter, conditional, one_hundred, two);
+                let output = composer.s_box_and_constraints(
+                    one_hundred,
+                    counter,
+                    conditional,
+                    one_hundred,
+                    two,
+                );
                 composer.constrain_to_constant(
                     output.0,
                     BlsScalar::from_raw([200, 0, 0, 0]),
@@ -224,7 +230,13 @@ mod tests {
 
                 let prime = composer.add_input(BlsScalar::from(659));
                 (0..1100).for_each(|k| {
-                    composer.plookup_gate(prime, one_hundred, prime, Some(one_hundred), BlsScalar::zero());
+                    composer.plookup_gate(
+                        prime,
+                        one_hundred,
+                        prime,
+                        Some(one_hundred),
+                        BlsScalar::zero(),
+                    );
                 });
             },
             2000,

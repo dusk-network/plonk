@@ -162,7 +162,6 @@ impl Prover {
             true => compressed_t[2],
             false => compressed_t[1],
         };
-        
 
         // Pad the table to the correct size with an element that is not the highest or lowest
         let pad = vec![second_element; domain.size() - compressed_t.len()];
