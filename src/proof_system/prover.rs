@@ -156,8 +156,6 @@ impl Prover {
 
         // Sort table so we can be sure to choose an element that is not the highest or lowest
         compressed_t.sort();
-        let mut second_element = compressed_t[1];
-        let mut k = 1;
         let second_element = match compressed_t[0] == compressed_t[1] {
             true => compressed_t[2],
             false => compressed_t[1],
