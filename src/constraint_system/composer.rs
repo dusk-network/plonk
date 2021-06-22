@@ -563,9 +563,12 @@ impl StandardComposer {
             - q_variable_group_add -> {:?}\n
             # Witness polynomials:\n
             - w_l -> {:?}\n
+            - w_l_next -> {:?}\n
             - w_r -> {:?}\n
+            - w_r_next -> {:?}\n
             - w_o -> {:?}\n
-            - w_4 -> {:?}\n",
+            - w_4 -> {:?}\n
+            - w_4_next -> {:?}\n",
                 i,
                 qm,
                 ql,
@@ -579,9 +582,12 @@ impl StandardComposer {
                 qfixed,
                 qvar,
                 a,
+                a_next,
                 b,
+                b_next,
                 c,
-                d
+                d,
+                d_next,
             );
 
             let k = qarith
@@ -611,7 +617,8 @@ impl StandardComposer {
                     * (delta(c - four * d)
                         + delta(b - four * c)
                         + delta(a - four * b)
-                        + delta(d_next - four * a));
+                        + delta(d_next - four * a))
+                + qfixed;
 
             assert_eq!(k, BlsScalar::zero(), "Check failed at gate {}", i,);
         }
@@ -625,6 +632,9 @@ mod tests {
     use crate::commitment_scheme::kzg10::PublicParameters;
     use crate::constraint_system::helper::*;
     use crate::proof_system::{Prover, Verifier};
+    use dusk_bls12_381::BlsScalar;
+    use dusk_bytes::Serializable;
+    use dusk_jubjub::{JubJubAffine, JubJubScalar};
     use rand_core::OsRng;
 
     #[test]
@@ -676,6 +686,31 @@ mod tests {
             32,
         );
         assert!(res.is_ok());
+    }
+
+    #[cfg(feature = "trace")]
+    #[test]
+    fn test_trace_print() {
+        let composer: &mut StandardComposer = &mut StandardComposer::new();
+
+        let scalar = JubJubScalar::from_bytes_wide(&[
+            182, 44, 247, 214, 94, 14, 151, 208, 130, 16, 200, 204, 147, 32,
+            104, 166, 0, 59, 52, 1, 1, 59, 103, 6, 169, 175, 51, 101, 234, 180,
+            125, 14, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        ]);
+        let a = BlsScalar::from_bytes(&scalar.to_bytes()).unwrap();
+
+        let secret_scalar = composer.add_input(a);
+        let point_scalar = composer.fixed_base_scalar_mul(
+            secret_scalar,
+            dusk_jubjub::GENERATOR_EXTENDED,
+        );
+        composer.assert_equal_public_point(
+            point_scalar,
+            JubJubAffine::from(dusk_jubjub::GENERATOR_EXTENDED * scalar).into(),
+        );
+        composer.check_circuit_satisfied();
     }
 
     #[test]
