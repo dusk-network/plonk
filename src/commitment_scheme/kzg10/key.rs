@@ -116,29 +116,29 @@ impl CommitKey {
     /// Truncates the commit key to a lower max degree.
     /// Returns an error if the truncated degree is zero or if the truncated
     /// degree is larger than the max degree of the commit key.
-    // FIXME: Use a match maybe?
     pub(crate) fn truncate(
         &self,
         mut truncated_degree: usize,
     ) -> Result<CommitKey, Error> {
-        if truncated_degree == 1 {
-            truncated_degree += 1;
+        match truncated_degree {
+            1 => {
+                truncated_degree += 1;
+                let truncated_powers = Self {
+                    powers_of_g: self.powers_of_g[..=truncated_degree].to_vec(),
+                };
+                Ok(truncated_powers)
+            }
+            // Check that the truncated degree is not zero
+            0 => Err(Error::TruncatedDegreeIsZero),
+            // Check that max degree is less than truncated degree
+            i if i > self.max_degree() => Err(Error::TruncatedDegreeTooLarge),
+            _ => {
+                let truncated_powers = Self {
+                    powers_of_g: self.powers_of_g[..=truncated_degree].to_vec(),
+                };
+                Ok(truncated_powers)
+            }
         }
-        // Check that the truncated degree is not zero
-        if truncated_degree == 0 {
-            return Err(Error::TruncatedDegreeIsZero);
-        }
-
-        // Check that max degree is less than truncated degree
-        if truncated_degree > self.max_degree() {
-            return Err(Error::TruncatedDegreeTooLarge);
-        }
-
-        let truncated_powers = Self {
-            powers_of_g: self.powers_of_g[..=truncated_degree].to_vec(),
-        };
-
-        Ok(truncated_powers)
     }
 
     /// Checks whether the polynomial we are committing to:
