@@ -377,7 +377,7 @@ impl Proof {
             self.evaluations.out_sigma_eval,
             verifier_key.permutation.out_sigma,
         ));
-        aggregate_proof.add_part((self.evaluations.f_next_eval, self.f_comm));
+        aggregate_proof.add_part((self.evaluations.f_eval, self.f_comm));
         aggregate_proof.add_part((self.evaluations.h_1_eval, self.h_1_comm));
         // Flatten proof with opening challenge
         let flattened_proof_a = aggregate_proof.flatten(transcript);
@@ -391,6 +391,7 @@ impl Proof {
         shifted_aggregate_proof.add_part((self.evaluations.h_1_next_eval, self.h_1_comm));
         shifted_aggregate_proof.add_part((self.evaluations.h_2_next_eval, self.h_2_comm));
         shifted_aggregate_proof.add_part((self.evaluations.lookup_perm_eval, self.p_comm));
+        shifted_aggregate_proof.add_part((self.evaluations.f_next_eval, self.f_comm));
         let flattened_proof_b = shifted_aggregate_proof.flatten(transcript);
         // Add commitment to openings to transcript
         transcript.append_commitment(b"w_z", &self.w_z_comm);
