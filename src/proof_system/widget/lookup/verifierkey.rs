@@ -36,8 +36,8 @@ impl VerifierKey {
         let l_sep_4 = lookup_separation_challenge * l_sep_3;
         let l_sep_5 = lookup_separation_challenge * l_sep_4;
 
-        // - f_eval * q_lookup * alpha_1
-        let a = -evaluations.f_long_eval * lookup_separation_challenge;
+        // (L_n(z) - 1) * f_eval * q_lookup * alpha_1
+        let a = (l1_eval - BlsScalar::one()) * evaluations.f_eval * lookup_separation_challenge;
         scalars.push(a);
         points.push(self.q_lookup.0);
 
@@ -61,13 +61,13 @@ impl VerifierKey {
         scalars.push(c);
         points.push(h_2_comm);
 
-        // (z - omega_inv)(1 + delta)(e + f_eval)(epsilon(1 + delta) + t_eval + (delta * t_next_eval) * alpha_1^3 + l_1(z) * alpha_1^2 + l_n(z) * alpha_1^5)
+        // (z - omega_inv)(1 + delta)(e + f_next_eval)(epsilon(1 + delta) + t_eval + (delta * t_next_eval) * alpha_1^3 + l_1(z) * alpha_1^2 + l_n(z) * alpha_1^5)
         let d = {
             let d_0 = z_challenge - omega_inv;
 
             let d_1 = BlsScalar::one() + delta;
 
-            let d_2 = epsilon + evaluations.f_short_eval;
+            let d_2 = epsilon + evaluations.f_next_eval;
 
             let d_3 = (epsilon * d_1 + t_eval + (delta * t_next_eval)) * l_sep_3;
 

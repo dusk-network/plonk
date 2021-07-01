@@ -26,8 +26,8 @@ impl ProverKey {
         w_r_i: &BlsScalar,
         w_o_i: &BlsScalar,
         w_4_i: &BlsScalar,
-        f_long_i: &BlsScalar,
-        f_short_i: &BlsScalar,
+        f_i: &BlsScalar,
+        f_i_next: &BlsScalar,
         p_i: &BlsScalar,
         p_i_next: &BlsScalar,
         t_i: &BlsScalar,
@@ -50,20 +50,23 @@ impl ProverKey {
         let one_plus_delta = delta + BlsScalar::one();
         let epsilon_one_plus_delta = epsilon * one_plus_delta;
 
-        // q_lookup(X) * (a(X) + zeta * b(X) + (zeta^2 * c(X)) + (zeta^3 * d(X) - f(X))) * α_1
+        // query polynomial f being length n-1 makes elements shift forward one place
+        // using f(Xω^(-1)) deshifts the elements in order to match indices of the wires
+        // f(Xω^(-1)) has a 0 in first position which is ignored by multiplying by (1-L0(x))
+        // (1-L0(x)) * q_lookup(X) * (a(X) + zeta * b(X) + (zeta^2 * c(X)) + (zeta^3 * d(X) - f(Xω^(-1)))) * α_1
         let a = {
             let q_lookup_i = self.q_lookup.1[index];
             let compressed_tuple = compress(*w_l_i, *w_r_i, *w_o_i, *w_4_i, *zeta);
 
-            q_lookup_i * (compressed_tuple - f_long_i) * lookup_separation_challenge
+            (BlsScalar::one() - l_first_i) *q_lookup_i * (compressed_tuple - f_i) * lookup_separation_challenge
         };
 
         // L0(X) * (p(X) − 1) * α_1^2
         let b = { l_first_i * (p_i - BlsScalar::one()) * l_sep_2 };
 
-        // (X−omega^(-1)) * p(X) * (1+δ) * (ε+f(X)) * (ε*(1+δ) + t(X) + δt(Xω)) * α_1^3
+        // (X−omega^(-1)) * p(X) * (1+δ) * (ε+f(Xω)) * (ε*(1+δ) + t(X) + δt(Xω)) * α_1^3
         let c = {
-            let c_1 = epsilon + f_short_i;
+            let c_1 = epsilon + f_i_next;
             let c_2 = epsilon_one_plus_delta + t_i + delta * t_i_next;
 
             x_minus_omega_inv * p_i * one_plus_delta * c_1 * c_2 * l_sep_3
@@ -90,8 +93,8 @@ impl ProverKey {
     pub(crate) fn compute_linearisation(
         &self,
         omega_inv: &BlsScalar,
-        f_long_eval: &BlsScalar,
-        f_short_eval: &BlsScalar,
+        f_eval: &BlsScalar,
+        f_next_eval: &BlsScalar,
         t_eval: &BlsScalar,
         t_next_eval: &BlsScalar,
         h_1_eval: &BlsScalar,
@@ -116,14 +119,14 @@ impl ProverKey {
         let epsilon_one_plus_delta = epsilon * one_plus_delta;
 
         // - q_lookup(X) * f_eval * lookup_separation_challenge
-        let a = { &self.q_lookup.0 * &(-f_long_eval * lookup_separation_challenge) };
+        let a = { &self.q_lookup.0 * &(&(l1_eval - BlsScalar::one()) * &(f_eval * lookup_separation_challenge)) };
 
         // p(X) * L0(z) * α_1^2
         let b = { p_poly * &(l1_eval * l_sep_2) };
 
-        // (z − omega^(-1)) * p(X) * (1 + δ) * (ε + f_bar) * (ε(1+δ) + t_bar + δ*tω_bar) * α_1^3
+        // (z − omega^(-1)) * p(X) * (1 + δ) * (ε + fω_bar) * (ε(1+δ) + t_bar + δ*tω_bar) * α_1^3
         let c = {
-            let c_0 = epsilon + f_short_eval;
+            let c_0 = epsilon + f_next_eval;
             let c_1 = epsilon_one_plus_delta + t_eval + delta * t_next_eval;
 
             p_poly * &(z_minus_omega_inv * one_plus_delta * c_0 * c_1 * l_sep_3)
