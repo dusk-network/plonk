@@ -201,18 +201,19 @@ impl Prover {
             .collect::<Vec<BlsScalar>>();
 
         // Compress all wires into a single vector
-        // Long version is checked against wire polys later and needs equal them in length (n)
-        let compressed_f_long = MultiSet::compress_four_arity(
+        // This is checked against wire polys later and needs equal them in length (n)
+        // The first element is set to 0 and will be ignored later in the compression check
+        // The n-1 remaining elements are used to create the lookup permutation poly
+        let compressed_f = MultiSet::compress_four_arity(
             [
-                &MultiSet::from(&f_1_scalar[..]),
-                &MultiSet::from(&f_2_scalar[..]),
-                &MultiSet::from(&f_3_scalar[..]),
-                &MultiSet::from(&f_4_scalar[..]),
+                &MultiSet::from([&[BlsScalar::zero()], &f_1_scalar[1..]].concat().as_slice()),
+                &MultiSet::from([&[BlsScalar::zero()], &f_1_scalar[1..]].concat().as_slice()),
+                &MultiSet::from([&[BlsScalar::zero()], &f_1_scalar[1..]].concat().as_slice()),
+                &MultiSet::from([&[BlsScalar::zero()], &f_1_scalar[1..]].concat().as_slice()),
             ],
             zeta,
         );
 
-        // Short version skips the first element and is used in plookup permutation checks. Ought to be length n-1.
         let compressed_f_short = MultiSet::compress_four_arity(
             [
                 &MultiSet::from(&f_1_scalar[1..]),
@@ -223,19 +224,15 @@ impl Prover {
             zeta,
         );
 
-        // Compute long query poly
-        let f_poly_long =
-            Polynomial::from_coefficients_vec(domain.ifft(&compressed_f_long.0.as_slice()));
-
-        // Compute short query poly
-        let f_poly_short =
-            Polynomial::from_coefficients_vec(domain.ifft(&compressed_f_short.0.as_slice()));
+        // Compute query poly
+        let f_poly =
+            Polynomial::from_coefficients_vec(domain.ifft(&compressed_f.0.as_slice()));
 
         // Commit to query polynomial
-        let f_poly_short_commit = commit_key.commit(&f_poly_short)?;
+        let f_poly_commit = commit_key.commit(&f_poly)?;
 
         // Add f_poly commitment to transcript
-        transcript.append_commitment(b"f", &f_poly_short_commit);
+        transcript.append_commitment(b"f", &f_poly_commit);
 
         // 2. Compute permutation polynomial
         //
@@ -274,6 +271,7 @@ impl Prover {
         let z_challenge = transcript.challenge_scalar(b"z_challenge");
 
         // Compute s, as the sorted and concatenated version of f and t
+        // Using the "short" version leaves off the leading zero of the multiset
         let s = compressed_t_multiset
             .sorted_concat(&compressed_f_short)
             .unwrap();
@@ -293,7 +291,7 @@ impl Prover {
         transcript.append_commitment(b"h1", &h_1_poly_commit);
         transcript.append_commitment(b"h2", &h_2_poly_commit);
 
-        // Compute lookup permutation poly
+        // Compute lookup permutation poly using short version of query list
         let p_poly =
             Polynomial::from_coefficients_slice(&self.cs.perm.compute_lookup_permutation_poly(
                 &domain,
@@ -330,8 +328,7 @@ impl Prover {
             &z_poly,
             &p_poly,
             (&w_l_poly, &w_r_poly, &w_o_poly, &w_4_poly),
-            &f_poly_long,
-            &f_poly_short,
+            &f_poly,
             &table_poly,
             &h_1_poly,
             &h_2_poly,
@@ -391,8 +388,7 @@ impl Prover {
             &w_4_poly,
             &t_poly,
             &z_poly,
-            &f_poly_long,
-            &f_poly_short,
+            &f_poly,
             &h_1_poly,
             &h_2_poly,
             &table_poly,
@@ -446,7 +442,7 @@ impl Prover {
                 prover_key.permutation.left_sigma.0.clone(),
                 prover_key.permutation.right_sigma.0.clone(),
                 prover_key.permutation.out_sigma.0.clone(),
-                f_poly_short,
+                f_poly,
                 h_1_poly.clone(),
             ],
             &z_challenge,
@@ -471,7 +467,7 @@ impl Prover {
             c_comm: w_o_poly_commit,
             d_comm: w_4_poly_commit,
 
-            f_comm: f_poly_short_commit,
+            f_comm: f_poly_commit,
 
             h_1_comm: h_1_poly_commit,
             h_2_comm: h_2_poly_commit,

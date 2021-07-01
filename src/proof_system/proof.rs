@@ -377,7 +377,7 @@ impl Proof {
             self.evaluations.out_sigma_eval,
             verifier_key.permutation.out_sigma,
         ));
-        aggregate_proof.add_part((self.evaluations.f_short_eval, self.f_comm));
+        aggregate_proof.add_part((self.evaluations.f_next_eval, self.f_comm));
         aggregate_proof.add_part((self.evaluations.h_1_eval, self.h_1_comm));
         // Flatten proof with opening challenge
         let flattened_proof_a = aggregate_proof.flatten(transcript);
