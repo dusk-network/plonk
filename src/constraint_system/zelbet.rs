@@ -24,8 +24,9 @@ impl StandardComposer {
         &mut self,
         x: Variable,
         s_i_decomposition: [Variable; 27],
-    ) -> [Variable; 27] {
-        let mut nibbles = [x; 27];
+    ) -> ([Variable; 27], [u256; 27]) {
+        let mut nibbles_mont = [x; 27];
+        let mut nibbles_reduced = [u256::zero(); 27];
         // Reduced form needed for the modular operations
         let reduced_input = self.variables[&x].reduce();
         let mut intermediate = u256(reduced_input.0);
@@ -42,15 +43,16 @@ impl StandardComposer {
                 false => remainder = intermediate,
             }
 
-            nibbles[k] = self.add_input(BlsScalar::from_raw(remainder.0));
+            nibbles_mont[k] = self.add_input(BlsScalar::from_raw(remainder.0));
+            nibbles_reduced[k] = remainder;
         });
 
         // x' = x_1 * s_2 + x_2, this is the start of the composition
         let mut acc = self.big_mul(
             BlsScalar::one(),
-            nibbles[26],
+            nibbles_mont[26],
             s_i_decomposition[25],
-            Some((BlsScalar::one(), nibbles[25])),
+            Some((BlsScalar::one(), nibbles_mont[25])),
             BlsScalar::zero(),
             BlsScalar::zero(),
         );
@@ -60,7 +62,7 @@ impl StandardComposer {
                 BlsScalar::one(),
                 acc,
                 s_i_decomposition[25 - k],
-                Some((BlsScalar::one(), nibbles[25 - k])),
+                Some((BlsScalar::one(), nibbles_mont[25 - k])),
                 BlsScalar::zero(),
                 BlsScalar::zero(),
             );
@@ -68,14 +70,15 @@ impl StandardComposer {
 
         self.constrain_to_constant(acc, self.variables[&x], BlsScalar::zero());
 
-        nibbles
+        (nibbles_mont, nibbles_reduced)
     }
 
     /// S-box using hash tables, and outputs constraints c_i, z_i and a boolean
     /// counter to help determine the c_i. (y_i, c_i, conditional, z_i)
     pub fn s_box_and_constraints(
         &mut self,
-        input: Variable,
+        input_mont: Variable,
+        input_reduced: u256,
         counter: u64,
         conditional: bool,
         one: Variable,
@@ -83,21 +86,22 @@ impl StandardComposer {
     ) -> (Variable, Variable, bool, Variable) {
         // Need to convert input scalar value to non-Montgomery
         // to allow size comparison
-        let value = self.variables[&input].reduce();
-        let mut y_i = input;
+        let mut y_i = input_mont;
         let mut c_i = one;
         let mut conditional_new = conditional;
         let mut z_i = self.zero_var;
-        if value.0[0] < 659 {
-            y_i = self.add_input(BlsScalar::from_raw(SBOX_U256[value.0[0] as usize].0));
+        if input_reduced.0[0] < 659 {
+            y_i = self.add_input(BlsScalar::from_raw(
+                SBOX_U256[input_reduced.0[0] as usize].0,
+            ));
             conditional_new = true;
         } else {
-            y_i = input;
+            y_i = input_mont;
             z_i = one;
-            if value.0[0] > BLS_SCALAR_REAL[27 - counter as usize].0[0] {
+            if input_reduced.0[0] > BLS_SCALAR_REAL[27 - counter as usize].0[0] {
                 c_i = two;
                 conditional_new = true
-            } else if value.0[0] == BLS_SCALAR_REAL[27 - counter as usize].0[0] {
+            } else if input_reduced.0[0] == BLS_SCALAR_REAL[27 - counter as usize].0[0] {
                 if conditional == true {
                     c_i = two;
                     conditional_new = true
@@ -108,7 +112,7 @@ impl StandardComposer {
         }
 
         let scaled_z_i = self.add_input(BlsScalar::from(counter) * self.variables[&z_i]);
-        self.plookup_gate(input, scaled_z_i, y_i, Some(c_i), BlsScalar::zero());
+        self.plookup_gate(input_mont, scaled_z_i, y_i, Some(c_i), BlsScalar::zero());
 
         (y_i, c_i, conditional_new, z_i)
     }
@@ -136,14 +140,38 @@ mod tests {
                 let counter: u64 = 1;
                 let counter2: u64 = 2;
                 let conditional = true;
-                let output_700 =
-                    composer.s_box_and_constraints(seven_hundred, counter2, conditional, one, two);
-                let output_one =
-                    composer.s_box_and_constraints(one, counter, conditional, one, two);
-                let output_prime =
-                    composer.s_box_and_constraints(prime, counter2, conditional, one, two);
-                let output_prime_false =
-                    composer.s_box_and_constraints(prime, counter, false, one, two);
+                let output_700 = composer.s_box_and_constraints(
+                    seven_hundred,
+                    u256::from(700),
+                    counter2,
+                    conditional,
+                    one,
+                    two,
+                );
+                let output_one = composer.s_box_and_constraints(
+                    one,
+                    u256::from(1),
+                    counter,
+                    conditional,
+                    one,
+                    two,
+                );
+                let output_prime = composer.s_box_and_constraints(
+                    prime,
+                    u256::from(659),
+                    counter2,
+                    conditional,
+                    one,
+                    two,
+                );
+                let output_prime_false = composer.s_box_and_constraints(
+                    prime,
+                    u256::from(659),
+                    counter,
+                    false,
+                    one,
+                    two,
+                );
 
                 // Check that the s-box works as expected
                 composer.constrain_to_constant(
@@ -207,6 +235,7 @@ mod tests {
                 let conditional = true;
                 let output = composer.s_box_and_constraints(
                     one_hundred,
+                    u256::from(100),
                     counter,
                     conditional,
                     one_hundred,
@@ -253,12 +282,17 @@ mod tests {
                 (0..27).for_each(|k| {
                     s_i_decomposition[k] = composer.add_input(S_I_DECOMPOSITION_MONTGOMERY[k]);
                 });
-                let output = composer.decomposition_gadget(one, s_i_decomposition);
+                let (output_mont, output_reduced) =
+                    composer.decomposition_gadget(one, s_i_decomposition);
                 (1..27).for_each(|k| {
-                    composer.constrain_to_constant(output[k], BlsScalar::zero(), BlsScalar::zero());
+                    composer.constrain_to_constant(
+                        output_mont[k],
+                        BlsScalar::zero(),
+                        BlsScalar::zero(),
+                    );
                 });
                 // Check x_27 = 1, bearing in mind that x_1 is not in Montgomery form
-                composer.constrain_to_constant(output[0], BlsScalar::one(), BlsScalar::zero());
+                composer.constrain_to_constant(output_mont[0], BlsScalar::one(), BlsScalar::zero());
 
                 let minus_three = composer.add_input(-BlsScalar::from(3));
                 let output2 = composer.decomposition_gadget(minus_three, s_i_decomposition);
@@ -273,7 +307,7 @@ mod tests {
                 ];
                 (0..27).for_each(|k| {
                     composer.constrain_to_constant(
-                        output2[k],
+                        output2.0[k],
                         BlsScalar::from(expected_output[k]),
                         BlsScalar::zero(),
                     );
