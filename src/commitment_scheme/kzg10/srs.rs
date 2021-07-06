@@ -40,8 +40,8 @@ impl PublicParameters {
 
     /// Setup generates the public parameters using a random number generator.
     /// This method will in most cases be used for testing and exploration.
-    /// In reality, a `Trusted party` or a `Multiparty Computation` will used to
-    /// generate the SRS. Returns an error if the configured degree is less
+    /// In reality, a `Trusted party` or a `Multiparty Computation` will be used
+    /// to generate the SRS. Returns an error if the configured degree is less
     /// than one.
     pub fn setup<R: RngCore + CryptoRng>(
         max_degree: usize,
