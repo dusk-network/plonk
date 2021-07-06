@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Fix the document references and typos [#533](https://github.com/dusk-network/plonk/pull/533)
+- Fix if condition to match [#545](https://github.com/dusk-network/plonk/pull/545)
 
 ## [0.8.1] - 07-06-21
 
