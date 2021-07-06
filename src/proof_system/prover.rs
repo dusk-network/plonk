@@ -207,9 +207,9 @@ impl Prover {
         let compressed_f = MultiSet::compress_four_arity(
             [
                 &MultiSet::from([&[BlsScalar::zero()], &f_1_scalar[1..]].concat().as_slice()),
-                &MultiSet::from([&[BlsScalar::zero()], &f_1_scalar[1..]].concat().as_slice()),
-                &MultiSet::from([&[BlsScalar::zero()], &f_1_scalar[1..]].concat().as_slice()),
-                &MultiSet::from([&[BlsScalar::zero()], &f_1_scalar[1..]].concat().as_slice()),
+                &MultiSet::from([&[BlsScalar::zero()], &f_2_scalar[1..]].concat().as_slice()),
+                &MultiSet::from([&[BlsScalar::zero()], &f_3_scalar[1..]].concat().as_slice()),
+                &MultiSet::from([&[BlsScalar::zero()], &f_4_scalar[1..]].concat().as_slice()),
             ],
             zeta,
         );
