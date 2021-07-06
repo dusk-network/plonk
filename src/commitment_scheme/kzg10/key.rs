@@ -121,18 +121,14 @@ impl CommitKey {
         mut truncated_degree: usize,
     ) -> Result<CommitKey, Error> {
         match truncated_degree {
-            1 => {
-                truncated_degree += 1;
-                let truncated_powers = Self {
-                    powers_of_g: self.powers_of_g[..=truncated_degree].to_vec(),
-                };
-                Ok(truncated_powers)
-            }
             // Check that the truncated degree is not zero
             0 => Err(Error::TruncatedDegreeIsZero),
             // Check that max degree is less than truncated degree
             i if i > self.max_degree() => Err(Error::TruncatedDegreeTooLarge),
-            _ => {
+            i => {
+                if i == 1 {
+                    truncated_degree += 1
+                };
                 let truncated_powers = Self {
                     powers_of_g: self.powers_of_g[..=truncated_degree].to_vec(),
                 };
