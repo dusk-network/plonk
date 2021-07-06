@@ -58,7 +58,10 @@ impl ProverKey {
             let q_lookup_i = self.q_lookup.1[index];
             let compressed_tuple = compress(*w_l_i, *w_r_i, *w_o_i, *w_4_i, *zeta);
 
-            (BlsScalar::one() - l_first_i) *q_lookup_i * (compressed_tuple - f_i) * lookup_separation_challenge
+            (BlsScalar::one() - l_first_i)
+                * q_lookup_i
+                * (compressed_tuple - f_i)
+                * lookup_separation_challenge
         };
 
         // L0(X) * (p(X) − 1) * α_1^2
@@ -119,7 +122,10 @@ impl ProverKey {
         let epsilon_one_plus_delta = epsilon * one_plus_delta;
 
         // - q_lookup(X) * f_eval * lookup_separation_challenge
-        let a = { &self.q_lookup.0 * &(&(l1_eval - BlsScalar::one()) * &(f_eval * lookup_separation_challenge)) };
+        let a = {
+            &self.q_lookup.0
+                * &(&(l1_eval - BlsScalar::one()) * &(f_eval * lookup_separation_challenge))
+        };
 
         // p(X) * L0(z) * α_1^2
         let b = { p_poly * &(l1_eval * l_sep_2) };

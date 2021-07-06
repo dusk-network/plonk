@@ -225,8 +225,7 @@ impl Prover {
         );
 
         // Compute query poly
-        let f_poly =
-            Polynomial::from_coefficients_vec(domain.ifft(&compressed_f.0.as_slice()));
+        let f_poly = Polynomial::from_coefficients_vec(domain.ifft(&compressed_f.0.as_slice()));
 
         // Commit to query polynomial
         let f_poly_commit = commit_key.commit(&f_poly)?;

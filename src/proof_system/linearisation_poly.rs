@@ -231,7 +231,7 @@ pub fn compute(
     let d_next_eval = w_4_poly.evaluate(&(z_challenge * domain.group_gen));
     let perm_eval = z_poly.evaluate(&(z_challenge * domain.group_gen));
     let lookup_perm_eval = p_poly.evaluate(&(z_challenge * domain.group_gen));
-    let f_next_eval = f_poly.evaluate(&(z_challenge* domain.group_gen));
+    let f_next_eval = f_poly.evaluate(&(z_challenge * domain.group_gen));
     let h_1_next_eval = h_1_poly.evaluate(&(z_challenge * domain.group_gen));
     let h_2_next_eval = h_2_poly.evaluate(&(z_challenge * domain.group_gen));
     let t_next_eval = table_poly.evaluate(&(z_challenge * domain.group_gen));

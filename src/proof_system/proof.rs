@@ -478,7 +478,10 @@ impl Proof {
             + (self.evaluations.b_eval * zeta)
             + (self.evaluations.c_eval * zeta_sq)
             + (self.evaluations.d_eval * zeta_cu);
-        let d = (BlsScalar::one() - l1_eval) *self.evaluations.q_lookup_eval * d_0 * lookup_sep_challenge;
+        let d = (BlsScalar::one() - l1_eval)
+            * self.evaluations.q_lookup_eval
+            * d_0
+            * lookup_sep_challenge;
 
         // l_1(z) * alpha_1^2
         let e = l1_eval * l_sep_2;
