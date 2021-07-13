@@ -252,9 +252,6 @@ impl Proof {
         // Compute first lagrange polynomial evaluated at `z_challenge`
         let l1_eval = compute_first_lagrange_evaluation(&domain, &z_h_eval, &z_challenge);
 
-        // Compute n'th Lagrange poly evaluated at `z_challenge`
-        let ln_eval = compute_nth_lagrange_evaluation(&domain, &z_h_eval, &z_challenge);
-
         // Compress table into vector of single elements
         let mut compressed_t: Vec<BlsScalar> = lookup_table
             .0
@@ -295,7 +292,6 @@ impl Proof {
             &z_challenge,
             &z_h_eval,
             &l1_eval,
-            &ln_eval,
             &self.evaluations.perm_eval,
             &lookup_sep_challenge,
         );
@@ -324,7 +320,7 @@ impl Proof {
         transcript.append_scalar(b"lookup_perm_eval", &self.evaluations.lookup_perm_eval);
         transcript.append_scalar(b"h_1_eval", &self.evaluations.h_1_eval);
         transcript.append_scalar(b"h_1_next_eval", &self.evaluations.h_1_next_eval);
-        transcript.append_scalar(b"h_2_next_eval", &self.evaluations.h_2_next_eval);
+        transcript.append_scalar(b"h_2_eval", &self.evaluations.h_2_eval);
         transcript.append_scalar(b"t_eval", &t_eval);
         transcript.append_scalar(b"r_eval", &self.evaluations.lin_poly_eval);
 
@@ -344,10 +340,8 @@ impl Proof {
             ),
             &z_challenge,
             l1_eval,
-            ln_eval,
             table_eval,
             table_next_eval,
-            domain.group_gen_inv,
             &verifier_key,
         );
 
@@ -377,8 +371,9 @@ impl Proof {
             self.evaluations.out_sigma_eval,
             verifier_key.permutation.out_sigma,
         ));
-        aggregate_proof.add_part((self.evaluations.f_short_eval, self.f_comm));
+        aggregate_proof.add_part((self.evaluations.f_eval, self.f_comm));
         aggregate_proof.add_part((self.evaluations.h_1_eval, self.h_1_comm));
+        aggregate_proof.add_part((self.evaluations.h_2_eval, self.h_2_comm));
         // Flatten proof with opening challenge
         let flattened_proof_a = aggregate_proof.flatten(transcript);
 
@@ -389,7 +384,6 @@ impl Proof {
         shifted_aggregate_proof.add_part((self.evaluations.b_next_eval, self.b_comm));
         shifted_aggregate_proof.add_part((self.evaluations.d_next_eval, self.d_comm));
         shifted_aggregate_proof.add_part((self.evaluations.h_1_next_eval, self.h_1_comm));
-        shifted_aggregate_proof.add_part((self.evaluations.h_2_next_eval, self.h_2_comm));
         shifted_aggregate_proof.add_part((self.evaluations.lookup_perm_eval, self.p_comm));
         let flattened_proof_b = shifted_aggregate_proof.flatten(transcript);
         // Add commitment to openings to transcript
@@ -424,12 +418,9 @@ impl Proof {
         z_challenge: &BlsScalar,
         z_h_eval: &BlsScalar,
         l1_eval: &BlsScalar,
-        ln_eval: &BlsScalar,
         z_hat_eval: &BlsScalar,
         lookup_sep_challenge: &BlsScalar,
     ) -> BlsScalar {
-        let omega_inv = domain.group_gen_inv;
-
         // Compute the public input polynomial evaluated at `z_challenge`
         let pi_eval = compute_barycentric_eval(pub_inputs, z_challenge, domain);
 
@@ -439,8 +430,6 @@ impl Proof {
         // Compute powers of alpha_1
         let l_sep_2 = lookup_sep_challenge.square();
         let l_sep_3 = lookup_sep_challenge * l_sep_2;
-        let l_sep_4 = lookup_sep_challenge * l_sep_3;
-        let l_sep_5 = lookup_sep_challenge * l_sep_4;
 
         // Compute power of zeta
         let zeta_sq = zeta.square();
@@ -482,22 +471,15 @@ impl Proof {
         // l_1(z) * alpha_1^2
         let e = l1_eval * l_sep_2;
 
-        // (z - omega_inv) * p_eval * (epsilon( 1+ delta) + h_1_eval +(delta * h_1_next_eval)(epsilon( 1+ delta) + delta * h_2_next_eval) * alpha_1^3
-        let f_0 = z_challenge - omega_inv;
-        let f_1 = epsilon_one_plus_delta
+        // p_eval * (epsilon( 1+ delta) + h_1_eval + delta * h_2_eval)(epsilon( 1+ delta) + delta * h_1_next_eval) * alpha_1^3
+        let f_0 = epsilon_one_plus_delta
             + self.evaluations.h_1_eval
-            + (delta * self.evaluations.h_1_next_eval);
-        let f_2 = epsilon_one_plus_delta + (delta * self.evaluations.h_2_next_eval);
-        let f = f_0 * self.evaluations.lookup_perm_eval * f_1 * f_2 * l_sep_3;
-
-        // l_n(z) * h_2_next_eval * alpha_1^4
-        let g = ln_eval * self.evaluations.h_2_next_eval * l_sep_4;
-
-        // l_n(z) * alpha_1^5
-        let h = ln_eval * l_sep_5;
+            + (delta * self.evaluations.h_2_eval);
+        let f_1 = epsilon_one_plus_delta + (delta * self.evaluations.h_1_next_eval);
+        let f = self.evaluations.lookup_perm_eval * f_0 * f_1 * l_sep_3;
 
         // Return t_eval
-        (a - b - c + d - e - f - g - h) * z_h_eval.invert().unwrap()
+        (a - b - c + d - e - f) * z_h_eval.invert().unwrap()
     }
 
     fn compute_quotient_commitment(&self, z_challenge: &BlsScalar, n: usize) -> Commitment {
@@ -529,10 +511,8 @@ impl Proof {
         ): (&BlsScalar, &BlsScalar, &BlsScalar, &BlsScalar, &BlsScalar),
         z_challenge: &BlsScalar,
         l1_eval: BlsScalar,
-        ln_eval: BlsScalar,
         t_eval: BlsScalar,
         t_next_eval: BlsScalar,
-        omega_inv: BlsScalar,
         verifier_key: &VerifierKey,
     ) -> Commitment {
         let mut scalars: Vec<_> = Vec::with_capacity(6);
@@ -577,16 +557,12 @@ impl Proof {
             &mut scalars,
             &mut points,
             &self.evaluations,
-            z_challenge,
             (&delta, &epsilon),
             &l1_eval,
-            &ln_eval,
             &t_eval,
             &t_next_eval,
-            self.h_1_comm.0,
             self.h_2_comm.0,
             self.p_comm.0,
-            &omega_inv,
         );
 
         verifier_key.permutation.compute_linearisation_commitment(
@@ -610,17 +586,6 @@ fn compute_first_lagrange_evaluation(
 ) -> BlsScalar {
     let n_fr = BlsScalar::from(domain.size() as u64);
     let denom = n_fr * (z_challenge - BlsScalar::one());
-    z_h_eval * denom.invert().unwrap()
-}
-
-fn compute_nth_lagrange_evaluation(
-    domain: &EvaluationDomain,
-    z_h_eval: &BlsScalar,
-    z_challenge: &BlsScalar,
-) -> BlsScalar {
-    let n_fr = BlsScalar::from(domain.size() as u64);
-    let eval_point = z_challenge * domain.group_gen;
-    let denom = n_fr * (eval_point - BlsScalar::one());
     z_h_eval * denom.invert().unwrap()
 }
 
