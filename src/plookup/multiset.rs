@@ -116,6 +116,23 @@ impl MultiSet {
         (first_half, second_half)
     }
 
+    /// Splits a multiset into alternating halves of the same length
+    /// as specified in the Plonkup paper. A multiset must have even
+    /// cardinality to be split in this manner.
+    pub fn halve_alternating(&self) -> (MultiSet, MultiSet) {
+        let mut evens = vec![];
+        let mut odds = vec![];
+        for i in 0..self.len() {
+            if i % 2 == 0 {
+                evens.push(self.0[i]);
+            } else {
+                odds.push(self.0[i]);
+            }
+        }
+
+        (MultiSet(evens), MultiSet(odds))
+    }
+
     /// Treats each element in the multiset as evaluation points
     /// Computes IFFT of the set of evaluation points
     /// and returns the coefficients as a Polynomial data structure
