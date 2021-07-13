@@ -402,7 +402,7 @@ impl Prover {
         transcript.append_scalar(b"lookup_perm_eval", &evaluations.proof.lookup_perm_eval);
         transcript.append_scalar(b"h_1_eval", &evaluations.proof.h_1_eval);
         transcript.append_scalar(b"h_1_next_eval", &evaluations.proof.h_1_next_eval);
-        transcript.append_scalar(b"h_2_next_eval", &evaluations.proof.h_2_next_eval);
+        transcript.append_scalar(b"h_2_eval", &evaluations.proof.h_2_eval);
         transcript.append_scalar(b"t_eval", &evaluations.quot_eval);
         transcript.append_scalar(b"r_eval", &evaluations.proof.lin_poly_eval);
 
@@ -431,6 +431,7 @@ impl Prover {
                 prover_key.permutation.out_sigma.0.clone(),
                 f_poly,
                 h_1_poly.clone(),
+                h_2_poly,
             ],
             &z_challenge,
             &mut transcript,
@@ -439,9 +440,7 @@ impl Prover {
 
         // Compute aggregate witness to polynomials evaluated at the shifted evaluation challenge
         let shifted_aggregate_witness = commit_key.compute_aggregate_witness(
-            &[
-                z_poly, w_l_poly, w_r_poly, w_4_poly, h_1_poly, h_2_poly, p_poly,
-            ],
+            &[z_poly, w_l_poly, w_r_poly, w_4_poly, h_1_poly, p_poly],
             &(z_challenge * domain.group_gen),
             &mut transcript,
         );
