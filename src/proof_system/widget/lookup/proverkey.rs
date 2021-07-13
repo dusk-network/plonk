@@ -66,7 +66,7 @@ impl ProverKey {
             let d_1 = epsilon_one_plus_delta + h_1_i + delta * h_2_i;
             let d_2 = epsilon_one_plus_delta + h_2_i + delta * h_1_i_next;
 
-            - p_i_next * d_1 * d_2 * l_sep_3
+            -p_i_next * d_1 * d_2 * l_sep_3
         };
 
         a + b + c + d
