@@ -433,6 +433,7 @@ impl Prover {
                 f_poly,
                 h_1_poly.clone(),
                 h_2_poly,
+                table_poly.clone(),
             ],
             &z_challenge,
             &mut transcript,
@@ -441,7 +442,7 @@ impl Prover {
 
         // Compute aggregate witness to polynomials evaluated at the shifted evaluation challenge
         let shifted_aggregate_witness = commit_key.compute_aggregate_witness(
-            &[z_poly, w_l_poly, w_r_poly, w_4_poly, h_1_poly, p_poly],
+            &[z_poly, w_l_poly, w_r_poly, w_4_poly, h_1_poly, p_poly, table_poly],
             &(z_challenge * domain.group_gen),
             &mut transcript,
         );

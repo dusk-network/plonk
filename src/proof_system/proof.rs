@@ -273,11 +273,12 @@ impl Proof {
 
         let compressed_t_multiset = MultiSet(compressed_t);
 
-        // Compute table poly
-        let t = Polynomial::from_coefficients_vec(domain.ifft(&compressed_t_multiset.0.as_slice()));
-
-        let table_eval = t.evaluate(&z_challenge);
-        let table_next_eval = t.evaluate(&(z_challenge * domain.group_gen));
+        let table_comm = Commitment(
+            G1Affine::from(verifier_key.lookup.table_1.0
+            + verifier_key.lookup.table_2.0 * zeta
+            + verifier_key.lookup.table_3.0 * zeta * zeta
+            + verifier_key.lookup.table_4.0 * zeta * zeta * zeta)
+        );
 
         // Compute quotient polynomial evaluated at `z_challenge`
         let t_eval = self.compute_quotient_evaluation(
@@ -340,8 +341,8 @@ impl Proof {
             ),
             &z_challenge,
             l1_eval,
-            table_eval,
-            table_next_eval,
+            self.evaluations.table_eval,
+            self.evaluations.table_next_eval,
             &verifier_key,
         );
 
@@ -374,6 +375,7 @@ impl Proof {
         aggregate_proof.add_part((self.evaluations.f_eval, self.f_comm));
         aggregate_proof.add_part((self.evaluations.h_1_eval, self.h_1_comm));
         aggregate_proof.add_part((self.evaluations.h_2_eval, self.h_2_comm));
+        aggregate_proof.add_part((self.evaluations.table_eval, table_comm));
         // Flatten proof with opening challenge
         let flattened_proof_a = aggregate_proof.flatten(transcript);
 
@@ -385,6 +387,7 @@ impl Proof {
         shifted_aggregate_proof.add_part((self.evaluations.d_next_eval, self.d_comm));
         shifted_aggregate_proof.add_part((self.evaluations.h_1_next_eval, self.h_1_comm));
         shifted_aggregate_proof.add_part((self.evaluations.lookup_perm_eval, self.p_comm));
+        shifted_aggregate_proof.add_part((self.evaluations.table_next_eval, table_comm));
         let flattened_proof_b = shifted_aggregate_proof.flatten(transcript);
         // Add commitment to openings to transcript
         transcript.append_commitment(b"w_z", &self.w_z_comm);
