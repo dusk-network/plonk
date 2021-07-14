@@ -288,7 +288,6 @@ impl Proof {
             &gamma,
             &delta,
             &epsilon,
-            &zeta,
             &z_challenge,
             &z_h_eval,
             &l1_eval,
@@ -331,6 +330,7 @@ impl Proof {
             &gamma,
             &delta,
             &epsilon,
+            &zeta,
             (
                 &range_sep_challenge,
                 &logic_sep_challenge,
@@ -414,7 +414,6 @@ impl Proof {
         gamma: &BlsScalar,
         delta: &BlsScalar,
         epsilon: &BlsScalar,
-        zeta: &BlsScalar,
         z_challenge: &BlsScalar,
         z_h_eval: &BlsScalar,
         l1_eval: &BlsScalar,
@@ -430,10 +429,6 @@ impl Proof {
         // Compute powers of alpha_1
         let l_sep_2 = lookup_sep_challenge.square();
         let l_sep_3 = lookup_sep_challenge * l_sep_2;
-
-        // Compute power of zeta
-        let zeta_sq = zeta.square();
-        let zeta_cu = zeta_sq * zeta;
 
         // Compute common term
         let epsilon_one_plus_delta = epsilon * (BlsScalar::one() + delta);
@@ -461,13 +456,6 @@ impl Proof {
         // l_1(z) * alpha_0^2
         let c = l1_eval * alpha_sq;
 
-        // q_lookup(z) * (a + b*zeta + c*zeta^2 + d*zeta^3) * alpha_1
-        let d_0 = self.evaluations.a_eval
-            + (self.evaluations.b_eval * zeta)
-            + (self.evaluations.c_eval * zeta_sq)
-            + (self.evaluations.d_eval * zeta_cu);
-        let d = self.evaluations.q_lookup_eval * d_0 * lookup_sep_challenge;
-
         // l_1(z) * alpha_1^2
         let e = l1_eval * l_sep_2;
 
@@ -479,7 +467,8 @@ impl Proof {
         let f = self.evaluations.lookup_perm_eval * f_0 * f_1 * l_sep_3;
 
         // Return t_eval
-        (a - b - c + d - e - f) * z_h_eval.invert().unwrap()
+        (a - b - c //+ d
+             - e - f) * z_h_eval.invert().unwrap()
     }
 
     fn compute_quotient_commitment(&self, z_challenge: &BlsScalar, n: usize) -> Commitment {
@@ -502,6 +491,7 @@ impl Proof {
         gamma: &BlsScalar,
         delta: &BlsScalar,
         epsilon: &BlsScalar,
+        zeta: &BlsScalar,
         (
             range_sep_challenge,
             logic_sep_challenge,
@@ -558,6 +548,7 @@ impl Proof {
             &mut points,
             &self.evaluations,
             (&delta, &epsilon),
+            &zeta,
             &l1_eval,
             &t_eval,
             &t_next_eval,

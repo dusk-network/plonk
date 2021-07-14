@@ -362,6 +362,7 @@ impl Prover {
                 gamma,
                 delta,
                 epsilon,
+                zeta,
                 range_sep_challenge,
                 logic_sep_challenge,
                 fixed_base_sep_challenge,

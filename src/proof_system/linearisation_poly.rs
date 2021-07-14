@@ -172,6 +172,7 @@ pub fn compute(
         gamma,
         delta,
         epsilon,
+        zeta,
         range_separation_challenge,
         logic_separation_challenge,
         fixed_base_separation_challenge,
@@ -179,6 +180,7 @@ pub fn compute(
         lookup_separation_challenge,
         z_challenge,
     ): &(
+        BlsScalar,
         BlsScalar,
         BlsScalar,
         BlsScalar,
@@ -259,6 +261,7 @@ pub fn compute(
         &p_poly,
         &h_2_poly,
         (delta, epsilon),
+        zeta,
         &q_c_eval,
         &q_l_eval,
         &q_r_eval,
@@ -338,6 +341,7 @@ fn compute_circuit_satisfiability(
     p_poly: &Polynomial,
     h_2_poly: &Polynomial,
     (delta, epsilon): (&BlsScalar, &BlsScalar),
+    zeta: &BlsScalar,
     q_c_eval: &BlsScalar,
     q_l_eval: &BlsScalar,
     q_r_eval: &BlsScalar,
@@ -395,6 +399,10 @@ fn compute_circuit_satisfiability(
     );
 
     let f = prover_key.lookup.compute_linearisation(
+        a_eval,
+        b_eval,
+        c_eval,
+        d_eval,
         f_eval,
         t_eval,
         t_next_eval,
@@ -405,6 +413,7 @@ fn compute_circuit_satisfiability(
         p_poly,
         h_2_poly,
         (delta, epsilon),
+        zeta,
         lookup_separation_challenge,
     );
 

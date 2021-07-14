@@ -75,6 +75,10 @@ impl ProverKey {
     /// Compute linearisation for lookup gates
     pub(crate) fn compute_linearisation(
         &self,
+        a_eval: &BlsScalar,
+        b_eval: &BlsScalar,
+        c_eval: &BlsScalar,
+        d_eval: &BlsScalar,
         f_eval: &BlsScalar,
         t_eval: &BlsScalar,
         t_next_eval: &BlsScalar,
@@ -85,16 +89,24 @@ impl ProverKey {
         p_poly: &Polynomial,
         h_2_poly: &Polynomial,
         (delta, epsilon): (&BlsScalar, &BlsScalar),
+        zeta: &BlsScalar,
         lookup_separation_challenge: &BlsScalar,
     ) -> Polynomial {
         let l_sep_2 = lookup_separation_challenge.square();
         let l_sep_3 = l_sep_2 * lookup_separation_challenge;
 
+        let zeta_sq = zeta * zeta;
+        let zeta_cu = zeta * zeta_sq;
+
         let one_plus_delta = delta + BlsScalar::one();
         let epsilon_one_plus_delta = epsilon * one_plus_delta;
 
         // - q_lookup(X) * f_eval * lookup_separation_challenge
-        let a = { &self.q_lookup.0 * &(-f_eval * lookup_separation_challenge) };
+        let a = { 
+            let a_0 = a_eval + zeta * b_eval + zeta_sq * c_eval + zeta_cu * d_eval;
+            
+            &self.q_lookup.0 * &((a_0 - f_eval) * lookup_separation_challenge)
+        };
 
         // p(X) * L0(z) * α_1^2
         let b = { p_poly * &(l1_eval * l_sep_2) };
