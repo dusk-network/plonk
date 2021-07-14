@@ -283,6 +283,20 @@ impl StandardComposer {
         let out_sigma_poly_commit = commit_key.commit(&out_sigma_poly)?;
         let fourth_sigma_poly_commit = commit_key.commit(&fourth_sigma_poly)?;
 
+        // 3. Compute table polynomials
+
+        let (table_1_multiset, table_2_multiset, table_3_multiset, table_4_multiset) =  self.lookup_table.vec_to_multiset();
+
+        let table_1_poly = Polynomial::from_coefficients_slice(&domain.ifft(&table_1_multiset.0));
+        let table_2_poly = Polynomial::from_coefficients_slice(&domain.ifft(&table_2_multiset.0));
+        let table_3_poly = Polynomial::from_coefficients_slice(&domain.ifft(&table_3_multiset.0));
+        let table_4_poly = Polynomial::from_coefficients_slice(&domain.ifft(&table_4_multiset.0));
+
+        let table_1_poly_commit = commit_key.commit(&table_1_poly)?;
+        let table_2_poly_commit = commit_key.commit(&table_2_poly)?;
+        let table_3_poly_commit = commit_key.commit(&table_3_poly)?;
+        let table_4_poly_commit = commit_key.commit(&table_4_poly)?;
+
         // Verifier Key for arithmetic circuits
         let arithmetic_verifier_key = widget::arithmetic::VerifierKey {
             q_m: q_m_poly_commit,
@@ -316,6 +330,10 @@ impl StandardComposer {
         // Verifier Key for lookup operations
         let lookup_verifier_key = widget::lookup::VerifierKey {
             q_lookup: q_lookup_poly_commit,
+            table_1: table_1_poly_commit,
+            table_2: table_2_poly_commit,
+            table_3: table_3_poly_commit,
+            table_4: table_4_poly_commit,
         };
 
         // Verifier Key for permutation argument

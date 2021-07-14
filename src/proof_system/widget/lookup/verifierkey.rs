@@ -5,12 +5,17 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use crate::commitment_scheme::kzg10::Commitment;
+use crate::plookup::PreprocessedTable4Arity;
 use crate::proof_system::linearisation_poly::ProofEvaluations;
 use dusk_bls12_381::{BlsScalar, G1Affine};
 
-#[derive(Debug, PartialEq, Eq, Copy, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct VerifierKey {
     pub q_lookup: Commitment,
+    pub table_1: Commitment,
+    pub table_2: Commitment,
+    pub table_3: Commitment,
+    pub table_4: Commitment,
 }
 
 impl VerifierKey {

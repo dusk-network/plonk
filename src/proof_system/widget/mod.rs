@@ -44,7 +44,7 @@ pub struct ProverKey {
 }
 
 /// Plookup circuit verification key
-#[derive(Debug, PartialEq, Eq, Copy, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct VerifierKey {
     /// Circuit size
     pub n: usize,
@@ -136,7 +136,12 @@ impl VerifierKey {
         let (left_sigma, rest) = read_commitment(rest)?;
         let (right_sigma, rest) = read_commitment(rest)?;
         let (out_sigma, rest) = read_commitment(rest)?;
-        let (fourth_sigma, _) = read_commitment(rest)?;
+        let (fourth_sigma, rest) = read_commitment(rest)?;
+
+        let (table_1, rest) = read_commitment(rest)?;
+        let (table_2, rest) = read_commitment(rest)?;
+        let (table_3, rest) = read_commitment(rest)?;
+        let (table_4, _) = read_commitment(rest)?;
 
         let arithmetic = arithmetic::VerifierKey {
             q_m,
@@ -159,7 +164,13 @@ impl VerifierKey {
             q_variable_group_add,
         };
 
-        let lookup = lookup::VerifierKey { q_lookup };
+        let lookup = lookup::VerifierKey {
+            q_lookup,
+            table_1,
+            table_2,
+            table_3,
+            table_4,
+        };
 
         let permutation = permutation::VerifierKey {
             left_sigma,
@@ -358,7 +369,19 @@ impl ProverKey {
         let fourth_sigma = (fourth_sigma_poly, fourth_sigma_evals);
         let (linear_evaluations, rest) = read_evaluations(domain, rest)?;
 
-        let (v_h_coset_4n, _) = read_evaluations(domain, rest)?;
+        let (v_h_coset_4n, rest) = read_evaluations(domain, rest)?;
+
+        let (table_1_poly, rest) = read_polynomial(&rest)?;
+        let (table_1_evals, rest) = read_evaluations(domain, &rest)?;
+
+        let (table_2_poly, rest) = read_polynomial(&rest)?;
+        let (table_2_evals, rest) = read_evaluations(domain, &rest)?;
+
+        let (table_3_poly, rest) = read_polynomial(&rest)?;
+        let (table_3_evals, rest) = read_evaluations(domain, &rest)?;
+
+        let (table_4_poly, rest) = read_polynomial(&rest)?;
+        let (table_4_evals, _) = read_evaluations(domain, &rest)?;
 
         let arithmetic = arithmetic::ProverKey {
             q_m,
@@ -384,7 +407,9 @@ impl ProverKey {
             q_c,
         };
 
-        let lookup = lookup::ProverKey { q_lookup };
+        let lookup = lookup::ProverKey {
+            q_lookup,
+        };
 
         let permutation = permutation::ProverKey {
             left_sigma,
@@ -565,6 +590,11 @@ mod test {
         let out_sigma = Commitment::from_affine(G1Affine::generator());
         let fourth_sigma = Commitment::from_affine(G1Affine::generator());
 
+        let table_1 = Commitment::from_affine(G1Affine::generator());
+        let table_2 = Commitment::from_affine(G1Affine::generator());
+        let table_3 = Commitment::from_affine(G1Affine::generator());
+        let table_4 = Commitment::from_affine(G1Affine::generator());
+
         let arithmetic = arithmetic::VerifierKey {
             q_m,
             q_l,
@@ -579,7 +609,13 @@ mod test {
 
         let range = range::VerifierKey { q_range };
 
-        let lookup = lookup::VerifierKey { q_lookup };
+        let lookup = lookup::VerifierKey { 
+            q_lookup,
+            table_1,
+            table_2,
+            table_3,
+            table_4,
+        };
 
         let fixed_base = ecc::scalar_mul::fixed_base::VerifierKey {
             q_fixed_group_add,

@@ -199,7 +199,7 @@ where
         // Fill witnesses for Verifier
         self.gadget(verifier.mut_cs())?;
         let lookup_table = verifier.mut_cs().lookup_table.clone();
-        verifier.verifier_key = Some(*verifier_key);
+        verifier.verifier_key = Some(verifier_key.clone());
         verifier.verify(proof, &vk, &self.build_pi(pub_inputs)?, &lookup_table)
     }
 }
