@@ -202,7 +202,7 @@ impl Prover {
 
         // Compress all wires into a single vector
         // Long version is checked against wire polys later and needs equal them in length (n)
-        let compressed_f_long = MultiSet::compress_four_arity(
+        let compressed_f_multiset = MultiSet::compress_four_arity(
             [
                 &MultiSet::from(&f_1_scalar[..]),
                 &MultiSet::from(&f_2_scalar[..]),
@@ -212,30 +212,15 @@ impl Prover {
             zeta,
         );
 
-        // Short version skips the first element and is used in plookup permutation checks. Ought to be length n-1.
-        let compressed_f_short = MultiSet::compress_four_arity(
-            [
-                &MultiSet::from(&f_1_scalar[1..]),
-                &MultiSet::from(&f_2_scalar[1..]),
-                &MultiSet::from(&f_3_scalar[1..]),
-                &MultiSet::from(&f_4_scalar[1..]),
-            ],
-            zeta,
-        );
-
         // Compute long query poly
-        let f_poly_long =
-            Polynomial::from_coefficients_vec(domain.ifft(&compressed_f_long.0.as_slice()));
-
-        // Compute short query poly
-        let f_poly_short =
-            Polynomial::from_coefficients_vec(domain.ifft(&compressed_f_short.0.as_slice()));
+        let f_poly =
+            Polynomial::from_coefficients_vec(domain.ifft(&compressed_f_multiset.0.as_slice()));
 
         // Commit to query polynomial
-        let f_poly_short_commit = commit_key.commit(&f_poly_short)?;
+        let f_poly_commit = commit_key.commit(&f_poly)?;
 
         // Add f_poly commitment to transcript
-        transcript.append_commitment(b"f", &f_poly_short_commit);
+        transcript.append_commitment(b"f", &f_poly_commit);
 
         // 2. Compute permutation polynomial
         //
@@ -275,11 +260,11 @@ impl Prover {
 
         // Compute s, as the sorted and concatenated version of f and t
         let s = compressed_t_multiset
-            .sorted_concat(&compressed_f_short)
+            .sorted_concat(&compressed_f_multiset)
             .unwrap();
 
         // Compute first and second halves of s, as h_1 and h_2
-        let (h_1, h_2) = s.halve();
+        let (h_1, h_2) = s.halve_alternating();
 
         // Compute h polys
         let h_1_poly = Polynomial::from_coefficients_vec(domain.ifft(&h_1.0.as_slice()));
@@ -297,7 +282,7 @@ impl Prover {
         let p_poly =
             Polynomial::from_coefficients_slice(&self.cs.perm.compute_lookup_permutation_poly(
                 &domain,
-                &compressed_f_short.0,
+                &compressed_f_multiset.0,
                 &compressed_t_multiset.0,
                 &h_1.0,
                 &h_2.0,
@@ -330,8 +315,7 @@ impl Prover {
             &z_poly,
             &p_poly,
             (&w_l_poly, &w_r_poly, &w_o_poly, &w_4_poly),
-            &f_poly_long,
-            &f_poly_short,
+            &f_poly,
             &table_poly,
             &h_1_poly,
             &h_2_poly,
@@ -391,8 +375,7 @@ impl Prover {
             &w_4_poly,
             &t_poly,
             &z_poly,
-            &f_poly_long,
-            &f_poly_short,
+            &f_poly,
             &h_1_poly,
             &h_2_poly,
             &table_poly,
@@ -419,7 +402,7 @@ impl Prover {
         transcript.append_scalar(b"lookup_perm_eval", &evaluations.proof.lookup_perm_eval);
         transcript.append_scalar(b"h_1_eval", &evaluations.proof.h_1_eval);
         transcript.append_scalar(b"h_1_next_eval", &evaluations.proof.h_1_next_eval);
-        transcript.append_scalar(b"h_2_next_eval", &evaluations.proof.h_2_next_eval);
+        transcript.append_scalar(b"h_2_eval", &evaluations.proof.h_2_eval);
         transcript.append_scalar(b"t_eval", &evaluations.quot_eval);
         transcript.append_scalar(b"r_eval", &evaluations.proof.lin_poly_eval);
 
@@ -446,8 +429,9 @@ impl Prover {
                 prover_key.permutation.left_sigma.0.clone(),
                 prover_key.permutation.right_sigma.0.clone(),
                 prover_key.permutation.out_sigma.0.clone(),
-                f_poly_short,
+                f_poly,
                 h_1_poly.clone(),
+                h_2_poly,
             ],
             &z_challenge,
             &mut transcript,
@@ -456,9 +440,7 @@ impl Prover {
 
         // Compute aggregate witness to polynomials evaluated at the shifted evaluation challenge
         let shifted_aggregate_witness = commit_key.compute_aggregate_witness(
-            &[
-                z_poly, w_l_poly, w_r_poly, w_4_poly, h_1_poly, h_2_poly, p_poly,
-            ],
+            &[z_poly, w_l_poly, w_r_poly, w_4_poly, h_1_poly, p_poly],
             &(z_challenge * domain.group_gen),
             &mut transcript,
         );
@@ -471,7 +453,7 @@ impl Prover {
             c_comm: w_o_poly_commit,
             d_comm: w_4_poly_commit,
 
-            f_comm: f_poly_short_commit,
+            f_comm: f_poly_commit,
 
             h_1_comm: h_1_poly_commit,
             h_2_comm: h_2_poly_commit,

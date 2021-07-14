@@ -701,40 +701,38 @@ impl Permutation {
     ) -> Polynomial {
         let n = domain.size();
 
-        assert!(f.len() + 1 == domain.size());
+        assert!(f.len() == domain.size());
         assert!(t.len() == domain.size());
         assert!(h_1.len() == domain.size());
         assert!(h_2.len() == domain.size());
 
         let t_next: Vec<BlsScalar> = [&t[1..], &[t[0]]].concat();
         let h_1_next: Vec<BlsScalar> = [&h_1[1..], &[h_1[0]]].concat();
-        let h_2_next: Vec<BlsScalar> = [&h_2[1..], &[h_2[0]]].concat();
 
-        let product_arguments: Vec<BlsScalar> = (f, t, t_next, h_1, h_1_next, h_2, h_2_next)
+        let product_arguments: Vec<BlsScalar> = (f, t, t_next, h_1, h_1_next, h_2)
             .into_par_iter()
             // Derive the numerator and denominator for each gate plookup gate
             // and pair the results
-            .map(|(f, t, t_next, h_1, h_1_next, h_2, h_2_next)| {
+            .map(|(f, t, t_next, h_1, h_1_next, h_2)| {
                 (
                     plookup_numerator_irreducible(delta, epsilon, &f, &t, t_next),
-                    plookup_denominator_irreducible(
-                        delta, epsilon, &h_1, &h_1_next, &h_2, &h_2_next,
-                    ),
+                    plookup_denominator_irreducible(delta, epsilon, &h_1, &h_1_next, &h_2),
                 )
             })
             .map(|(num, den)| num * den.invert().unwrap())
             .collect();
 
         let mut state = BlsScalar::one();
-        let mut p = Vec::with_capacity(n - 1);
+        let mut p = Vec::with_capacity(n);
         p.push(state);
-
-        // product_arguments.into_iter().map(|f| state)
 
         for s in product_arguments {
             state *= s;
             p.push(state);
         }
+
+        // remove the last element
+        p.remove(n);
 
         assert_eq!(n, p.len());
 
@@ -762,11 +760,10 @@ fn plookup_denominator_irreducible(
     h_1: &BlsScalar,
     h_1_next: &BlsScalar,
     h_2: &BlsScalar,
-    h_2_next: &BlsScalar,
 ) -> BlsScalar {
     let epsilon_plus_one_delta = epsilon * (BlsScalar::one() + delta);
-    let prod_1 = epsilon_plus_one_delta + h_1 + (h_1_next * delta);
-    let prod_2 = epsilon_plus_one_delta + h_2 + (h_2_next * delta);
+    let prod_1 = epsilon_plus_one_delta + h_1 + (h_2 * delta);
+    let prod_2 = epsilon_plus_one_delta + h_2 + (h_1_next * delta);
 
     prod_1 * prod_2
 }
