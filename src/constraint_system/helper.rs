@@ -96,7 +96,7 @@ pub(crate) fn gadget_tester(
     verifier.preprocess(&ck)?;
 
     // Verify proof
-    verifier.verify(&proof, &vk, &public_inputs, &lookup_table)
+    verifier.verify(&proof, &vk, &public_inputs)
 }
 
 /// Takes a generic gadget function with no auxillary input and
@@ -158,5 +158,5 @@ pub(crate) fn gadget_plookup_tester(
     verifier.preprocess(&ck)?;
 
     // Verify proof
-    verifier.verify(&proof, &vk, &public_inputs, &lookup_table)
+    verifier.verify(&proof, &vk, &public_inputs)
 }

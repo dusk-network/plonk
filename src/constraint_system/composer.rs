@@ -729,9 +729,7 @@ mod tests {
         verifier.preprocess(&ck).unwrap();
 
         for proof in proofs {
-            assert!(verifier
-                .verify(&proof, &vk, &public_inputs, &lookup_table)
-                .is_ok());
+            assert!(verifier.verify(&proof, &vk, &public_inputs).is_ok());
         }
     }
 
@@ -776,7 +774,8 @@ mod tests {
         // Commit Key
         let (ck, _) = public_parameters.trim(2 * 20).unwrap();
 
-        let preprocessed_table = PreprocessedTable4Arity::preprocess(composer.lookup_table, &ck, 8);
+        let preprocessed_table =
+            PreprocessedTable4Arity::preprocess(&composer.lookup_table, &ck, 8);
 
         // Commit Key
         let (ck, _) = public_parameters.trim(2 * 20).unwrap();
@@ -827,8 +826,6 @@ mod tests {
         // Preprocess
         verifier.preprocess(&ck).unwrap();
 
-        assert!(verifier
-            .verify(&proof, &vk, &public_inputs, &lookup_table)
-            .is_ok());
+        assert!(verifier.verify(&proof, &vk, &public_inputs).is_ok());
     }
 }
