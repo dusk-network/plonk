@@ -6,12 +6,17 @@
 
 use super::compress;
 use crate::fft::{Evaluations, Polynomial};
+use crate::plookup::MultiSet;
 
 use dusk_bls12_381::BlsScalar;
 
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub struct ProverKey {
     pub q_lookup: (Polynomial, Evaluations),
+    pub table_1: (MultiSet, Polynomial, Evaluations),
+    pub table_2: (MultiSet, Polynomial, Evaluations),
+    pub table_3: (MultiSet, Polynomial, Evaluations),
+    pub table_4: (MultiSet, Polynomial, Evaluations),
 }
 
 impl ProverKey {
@@ -102,9 +107,9 @@ impl ProverKey {
         let epsilon_one_plus_delta = epsilon * one_plus_delta;
 
         // - q_lookup(X) * f_eval * lookup_separation_challenge
-        let a = { 
+        let a = {
             let a_0 = a_eval + zeta * b_eval + zeta_sq * c_eval + zeta_cu * d_eval;
-            
+
             &self.q_lookup.0 * &((a_0 - f_eval) * lookup_separation_challenge)
         };
 

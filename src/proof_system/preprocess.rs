@@ -9,6 +9,7 @@
 use crate::commitment_scheme::kzg10::CommitKey;
 use crate::constraint_system::cs_errors::PreProcessingError;
 use crate::constraint_system::StandardComposer;
+use crate::plookup::PreprocessedTable4Arity;
 
 use crate::fft::{EvaluationDomain, Evaluations, Polynomial};
 use crate::proof_system::widget;
@@ -102,7 +103,8 @@ impl StandardComposer {
         commit_key: &CommitKey,
         transcript: &mut Transcript,
     ) -> Result<widget::ProverKey, Error> {
-        let (_, selectors, domain) = self.preprocess_shared(commit_key, transcript)?;
+        let (_, selectors, preprocessed_table, domain) =
+            self.preprocess_shared(commit_key, transcript)?;
 
         let domain_4n = EvaluationDomain::new(4 * domain.size())?;
         let q_m_eval_4n =
@@ -146,6 +148,24 @@ impl StandardComposer {
             domain_4n.coset_fft(&selectors.fourth_sigma),
             domain_4n,
         );
+
+        let table_1_eval_4n = Evaluations::from_vec_and_domain(
+            domain_4n.coset_fft(&preprocessed_table.t_1.2),
+            domain_4n,
+        );
+        let table_2_eval_4n = Evaluations::from_vec_and_domain(
+            domain_4n.coset_fft(&preprocessed_table.t_2.2),
+            domain_4n,
+        );
+        let table_3_eval_4n = Evaluations::from_vec_and_domain(
+            domain_4n.coset_fft(&preprocessed_table.t_3.2),
+            domain_4n,
+        );
+        let table_4_eval_4n = Evaluations::from_vec_and_domain(
+            domain_4n.coset_fft(&preprocessed_table.t_4.2),
+            domain_4n,
+        );
+
         // XXX: Remove this and compute it on the fly
         let linear_eval_4n = Evaluations::from_vec_and_domain(
             domain_4n.coset_fft(&[BlsScalar::zero(), BlsScalar::one()]),
@@ -199,6 +219,26 @@ impl StandardComposer {
         // Prover key for lookup operations
         let lookup_prover_key = widget::lookup::ProverKey {
             q_lookup: (selectors.q_lookup, q_lookup_eval_4n),
+            table_1: (
+                preprocessed_table.t_1.0,
+                preprocessed_table.t_1.2,
+                table_1_eval_4n,
+            ),
+            table_2: (
+                preprocessed_table.t_2.0,
+                preprocessed_table.t_2.2,
+                table_2_eval_4n,
+            ),
+            table_3: (
+                preprocessed_table.t_3.0,
+                preprocessed_table.t_3.2,
+                table_3_eval_4n,
+            ),
+            table_4: (
+                preprocessed_table.t_4.0,
+                preprocessed_table.t_4.2,
+                table_4_eval_4n,
+            ),
         };
 
         let prover_key = widget::ProverKey {
@@ -224,7 +264,7 @@ impl StandardComposer {
         commit_key: &CommitKey,
         transcript: &mut Transcript,
     ) -> Result<widget::VerifierKey, Error> {
-        let (verifier_key, _, _) = self.preprocess_shared(commit_key, transcript)?;
+        let (verifier_key, _, _, _) = self.preprocess_shared(commit_key, transcript)?;
         Ok(verifier_key)
     }
     // Both the prover and verifier must perform IFFTs on the selector polynomials and permutation polynomials
@@ -233,7 +273,15 @@ impl StandardComposer {
         &mut self,
         commit_key: &CommitKey,
         transcript: &mut Transcript,
-    ) -> Result<(widget::VerifierKey, SelectorPolynomials, EvaluationDomain), Error> {
+    ) -> Result<
+        (
+            widget::VerifierKey,
+            SelectorPolynomials,
+            PreprocessedTable4Arity,
+            EvaluationDomain,
+        ),
+        Error,
+    > {
         let domain = EvaluationDomain::new(self.circuit_size())?;
 
         // Check that the length of the wires is consistent.
@@ -283,19 +331,9 @@ impl StandardComposer {
         let out_sigma_poly_commit = commit_key.commit(&out_sigma_poly)?;
         let fourth_sigma_poly_commit = commit_key.commit(&fourth_sigma_poly)?;
 
-        // 3. Compute table polynomials
-
-        let (table_1_multiset, table_2_multiset, table_3_multiset, table_4_multiset) =  self.lookup_table.vec_to_multiset();
-
-        let table_1_poly = Polynomial::from_coefficients_slice(&domain.ifft(&table_1_multiset.0));
-        let table_2_poly = Polynomial::from_coefficients_slice(&domain.ifft(&table_2_multiset.0));
-        let table_3_poly = Polynomial::from_coefficients_slice(&domain.ifft(&table_3_multiset.0));
-        let table_4_poly = Polynomial::from_coefficients_slice(&domain.ifft(&table_4_multiset.0));
-
-        let table_1_poly_commit = commit_key.commit(&table_1_poly)?;
-        let table_2_poly_commit = commit_key.commit(&table_2_poly)?;
-        let table_3_poly_commit = commit_key.commit(&table_3_poly)?;
-        let table_4_poly_commit = commit_key.commit(&table_4_poly)?;
+        // Preprocess the lookup table
+        let preprocessed_table =
+            PreprocessedTable4Arity::preprocess(&self.lookup_table, &commit_key, self.n as u32)?;
 
         // Verifier Key for arithmetic circuits
         let arithmetic_verifier_key = widget::arithmetic::VerifierKey {
@@ -330,10 +368,10 @@ impl StandardComposer {
         // Verifier Key for lookup operations
         let lookup_verifier_key = widget::lookup::VerifierKey {
             q_lookup: q_lookup_poly_commit,
-            table_1: table_1_poly_commit,
-            table_2: table_2_poly_commit,
-            table_3: table_3_poly_commit,
-            table_4: table_4_poly_commit,
+            table_1: preprocessed_table.t_1.1,
+            table_2: preprocessed_table.t_2.1,
+            table_3: preprocessed_table.t_3.1,
+            table_4: preprocessed_table.t_4.1,
         };
 
         // Verifier Key for permutation argument
@@ -377,7 +415,7 @@ impl StandardComposer {
         // Add the circuit description to the transcript
         verifier_key.seed_transcript(transcript);
 
-        Ok((verifier_key, selectors, domain))
+        Ok((verifier_key, selectors, preprocessed_table, domain))
     }
 }
 

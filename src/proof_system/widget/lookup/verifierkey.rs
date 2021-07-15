@@ -5,7 +5,6 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use crate::commitment_scheme::kzg10::Commitment;
-use crate::plookup::PreprocessedTable4Arity;
 use crate::proof_system::linearisation_poly::ProofEvaluations;
 use dusk_bls12_381::{BlsScalar, G1Affine};
 
@@ -41,9 +40,12 @@ impl VerifierKey {
 
         // (a_eval + zeta*b_eval + zeta^2*c_eval + zeta^3d_eval - f_eval) * q_lookup * alpha_1
         let a = {
-            let a_0 = evaluations.a_eval + zeta*evaluations.b_eval + zeta_sq*evaluations.c_eval + zeta_cu*evaluations.d_eval;
+            let a_0 = evaluations.a_eval
+                + zeta * evaluations.b_eval
+                + zeta_sq * evaluations.c_eval
+                + zeta_cu * evaluations.d_eval;
             let a_1 = evaluations.f_eval;
-            
+
             (a_0 - a_1) * lookup_separation_challenge
         };
         scalars.push(a);
