@@ -185,7 +185,6 @@ impl Proof {
         verifier_key: &VerifierKey,
         transcript: &mut Transcript,
         opening_key: &OpeningKey,
-        lookup_table: &PlookupTable4Arity,
         pub_inputs: &[BlsScalar],
     ) -> Result<(), Error> {
         let domain = EvaluationDomain::new(verifier_key.n)?;
@@ -252,33 +251,12 @@ impl Proof {
         // Compute first lagrange polynomial evaluated at `z_challenge`
         let l1_eval = compute_first_lagrange_evaluation(&domain, &z_h_eval, &z_challenge);
 
-        // Compress table into vector of single elements
-        let mut compressed_t: Vec<BlsScalar> = lookup_table
-            .0
-            .iter()
-            .map(|arr| arr[0] + arr[1] * zeta + arr[2] * zeta * zeta + arr[3] * zeta * zeta * zeta)
-            .collect();
-
-        // Sort table so we can be sure to choose an element that is not the highest or lowest
-        compressed_t.sort();
-        let second_element = compressed_t[1];
-
-        // Pad the table to the correct size with an element that is not the highest or lowest
-        let pad = vec![second_element; domain.size() - compressed_t.len()];
-        compressed_t.extend(pad);
-
-        // Sort again to return t to sorted state
-        // There may be a better way of inserting the padding so the sort does not need to happen twice
-        compressed_t.sort();
-
-        let compressed_t_multiset = MultiSet(compressed_t);
-
-        let table_comm = Commitment(
-            G1Affine::from(verifier_key.lookup.table_1.0
-            + verifier_key.lookup.table_2.0 * zeta
-            + verifier_key.lookup.table_3.0 * zeta * zeta
-            + verifier_key.lookup.table_4.0 * zeta * zeta * zeta)
-        );
+        let table_comm = Commitment(G1Affine::from(
+            verifier_key.lookup.table_1.0
+                + verifier_key.lookup.table_2.0 * zeta
+                + verifier_key.lookup.table_3.0 * zeta * zeta
+                + verifier_key.lookup.table_4.0 * zeta * zeta * zeta,
+        ));
 
         // Compute quotient polynomial evaluated at `z_challenge`
         let t_eval = self.compute_quotient_evaluation(
@@ -471,7 +449,8 @@ impl Proof {
 
         // Return t_eval
         (a - b - c //+ d
-             - e - f) * z_h_eval.invert().unwrap()
+             - e - f)
+            * z_h_eval.invert().unwrap()
     }
 
     fn compute_quotient_commitment(&self, z_challenge: &BlsScalar, n: usize) -> Commitment {
