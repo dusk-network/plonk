@@ -6,6 +6,7 @@
 
 #![allow(clippy::too_many_arguments)]
 
+use super::divide_w_recip;
 use crate::constraint_system::StandardComposer;
 use crate::constraint_system::Variable;
 use crate::plookup::table::hash_tables::DECOMPOSITION_S_I;
@@ -28,22 +29,28 @@ impl StandardComposer {
         let mut nibbles_reduced = [u256::zero(); 27];
         // Reduced form needed for the modular operations
         let reduced_input = self.variables[&x].reduce();
-        let mut intermediate = u256(reduced_input.0);
-        let mut remainder = u256::zero();
+        let mut intermediate = reduced_input.0;
+        let mut remainder = 0u16;
 
         (0..27).for_each(|k| {
             match k < 26 {
                 true => {
-                    remainder = intermediate % u256(DECOMPOSITION_S_I[k].0);
-                    let intermediate_scalar: BlsScalar =
-                        BlsScalar((intermediate - remainder).0) * INVERSES_S_I[k];
-                    intermediate = u256(intermediate_scalar.0);
+                    let div = DECOMPOSITION_S_I[k].0[0] as u16;
+                    // precomputation
+                    let (divisor, recip) =
+                        divide_w_recip::compute_normalized_divisor_and_reciproical(div);
+                    let s = (div as u64).leading_zeros();
+                    // division: nom / div
+                    let (u0, u1) =
+                        divide_w_recip::divide_long_using_recip(&intermediate, divisor, recip, s);
+                    intermediate = u0;
+                    remainder = u1;
                 }
-                false => remainder = intermediate,
+                false => remainder = intermediate[0] as u16,
             }
 
-            nibbles_mont[k] = self.add_input(BlsScalar::from_raw(remainder.0));
-            nibbles_reduced[k] = remainder;
+            nibbles_mont[k] = self.add_input(BlsScalar::from(remainder as u64));
+            nibbles_reduced[k] = u256([remainder as u64, 0, 0, 0]);
         });
 
         // x' = x_1 * s_2 + x_2, this is the start of the composition
