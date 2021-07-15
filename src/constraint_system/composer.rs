@@ -775,10 +775,7 @@ mod tests {
         let (ck, _) = public_parameters.trim(2 * 20).unwrap();
 
         let preprocessed_table =
-            PreprocessedTable4Arity::preprocess(&composer.lookup_table, &ck, 8);
-
-        // Commit Key
-        let (ck, _) = public_parameters.trim(2 * 20).unwrap();
+            PreprocessedTable4Arity::preprocess(&composer.lookup_table, &ck, 128);
 
         // Preprocess circuit
         prover.preprocess(&ck);
