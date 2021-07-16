@@ -832,3 +832,59 @@ mod tests {
             .is_ok());
     }
 }
+
+extern crate test;
+
+#[cfg(test)]
+mod benches{
+    use test::Bencher;
+    use super::super::helper::*;
+    use super::*;
+    use crate::commitment_scheme::kzg10::PublicParameters;
+    use crate::constraint_system::helper::gadget_plookup_tester;
+    use crate::plookup::{PlookupTable4Arity, PreprocessedTable4Arity};
+    use crate::proof_system::{Prover, Verifier};
+
+    #[bench]
+    fn bench_plookup_full(b: &mut Bencher) {
+        let public_parameters = PublicParameters::setup(2 * 30, &mut rand::thread_rng()).unwrap();
+
+        // Create a prover struct
+        let mut prover = Prover::new(b"demo");
+
+        // Add gadgets
+        dummy_gadget_plookup(4, prover.mut_cs());
+        prover.cs.lookup_table.insert_multi_mul(0, 3);
+
+        let output =
+            prover.cs
+                .lookup_table
+                .lookup(BlsScalar::from(2), BlsScalar::from(3), BlsScalar::one());
+
+        let two = prover.cs.add_witness_to_circuit_description(BlsScalar::from(2));
+        let three = prover.cs.add_witness_to_circuit_description(BlsScalar::from(3));
+        let result = prover.cs.add_witness_to_circuit_description(output.unwrap());
+        let one = prover.cs.add_witness_to_circuit_description(BlsScalar::one());
+
+        (0..usize::pow(2, 10)).for_each(|_| {
+            prover.cs.plookup_gate(two, three, result, Some(one), BlsScalar::one());
+            prover.cs.plookup_gate(two, three, result, Some(one), BlsScalar::one());
+            prover.cs.plookup_gate(two, three, result, Some(one), BlsScalar::one());
+            prover.cs.plookup_gate(two, three, result, Some(one), BlsScalar::one());
+            prover.cs.plookup_gate(two, three, result, Some(one), BlsScalar::one());
+            prover.cs.plookup_gate(two, two, two, Some(two), BlsScalar::one());
+        });
+        
+        // prover.cs.
+        // Commit Key
+        let (ck, _) = public_parameters.trim(2 * 20).unwrap();
+
+        // Preprocess circuit
+        prover.preprocess(&ck).unwrap();
+
+        let public_inputs = prover.cs.public_inputs.clone();
+        let lookup_table = prover.cs.lookup_table.clone();
+
+        b.iter(|| prover.prove(&ck).unwrap());
+    }
+}

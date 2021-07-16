@@ -52,6 +52,7 @@
 #![deny(broken_intra_doc_links)]
 #![deny(missing_debug_implementations)]
 #![deny(missing_docs)]
+#![feature(test)]
 
 #[macro_use]
 mod macros;
