@@ -9,6 +9,7 @@
 use super::divide_w_recip;
 use crate::constraint_system::StandardComposer;
 use crate::constraint_system::Variable;
+use crate::plookup::table::hash_tables::constants::{BLS_DIVISORS, BLS_RECIP};
 use crate::plookup::table::hash_tables::DECOMPOSITION_S_I;
 use crate::plookup::table::hash_tables::INVERSES_S_I;
 use bigint::U256 as u256;
@@ -28,19 +29,20 @@ impl StandardComposer {
         let mut nibbles_mont = [x; 27];
         let mut nibbles_reduced = [u256::zero(); 27];
         // Reduced form needed for the modular operations
-        let reduced_input = self.variables[&x].reduce();
-        let mut intermediate = reduced_input.0;
+        let mut intermediate = self.variables[&x].reduce().0;
         let mut remainder = 0u16;
+        // s should be set to the number of leading zeros of div in each
+        // iteration of the loop below, but under BLS conditions this value is
+        // always 54
+        let s: u32 = 54;
 
         (0..27).for_each(|k| {
             match k < 26 {
                 true => {
-                    let div = DECOMPOSITION_S_I[k].0[0] as u16;
-                    // precomputation
-                    let (divisor, recip) =
-                        divide_w_recip::compute_normalized_divisor_and_reciproical(div);
-                    let s = (div as u64).leading_zeros();
-                    // division: nom / div
+                    // precomputation for modular operation
+                    let divisor = BLS_DIVISORS[k];
+                    let recip = BLS_RECIP[k];
+                    // division: intermediate = u0*divisor + u1
                     let (u0, u1) =
                         divide_w_recip::divide_long_using_recip(&intermediate, divisor, recip, s);
                     intermediate = u0;
