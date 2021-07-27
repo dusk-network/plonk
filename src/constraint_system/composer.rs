@@ -90,6 +90,11 @@ impl StandardComposer {
     pub fn circuit_size(&self) -> usize {
         self.n
     }
+
+    /// Returns the total size of the circuit including lookup table rows
+    pub fn total_size(&self) -> usize {
+        std::cmp::max(self.n, self.lookup_table.0.len())
+    }
 }
 
 impl Default for StandardComposer {
