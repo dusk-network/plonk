@@ -167,7 +167,7 @@ impl Prover {
         let f_1_scalar = w_l_scalar
             .iter()
             .zip(&padded_q_lookup)
-            .map(|(w, s)| w * s + (BlsScalar::one() - s) * compressed_t_multiset.0[1])
+            .map(|(w, s)| w * s + (BlsScalar::one() - s) * compressed_t_multiset.0[0])
             .collect::<Vec<BlsScalar>>();
         let f_2_scalar = w_r_scalar
             .iter()
