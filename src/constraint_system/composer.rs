@@ -594,7 +594,7 @@ mod tests {
     use super::*;
     use crate::commitment_scheme::kzg10::PublicParameters;
     use crate::constraint_system::helper::gadget_plookup_tester;
-    use crate::plookup::{PlookupTable4Arity, PreprocessedTable4Arity};
+    use crate::plookup::PlookupTable4Arity;
     use crate::proof_system::{Prover, Verifier};
 
     #[test]
@@ -708,7 +708,6 @@ mod tests {
         prover.preprocess(&ck).unwrap();
 
         let public_inputs = prover.cs.public_inputs.clone();
-        let lookup_table = prover.cs.lookup_table.clone();
 
         let mut proofs = Vec::new();
 
@@ -740,35 +739,52 @@ mod tests {
 
     #[test]
     fn test_plookup_full() {
-        let public_parameters = PublicParameters::setup(2 * 30, &mut rand::thread_rng()).unwrap();
-        let mut composer = StandardComposer::new();
-
-        composer.lookup_table.insert_multi_mul(0, 3);
+        let public_parameters = PublicParameters::setup(2 * 70, &mut rand::thread_rng()).unwrap();
 
         // Create a prover struct
         let mut prover = Prover::new(b"test");
 
-        // add tp trans
+        prover.cs.lookup_table.insert_multi_mul(0, 3);
+
+        // add to trans
         prover.key_transcript(b"key", b"additional seed information");
 
         let output =
-            composer
+            prover
+                .cs
                 .lookup_table
                 .lookup(BlsScalar::from(2), BlsScalar::from(3), BlsScalar::one());
 
-        let two = composer.add_witness_to_circuit_description(BlsScalar::from(2));
-        let three = composer.add_witness_to_circuit_description(BlsScalar::from(3));
-        let result = composer.add_witness_to_circuit_description(output.unwrap());
-        let one = composer.add_witness_to_circuit_description(BlsScalar::one());
+        let two = prover
+            .cs
+            .add_witness_to_circuit_description(BlsScalar::from(2));
+        let three = prover
+            .cs
+            .add_witness_to_circuit_description(BlsScalar::from(3));
+        let result = prover
+            .cs
+            .add_witness_to_circuit_description(output.unwrap());
+        let one = prover
+            .cs
+            .add_witness_to_circuit_description(BlsScalar::one());
 
-        composer.plookup_gate(two, three, result, Some(one), BlsScalar::one());
-        composer.plookup_gate(two, three, result, Some(one), BlsScalar::one());
-        composer.plookup_gate(two, three, result, Some(one), BlsScalar::one());
-        composer.plookup_gate(two, three, result, Some(one), BlsScalar::one());
-        composer.plookup_gate(two, three, result, Some(one), BlsScalar::one());
-        composer.plookup_gate(two, two, two, Some(two), BlsScalar::one());
+        prover
+            .cs
+            .plookup_gate(two, three, result, Some(one), BlsScalar::one());
+        prover
+            .cs
+            .plookup_gate(two, three, result, Some(one), BlsScalar::one());
+        prover
+            .cs
+            .plookup_gate(two, three, result, Some(one), BlsScalar::one());
+        prover
+            .cs
+            .plookup_gate(two, three, result, Some(one), BlsScalar::one());
+        prover
+            .cs
+            .plookup_gate(two, three, result, Some(one), BlsScalar::one());
 
-        composer.big_add(
+        prover.cs.big_add(
             (BlsScalar::one(), two),
             (BlsScalar::one(), three),
             None,
@@ -777,19 +793,18 @@ mod tests {
         );
 
         // Commit Key
-        let (ck, _) = public_parameters.trim(2 * 20).unwrap();
+        let (ck, _) = public_parameters.trim(2 * 70).unwrap();
 
-        let preprocessed_table =
-            PreprocessedTable4Arity::preprocess(&composer.lookup_table, &ck, 128);
+        println!("self.total_size() {:?}", prover.cs.total_size());
 
         // Preprocess circuit
-        prover.preprocess(&ck);
+        prover.preprocess(&ck).unwrap();
 
         // Once the prove method is called, the public inputs are cleared
         // So pre-fetch these before calling Prove
         let public_inputs = prover.cs.public_inputs.clone();
 
-        (prover.prove(&ck), public_inputs);
+        (prover.prove(&ck).unwrap(), public_inputs);
     }
 
     #[test]
@@ -811,7 +826,6 @@ mod tests {
         prover.preprocess(&ck).unwrap();
 
         let public_inputs = prover.cs.public_inputs.clone();
-        let lookup_table = prover.cs.lookup_table.clone();
 
         let proof = prover.prove(&ck).unwrap();
 
