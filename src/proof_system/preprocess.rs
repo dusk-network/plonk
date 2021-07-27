@@ -282,7 +282,7 @@ impl StandardComposer {
         ),
         Error,
     > {
-        let domain = EvaluationDomain::new(self.circuit_size())?;
+        let domain = EvaluationDomain::new(self.total_size())?;
 
         // Check that the length of the wires is consistent.
         self.check_poly_same_len()?;
@@ -332,8 +332,11 @@ impl StandardComposer {
         let fourth_sigma_poly_commit = commit_key.commit(&fourth_sigma_poly)?;
 
         // Preprocess the lookup table
-        let preprocessed_table =
-            PreprocessedTable4Arity::preprocess(&self.lookup_table, &commit_key, self.n as u32)?;
+        let preprocessed_table = PreprocessedTable4Arity::preprocess(
+            &self.lookup_table,
+            &commit_key,
+            domain.size() as u32,
+        )?;
 
         // Verifier Key for arithmetic circuits
         let arithmetic_verifier_key = widget::arithmetic::VerifierKey {
