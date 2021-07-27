@@ -43,7 +43,7 @@ jobs:
         - uses: actions-rs/toolchain@v1
           with:
             profile: minimal
-            toolchain: nightly-2020-10-25
+            toolchain: nightly
             override: true
         - run: rustup component add rustfmt
         - uses: actions-rs/cargo@v1
