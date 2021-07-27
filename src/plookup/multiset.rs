@@ -39,7 +39,7 @@ impl MultiSet {
     pub fn pad(&mut self, n: u32) {
         assert!(n.is_power_of_two());
         let diff = n - self.len() as u32;
-        self.0.extend(vec![BlsScalar::zero(); diff as usize]);
+        self.0.extend(vec![self.0[0]; diff as usize]);
     }
 
     /// Pushes chosen value onto the end of the Multiset
