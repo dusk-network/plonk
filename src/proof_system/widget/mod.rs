@@ -12,7 +12,6 @@ pub mod permutation;
 pub mod range;
 
 use crate::fft::Evaluations;
-use crate::plookup::MultiSet;
 use crate::transcript::TranscriptProtocol;
 use anyhow::{Error, Result};
 use merlin::Transcript;
@@ -237,7 +236,9 @@ impl VerifierKey {
 impl ProverKey {
     /// Serialises a ProverKey struct into bytes
     pub fn to_bytes(&self) -> Vec<u8> {
-        use crate::serialisation::{write_evaluations, write_polynomial, write_u64, write_multiset};
+        use crate::serialisation::{
+            write_evaluations, write_multiset, write_polynomial, write_u64,
+        };
 
         let mut bytes = Vec::with_capacity(ProverKey::serialised_size(self.n));
 
@@ -490,6 +491,7 @@ impl ProverKey {
 mod test {
     use super::*;
     use crate::fft::{EvaluationDomain, Polynomial};
+    use crate::plookup::MultiSet;
     use dusk_bls12_381::BlsScalar;
 
     fn rand_poly_eval(n: usize) -> (Polynomial, Evaluations) {
