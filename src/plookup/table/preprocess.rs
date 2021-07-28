@@ -111,7 +111,7 @@ impl PreprocessedTable4Arity {
     /// outputted struct will be used in the proof alongside our
     /// circuit witness table.
     pub fn preprocess(
-        table: PlookupTable4Arity,
+        table: &PlookupTable4Arity,
         commit_key: &CommitKey,
         n: u32,
     ) -> Result<Self, Error> {

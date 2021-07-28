@@ -120,7 +120,7 @@ impl Prover {
         let w_o_scalar = &[&self.to_scalars(&self.cs.w_o)[..], &pad].concat();
         let w_4_scalar = &[&self.to_scalars(&self.cs.w_4)[..], &pad].concat();
 
-        // make sure q_lookup is also the right size for constructing f later
+        // make sure q_lookup is also the right size for constructing f
         let padded_q_lookup = [&self.cs.q_lookup[..], &pad].concat();
 
         // Witnesses are now in evaluation form, convert them to coefficients
@@ -146,30 +146,15 @@ impl Prover {
         let zeta = transcript.challenge_scalar(b"zeta");
 
         // Compress table into vector of single elements
-        let mut compressed_t: Vec<BlsScalar> = self
-            .cs
-            .lookup_table
-            .0
-            .iter()
-            .map(|arr| arr[0] + arr[1] * zeta + arr[2] * zeta * zeta + arr[3] * zeta * zeta * zeta)
-            .collect();
-
-        // Sort table so we can be sure to choose an element that is not the highest or lowest
-        compressed_t.sort();
-        let second_element = match compressed_t[0] == compressed_t[1] {
-            true => compressed_t[2],
-            false => compressed_t[1],
-        };
-
-        // Pad the table to the correct size with an element that is not the highest or lowest
-        let pad = vec![second_element; domain.size() - compressed_t.len()];
-        compressed_t.extend(pad);
-
-        // Sort again to return t to sorted state
-        // There may be a better way of inserting the padding so the sort does not need to happen twice
-        compressed_t.sort();
-
-        let compressed_t_multiset = MultiSet(compressed_t);
+        let compressed_t_multiset = MultiSet::compress_four_arity(
+            [
+                &prover_key.lookup.table_1.0,
+                &prover_key.lookup.table_2.0,
+                &prover_key.lookup.table_3.0,
+                &prover_key.lookup.table_4.0,
+            ],
+            zeta,
+        );
 
         // Compute table poly
         let table_poly =
@@ -182,7 +167,7 @@ impl Prover {
         let f_1_scalar = w_l_scalar
             .iter()
             .zip(&padded_q_lookup)
-            .map(|(w, s)| w * s + (BlsScalar::one() - s) * compressed_t_multiset.0[1])
+            .map(|(w, s)| w * s + (BlsScalar::one() - s) * compressed_t_multiset.0[0])
             .collect::<Vec<BlsScalar>>();
         let f_2_scalar = w_r_scalar
             .iter()
@@ -201,7 +186,6 @@ impl Prover {
             .collect::<Vec<BlsScalar>>();
 
         // Compress all wires into a single vector
-        // Long version is checked against wire polys later and needs equal them in length (n)
         let compressed_f_multiset = MultiSet::compress_four_arity(
             [
                 &MultiSet::from(&f_1_scalar[..]),
@@ -362,6 +346,7 @@ impl Prover {
                 gamma,
                 delta,
                 epsilon,
+                zeta,
                 range_sep_challenge,
                 logic_sep_challenge,
                 fixed_base_sep_challenge,
@@ -432,6 +417,7 @@ impl Prover {
                 f_poly,
                 h_1_poly.clone(),
                 h_2_poly,
+                table_poly.clone(),
             ],
             &z_challenge,
             &mut transcript,
@@ -440,7 +426,9 @@ impl Prover {
 
         // Compute aggregate witness to polynomials evaluated at the shifted evaluation challenge
         let shifted_aggregate_witness = commit_key.compute_aggregate_witness(
-            &[z_poly, w_l_poly, w_r_poly, w_4_poly, h_1_poly, p_poly],
+            &[
+                z_poly, w_l_poly, w_r_poly, w_4_poly, h_1_poly, p_poly, table_poly,
+            ],
             &(z_challenge * domain.group_gen),
             &mut transcript,
         );
