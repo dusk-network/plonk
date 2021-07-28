@@ -99,10 +99,8 @@ impl ProverKey {
     ) -> Polynomial {
         let l_sep_2 = lookup_separation_challenge.square();
         let l_sep_3 = l_sep_2 * lookup_separation_challenge;
-
         let zeta_sq = zeta * zeta;
         let zeta_cu = zeta * zeta_sq;
-
         let one_plus_delta = delta + BlsScalar::one();
         let epsilon_one_plus_delta = epsilon * one_plus_delta;
 

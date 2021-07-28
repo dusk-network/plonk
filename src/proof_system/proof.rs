@@ -353,6 +353,7 @@ impl Proof {
         aggregate_proof.add_part((self.evaluations.h_1_eval, self.h_1_comm));
         aggregate_proof.add_part((self.evaluations.h_2_eval, self.h_2_comm));
         aggregate_proof.add_part((self.evaluations.table_eval, table_comm));
+
         // Flatten proof with opening challenge
         let flattened_proof_a = aggregate_proof.flatten(transcript);
 
@@ -437,19 +438,17 @@ impl Proof {
         let c = l1_eval * alpha_sq;
 
         // l_1(z) * alpha_1^2
-        let e = l1_eval * l_sep_2;
+        let d = l1_eval * l_sep_2;
 
         // p_eval * (epsilon( 1+ delta) + h_1_eval + delta * h_2_eval)(epsilon( 1+ delta) + delta * h_1_next_eval) * alpha_1^3
-        let f_0 = epsilon_one_plus_delta
+        let e_0 = epsilon_one_plus_delta
             + self.evaluations.h_1_eval
             + (delta * self.evaluations.h_2_eval);
-        let f_1 = epsilon_one_plus_delta + (delta * self.evaluations.h_1_next_eval);
-        let f = self.evaluations.lookup_perm_eval * f_0 * f_1 * l_sep_3;
+        let e_1 = epsilon_one_plus_delta + (delta * self.evaluations.h_1_next_eval);
+        let e = self.evaluations.lookup_perm_eval * e_0 * e_1 * l_sep_3;
 
         // Return t_eval
-        (a - b - c //+ d
-             - e - f)
-            * z_h_eval.invert().unwrap()
+        (a - b - c - d - e) * z_h_eval.invert().unwrap()
     }
 
     fn compute_quotient_commitment(&self, z_challenge: &BlsScalar, n: usize) -> Commitment {

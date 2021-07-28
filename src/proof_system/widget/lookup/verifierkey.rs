@@ -34,7 +34,6 @@ impl VerifierKey {
     ) {
         let l_sep_2 = lookup_separation_challenge.square();
         let l_sep_3 = lookup_separation_challenge * l_sep_2;
-
         let zeta_sq = zeta * zeta;
         let zeta_cu = zeta * zeta_sq;
 
@@ -48,6 +47,7 @@ impl VerifierKey {
 
             (a_0 - a_1) * lookup_separation_challenge
         };
+
         scalars.push(a);
         points.push(self.q_lookup.0);
 

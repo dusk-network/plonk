@@ -10,6 +10,7 @@
 //! build, preprocess circuits.
 pub(crate) mod composer;
 pub(crate) mod cs_errors;
+pub(crate) mod divide_w_recip;
 pub(crate) mod variable;
 
 /// Simple Arithmetic gates
