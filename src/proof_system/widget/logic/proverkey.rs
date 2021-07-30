@@ -4,16 +4,14 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-#![allow(clippy::too_many_arguments)]
-use super::{delta, delta_xor_and};
 use crate::fft::{Evaluations, Polynomial};
 
 use dusk_bls12_381::BlsScalar;
 
 #[derive(Debug, Eq, PartialEq, Clone)]
-pub struct ProverKey {
-    pub q_c: (Polynomial, Evaluations),
-    pub q_logic: (Polynomial, Evaluations),
+pub(crate) struct ProverKey {
+    pub(crate) q_c: (Polynomial, Evaluations),
+    pub(crate) q_logic: (Polynomial, Evaluations),
 }
 
 impl ProverKey {
@@ -94,4 +92,43 @@ impl ProverKey {
 
         q_logic_poly * &t
     }
+}
+
+// Computes f(f-1)(f-2)(f-3)
+pub(crate) fn delta(f: BlsScalar) -> BlsScalar {
+    let f_1 = f - BlsScalar::one();
+    let f_2 = f - BlsScalar::from(2);
+    let f_3 = f - BlsScalar::from(3);
+    f * f_1 * f_2 * f_3
+}
+
+// The identity we want to check is q_logic * A = 0
+// A = B + E
+// B = q_c * [9c - 3(a+b)]
+// E = 3(a+b+c) - 2F
+// F = w[w(4w - 18(a+b) + 81) + 18(a^2 + b^2) - 81(a+b) + 83]
+#[allow(non_snake_case)]
+pub(crate) fn delta_xor_and(
+    a: &BlsScalar,
+    b: &BlsScalar,
+    w: &BlsScalar,
+    c: &BlsScalar,
+    q_c: &BlsScalar,
+) -> BlsScalar {
+    let nine = BlsScalar::from(9);
+    let two = BlsScalar::from(2);
+    let three = BlsScalar::from(3);
+    let four = BlsScalar::from(4);
+    let eighteen = BlsScalar::from(18);
+    let eighty_one = BlsScalar::from(81);
+    let eighty_three = BlsScalar::from(83);
+
+    let F = w
+        * (w * (four * w - eighteen * (a + b) + eighty_one)
+            + eighteen * (a.square() + b.square())
+            - eighty_one * (a + b)
+            + eighty_three);
+    let E = three * (a + b + c) - (two * F);
+    let B = q_c * ((nine * c) - three * (a + b));
+    B + E
 }

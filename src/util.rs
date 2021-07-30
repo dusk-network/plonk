@@ -4,12 +4,17 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use dusk_bls12_381::{BlsScalar, G1Affine, G1Projective, G2Affine, G2Projective};
+use alloc::vec::Vec;
+use dusk_bls12_381::{
+    BlsScalar, G1Affine, G1Projective, G2Affine, G2Projective,
+};
 use rand_core::{CryptoRng, RngCore};
-use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
 /// Returns a vector of BlsScalars of increasing powers of x from x^0 to x^d.
-pub(crate) fn powers_of(scalar: &BlsScalar, max_degree: usize) -> Vec<BlsScalar> {
+pub(crate) fn powers_of(
+    scalar: &BlsScalar,
+    max_degree: usize,
+) -> Vec<BlsScalar> {
     let mut powers = Vec::with_capacity(max_degree + 1);
     powers.push(BlsScalar::one());
     for i in 1..=max_degree {
@@ -24,11 +29,15 @@ pub(crate) fn random_scalar<R: RngCore + CryptoRng>(rng: &mut R) -> BlsScalar {
 }
 
 /// Generates a random G1 Point using an RNG seed.
-pub(crate) fn random_g1_point<R: RngCore + CryptoRng>(rng: &mut R) -> G1Projective {
+pub(crate) fn random_g1_point<R: RngCore + CryptoRng>(
+    rng: &mut R,
+) -> G1Projective {
     G1Affine::generator() * random_scalar(rng)
 }
 /// Generates a random G2 point using an RNG seed.
-pub(crate) fn random_g2_point<R: RngCore + CryptoRng>(rng: &mut R) -> G2Projective {
+pub(crate) fn random_g2_point<R: RngCore + CryptoRng>(
+    rng: &mut R,
+) -> G2Projective {
     G2Affine::generator() * random_scalar(rng)
 }
 
@@ -39,11 +48,12 @@ pub(crate) fn slow_multiscalar_mul_single_base(
     scalars: &[BlsScalar],
     base: G1Projective,
 ) -> Vec<G1Projective> {
-    scalars.par_iter().map(|s| base * *s).collect()
+    scalars.iter().map(|s| base * *s).collect()
 }
 
 // while we do not have batch inversion for scalars
-use std::ops::MulAssign;
+use core::ops::MulAssign;
+
 pub fn batch_inversion(v: &mut [BlsScalar]) {
     // Montgomery’s Trick and Fast Implementation of Masked AES
     // Genelle, Prouff and Quisquater

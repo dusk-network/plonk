@@ -4,54 +4,60 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use crate::fft::{EvaluationDomain, Polynomial};
-use crate::proof_system::widget::ProverKey;
-use anyhow::{Error, Result};
-use dusk_bls12_381::BlsScalar;
-use dusk_bytes::Serializable;
+#[cfg(feature = "alloc")]
+use crate::{
+    fft::{EvaluationDomain, Polynomial},
+    proof_system::ProverKey,
+};
 
-// Evaluations of points from a plookup protocol at `z` or and `z * root of unity`
-pub struct Evaluations {
-    pub proof: ProofEvaluations,
+use dusk_bls12_381::BlsScalar;
+use dusk_bytes::{DeserializableSlice, Serializable};
+#[allow(dead_code)]
+/// Evaluations at points `z` or and `z * root of unity`
+pub(crate) struct Evaluations {
+    pub(crate) proof: ProofEvaluations,
     // Evaluation of the linearisation sigma polynomial at `z`
-    pub quot_eval: BlsScalar,
+    pub(crate) quot_eval: BlsScalar,
 }
-/// Proof Evaluations is a subset of all of the evaluations. These evaluations will be added to the proof
-#[derive(Debug, Eq, PartialEq, Clone)]
-pub struct ProofEvaluations {
+
+/// Subset of all of the evaluations. These evaluations
+/// are added to the [`Proof`](super::Proof).
+#[derive(Debug, Eq, PartialEq, Clone, Default)]
+pub(crate) struct ProofEvaluations {
     // Evaluation of the witness polynomial for the left wire at `z`
-    pub a_eval: BlsScalar,
+    pub(crate) a_eval: BlsScalar,
     // Evaluation of the witness polynomial for the right wire at `z`
-    pub b_eval: BlsScalar,
+    pub(crate) b_eval: BlsScalar,
     // Evaluation of the witness polynomial for the output wire at `z`
-    pub c_eval: BlsScalar,
+    pub(crate) c_eval: BlsScalar,
     // Evaluation of the witness polynomial for the fourth wire at `z`
-    pub d_eval: BlsScalar,
+    pub(crate) d_eval: BlsScalar,
     //
-    pub a_next_eval: BlsScalar,
+    pub(crate) a_next_eval: BlsScalar,
     //
-    pub b_next_eval: BlsScalar,
-    // Evaluation of the witness polynomial for the fourth wire at `z * root of unity`
-    pub d_next_eval: BlsScalar,
+    pub(crate) b_next_eval: BlsScalar,
+    // Evaluation of the witness polynomial for the fourth wire at `z * root of
+    // unity`
+    pub(crate) d_next_eval: BlsScalar,
     // Evaluation of the arithmetic selector polynomial at `z`
-    pub q_arith_eval: BlsScalar,
+    pub(crate) q_arith_eval: BlsScalar,
     //
-    pub q_c_eval: BlsScalar,
+    pub(crate) q_c_eval: BlsScalar,
     //
-    pub q_l_eval: BlsScalar,
+    pub(crate) q_l_eval: BlsScalar,
     //
     pub q_r_eval: BlsScalar,
     //
     pub q_lookup_eval: BlsScalar,
     // Evaluation of the left sigma polynomial at `z`
-    pub left_sigma_eval: BlsScalar,
+    pub(crate) left_sigma_eval: BlsScalar,
     // Evaluation of the right sigma polynomial at `z`
-    pub right_sigma_eval: BlsScalar,
+    pub(crate) right_sigma_eval: BlsScalar,
     // Evaluation of the out sigma polynomial at `z`
-    pub out_sigma_eval: BlsScalar,
+    pub(crate) out_sigma_eval: BlsScalar,
 
     // Evaluation of the linearisation sigma polynomial at `z`
-    pub lin_poly_eval: BlsScalar,
+    pub(crate) lin_poly_eval: BlsScalar,
 
     // (Shifted) Evaluation of the permutation polynomial at `z * root of unity`
     pub perm_eval: BlsScalar,
@@ -78,66 +84,57 @@ pub struct ProofEvaluations {
     pub table_next_eval: BlsScalar,
 }
 
-impl ProofEvaluations {
-    /// Serialises a Proof Evaluation struct to bytes
-    pub fn to_bytes(&self) -> [u8; ProofEvaluations::serialised_size()] {
-        let mut bytes = [0u8; ProofEvaluations::serialised_size()];
+impl Serializable<{ 16 * BlsScalar::SIZE }> for ProofEvaluations {
+    type Error = dusk_bytes::Error;
 
-        bytes[0..32].copy_from_slice(&self.a_eval.to_bytes()[..]);
-        bytes[32..64].copy_from_slice(&self.b_eval.to_bytes()[..]);
-        bytes[64..96].copy_from_slice(&self.c_eval.to_bytes()[..]);
-        bytes[96..128].copy_from_slice(&self.d_eval.to_bytes()[..]);
-        bytes[128..160].copy_from_slice(&self.a_next_eval.to_bytes()[..]);
-        bytes[160..192].copy_from_slice(&self.b_next_eval.to_bytes()[..]);
-        bytes[192..224].copy_from_slice(&self.d_next_eval.to_bytes()[..]);
-        bytes[224..256].copy_from_slice(&self.q_arith_eval.to_bytes()[..]);
-        bytes[256..288].copy_from_slice(&self.q_c_eval.to_bytes()[..]);
-        bytes[288..320].copy_from_slice(&self.q_l_eval.to_bytes()[..]);
-        bytes[320..352].copy_from_slice(&self.q_r_eval.to_bytes()[..]);
-        bytes[352..384].copy_from_slice(&self.left_sigma_eval.to_bytes()[..]);
-        bytes[384..416].copy_from_slice(&self.right_sigma_eval.to_bytes()[..]);
-        bytes[416..448].copy_from_slice(&self.out_sigma_eval.to_bytes()[..]);
-        bytes[448..480].copy_from_slice(&self.lin_poly_eval.to_bytes()[..]);
-        bytes[480..512].copy_from_slice(&self.perm_eval.to_bytes()[..]);
-        bytes[512..544].copy_from_slice(&self.lin_poly_eval.to_bytes()[..]);
-        bytes[544..576].copy_from_slice(&self.perm_eval.to_bytes()[..]);
+    #[allow(unused_must_use)]
+    fn to_bytes(&self) -> [u8; Self::SIZE] {
+        use dusk_bytes::Write;
 
-        bytes
+        let mut buf = [0u8; Self::SIZE];
+        let mut writer = &mut buf[..];
+        writer.write(&self.a_eval.to_bytes());
+        writer.write(&self.b_eval.to_bytes());
+        writer.write(&self.c_eval.to_bytes());
+        writer.write(&self.d_eval.to_bytes());
+        writer.write(&self.a_next_eval.to_bytes());
+        writer.write(&self.b_next_eval.to_bytes());
+        writer.write(&self.d_next_eval.to_bytes());
+        writer.write(&self.q_arith_eval.to_bytes());
+        writer.write(&self.q_c_eval.to_bytes());
+        writer.write(&self.q_l_eval.to_bytes());
+        writer.write(&self.q_r_eval.to_bytes());
+        writer.write(&self.left_sigma_eval.to_bytes());
+        writer.write(&self.right_sigma_eval.to_bytes());
+        writer.write(&self.out_sigma_eval.to_bytes());
+        writer.write(&self.lin_poly_eval.to_bytes());
+        writer.write(&self.perm_eval.to_bytes());
+
+        buf
     }
-    // Deserialises a slice of bytes into a proof Evaluation struct
-    pub fn from_bytes(bytes: &[u8]) -> Result<ProofEvaluations, Error> {
-        use crate::serialisation::{read_scalar, SerialisationErrors};
 
-        if bytes.len() != ProofEvaluations::serialised_size() {
-            return Err(SerialisationErrors::NotEnoughBytes.into());
-        }
+    fn from_bytes(
+        buf: &[u8; Self::SIZE],
+    ) -> Result<ProofEvaluations, Self::Error> {
+        let mut buffer = &buf[..];
+        let a_eval = BlsScalar::from_reader(&mut buffer)?;
+        let b_eval = BlsScalar::from_reader(&mut buffer)?;
+        let c_eval = BlsScalar::from_reader(&mut buffer)?;
+        let d_eval = BlsScalar::from_reader(&mut buffer)?;
+        let a_next_eval = BlsScalar::from_reader(&mut buffer)?;
+        let b_next_eval = BlsScalar::from_reader(&mut buffer)?;
+        let d_next_eval = BlsScalar::from_reader(&mut buffer)?;
+        let q_arith_eval = BlsScalar::from_reader(&mut buffer)?;
+        let q_c_eval = BlsScalar::from_reader(&mut buffer)?;
+        let q_l_eval = BlsScalar::from_reader(&mut buffer)?;
+        let q_r_eval = BlsScalar::from_reader(&mut buffer)?;
+        let left_sigma_eval = BlsScalar::from_reader(&mut buffer)?;
+        let right_sigma_eval = BlsScalar::from_reader(&mut buffer)?;
+        let out_sigma_eval = BlsScalar::from_reader(&mut buffer)?;
+        let lin_poly_eval = BlsScalar::from_reader(&mut buffer)?;
+        let perm_eval = BlsScalar::from_reader(&mut buffer)?;
 
-        let (a_eval, rest) = read_scalar(bytes)?;
-        let (b_eval, rest) = read_scalar(rest)?;
-        let (c_eval, rest) = read_scalar(rest)?;
-        let (d_eval, rest) = read_scalar(rest)?;
-        let (a_next_eval, rest) = read_scalar(rest)?;
-        let (b_next_eval, rest) = read_scalar(rest)?;
-        let (d_next_eval, rest) = read_scalar(rest)?;
-        let (q_arith_eval, rest) = read_scalar(rest)?;
-        let (q_c_eval, rest) = read_scalar(rest)?;
-        let (q_l_eval, rest) = read_scalar(rest)?;
-        let (q_r_eval, rest) = read_scalar(rest)?;
-        let (q_lookup_eval, rest) = read_scalar(rest)?;
-        let (left_sigma_eval, rest) = read_scalar(rest)?;
-        let (right_sigma_eval, rest) = read_scalar(rest)?;
-        let (out_sigma_eval, rest) = read_scalar(rest)?;
-        let (lin_poly_eval, rest) = read_scalar(rest)?;
-        let (perm_eval, _) = read_scalar(rest)?;
-        let (lookup_perm_eval, _) = read_scalar(rest)?;
-        let (h_1_eval, rest) = read_scalar(rest)?;
-        let (h_1_next_eval, rest) = read_scalar(rest)?;
-        let (h_2_eval, rest) = read_scalar(rest)?;
-        let (f_eval, rest) = read_scalar(rest)?;
-        let (table_eval, rest) = read_scalar(rest)?;
-        let (table_next_eval, _) = read_scalar(rest)?;
-
-        let proof_evals = ProofEvaluations {
+        Ok(ProofEvaluations {
             a_eval,
             b_eval,
             c_eval,
@@ -162,20 +159,14 @@ impl ProofEvaluations {
             f_eval,
             table_eval,
             table_next_eval,
-        };
-        Ok(proof_evals)
-    }
-
-    pub const fn serialised_size() -> usize {
-        const NUM_SCALARS: usize = 15;
-        const SCALAR_SIZE: usize = 32;
-        NUM_SCALARS * SCALAR_SIZE
+        })
     }
 }
 
-#[allow(clippy::too_many_arguments)]
-/// Compute the linearisation polynomial
-pub fn compute(
+#[cfg(feature = "alloc")]
+
+/// Compute the linearisation polynomial.
+pub(crate) fn compute(
     domain: &EvaluationDomain,
     prover_key: &ProverKey,
     (
@@ -223,9 +214,12 @@ pub fn compute(
     let b_eval = w_r_poly.evaluate(z_challenge);
     let c_eval = w_o_poly.evaluate(z_challenge);
     let d_eval = w_4_poly.evaluate(z_challenge);
-    let left_sigma_eval = prover_key.permutation.left_sigma.0.evaluate(z_challenge);
-    let right_sigma_eval = prover_key.permutation.right_sigma.0.evaluate(z_challenge);
-    let out_sigma_eval = prover_key.permutation.out_sigma.0.evaluate(z_challenge);
+    let left_sigma_eval =
+        prover_key.permutation.left_sigma.0.evaluate(z_challenge);
+    let right_sigma_eval =
+        prover_key.permutation.right_sigma.0.evaluate(z_challenge);
+    let out_sigma_eval =
+        prover_key.permutation.out_sigma.0.evaluate(z_challenge);
     let q_arith_eval = prover_key.arithmetic.q_arith.0.evaluate(z_challenge);
     let q_c_eval = prover_key.logic.q_c.0.evaluate(z_challenge);
     let q_l_eval = prover_key.fixed_base.q_l.0.evaluate(z_challenge);
@@ -328,7 +322,7 @@ pub fn compute(
     )
 }
 
-#[allow(clippy::too_many_arguments)]
+#[cfg(feature = "alloc")]
 fn compute_circuit_satisfiability(
     (
         range_separation_challenge,
@@ -361,10 +355,13 @@ fn compute_circuit_satisfiability(
     q_r_eval: &BlsScalar,
     prover_key: &ProverKey,
 ) -> Polynomial {
-    let a =
-        prover_key
-            .arithmetic
-            .compute_linearisation(a_eval, b_eval, c_eval, d_eval, q_arith_eval);
+    let a = prover_key.arithmetic.compute_linearisation(
+        a_eval,
+        b_eval,
+        c_eval,
+        d_eval,
+        q_arith_eval,
+    );
 
     let b = prover_key.range.compute_linearisation(
         range_separation_challenge,
@@ -438,4 +435,18 @@ fn compute_circuit_satisfiability(
     linearisation_poly += &f;
 
     linearisation_poly
+}
+
+#[cfg(test)]
+mod evaluations_tests {
+    use super::*;
+
+    #[test]
+    fn proof_evaluations_dusk_bytes_serde() {
+        let proof_evals = ProofEvaluations::default();
+        let bytes = proof_evals.to_bytes();
+        let obtained_evals = ProofEvaluations::from_slice(&bytes)
+            .expect("Deserialization error");
+        assert_eq!(proof_evals.to_bytes(), obtained_evals.to_bytes())
+    }
 }

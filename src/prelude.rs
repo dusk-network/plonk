@@ -8,29 +8,26 @@
 //!
 //! Use this as the only import that you need to interact
 //! with the principal data structures of the plonk library.
-//!
 
-pub use crate::circuit_builder::{Circuit, CircuitErrors, PublicInput};
-pub use crate::commitment_scheme::kzg10::{
-    key::{CommitKey, OpeningKey},
-    PublicParameters,
-};
-pub use crate::constraint_system::{StandardComposer, Variable};
-pub use crate::proof_system::{
-    widget::{ProverKey, VerifierKey},
-    Proof, Prover, Verifier,
+#[cfg(feature = "alloc")]
+pub use crate::{
+    circuit::{self, Circuit, PublicInputValue, VerifierData},
+    commitment_scheme::kzg10::{
+        key::{CommitKey, OpeningKey},
+        PublicParameters,
+    },
+    constraint_system::{Point, StandardComposer, Variable},
+    proof_system::{Prover, ProverKey, Verifier},
 };
 
-/// Re-exported `dusk-bls12_381::BlsScalar`.
+pub use crate::proof_system::{Proof, VerifierKey};
+
+/// Re-exported [`dusk-bls12_381::BlsScalar`].
 pub use dusk_bls12_381::BlsScalar;
 
-/// Re-exported `dusk-jubjub::JubJubScalar`.
-pub use dusk_jubjub::JubJubScalar;
+/// Re-exported [`dusk-jubjub::JubJubScalar`] &
+/// [`dusk-jubjub::JubJubAffine`].
+pub use dusk_jubjub::{JubJubAffine, JubJubScalar};
 
 /// Collection of errors that the library exposes/uses.
-pub mod plonk_errors {
-    pub use crate::commitment_scheme::kzg10::errors::KZG10Errors;
-    pub use crate::constraint_system::cs_errors::PreProcessingError;
-    pub use crate::fft::fft_errors::FFTErrors;
-    pub use crate::proof_system::proof_system_errors::ProofErrors;
-}
+pub use crate::error::Error;

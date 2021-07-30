@@ -4,21 +4,19 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use super::{check_bit_consistency, extract_bit};
 use crate::fft::{Evaluations, Polynomial};
 use dusk_bls12_381::BlsScalar;
 use dusk_jubjub::EDWARDS_D;
 
 #[derive(Debug, Eq, PartialEq, Clone)]
-pub struct ProverKey {
-    pub q_l: (Polynomial, Evaluations),
-    pub q_r: (Polynomial, Evaluations),
-    pub q_c: (Polynomial, Evaluations),
-    pub q_fixed_group_add: (Polynomial, Evaluations),
+pub(crate) struct ProverKey {
+    pub(crate) q_l: (Polynomial, Evaluations),
+    pub(crate) q_r: (Polynomial, Evaluations),
+    pub(crate) q_c: (Polynomial, Evaluations),
+    pub(crate) q_fixed_group_add: (Polynomial, Evaluations),
 }
 
 impl ProverKey {
-    #[allow(clippy::too_many_arguments)]
     pub(crate) fn compute_quotient_i(
         &self,
         index: usize,
@@ -58,7 +56,8 @@ impl ProverKey {
         let bit_consistency = check_bit_consistency(bit);
 
         // Derive y_alpha and x_alpha from bit
-        let y_alpha = bit.square() * (y_beta - BlsScalar::one()) + BlsScalar::one();
+        let y_alpha =
+            bit.square() * (y_beta - BlsScalar::one()) + BlsScalar::one();
         let x_alpha = bit * x_beta;
 
         // xy_alpha consistency check
@@ -76,12 +75,14 @@ impl ProverKey {
         let rhs = (acc_y * y_alpha) + (acc_x * x_alpha);
         let y_acc_consistency = (lhs - rhs) * kappa_cu;
 
-        let identity = bit_consistency + x_acc_consistency + y_acc_consistency + xy_consistency;
+        let identity = bit_consistency
+            + x_acc_consistency
+            + y_acc_consistency
+            + xy_consistency;
 
         identity * q_fixed_group_add_i * ecc_separation_challenge
     }
 
-    #[allow(clippy::too_many_arguments)]
     pub(crate) fn compute_linearisation(
         &self,
         ecc_separation_challenge: &BlsScalar,
@@ -119,7 +120,8 @@ impl ProverKey {
         // Check bit consistency
         let bit_consistency = check_bit_consistency(bit);
 
-        let y_alpha = bit.square() * (y_beta_eval - BlsScalar::one()) + BlsScalar::one();
+        let y_alpha =
+            bit.square() * (y_beta_eval - BlsScalar::one()) + BlsScalar::one();
 
         let x_alpha = x_beta_eval * bit;
 
@@ -138,8 +140,25 @@ impl ProverKey {
         let rhs = (x_alpha * acc_x) + (y_alpha * acc_y);
         let y_acc_consistency = (lhs - rhs) * kappa_cu;
 
-        let a = bit_consistency + x_acc_consistency + y_acc_consistency + xy_consistency;
+        let a = bit_consistency
+            + x_acc_consistency
+            + y_acc_consistency
+            + xy_consistency;
 
         q_fixed_group_add_poly * &(a * ecc_separation_challenge)
     }
+}
+
+pub(crate) fn extract_bit(
+    curr_acc: &BlsScalar,
+    next_acc: &BlsScalar,
+) -> BlsScalar {
+    // Next - 2 * current
+    next_acc - curr_acc - curr_acc
+}
+
+// Ensures that the bit is either +1, -1 or 0
+pub(crate) fn check_bit_consistency(bit: BlsScalar) -> BlsScalar {
+    let one = BlsScalar::one();
+    bit * (bit - one) * (bit + one)
 }

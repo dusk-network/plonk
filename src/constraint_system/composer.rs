@@ -4,12 +4,12 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-//! The `Composer` is a Trait that is actually defining some kind of
-//! Circuit Builder for PLONK.
+//! A `Composer` could be understood as some sort of Trait that is actually
+//! defining some kind of Circuit Builder for PLONK.
 //!
-//! In that sense, here we have the implementation of the `StandardComposer`
-//! which has been designed in order to provide the maximum amount of performance
-//! while having a big scope in utility terms.
+//! In that sense, here we have the implementation of the [`StandardComposer`]
+//! which has been designed in order to provide the maximum amount of
+//! performance while having a big scope in utility terms.
 //!
 //! It allows us not only to build Add and Mul constraints but also to build
 //! ECC op. gates, Range checks, Logical gates (Bitwise ops) etc.
@@ -17,56 +17,84 @@
 // Gate fn's have a large number of attributes but
 // it is intended to be like this in order to provide
 // maximum performance and minimum circuit sizes.
-#![allow(clippy::too_many_arguments)]
 
 use super::cs_errors::PreProcessingError;
 use crate::constraint_system::Variable;
 use crate::permutation::Permutation;
 use crate::plookup::PlookupTable4Arity;
+use alloc::collections::BTreeMap;
+use alloc::vec::Vec;
 use dusk_bls12_381::BlsScalar;
-use std::collections::HashMap;
+use hashbrown::HashMap;
 
-/// A composer is a circuit builder
-/// and will dictate how a circuit is built
-/// We will have a default Composer called `StandardComposer`
+/// The StandardComposer is the circuit-builder tool that the `dusk-plonk`
+/// repository provides so that circuit descriptions can be written, stored and
+/// transformed into a [`Proof`](crate::proof_system::Proof) at some point.
+///
+/// A StandardComposer stores all of the circuit information, being this one
+/// all of the witness and circuit descriptors info (values, positions in the
+/// circuits, gates and Wires that occupy..), the public inputs, the connection
+/// relationships between the witnesses and how they're repesented as Wires (so
+/// basically the Permutation argument etc..).
+///
+/// The StandardComposer also grants us a way to introduce our secret
+/// witnesses in a for of a [`Variable`] into the circuit description as well as
+/// the public inputs. We can do this with methods like
+/// [`StandardComposer::add_input`].
+///
+/// The StandardComposer also contains as associated functions all the
+/// neccessary tools to be able to istrument the circuits that the user needs
+/// through the addition of gates. There are functions that may add a single
+/// gate to the circuit as for example [`StandardComposer::add_gate`] and others
+/// that can add several gates to the circuit description such as
+/// [`StandardComposer::conditional_select`].
+///
+/// Each gate or group of gates adds an specific functionallity or operation to
+/// de circuit description, and so, that's why we can understand
+/// the StandardComposer as a builder.
 #[derive(Debug)]
 pub struct StandardComposer {
-    // n represents the number of arithmetic gates in the circuit
+    /// Number of arithmetic gates in the circuit
     pub(crate) n: usize,
 
     // Selector vectors
-    //
-    // Multiplier selector
+    /// Multiplier selector
     pub(crate) q_m: Vec<BlsScalar>,
-    // Left wire selector
+    /// Left wire selector
     pub(crate) q_l: Vec<BlsScalar>,
-    // Right wire selector
+    /// Right wire selector
     pub(crate) q_r: Vec<BlsScalar>,
-    // Output wire selector
+    /// Output wire selector
     pub(crate) q_o: Vec<BlsScalar>,
-    // Fourth wire selector
+    /// Fourth wire selector
     pub(crate) q_4: Vec<BlsScalar>,
-    // Constant wire selector
+    /// Constant wire selector
     pub(crate) q_c: Vec<BlsScalar>,
-    // Arithmetic wire selector
+    /// Arithmetic wire selector
     pub(crate) q_arith: Vec<BlsScalar>,
-    // Range selector
+    /// Range selector
     pub(crate) q_range: Vec<BlsScalar>,
-    // Logic selector
+    /// Logic selector
     pub(crate) q_logic: Vec<BlsScalar>,
-    // Fixed base group addition selector
+    /// Fixed base group addition selector
     pub(crate) q_fixed_group_add: Vec<BlsScalar>,
-    // Variable base group addition selector
+    /// Variable base group addition selector
     pub(crate) q_variable_group_add: Vec<BlsScalar>,
     // Plookup gate wire selector
     pub(crate) q_lookup: Vec<BlsScalar>,
-    /// Public inputs vector
-    pub public_inputs: Vec<BlsScalar>,
+
+    /// Sparse representation of the Public Inputs linking the positions of the
+    /// non-zero ones to it's actual values.
+    pub(crate) public_inputs_sparse_store: BTreeMap<usize, BlsScalar>,
 
     // Witness vectors
+    /// Left wire witness vector.
     pub(crate) w_l: Vec<Variable>,
+    /// Right wire witness vector.
     pub(crate) w_r: Vec<Variable>,
+    /// Output wire witness vector.
     pub(crate) w_o: Vec<Variable>,
+    /// Fourth wire witness vector.
     pub(crate) w_4: Vec<Variable>,
 
     /// Public lookup table
@@ -74,14 +102,14 @@ pub struct StandardComposer {
 
     /// A zero variable that is a part of the circuit description.
     /// We reserve a variable to be zero in the system
-    /// This is so that when a gate only uses three wires, we set the fourth wire to be
-    /// the variable that references zero
+    /// This is so that when a gate only uses three wires, we set the fourth
+    /// wire to be the variable that references zero
     pub(crate) zero_var: Variable,
 
-    // These are the actual variable values
-    // N.B. They should not be exposed to the end user once added into the composer
+    /// These are the actual variable values.
     pub(crate) variables: HashMap<Variable, BlsScalar>,
 
+    /// Permutation argument.
     pub(crate) perm: Permutation,
 }
 
@@ -94,6 +122,27 @@ impl StandardComposer {
     /// Returns the total size of the circuit including lookup table rows
     pub fn total_size(&self) -> usize {
         std::cmp::max(self.n, self.lookup_table.0.len())
+    /// Constructs a dense vector of the Public Inputs from the positions and
+    /// the sparse vector that contains the values.
+    pub fn construct_dense_pi_vec(&self) -> Vec<BlsScalar> {
+        let mut pi = vec![BlsScalar::zero(); self.n];
+        self.public_inputs_sparse_store
+            .iter()
+            .for_each(|(pos, value)| {
+                pi[*pos] = *value;
+            });
+        pi
+    }
+
+    /// Returns the positions that the Public Inputs occupy in this Composer
+    /// instance.
+    // TODO: Find a more performant solution which can return a ref to a Vec or
+    // Iterator.
+    pub fn pi_positions(&self) -> Vec<usize> {
+        self.public_inputs_sparse_store
+            .keys()
+            .copied()
+            .collect::<Vec<usize>>()
     }
 }
 
@@ -107,7 +156,7 @@ impl StandardComposer {
     /// Generates a new empty `StandardComposer` with all of it's fields
     /// set to hold an initial capacity of 0.
     ///
-    /// # Warning
+    /// # Note
     ///
     /// The usage of this may cause lots of re-allocations since the `Composer`
     /// holds `Vec` for every polynomial, and these will need to be re-allocated
@@ -116,10 +165,14 @@ impl StandardComposer {
         StandardComposer::with_expected_size(0)
     }
 
-    /// Fixes a variable in the witness to be a part of the circuit description.
-    pub fn add_witness_to_circuit_description(&mut self, value: BlsScalar) -> Variable {
+    /// Fixes a [`Variable`] in the witness to be a part of the circuit
+    /// description.
+    pub fn add_witness_to_circuit_description(
+        &mut self,
+        value: BlsScalar,
+    ) -> Variable {
         let var = self.add_input(value);
-        self.constrain_to_constant(var, value, BlsScalar::zero());
+        self.constrain_to_constant(var, value, None);
         var
     }
 
@@ -143,7 +196,7 @@ impl StandardComposer {
             q_fixed_group_add: Vec::with_capacity(expected_size),
             q_variable_group_add: Vec::with_capacity(expected_size),
             q_lookup: Vec::with_capacity(expected_size),
-            public_inputs: Vec::with_capacity(expected_size),
+            public_inputs_sparse_store: BTreeMap::new(),
 
             w_l: Vec::with_capacity(expected_size),
             w_r: Vec::with_capacity(expected_size),
@@ -160,7 +213,8 @@ impl StandardComposer {
         };
 
         // Reserve the first variable to be zero
-        composer.zero_var = composer.add_witness_to_circuit_description(BlsScalar::zero());
+        composer.zero_var =
+            composer.add_witness_to_circuit_description(BlsScalar::zero());
 
         // Add dummy constraints
         composer.add_dummy_constraints();
@@ -168,14 +222,21 @@ impl StandardComposer {
         composer
     }
 
-    /// Add Input first calls the `Permutation` struct
-    /// to generate and allocate a new variable `var`.
-    /// The composer then links the Variable to the BlsScalar
-    /// and returns the Variable for use in the system.
+    /// Witness representation of zero of the first variable of any circuit
+    pub const fn zero_var(&self) -> Variable {
+        self.zero_var
+    }
+
+    /// Add Input first calls the Permutation
+    /// to generate and allocate a new [`Variable`] `var`.
+    ///
+    /// The Composer then links the variable to the [`BlsScalar`]
+    /// and returns it for its use in the system.
     pub fn add_input(&mut self, s: BlsScalar) -> Variable {
         // Get a new Variable from the permutation
         let var = self.perm.new_variable();
-        // The composer now links the BlsScalar to the Variable returned from the Permutation
+        // The composer now links the BlsScalar to the Variable returned from
+        // the Permutation
         self.variables.insert(var, s);
 
         var
@@ -212,10 +273,11 @@ impl StandardComposer {
     }
 
     /// Adds a width-3 poly gate.
-    /// This gate gives total freedom to the end user to implement the corresponding
-    /// circuits in the most optimized way possible because the under has access to the
-    /// whole set of variables, as well as selector coefficients that take part in the
-    /// computation of the gate equation.
+    /// This gate gives total freedom to the end user to implement the
+    /// corresponding circuits in the most optimized way possible because
+    /// the under has access to the whole set of variables, as well as
+    /// selector coefficients that take part in the computation of the gate
+    /// equation.
     ///
     /// The final constraint added will force the following:
     /// `(a * b) * q_m + a * q_l + b * q_r + q_c + PI + q_o * c = 0`.
@@ -229,7 +291,7 @@ impl StandardComposer {
         q_r: BlsScalar,
         q_o: BlsScalar,
         q_c: BlsScalar,
-        pi: BlsScalar,
+        pi: Option<BlsScalar>,
     ) -> (Variable, Variable, Variable) {
         self.w_l.push(a);
         self.w_r.push(b);
@@ -251,7 +313,12 @@ impl StandardComposer {
         self.q_variable_group_add.push(BlsScalar::zero());
         self.q_lookup.push(BlsScalar::zero());
 
-        self.public_inputs.push(pi);
+        if let Some(pi) = pi {
+            assert!(self
+                .public_inputs_sparse_store
+                .insert(self.n, pi)
+                .is_none());
+        }
 
         self.perm
             .add_variables_to_map(a, b, c, self.zero_var, self.n);
@@ -260,9 +327,16 @@ impl StandardComposer {
         (a, b, c)
     }
 
-    /// Adds a gate which is designed to constrain a `Variable` to have
-    /// a specific constant value which is sent as a `BlsScalar`.
-    pub fn constrain_to_constant(&mut self, a: Variable, constant: BlsScalar, pi: BlsScalar) {
+    /// Constrain a [`Variable`] to be equal to
+    /// a specific constant value which is part of the circuit description and
+    /// **NOT** a Public Input. ie. this value will be the same for all of the
+    /// circuit instances and [`Proof`](crate::proof_system::Proof)s generated.
+    pub fn constrain_to_constant(
+        &mut self,
+        a: Variable,
+        constant: BlsScalar,
+        pi: Option<BlsScalar>,
+    ) {
         self.poly_gate(
             a,
             a,
@@ -276,8 +350,8 @@ impl StandardComposer {
         );
     }
 
-    /// Asserts that two variables are the same
-    // XXX: Instead of wasting a gate, we can use the permutation polynomial to do this
+    /// Add a constraint into the circuit description that states that two
+    /// [`Variable`]s are equal.
     pub fn assert_equal(&mut self, a: Variable, b: Variable) {
         self.poly_gate(
             a,
@@ -288,14 +362,20 @@ impl StandardComposer {
             -BlsScalar::one(),
             BlsScalar::zero(),
             BlsScalar::zero(),
-            BlsScalar::zero(),
+            None,
         );
     }
 
-    /// Conditionally selects a Variable based on an input bit
+    /// Conditionally selects a [`Variable`] based on an input bit.
+    ///
     /// If:
-    ///     bit == 1 => choice_a,
-    ///     bit == 0 => choice_b,
+    /// bit == 1 => choice_a,
+    /// bit == 0 => choice_b,
+    ///
+    /// # Note
+    /// The `bit` used as input which is a [`Variable`] should had previously
+    /// been constrained to be either 1 or 0 using a bool constrain. See:
+    /// [`StandardComposer::boolean_gate`].
     pub fn conditional_select(
         &mut self,
         bit: Variable,
@@ -303,20 +383,15 @@ impl StandardComposer {
         choice_b: Variable,
     ) -> Variable {
         // bit * choice_a
-        let bit_times_a = self.mul(
-            BlsScalar::one(),
-            bit,
-            choice_a,
-            BlsScalar::zero(),
-            BlsScalar::zero(),
-        );
+        let bit_times_a =
+            self.mul(BlsScalar::one(), bit, choice_a, BlsScalar::zero(), None);
 
         // 1 - bit
         let one_min_bit = self.add(
             (-BlsScalar::one(), bit),
             (BlsScalar::zero(), self.zero_var),
             BlsScalar::one(),
-            BlsScalar::zero(),
+            None,
         );
 
         // (1 - bit) * b
@@ -325,7 +400,7 @@ impl StandardComposer {
             one_min_bit,
             choice_b,
             BlsScalar::zero(),
-            BlsScalar::zero(),
+            None,
         );
 
         // [ (1 - bit) * b ] + [ bit * a ]
@@ -333,13 +408,67 @@ impl StandardComposer {
             (BlsScalar::one(), one_min_bit_choice_b),
             (BlsScalar::one(), bit_times_a),
             BlsScalar::zero(),
-            BlsScalar::zero(),
+            None,
         )
     }
 
-    /// This function is used to add a blinding factor to the witness polynomials
-    /// XXX: Split this into two separate functions and document
-    /// XXX: We could add another section to add random witness variables, with selector polynomials all zero
+    /// Adds the polynomial f(x) = x * a to the circuit description where
+    /// `x = bit`. If:
+    /// bit == 1 => value,
+    /// bit == 0 => 0,
+    ///
+    /// # Note
+    /// The `bit` used as input which is a [`Variable`] should had previously
+    /// been constrained to be either 1 or 0 using a bool constrain. See:
+    /// [`StandardComposer::boolean_gate`].
+    pub fn conditional_select_zero(
+        &mut self,
+        bit: Variable,
+        value: Variable,
+    ) -> Variable {
+        // returns bit * value
+        self.mul(BlsScalar::one(), bit, value, BlsScalar::zero(), None)
+    }
+
+    /// Adds the polynomial f(x) = 1 - x + xa to the circuit description where
+    /// `x = bit`. If:
+    /// bit == 1 => value,
+    /// bit == 0 => 1,
+    ///
+    /// # Note
+    /// The `bit` used as input which is a [`Variable`] should had previously
+    /// been constrained to be either 1 or 0 using a bool constrain. See:
+    /// [`StandardComposer::boolean_gate`].
+    pub fn conditional_select_one(
+        &mut self,
+        bit: Variable,
+        value: Variable,
+    ) -> Variable {
+        let value_scalar = self.variables.get(&value).unwrap();
+        let bit_scalar = self.variables.get(&bit).unwrap();
+
+        let f_x_scalar =
+            BlsScalar::one() - bit_scalar + (bit_scalar * value_scalar);
+        let f_x = self.add_input(f_x_scalar);
+
+        self.poly_gate(
+            bit,
+            value,
+            f_x,
+            BlsScalar::one(),
+            -BlsScalar::one(),
+            BlsScalar::zero(),
+            -BlsScalar::one(),
+            BlsScalar::one(),
+            None,
+        );
+
+        f_x
+    }
+
+    /// This function is used to add a blinding factor to the witness
+    /// polynomials. It essentially adds two dummy gates to the circuit
+    /// description which are guaranteed to always satisfy the gate equation.
     pub fn add_dummy_constraints(&mut self) {
         // Add a dummy constraint so that we do not have zero polynomials
         self.q_m.push(BlsScalar::from(1));
@@ -354,7 +483,6 @@ impl StandardComposer {
         self.q_fixed_group_add.push(BlsScalar::zero());
         self.q_variable_group_add.push(BlsScalar::zero());
         self.q_lookup.push(BlsScalar::one());
-        self.public_inputs.push(BlsScalar::zero());
         let var_six = self.add_input(BlsScalar::from(6));
         let var_one = self.add_input(BlsScalar::from(1));
         let var_seven = self.add_input(BlsScalar::from(7));
@@ -363,10 +491,16 @@ impl StandardComposer {
         self.w_r.push(var_seven);
         self.w_o.push(var_min_twenty);
         self.w_4.push(var_one);
-        self.perm
-            .add_variables_to_map(var_six, var_seven, var_min_twenty, var_one, self.n);
+        self.perm.add_variables_to_map(
+            var_six,
+            var_seven,
+            var_min_twenty,
+            var_one,
+            self.n,
+        );
         self.n += 1;
-        //Add another dummy constraint so that we do not get the identity permutation
+        //Add another dummy constraint so that we do not get the identity
+        // permutation
         self.q_m.push(BlsScalar::from(1));
         self.q_l.push(BlsScalar::from(1));
         self.q_r.push(BlsScalar::from(1));
@@ -379,7 +513,6 @@ impl StandardComposer {
         self.q_fixed_group_add.push(BlsScalar::zero());
         self.q_variable_group_add.push(BlsScalar::zero());
         self.q_lookup.push(BlsScalar::one());
-        self.public_inputs.push(BlsScalar::zero());
         self.w_l.push(var_min_twenty);
         self.w_r.push(var_six);
         self.w_o.push(var_seven);
@@ -433,6 +566,7 @@ impl StandardComposer {
     /// The function by itself will print each circuit gate info until one of
     /// the gates does not satisfy the equation or there are no more gates. If
     /// the cause is an unsatisfied gate equation, the function will panic.
+    #[cfg(feature = "trace")]
     pub fn check_circuit_satisfied(&self) {
         let w_l: Vec<&BlsScalar> = self
             .w_l
@@ -461,7 +595,7 @@ impl StandardComposer {
             let f_3 = f - BlsScalar::from(3);
             f * f_1 * f_2 * f_3
         };
-        let pi_vec = self.public_inputs.clone();
+        let pi_vec = self.construct_dense_pi_vec();
         let four = BlsScalar::from(4);
         for i in 0..self.n {
             let qm = self.q_m[i];
@@ -484,7 +618,9 @@ impl StandardComposer {
             let c = w_o[i];
             let d = w_4[i];
             let d_next = w_4[(i + 1) % self.n];
-            println!(
+
+            #[cfg(all(feature = "trace-print", feature = "std"))]
+            std::println!(
                 "--------------------------------------------\n
             #Gate Index = {}
             #Selector Polynomials:\n
@@ -504,15 +640,42 @@ impl StandardComposer {
             - w_r -> {:?}\n
             - w_o -> {:?}\n
             - w_4 -> {:?}\n",
-                i, qm, ql, qr, q4, qo, qc, qarith, qrange, qlogic, qfixed, qvar, a, b, c, d
+                i,
+                qm,
+                ql,
+                qr,
+                q4,
+                qo,
+                qc,
+                qarith,
+                qrange,
+                qlogic,
+                qfixed,
+                qvar,
+                a,
+                b,
+                c,
+                d
             );
-            let k = qarith * ((qm * a * b) + (ql * a) + (qr * b) + (qo * c) + (q4 * d) + pi + qc)
+
+            let k = qarith
+                * ((qm * a * b)
+                    + (ql * a)
+                    + (qr * b)
+                    + (qo * c)
+                    + (q4 * d)
+                    + pi
+                    + qc)
                 + qlogic
-                    * (((delta(a_next - four * a) - delta(b_next - four * b)) * c)
+                    * (((delta(a_next - four * a) - delta(b_next - four * b))
+                        * c)
                         + delta(a_next - four * a)
                         + delta(b_next - four * b)
                         + delta(d_next - four * d)
-                        + match (qlogic == BlsScalar::one(), qlogic == -BlsScalar::one()) {
+                        + match (
+                            qlogic == BlsScalar::one(),
+                            qlogic == -BlsScalar::one(),
+                        ) {
                             (true, false) => (a & b) - d,
                             (false, true) => (a ^ b) - d,
                             (false, false) => BlsScalar::zero(),
@@ -588,23 +751,27 @@ impl StandardComposer {
     }
 }
 
+#[cfg(feature = "std")]
 #[cfg(test)]
 mod tests {
-    use super::super::helper::*;
     use super::*;
     use crate::commitment_scheme::kzg10::PublicParameters;
-    use crate::constraint_system::helper::gadget_plookup_tester;
     use crate::plookup::PlookupTable4Arity;
+    use crate::constraint_system::helper::*;
     use crate::proof_system::{Prover, Verifier};
+    use rand_core::OsRng;
 
     #[test]
     /// Tests that a circuit initially has 3 gates
     fn test_initial_circuit_size() {
         let composer: StandardComposer = StandardComposer::new();
         // Circuit size is n+3 because
-        // - We have an extra gate which forces the first witness to be zero. This is used when the advice wire is not being used.
-        // - We have two gates which ensure that the permutation polynomial is not the identity and
-        // - Another gate which ensures that the selector polynomials are not all zeroes
+        // - We have an extra gate which forces the first witness to be zero.
+        //   This is used when the advice wire is not being used.
+        // - We have two gates which ensure that the permutation polynomial is
+        //   not the identity and
+        // - Another gate which ensures that the selector polynomials are not
+        //   all zeroes
         assert_eq!(3, composer.circuit_size())
     }
 
@@ -645,22 +812,19 @@ mod tests {
         );
         let res = gadget_plookup_tester(
             |composer| {
-                let twelve = composer.add_witness_to_circuit_description(BlsScalar::from(12));
-                let three = composer.add_witness_to_circuit_description(BlsScalar::from(3));
-                let ten = composer.add_witness_to_circuit_description(BlsScalar::from(10));
-                let zero = composer.add_witness_to_circuit_description(BlsScalar::from(0));
-                let three_four_one =
-                    composer.add_witness_to_circuit_description(BlsScalar::from(341));
-                composer.plookup_gate(twelve, twelve, twelve, Some(twelve), BlsScalar::zero());
-                composer.plookup_gate(twelve, twelve, twelve, Some(twelve), BlsScalar::zero());
-                composer.plookup_gate(three, zero, twelve, Some(three_four_one), BlsScalar::zero());
-                composer.plookup_gate(
-                    three_four_one,
-                    three_four_one,
-                    ten,
-                    Some(ten),
-                    BlsScalar::zero(),
-                );
+                let bit_1 = composer.add_input(BlsScalar::one());
+                let bit_0 = composer.zero_var();
+
+                let choice_a = composer.add_input(BlsScalar::from(10u64));
+                let choice_b = composer.add_input(BlsScalar::from(20u64));
+
+                let choice =
+                    composer.conditional_select(bit_1, choice_a, choice_b);
+                composer.assert_equal(choice, choice_a);
+
+                let choice =
+                    composer.conditional_select(bit_0, choice_a, choice_b);
+                composer.assert_equal(choice, choice_b);
             },
             65,
             t,
@@ -693,7 +857,8 @@ mod tests {
     #[test]
     // XXX: Move this to integration tests
     fn test_multiple_proofs() {
-        let public_parameters = PublicParameters::setup(2 * 30, &mut rand::thread_rng()).unwrap();
+        let public_parameters =
+            PublicParameters::setup(2 * 30, &mut OsRng).unwrap();
 
         // Create a prover struct
         let mut prover = Prover::new(b"demo");
@@ -707,7 +872,7 @@ mod tests {
         // Preprocess circuit
         prover.preprocess(&ck).unwrap();
 
-        let public_inputs = prover.cs.public_inputs.clone();
+        let public_inputs = prover.cs.construct_dense_pi_vec();
 
         let mut proofs = Vec::new();
 

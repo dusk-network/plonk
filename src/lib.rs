@@ -4,7 +4,7 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-#![cfg_attr(feature = "nightly", feature(external_doc))]
+#![doc = include_str!("../README.md")]
 #![doc(
     html_logo_url = "https://lh3.googleusercontent.com/SmwswGxtgIANTbDrCOn5EKcRBnVdHjmYsHYxLq2HZNXWCQ9-fZyaea-bNgdX9eR0XGSqiMFi=w128-h128-e365"
 )]
@@ -31,14 +31,14 @@
 //! - Zachary J. Williamson (Aztec Protocol)
 //! - Oana Ciobotaru
 //!
-//! This crate contains a pure-rust implementation done by the [DuskNetwork team](dusk.network)
-//! of this algorithm using as a reference implementation this one done
-//! by the creators of the protocol:
+//! This crate contains a pure-rust implementation done by the [DuskNetwork
+//! team](dusk.network) of this algorithm using as a reference implementation
+//! this one done by the creators of the protocol:
 //!
-//! [https://github.com/AztecProtocol/barretenberg/blob/master/barretenberg/src/aztec/plonk/](https://github.com/AztecProtocol/barretenberg/blob/master/barretenberg/src/aztec/plonk/)
+//! <https://github.com/AztecProtocol/barretenberg/blob/master/barretenberg/src/aztec/plonk/>
 //!
 //! If you want to see library usage examples, please check:
-//! [https://github.com/dusk-network/plonk/tree/v0.1.0/examples](https://github.com/dusk-network/plonk/tree/v0.1.0/examples)
+//! <https://github.com/dusk-network/plonk/tree/v0.1.0/examples>
 // Bitshift/Bitwise ops are allowed to gain performance.
 #![allow(clippy::suspicious_arithmetic_impl)]
 // Some structs do not have AddAssign or MulAssign impl.
@@ -47,48 +47,43 @@
 #![allow(clippy::many_single_char_names)]
 // Bool expr are usually easier to read with match statements.
 #![allow(clippy::match_bool)]
-// Clippy does not have `broken_intra_doc_links` as a known lint.
-#![allow(unknown_lints)]
-#![deny(broken_intra_doc_links)]
-#![deny(missing_debug_implementations)]
+// We have quite some functions that require quite some args by it's nature.
+// It can be refactored but for now, we avoid these warns.
+#![allow(clippy::too_many_arguments)]
+#![deny(rustdoc::broken_intra_doc_links)]
 #![deny(missing_docs)]
+#![no_std]
 
-#[macro_use]
-mod macros;
+#[cfg(feature = "std")]
+extern crate std;
 
-mod bit_iterator;
-pub mod circuit_builder;
+cfg_if::cfg_if!(
+if #[cfg(feature = "alloc")] {
+    #[macro_use]
+    extern crate alloc;
+    pub mod constraint_system;
+    mod bit_iterator;
+    pub mod circuit;
+    mod util;
+    mod permutation;
+});
+
 pub mod commitment_scheme;
-pub mod constraint_system;
-pub mod fft;
-mod permutation;
-pub mod plookup;
+pub mod error;
+mod fft;
 pub mod prelude;
 pub mod proof_system;
-mod serialisation;
-pub mod transcript;
-mod util;
+mod transcript;
 
-#[cfg(feature = "nightly")]
-#[doc(include = "../docs/notes-intro.md")]
+#[doc = include_str!("../docs/notes-intro.md")]
 pub mod notes {
-    #[cfg(feature = "nightly")]
-    #[doc(include = "../docs/notes-commitments.md")]
+    #[doc = include_str!("../docs/notes-commitments.md")]
     pub mod commitment_schemes {}
-    #[cfg(feature = "nightly")]
-    #[doc(include = "../docs/notes-pa.md")]
-    pub mod permutation_arguments {}
-    #[cfg(feature = "nightly")]
-    #[doc(include = "../docs/notes-snark.md")]
+    #[doc = include_str!("../docs/notes-snark.md")]
     pub mod snark_construction {}
-    #[cfg(feature = "nightly")]
-    #[doc(include = "../docs/notes-prove-verify.md")]
+    #[doc = include_str!("../docs/notes-prove-verify.md")]
     pub mod prove_verify {}
-    #[cfg(feature = "nightly")]
-    #[doc(include = "../docs/notes-pa.md")]
-    pub mod unbalanced_perm_args {}
-    #[cfg(feature = "nightly")]
-    #[doc(include = "../docs/notes-KZG10.md")]
+    #[doc = include_str!("../docs/notes-KZG10.md")]
     pub mod kzg10_docs {}
 }
 

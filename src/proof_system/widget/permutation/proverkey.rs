@@ -4,18 +4,23 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-#![allow(clippy::too_many_arguments)]
 use crate::fft::{EvaluationDomain, Evaluations, Polynomial};
 use crate::permutation::constants::{K1, K2, K3};
 use dusk_bls12_381::BlsScalar;
 
 #[derive(Debug, Eq, PartialEq, Clone)]
-pub struct ProverKey {
-    pub left_sigma: (Polynomial, Evaluations),
-    pub right_sigma: (Polynomial, Evaluations),
-    pub out_sigma: (Polynomial, Evaluations),
-    pub fourth_sigma: (Polynomial, Evaluations),
-    pub linear_evaluations: Evaluations, // Evaluations of f(x) = X [XXX: Remove this and benchmark if it makes a considerable difference -- These are just the domain elements]
+pub(crate) struct ProverKey {
+    pub(crate) left_sigma: (Polynomial, Evaluations),
+    pub(crate) right_sigma: (Polynomial, Evaluations),
+    pub(crate) out_sigma: (Polynomial, Evaluations),
+    pub(crate) fourth_sigma: (Polynomial, Evaluations),
+    pub(crate) linear_evaluations: Evaluations,
+    /* Evaluations of f(x) = X
+     * [XXX: Remove this and
+     * benchmark if it makes a
+     * considerable difference
+     * -- These are just the
+     * domain elements] */
 }
 
 impl ProverKey {
@@ -42,7 +47,8 @@ impl ProverKey {
         let c = self.compute_quotient_term_check_one_i(z_i, l1_alpha_sq);
         a + b + c
     }
-    // (a(x) + beta * X + gamma) (b(X) + beta * k1 * X + gamma) (c(X) + beta * k2 * X + gamma)(d(X) + beta * k3 * X + gamma)z(X) * alpha
+    // (a(x) + beta * X + gamma) (b(X) + beta * k1 * X + gamma) (c(X) + beta *
+    // k2 * X + gamma)(d(X) + beta * k3 * X + gamma)z(X) * alpha
     fn compute_quotient_identity_range_check_i(
         &self,
         index: usize,
@@ -64,7 +70,9 @@ impl ProverKey {
             * z_i
             * alpha
     }
-    // (a(x) + beta* Sigma1(X) + gamma) (b(X) + beta * Sigma2(X) + gamma) (c(X) + beta * Sigma3(X) + gamma)(d(X) + beta * Sigma4(X) + gamma) Z(X.omega) * alpha
+    // (a(x) + beta* Sigma1(X) + gamma) (b(X) + beta * Sigma2(X) + gamma) (c(X)
+    // + beta * Sigma3(X) + gamma)(d(X) + beta * Sigma4(X) + gamma) Z(X.omega) *
+    // alpha
     fn compute_quotient_copy_range_check_i(
         &self,
         index: usize,
@@ -104,8 +112,17 @@ impl ProverKey {
         &self,
         z_challenge: &BlsScalar,
         (alpha, beta, gamma): (&BlsScalar, &BlsScalar, &BlsScalar),
-        (a_eval, b_eval, c_eval, d_eval): (&BlsScalar, &BlsScalar, &BlsScalar, &BlsScalar),
-        (sigma_1_eval, sigma_2_eval, sigma_3_eval): (&BlsScalar, &BlsScalar, &BlsScalar),
+        (a_eval, b_eval, c_eval, d_eval): (
+            &BlsScalar,
+            &BlsScalar,
+            &BlsScalar,
+            &BlsScalar,
+        ),
+        (sigma_1_eval, sigma_2_eval, sigma_3_eval): (
+            &BlsScalar,
+            &BlsScalar,
+            &BlsScalar,
+        ),
         z_eval: &BlsScalar,
         z_poly: &Polynomial,
     ) -> Polynomial {
@@ -126,13 +143,24 @@ impl ProverKey {
         );
 
         let domain = EvaluationDomain::new(z_poly.degree()).unwrap();
-        let c = self.compute_lineariser_check_is_one(&domain, z_challenge, &alpha.square(), z_poly);
+        let c = self.compute_lineariser_check_is_one(
+            &domain,
+            z_challenge,
+            &alpha.square(),
+            z_poly,
+        );
         &(&a + &b) + &c
     }
-    // (a_eval + beta * z_challenge + gamma)(b_eval + beta * K1 * z_challenge + gamma)(c_eval + beta * K2 * z_challenge + gamma) * alpha z(X)
+    // (a_eval + beta * z_challenge + gamma)(b_eval + beta * K1 * z_challenge +
+    // gamma)(c_eval + beta * K2 * z_challenge + gamma) * alpha z(X)
     fn compute_lineariser_identity_range_check(
         &self,
-        (a_eval, b_eval, c_eval, d_eval): (&BlsScalar, &BlsScalar, &BlsScalar, &BlsScalar),
+        (a_eval, b_eval, c_eval, d_eval): (
+            &BlsScalar,
+            &BlsScalar,
+            &BlsScalar,
+            &BlsScalar,
+        ),
         z_challenge: &BlsScalar,
         (alpha, beta, gamma): (&BlsScalar, &BlsScalar, &BlsScalar),
         z_poly: &Polynomial,
@@ -161,10 +189,15 @@ impl ProverKey {
         let mut a = a_0 * a_1;
         a *= a_2;
         a *= a_3;
-        a *= alpha; // (a_eval + beta * z_challenge + gamma)(b_eval + beta * K1 * z_challenge + gamma)(c_eval + beta * K2 * z_challenge + gamma)(d_eval + beta * K3 * z_challenge + gamma) * alpha
-        z_poly * &a // (a_eval + beta * z_challenge + gamma)(b_eval + beta * K1 * z_challenge + gamma)(c_eval + beta * K2 * z_challenge + gamma) * alpha z(X)
+        a *= alpha; // (a_eval + beta * z_challenge + gamma)(b_eval + beta * K1 *
+                    // z_challenge + gamma)(c_eval + beta * K2 * z_challenge + gamma)(d_eval
+                    // + beta * K3 * z_challenge + gamma) * alpha
+        z_poly * &a // (a_eval + beta * z_challenge + gamma)(b_eval + beta * K1
+                    // * z_challenge + gamma)(c_eval + beta * K2 * z_challenge +
+                    // gamma) * alpha z(X)
     }
-    // -(a_eval + beta * sigma_1 + gamma)(b_eval + beta * sigma_2 + gamma) (c_eval + beta * sigma_3 + gamma) * beta *z_eval * alpha^2 * Sigma_4(X)
+    // -(a_eval + beta * sigma_1 + gamma)(b_eval + beta * sigma_2 + gamma)
+    // (c_eval + beta * sigma_3 + gamma) * beta *z_eval * alpha^2 * Sigma_4(X)
     fn compute_lineariser_copy_range_check(
         &self,
         (a_eval, b_eval, c_eval): (&BlsScalar, &BlsScalar, &BlsScalar),
@@ -194,9 +227,13 @@ impl ProverKey {
 
         let mut a = a_0 * a_1 * a_2;
         a *= beta_z_eval;
-        a *= alpha; // (a_eval + beta * sigma_1 + gamma)(b_eval + beta * sigma_2 + gamma)(c_eval + beta * sigma_3 + gamma) * beta * z_eval * alpha
+        a *= alpha; // (a_eval + beta * sigma_1 + gamma)(b_eval + beta * sigma_2 +
+                    // gamma)(c_eval + beta * sigma_3 + gamma) * beta * z_eval * alpha
 
-        fourth_sigma_poly * &-a // -(a_eval + beta * sigma_1 + gamma)(b_eval + beta * sigma_2 + gamma) (c_eval + beta * sigma_3 + gamma) * beta * z_eval * alpha^2 * Sigma_4(X)
+        fourth_sigma_poly * &-a // -(a_eval + beta * sigma_1 + gamma)(b_eval +
+                                // beta * sigma_2 + gamma) (c_eval + beta *
+                                // sigma_3 + gamma) * beta * z_eval * alpha^2 *
+                                // Sigma_4(X)
     }
 
     fn compute_lineariser_check_is_one(

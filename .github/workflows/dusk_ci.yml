@@ -11,7 +11,6 @@ jobs:
         with:
           profile: minimal
           toolchain: nightly
-          override: true
       - uses: actions-rs/cargo@v1
         with:
           command: install
@@ -21,7 +20,7 @@ jobs:
           command: dusk-analyzer
 
   test_nightly:
-    name: Nightly tests
+    name: Nightly tests std # This is already testing the `alloc` feature.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -29,11 +28,52 @@ jobs:
         with:
           profile: minimal
           toolchain: nightly
-          override: true
       - uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --release
+          args: --release 
+
+  test_nightly_canon:
+    name: Nightly tests canon
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: nightly
+      - uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --release --features canon
+
+  build_nightly_nostd:
+    name: Nightly build no_std
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal  
+          toolchain: nightly
+      # ARM contains no std lib. Just core and alloc.
+      - run: rustup target add thumbv6m-none-eabi
+      - uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release --no-default-features --features alloc --target thumbv6m-none-eabi
+      - uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release --no-default-features --target thumbv6m-none-eabi
+
+  test_docs:
+    name: Doc tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - run: make doc
+      - run: make doc-internal
 
   fmt:
       name: Rustfmt
@@ -44,7 +84,6 @@ jobs:
           with:
             profile: minimal
             toolchain: nightly
-            override: true
         - run: rustup component add rustfmt
         - uses: actions-rs/cargo@v1
           with:

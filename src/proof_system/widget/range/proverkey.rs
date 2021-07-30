@@ -4,17 +4,15 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use super::delta;
 use crate::fft::{Evaluations, Polynomial};
 use dusk_bls12_381::BlsScalar;
 
 #[derive(Debug, Eq, PartialEq, Clone)]
-pub struct ProverKey {
-    pub q_range: (Polynomial, Evaluations),
+pub(crate) struct ProverKey {
+    pub(crate) q_range: (Polynomial, Evaluations),
 }
 
 impl ProverKey {
-    #[allow(clippy::too_many_arguments)]
     pub(crate) fn compute_quotient_i(
         &self,
         index: usize,
@@ -32,7 +30,8 @@ impl ProverKey {
         let kappa_sq = kappa.square();
         let kappa_cu = kappa_sq * kappa;
 
-        // Delta([c(X) - 4 * d(X)]) + Delta([b(X) - 4 * c(X)]) + Delta([a(X) - 4 * b(X)]) + Delta([d(Xg) - 4 * a(X)]) * Q_Range(X)
+        // Delta([c(X) - 4 * d(X)]) + Delta([b(X) - 4 * c(X)]) + Delta([a(X) - 4
+        // * b(X)]) + Delta([d(Xg) - 4 * a(X)]) * Q_Range(X)
         //
         let b_1 = delta(w_o_i - four * w_4_i);
         let b_2 = delta(w_r_i - four * w_o_i) * kappa;
@@ -57,7 +56,9 @@ impl ProverKey {
         let kappa_sq = kappa.square();
         let kappa_cu = kappa_sq * kappa;
 
-        // Delta([c_eval - 4 * d_eval]) + Delta([b_eval - 4 * c_eval]) + Delta([a_eval - 4 * b_eval]) + Delta([d_next_eval - 4 * a_eval]) * Q_Range(X)
+        // Delta([c_eval - 4 * d_eval]) + Delta([b_eval - 4 * c_eval]) +
+        // Delta([a_eval - 4 * b_eval]) + Delta([d_next_eval - 4 * a_eval]) *
+        // Q_Range(X)
         let b_1 = delta(c_eval - four * d_eval);
         let b_2 = delta(b_eval - four * c_eval) * kappa;
         let b_3 = delta(a_eval - four * b_eval) * kappa_sq;
@@ -67,4 +68,12 @@ impl ProverKey {
 
         q_range_poly * &t
     }
+}
+
+// Computes f(f-1)(f-2)(f-3)
+pub(crate) fn delta(f: BlsScalar) -> BlsScalar {
+    let f_1 = f - BlsScalar::one();
+    let f_2 = f - BlsScalar::from(2);
+    let f_3 = f - BlsScalar::from(3);
+    f * f_1 * f_2 * f_3
 }

@@ -9,12 +9,11 @@ use dusk_bls12_381::BlsScalar;
 use dusk_jubjub::EDWARDS_D;
 
 #[derive(Debug, Eq, PartialEq, Clone)]
-pub struct ProverKey {
-    pub q_variable_group_add: (Polynomial, Evaluations),
+pub(crate) struct ProverKey {
+    pub(crate) q_variable_group_add: (Polynomial, Evaluations),
 }
 
 impl ProverKey {
-    #[allow(clippy::too_many_arguments)]
     pub(crate) fn compute_quotient_i(
         &self,
         index: usize,
@@ -63,7 +62,6 @@ impl ProverKey {
         identity * q_variable_group_add_i * curve_add_separation_challenge
     }
 
-    #[allow(clippy::too_many_arguments)]
     pub(crate) fn compute_linearisation(
         &self,
         curve_add_separation_challenge: &BlsScalar,

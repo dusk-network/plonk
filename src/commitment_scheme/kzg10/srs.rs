@@ -4,44 +4,52 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-//! The Public Parameters can also be referred to as the Structured Reference String (SRS).
-use super::{
-    errors::KZG10Errors,
-    key::{CommitKey, OpeningKey},
-};
-use crate::util;
-use anyhow::{anyhow, Error, Result};
+//! The Public Parameters can also be referred to as the Structured Reference
+//! String (SRS).
+use super::key::{CommitKey, OpeningKey};
+use crate::{error::Error, util};
+use alloc::vec::Vec;
 use dusk_bls12_381::{G1Affine, G1Projective, G2Affine};
+use dusk_bytes::{DeserializableSlice, Serializable};
 use rand_core::{CryptoRng, RngCore};
 
-use serde::de::Visitor;
-use serde::{self, Deserialize, Deserializer, Serialize, Serializer};
-
-/// The Public Parameters can also be referred to as the Structured Reference String (SRS).
-/// It is available to both the prover and verifier and allows the verifier to
-/// efficiently verify and make claims about polynomials up to and including a configured degree.
-#[derive(Debug)]
+/// The Public Parameters can also be referred to as the Structured Reference
+/// String (SRS). It is available to both the prover and verifier and allows the
+/// verifier to efficiently verify and make claims about polynomials up to and
+/// including a configured degree.
+#[derive(Debug, Clone)]
 pub struct PublicParameters {
     /// Key used to generate proofs for composed circuits.
-    pub commit_key: CommitKey,
+    pub(crate) commit_key: CommitKey,
     /// Key used to verify proofs for composed circuits.
-    pub opening_key: OpeningKey,
+    pub(crate) opening_key: OpeningKey,
 }
 
-impl_serde_into!(PublicParameters);
-
 impl PublicParameters {
+    /// Returns an untrimmed [`CommitKey`] reference contained in the
+    /// `PublicParameters` instance.
+    pub fn commit_key(&self) -> &CommitKey {
+        &self.commit_key
+    }
+
+    /// Returns an [`OpeningKey`] reference contained in the
+    /// `PublicParameters` instance.
+    pub fn opening_key(&self) -> &OpeningKey {
+        &self.opening_key
+    }
+
     /// Setup generates the public parameters using a random number generator.
     /// This method will in most cases be used for testing and exploration.
-    /// In reality, a `Trusted party` or a `Multiparty Computation` will used to generate the SRS.
-    /// Returns an error if the configured degree is less than one.
+    /// In reality, a `Trusted party` or a `Multiparty Computation` will be used
+    /// to generate the SRS. Returns an error if the configured degree is less
+    /// than one.
     pub fn setup<R: RngCore + CryptoRng>(
         max_degree: usize,
         mut rng: &mut R,
     ) -> Result<PublicParameters, Error> {
         // Cannot commit to constants
         if max_degree < 1 {
-            return Err(KZG10Errors::DegreeIsZero.into());
+            return Err(Error::DegreeIsZero);
         }
 
         // Generate the secret scalar beta
@@ -60,7 +68,8 @@ impl PublicParameters {
         let mut normalised_g = vec![G1Affine::identity(); max_degree + 1];
         G1Projective::batch_normalize(&powers_of_g, &mut normalised_g);
 
-        // Compute beta*G2 element and stored cached elements for verifying multiple proofs.
+        // Compute beta*G2 element and stored cached elements for verifying
+        // multiple proofs.
         let h: G2Affine = util::random_g2_point(&mut rng).into();
         let beta_h: G2Affine = (h * beta).into();
 
@@ -72,79 +81,115 @@ impl PublicParameters {
         })
     }
 
-    /// Serialize the `PublicParameters` into bytes.
+    /// Serialize the [`PublicParameters`] into bytes.
     ///
-    /// Will consume approx. twice the bytes of `into_bytes`
-    pub fn to_raw_bytes(&self) -> Vec<u8> {
+    /// This operation is designed to store the raw representation of the
+    /// contents of the PublicParameters. Therefore, the size of the bytes
+    /// outputed by this function is expected to be the double than the one
+    /// that [`PublicParameters::to_var_bytes`].
+    ///
+    /// # Note
+    /// This function should be used when we want to serialize the
+    /// PublicParameters allowing a really fast deserialization later.
+    /// This functions output should not be used by the regular
+    /// [`PublicParameters::from_slice`] fn.
+    pub fn to_raw_var_bytes(&self) -> Vec<u8> {
         let mut bytes = self.opening_key.to_bytes().to_vec();
-
-        bytes.extend(&self.commit_key.to_raw_bytes());
+        bytes.extend(&self.commit_key.to_raw_var_bytes());
 
         bytes
     }
 
-    /// Deserialize `PublicParameters` from a set of bytes created by `to_raw_bytes`
+    /// Deserialize [`PublicParameters`] from a set of bytes created by
+    /// [`PublicParameters::to_raw_var_bytes`].
     ///
-    /// The bytes source is expected to be trusted and no check will be performed reggarding the
-    /// points security
-    pub unsafe fn from_slice_unchecked(bytes: &[u8]) -> Result<Self, Error> {
-        if bytes.len() < OpeningKey::serialized_size() + 1 {
-            return Err(anyhow!("Not enough bytes provided!"));
-        }
+    /// The bytes source is expected to be trusted and no checks will be
+    /// performed reggarding the content of the points that the bytes
+    /// contain serialized.
+    ///
+    /// # Safety
+    /// This function will not produce any memory errors but can deal to the
+    /// generation of invalid or unsafe points/keys. To make sure this does not
+    /// happen, the inputed bytes must match the ones that were generated by
+    /// the encoding functions of this lib.
+    pub unsafe fn from_slice_unchecked(bytes: &[u8]) -> Self {
+        let opening_key = &bytes[..OpeningKey::SIZE];
+        let opening_key = OpeningKey::from_slice(opening_key)
+            .expect("Error at OpeningKey deserialization");
 
-        let opening_key = &bytes[..OpeningKey::serialized_size()];
-        let opening_key = OpeningKey::from_bytes(opening_key)?;
-
-        let commit_key = &bytes[OpeningKey::serialized_size()..];
+        let commit_key = &bytes[OpeningKey::SIZE..];
         let commit_key = CommitKey::from_slice_unchecked(commit_key);
 
-        Ok(Self {
+        Self {
             commit_key,
             opening_key,
-        })
+        }
     }
 
-    /// Serialises a [`PublicParameters`] struct into a slice of bytes
-    pub fn into_bytes(&self) -> Vec<u8> {
+    /// Serialises a [`PublicParameters`] struct into a slice of bytes.
+    pub fn to_var_bytes(&self) -> Vec<u8> {
         let mut bytes = self.opening_key.to_bytes().to_vec();
-        bytes.extend(self.commit_key.into_bytes());
+        bytes.extend(self.commit_key.to_var_bytes().iter());
         bytes
     }
 
-    /// Deserialise a slice of bytes into a Public Parameter struct
-    pub fn from_bytes(bytes: &[u8]) -> Result<PublicParameters, Error> {
-        let opening_key_bytes = &bytes[0..OpeningKey::serialized_size()];
-        let commit_key_bytes = &bytes[OpeningKey::serialized_size()..];
-
-        let opening_key = OpeningKey::from_bytes(opening_key_bytes)?;
-        let commit_key = CommitKey::from_bytes(commit_key_bytes)?;
+    /// Deserialise a slice of bytes into a Public Parameter struct performing
+    /// security and consistency checks for each point that the bytes
+    /// contain.
+    ///
+    /// # Note
+    /// This function can be really slow if the [`PublicParameters`] have a
+    /// certain degree. If the bytes come from a trusted source such as a
+    /// local file, we recommend to use
+    /// [`PublicParameters::from_slice_unchecked`] and
+    /// [`PublicParameters::to_raw_var_bytes`].
+    pub fn from_slice(bytes: &[u8]) -> Result<PublicParameters, Error> {
+        if bytes.len() <= OpeningKey::SIZE {
+            return Err(Error::NotEnoughBytes);
+        }
+        let mut buf = bytes;
+        let opening_key = OpeningKey::from_reader(&mut buf)?;
+        let commit_key = CommitKey::from_slice(&buf)?;
 
         let pp = PublicParameters {
-            opening_key,
             commit_key,
+            opening_key,
         };
 
         Ok(pp)
     }
 
-    /// Trim truncates the prover key to allow the prover to commit to polynomials up to the
-    /// and including the truncated degree.
-    /// Returns an error if the truncated degree is larger than the public parameters configured degree.
-    pub fn trim(&self, truncated_degree: usize) -> Result<(CommitKey, OpeningKey), Error> {
-        let truncated_prover_key = self.commit_key.truncate(truncated_degree)?;
+    /// Trim truncates the [`PublicParameters`] to allow the prover to commit to
+    /// polynomials up to the and including the truncated degree.
+    /// Returns the [`CommitKey`] and [`OpeningKey`] used to generate and verify
+    /// proofs.
+    ///
+    /// Returns an error if the truncated degree is larger than the public
+    /// parameters configured degree.
+    pub fn trim(
+        &self,
+        truncated_degree: usize,
+    ) -> Result<(CommitKey, OpeningKey), Error> {
+        let truncated_prover_key =
+            self.commit_key.truncate(truncated_degree)?;
         let opening_key = self.opening_key.clone();
         Ok((truncated_prover_key, opening_key))
     }
 
-    /// Max degree specifies the largest polynomial that this prover key can commit to.
+    /// Max degree specifies the largest Polynomial
+    /// that this prover key can commit to.
     pub fn max_degree(&self) -> usize {
         self.commit_key.max_degree()
     }
 }
+
+#[cfg(feature = "std")]
 #[cfg(test)]
 mod test {
     use super::*;
     use dusk_bls12_381::BlsScalar;
+    use rand_core::OsRng;
+
     #[test]
     fn test_powers_of() {
         let x = BlsScalar::from(10u64);
@@ -162,9 +207,9 @@ mod test {
 
     #[test]
     fn test_serialise_deserialise_public_parameter() {
-        let pp = PublicParameters::setup(100, &mut rand::thread_rng()).unwrap();
+        let pp = PublicParameters::setup(1 << 7, &mut OsRng).unwrap();
 
-        let got_pp = PublicParameters::from_bytes(&pp.into_bytes()).unwrap();
+        let got_pp = PublicParameters::from_slice(&pp.to_var_bytes()).unwrap();
 
         assert_eq!(got_pp.commit_key.powers_of_g, pp.commit_key.powers_of_g);
         assert_eq!(got_pp.opening_key.g, pp.opening_key.g);
@@ -174,11 +219,11 @@ mod test {
 
     #[test]
     fn public_parameters_bytes_unchecked() {
-        let pp = PublicParameters::setup(1 << 7, &mut rand::thread_rng()).unwrap();
+        let pp = PublicParameters::setup(1 << 7, &mut OsRng).unwrap();
 
         let pp_p = unsafe {
-            let bytes = pp.to_raw_bytes();
-            PublicParameters::from_slice_unchecked(&bytes).unwrap()
+            let bytes = pp.to_raw_var_bytes();
+            PublicParameters::from_slice_unchecked(&bytes)
         };
 
         assert_eq!(pp.commit_key, pp_p.commit_key);

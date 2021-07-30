@@ -4,7 +4,7 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-//! This is an extension over the [Merlin Transcript](https://docs.rs/merlin/1.0.3/merlin/struct.Transcript.html)
+//! This is an extension over the [Merlin Transcript](Transcript)
 //! which adds a few extra functionalities.
 use crate::commitment_scheme::kzg10::Commitment;
 use dusk_bls12_381::BlsScalar;
@@ -13,7 +13,7 @@ use merlin::Transcript;
 
 /// Transcript adds an abstraction over the Merlin transcript
 /// For convenience
-pub trait TranscriptProtocol {
+pub(crate) trait TranscriptProtocol {
     /// Append a `commitment` with the given `label`.
     fn append_commitment(&mut self, label: &'static [u8], comm: &Commitment);
 

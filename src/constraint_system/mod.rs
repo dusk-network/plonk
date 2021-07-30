@@ -9,16 +9,16 @@
 //! tools and abstractions, used by the Composer to generate,
 //! build, preprocess circuits.
 pub(crate) mod composer;
-pub(crate) mod cs_errors;
-pub(crate) mod divide_w_recip;
 pub(crate) mod variable;
 
 /// Simple Arithmetic gates
-pub mod arithmetic;
+mod arithmetic;
 /// Boolean gate
-pub mod boolean;
+mod boolean;
 /// Elliptic Curve Crypto gates
 pub mod ecc;
+
+#[cfg(feature = "std")]
 #[cfg(test)]
 pub(crate) mod helper;
 /// XOR and AND gates
@@ -29,4 +29,6 @@ pub mod range;
 pub mod zelbet;
 
 pub use composer::StandardComposer;
-pub use variable::{Variable, WireData};
+pub use ecc::Point;
+pub use variable::Variable;
+pub(crate) use variable::WireData;

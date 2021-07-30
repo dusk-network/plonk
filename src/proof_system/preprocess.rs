@@ -7,18 +7,17 @@
 //! Methods to preprocess the constraint system for use in a proof
 
 use crate::commitment_scheme::kzg10::CommitKey;
-use crate::constraint_system::cs_errors::PreProcessingError;
 use crate::constraint_system::StandardComposer;
 use crate::plookup::PreprocessedTable4Arity;
 
+use crate::error::Error;
 use crate::fft::{EvaluationDomain, Evaluations, Polynomial};
-use crate::proof_system::widget;
-use anyhow::{Error, Result};
+use crate::proof_system::{widget, ProverKey};
 use dusk_bls12_381::BlsScalar;
 use merlin::Transcript;
 
-/// Struct that contains all of the selector and permutation polynomials in PLONK
-/// These polynomials are in coefficient form
+/// Struct that contains all of the selector and permutation [`Polynomial`]s in
+/// PLONK.
 pub(crate) struct SelectorPolynomials {
     q_m: Polynomial,
     q_l: Polynomial,
@@ -40,12 +39,14 @@ pub(crate) struct SelectorPolynomials {
 }
 
 impl StandardComposer {
-    /// Pads the circuit to the next power of two
+    /// Pads the circuit to the next power of two.
+    ///
+    /// # Note
     /// `diff` is the difference between circuit size and next power of two.
     fn pad(&mut self, diff: usize) {
         // Add a zero variable to circuit
         let zero_scalar = BlsScalar::zero();
-        let zero_var = self.add_input(zero_scalar);
+        let zero_var = self.zero_var();
 
         let zeroes_scalar = vec![zero_scalar; diff];
         let zeroes_var = vec![zero_var; diff];
@@ -70,9 +71,10 @@ impl StandardComposer {
 
         self.n += diff;
     }
+
     /// Checks that all of the wires of the composer have the same
     /// length.
-    fn check_poly_same_len(&self) -> Result<(), PreProcessingError> {
+    fn check_poly_same_len(&self) -> Result<(), Error> {
         let k = self.q_m.len();
 
         if self.q_o.len() == k
@@ -89,15 +91,18 @@ impl StandardComposer {
             && self.w_l.len() == k
             && self.w_r.len() == k
             && self.w_o.len() == k
+            && self.w_4.len() == k
         {
             Ok(())
         } else {
-            Err(PreProcessingError::MismatchedPolyLen)
+            Err(Error::MismatchedPolyLen)
         }
     }
+
     /// These are the parts of preprocessing that the prover must compute
-    /// Although the prover does not need the verification key, he must compute the commitments
-    /// in order to seed the transcript, allowing both the prover and verifier to have the same view
+    /// Although the prover does not need the verification key, he must compute
+    /// the commitments in order to seed the transcript, allowing both the
+    /// prover and verifier to have the same view
     pub fn preprocess_prover(
         &mut self,
         commit_key: &CommitKey,
@@ -107,24 +112,42 @@ impl StandardComposer {
             self.preprocess_shared(commit_key, transcript)?;
 
         let domain_4n = EvaluationDomain::new(4 * domain.size())?;
-        let q_m_eval_4n =
-            Evaluations::from_vec_and_domain(domain_4n.coset_fft(&selectors.q_m), domain_4n);
-        let q_l_eval_4n =
-            Evaluations::from_vec_and_domain(domain_4n.coset_fft(&selectors.q_l), domain_4n);
-        let q_r_eval_4n =
-            Evaluations::from_vec_and_domain(domain_4n.coset_fft(&selectors.q_r), domain_4n);
-        let q_o_eval_4n =
-            Evaluations::from_vec_and_domain(domain_4n.coset_fft(&selectors.q_o), domain_4n);
-        let q_c_eval_4n =
-            Evaluations::from_vec_and_domain(domain_4n.coset_fft(&selectors.q_c), domain_4n);
-        let q_4_eval_4n =
-            Evaluations::from_vec_and_domain(domain_4n.coset_fft(&selectors.q_4), domain_4n);
-        let q_arith_eval_4n =
-            Evaluations::from_vec_and_domain(domain_4n.coset_fft(&selectors.q_arith), domain_4n);
-        let q_range_eval_4n =
-            Evaluations::from_vec_and_domain(domain_4n.coset_fft(&selectors.q_range), domain_4n);
-        let q_logic_eval_4n =
-            Evaluations::from_vec_and_domain(domain_4n.coset_fft(&selectors.q_logic), domain_4n);
+        let q_m_eval_4n = Evaluations::from_vec_and_domain(
+            domain_4n.coset_fft(&selectors.q_m),
+            domain_4n,
+        );
+        let q_l_eval_4n = Evaluations::from_vec_and_domain(
+            domain_4n.coset_fft(&selectors.q_l),
+            domain_4n,
+        );
+        let q_r_eval_4n = Evaluations::from_vec_and_domain(
+            domain_4n.coset_fft(&selectors.q_r),
+            domain_4n,
+        );
+        let q_o_eval_4n = Evaluations::from_vec_and_domain(
+            domain_4n.coset_fft(&selectors.q_o),
+            domain_4n,
+        );
+        let q_c_eval_4n = Evaluations::from_vec_and_domain(
+            domain_4n.coset_fft(&selectors.q_c),
+            domain_4n,
+        );
+        let q_4_eval_4n = Evaluations::from_vec_and_domain(
+            domain_4n.coset_fft(&selectors.q_4),
+            domain_4n,
+        );
+        let q_arith_eval_4n = Evaluations::from_vec_and_domain(
+            domain_4n.coset_fft(&selectors.q_arith),
+            domain_4n,
+        );
+        let q_range_eval_4n = Evaluations::from_vec_and_domain(
+            domain_4n.coset_fft(&selectors.q_range),
+            domain_4n,
+        );
+        let q_logic_eval_4n = Evaluations::from_vec_and_domain(
+            domain_4n.coset_fft(&selectors.q_logic),
+            domain_4n,
+        );
         let q_fixed_group_add_eval_4n = Evaluations::from_vec_and_domain(
             domain_4n.coset_fft(&selectors.q_fixed_group_add),
             domain_4n,
@@ -136,14 +159,18 @@ impl StandardComposer {
         let q_lookup_eval_4n =
             Evaluations::from_vec_and_domain(domain_4n.coset_fft(&selectors.q_lookup), domain_4n);
 
-        let left_sigma_eval_4n =
-            Evaluations::from_vec_and_domain(domain_4n.coset_fft(&selectors.left_sigma), domain_4n);
+        let left_sigma_eval_4n = Evaluations::from_vec_and_domain(
+            domain_4n.coset_fft(&selectors.left_sigma),
+            domain_4n,
+        );
         let right_sigma_eval_4n = Evaluations::from_vec_and_domain(
             domain_4n.coset_fft(&selectors.right_sigma),
             domain_4n,
         );
-        let out_sigma_eval_4n =
-            Evaluations::from_vec_and_domain(domain_4n.coset_fft(&selectors.out_sigma), domain_4n);
+        let out_sigma_eval_4n = Evaluations::from_vec_and_domain(
+            domain_4n.coset_fft(&selectors.out_sigma),
+            domain_4n,
+        );
         let fourth_sigma_eval_4n = Evaluations::from_vec_and_domain(
             domain_4n.coset_fft(&selectors.fourth_sigma),
             domain_4n,
@@ -199,7 +226,10 @@ impl StandardComposer {
             q_l: (selectors.q_l, q_l_eval_4n),
             q_r: (selectors.q_r, q_r_eval_4n),
             q_c: (selectors.q_c, q_c_eval_4n),
-            q_fixed_group_add: (selectors.q_fixed_group_add, q_fixed_group_add_eval_4n),
+            q_fixed_group_add: (
+                selectors.q_fixed_group_add,
+                q_fixed_group_add_eval_4n,
+            ),
         };
 
         // Prover Key for permutation argument
@@ -251,14 +281,16 @@ impl StandardComposer {
             fixed_base: ecc_prover_key,
             lookup: lookup_prover_key,
             // Compute 4n evaluations for X^n -1
-            v_h_coset_4n: domain_4n.compute_vanishing_poly_over_coset(domain.size() as u64),
+            v_h_coset_4n: domain_4n
+                .compute_vanishing_poly_over_coset(domain.size() as u64),
         };
 
         Ok(prover_key)
     }
-    /// The verifier only requires the commitments in order to verify a proof
-    /// We can therefore speed up preprocessing for the verifier by skipping the FFTs
-    /// needed to compute the 4n evaluations
+
+    /// The verifier only requires the commitments in order to verify a
+    /// [`Proof`](super::Proof) We can therefore speed up preprocessing for the
+    /// verifier by skipping the FFTs needed to compute the 4n evaluations.
     pub fn preprocess_verifier(
         &mut self,
         commit_key: &CommitKey,
@@ -267,8 +299,11 @@ impl StandardComposer {
         let (verifier_key, _, _, _) = self.preprocess_shared(commit_key, transcript)?;
         Ok(verifier_key)
     }
-    // Both the prover and verifier must perform IFFTs on the selector polynomials and permutation polynomials
-    // In order to commit to them and have the same transcript view
+
+    /// Both the [`Prover`](super::Prover) and [`Verifier`](super::Verifier)
+    /// must perform IFFTs on the selector polynomials and permutation
+    /// polynomials in order to commit to them and have the same transcript
+    /// view.
     fn preprocess_shared(
         &mut self,
         commit_key: &CommitKey,
@@ -306,8 +341,12 @@ impl StandardComposer {
         let q_lookup_poly = Polynomial::from_coefficients_slice(&domain.ifft(&self.q_lookup));
 
         // 2. Compute the sigma polynomials
-        let (left_sigma_poly, right_sigma_poly, out_sigma_poly, fourth_sigma_poly) =
-            self.perm.compute_sigma_polynomials(self.n, &domain);
+        let (
+            left_sigma_poly,
+            right_sigma_poly,
+            out_sigma_poly,
+            fourth_sigma_poly,
+        ) = self.perm.compute_sigma_polynomials(self.n, &domain);
 
         let q_m_poly_commit = commit_key.commit(&q_m_poly).unwrap_or_default();
         let q_l_poly_commit = commit_key.commit(&q_l_poly).unwrap_or_default();
@@ -315,9 +354,12 @@ impl StandardComposer {
         let q_o_poly_commit = commit_key.commit(&q_o_poly).unwrap_or_default();
         let q_c_poly_commit = commit_key.commit(&q_c_poly).unwrap_or_default();
         let q_4_poly_commit = commit_key.commit(&q_4_poly).unwrap_or_default();
-        let q_arith_poly_commit = commit_key.commit(&q_arith_poly).unwrap_or_default();
-        let q_range_poly_commit = commit_key.commit(&q_range_poly).unwrap_or_default();
-        let q_logic_poly_commit = commit_key.commit(&q_logic_poly).unwrap_or_default();
+        let q_arith_poly_commit =
+            commit_key.commit(&q_arith_poly).unwrap_or_default();
+        let q_range_poly_commit =
+            commit_key.commit(&q_range_poly).unwrap_or_default();
+        let q_logic_poly_commit =
+            commit_key.commit(&q_logic_poly).unwrap_or_default();
         let q_fixed_group_add_poly_commit = commit_key
             .commit(&q_fixed_group_add_poly)
             .unwrap_or_default();
@@ -358,11 +400,12 @@ impl StandardComposer {
             q_logic: q_logic_poly_commit,
         };
         // Verifier Key for ecc circuits
-        let ecc_verifier_key = widget::ecc::scalar_mul::fixed_base::VerifierKey {
-            q_l: q_l_poly_commit,
-            q_r: q_r_poly_commit,
-            q_fixed_group_add: q_fixed_group_add_poly_commit,
-        };
+        let ecc_verifier_key =
+            widget::ecc::scalar_mul::fixed_base::VerifierKey {
+                q_l: q_l_poly_commit,
+                q_r: q_r_poly_commit,
+                q_fixed_group_add: q_fixed_group_add_poly_commit,
+            };
         // Verifier Key for curve addition circuits
         let curve_addition_verifier_key = widget::ecc::curve_addition::VerifierKey {
             q_variable_group_add: q_variable_group_add_poly_commit,
@@ -422,6 +465,7 @@ impl StandardComposer {
     }
 }
 
+#[cfg(feature = "std")]
 #[cfg(test)]
 mod test {
     use super::*;
