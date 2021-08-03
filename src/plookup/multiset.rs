@@ -35,6 +35,26 @@ impl MultiSet {
         MultiSet(vec![])
     }
 
+    /// Generate a `MultiSet` struct from a slice of bytes.
+    pub fn from_slice(bytes: &[u8]) -> Result<MultiSet, Error> {
+        let mut buffer = bytes;
+        let elements = buffer
+            .chunks(BlsScalar::SIZE)
+            .map(|chunk| BlsScalar::from_slice(chunk))
+            .collect::<Result<Vec<BlsScalar>, dusk_bytes::Error>>()?;
+        Ok(MultiSet(elements))
+    }
+
+    /// Given a [`MultiSet`], return it in it's bytes representation
+    /// element by element.
+    pub fn to_var_bytes(&self) -> Vec<u8> {
+        self.0
+            .iter()
+            .map(|item| item.to_bytes().to_vec())
+            .flatten()
+            .collect()
+    }
+
     /// Extends the length of the multiset to n elements
     /// The n will be the size of the arithmetic circuit.
     /// This will extend the vectors to the size
