@@ -18,8 +18,8 @@
 // it is intended to be like this in order to provide
 // maximum performance and minimum circuit sizes.
 
-use super::cs_errors::PreProcessingError;
 use crate::constraint_system::Variable;
+use crate::error::Error;
 use crate::permutation::Permutation;
 use crate::plookup::PlookupTable4Arity;
 use alloc::collections::BTreeMap;
@@ -122,6 +122,8 @@ impl StandardComposer {
     /// Returns the total size of the circuit including lookup table rows
     pub fn total_size(&self) -> usize {
         std::cmp::max(self.n, self.lookup_table.0.len())
+    }
+
     /// Constructs a dense vector of the Public Inputs from the positions and
     /// the sparse vector that contains the values.
     pub fn construct_dense_pi_vec(&self) -> Vec<BlsScalar> {
@@ -248,7 +250,7 @@ impl StandardComposer {
         a: Variable,
         b: Variable,
         c: Variable,
-    ) -> Result<(), PreProcessingError> {
+    ) -> Result<(), Error> {
         self.w_l.push(a);
         self.w_l.push(b);
         self.w_l.push(c);
@@ -517,8 +519,13 @@ impl StandardComposer {
         self.w_r.push(var_six);
         self.w_o.push(var_seven);
         self.w_4.push(self.zero_var);
-        self.perm
-            .add_variables_to_map(var_min_twenty, var_six, var_seven, self.zero_var, self.n);
+        self.perm.add_variables_to_map(
+            var_min_twenty,
+            var_six,
+            var_seven,
+            self.zero_var,
+            self.n,
+        );
 
         // Add dummy rows to lookup table
         // Notice two rows here match dummy wire values above
@@ -734,8 +741,6 @@ impl StandardComposer {
         // turned on as the output is inputted directly
         self.q_lookup.push(BlsScalar::one());
 
-        self.public_inputs.push(pi);
-
         self.perm.add_variables_to_map(a, b, c, d, self.n);
 
         self.n += 1;
@@ -756,8 +761,8 @@ impl StandardComposer {
 mod tests {
     use super::*;
     use crate::commitment_scheme::kzg10::PublicParameters;
-    use crate::plookup::PlookupTable4Arity;
     use crate::constraint_system::helper::*;
+    use crate::plookup::PlookupTable4Arity;
     use crate::proof_system::{Prover, Verifier};
     use rand_core::OsRng;
 
@@ -844,9 +849,17 @@ mod tests {
         );
         let res = gadget_plookup_tester(
             |composer| {
-                let twelve = composer.add_witness_to_circuit_description(BlsScalar::from(12));
-                let three = composer.add_witness_to_circuit_description(BlsScalar::from(3));
-                composer.plookup_gate(twelve, twelve, twelve, Some(three), BlsScalar::zero());
+                let twelve = composer
+                    .add_witness_to_circuit_description(BlsScalar::from(12));
+                let three = composer
+                    .add_witness_to_circuit_description(BlsScalar::from(3));
+                composer.plookup_gate(
+                    twelve,
+                    twelve,
+                    twelve,
+                    Some(three),
+                    BlsScalar::zero(),
+                );
             },
             65,
             t,
@@ -904,7 +917,8 @@ mod tests {
 
     #[test]
     fn test_plookup_full() {
-        let public_parameters = PublicParameters::setup(2 * 70, &mut rand::thread_rng()).unwrap();
+        let public_parameters =
+            PublicParameters::setup(2 * 70, &mut OsRng).unwrap();
 
         // Create a prover struct
         let mut prover = Prover::new(b"test");
@@ -914,11 +928,11 @@ mod tests {
         // add to trans
         prover.key_transcript(b"key", b"additional seed information");
 
-        let output =
-            prover
-                .cs
-                .lookup_table
-                .lookup(BlsScalar::from(2), BlsScalar::from(3), BlsScalar::one());
+        let output = prover.cs.lookup_table.lookup(
+            BlsScalar::from(2),
+            BlsScalar::from(3),
+            BlsScalar::one(),
+        );
 
         let two = prover
             .cs
@@ -954,20 +968,18 @@ mod tests {
             (BlsScalar::one(), three),
             None,
             BlsScalar::zero(),
-            BlsScalar::zero(),
+            Some(BlsScalar::zero()),
         );
 
         // Commit Key
         let (ck, _) = public_parameters.trim(2 * 70).unwrap();
-
-        println!("self.total_size() {:?}", prover.cs.total_size());
 
         // Preprocess circuit
         prover.preprocess(&ck).unwrap();
 
         // Once the prove method is called, the public inputs are cleared
         // So pre-fetch these before calling Prove
-        let public_inputs = prover.cs.public_inputs.clone();
+        let public_inputs = prover.cs.construct_dense_pi_vec();
 
         (prover.prove(&ck).unwrap(), public_inputs);
     }
@@ -975,7 +987,8 @@ mod tests {
     #[test]
     #[ignore]
     fn test_plookup_proof() {
-        let public_parameters = PublicParameters::setup(2 * 30, &mut rand::thread_rng()).unwrap();
+        let public_parameters =
+            PublicParameters::setup(2 * 30, &mut OsRng).unwrap();
 
         // Create a prover struct
         let mut prover = Prover::new(b"demo");
@@ -990,7 +1003,7 @@ mod tests {
         // Preprocess circuit
         prover.preprocess(&ck).unwrap();
 
-        let public_inputs = prover.cs.public_inputs.clone();
+        let public_inputs = prover.cs.construct_dense_pi_vec();
 
         let proof = prover.prove(&ck).unwrap();
 
