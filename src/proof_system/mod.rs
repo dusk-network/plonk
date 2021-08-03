@@ -23,16 +23,6 @@ cfg_if::cfg_if!(
 
 /// Represents PLONK Proof
 pub mod proof;
-<<<<<<< HEAD
-pub(crate) mod proof_system_errors;
-
-/// Represents a PLONK Prover
-pub mod prover;
-pub(crate) mod quotient_poly;
-/// Represents a PLONK Verifier
-pub mod verifier;
-=======
->>>>>>> origin
 pub(crate) mod widget;
 pub use proof::Proof;
 pub use widget::VerifierKey;
