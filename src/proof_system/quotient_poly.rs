@@ -21,7 +21,12 @@ pub(crate) fn compute(
     prover_key: &ProverKey,
     z_poly: &Polynomial,
     p_poly: &Polynomial,
-    (w_l_poly, w_r_poly, w_o_poly, w_4_poly): (&Polynomial, &Polynomial, &Polynomial, &Polynomial),
+    (w_l_poly, w_r_poly, w_o_poly, w_4_poly): (
+        &Polynomial,
+        &Polynomial,
+        &Polynomial,
+        &Polynomial,
+    ),
     f_poly: &Polynomial,
     t_poly: &Polynomial,
     h_1_poly: &Polynomial,
@@ -162,13 +167,13 @@ pub(crate) fn compute(
 // Ensures that the circuit is satisfied
 fn compute_circuit_satisfiability_equation(
     domain: &EvaluationDomain,
-    (range_challenge, logic_challenge, fixed_base_challenge, var_base_challenge, lookup_challenge): (
-        &BlsScalar,
-        &BlsScalar,
-        &BlsScalar,
-        &BlsScalar,
-        &BlsScalar,
-    ),
+    (
+        range_challenge,
+        logic_challenge,
+        fixed_base_challenge,
+        var_base_challenge,
+        lookup_challenge,
+    ): (&BlsScalar, &BlsScalar, &BlsScalar, &BlsScalar, &BlsScalar),
     prover_key: &ProverKey,
     (wl_eval_4n, wr_eval_4n, wo_eval_4n, w4_eval_4n): (
         &[BlsScalar],

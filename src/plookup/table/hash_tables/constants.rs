@@ -17,10 +17,11 @@ use dusk_bls12_381::BlsScalar;
 pub const V: usize = 643;
 /// Constant N
 pub const N: u64 = 27;
-/// Note this is currently backwards, e.g. S[0] should = 673. But doesn't matter for now
+/// Note this is currently backwards, e.g. S[0] should = 673. But doesn't matter
+/// for now
 pub const S: [u64; 27] = [
-    651, 658, 656, 666, 663, 654, 668, 677, 681, 683, 669, 681, 680, 677, 675, 668, 675, 683, 681,
-    683, 683, 655, 680, 683, 667, 678, 673,
+    651, 658, 656, 666, 663, 654, 668, 677, 681, 683, 669, 681, 680, 677, 675,
+    668, 675, 683, 681, 683, 683, 655, 680, 683, 667, 678, 673,
 ];
 /// Constant T_s
 pub const T_S: u32 = 4;
@@ -914,7 +915,8 @@ pub const SBOX_U256: [u256; 659] = [
     u256([346, 0, 0, 0]),
 ];
 
-/// Decomposition of -1 = [v_n, v_{n-1} ..., v_1], i.e. the representation of q-1
+/// Decomposition of -1 = [v_n, v_{n-1} ..., v_1], i.e. the representation of
+/// q-1
 pub const BLS_SCALAR_REAL: [u256; 27] = [
     u256([660, 0, 0, 0]),
     u256([660, 0, 0, 0]),

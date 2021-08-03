@@ -10,10 +10,8 @@ mod verifierkey;
 pub use proverkey::ProverKey;
 pub use verifierkey::VerifierKey;
 
-/// Common functionality across both the ProverKey and VerifierKey is enacted below
-///
-///
-///
+/// Common functionality across both the ProverKey and VerifierKey is
+/// enacted below
 use dusk_bls12_381::BlsScalar;
 
 fn compress(

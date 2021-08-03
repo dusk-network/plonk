@@ -53,7 +53,7 @@ impl VerifierKey {
         scalars.push(a);
         points.push(self.q_lookup.0);
 
-        // 
+        //
         // - (p_next_eval*(epsilon*(1 + delta) + h_1_eval +
         //   delta*h_2_eval)*alpha_1^3)*h_2
         let c = {

@@ -107,7 +107,7 @@ impl ProverKey {
         let one_plus_delta = delta + BlsScalar::one();
         let epsilon_one_plus_delta = epsilon * one_plus_delta;
 
-        // 
+        //
         // - q_lookup(X) * f_eval * lookup_separation_challenge
         let a = {
             let a_0 =
