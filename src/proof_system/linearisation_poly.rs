@@ -46,9 +46,9 @@ pub(crate) struct ProofEvaluations {
     //
     pub(crate) q_l_eval: BlsScalar,
     //
-    pub q_r_eval: BlsScalar,
+    pub(crate) q_r_eval: BlsScalar,
     //
-    pub q_lookup_eval: BlsScalar,
+    pub(crate) q_lookup_eval: BlsScalar,
     // Evaluation of the left sigma polynomial at `z`
     pub(crate) left_sigma_eval: BlsScalar,
     // Evaluation of the right sigma polynomial at `z`

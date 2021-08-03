@@ -6,15 +6,16 @@
 
 use crate::commitment_scheme::kzg10::Commitment;
 use crate::proof_system::linearisation_poly::ProofEvaluations;
+use alloc::vec::Vec;
 use dusk_bls12_381::{BlsScalar, G1Affine};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct VerifierKey {
-    pub q_lookup: Commitment,
-    pub table_1: Commitment,
-    pub table_2: Commitment,
-    pub table_3: Commitment,
-    pub table_4: Commitment,
+    pub(crate) q_lookup: Commitment,
+    pub(crate) table_1: Commitment,
+    pub(crate) table_2: Commitment,
+    pub(crate) table_3: Commitment,
+    pub(crate) table_4: Commitment,
 }
 
 impl VerifierKey {
@@ -37,7 +38,8 @@ impl VerifierKey {
         let zeta_sq = zeta * zeta;
         let zeta_cu = zeta * zeta_sq;
 
-        // (a_eval + zeta*b_eval + zeta^2*c_eval + zeta^3d_eval - f_eval) * q_lookup * alpha_1
+        // (a_eval + zeta*b_eval + zeta^2*c_eval + zeta^3d_eval - f_eval) *
+        // q_lookup * alpha_1
         let a = {
             let a_0 = evaluations.a_eval
                 + zeta * evaluations.b_eval
@@ -51,7 +53,9 @@ impl VerifierKey {
         scalars.push(a);
         points.push(self.q_lookup.0);
 
-        // - (p_next_eval*(epsilon*(1 + delta) + h_1_eval + delta*h_2_eval)*alpha_1^3)*h_2
+        // 
+        // - (p_next_eval*(epsilon*(1 + delta) + h_1_eval +
+        //   delta*h_2_eval)*alpha_1^3)*h_2
         let c = {
             let c_0 = &evaluations.lookup_perm_eval;
 
@@ -64,13 +68,15 @@ impl VerifierKey {
         scalars.push(c);
         points.push(h_2_comm);
 
-        // (1 + delta)(e + f_eval)(epsilon*(1 + delta) + t_eval + (delta * t_next_eval) * alpha_1^3 + l_1(z) * alpha_1^2
+        // (1 + delta)(e + f_eval)(epsilon*(1 + delta) + t_eval + (delta *
+        // t_next_eval) * alpha_1^3 + l_1(z) * alpha_1^2
         let d = {
             let d_0 = BlsScalar::one() + delta;
 
             let d_1 = epsilon + evaluations.f_eval;
 
-            let d_2 = (epsilon * d_0 + t_eval + (delta * t_next_eval)) * l_sep_3;
+            let d_2 =
+                (epsilon * d_0 + t_eval + (delta * t_next_eval)) * l_sep_3;
 
             let d_3 = l1_eval * l_sep_2;
 

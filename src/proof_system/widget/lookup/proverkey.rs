@@ -12,11 +12,11 @@ use dusk_bls12_381::BlsScalar;
 
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub struct ProverKey {
-    pub q_lookup: (Polynomial, Evaluations),
-    pub table_1: (MultiSet, Polynomial, Evaluations),
-    pub table_2: (MultiSet, Polynomial, Evaluations),
-    pub table_3: (MultiSet, Polynomial, Evaluations),
-    pub table_4: (MultiSet, Polynomial, Evaluations),
+    pub(crate) q_lookup: (Polynomial, Evaluations),
+    pub(crate) table_1: (MultiSet, Polynomial, Evaluations),
+    pub(crate) table_2: (MultiSet, Polynomial, Evaluations),
+    pub(crate) table_3: (MultiSet, Polynomial, Evaluations),
+    pub(crate) table_4: (MultiSet, Polynomial, Evaluations),
 }
 
 impl ProverKey {
@@ -47,10 +47,12 @@ impl ProverKey {
         let one_plus_delta = delta + BlsScalar::one();
         let epsilon_one_plus_delta = epsilon * one_plus_delta;
 
-        // q_lookup(X) * (a(X) + zeta * b(X) + (zeta^2 * c(X)) + (zeta^3 * d(X) - f(X))) * α_1
+        // q_lookup(X) * (a(X) + zeta * b(X) + (zeta^2 * c(X)) + (zeta^3 * d(X)
+        // - f(X))) * α_1
         let a = {
             let q_lookup_i = self.q_lookup.1[index];
-            let compressed_tuple = compress(*w_l_i, *w_r_i, *w_o_i, *w_4_i, *zeta);
+            let compressed_tuple =
+                compress(*w_l_i, *w_r_i, *w_o_i, *w_4_i, *zeta);
 
             q_lookup_i * (compressed_tuple - f_i) * lookup_separation_challenge
         };
@@ -66,7 +68,8 @@ impl ProverKey {
             p_i * one_plus_delta * c_1 * c_2 * l_sep_3
         };
 
-        // − p(Xω) * (ε*(1+δ) + h1(X) + δ*h2(X)) * (ε*(1+δ) + h2(X) + δ*h1(Xω)) * α_1^3
+        // − p(Xω) * (ε*(1+δ) + h1(X) + δ*h2(X)) * (ε*(1+δ) + h2(X) + δ*h1(Xω))
+        // * α_1^3
         let d = {
             let d_1 = epsilon_one_plus_delta + h_1_i + delta * h_2_i;
             let d_2 = epsilon_one_plus_delta + h_2_i + delta * h_1_i_next;
@@ -104,9 +107,11 @@ impl ProverKey {
         let one_plus_delta = delta + BlsScalar::one();
         let epsilon_one_plus_delta = epsilon * one_plus_delta;
 
+        // 
         // - q_lookup(X) * f_eval * lookup_separation_challenge
         let a = {
-            let a_0 = a_eval + zeta * b_eval + zeta_sq * c_eval + zeta_cu * d_eval;
+            let a_0 =
+                a_eval + zeta * b_eval + zeta_sq * c_eval + zeta_cu * d_eval;
 
             &self.q_lookup.0 * &((a_0 - f_eval) * lookup_separation_challenge)
         };

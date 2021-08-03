@@ -19,17 +19,17 @@ pub struct PreprocessedTable3Arity {
     /// This is the first column in the preprocessed
     /// table containing a MultiSet, Commitments to the
     /// MultiSet and the coefficients as a Polynomial
-    pub t_1: (MultiSet, Commitment, Polynomial),
+    pub(crate) t_1: (MultiSet, Commitment, Polynomial),
 
     /// This is the second column in the preprocessed
     /// table containing a MultiSet, Commitments to the
     /// MultiSet and the coefficients as a Polynomial
-    pub t_2: (MultiSet, Commitment, Polynomial),
+    pub(crate) t_2: (MultiSet, Commitment, Polynomial),
 
     /// This is the third column in the preprocessed
     /// table containing a MultiSet, Commitments to the
     /// MultiSet and the coefficients as a Polynomial
-    pub t_3: (MultiSet, Commitment, Polynomial),
+    pub(crate) t_3: (MultiSet, Commitment, Polynomial),
 }
 
 impl PreprocessedTable3Arity {
@@ -85,22 +85,22 @@ pub struct PreprocessedTable4Arity {
     /// This is the first column in the preprocessed
     /// table containing a MultiSet, Commitments to the
     /// MultiSet and the coefficients as a Polynomial
-    pub t_1: (MultiSet, Commitment, Polynomial),
+    pub(crate) t_1: (MultiSet, Commitment, Polynomial),
 
     /// This is the second column in the preprocessed
     /// table containing a MultiSet, Commitments to the
     /// MultiSet and the coefficients as a Polynomial
-    pub t_2: (MultiSet, Commitment, Polynomial),
+    pub(crate) t_2: (MultiSet, Commitment, Polynomial),
 
     /// This is the third column in the preprocessed
     /// table containing a MultiSet, Commitments to the
     /// MultiSet and the coefficients as a Polynomial
-    pub t_3: (MultiSet, Commitment, Polynomial),
+    pub(crate) t_3: (MultiSet, Commitment, Polynomial),
 
     /// This is the fourth column in the preprocessed
     /// table containing a MultiSet, Commitments to the
     /// MultiSet and the coefficients as a Polynomial
-    pub t_4: (MultiSet, Commitment, Polynomial),
+    pub(crate) t_4: (MultiSet, Commitment, Polynomial),
 }
 
 impl PreprocessedTable4Arity {
