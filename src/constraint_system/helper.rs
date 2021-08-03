@@ -6,8 +6,8 @@
 
 use super::StandardComposer;
 use crate::commitment_scheme::kzg10::PublicParameters;
-use crate::plookup::PlookupTable4Arity;
 use crate::error::Error;
+use crate::plookup::PlookupTable4Arity;
 use crate::proof_system::{Prover, Verifier};
 use dusk_bls12_381::BlsScalar;
 use rand_core::OsRng;
@@ -37,11 +37,11 @@ pub(crate) fn dummy_gadget_plookup(n: usize, composer: &mut StandardComposer) {
 
     for _ in 0..n {
         composer.big_add(
-            var_one.into(),
-            var_one.into(),
+            (BlsScalar::one(), var_one),
+            (BlsScalar::one(), var_one),
             None,
             BlsScalar::zero(),
-            BlsScalar::zero(),
+            Some(BlsScalar::zero()),
         );
     }
 }
@@ -110,7 +110,7 @@ pub(crate) fn gadget_plookup_tester(
     lookup_table: PlookupTable4Arity,
 ) -> Result<(), Error> {
     // Common View
-    let public_parameters = PublicParameters::setup(2 * n, &mut rand::thread_rng())?;
+    let public_parameters = PublicParameters::setup(2 * n, &mut OsRng)?;
     // Provers View
     let (proof, public_inputs) = {
         // Create a prover struct
@@ -126,14 +126,15 @@ pub(crate) fn gadget_plookup_tester(
         gadget(&mut prover.mut_cs());
 
         // Commit Key
-        let (ck, _) = public_parameters.trim(2 * prover.cs.circuit_size().next_power_of_two())?;
+        let (ck, _) = public_parameters
+            .trim(2 * prover.cs.circuit_size().next_power_of_two())?;
 
         // Preprocess circuit
         prover.preprocess(&ck)?;
 
         // Once the prove method is called, the public inputs are cleared
         // So pre-fetch these before calling Prove
-        let public_inputs = prover.cs.public_inputs.clone();
+        let public_inputs = prover.cs.construct_dense_pi_vec();
 
         // Compute Proof
         (prover.prove(&ck)?, public_inputs)
@@ -153,7 +154,8 @@ pub(crate) fn gadget_plookup_tester(
     gadget(&mut verifier.mut_cs());
 
     // Compute Commit and Verifier Key
-    let (ck, vk) = public_parameters.trim(verifier.cs.circuit_size().next_power_of_two())?;
+    let (ck, vk) = public_parameters
+        .trim(verifier.cs.circuit_size().next_power_of_two())?;
 
     // Preprocess circuit
     verifier.preprocess(&ck)?;
