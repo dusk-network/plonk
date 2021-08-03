@@ -296,7 +296,7 @@ pub fn verify_proof(
     transcript_init: &'static [u8],
 ) -> Result<(), Error> {
     let mut verifier = Verifier::new(transcript_init);
-    verifier.verifier_key = Some(*verifier_key);
+    verifier.verifier_key = Some(verifier_key.clone());
     verifier.verify(
         proof,
         pub_params.opening_key(),
