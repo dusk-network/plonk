@@ -11,14 +11,12 @@
 //! output of gates within a circuit, without
 //! computing them.
 
-pub mod error;
 /// Multiset
 pub mod multiset;
 /// hello
 pub mod table;
 // pub mod plookup;
 
-pub use error::PlookupErrors;
 pub use multiset::MultiSet;
 pub use table::{
     lookup_table::{PlookupTable3Arity, PlookupTable4Arity},

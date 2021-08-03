@@ -7,15 +7,18 @@
 //! Structs and functions for LookupTables
 //! Denoted as 't' in Plookup paper.
 
-use super::hash_tables::constants::{BLS_SCALAR_REAL, DECOMPOSITION_S_I, SBOX_U256};
+use super::hash_tables::constants::{
+    BLS_SCALAR_REAL, DECOMPOSITION_S_I, SBOX_U256,
+};
+use crate::error::Error;
 use crate::plookup::MultiSet;
-use crate::plookup::PlookupErrors;
 use crate::prelude::BlsScalar;
+use alloc::vec::Vec;
 
-/// For the implemenation of look up tables in PLONK, aptly named PLOOKup tables,
-/// there will be different fucntions depending on the type of table that needs
-/// to be constructed. All tables entries envisioned will be with different arity.
-/// Meaning each of the wires will correspond to a column.
+/// For the implemenation of look up tables in PLONK, aptly named PLOOKup
+/// tables, there will be different fucntions depending on the type of table
+/// that needs to be constructed. All tables entries envisioned will be with
+/// different arity. Meaning each of the wires will correspond to a column.
 ///
 /// If the standard composer calls a plookup gate, then the user will define
 /// the length of the gate, measured in circuit size.
@@ -191,14 +194,19 @@ impl PlookupTable3Arity {
         (multiset_a, multiset_b, multiset_c)
     }
 
-    /// Attempts to find an output value, given two input values, by querying the lookup
-    /// table. If the element does not exist, it will return an error.
-    pub fn lookup(&self, a: BlsScalar, b: BlsScalar) -> Result<BlsScalar, PlookupErrors> {
+    /// Attempts to find an output value, given two input values, by querying
+    /// the lookup table. If the element does not exist, it will return an
+    /// error.
+    pub fn lookup(
+        &self,
+        a: BlsScalar,
+        b: BlsScalar,
+    ) -> Result<BlsScalar, Error> {
         let pos = self
             .0
             .iter()
             .position(|row| row[0] == a && row[1] == b)
-            .ok_or(PlookupErrors::ElementNotIndexed)?;
+            .ok_or(Error::ElementNotIndexed)?;
 
         Ok(self.0[pos][2])
     }
@@ -244,13 +252,19 @@ impl PlookupTable4Arity {
     /// Insert a new row for an addition operation.
     /// This function needs to know the upper bound of the amount of addition
     /// operations that will be done in the plookup table.
-    pub fn insert_special_row(&mut self, a: BlsScalar, b: BlsScalar, c: BlsScalar, d: BlsScalar) {
+    pub fn insert_special_row(
+        &mut self,
+        a: BlsScalar,
+        b: BlsScalar,
+        c: BlsScalar,
+        d: BlsScalar,
+    ) {
         self.0.push([a, b, c, d]);
     }
 
     /// Insert a new row for an multiplication operation.
-    /// This function needs to know the upper bound of the amount of multiplication
-    /// operations that will be done in the plookup table.
+    /// This function needs to know the upper bound of the amount of
+    /// multiplication operations that will be done in the plookup table.
     pub fn insert_mul_row(&mut self, a: u64, b: u64, upper_bound: u64) {
         let c = (a * b) % upper_bound;
         self.0.push([
@@ -386,21 +400,22 @@ impl PlookupTable4Arity {
         (multiset_a, multiset_b, multiset_c, multiset_d)
     }
 
-    /// Attempts to find an output value, given two input values, by querying the lookup
-    /// table. The final wire holds the index of the table. The element must be predetermined
-    /// to be between -1 and 2 depending on the type of table used.
-    /// If the element does not exist, it will return an error.
+    /// Attempts to find an output value, given two input values, by querying
+    /// the lookup table. The final wire holds the index of the table. The
+    /// element must be predetermined to be between -1 and 2 depending on
+    /// the type of table used. If the element does not exist, it will
+    /// return an error.
     pub fn lookup(
         &self,
         a: BlsScalar,
         b: BlsScalar,
         d: BlsScalar,
-    ) -> Result<BlsScalar, PlookupErrors> {
+    ) -> Result<BlsScalar, Error> {
         let pos = self
             .0
             .iter()
             .position(|row| row[0] == a && row[1] == b && row[3] == d)
-            .ok_or(PlookupErrors::ElementNotIndexed)?;
+            .ok_or(Error::ElementNotIndexed)?;
 
         Ok(self.0[pos][2])
     }
@@ -482,7 +497,12 @@ impl PlookupTable4Arity {
             })
         });
         (1..3).for_each(|i| {
-            table.push([BlsScalar::zero(), BlsScalar::one(), two, BlsScalar::from(i)])
+            table.push([
+                BlsScalar::zero(),
+                BlsScalar::one(),
+                two,
+                BlsScalar::from(i),
+            ])
         });
         (1..3).for_each(|i| {
             (1..3).for_each(|j| {
@@ -509,8 +529,8 @@ impl PlookupTable4Arity {
         // Build the remaining 27 sections that range from p' to s_i (except
         // when i=1)
         for k in (0..27).rev() {
-            // The rev denotes that it is inverted, so s_rev_26 will actually be s_1
-            // (i.e. i = 27-k)
+            // The rev denotes that it is inverted, so s_rev_26 will actually be
+            // s_1 (i.e. i = 27-k)
             let s_rev_k = DECOMPOSITION_S_I[k].0[0];
             let v_rev_k = BLS_SCALAR_REAL[k].as_u64();
             // If i=1, then we go to v_1 and not s_1
@@ -520,10 +540,20 @@ impl PlookupTable4Arity {
                     // Fourth column is 1, unless j=v_i, in which case it is 0
                     if j == v_rev_k {
                         let first = BlsScalar::from(j);
-                        table.push([first, BlsScalar::one(), first, BlsScalar::zero()]);
+                        table.push([
+                            first,
+                            BlsScalar::one(),
+                            first,
+                            BlsScalar::zero(),
+                        ]);
                     } else {
                         let first = BlsScalar::from(j);
-                        table.push([first, BlsScalar::one(), first, BlsScalar::one()]);
+                        table.push([
+                            first,
+                            BlsScalar::one(),
+                            first,
+                            BlsScalar::one(),
+                        ]);
                     }
                 }
             } else {

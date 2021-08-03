@@ -5,10 +5,9 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use crate::commitment_scheme::kzg10::{CommitKey, Commitment};
+use crate::error::Error;
 use crate::fft::{EvaluationDomain, Polynomial};
-use crate::plookup::MultiSet;
-use crate::plookup::{PlookupTable3Arity, PlookupTable4Arity};
-use anyhow::{Error, Result};
+use crate::plookup::{MultiSet, PlookupTable3Arity, PlookupTable4Arity};
 
 /// This table will be the preprocessed version of the
 /// precomputed table, T, of arity 3. This structure is
@@ -45,7 +44,8 @@ impl PreprocessedTable3Arity {
         commit_key: &CommitKey,
         n: u32,
     ) -> Result<Self, Error> {
-        let domain: EvaluationDomain = EvaluationDomain::new(n as usize).unwrap();
+        let domain: EvaluationDomain =
+            EvaluationDomain::new(n as usize).unwrap();
 
         let columned_table = table.vec_to_multiset();
         let mut t_1 = columned_table.0;
@@ -115,7 +115,8 @@ impl PreprocessedTable4Arity {
         commit_key: &CommitKey,
         n: u32,
     ) -> Result<Self, Error> {
-        let domain: EvaluationDomain = EvaluationDomain::new(n as usize).unwrap();
+        let domain: EvaluationDomain =
+            EvaluationDomain::new(n as usize).unwrap();
 
         let columned_table = table.vec_to_multiset();
         let mut t_1 = columned_table.0;

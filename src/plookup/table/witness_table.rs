@@ -5,7 +5,7 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use crate::bls12_381::BlsScalar;
-use crate::plookup::error::PlookupErrors;
+use crate::error::Error;
 use crate::plookup::MultiSet;
 use crate::plookup::{PlookupTable3Arity, PlookupTable4Arity};
 
@@ -100,15 +100,16 @@ impl WitnessTable3Arity {
         self.f_3.push(output_wire_val);
     }
 
-    /// Attempts to look up a value from a lookup table. If successful, all three
-    /// elements are pushed to their respective multisets.
+    /// Attempts to look up a value from a lookup table. If successful, all
+    /// three elements are pushed to their respective multisets.
     pub fn value_from_table(
         &mut self,
         lookup_table: &PlookupTable3Arity,
         left_wire_val: BlsScalar,
         right_wire_val: BlsScalar,
-    ) -> Result<(), PlookupErrors> {
-        let output_wire_val = lookup_table.lookup(left_wire_val, right_wire_val)?;
+    ) -> Result<(), Error> {
+        let output_wire_val =
+            lookup_table.lookup(left_wire_val, right_wire_val)?;
         self.f_1.push(left_wire_val);
         self.f_2.push(right_wire_val);
         self.f_3.push(output_wire_val);
@@ -157,9 +158,12 @@ impl WitnessTable4Arity {
         left_wire_val: BlsScalar,
         right_wire_val: BlsScalar,
         fourth_wire_val: BlsScalar,
-    ) -> Result<(), PlookupErrors> {
-        let output_wire_val =
-            lookup_table.lookup(left_wire_val, right_wire_val, fourth_wire_val)?;
+    ) -> Result<(), Error> {
+        let output_wire_val = lookup_table.lookup(
+            left_wire_val,
+            right_wire_val,
+            fourth_wire_val,
+        )?;
         self.f_1.push(left_wire_val);
         self.f_2.push(right_wire_val);
         self.f_3.push(output_wire_val);
@@ -182,12 +186,20 @@ mod test {
 
         // Read values from lookup table and insert into witness table
         assert!(f
-            .value_from_table(&lookup_table, BlsScalar::from(2), BlsScalar::from(5))
+            .value_from_table(
+                &lookup_table,
+                BlsScalar::from(2),
+                BlsScalar::from(5)
+            )
             .is_ok());
 
         // Check that non existent elements cause a failure
         assert!(f
-            .value_from_table(&lookup_table, BlsScalar::from(25), BlsScalar::from(5))
+            .value_from_table(
+                &lookup_table,
+                BlsScalar::from(25),
+                BlsScalar::from(5)
+            )
             .is_err());
     }
 

@@ -342,7 +342,7 @@ pub(crate) mod alloc {
                 )
                 .is_err()
             {
-                return Err(Error::ProofVerificationError);
+                return Err(Error::ProofVerificationError.into());
             }
             Ok(())
         }

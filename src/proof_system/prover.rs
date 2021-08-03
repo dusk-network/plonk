@@ -4,8 +4,6 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use super::proof_system_errors::ProofErrors;
-use anyhow::{Error, Result};
 use crate::{
     commitment_scheme::kzg10::CommitKey,
     constraint_system::{StandardComposer, Variable},
@@ -63,7 +61,7 @@ impl Prover {
     /// Preprocesses the underlying constraint system
     pub fn preprocess(&mut self, commit_key: &CommitKey) -> Result<(), Error> {
         if self.prover_key.is_some() {
-            return Err(ProofErrors::CircuitAlreadyPreprocessed.into());
+            return Err(Error::CircuitAlreadyPreprocessed);
         }
         let pk = self
             .cs
@@ -590,7 +588,7 @@ impl Prover {
 }
 
 /// Computes the quotient opening polynomial.
-pub fn compute_quotient_opening_poly(
+pub(crate) fn compute_quotient_opening_poly(
     n: usize,
     t_1_poly: &Polynomial,
     t_2_poly: &Polynomial,
