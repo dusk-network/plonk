@@ -21,6 +21,7 @@ license = "MPL-2.0"
 edition = "2018"
 
 [dependencies]
+bigint = "4.4.3"
 merlin = {version = "3.0", default-features = false}
 rand_core = {version="0.6", default-features=false}
 dusk-bytes = "0.1"
