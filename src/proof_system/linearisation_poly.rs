@@ -59,19 +59,23 @@ pub(crate) struct ProofEvaluations {
     // Evaluation of the linearisation sigma polynomial at `z`
     pub(crate) lin_poly_eval: BlsScalar,
 
-    // (Shifted) Evaluation of the permutation polynomial at `z * root of unity`
+    // (Shifted) Evaluation of the permutation polynomial at `z * root of
+    // unity`
     pub perm_eval: BlsScalar,
 
-    // (Shifted) Evaluation of the lookup permutation polynomial at `z * root of unity`
+    // (Shifted) Evaluation of the lookup permutation polynomial at `z * root
+    // of unity`
     pub lookup_perm_eval: BlsScalar,
 
     /// Evaluations of the first half of sorted plookup poly at `z`
     pub h_1_eval: BlsScalar,
 
-    /// (Shifted) Evaluations of the first half of sorted plookup poly at `z * root of unity`
+    /// (Shifted) Evaluations of the first half of sorted plookup poly at `z *
+    /// root of unity`
     pub h_1_next_eval: BlsScalar,
 
-    /// (Shifted) Evaluations of the second half of sorted plookup poly at `z * root of unity`
+    /// (Shifted) Evaluations of the second half of sorted plookup poly at `z *
+    /// root of unity`
     pub h_2_eval: BlsScalar,
 
     /// Evaluations of the query polynomial at `z`
@@ -84,7 +88,7 @@ pub(crate) struct ProofEvaluations {
     pub table_next_eval: BlsScalar,
 }
 
-impl Serializable<{ 16 * BlsScalar::SIZE }> for ProofEvaluations {
+impl Serializable<{ 24 * BlsScalar::SIZE }> for ProofEvaluations {
     type Error = dusk_bytes::Error;
 
     #[allow(unused_must_use)]
@@ -104,11 +108,19 @@ impl Serializable<{ 16 * BlsScalar::SIZE }> for ProofEvaluations {
         writer.write(&self.q_c_eval.to_bytes());
         writer.write(&self.q_l_eval.to_bytes());
         writer.write(&self.q_r_eval.to_bytes());
+        writer.write(&self.q_lookup_eval.to_bytes());
         writer.write(&self.left_sigma_eval.to_bytes());
         writer.write(&self.right_sigma_eval.to_bytes());
         writer.write(&self.out_sigma_eval.to_bytes());
         writer.write(&self.lin_poly_eval.to_bytes());
         writer.write(&self.perm_eval.to_bytes());
+        writer.write(&self.lookup_perm_eval.to_bytes());
+        writer.write(&self.h_1_eval.to_bytes());
+        writer.write(&self.h_1_next_eval.to_bytes());
+        writer.write(&self.h_2_eval.to_bytes());
+        writer.write(&self.f_eval.to_bytes());
+        writer.write(&self.table_eval.to_bytes());
+        writer.write(&self.table_next_eval.to_bytes());
 
         buf
     }
@@ -128,11 +140,19 @@ impl Serializable<{ 16 * BlsScalar::SIZE }> for ProofEvaluations {
         let q_c_eval = BlsScalar::from_reader(&mut buffer)?;
         let q_l_eval = BlsScalar::from_reader(&mut buffer)?;
         let q_r_eval = BlsScalar::from_reader(&mut buffer)?;
+        let q_lookup_eval = BlsScalar::from_reader(&mut buffer)?;
         let left_sigma_eval = BlsScalar::from_reader(&mut buffer)?;
         let right_sigma_eval = BlsScalar::from_reader(&mut buffer)?;
         let out_sigma_eval = BlsScalar::from_reader(&mut buffer)?;
         let lin_poly_eval = BlsScalar::from_reader(&mut buffer)?;
         let perm_eval = BlsScalar::from_reader(&mut buffer)?;
+        let lookup_perm_eval = BlsScalar::from_reader(&mut buffer)?;
+        let h_1_eval = BlsScalar::from_reader(&mut buffer)?;
+        let h_1_next_eval = BlsScalar::from_reader(&mut buffer)?;
+        let h_2_eval = BlsScalar::from_reader(&mut buffer)?;
+        let f_eval = BlsScalar::from_reader(&mut buffer)?;
+        let table_eval = BlsScalar::from_reader(&mut buffer)?;
+        let table_next_eval = BlsScalar::from_reader(&mut buffer)?;
 
         Ok(ProofEvaluations {
             a_eval,
@@ -236,7 +256,8 @@ pub(crate) fn compute(
     let perm_eval = z_poly.evaluate(&(z_challenge * domain.group_gen));
     let lookup_perm_eval = p_poly.evaluate(&(z_challenge * domain.group_gen));
     let h_1_next_eval = h_1_poly.evaluate(&(z_challenge * domain.group_gen));
-    let table_next_eval = table_poly.evaluate(&(z_challenge * domain.group_gen));
+    let table_next_eval =
+        table_poly.evaluate(&(z_challenge * domain.group_gen));
 
     let l_coeffs = domain.evaluate_all_lagrange_coefficients(*z_challenge);
     let l1_eval = l_coeffs[0];
