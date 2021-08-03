@@ -8,7 +8,9 @@
 
 use super::divide_w_recip;
 use crate::constraint_system::{StandardComposer, Variable};
-use crate::plookup::table::hash_tables::constants::{BLS_DIVISORS, BLS_RECIP, REMAINDER_MONT};
+use crate::plookup::table::hash_tables::constants::{
+    BLS_DIVISORS, BLS_RECIP, REMAINDER_MONT,
+};
 use bigint::U256 as u256;
 use dusk_bls12_381::BlsScalar;
 
@@ -40,15 +42,20 @@ impl StandardComposer {
                     let divisor = BLS_DIVISORS[k];
                     let recip = BLS_RECIP[k];
                     // division: intermediate = u0*divisor + u1
-                    let (u0, u1) =
-                        divide_w_recip::divide_long_using_recip(&intermediate, divisor, recip, s);
+                    let (u0, u1) = divide_w_recip::divide_long_using_recip(
+                        &intermediate,
+                        divisor,
+                        recip,
+                        s,
+                    );
                     intermediate = u0;
                     remainder = u1;
                 }
                 false => remainder = intermediate[0] as u16,
             }
 
-            nibbles_mont[k] = self.add_input(REMAINDER_MONT[remainder as usize]);
+            nibbles_mont[k] =
+                self.add_input(REMAINDER_MONT[remainder as usize]);
             nibbles_reduced[k] = u256([remainder as u64, 0, 0, 0]);
         });
 
@@ -59,7 +66,7 @@ impl StandardComposer {
             s_i_decomposition[25],
             Some((BlsScalar::one(), nibbles_mont[25])),
             BlsScalar::zero(),
-            BlsScalar::zero(),
+            Some(BlsScalar::zero()),
         );
 
         (1..26).for_each(|k| {
@@ -69,11 +76,15 @@ impl StandardComposer {
                 s_i_decomposition[25 - k],
                 Some((BlsScalar::one(), nibbles_mont[25 - k])),
                 BlsScalar::zero(),
-                BlsScalar::zero(),
+                Some(BlsScalar::zero()),
             );
         });
 
-        self.constrain_to_constant(acc, self.variables[&x], BlsScalar::zero());
+        self.constrain_to_constant(
+            acc,
+            self.variables[&x],
+            Some(BlsScalar::zero()),
+        );
 
         (nibbles_mont, nibbles_reduced)
     }
@@ -92,7 +103,8 @@ mod tests {
                 let one = composer.add_input(BlsScalar::one());
                 let mut s_i_decomposition = [one; 27];
                 (0..27).for_each(|k| {
-                    s_i_decomposition[k] = composer.add_input(S_I_DECOMPOSITION_MONTGOMERY[k]);
+                    s_i_decomposition[k] =
+                        composer.add_input(S_I_DECOMPOSITION_MONTGOMERY[k]);
                 });
                 let (output_mont, _output_reduced) =
                     composer.decomposition_gadget(one, s_i_decomposition);
@@ -100,28 +112,35 @@ mod tests {
                     composer.constrain_to_constant(
                         output_mont[k],
                         BlsScalar::zero(),
-                        BlsScalar::zero(),
+                        Some(BlsScalar::zero()),
                     );
                 });
-                // Check x_27 = 1, bearing in mind that x_1 is not in Montgomery form
-                composer.constrain_to_constant(output_mont[0], BlsScalar::one(), BlsScalar::zero());
+                // Check x_27 = 1, bearing in mind that x_1 is not in Montgomery
+                // form
+                composer.constrain_to_constant(
+                    output_mont[0],
+                    BlsScalar::one(),
+                    Some(BlsScalar::zero()),
+                );
 
                 let minus_three = composer.add_input(-BlsScalar::from(3));
-                let output2 = composer.decomposition_gadget(minus_three, s_i_decomposition);
+                let output2 = composer
+                    .decomposition_gadget(minus_three, s_i_decomposition);
                 // Expetced output derived from out of circuit version
                 let expected_output = [
-                    658, 660, 673, 663, 674, 682, 687, 683, 669, 684, 672, 666, 680, 662, 686, 668,
-                    661, 678, 692, 686, 689, 660, 690, 687, 683, 674, 678, 658, 660, 673, 663, 674,
-                    682, 687, 683, 669, 684, 672, 666, 680, 662, 686, 668, 661, 678, 692, 686, 689,
-                    660, 690, 687, 683, 674, 678, 658, 660, 673, 663, 674, 682, 687, 683, 669, 684,
-                    672, 666, 680, 662, 686, 668, 661, 678, 692, 686, 689, 660, 690, 687, 683, 674,
-                    678,
+                    658, 660, 673, 663, 674, 682, 687, 683, 669, 684, 672, 666,
+                    680, 662, 686, 668, 661, 678, 692, 686, 689, 660, 690, 687,
+                    683, 674, 678, 658, 660, 673, 663, 674, 682, 687, 683, 669,
+                    684, 672, 666, 680, 662, 686, 668, 661, 678, 692, 686, 689,
+                    660, 690, 687, 683, 674, 678, 658, 660, 673, 663, 674, 682,
+                    687, 683, 669, 684, 672, 666, 680, 662, 686, 668, 661, 678,
+                    692, 686, 689, 660, 690, 687, 683, 674, 678,
                 ];
                 (0..27).for_each(|k| {
                     composer.constrain_to_constant(
                         output2.0[k],
                         BlsScalar::from(expected_output[k]),
-                        BlsScalar::zero(),
+                        Some(BlsScalar::zero()),
                     );
                 })
             },
