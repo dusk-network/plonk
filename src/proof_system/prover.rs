@@ -26,7 +26,8 @@ use merlin::Transcript;
 /// Prover composes a circuit and builds a proof
 #[allow(missing_debug_implementations)]
 pub struct Prover {
-    /// ProverKey which is used to create proofs about a specific plookup circuit
+    /// ProverKey which is used to create proofs about a specific plookup
+    /// circuit
     pub prover_key: Option<ProverKey>,
 
     pub(crate) cs: StandardComposer,
@@ -159,7 +160,8 @@ impl Prover {
         commit_key: &CommitKey,
         prover_key: &ProverKey,
     ) -> Result<Proof, Error> {
-        // make sure the domain is big enough to handle the circuit as well as the lookup table
+        // make sure the domain is big enough to handle the circuit as well as
+        // the lookup table
         let domain = EvaluationDomain::new(std::cmp::max(
             self.cs.circuit_size(),
             self.cs.lookup_table.0.len(),
@@ -221,17 +223,20 @@ impl Prover {
         );
 
         // Compute table poly
-        let table_poly =
-            Polynomial::from_coefficients_vec(domain.ifft(&compressed_t_multiset.0.as_slice()));
+        let table_poly = Polynomial::from_coefficients_vec(
+            domain.ifft(&compressed_t_multiset.0.as_slice()),
+        );
 
         // Compute table f
-        // When q_lookup[i] is zero the wire value is replaced with a dummy value
-        // Currently set as the first row of the public table
+        // When q_lookup[i] is zero the wire value is replaced with a dummy
+        // value Currently set as the first row of the public table
         // If q_lookup is one the wire values are preserved
         let f_1_scalar = w_l_scalar
             .iter()
             .zip(&padded_q_lookup)
-            .map(|(w, s)| w * s + (BlsScalar::one() - s) * compressed_t_multiset.0[0])
+            .map(|(w, s)| {
+                w * s + (BlsScalar::one() - s) * compressed_t_multiset.0[0]
+            })
             .collect::<Vec<BlsScalar>>();
         let f_2_scalar = w_r_scalar
             .iter()
@@ -261,8 +266,9 @@ impl Prover {
         );
 
         // Compute long query poly
-        let f_poly =
-            Polynomial::from_coefficients_vec(domain.ifft(&compressed_f_multiset.0.as_slice()));
+        let f_poly = Polynomial::from_coefficients_vec(
+            domain.ifft(&compressed_f_multiset.0.as_slice()),
+        );
 
         // Commit to query polynomial
         let f_poly_commit = commit_key.commit(&f_poly)?;
@@ -273,7 +279,8 @@ impl Prover {
         // 2. Compute permutation polynomial
         //
         //
-        // Compute permutation challenges; `beta`, `gamma`, `delta` and `epsilon`.
+        // Compute permutation challenges; `beta`, `gamma`, `delta` and
+        // `epsilon`.
         let beta = transcript.challenge_scalar(b"beta");
         transcript.append_scalar(b"beta", &beta);
         let gamma = transcript.challenge_scalar(b"gamma");
@@ -319,8 +326,10 @@ impl Prover {
         let (h_1, h_2) = s.halve_alternating();
 
         // Compute h polys
-        let h_1_poly = Polynomial::from_coefficients_vec(domain.ifft(&h_1.0.as_slice()));
-        let h_2_poly = Polynomial::from_coefficients_vec(domain.ifft(&h_2.0.as_slice()));
+        let h_1_poly =
+            Polynomial::from_coefficients_vec(domain.ifft(&h_1.0.as_slice()));
+        let h_2_poly =
+            Polynomial::from_coefficients_vec(domain.ifft(&h_2.0.as_slice()));
 
         // Commit to h polys
         let h_1_poly_commit = commit_key.commit(&h_1_poly).unwrap();
@@ -331,8 +340,8 @@ impl Prover {
         transcript.append_commitment(b"h2", &h_2_poly_commit);
 
         // Compute lookup permutation poly
-        let p_poly =
-            Polynomial::from_coefficients_slice(&self.cs.perm.compute_lookup_permutation_poly(
+        let p_poly = Polynomial::from_coefficients_slice(
+            &self.cs.perm.compute_lookup_permutation_poly(
                 &domain,
                 &compressed_f_multiset.0,
                 &compressed_t_multiset.0,
@@ -340,7 +349,8 @@ impl Prover {
                 &h_2.0,
                 &delta,
                 &epsilon,
-            ));
+            ),
+        );
 
         // Commit to permutation polynomial
         //
@@ -361,7 +371,8 @@ impl Prover {
             transcript.challenge_scalar(b"fixed base separation challenge");
         let var_base_sep_challenge =
             transcript.challenge_scalar(b"variable base separation challenge");
-        let lookup_sep_challenge = transcript.challenge_scalar(b"lookup challenge");
+        let lookup_sep_challenge =
+            transcript.challenge_scalar(b"lookup challenge");
 
         let t_poly = quotient_poly::compute(
             &domain,
@@ -390,12 +401,8 @@ impl Prover {
         )?;
 
         // Split quotient polynomial into 4 degree `n` polynomials
-<<<<<<< HEAD
-        let (t_1_poly, t_2_poly, t_3_poly, t_4_poly) = split_tx_poly(domain.size(), &t_poly);
-=======
         let (t_1_poly, t_2_poly, t_3_poly, t_4_poly) =
             self.split_tx_poly(domain.size(), &t_poly);
->>>>>>> origin
 
         // Commit to splitted quotient polynomial
         let t_1_commit = commit_key.commit(&t_1_poly)?;
@@ -468,25 +475,25 @@ impl Prover {
         transcript.append_scalar(b"q_c_eval", &evaluations.proof.q_c_eval);
         transcript.append_scalar(b"q_l_eval", &evaluations.proof.q_l_eval);
         transcript.append_scalar(b"q_r_eval", &evaluations.proof.q_r_eval);
-        transcript.append_scalar(b"q_lookup_eval", &evaluations.proof.q_lookup_eval);
+        transcript
+            .append_scalar(b"q_lookup_eval", &evaluations.proof.q_lookup_eval);
         transcript.append_scalar(b"perm_eval", &evaluations.proof.perm_eval);
-        transcript.append_scalar(b"lookup_perm_eval", &evaluations.proof.lookup_perm_eval);
+        transcript.append_scalar(
+            b"lookup_perm_eval",
+            &evaluations.proof.lookup_perm_eval,
+        );
         transcript.append_scalar(b"h_1_eval", &evaluations.proof.h_1_eval);
-        transcript.append_scalar(b"h_1_next_eval", &evaluations.proof.h_1_next_eval);
+        transcript
+            .append_scalar(b"h_1_next_eval", &evaluations.proof.h_1_next_eval);
         transcript.append_scalar(b"h_2_eval", &evaluations.proof.h_2_eval);
         transcript.append_scalar(b"t_eval", &evaluations.quot_eval);
         transcript.append_scalar(b"r_eval", &evaluations.proof.lin_poly_eval);
 
         // 5. Compute Openings using KZG10
         //
-<<<<<<< HEAD
-        // We merge the quotient polynomial using the `z_challenge` so the SRS is linear in the circuit size `n`
-        let quot = compute_quotient_opening_poly(
-=======
         // We merge the quotient polynomial using the `z_challenge` so the SRS
         // is linear in the circuit size `n`
         let quot = Self::compute_quotient_opening_poly(
->>>>>>> origin
             domain.size(),
             &t_1_poly,
             &t_2_poly,
@@ -494,13 +501,9 @@ impl Prover {
             &t_4_poly,
             &z_challenge,
         );
-<<<<<<< HEAD
-        // Compute aggregate witness to polynomials evaluated at the evaluation challenge `z`
-=======
 
         // Compute aggregate witness to polynomials evaluated at the evaluation
         // challenge `z`
->>>>>>> origin
         let aggregate_witness = commit_key.compute_aggregate_witness(
             &[
                 quot,
@@ -526,7 +529,8 @@ impl Prover {
         // evaluation challenge
         let shifted_aggregate_witness = commit_key.compute_aggregate_witness(
             &[
-                z_poly, w_l_poly, w_r_poly, w_4_poly, h_1_poly, p_poly, table_poly,
+                z_poly, w_l_poly, w_r_poly, w_4_poly, h_1_poly, p_poly,
+                table_poly,
             ],
             &(z_challenge * domain.group_gen),
             &mut transcript,
