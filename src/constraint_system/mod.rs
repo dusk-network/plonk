@@ -9,6 +9,7 @@
 //! tools and abstractions, used by the Composer to generate,
 //! build, preprocess circuits.
 pub(crate) mod composer;
+pub(crate) mod divide_w_recip;
 pub(crate) mod variable;
 
 /// Simple Arithmetic gates
