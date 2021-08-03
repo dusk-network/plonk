@@ -68,7 +68,7 @@ pub struct Proof {
     pub(crate) evaluations: ProofEvaluations,
 }
 
-impl Serializable<{ 11 * Commitment::SIZE + ProofEvaluations::SIZE }>
+impl Serializable<{ 15 * Commitment::SIZE + ProofEvaluations::SIZE }>
     for Proof
 {
     type Error = dusk_bytes::Error;
