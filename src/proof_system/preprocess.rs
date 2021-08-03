@@ -107,7 +107,7 @@ impl StandardComposer {
         &mut self,
         commit_key: &CommitKey,
         transcript: &mut Transcript,
-    ) -> Result<widget::ProverKey, Error> {
+    ) -> Result<ProverKey, Error> {
         let (_, selectors, preprocessed_table, domain) =
             self.preprocess_shared(commit_key, transcript)?;
 
@@ -156,8 +156,10 @@ impl StandardComposer {
             domain_4n.coset_fft(&selectors.q_variable_group_add),
             domain_4n,
         );
-        let q_lookup_eval_4n =
-            Evaluations::from_vec_and_domain(domain_4n.coset_fft(&selectors.q_lookup), domain_4n);
+        let q_lookup_eval_4n = Evaluations::from_vec_and_domain(
+            domain_4n.coset_fft(&selectors.q_lookup),
+            domain_4n,
+        );
 
         let left_sigma_eval_4n = Evaluations::from_vec_and_domain(
             domain_4n.coset_fft(&selectors.left_sigma),
@@ -242,9 +244,13 @@ impl StandardComposer {
         };
 
         // Prover Key for curve addition
-        let curve_addition_prover_key = widget::ecc::curve_addition::ProverKey {
-            q_variable_group_add: (selectors.q_variable_group_add, q_variable_group_add_eval_4n),
-        };
+        let curve_addition_prover_key =
+            widget::ecc::curve_addition::ProverKey {
+                q_variable_group_add: (
+                    selectors.q_variable_group_add,
+                    q_variable_group_add_eval_4n,
+                ),
+            };
 
         // Prover key for lookup operations
         let lookup_prover_key = widget::lookup::ProverKey {
@@ -271,7 +277,7 @@ impl StandardComposer {
             ),
         };
 
-        let prover_key = widget::ProverKey {
+        let prover_key = ProverKey {
             n: domain.size(),
             arithmetic: arithmetic_prover_key,
             logic: logic_prover_key,
@@ -296,7 +302,8 @@ impl StandardComposer {
         commit_key: &CommitKey,
         transcript: &mut Transcript,
     ) -> Result<widget::VerifierKey, Error> {
-        let (verifier_key, _, _, _) = self.preprocess_shared(commit_key, transcript)?;
+        let (verifier_key, _, _, _) =
+            self.preprocess_shared(commit_key, transcript)?;
         Ok(verifier_key)
     }
 
@@ -325,20 +332,32 @@ impl StandardComposer {
         // 1. Pad circuit to a power of two
         self.pad(domain.size as usize - self.n);
 
-        let q_m_poly = Polynomial::from_coefficients_slice(&domain.ifft(&self.q_m));
-        let q_l_poly = Polynomial::from_coefficients_slice(&domain.ifft(&self.q_l));
-        let q_r_poly = Polynomial::from_coefficients_slice(&domain.ifft(&self.q_r));
-        let q_o_poly = Polynomial::from_coefficients_slice(&domain.ifft(&self.q_o));
-        let q_c_poly = Polynomial::from_coefficients_slice(&domain.ifft(&self.q_c));
-        let q_4_poly = Polynomial::from_coefficients_slice(&domain.ifft(&self.q_4));
-        let q_arith_poly = Polynomial::from_coefficients_slice(&domain.ifft(&self.q_arith));
-        let q_range_poly = Polynomial::from_coefficients_slice(&domain.ifft(&self.q_range));
-        let q_logic_poly = Polynomial::from_coefficients_slice(&domain.ifft(&self.q_logic));
-        let q_fixed_group_add_poly =
-            Polynomial::from_coefficients_slice(&domain.ifft(&self.q_fixed_group_add));
-        let q_variable_group_add_poly =
-            Polynomial::from_coefficients_slice(&domain.ifft(&self.q_variable_group_add));
-        let q_lookup_poly = Polynomial::from_coefficients_slice(&domain.ifft(&self.q_lookup));
+        let q_m_poly =
+            Polynomial::from_coefficients_slice(&domain.ifft(&self.q_m));
+        let q_l_poly =
+            Polynomial::from_coefficients_slice(&domain.ifft(&self.q_l));
+        let q_r_poly =
+            Polynomial::from_coefficients_slice(&domain.ifft(&self.q_r));
+        let q_o_poly =
+            Polynomial::from_coefficients_slice(&domain.ifft(&self.q_o));
+        let q_c_poly =
+            Polynomial::from_coefficients_slice(&domain.ifft(&self.q_c));
+        let q_4_poly =
+            Polynomial::from_coefficients_slice(&domain.ifft(&self.q_4));
+        let q_arith_poly =
+            Polynomial::from_coefficients_slice(&domain.ifft(&self.q_arith));
+        let q_range_poly =
+            Polynomial::from_coefficients_slice(&domain.ifft(&self.q_range));
+        let q_logic_poly =
+            Polynomial::from_coefficients_slice(&domain.ifft(&self.q_logic));
+        let q_fixed_group_add_poly = Polynomial::from_coefficients_slice(
+            &domain.ifft(&self.q_fixed_group_add),
+        );
+        let q_variable_group_add_poly = Polynomial::from_coefficients_slice(
+            &domain.ifft(&self.q_variable_group_add),
+        );
+        let q_lookup_poly =
+            Polynomial::from_coefficients_slice(&domain.ifft(&self.q_lookup));
 
         // 2. Compute the sigma polynomials
         let (
@@ -366,7 +385,8 @@ impl StandardComposer {
         let q_variable_group_add_poly_commit = commit_key
             .commit(&q_variable_group_add_poly)
             .unwrap_or_default();
-        let q_lookup_poly_commit = commit_key.commit(&q_lookup_poly).unwrap_or_default();
+        let q_lookup_poly_commit =
+            commit_key.commit(&q_lookup_poly).unwrap_or_default();
 
         let left_sigma_poly_commit = commit_key.commit(&left_sigma_poly)?;
         let right_sigma_poly_commit = commit_key.commit(&right_sigma_poly)?;
@@ -407,9 +427,10 @@ impl StandardComposer {
                 q_fixed_group_add: q_fixed_group_add_poly_commit,
             };
         // Verifier Key for curve addition circuits
-        let curve_addition_verifier_key = widget::ecc::curve_addition::VerifierKey {
-            q_variable_group_add: q_variable_group_add_poly_commit,
-        };
+        let curve_addition_verifier_key =
+            widget::ecc::curve_addition::VerifierKey {
+                q_variable_group_add: q_variable_group_add_poly_commit,
+            };
 
         // Verifier Key for lookup operations
         let lookup_verifier_key = widget::lookup::VerifierKey {
