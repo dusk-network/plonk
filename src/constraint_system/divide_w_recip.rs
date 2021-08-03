@@ -23,7 +23,9 @@ pub const fn full_shl(u: &[u64; 4], shift: u32) -> ([u64; 4], u64) {
     (res, u[3] >> shift_high)
 }
 
-pub const fn compute_normalized_divisor_and_reciproical(input: u16) -> (u64, u64) {
+pub const fn compute_normalized_divisor_and_reciproical(
+    input: u16,
+) -> (u64, u64) {
     let s = (input as u64).leading_zeros();
     let normalized_divisor = (input as u64) << s;
     let reciproical = u128::MAX / (normalized_divisor as u128) - (1u128 << 64);
@@ -69,16 +71,20 @@ pub const fn divide_long_using_recip(
 ) -> ([u64; 4], u16) {
     let mut result = [0u64; 4];
     let (shifted, o) = full_shl(a, norm_shift);
-    let (q, r) = div_mod_word_by_short_normalized(o, shifted[3], divisor, recip);
+    let (q, r) =
+        div_mod_word_by_short_normalized(o, shifted[3], divisor, recip);
     result[3] = q;
 
-    let (q, r) = div_mod_word_by_short_normalized(r, shifted[2], divisor, recip);
+    let (q, r) =
+        div_mod_word_by_short_normalized(r, shifted[2], divisor, recip);
     result[2] = q;
 
-    let (q, r) = div_mod_word_by_short_normalized(r, shifted[1], divisor, recip);
+    let (q, r) =
+        div_mod_word_by_short_normalized(r, shifted[1], divisor, recip);
     result[1] = q;
 
-    let (q, r) = div_mod_word_by_short_normalized(r, shifted[0], divisor, recip);
+    let (q, r) =
+        div_mod_word_by_short_normalized(r, shifted[0], divisor, recip);
     result[0] = q;
 
     (result, (r >> norm_shift) as u16)
@@ -99,6 +105,7 @@ fn main() {
 }
 
 #[test]
+
 fn test_divide_w_recip() {
     // let nom = [1u64; 4];
     let nom = [47, 0, 0, 0];
@@ -111,6 +118,6 @@ fn test_divide_w_recip() {
 
     // division: nom / div
     let (result, remainder) = divide_long_using_recip(&nom, divisor, recip, s);
-    println!("result: {:?}", result);
-    println!("remainder: {:?}", remainder);
+    std::println!("result: {:?}", result);
+    std::println!("remainder: {:?}", remainder);
 }
