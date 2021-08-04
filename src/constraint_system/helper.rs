@@ -54,7 +54,7 @@ pub(crate) fn gadget_tester(
     // Common View
     let public_parameters = PublicParameters::setup(2 * n, &mut rand::thread_rng())?;
     // Provers View
-    let (proof, public_inputs, lookup_table) = {
+    let (proof, public_inputs) = {
         // Create a prover struct
         let mut prover = Prover::new(b"demo");
 
@@ -73,10 +73,9 @@ pub(crate) fn gadget_tester(
         // Once the prove method is called, the public inputs are cleared
         // So pre-fetch these before calling Prove
         let public_inputs = prover.cs.public_inputs.clone();
-        let lookup_table = prover.cs.lookup_table.clone();
 
         // Compute Proof
-        (prover.prove(&ck)?, public_inputs, lookup_table)
+        (prover.prove(&ck)?, public_inputs)
     };
     // Verifiers view
     //
@@ -96,7 +95,7 @@ pub(crate) fn gadget_tester(
     verifier.preprocess(&ck)?;
 
     // Verify proof
-    verifier.verify(&proof, &vk, &public_inputs, &lookup_table)
+    verifier.verify(&proof, &vk, &public_inputs)
 }
 
 /// Takes a generic gadget function with no auxillary input and
@@ -143,7 +142,6 @@ pub(crate) fn gadget_plookup_tester(
 
     // Add lookup table to the composer
     verifier.mut_cs().append_lookup_table(&lookup_table);
-    let lookup_table = verifier.mut_cs().lookup_table.clone();
 
     // Additionally key the transcript
     verifier.key_transcript(b"key", b"additional seed information");
@@ -158,5 +156,5 @@ pub(crate) fn gadget_plookup_tester(
     verifier.preprocess(&ck)?;
 
     // Verify proof
-    verifier.verify(&proof, &vk, &public_inputs, &lookup_table)
+    verifier.verify(&proof, &vk, &public_inputs)
 }

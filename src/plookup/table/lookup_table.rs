@@ -8,7 +8,6 @@
 //! Denoted as 't' in Plookup paper.
 
 use super::hash_tables::constants::{BLS_SCALAR_REAL, DECOMPOSITION_S_I, SBOX_U256};
-use crate::constraint_system::StandardComposer;
 use crate::plookup::MultiSet;
 use crate::plookup::PlookupErrors;
 use crate::prelude::BlsScalar;

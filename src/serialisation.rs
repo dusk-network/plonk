@@ -6,6 +6,7 @@
 
 use crate::commitment_scheme::kzg10::Commitment;
 use crate::fft::{EvaluationDomain, Evaluations, Polynomial};
+use crate::plookup::MultiSet;
 use anyhow::{Error, Result};
 use dusk_bls12_381::{BlsScalar, G1Affine, G2Affine};
 use dusk_bytes::{DeserializableSlice, Serializable};
@@ -118,6 +119,19 @@ pub fn write_scalars(val: &[BlsScalar], bytes: &mut Vec<u8>) {
         write_scalar(scalar, bytes)
     }
 }
+
+/// Reads the bytes slice and parses a MultiSet
+/// Returns the remaining bytes
+pub fn read_multiset(bytes: &[u8]) -> Result<(MultiSet, &[u8]), Error> {
+    let (multiset_vec, rest) = read_scalars(bytes)?;
+    Ok((MultiSet(multiset_vec), rest))
+}
+
+/// Writes a Multiset into a mutable slice
+pub fn write_multiset(val: &MultiSet, bytes: &mut Vec<u8>) {
+    write_scalars(&val.0, bytes);
+}
+
 /// Reads the bytes slice and parses a Polynomial
 /// Returns the remaining bytes
 pub fn read_polynomial(bytes: &[u8]) -> Result<(Polynomial, &[u8]), Error> {

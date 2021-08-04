@@ -8,9 +8,13 @@ use crate::commitment_scheme::kzg10::Commitment;
 use crate::proof_system::linearisation_poly::ProofEvaluations;
 use dusk_bls12_381::{BlsScalar, G1Affine};
 
-#[derive(Debug, PartialEq, Eq, Copy, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct VerifierKey {
     pub q_lookup: Commitment,
+    pub table_1: Commitment,
+    pub table_2: Commitment,
+    pub table_3: Commitment,
+    pub table_4: Commitment,
 }
 
 impl VerifierKey {
@@ -21,6 +25,7 @@ impl VerifierKey {
         points: &mut Vec<G1Affine>,
         evaluations: &ProofEvaluations,
         (delta, epsilon): (&BlsScalar, &BlsScalar),
+        zeta: &BlsScalar,
         l1_eval: &BlsScalar,
         t_eval: &BlsScalar,
         t_next_eval: &BlsScalar,
@@ -29,9 +34,20 @@ impl VerifierKey {
     ) {
         let l_sep_2 = lookup_separation_challenge.square();
         let l_sep_3 = lookup_separation_challenge * l_sep_2;
+        let zeta_sq = zeta * zeta;
+        let zeta_cu = zeta * zeta_sq;
 
-        // - f_eval * q_lookup * alpha_1
-        let a = -evaluations.f_eval * lookup_separation_challenge;
+        // (a_eval + zeta*b_eval + zeta^2*c_eval + zeta^3d_eval - f_eval) * q_lookup * alpha_1
+        let a = {
+            let a_0 = evaluations.a_eval
+                + zeta * evaluations.b_eval
+                + zeta_sq * evaluations.c_eval
+                + zeta_cu * evaluations.d_eval;
+            let a_1 = evaluations.f_eval;
+
+            (a_0 - a_1) * lookup_separation_challenge
+        };
+
         scalars.push(a);
         points.push(self.q_lookup.0);
 

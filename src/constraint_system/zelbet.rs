@@ -7,11 +7,8 @@
 #![allow(clippy::too_many_arguments)]
 
 use super::divide_w_recip;
-use crate::constraint_system::StandardComposer;
-use crate::constraint_system::Variable;
-use crate::plookup::table::hash_tables::constants::{BLS_DIVISORS, BLS_RECIP};
-use crate::plookup::table::hash_tables::DECOMPOSITION_S_I;
-use crate::plookup::table::hash_tables::INVERSES_S_I;
+use crate::constraint_system::{StandardComposer, Variable};
+use crate::plookup::table::hash_tables::constants::{BLS_DIVISORS, BLS_RECIP, REMAINDER_MONT};
 use bigint::U256 as u256;
 use dusk_bls12_381::BlsScalar;
 
@@ -51,7 +48,7 @@ impl StandardComposer {
                 false => remainder = intermediate[0] as u16,
             }
 
-            nibbles_mont[k] = self.add_input(BlsScalar::from(remainder as u64));
+            nibbles_mont[k] = self.add_input(REMAINDER_MONT[remainder as usize]);
             nibbles_reduced[k] = u256([remainder as u64, 0, 0, 0]);
         });
 

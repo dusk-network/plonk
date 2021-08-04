@@ -13,8 +13,7 @@
 use super::linearisation_poly::ProofEvaluations;
 use super::proof_system_errors::ProofErrors;
 use crate::commitment_scheme::kzg10::{AggregateProof, Commitment, OpeningKey};
-use crate::fft::{EvaluationDomain, Polynomial};
-use crate::plookup::{MultiSet, PlookupTable4Arity};
+use crate::fft::EvaluationDomain;
 use crate::proof_system::widget::VerifierKey;
 use crate::transcript::TranscriptProtocol;
 use anyhow::{Error, Result};
@@ -185,7 +184,6 @@ impl Proof {
         verifier_key: &VerifierKey,
         transcript: &mut Transcript,
         opening_key: &OpeningKey,
-        lookup_table: &PlookupTable4Arity,
         pub_inputs: &[BlsScalar],
     ) -> Result<(), Error> {
         let domain = EvaluationDomain::new(verifier_key.n)?;
@@ -252,32 +250,12 @@ impl Proof {
         // Compute first lagrange polynomial evaluated at `z_challenge`
         let l1_eval = compute_first_lagrange_evaluation(&domain, &z_h_eval, &z_challenge);
 
-        // Compress table into vector of single elements
-        let mut compressed_t: Vec<BlsScalar> = lookup_table
-            .0
-            .iter()
-            .map(|arr| arr[0] + arr[1] * zeta + arr[2] * zeta * zeta + arr[3] * zeta * zeta * zeta)
-            .collect();
-
-        // Sort table so we can be sure to choose an element that is not the highest or lowest
-        compressed_t.sort();
-        let second_element = compressed_t[1];
-
-        // Pad the table to the correct size with an element that is not the highest or lowest
-        let pad = vec![second_element; domain.size() - compressed_t.len()];
-        compressed_t.extend(pad);
-
-        // Sort again to return t to sorted state
-        // There may be a better way of inserting the padding so the sort does not need to happen twice
-        compressed_t.sort();
-
-        let compressed_t_multiset = MultiSet(compressed_t);
-
-        // Compute table poly
-        let t = Polynomial::from_coefficients_vec(domain.ifft(&compressed_t_multiset.0.as_slice()));
-
-        let table_eval = t.evaluate(&z_challenge);
-        let table_next_eval = t.evaluate(&(z_challenge * domain.group_gen));
+        let table_comm = Commitment(G1Affine::from(
+            verifier_key.lookup.table_1.0
+                + verifier_key.lookup.table_2.0 * zeta
+                + verifier_key.lookup.table_3.0 * zeta * zeta
+                + verifier_key.lookup.table_4.0 * zeta * zeta * zeta,
+        ));
 
         // Compute quotient polynomial evaluated at `z_challenge`
         let t_eval = self.compute_quotient_evaluation(
@@ -288,7 +266,6 @@ impl Proof {
             &gamma,
             &delta,
             &epsilon,
-            &zeta,
             &z_challenge,
             &z_h_eval,
             &l1_eval,
@@ -331,6 +308,7 @@ impl Proof {
             &gamma,
             &delta,
             &epsilon,
+            &zeta,
             (
                 &range_sep_challenge,
                 &logic_sep_challenge,
@@ -340,8 +318,8 @@ impl Proof {
             ),
             &z_challenge,
             l1_eval,
-            table_eval,
-            table_next_eval,
+            self.evaluations.table_eval,
+            self.evaluations.table_next_eval,
             &verifier_key,
         );
 
@@ -374,6 +352,8 @@ impl Proof {
         aggregate_proof.add_part((self.evaluations.f_eval, self.f_comm));
         aggregate_proof.add_part((self.evaluations.h_1_eval, self.h_1_comm));
         aggregate_proof.add_part((self.evaluations.h_2_eval, self.h_2_comm));
+        aggregate_proof.add_part((self.evaluations.table_eval, table_comm));
+
         // Flatten proof with opening challenge
         let flattened_proof_a = aggregate_proof.flatten(transcript);
 
@@ -385,6 +365,7 @@ impl Proof {
         shifted_aggregate_proof.add_part((self.evaluations.d_next_eval, self.d_comm));
         shifted_aggregate_proof.add_part((self.evaluations.h_1_next_eval, self.h_1_comm));
         shifted_aggregate_proof.add_part((self.evaluations.lookup_perm_eval, self.p_comm));
+        shifted_aggregate_proof.add_part((self.evaluations.table_next_eval, table_comm));
         let flattened_proof_b = shifted_aggregate_proof.flatten(transcript);
         // Add commitment to openings to transcript
         transcript.append_commitment(b"w_z", &self.w_z_comm);
@@ -414,7 +395,6 @@ impl Proof {
         gamma: &BlsScalar,
         delta: &BlsScalar,
         epsilon: &BlsScalar,
-        zeta: &BlsScalar,
         z_challenge: &BlsScalar,
         z_h_eval: &BlsScalar,
         l1_eval: &BlsScalar,
@@ -430,10 +410,6 @@ impl Proof {
         // Compute powers of alpha_1
         let l_sep_2 = lookup_sep_challenge.square();
         let l_sep_3 = lookup_sep_challenge * l_sep_2;
-
-        // Compute power of zeta
-        let zeta_sq = zeta.square();
-        let zeta_cu = zeta_sq * zeta;
 
         // Compute common term
         let epsilon_one_plus_delta = epsilon * (BlsScalar::one() + delta);
@@ -461,25 +437,18 @@ impl Proof {
         // l_1(z) * alpha_0^2
         let c = l1_eval * alpha_sq;
 
-        // q_lookup(z) * (a + b*zeta + c*zeta^2 + d*zeta^3) * alpha_1
-        let d_0 = self.evaluations.a_eval
-            + (self.evaluations.b_eval * zeta)
-            + (self.evaluations.c_eval * zeta_sq)
-            + (self.evaluations.d_eval * zeta_cu);
-        let d = self.evaluations.q_lookup_eval * d_0 * lookup_sep_challenge;
-
         // l_1(z) * alpha_1^2
-        let e = l1_eval * l_sep_2;
+        let d = l1_eval * l_sep_2;
 
         // p_eval * (epsilon( 1+ delta) + h_1_eval + delta * h_2_eval)(epsilon( 1+ delta) + delta * h_1_next_eval) * alpha_1^3
-        let f_0 = epsilon_one_plus_delta
+        let e_0 = epsilon_one_plus_delta
             + self.evaluations.h_1_eval
             + (delta * self.evaluations.h_2_eval);
-        let f_1 = epsilon_one_plus_delta + (delta * self.evaluations.h_1_next_eval);
-        let f = self.evaluations.lookup_perm_eval * f_0 * f_1 * l_sep_3;
+        let e_1 = epsilon_one_plus_delta + (delta * self.evaluations.h_1_next_eval);
+        let e = self.evaluations.lookup_perm_eval * e_0 * e_1 * l_sep_3;
 
         // Return t_eval
-        (a - b - c + d - e - f) * z_h_eval.invert().unwrap()
+        (a - b - c - d - e) * z_h_eval.invert().unwrap()
     }
 
     fn compute_quotient_commitment(&self, z_challenge: &BlsScalar, n: usize) -> Commitment {
@@ -502,6 +471,7 @@ impl Proof {
         gamma: &BlsScalar,
         delta: &BlsScalar,
         epsilon: &BlsScalar,
+        zeta: &BlsScalar,
         (
             range_sep_challenge,
             logic_sep_challenge,
@@ -558,6 +528,7 @@ impl Proof {
             &mut points,
             &self.evaluations,
             (&delta, &epsilon),
+            &zeta,
             &l1_eval,
             &t_eval,
             &t_next_eval,

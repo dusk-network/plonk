@@ -33,14 +33,13 @@ impl MultiSet {
         MultiSet(vec![])
     }
 
-    /// Extends the length of the multiset to 2^n elements
-    /// The 2^n will be the size of the arithmetic circuit.
+    /// Extends the length of the multiset to n elements
+    /// The n will be the size of the arithmetic circuit.
     /// This will extend the vectors to the size
     pub fn pad(&mut self, n: u32) {
         assert!(n.is_power_of_two());
-        let new_length = 2u64.pow(n);
-        let diff = new_length - self.len() as u64;
-        self.0.extend(vec![BlsScalar::zero(); diff as usize]);
+        let diff = n - self.len() as u32;
+        self.0.extend(vec![self.0[0]; diff as usize]);
     }
 
     /// Pushes chosen value onto the end of the Multiset

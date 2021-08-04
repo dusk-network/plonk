@@ -6,7 +6,6 @@
 
 use crate::commitment_scheme::kzg10::{CommitKey, OpeningKey};
 use crate::constraint_system::StandardComposer;
-use crate::plookup::PlookupTable4Arity;
 use crate::proof_system::widget::VerifierKey;
 use crate::proof_system::Proof;
 use anyhow::{Error, Result};
@@ -84,7 +83,6 @@ impl Verifier {
         proof: &Proof,
         opening_key: &OpeningKey,
         public_inputs: &[BlsScalar],
-        lookup_table: &PlookupTable4Arity,
     ) -> Result<(), Error> {
         let mut cloned_transcript = self.preprocessed_transcript.clone();
         let verifier_key = self.verifier_key.as_ref().unwrap();
@@ -93,7 +91,6 @@ impl Verifier {
             verifier_key,
             &mut cloned_transcript,
             opening_key,
-            lookup_table,
             public_inputs,
         )
     }

@@ -44,7 +44,7 @@ pub struct ProverKey {
 }
 
 /// Plookup circuit verification key
-#[derive(Debug, PartialEq, Eq, Copy, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct VerifierKey {
     /// Circuit size
     pub n: usize,
@@ -100,6 +100,11 @@ impl VerifierKey {
         // Lookup
         write_commitment(&self.lookup.q_lookup, &mut bytes);
 
+        write_commitment(&self.lookup.table_1, &mut bytes);
+        write_commitment(&self.lookup.table_2, &mut bytes);
+        write_commitment(&self.lookup.table_3, &mut bytes);
+        write_commitment(&self.lookup.table_4, &mut bytes);
+
         // Perm
         write_commitment(&self.permutation.left_sigma, &mut bytes);
         write_commitment(&self.permutation.right_sigma, &mut bytes);
@@ -133,6 +138,11 @@ impl VerifierKey {
 
         let (q_lookup, rest) = read_commitment(rest)?;
 
+        let (table_1, rest) = read_commitment(rest)?;
+        let (table_2, rest) = read_commitment(rest)?;
+        let (table_3, rest) = read_commitment(rest)?;
+        let (table_4, rest) = read_commitment(rest)?;
+
         let (left_sigma, rest) = read_commitment(rest)?;
         let (right_sigma, rest) = read_commitment(rest)?;
         let (out_sigma, rest) = read_commitment(rest)?;
@@ -159,7 +169,13 @@ impl VerifierKey {
             q_variable_group_add,
         };
 
-        let lookup = lookup::VerifierKey { q_lookup };
+        let lookup = lookup::VerifierKey {
+            q_lookup,
+            table_1,
+            table_2,
+            table_3,
+            table_4,
+        };
 
         let permutation = permutation::VerifierKey {
             left_sigma,
@@ -220,7 +236,9 @@ impl VerifierKey {
 impl ProverKey {
     /// Serialises a ProverKey struct into bytes
     pub fn to_bytes(&self) -> Vec<u8> {
-        use crate::serialisation::{write_evaluations, write_polynomial, write_u64};
+        use crate::serialisation::{
+            write_evaluations, write_multiset, write_polynomial, write_u64,
+        };
 
         let mut bytes = Vec::with_capacity(ProverKey::serialised_size(self.n));
 
@@ -268,6 +286,22 @@ impl ProverKey {
         write_polynomial(&self.lookup.q_lookup.0, &mut bytes);
         write_evaluations(&self.lookup.q_lookup.1, &mut bytes);
 
+        write_multiset(&self.lookup.table_1.0, &mut bytes);
+        write_polynomial(&self.lookup.table_1.1, &mut bytes);
+        write_evaluations(&self.lookup.table_1.2, &mut bytes);
+
+        write_multiset(&self.lookup.table_2.0, &mut bytes);
+        write_polynomial(&self.lookup.table_2.1, &mut bytes);
+        write_evaluations(&self.lookup.table_2.2, &mut bytes);
+
+        write_multiset(&self.lookup.table_3.0, &mut bytes);
+        write_polynomial(&self.lookup.table_3.1, &mut bytes);
+        write_evaluations(&self.lookup.table_3.2, &mut bytes);
+
+        write_multiset(&self.lookup.table_4.0, &mut bytes);
+        write_polynomial(&self.lookup.table_4.1, &mut bytes);
+        write_evaluations(&self.lookup.table_4.2, &mut bytes);
+
         // Permutation
         write_polynomial(&self.permutation.left_sigma.0, &mut bytes);
         write_evaluations(&self.permutation.left_sigma.1, &mut bytes);
@@ -288,7 +322,7 @@ impl ProverKey {
     }
     /// Deserialises a slice of bytes into a ProverKey
     pub fn from_bytes(bytes: &[u8]) -> Result<ProverKey, Error> {
-        use crate::serialisation::{read_evaluations, read_polynomial, read_u64};
+        use crate::serialisation::{read_evaluations, read_multiset, read_polynomial, read_u64};
 
         let (n, rest) = read_u64(bytes)?;
         let domain = crate::fft::EvaluationDomain::new((4 * n) as usize).unwrap();
@@ -341,6 +375,22 @@ impl ProverKey {
         let (q_lookup_evals, rest) = read_evaluations(domain, &rest)?;
         let q_lookup = (q_lookup_poly, q_lookup_evals);
 
+        let (table_1_multiset, rest) = read_multiset(&rest)?;
+        let (table_1_poly, rest) = read_polynomial(&rest)?;
+        let (table_1_evals, rest) = read_evaluations(domain, &rest)?;
+
+        let (table_2_multiset, rest) = read_multiset(&rest)?;
+        let (table_2_poly, rest) = read_polynomial(&rest)?;
+        let (table_2_evals, rest) = read_evaluations(domain, &rest)?;
+
+        let (table_3_multiset, rest) = read_multiset(&rest)?;
+        let (table_3_poly, rest) = read_polynomial(&rest)?;
+        let (table_3_evals, rest) = read_evaluations(domain, &rest)?;
+
+        let (table_4_multiset, rest) = read_multiset(&rest)?;
+        let (table_4_poly, rest) = read_polynomial(&rest)?;
+        let (table_4_evals, rest) = read_evaluations(domain, &rest)?;
+
         let (left_sigma_poly, rest) = read_polynomial(&rest)?;
         let (left_sigma_evals, rest) = read_evaluations(domain, &rest)?;
         let left_sigma = (left_sigma_poly, left_sigma_evals);
@@ -384,7 +434,13 @@ impl ProverKey {
             q_c,
         };
 
-        let lookup = lookup::ProverKey { q_lookup };
+        let lookup = lookup::ProverKey {
+            q_lookup,
+            table_1: (table_1_multiset, table_1_poly, table_1_evals),
+            table_2: (table_2_multiset, table_2_poly, table_2_evals),
+            table_3: (table_3_multiset, table_3_poly, table_3_evals),
+            table_4: (table_4_multiset, table_4_poly, table_4_evals),
+        };
 
         let permutation = permutation::ProverKey {
             left_sigma,
@@ -416,10 +472,10 @@ impl ProverKey {
     fn serialised_size(n: usize) -> usize {
         const SIZE_SCALAR: usize = 32;
 
-        const NUM_POLYNOMIALS: usize = 15;
+        const NUM_POLYNOMIALS: usize = 19;
         let num_poly_scalars = n;
 
-        const NUM_EVALUATIONS: usize = 16;
+        const NUM_EVALUATIONS: usize = 24;
         let num_eval_scalars = 4 * n;
 
         (NUM_POLYNOMIALS * num_poly_scalars * SIZE_SCALAR)
@@ -435,6 +491,7 @@ impl ProverKey {
 mod test {
     use super::*;
     use crate::fft::{EvaluationDomain, Polynomial};
+    use crate::plookup::MultiSet;
     use dusk_bls12_381::BlsScalar;
 
     fn rand_poly_eval(n: usize) -> (Polynomial, Evaluations) {
@@ -449,6 +506,14 @@ mod test {
             .collect();
         let evaluations = Evaluations::from_vec_and_domain(values, domain);
         evaluations
+    }
+
+    fn rand_multiset(n: usize) -> MultiSet {
+        let values: Vec<_> = (0..n)
+            .map(|_| BlsScalar::random(&mut rand::thread_rng()))
+            .collect();
+        let multiset = MultiSet(values);
+        multiset
     }
 
     #[test]
@@ -479,6 +544,16 @@ mod test {
         let fourth_sigma = rand_poly_eval(n);
         let linear_evaluations = rand_evaluations(n);
 
+        let table_1_multiset = rand_multiset(n);
+        let table_2_multiset = rand_multiset(n);
+        let table_3_multiset = rand_multiset(n);
+        let table_4_multiset = rand_multiset(n);
+
+        let (table_1_poly, table_1_evals) = rand_poly_eval(n);
+        let (table_2_poly, table_2_evals) = rand_poly_eval(n);
+        let (table_3_poly, table_3_evals) = rand_poly_eval(n);
+        let (table_4_poly, table_4_evals) = rand_poly_eval(n);
+
         let v_h_coset_4n = rand_evaluations(n);
 
         let arithmetic = arithmetic::ProverKey {
@@ -498,7 +573,13 @@ mod test {
 
         let range = range::ProverKey { q_range };
 
-        let lookup = lookup::ProverKey { q_lookup };
+        let lookup = lookup::ProverKey {
+            q_lookup,
+            table_1: (table_1_multiset, table_1_poly, table_1_evals),
+            table_2: (table_2_multiset, table_2_poly, table_2_evals),
+            table_3: (table_3_multiset, table_3_poly, table_3_evals),
+            table_4: (table_4_multiset, table_4_poly, table_4_evals),
+        };
 
         let fixed_base = ecc::scalar_mul::fixed_base::ProverKey {
             q_fixed_group_add,
@@ -565,6 +646,11 @@ mod test {
         let out_sigma = Commitment::from_affine(G1Affine::generator());
         let fourth_sigma = Commitment::from_affine(G1Affine::generator());
 
+        let table_1 = Commitment::from_affine(G1Affine::generator());
+        let table_2 = Commitment::from_affine(G1Affine::generator());
+        let table_3 = Commitment::from_affine(G1Affine::generator());
+        let table_4 = Commitment::from_affine(G1Affine::generator());
+
         let arithmetic = arithmetic::VerifierKey {
             q_m,
             q_l,
@@ -579,7 +665,13 @@ mod test {
 
         let range = range::VerifierKey { q_range };
 
-        let lookup = lookup::VerifierKey { q_lookup };
+        let lookup = lookup::VerifierKey {
+            q_lookup,
+            table_1,
+            table_2,
+            table_3,
+            table_4,
+        };
 
         let fixed_base = ecc::scalar_mul::fixed_base::VerifierKey {
             q_fixed_group_add,
