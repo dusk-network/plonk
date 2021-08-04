@@ -10,6 +10,7 @@ use crate::fft::{EvaluationDomain, Polynomial};
 use alloc::vec::Vec;
 use dusk_bytes::{DeserializableSlice, Serializable};
 use std::ops::{Add, Mul};
+use core::ops::{Mul, Add};
 
 /// MultiSet is struct containing vectors of scalars, which
 /// individually represents either a wire value or an index
