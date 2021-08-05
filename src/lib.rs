@@ -53,6 +53,7 @@
 #![deny(rustdoc::broken_intra_doc_links)]
 #![deny(missing_docs)]
 #![no_std]
+#![feature(test)]
 
 #[cfg(feature = "std")]
 extern crate std;
