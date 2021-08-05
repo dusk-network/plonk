@@ -162,7 +162,7 @@ impl Prover {
     ) -> Result<Proof, Error> {
         // make sure the domain is big enough to handle the circuit as well as
         // the lookup table
-        let domain = EvaluationDomain::new(std::cmp::max(
+        let domain = EvaluationDomain::new(core::cmp::max(
             self.cs.circuit_size(),
             self.cs.lookup_table.0.len(),
         ))?;

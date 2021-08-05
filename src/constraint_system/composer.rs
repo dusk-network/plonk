@@ -121,7 +121,7 @@ impl StandardComposer {
 
     /// Returns the total size of the circuit including lookup table rows
     pub fn total_size(&self) -> usize {
-        std::cmp::max(self.n, self.lookup_table.0.len())
+        core::cmp::max(self.n, self.lookup_table.0.len())
     }
 
     /// Constructs a dense vector of the Public Inputs from the positions and

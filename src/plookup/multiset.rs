@@ -8,8 +8,8 @@ use crate::bls12_381::BlsScalar;
 use crate::error::Error;
 use crate::fft::{EvaluationDomain, Polynomial};
 use alloc::vec::Vec;
+use core::ops::{Add, Mul};
 use dusk_bytes::{DeserializableSlice, Serializable};
-use std::ops::{Add, Mul};
 
 /// MultiSet is struct containing vectors of scalars, which
 /// individually represents either a wire value or an index
