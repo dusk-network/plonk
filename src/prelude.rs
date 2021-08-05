@@ -17,10 +17,8 @@ pub use crate::{
         PublicParameters,
     },
     constraint_system::{Point, StandardComposer, Variable},
-    proof_system::{Prover, ProverKey, Verifier},
+    proof_system::{Proof, Prover, ProverKey, Verifier, VerifierKey},
 };
-
-pub use crate::proof_system::{Proof, VerifierKey};
 
 /// Re-exported [`dusk-bls12_381::BlsScalar`].
 pub use dusk_bls12_381::BlsScalar;

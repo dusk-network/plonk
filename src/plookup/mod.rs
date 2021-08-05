@@ -11,6 +11,8 @@
 //! output of gates within a circuit, without
 //! computing them.
 
+cfg_if::cfg_if!(
+    if #[cfg(feature = "alloc")] {
 /// Multiset
 pub mod multiset;
 /// hello
@@ -23,3 +25,5 @@ pub use table::{
     preprocess::{PreprocessedTable3Arity, PreprocessedTable4Arity},
     witness_table::{WitnessTable3Arity, WitnessTable4Arity},
 };
+}
+);

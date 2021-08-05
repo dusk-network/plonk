@@ -18,12 +18,12 @@ cfg_if::cfg_if!(
         pub use prover::Prover;
         pub use verifier::Verifier;
         pub use widget::alloc::*;
+        pub(crate) mod widget;
+        pub use widget::VerifierKey;
     }
 );
 
 /// Represents PLONK Proof
 pub mod proof;
-pub(crate) mod widget;
 pub use proof::Proof;
-pub use widget::VerifierKey;
 pub(crate) mod linearisation_poly;

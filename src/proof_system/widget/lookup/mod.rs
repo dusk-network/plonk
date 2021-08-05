@@ -4,10 +4,14 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
+#[cfg(feature = "alloc")]
 mod proverkey;
+#[cfg(feature = "alloc")]
 mod verifierkey;
 
+#[cfg(feature = "alloc")]
 pub use proverkey::ProverKey;
+#[cfg(feature = "alloc")]
 pub use verifierkey::VerifierKey;
 
 /// Common functionality across both the ProverKey and VerifierKey is
