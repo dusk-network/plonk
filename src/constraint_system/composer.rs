@@ -1024,8 +1024,10 @@ mod tests {
     }
 }
 
+#[cfg(feature = "std")]
 extern crate test;
 
+#[cfg(feature = "std")]
 #[cfg(test)]
 mod benches {
     use super::super::helper::*;
@@ -1034,12 +1036,15 @@ mod benches {
     use crate::constraint_system::helper::gadget_plookup_tester;
     use crate::plookup::{PlookupTable4Arity, PreprocessedTable4Arity};
     use crate::proof_system::{Prover, Verifier};
+    use rand_core::OsRng;
     use test::Bencher;
 
+    // XXX: Fix poly
+    #[ignore]
     #[bench]
     fn bench_plookup_full(b: &mut Bencher) {
         let public_parameters =
-            PublicParameters::setup(2 * 30, &mut rand::thread_rng()).unwrap();
+            PublicParameters::setup(2 * 30, &mut OsRng).unwrap();
 
         // Create a prover struct
         let mut prover = Prover::new(b"demo");
@@ -1115,7 +1120,7 @@ mod benches {
         // Preprocess circuit
         prover.preprocess(&ck).unwrap();
 
-        let public_inputs = prover.cs.public_inputs.clone();
+        let public_inputs = prover.cs.public_inputs_sparse_store.clone();
         let lookup_table = prover.cs.lookup_table.clone();
 
         b.iter(|| prover.prove(&ck).unwrap());
