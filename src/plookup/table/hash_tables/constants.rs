@@ -17,8 +17,8 @@ use dusk_bls12_381::BlsScalar;
 pub const V: usize = 643;
 /// Constant N
 pub const N: u64 = 27;
-/// Note this is currently backwards, e.g. S[0] should = 673. But doesn't matter
-/// for now
+/// Note this is currently backwards, e.g. S\[0\] should = 673. But doesn't
+/// matter for now
 pub const S: [u64; 27] = [
     651, 658, 656, 666, 663, 654, 668, 677, 681, 683, 669, 681, 680, 677, 675,
     668, 675, 683, 681, 683, 683, 655, 680, 683, 667, 678, 673,
