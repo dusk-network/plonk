@@ -9,7 +9,7 @@ pub mod curve_addition;
 /// Gates related to scalar multiplication
 pub mod scalar_mul;
 
-use crate::constraint_system::{variable::Variable, StandardComposer};
+use crate::constraint_system::{variable::Variable, TurboComposer};
 use dusk_bls12_381::BlsScalar;
 
 /// Represents a JubJub point in the circuit
@@ -21,7 +21,7 @@ pub struct Point {
 
 impl Point {
     /// Returns an identity point
-    pub fn identity(composer: &mut StandardComposer) -> Point {
+    pub fn identity(composer: &mut TurboComposer) -> Point {
         let one = composer.add_witness_to_circuit_description(BlsScalar::one());
         Point {
             x: composer.zero_var,
@@ -39,7 +39,7 @@ impl Point {
     }
 }
 
-impl StandardComposer {
+impl TurboComposer {
     /// Converts an JubJubAffine into a constraint system Point
     /// without constraining the values
     pub fn add_affine(&mut self, affine: dusk_jubjub::JubJubAffine) -> Point {
@@ -115,7 +115,7 @@ impl StandardComposer {
     /// # Note
     /// The `bit` used as input which is a [`Variable`] should had previously
     /// been constrained to be either 1 or 0 using a bool constrain. See:
-    /// [`StandardComposer::boolean_gate`].
+    /// [`TurboComposer::boolean_gate`].
     pub fn conditional_point_select(
         &mut self,
         point_a: Point,
@@ -136,7 +136,7 @@ impl StandardComposer {
     /// # Note
     /// The `bit` used as input which is a [`Variable`] should had previously
     /// been constrained to be either 1 or 0 using a bool constrain. See:
-    /// [`StandardComposer::boolean_gate`].
+    /// [`TurboComposer::boolean_gate`].
     fn conditional_select_identity(
         &mut self,
         bit: Variable,

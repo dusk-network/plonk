@@ -6,7 +6,7 @@
 
 use crate::constraint_system::ecc::curve_addition::fixed_base_gate::WnafRound;
 use crate::constraint_system::ecc::Point;
-use crate::constraint_system::{variable::Variable, StandardComposer};
+use crate::constraint_system::{variable::Variable, TurboComposer};
 use alloc::vec::Vec;
 use dusk_bls12_381::BlsScalar;
 use dusk_bytes::Serializable;
@@ -27,7 +27,7 @@ fn compute_wnaf_point_multiples(
     dusk_jubjub::batch_normalize(&mut multiples).collect()
 }
 
-impl StandardComposer {
+impl TurboComposer {
     /// Adds an elliptic curve Scalar multiplication gate to the circuit
     /// description.
     ///

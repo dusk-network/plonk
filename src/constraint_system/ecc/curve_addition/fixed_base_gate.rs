@@ -4,7 +4,7 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use crate::constraint_system::StandardComposer;
+use crate::constraint_system::TurboComposer;
 use crate::constraint_system::Variable;
 use dusk_bls12_381::BlsScalar;
 
@@ -37,7 +37,7 @@ pub(crate) struct WnafRound {
     pub xy_beta: BlsScalar,
 }
 
-impl StandardComposer {
+impl TurboComposer {
     /// Fixed group addition of a jubjub point
     pub(crate) fn fixed_group_add(&mut self, wnaf_round: WnafRound) {
         self.w_l.push(wnaf_round.acc_x);

@@ -7,7 +7,7 @@
 //! A `Composer` could be understood as some sort of Trait that is actually
 //! defining some kind of Circuit Builder for PLONK.
 //!
-//! In that sense, here we have the implementation of the [`StandardComposer`]
+//! In that sense, here we have the implementation of the [`TurboComposer`]
 //! which has been designed in order to provide the maximum amount of
 //! performance while having a big scope in utility terms.
 //!
@@ -25,33 +25,33 @@ use alloc::vec::Vec;
 use dusk_bls12_381::BlsScalar;
 use hashbrown::HashMap;
 
-/// The StandardComposer is the circuit-builder tool that the `dusk-plonk`
+/// The TurboComposer is the circuit-builder tool that the `dusk-plonk`
 /// repository provides so that circuit descriptions can be written, stored and
 /// transformed into a [`Proof`](crate::proof_system::Proof) at some point.
 ///
-/// A StandardComposer stores all of the circuit information, being this one
+/// A TurboComposer stores all of the circuit information, being this one
 /// all of the witness and circuit descriptors info (values, positions in the
 /// circuits, gates and Wires that occupy..), the public inputs, the connection
 /// relationships between the witnesses and how they're repesented as Wires (so
 /// basically the Permutation argument etc..).
 ///
-/// The StandardComposer also grants us a way to introduce our secret
+/// The TurboComposer also grants us a way to introduce our secret
 /// witnesses in a for of a [`Variable`] into the circuit description as well as
 /// the public inputs. We can do this with methods like
-/// [`StandardComposer::add_input`].
+/// [`TurboComposer::add_input`].
 ///
-/// The StandardComposer also contains as associated functions all the
+/// The TurboComposer also contains as associated functions all the
 /// neccessary tools to be able to istrument the circuits that the user needs
 /// through the addition of gates. There are functions that may add a single
-/// gate to the circuit as for example [`StandardComposer::add_gate`] and others
+/// gate to the circuit as for example [`TurboComposer::add_gate`] and others
 /// that can add several gates to the circuit description such as
-/// [`StandardComposer::conditional_select`].
+/// [`TurboComposer::conditional_select`].
 ///
 /// Each gate or group of gates adds an specific functionallity or operation to
 /// de circuit description, and so, that's why we can understand
-/// the StandardComposer as a builder.
+/// the TurboComposer as a builder.
 #[derive(Debug)]
-pub struct StandardComposer {
+pub struct TurboComposer {
     /// Number of arithmetic gates in the circuit
     pub(crate) n: usize,
 
@@ -106,7 +106,7 @@ pub struct StandardComposer {
     pub(crate) perm: Permutation,
 }
 
-impl StandardComposer {
+impl TurboComposer {
     /// Returns the number of gates in the circuit
     pub fn circuit_size(&self) -> usize {
         self.n
@@ -136,14 +136,14 @@ impl StandardComposer {
     }
 }
 
-impl Default for StandardComposer {
+impl Default for TurboComposer {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl StandardComposer {
-    /// Generates a new empty `StandardComposer` with all of it's fields
+impl TurboComposer {
+    /// Generates a new empty `TurboComposer` with all of it's fields
     /// set to hold an initial capacity of 0.
     ///
     /// # Note
@@ -152,7 +152,7 @@ impl StandardComposer {
     /// holds `Vec` for every polynomial, and these will need to be re-allocated
     /// each time the circuit grows considerably.
     pub fn new() -> Self {
-        StandardComposer::with_expected_size(0)
+        TurboComposer::with_expected_size(0)
     }
 
     /// Fixes a [`Variable`] in the witness to be a part of the circuit
@@ -171,7 +171,7 @@ impl StandardComposer {
     /// since the `Vec`s will already have an appropriate allocation at the
     /// beginning of the composing stage.
     pub fn with_expected_size(expected_size: usize) -> Self {
-        let mut composer = StandardComposer {
+        let mut composer = TurboComposer {
             n: 0,
 
             q_m: Vec::with_capacity(expected_size),
@@ -331,7 +331,7 @@ impl StandardComposer {
     /// # Note
     /// The `bit` used as input which is a [`Variable`] should had previously
     /// been constrained to be either 1 or 0 using a bool constrain. See:
-    /// [`StandardComposer::boolean_gate`].
+    /// [`TurboComposer::boolean_gate`].
     pub fn conditional_select(
         &mut self,
         bit: Variable,
@@ -376,7 +376,7 @@ impl StandardComposer {
     /// # Note
     /// The `bit` used as input which is a [`Variable`] should had previously
     /// been constrained to be either 1 or 0 using a bool constrain. See:
-    /// [`StandardComposer::boolean_gate`].
+    /// [`TurboComposer::boolean_gate`].
     pub fn conditional_select_zero(
         &mut self,
         bit: Variable,
@@ -394,7 +394,7 @@ impl StandardComposer {
     /// # Note
     /// The `bit` used as input which is a [`Variable`] should had previously
     /// been constrained to be either 1 or 0 using a bool constrain. See:
-    /// [`StandardComposer::boolean_gate`].
+    /// [`TurboComposer::boolean_gate`].
     pub fn conditional_select_one(
         &mut self,
         bit: Variable,
@@ -483,7 +483,7 @@ impl StandardComposer {
 
     /// Utility function that allows to check on the "front-end"
     /// side of the PLONK implementation if the identity polynomial
-    /// is satisfied for each one of the [`StandardComposer`]'s gates.
+    /// is satisfied for each one of the [`TurboComposer`]'s gates.
     ///
     /// The recommended usage is to derive the std output and the std error to a
     /// text file and analyze there the gates.
@@ -630,7 +630,7 @@ mod tests {
     #[test]
     /// Tests that a circuit initially has 3 gates
     fn test_initial_circuit_size() {
-        let composer: StandardComposer = StandardComposer::new();
+        let composer: TurboComposer = TurboComposer::new();
         // Circuit size is n+3 because
         // - We have an extra gate which forces the first witness to be zero.
         //   This is used when the advice wire is not being used.

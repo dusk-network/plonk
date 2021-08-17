@@ -5,13 +5,13 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use crate::bit_iterator::*;
-use crate::constraint_system::StandardComposer;
+use crate::constraint_system::TurboComposer;
 use crate::constraint_system::{Variable, WireData};
 use alloc::vec::Vec;
 use dusk_bls12_381::BlsScalar;
 use dusk_bytes::Serializable;
 
-impl StandardComposer {
+impl TurboComposer {
     /// Performs a logical AND or XOR op between the inputs provided for the
     /// specified number of bits.
     ///

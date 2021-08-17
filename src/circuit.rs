@@ -7,7 +7,7 @@
 //! Tools & traits for PLONK circuits
 
 use crate::commitment_scheme::kzg10::PublicParameters;
-use crate::constraint_system::StandardComposer;
+use crate::constraint_system::TurboComposer;
 use crate::error::Error;
 use crate::proof_system::{Proof, Prover, ProverKey, Verifier, VerifierKey};
 use alloc::vec::Vec;
@@ -134,7 +134,7 @@ impl VerifierData {
 ///     const CIRCUIT_ID: [u8; 32] = [0xff; 32];
 ///     fn gadget(
 ///         &mut self,
-///         composer: &mut StandardComposer,
+///         composer: &mut TurboComposer,
 ///     ) -> Result<(), Error> {
 ///         // Add fixed witness zero
 ///         let zero = composer.add_witness_to_circuit_description(BlsScalar::zero());
@@ -231,7 +231,7 @@ where
     /// Circuit identifier associated constant.
     const CIRCUIT_ID: [u8; 32];
     /// Gadget implementation used to fill the composer.
-    fn gadget(&mut self, composer: &mut StandardComposer) -> Result<(), Error>;
+    fn gadget(&mut self, composer: &mut TurboComposer) -> Result<(), Error>;
     /// Compiles the circuit by using a function that returns a `Result`
     /// with the `ProverKey`, `VerifierKey` and the circuit size.
     fn compile(
@@ -331,7 +331,7 @@ fn build_pi(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::constraint_system::StandardComposer;
+    use crate::constraint_system::TurboComposer;
     use crate::proof_system::ProverKey;
 
     // Implements a circuit that checks:
@@ -354,7 +354,7 @@ mod tests {
         const CIRCUIT_ID: [u8; 32] = [0xff; 32];
         fn gadget(
             &mut self,
-            composer: &mut StandardComposer,
+            composer: &mut TurboComposer,
         ) -> Result<(), Error> {
             let a = composer.add_input(self.a);
             let b = composer.add_input(self.b);

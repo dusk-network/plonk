@@ -5,17 +5,17 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use crate::constraint_system::ecc::Point;
-use crate::constraint_system::{variable::Variable, StandardComposer};
+use crate::constraint_system::{variable::Variable, TurboComposer};
 use alloc::vec::Vec;
 use dusk_bls12_381::BlsScalar;
 use dusk_bytes::Serializable;
 
-impl StandardComposer {
+impl TurboComposer {
     /// Adds a variable-base scalar multiplication to the circuit description.
     ///
     /// # Note
     /// If you're planning to multiply always by the generator of the Scalar
-    /// field, you should use [`StandardComposer::fixed_base_scalar_mul`]
+    /// field, you should use [`TurboComposer::fixed_base_scalar_mul`]
     /// which is optimized for fixed_base ops.
     pub fn variable_base_scalar_mul(
         &mut self,
