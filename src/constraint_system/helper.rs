@@ -4,7 +4,7 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use super::StandardComposer;
+use super::TurboComposer;
 use crate::commitment_scheme::kzg10::PublicParameters;
 use crate::error::Error;
 use crate::proof_system::{Prover, Verifier};
@@ -12,7 +12,7 @@ use dusk_bls12_381::BlsScalar;
 use rand_core::OsRng;
 
 /// Adds dummy constraints using arithmetic gates
-pub(crate) fn dummy_gadget(n: usize, composer: &mut StandardComposer) {
+pub(crate) fn dummy_gadget(n: usize, composer: &mut TurboComposer) {
     let one = BlsScalar::one();
 
     let var_one = composer.add_input(one);
@@ -31,7 +31,7 @@ pub(crate) fn dummy_gadget(n: usize, composer: &mut StandardComposer) {
 /// Takes a generic gadget function with no auxillary input and
 /// tests whether it passes an end-to-end test
 pub(crate) fn gadget_tester(
-    gadget: fn(composer: &mut StandardComposer),
+    gadget: fn(composer: &mut TurboComposer),
     n: usize,
 ) -> Result<(), Error> {
     // Common View

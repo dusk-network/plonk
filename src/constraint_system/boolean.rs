@@ -4,11 +4,11 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use crate::constraint_system::StandardComposer;
+use crate::constraint_system::TurboComposer;
 use crate::constraint_system::Variable;
 use dusk_bls12_381::BlsScalar;
 
-impl StandardComposer {
+impl TurboComposer {
     /// Adds a boolean constraint (also known as binary constraint) where
     /// the gate eq. will enforce that the [`Variable`] received is either `0`
     /// or `1` by adding a constraint in the circuit.

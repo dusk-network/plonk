@@ -7,7 +7,7 @@
 //! Methods to preprocess the constraint system for use in a proof
 
 use crate::commitment_scheme::kzg10::CommitKey;
-use crate::constraint_system::StandardComposer;
+use crate::constraint_system::TurboComposer;
 
 use crate::error::Error;
 use crate::fft::{EvaluationDomain, Evaluations, Polynomial};
@@ -35,7 +35,7 @@ pub(crate) struct SelectorPolynomials {
     fourth_sigma: Polynomial,
 }
 
-impl StandardComposer {
+impl TurboComposer {
     /// Pads the circuit to the next power of two.
     ///
     /// # Note
@@ -414,7 +414,7 @@ mod test {
     /// Tests that the circuit gets padded to the correct length
     /// XXX: We can do this test without dummy_gadget method
     fn test_pad() {
-        let mut composer: StandardComposer = StandardComposer::new();
+        let mut composer: TurboComposer = TurboComposer::new();
         dummy_gadget(100, &mut composer);
 
         // Pad the circuit to next power of two

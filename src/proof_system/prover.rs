@@ -6,7 +6,7 @@
 
 use crate::{
     commitment_scheme::kzg10::CommitKey,
-    constraint_system::{StandardComposer, Variable},
+    constraint_system::{TurboComposer, Variable},
     error::Error,
     fft::{EvaluationDomain, Polynomial},
     proof_system::{
@@ -25,15 +25,15 @@ pub struct Prover {
     /// ProverKey which is used to create proofs about a specific PLONK circuit
     pub prover_key: Option<ProverKey>,
 
-    pub(crate) cs: StandardComposer,
+    pub(crate) cs: TurboComposer,
     /// Store the messages exchanged during the preprocessing stage
     /// This is copied each time, we make a proof
     pub preprocessed_transcript: Transcript,
 }
 
 impl Prover {
-    /// Returns a mutable copy of the underlying [`StandardComposer`].
-    pub fn mut_cs(&mut self) -> &mut StandardComposer {
+    /// Returns a mutable copy of the underlying [`TurboComposer`].
+    pub fn mut_cs(&mut self) -> &mut TurboComposer {
         &mut self.cs
     }
 
@@ -61,7 +61,7 @@ impl Prover {
     pub fn new(label: &'static [u8]) -> Prover {
         Prover {
             prover_key: None,
-            cs: StandardComposer::new(),
+            cs: TurboComposer::new(),
             preprocessed_transcript: Transcript::new(label),
         }
     }
@@ -70,7 +70,7 @@ impl Prover {
     pub fn with_expected_size(label: &'static [u8], size: usize) -> Prover {
         Prover {
             prover_key: None,
-            cs: StandardComposer::with_expected_size(size),
+            cs: TurboComposer::with_expected_size(size),
             preprocessed_transcript: Transcript::new(label),
         }
     }
@@ -126,7 +126,7 @@ impl Prover {
     /// This function is used when the user wants to make multiple proofs with
     /// the same circuit.
     pub fn clear_witness(&mut self) {
-        self.cs = StandardComposer::new();
+        self.cs = TurboComposer::new();
     }
 
     /// Clears all data in the `Prover` instance.

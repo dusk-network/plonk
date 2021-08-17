@@ -5,11 +5,11 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use crate::constraint_system::ecc::Point;
-use crate::constraint_system::StandardComposer;
+use crate::constraint_system::TurboComposer;
 use dusk_bls12_381::BlsScalar;
 use dusk_jubjub::{JubJubAffine, JubJubExtended};
 
-impl StandardComposer {
+impl TurboComposer {
     /// Adds two curve points together using a curve addition gate
     /// Note that since the points are not fixed the generator is not a part of
     /// the circuit description, however it is less efficient for a program
@@ -97,7 +97,7 @@ mod test {
     /// algorithm. This method is slower than WNaf and is just meant to be the
     /// source of truth to test the WNaf method.
     pub fn classical_point_addition(
-        composer: &mut StandardComposer,
+        composer: &mut TurboComposer,
         point_a: Point,
         point_b: Point,
     ) -> Point {

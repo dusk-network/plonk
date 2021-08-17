@@ -729,14 +729,14 @@ impl Permutation {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::constraint_system::StandardComposer;
+    use crate::constraint_system::TurboComposer;
     use crate::fft::Polynomial;
     use dusk_bls12_381::BlsScalar;
     use rand_core::OsRng;
 
     #[test]
     fn test_multizip_permutation_poly() {
-        let mut cs = StandardComposer::with_expected_size(4);
+        let mut cs = TurboComposer::with_expected_size(4);
         let x1 = cs.add_input(BlsScalar::from_raw([4, 0, 0, 0]));
         let x2 = cs.add_input(BlsScalar::from_raw([12, 0, 0, 0]));
         let x3 = cs.add_input(BlsScalar::from_raw([8, 0, 0, 0]));
