@@ -175,7 +175,7 @@ impl Permutation {
         &mut self,
         n: usize,
         domain: &EvaluationDomain,
-    ) -> (Polynomial, Polynomial, Polynomial, Polynomial) {
+    ) -> [Polynomial; 4] {
         // Compute sigma mappings
         let sigmas = self.compute_sigma_permutations(n);
 
@@ -200,207 +200,116 @@ impl Permutation {
         let fourth_sigma_poly =
             Polynomial::from_coefficients_vec(domain.ifft(&fourth_sigma));
 
-        (
+        [
             left_sigma_poly,
             right_sigma_poly,
             out_sigma_poly,
             fourth_sigma_poly,
-        )
+        ]
     }
 
-    #[allow(dead_code)]
-    fn compute_slow_permutation_poly<I>(
+    // Uses a rayon multizip to allow more code flexibility while remaining
+    // parallelizable. This can be adapted into a general product argument
+    // for any number of wires.
+    pub(crate) fn compute_permutation_poly(
         &self,
         domain: &EvaluationDomain,
-        w_l: I,
-        w_r: I,
-        w_o: I,
-        w_4: I,
+        wires: [&[BlsScalar]; 4],
         beta: &BlsScalar,
         gamma: &BlsScalar,
-        (left_sigma_poly, right_sigma_poly, out_sigma_poly, fourth_sigma_poly): (
-            &Polynomial,
-            &Polynomial,
-            &Polynomial,
-            &Polynomial,
-        ),
-    ) -> (Vec<BlsScalar>, Vec<BlsScalar>, Vec<BlsScalar>)
-    where
-        I: Iterator<Item = BlsScalar>,
-    {
+        sigma_polys: [&Polynomial; 4],
+    ) -> Polynomial {
         let n = domain.size();
 
-        let left_sigma_mapping = domain.fft(&left_sigma_poly);
-        let right_sigma_mapping = domain.fft(&right_sigma_poly);
-        let out_sigma_mapping = domain.fft(&out_sigma_poly);
-        let fourth_sigma_mapping = domain.fft(&fourth_sigma_poly);
+        // Constants defining cosets H, k1H, k2H, etc
+        let ks = vec![BlsScalar::one(), K1, K2, K3];
 
-        // Compute beta * sigma polynomials
-        let beta_left_sigma_iter =
-            left_sigma_mapping.iter().map(|sigma| *sigma * beta);
-        let beta_right_sigma_iter =
-            right_sigma_mapping.iter().map(|sigma| *sigma * beta);
-        let beta_out_sigma_iter =
-            out_sigma_mapping.iter().map(|sigma| *sigma * beta);
-        let beta_fourth_sigma_iter =
-            fourth_sigma_mapping.iter().map(|sigma| *sigma * beta);
+        // Transpose wires and sigma values to get "rows" in the form [wl_i,
+        // wr_i, wo_i, ... ] where each row contains the wire and sigma
+        // values for a single gate
+        let gatewise_wires = izip!(wires[0], wires[1], wires[2], wires[3])
+            .map(|(w0, w1, w2, w3)| vec![w0, w1, w2, w3]);
 
-        // Compute beta * roots
-        let beta_roots_iter = domain.elements().map(|root| root * beta);
-
-        // Compute beta * roots * K1
-        let beta_roots_k1_iter = domain.elements().map(|root| K1 * beta * root);
-
-        // Compute beta * roots * K2
-        let beta_roots_k2_iter = domain.elements().map(|root| K2 * beta * root);
-
-        // Compute beta * roots * K3
-        let beta_roots_k3_iter = domain.elements().map(|root| K3 * beta * root);
-
-        // Compute left_wire + gamma
-        let w_l_gamma: Vec<_> = w_l.map(|w| w + gamma).collect();
-
-        // Compute right_wire + gamma
-        let w_r_gamma: Vec<_> = w_r.map(|w| w + gamma).collect();
-
-        // Compute out_wire + gamma
-        let w_o_gamma: Vec<_> = w_o.map(|w| w + gamma).collect();
-
-        // Compute fourth_wire + gamma
-        let w_4_gamma: Vec<_> = w_4.map(|w| w + gamma).collect();
-
-        let mut numerator_partial_components: Vec<BlsScalar> =
-            Vec::with_capacity(n);
-        let mut denominator_partial_components: Vec<BlsScalar> =
-            Vec::with_capacity(n);
-
-        let mut numerator_coefficients: Vec<BlsScalar> = Vec::with_capacity(n);
-        let mut denominator_coefficients: Vec<BlsScalar> =
-            Vec::with_capacity(n);
-
-        // First element in both of them is one
-        numerator_coefficients.push(BlsScalar::one());
-        denominator_coefficients.push(BlsScalar::one());
-
-        // Compute numerator coefficients
-        for (
-            w_l_gamma,
-            w_r_gamma,
-            w_o_gamma,
-            w_4_gamma,
-            beta_root,
-            beta_root_k1,
-            beta_root_k2,
-            beta_root_k3,
-        ) in izip!(
-            w_l_gamma.iter(),
-            w_r_gamma.iter(),
-            w_o_gamma.iter(),
-            w_4_gamma.iter(),
-            beta_roots_iter,
-            beta_roots_k1_iter,
-            beta_roots_k2_iter,
-            beta_roots_k3_iter,
-        ) {
-            // (w_l + beta * root + gamma)
-            let prod_a = beta_root + w_l_gamma;
-
-            // (w_r + beta * root * k_1 + gamma)
-            let prod_b = beta_root_k1 + w_r_gamma;
-
-            // (w_o + beta * root * k_2 + gamma)
-            let prod_c = beta_root_k2 + w_o_gamma;
-
-            // (w_4 + beta * root * k_3 + gamma)
-            let prod_d = beta_root_k3 + w_4_gamma;
-
-            let mut prod = prod_a * prod_b * prod_c * prod_d;
-
-            numerator_partial_components.push(prod);
-
-            prod *= numerator_coefficients.last().unwrap();
-
-            numerator_coefficients.push(prod);
-        }
-
-        // Compute denominator coefficients
-        for (
-            w_l_gamma,
-            w_r_gamma,
-            w_o_gamma,
-            w_4_gamma,
-            beta_left_sigma,
-            beta_right_sigma,
-            beta_out_sigma,
-            beta_fourth_sigma,
-        ) in izip!(
-            w_l_gamma,
-            w_r_gamma,
-            w_o_gamma,
-            w_4_gamma,
-            beta_left_sigma_iter,
-            beta_right_sigma_iter,
-            beta_out_sigma_iter,
-            beta_fourth_sigma_iter,
-        ) {
-            // (w_l + beta * left_sigma + gamma)
-            let prod_a = beta_left_sigma + w_l_gamma;
-
-            // (w_r + beta * right_sigma + gamma)
-            let prod_b = beta_right_sigma + w_r_gamma;
-
-            // (w_o + beta * out_sigma + gamma)
-            let prod_c = beta_out_sigma + w_o_gamma;
-
-            // (w_4 + beta * fourth_sigma + gamma)
-            let prod_d = beta_fourth_sigma + w_4_gamma;
-
-            let mut prod = prod_a * prod_b * prod_c * prod_d;
-
-            denominator_partial_components.push(prod);
-
-            let last_element = denominator_coefficients.last().unwrap();
-
-            prod *= last_element;
-
-            denominator_coefficients.push(prod);
-        }
-
-        assert_eq!(denominator_coefficients.len(), n + 1);
-        assert_eq!(numerator_coefficients.len(), n + 1);
-
-        // Check that n+1'th elements are equal (taken from proof)
-        let a = numerator_coefficients.last().unwrap();
-        assert_ne!(a, &BlsScalar::zero());
-        let b = denominator_coefficients.last().unwrap();
-        assert_ne!(b, &BlsScalar::zero());
-        assert_eq!(*a * b.invert().unwrap(), BlsScalar::one());
-
-        // Remove those extra elements
-        numerator_coefficients.remove(n);
-        denominator_coefficients.remove(n);
-
-        // Combine numerator and denominator
-
-        let mut z_coefficients: Vec<BlsScalar> = Vec::with_capacity(n);
-        for (numerator, denominator) in numerator_coefficients
-            .iter()
-            .zip(denominator_coefficients.iter())
-        {
-            z_coefficients.push(*numerator * denominator.invert().unwrap());
-        }
-        assert_eq!(z_coefficients.len(), n);
-
-        (
-            z_coefficients,
-            numerator_partial_components,
-            denominator_partial_components,
+        let gatewise_sigmas: Vec<Vec<BlsScalar>> =
+            sigma_polys.iter().map(|sigma| domain.fft(sigma)).collect();
+        let gatewise_sigmas = izip!(
+            &gatewise_sigmas[0],
+            &gatewise_sigmas[1],
+            &gatewise_sigmas[2],
+            &gatewise_sigmas[3]
         )
+        .map(|(s0, s1, s2, s3)| vec![s0, s1, s2, s3]);
+
+        // Compute all roots
+        // Non-parallelizable?
+        let roots: Vec<BlsScalar> = domain.elements().collect();
+
+        let product_argument = izip!(roots, gatewise_sigmas, gatewise_wires)
+            // Associate each wire value in a gate with the k defining its coset
+            .map(|(gate_root, gate_sigmas, gate_wires)| {
+                (gate_root, izip!(gate_sigmas, gate_wires, &ks))
+            })
+            // Now the ith element represents gate i and will have the form:
+            //   (root_i, ((w0_i, s0_i, k0), (w1_i, s1_i, k1), ..., (wm_i, sm_i,
+            // km)))   for m different wires, which is all the
+            // information   needed for a single product coefficient
+            // for a single gate Multiply up the numerator and
+            // denominator irreducibles for each gate   and pair the
+            // results
+            .map(|(gate_root, wire_params)| {
+                (
+                    // Numerator product
+                    wire_params
+                        .clone()
+                        .map(|(_sigma, wire, k)| {
+                            wire + beta * k * gate_root + gamma
+                        })
+                        .product::<BlsScalar>(),
+                    // Denominator product
+                    wire_params
+                        .map(|(sigma, wire, _k)| wire + beta * sigma + gamma)
+                        .product::<BlsScalar>(),
+                )
+            })
+            // Divide each pair to get the single scalar representing each gate
+            .map(|(n, d)| n * d.invert().unwrap())
+            // Collect into vector intermediary since rayon does not support
+            // `scan`
+            .collect::<Vec<BlsScalar>>();
+
+        let mut z = Vec::with_capacity(n);
+
+        // First element is one
+        let mut state = BlsScalar::one();
+        z.push(state);
+
+        // Accumulate by successively multiplying the scalars
+        // Non-parallelizable?
+        for s in product_argument {
+            state *= s;
+            z.push(state);
+        }
+
+        // Remove the last(n+1'th) element
+        z.remove(n);
+
+        assert_eq!(n, z.len());
+
+        Polynomial::from_coefficients_vec(domain.ifft(&z))
     }
+}
+
+#[cfg(feature = "std")]
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::constraint_system::TurboComposer;
+    use crate::fft::Polynomial;
+    use dusk_bls12_381::BlsScalar;
+    use rand_core::OsRng;
 
     #[allow(dead_code)]
     fn compute_fast_permutation_poly(
-        &self,
         domain: &EvaluationDomain,
         w_l: &[BlsScalar],
         w_r: &[BlsScalar],
@@ -601,138 +510,189 @@ impl Permutation {
         z
     }
 
-    // These are the formulas for the irreducible factors used in the product
-    // argument
-    fn numerator_irreducible(
-        root: &BlsScalar,
-        w: &BlsScalar,
-        k: &BlsScalar,
-        beta: &BlsScalar,
-        gamma: &BlsScalar,
-    ) -> BlsScalar {
-        w + *beta * k * root + gamma
-    }
-
-    fn denominator_irreducible(
-        _root: &BlsScalar,
-        w: &BlsScalar,
-        sigma: &BlsScalar,
-        beta: &BlsScalar,
-        gamma: &BlsScalar,
-    ) -> BlsScalar {
-        w + *beta * sigma + gamma
-    }
-
-    // Uses a rayon multizip to allow more code flexibility while remaining
-    // parallelizable. This can be adapted into a general product argument
-    // for any number of wires, with specific formulas defined
-    // in the numerator_irreducible and denominator_irreducible functions
-    pub(crate) fn compute_permutation_poly(
-        &self,
+    fn compute_slow_permutation_poly<I>(
         domain: &EvaluationDomain,
-        wires: (&[BlsScalar], &[BlsScalar], &[BlsScalar], &[BlsScalar]),
+        w_l: I,
+        w_r: I,
+        w_o: I,
+        w_4: I,
         beta: &BlsScalar,
         gamma: &BlsScalar,
-        sigma_polys: (&Polynomial, &Polynomial, &Polynomial, &Polynomial),
-    ) -> Polynomial {
+        (left_sigma_poly, right_sigma_poly, out_sigma_poly, fourth_sigma_poly): (
+            &Polynomial,
+            &Polynomial,
+            &Polynomial,
+            &Polynomial,
+        ),
+    ) -> (Vec<BlsScalar>, Vec<BlsScalar>, Vec<BlsScalar>)
+    where
+        I: Iterator<Item = BlsScalar>,
+    {
         let n = domain.size();
 
-        // Constants defining cosets H, k1H, k2H, etc
-        let ks = vec![BlsScalar::one(), K1, K2, K3];
+        let left_sigma_mapping = domain.fft(&left_sigma_poly);
+        let right_sigma_mapping = domain.fft(&right_sigma_poly);
+        let out_sigma_mapping = domain.fft(&out_sigma_poly);
+        let fourth_sigma_mapping = domain.fft(&fourth_sigma_poly);
 
-        let sigma_mappings = (
-            domain.fft(sigma_polys.0),
-            domain.fft(sigma_polys.1),
-            domain.fft(sigma_polys.2),
-            domain.fft(sigma_polys.3),
-        );
+        // Compute beta * sigma polynomials
+        let beta_left_sigma_iter =
+            left_sigma_mapping.iter().map(|sigma| *sigma * beta);
+        let beta_right_sigma_iter =
+            right_sigma_mapping.iter().map(|sigma| *sigma * beta);
+        let beta_out_sigma_iter =
+            out_sigma_mapping.iter().map(|sigma| *sigma * beta);
+        let beta_fourth_sigma_iter =
+            fourth_sigma_mapping.iter().map(|sigma| *sigma * beta);
 
-        // Transpose wires and sigma values to get "rows" in the form [wl_i,
-        // wr_i, wo_i, ... ] where each row contains the wire and sigma
-        // values for a single gate
-        let gatewise_wires = izip!(wires.0, wires.1, wires.2, wires.3)
-            .map(|(w0, w1, w2, w3)| vec![w0, w1, w2, w3]);
-        let gatewise_sigmas = izip!(
-            sigma_mappings.0,
-            sigma_mappings.1,
-            sigma_mappings.2,
-            sigma_mappings.3
-        )
-        .map(|(s0, s1, s2, s3)| vec![s0, s1, s2, s3]);
+        // Compute beta * roots
+        let beta_roots_iter = domain.elements().map(|root| root * beta);
 
-        // Compute all roots
-        // Non-parallelizable?
-        let roots: Vec<BlsScalar> = domain.elements().collect();
+        // Compute beta * roots * K1
+        let beta_roots_k1_iter = domain.elements().map(|root| K1 * beta * root);
 
-        let product_argument = izip!(roots, gatewise_sigmas, gatewise_wires)
-            // Associate each wire value in a gate with the k defining its coset
-            .map(|(gate_root, gate_sigmas, gate_wires)| {
-                (gate_root, izip!(gate_sigmas, gate_wires, &ks))
-            })
-            // Now the ith element represents gate i and will have the form:
-            //   (root_i, ((w0_i, s0_i, k0), (w1_i, s1_i, k1), ..., (wm_i, sm_i,
-            // km)))   for m different wires, which is all the
-            // information   needed for a single product coefficient
-            // for a single gate Multiply up the numerator and
-            // denominator irreducibles for each gate   and pair the
-            // results
-            .map(|(gate_root, wire_params)| {
-                (
-                    // Numerator product
-                    wire_params
-                        .clone()
-                        .map(|(_sigma, wire, k)| {
-                            Permutation::numerator_irreducible(
-                                &gate_root, wire, &k, beta, gamma,
-                            )
-                        })
-                        .product::<BlsScalar>(),
-                    // Denominator product
-                    wire_params
-                        .map(|(sigma, wire, _k)| {
-                            Permutation::denominator_irreducible(
-                                &gate_root, wire, &sigma, beta, gamma,
-                            )
-                        })
-                        .product::<BlsScalar>(),
-                )
-            })
-            // Divide each pair to get the single scalar representing each gate
-            .map(|(n, d)| n * d.invert().unwrap())
-            // Collect into vector intermediary since rayon does not support
-            // `scan`
-            .collect::<Vec<BlsScalar>>();
+        // Compute beta * roots * K2
+        let beta_roots_k2_iter = domain.elements().map(|root| K2 * beta * root);
 
-        let mut z = Vec::with_capacity(n);
+        // Compute beta * roots * K3
+        let beta_roots_k3_iter = domain.elements().map(|root| K3 * beta * root);
 
-        // First element is one
-        let mut state = BlsScalar::one();
-        z.push(state);
+        // Compute left_wire + gamma
+        let w_l_gamma: Vec<_> = w_l.map(|w| w + gamma).collect();
 
-        // Accumulate by successively multiplying the scalars
-        // Non-parallelizable?
-        for s in product_argument {
-            state *= s;
-            z.push(state);
+        // Compute right_wire + gamma
+        let w_r_gamma: Vec<_> = w_r.map(|w| w + gamma).collect();
+
+        // Compute out_wire + gamma
+        let w_o_gamma: Vec<_> = w_o.map(|w| w + gamma).collect();
+
+        // Compute fourth_wire + gamma
+        let w_4_gamma: Vec<_> = w_4.map(|w| w + gamma).collect();
+
+        let mut numerator_partial_components: Vec<BlsScalar> =
+            Vec::with_capacity(n);
+        let mut denominator_partial_components: Vec<BlsScalar> =
+            Vec::with_capacity(n);
+
+        let mut numerator_coefficients: Vec<BlsScalar> = Vec::with_capacity(n);
+        let mut denominator_coefficients: Vec<BlsScalar> =
+            Vec::with_capacity(n);
+
+        // First element in both of them is one
+        numerator_coefficients.push(BlsScalar::one());
+        denominator_coefficients.push(BlsScalar::one());
+
+        // Compute numerator coefficients
+        for (
+            w_l_gamma,
+            w_r_gamma,
+            w_o_gamma,
+            w_4_gamma,
+            beta_root,
+            beta_root_k1,
+            beta_root_k2,
+            beta_root_k3,
+        ) in izip!(
+            w_l_gamma.iter(),
+            w_r_gamma.iter(),
+            w_o_gamma.iter(),
+            w_4_gamma.iter(),
+            beta_roots_iter,
+            beta_roots_k1_iter,
+            beta_roots_k2_iter,
+            beta_roots_k3_iter,
+        ) {
+            // (w_l + beta * root + gamma)
+            let prod_a = beta_root + w_l_gamma;
+
+            // (w_r + beta * root * k_1 + gamma)
+            let prod_b = beta_root_k1 + w_r_gamma;
+
+            // (w_o + beta * root * k_2 + gamma)
+            let prod_c = beta_root_k2 + w_o_gamma;
+
+            // (w_4 + beta * root * k_3 + gamma)
+            let prod_d = beta_root_k3 + w_4_gamma;
+
+            let mut prod = prod_a * prod_b * prod_c * prod_d;
+
+            numerator_partial_components.push(prod);
+
+            prod *= numerator_coefficients.last().unwrap();
+
+            numerator_coefficients.push(prod);
         }
 
-        // Remove the last(n+1'th) element
-        z.remove(n);
+        // Compute denominator coefficients
+        for (
+            w_l_gamma,
+            w_r_gamma,
+            w_o_gamma,
+            w_4_gamma,
+            beta_left_sigma,
+            beta_right_sigma,
+            beta_out_sigma,
+            beta_fourth_sigma,
+        ) in izip!(
+            w_l_gamma,
+            w_r_gamma,
+            w_o_gamma,
+            w_4_gamma,
+            beta_left_sigma_iter,
+            beta_right_sigma_iter,
+            beta_out_sigma_iter,
+            beta_fourth_sigma_iter,
+        ) {
+            // (w_l + beta * left_sigma + gamma)
+            let prod_a = beta_left_sigma + w_l_gamma;
 
-        assert_eq!(n, z.len());
+            // (w_r + beta * right_sigma + gamma)
+            let prod_b = beta_right_sigma + w_r_gamma;
 
-        Polynomial::from_coefficients_vec(domain.ifft(&z))
+            // (w_o + beta * out_sigma + gamma)
+            let prod_c = beta_out_sigma + w_o_gamma;
+
+            // (w_4 + beta * fourth_sigma + gamma)
+            let prod_d = beta_fourth_sigma + w_4_gamma;
+
+            let mut prod = prod_a * prod_b * prod_c * prod_d;
+
+            denominator_partial_components.push(prod);
+
+            let last_element = denominator_coefficients.last().unwrap();
+
+            prod *= last_element;
+
+            denominator_coefficients.push(prod);
+        }
+
+        assert_eq!(denominator_coefficients.len(), n + 1);
+        assert_eq!(numerator_coefficients.len(), n + 1);
+
+        // Check that n+1'th elements are equal (taken from proof)
+        let a = numerator_coefficients.pop().unwrap();
+        assert_ne!(a, BlsScalar::zero());
+        let b = denominator_coefficients.pop().unwrap();
+        assert_ne!(b, BlsScalar::zero());
+        assert_eq!(a * b.invert().unwrap(), BlsScalar::one());
+
+        // Combine numerator and denominator
+
+        let mut z_coefficients: Vec<BlsScalar> = Vec::with_capacity(n);
+        for (numerator, denominator) in numerator_coefficients
+            .iter()
+            .zip(denominator_coefficients.iter())
+        {
+            z_coefficients.push(*numerator * denominator.invert().unwrap());
+        }
+        assert_eq!(z_coefficients.len(), n);
+
+        (
+            z_coefficients,
+            numerator_partial_components,
+            denominator_partial_components,
+        )
     }
-}
-
-#[cfg(feature = "std")]
-#[cfg(test)]
-mod test {
-    use super::*;
-    use crate::constraint_system::TurboComposer;
-    use crate::fft::Polynomial;
-    use dusk_bls12_381::BlsScalar;
-    use rand_core::OsRng;
 
     #[test]
     fn test_multizip_permutation_poly() {
@@ -791,24 +751,24 @@ mod test {
 
         let mz = cs.perm.compute_permutation_poly(
             &domain,
-            (&w_l_scalar, &w_r_scalar, &w_o_scalar, &w_4_scalar),
+            [&w_l_scalar, &w_r_scalar, &w_o_scalar, &w_4_scalar],
             &beta,
             &gamma,
-            (
+            [
                 &sigma_polys[0],
                 &sigma_polys[1],
                 &sigma_polys[2],
                 &sigma_polys[3],
-            ),
+            ],
         );
 
         let old_z = Polynomial::from_coefficients_vec(domain.ifft(
-            &cs.perm.compute_fast_permutation_poly(
+            &compute_fast_permutation_poly(
                 &domain,
-                &w_l_scalar,
-                &w_r_scalar,
-                &w_o_scalar,
-                &w_4_scalar,
+                &w_l_scalar.as_slice(),
+                &w_r_scalar.as_slice(),
+                &w_o_scalar.as_slice(),
+                &w_4_scalar.as_slice(),
                 &beta,
                 &gamma,
                 (
@@ -1158,20 +1118,15 @@ mod test {
     ) {
         // 0. Generate beta and gamma challenges
         //
-        let beta = random_scalar(&mut OsRng);
-        let gamma = random_scalar(&mut OsRng);
+        let beta = BlsScalar::random(&mut OsRng);
+        let gamma = BlsScalar::random(&mut OsRng);
         assert_ne!(gamma, beta);
 
         //1. Compute the permutation polynomial using both methods
-        //
-        let (
-            left_sigma_poly,
-            right_sigma_poly,
-            out_sigma_poly,
-            fourth_sigma_poly,
-        ) = perm.compute_sigma_polynomials(n, &domain);
-        let (z_vec, numerator_components, denominator_components) = perm
-            .compute_slow_permutation_poly(
+        let [left_sigma_poly, right_sigma_poly, out_sigma_poly, fourth_sigma_poly] =
+            perm.compute_sigma_polynomials(n, &domain);
+        let (z_vec, numerator_components, denominator_components) =
+            compute_slow_permutation_poly(
                 domain,
                 w_l.clone().into_iter(),
                 w_r.clone().into_iter(),
@@ -1187,7 +1142,7 @@ mod test {
                 ),
             );
 
-        let fast_z_vec = perm.compute_fast_permutation_poly(
+        let fast_z_vec = compute_fast_permutation_poly(
             domain,
             &w_l,
             &w_r,
@@ -1283,17 +1238,4 @@ mod test {
             assert_eq!(z_eval, shifted_z_eval)
         }
     }
-}
-
-// bls_12-381 library does not provide a `random` method for BlsScalar
-// We wil use this helper function to compensate
-use rand_core::RngCore;
-#[allow(dead_code)]
-pub(crate) fn random_scalar<R: RngCore>(rng: &mut R) -> BlsScalar {
-    BlsScalar::from_raw([
-        rng.next_u64(),
-        rng.next_u64(),
-        rng.next_u64(),
-        rng.next_u64(),
-    ])
 }

@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix the document references and typos [#533](https://github.com/dusk-network/plonk/pull/533)
 - Fix if condition to match [#545](https://github.com/dusk-network/plonk/pull/545)
 
+### Removed
+- Remove old perm-computation fns from perm module [#515](https://github.com/dusk-network/plonk/issues/515)
+
 ## [0.8.1] - 07-06-21
 
 ### Added

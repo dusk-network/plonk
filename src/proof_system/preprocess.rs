@@ -300,12 +300,8 @@ impl TurboComposer {
         );
 
         // 2. Compute the sigma polynomials
-        let (
-            left_sigma_poly,
-            right_sigma_poly,
-            out_sigma_poly,
-            fourth_sigma_poly,
-        ) = self.perm.compute_sigma_polynomials(self.n, &domain);
+        let [left_sigma_poly, right_sigma_poly, out_sigma_poly, fourth_sigma_poly] =
+            self.perm.compute_sigma_polynomials(self.n, &domain);
 
         let q_m_poly_commit = commit_key.commit(&q_m_poly).unwrap_or_default();
         let q_l_poly_commit = commit_key.commit(&q_l_poly).unwrap_or_default();

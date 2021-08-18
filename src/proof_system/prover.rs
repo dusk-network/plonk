@@ -206,15 +206,15 @@ impl Prover {
         let z_poly = Polynomial::from_coefficients_slice(
             &self.cs.perm.compute_permutation_poly(
                 &domain,
-                (&w_l_scalar, &w_r_scalar, &w_o_scalar, &w_4_scalar),
+                [&w_l_scalar, &w_r_scalar, &w_o_scalar, &w_4_scalar],
                 &beta,
                 &gamma,
-                (
+                [
                     &prover_key.permutation.left_sigma.0,
                     &prover_key.permutation.right_sigma.0,
                     &prover_key.permutation.out_sigma.0,
                     &prover_key.permutation.fourth_sigma.0,
-                ),
+                ],
             ),
         );
 
