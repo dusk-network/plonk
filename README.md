@@ -159,6 +159,8 @@ For a circuit-size of `2^16` constraints/gates:
 - Proving time: `5.46s`
 - Verification time: `9.34ms`. **(This time will not vary depending on the circuit-size.)**
 
+For more results, please run `cargo bench` to get a full report of benchmarks in respect of constraint numbers.
+
 ## Acknowledgements
 
 - Reference implementation AztecProtocol/Barretenberg
