@@ -10,7 +10,7 @@ use crate::fft::{EvaluationDomain, Polynomial};
 use alloc::vec::Vec;
 use dusk_bls12_381::BlsScalar;
 use hashbrown::HashMap;
-use itertools::izip;
+use itertools::{izip, Itertools};
 
 /// Permutation provides the necessary state information and functions
 /// to create the permutation polynomial. In the literature, Z(X) is the
@@ -175,7 +175,7 @@ impl Permutation {
         &mut self,
         n: usize,
         domain: &EvaluationDomain,
-    ) -> (Polynomial, Polynomial, Polynomial, Polynomial) {
+    ) -> [Polynomial; 4] {
         // Compute sigma mappings
         let sigmas = self.compute_sigma_permutations(n);
 
@@ -200,70 +200,43 @@ impl Permutation {
         let fourth_sigma_poly =
             Polynomial::from_coefficients_vec(domain.ifft(&fourth_sigma));
 
-        (
+        [
             left_sigma_poly,
             right_sigma_poly,
             out_sigma_poly,
             fourth_sigma_poly,
-        )
-    }
-
-    // These are the formulas for the irreducible factors used in the product
-    // argument
-    fn numerator_irreducible(
-        root: &BlsScalar,
-        w: &BlsScalar,
-        k: &BlsScalar,
-        beta: &BlsScalar,
-        gamma: &BlsScalar,
-    ) -> BlsScalar {
-        w + *beta * k * root + gamma
-    }
-
-    fn denominator_irreducible(
-        _root: &BlsScalar,
-        w: &BlsScalar,
-        sigma: &BlsScalar,
-        beta: &BlsScalar,
-        gamma: &BlsScalar,
-    ) -> BlsScalar {
-        w + *beta * sigma + gamma
+        ]
     }
 
     // Uses a rayon multizip to allow more code flexibility while remaining
     // parallelizable. This can be adapted into a general product argument
-    // for any number of wires, with specific formulas defined
-    // in the numerator_irreducible and denominator_irreducible functions
+    // for any number of wires.
     pub(crate) fn compute_permutation_poly(
         &self,
         domain: &EvaluationDomain,
-        wires: (&[BlsScalar], &[BlsScalar], &[BlsScalar], &[BlsScalar]),
+        wires: [&[BlsScalar]; 4],
         beta: &BlsScalar,
         gamma: &BlsScalar,
-        sigma_polys: (&Polynomial, &Polynomial, &Polynomial, &Polynomial),
+        sigma_polys: [&Polynomial; 4],
     ) -> Polynomial {
         let n = domain.size();
 
         // Constants defining cosets H, k1H, k2H, etc
         let ks = vec![BlsScalar::one(), K1, K2, K3];
 
-        let sigma_mappings = (
-            domain.fft(sigma_polys.0),
-            domain.fft(sigma_polys.1),
-            domain.fft(sigma_polys.2),
-            domain.fft(sigma_polys.3),
-        );
-
         // Transpose wires and sigma values to get "rows" in the form [wl_i,
         // wr_i, wo_i, ... ] where each row contains the wire and sigma
         // values for a single gate
-        let gatewise_wires = izip!(wires.0, wires.1, wires.2, wires.3)
+        let gatewise_wires = izip!(wires[0], wires[1], wires[2], wires[3])
             .map(|(w0, w1, w2, w3)| vec![w0, w1, w2, w3]);
+
+        let gatewise_sigmas: Vec<Vec<BlsScalar>> =
+            sigma_polys.iter().map(|sigma| domain.fft(sigma)).collect();
         let gatewise_sigmas = izip!(
-            sigma_mappings.0,
-            sigma_mappings.1,
-            sigma_mappings.2,
-            sigma_mappings.3
+            &gatewise_sigmas[0],
+            &gatewise_sigmas[1],
+            &gatewise_sigmas[2],
+            &gatewise_sigmas[3]
         )
         .map(|(s0, s1, s2, s3)| vec![s0, s1, s2, s3]);
 
@@ -289,18 +262,12 @@ impl Permutation {
                     wire_params
                         .clone()
                         .map(|(_sigma, wire, k)| {
-                            Permutation::numerator_irreducible(
-                                &gate_root, wire, &k, beta, gamma,
-                            )
+                            wire + beta * k * gate_root + gamma
                         })
                         .product::<BlsScalar>(),
                     // Denominator product
                     wire_params
-                        .map(|(sigma, wire, _k)| {
-                            Permutation::denominator_irreducible(
-                                &gate_root, wire, &sigma, beta, gamma,
-                            )
-                        })
+                        .map(|(sigma, wire, _k)| wire + beta * sigma + gamma)
                         .product::<BlsScalar>(),
                 )
             })
@@ -703,15 +670,11 @@ mod test {
         assert_eq!(numerator_coefficients.len(), n + 1);
 
         // Check that n+1'th elements are equal (taken from proof)
-        let a = numerator_coefficients.last().unwrap();
-        assert_ne!(a, &BlsScalar::zero());
-        let b = denominator_coefficients.last().unwrap();
-        assert_ne!(b, &BlsScalar::zero());
-        assert_eq!(*a * b.invert().unwrap(), BlsScalar::one());
-
-        // Remove those extra elements
-        numerator_coefficients.remove(n);
-        denominator_coefficients.remove(n);
+        let a = numerator_coefficients.pop().unwrap();
+        assert_ne!(a, BlsScalar::zero());
+        let b = denominator_coefficients.pop().unwrap();
+        assert_ne!(b, BlsScalar::zero());
+        assert_eq!(a * b.invert().unwrap(), BlsScalar::one());
 
         // Combine numerator and denominator
 
@@ -788,15 +751,15 @@ mod test {
 
         let mz = cs.perm.compute_permutation_poly(
             &domain,
-            (&w_l_scalar, &w_r_scalar, &w_o_scalar, &w_4_scalar),
+            [&w_l_scalar, &w_r_scalar, &w_o_scalar, &w_4_scalar],
             &beta,
             &gamma,
-            (
+            [
                 &sigma_polys[0],
                 &sigma_polys[1],
                 &sigma_polys[2],
                 &sigma_polys[3],
-            ),
+            ],
         );
 
         let old_z = Polynomial::from_coefficients_vec(domain.ifft(
@@ -1160,12 +1123,8 @@ mod test {
         assert_ne!(gamma, beta);
 
         //1. Compute the permutation polynomial using both methods
-        let (
-            left_sigma_poly,
-            right_sigma_poly,
-            out_sigma_poly,
-            fourth_sigma_poly,
-        ) = perm.compute_sigma_polynomials(n, &domain);
+        let [left_sigma_poly, right_sigma_poly, out_sigma_poly, fourth_sigma_poly] =
+            perm.compute_sigma_polynomials(n, &domain);
         let (z_vec, numerator_components, denominator_components) =
             compute_slow_permutation_poly(
                 domain,
