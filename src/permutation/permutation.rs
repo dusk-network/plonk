@@ -10,7 +10,7 @@ use crate::fft::{EvaluationDomain, Polynomial};
 use alloc::vec::Vec;
 use dusk_bls12_381::BlsScalar;
 use hashbrown::HashMap;
-use itertools::{izip, Itertools};
+use itertools::izip;
 
 /// Permutation provides the necessary state information and functions
 /// to create the permutation polynomial. In the literature, Z(X) is the
