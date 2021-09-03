@@ -4,7 +4,7 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use crate::constraint_system::ecc::Point;
+use crate::constraint_system::ecc::AllocatedPoint;
 use crate::constraint_system::TurboComposer;
 use dusk_bls12_381::BlsScalar;
 use dusk_jubjub::{JubJubAffine, JubJubExtended};
@@ -16,9 +16,9 @@ impl TurboComposer {
     /// width of 4.
     pub fn point_addition_gate(
         &mut self,
-        point_a: Point,
-        point_b: Point,
-    ) -> Point {
+        point_a: AllocatedPoint,
+        point_b: AllocatedPoint,
+    ) -> AllocatedPoint {
         // In order to verify that two points were correctly added
         // without going over a degree 4 polynomial, we will need
         // x_1, y_1, x_2, y_2
@@ -29,30 +29,24 @@ impl TurboComposer {
         let x_2 = point_b.x;
         let y_2 = point_b.y;
 
-        // Compute the resulting point
-        let x_1_scalar = self.variables.get(&x_1).unwrap();
-        let y_1_scalar = self.variables.get(&y_1).unwrap();
-        let x_2_scalar = self.variables.get(&x_2).unwrap();
-        let y_2_scalar = self.variables.get(&y_2).unwrap();
-
-        let p1 = JubJubAffine::from_raw_unchecked(*x_1_scalar, *y_1_scalar);
-        let p2 = JubJubAffine::from_raw_unchecked(*x_2_scalar, *y_2_scalar);
+        let p1 = JubJubAffine::from_raw_unchecked(x_1.into(), y_1.into());
+        let p2 = JubJubAffine::from_raw_unchecked(x_2.into(), y_2.into());
 
         let point: JubJubAffine = (JubJubExtended::from(p1) + p2).into();
-        let x_3_scalar = point.get_x();
-        let y_3_scalar = point.get_y();
+        let x_3 = point.get_x();
+        let y_3 = point.get_y();
 
-        let x1_scalar_y2_scalar = x_1_scalar * y_2_scalar;
+        let x1_y2 = x_1 * y_2;
 
         // Add the rest of the prepared points into the composer
-        let x_1_y_2 = self.add_input(x1_scalar_y2_scalar);
-        let x_3 = self.add_input(x_3_scalar);
-        let y_3 = self.add_input(y_3_scalar);
+        let x_1_y_2 = self.add_input(x1_y2);
+        let x_3 = self.add_input(x_3);
+        let y_3 = self.add_input(y_3);
 
-        self.w_l.extend(&[x_1, x_3]);
-        self.w_r.extend(&[y_1, y_3]);
-        self.w_o.extend(&[x_2, self.zero_var]);
-        self.w_4.extend(&[y_2, x_1_y_2]);
+        self.w_l.extend(&[x_1.into(), x_3.into()]);
+        self.w_r.extend(&[y_1.into(), y_3.into()]);
+        self.w_o.extend(&[x_2.into(), self.zero_var]);
+        self.w_4.extend(&[y_2.into(), x_1_y_2.into()]);
         let zeros = [BlsScalar::zero(), BlsScalar::zero()];
 
         self.q_l.extend(&zeros);
@@ -75,13 +69,13 @@ impl TurboComposer {
         self.perm.add_variables_to_map(
             x_3,
             y_3,
-            self.zero_var,
+            self.allocated_zero(),
             x_1_y_2,
             self.n,
         );
         self.n += 1;
 
-        Point { x: x_3, y: y_3 }
+        AllocatedPoint { x: x_3, y: y_3 }
     }
 }
 
@@ -98,9 +92,9 @@ mod test {
     /// source of truth to test the WNaf method.
     pub fn classical_point_addition(
         composer: &mut TurboComposer,
-        point_a: Point,
-        point_b: Point,
-    ) -> Point {
+        point_a: AllocatedPoint,
+        point_b: AllocatedPoint,
+    ) -> AllocatedPoint {
         let x1 = point_a.x;
         let y1 = point_a.y;
 
@@ -142,18 +136,13 @@ mod test {
         // 1 + dx1x2y1y2
         let x_denominator = composer.add(
             (BlsScalar::one(), d_x1_x2_y1_y2),
-            (BlsScalar::zero(), composer.zero_var),
+            (BlsScalar::zero(), composer.allocated_zero()),
             BlsScalar::one(),
             None,
         );
 
         // Compute the inverse
-        let inv_x_denom = composer
-            .variables
-            .get(&x_denominator)
-            .unwrap()
-            .invert()
-            .unwrap();
+        let inv_x_denom = x_denominator.scalar().invert().unwrap();
         let inv_x_denom = composer.add_input(inv_x_denom);
 
         // Assert that we actually have the inverse
@@ -161,7 +150,7 @@ mod test {
         composer.mul_gate(
             x_denominator,
             inv_x_denom,
-            composer.zero_var,
+            composer.allocated_zero(),
             BlsScalar::one(),
             BlsScalar::zero(),
             -BlsScalar::one(),
@@ -171,23 +160,18 @@ mod test {
         // 1 - dx1x2y1y2
         let y_denominator = composer.add(
             (-BlsScalar::one(), d_x1_x2_y1_y2),
-            (BlsScalar::zero(), composer.zero_var),
+            (BlsScalar::zero(), composer.allocated_zero()),
             BlsScalar::one(),
             None,
         );
-        let inv_y_denom = composer
-            .variables
-            .get(&y_denominator)
-            .unwrap()
-            .invert()
-            .unwrap();
+        let inv_y_denom = y_denominator.scalar().invert().unwrap();
         let inv_y_denom = composer.add_input(inv_y_denom);
         // Assert that we actually have the inverse
         // inv_y * y = 1
         composer.mul_gate(
             y_denominator,
             inv_y_denom,
-            composer.zero_var,
+            composer.allocated_zero(),
             BlsScalar::one(),
             BlsScalar::zero(),
             -BlsScalar::one(),
@@ -211,7 +195,7 @@ mod test {
             None,
         );
 
-        Point { x: x_3, y: y_3 }
+        AllocatedPoint { x: x_3, y: y_3 }
     }
 
     #[test]
@@ -224,8 +208,8 @@ mod test {
                     .into();
                 let x = composer.add_input(GENERATOR.get_x());
                 let y = composer.add_input(GENERATOR.get_y());
-                let point_a = Point { x, y };
-                let point_b = Point { x, y };
+                let point_a = AllocatedPoint { x, y };
+                let point_b = AllocatedPoint { x, y };
 
                 let point = composer.point_addition_gate(point_a, point_b);
                 let point2 =

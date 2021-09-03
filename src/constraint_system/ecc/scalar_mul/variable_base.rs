@@ -4,8 +4,8 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use crate::constraint_system::ecc::Point;
-use crate::constraint_system::{variable::Variable, TurboComposer};
+use crate::constraint_system::ecc::AllocatedPoint;
+use crate::constraint_system::{variable::AllocatedScalar, TurboComposer};
 use alloc::vec::Vec;
 use dusk_bls12_381::BlsScalar;
 use dusk_bytes::Serializable;
@@ -19,23 +19,14 @@ impl TurboComposer {
     /// which is optimized for fixed_base ops.
     pub fn variable_base_scalar_mul(
         &mut self,
-        jubjub_var: Variable,
-        point: Point,
-    ) -> Point {
+        jubjub_var: AllocatedScalar,
+        point: AllocatedPoint,
+    ) -> AllocatedPoint {
         // Turn scalar into bits
-        let raw_bls_scalar = *self
-            .variables
-            .get(&jubjub_var)
-            // We can unwrap safely here since it should be impossible to obtain
-            // a `Variable` without first linking it inside of the
-            // HashMap from which we are calling the `get()` now. Therefore, if
-            // the `get()` fn fails now, somethig is going really
-            // bad.
-            .expect("Variable in existance without referenced scalar");
         let scalar_bits_var =
-            self.scalar_decomposition(jubjub_var, raw_bls_scalar);
+            self.scalar_decomposition(jubjub_var, jubjub_var.into());
 
-        let identity = Point::identity(self);
+        let identity = AllocatedPoint::identity(self);
         let mut result = identity;
 
         for bit in scalar_bits_var.into_iter().rev() {
@@ -49,14 +40,14 @@ impl TurboComposer {
 
     fn scalar_decomposition(
         &mut self,
-        witness_var: Variable,
+        witness_var: AllocatedScalar,
         witness_scalar: BlsScalar,
-    ) -> Vec<Variable> {
+    ) -> Vec<AllocatedScalar> {
         // Decompose the bits
         let scalar_bits = scalar_to_bits(&witness_scalar);
 
         // Add all the bits into the composer
-        let scalar_bits_var: Vec<Variable> = scalar_bits
+        let scalar_bits_var: Vec<AllocatedScalar> = scalar_bits
             .iter()
             .map(|bit| self.add_input(BlsScalar::from(*bit as u64)))
             .collect();
@@ -65,7 +56,7 @@ impl TurboComposer {
         let scalar_bits_var = scalar_bits_var[..252].to_vec();
 
         // Now ensure that the bits correctly accumulate to the witness given
-        let mut accumulator_var = self.zero_var;
+        let mut accumulator_var = self.allocated_zero();
         let mut accumulator_scalar = BlsScalar::zero();
 
         for (power, bit) in scalar_bits_var.iter().enumerate() {

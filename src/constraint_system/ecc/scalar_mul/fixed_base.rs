@@ -5,8 +5,9 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use crate::constraint_system::ecc::curve_addition::fixed_base_gate::WnafRound;
-use crate::constraint_system::ecc::Point;
-use crate::constraint_system::{variable::Variable, TurboComposer};
+use crate::constraint_system::{
+    variable::AllocatedScalar, AllocatedPoint, TurboComposer,
+};
 use alloc::vec::Vec;
 use dusk_bls12_381::BlsScalar;
 use dusk_bytes::Serializable;
@@ -38,9 +39,9 @@ impl TurboComposer {
     /// [`dusk_jubjub::GENERATOR_NUMS`].
     pub fn fixed_base_scalar_mul(
         &mut self,
-        jubjub_scalar: Variable,
+        jubjub_scalar: AllocatedScalar,
         generator: JubJubExtended,
-    ) -> Point {
+    ) -> AllocatedPoint {
         // XXX: we can slice off 3 bits from the top of wnaf, since F_r prime
         // has 252 bits. XXX :We can also move to base4 and have half
         // the number of gates since wnaf adjacent entries product is
@@ -54,9 +55,11 @@ impl TurboComposer {
 
         // Fetch the raw scalar value as bls scalar, then convert to a jubjub
         // scalar XXX: Not very Tidy, impl From function in JubJub
-        let raw_bls_scalar = self.variables.get(&jubjub_scalar).unwrap();
+        // This will panic if the JubJub scalar is not a jubjub scalar indeed
+        // and was introduced as a BlsScalar.
         let raw_jubjub_scalar =
-            JubJubScalar::from_bytes(&raw_bls_scalar.to_bytes()).unwrap();
+            JubJubScalar::from_bytes(&jubjub_scalar.scalar().to_bytes())
+                .unwrap();
 
         // Convert scalar to wnaf_2(k)
         let wnaf_entries = raw_jubjub_scalar.compute_windowed_naf(2);
@@ -135,13 +138,12 @@ impl TurboComposer {
         // It is for use with the previous gate
         let acc_x = self.add_input(point_acc[num_bits].get_x());
         let acc_y = self.add_input(point_acc[num_bits].get_y());
-        let xy_alpha = self.zero_var;
         let last_accumulated_bit = self.add_input(scalar_acc[num_bits]);
 
         self.big_add_gate(
             acc_x,
             acc_y,
-            xy_alpha,
+            self.allocated_zero(),
             Some(last_accumulated_bit),
             BlsScalar::zero(),
             BlsScalar::zero(),
@@ -155,7 +157,7 @@ impl TurboComposer {
         // input jubjub scalar
         self.assert_equal(last_accumulated_bit, jubjub_scalar);
 
-        Point { x: acc_x, y: acc_y }
+        AllocatedPoint { x: acc_x, y: acc_y }
     }
 }
 
@@ -257,13 +259,13 @@ mod tests {
 
                 let var_point_a_x = composer.add_input(affine_point_a.get_x());
                 let var_point_a_y = composer.add_input(affine_point_a.get_y());
-                let point_a = Point {
+                let point_a = AllocatedPoint {
                     x: var_point_a_x,
                     y: var_point_a_y,
                 };
                 let var_point_b_x = composer.add_input(affine_point_b.get_x());
                 let var_point_b_y = composer.add_input(affine_point_b.get_y());
-                let point_b = Point {
+                let point_b = AllocatedPoint {
                     x: var_point_b_x,
                     y: var_point_b_y,
                 };

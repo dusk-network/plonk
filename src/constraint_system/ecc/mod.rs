@@ -9,51 +9,54 @@ pub mod curve_addition;
 /// Gates related to scalar multiplication
 pub mod scalar_mul;
 
-use crate::constraint_system::{variable::Variable, TurboComposer};
+use crate::constraint_system::{AllocatedScalar, TurboComposer};
 use dusk_bls12_381::BlsScalar;
 
 /// Represents a JubJub point in the circuit
 #[derive(Debug, Clone, Copy)]
-pub struct Point {
-    x: Variable,
-    y: Variable,
+pub struct AllocatedPoint {
+    x: AllocatedScalar,
+    y: AllocatedScalar,
 }
 
-impl Point {
-    /// Returns an identity point
-    pub fn identity(composer: &mut TurboComposer) -> Point {
+impl AllocatedPoint {
+    /// Returns thes identity point.
+    pub fn identity(composer: &mut TurboComposer) -> AllocatedPoint {
         let one = composer.add_witness_to_circuit_description(BlsScalar::one());
-        Point {
-            x: composer.zero_var,
+        AllocatedPoint {
+            x: composer.allocated_zero(),
             y: one,
         }
     }
     /// Return the X coordinate of the point
-    pub fn x(&self) -> &Variable {
+    pub fn x(&self) -> &AllocatedScalar {
         &self.x
     }
 
     /// Return the Y coordinate of the point
-    pub fn y(&self) -> &Variable {
+    pub fn y(&self) -> &AllocatedScalar {
         &self.y
     }
 }
 
 impl TurboComposer {
-    /// Converts an JubJubAffine into a constraint system Point
+    /// Converts an JubJubAffine into a constraint system AllocatedPoint
     /// without constraining the values
-    pub fn add_affine(&mut self, affine: dusk_jubjub::JubJubAffine) -> Point {
+    pub fn add_affine(
+        &mut self,
+        affine: dusk_jubjub::JubJubAffine,
+    ) -> AllocatedPoint {
         let x = self.add_input(affine.get_x());
         let y = self.add_input(affine.get_y());
-        Point { x, y }
+        AllocatedPoint { x, y }
     }
 
-    /// Converts an JubJubAffine into a constraint system Point
+    /// Converts an JubJubAffine into a constraint system AllocatedPoint
     /// without constraining the values
     pub fn add_public_affine(
         &mut self,
         affine: dusk_jubjub::JubJubAffine,
-    ) -> Point {
+    ) -> AllocatedPoint {
         let point = self.add_affine(affine);
         self.constrain_to_constant(
             point.x,
@@ -74,19 +77,19 @@ impl TurboComposer {
     pub fn add_affine_to_circuit_description(
         &mut self,
         affine: dusk_jubjub::JubJubAffine,
-    ) -> Point {
+    ) -> AllocatedPoint {
         // Not using individual gates because one of these may be zero
         let x = self.add_witness_to_circuit_description(affine.get_x());
         let y = self.add_witness_to_circuit_description(affine.get_y());
 
-        Point { x, y }
+        AllocatedPoint { x, y }
     }
 
-    /// Asserts that a [`Point`] in the circuit is equal to a known public
-    /// point.
+    /// Asserts that a [`AllocatedPoint`] in the circuit is equal to a known
+    /// public point.
     pub fn assert_equal_public_point(
         &mut self,
-        point: Point,
+        point: AllocatedPoint,
         public_point: dusk_jubjub::JubJubAffine,
     ) {
         self.constrain_to_constant(
@@ -102,7 +105,11 @@ impl TurboComposer {
     }
     /// Asserts that a point in the circuit is equal to another point in the
     /// circuit
-    pub fn assert_equal_point(&mut self, point_a: Point, point_b: Point) {
+    pub fn assert_equal_point(
+        &mut self,
+        point_a: AllocatedPoint,
+        point_b: AllocatedPoint,
+    ) {
         self.assert_equal(point_a.x, point_b.x);
         self.assert_equal(point_b.y, point_b.y);
     }
@@ -113,19 +120,20 @@ impl TurboComposer {
     /// bit == 0 => point_b,
     ///
     /// # Note
-    /// The `bit` used as input which is a [`Variable`] should had previously
-    /// been constrained to be either 1 or 0 using a bool constrain. See:
-    /// [`TurboComposer::boolean_gate`].
+    /// The `bit` used as input which is a
+    /// [`Variable`](crate::constraint_system::variable::Variable) should had
+    /// previously been constrained to be either 1 or 0 using a bool
+    /// constrain. See: [`TurboComposer::boolean_gate`].
     pub fn conditional_point_select(
         &mut self,
-        point_a: Point,
-        point_b: Point,
-        bit: Variable,
-    ) -> Point {
+        point_a: AllocatedPoint,
+        point_b: AllocatedPoint,
+        bit: AllocatedScalar,
+    ) -> AllocatedPoint {
         let x = self.conditional_select(bit, *point_a.x(), *point_b.x());
         let y = self.conditional_select(bit, *point_a.y(), *point_b.y());
 
-        Point { x, y }
+        AllocatedPoint { x, y }
     }
 
     /// Adds to the circuit description the conditional selection of the
@@ -134,18 +142,18 @@ impl TurboComposer {
     /// bit == 0 => 1,
     ///
     /// # Note
-    /// The `bit` used as input which is a [`Variable`] should had previously
-    /// been constrained to be either 1 or 0 using a bool constrain. See:
-    /// [`TurboComposer::boolean_gate`].
+    /// The `bit` used as input which is a [`AllocatedScalar`] should had
+    /// previously been constrained to be either 1 or 0 using a bool
+    /// constrain. See: [`TurboComposer::boolean_gate`].
     fn conditional_select_identity(
         &mut self,
-        bit: Variable,
-        point_b: Point,
-    ) -> Point {
+        bit: AllocatedScalar,
+        point_b: AllocatedPoint,
+    ) -> AllocatedPoint {
         let x = self.conditional_select_zero(bit, *point_b.x());
         let y = self.conditional_select_one(bit, *point_b.y());
 
-        Point { x, y }
+        AllocatedPoint { x, y }
     }
 }
 
@@ -160,10 +168,10 @@ mod tests {
         let res = gadget_tester(
             |composer| {
                 let bit_1 = composer.add_input(BlsScalar::one());
-                let bit_0 = composer.zero_var();
+                let bit_0 = composer.allocated_zero();
 
-                let point_a = Point::identity(composer);
-                let point_b = Point {
+                let point_a = AllocatedPoint::identity(composer);
+                let point_b = AllocatedPoint {
                     x: composer.add_input(BlsScalar::from(10u64)),
                     y: composer.add_input(BlsScalar::from(20u64)),
                 };

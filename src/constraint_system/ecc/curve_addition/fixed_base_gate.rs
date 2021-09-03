@@ -4,29 +4,28 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use crate::constraint_system::TurboComposer;
-use crate::constraint_system::Variable;
+use crate::constraint_system::{TurboComposer, Variable};
 use dusk_bls12_381::BlsScalar;
 
 #[derive(Debug, Clone, Copy)]
 /// Contains all of the components needed to verify that a bit scalar
 /// multiplication was computed correctly
-pub(crate) struct WnafRound {
+pub(crate) struct WnafRound<T: Into<Variable>> {
     /// This is the accumulated x coordinate point that we wish to add (so
     /// far.. depends on where you are in the scalar mul) it is linked to
     /// the wnaf entry, so must not be revealed
-    pub acc_x: Variable,
+    pub acc_x: T,
     /// This is the accumulated y coordinate
-    pub acc_y: Variable,
+    pub acc_y: T,
 
     /// This is the wnaf accumulated entry
     /// For all intents and purposes, you can think of this as the secret bit
-    pub accumulated_bit: Variable,
+    pub accumulated_bit: T,
 
     /// This is the multiplication of x_\alpha * y_\alpha
     /// we need this as a distinct wire, so that the degree of the polynomial
     /// does not go over 4
-    pub xy_alpha: Variable,
+    pub xy_alpha: T,
     /// This is the possible x co-ordinate of the wnaf point we are going to
     /// add Actual x-co-ordinate = b_i * x_\beta
     pub x_beta: BlsScalar,
@@ -39,11 +38,14 @@ pub(crate) struct WnafRound {
 
 impl TurboComposer {
     /// Fixed group addition of a jubjub point
-    pub(crate) fn fixed_group_add(&mut self, wnaf_round: WnafRound) {
-        self.w_l.push(wnaf_round.acc_x);
-        self.w_r.push(wnaf_round.acc_y);
-        self.w_o.push(wnaf_round.xy_alpha);
-        self.w_4.push(wnaf_round.accumulated_bit);
+    pub(crate) fn fixed_group_add<T: Into<Variable> + Copy>(
+        &mut self,
+        wnaf_round: WnafRound<T>,
+    ) {
+        self.w_l.push(wnaf_round.acc_x.into());
+        self.w_r.push(wnaf_round.acc_y.into());
+        self.w_o.push(wnaf_round.xy_alpha.into());
+        self.w_4.push(wnaf_round.accumulated_bit.into());
 
         self.q_l.push(wnaf_round.x_beta);
         self.q_r.push(wnaf_round.y_beta);
