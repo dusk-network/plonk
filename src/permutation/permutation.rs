@@ -34,8 +34,10 @@ impl Permutation {
         }
     }
 
-    /// Creates a new [`Variable`] by incrementing the index of the
-    /// `variable_map`. This is correct as whenever we add a new [`Variable`]
+    /// Creates a new [`Variable`](crate::constraint_system::variable::Variable)
+    /// by incrementing the index of the `variable_map`. This is correct as
+    /// whenever we add a new
+    /// [`Variable`](crate::constraint_system::variable::Variable)
     /// into the system It is always allocated in the `variable_map`.
     pub(crate) fn new_variable(&mut self) -> Variable {
         // Generate the Variable
@@ -49,8 +51,9 @@ impl Permutation {
         var
     }
 
-    /// Checks that the [`Variable`]s are valid by determining if they have been
-    /// added to the system
+    /// Checks that the
+    /// [`Variable`](crate::constraint_system::variable::Variable)s are valid by
+    /// determining if they have been added to the system
     fn valid_variables(&self, variables: &[Variable]) -> bool {
         let results: Vec<bool> = variables
             .iter()
@@ -61,14 +64,16 @@ impl Permutation {
         results.is_empty()
     }
 
-    /// Maps a set of [`Variable`]s (a,b,c,d) to a set of [`Wire`](WireData)s
-    /// (left, right, out, fourth) with the corresponding gate index
-    pub fn add_variables_to_map(
+    /// Maps a set of
+    /// [`Variable`](crate::constraint_system::variable::Variable)s (a,b,c,d) to
+    /// a set of [`Wire`](WireData)s (left, right, out, fourth) with the
+    /// corresponding gate index
+    pub fn add_variables_to_map<T: Into<Variable>>(
         &mut self,
-        a: Variable,
-        b: Variable,
-        c: Variable,
-        d: Variable,
+        a: T,
+        b: T,
+        c: T,
+        d: T,
         gate_index: usize,
     ) {
         let left: WireData = WireData::Left(gate_index);
@@ -78,22 +83,22 @@ impl Permutation {
 
         // Map each variable to the wire it is associated with
         // This essentially tells us that:
-        self.add_variable_to_map(a, left);
-        self.add_variable_to_map(b, right);
-        self.add_variable_to_map(c, output);
-        self.add_variable_to_map(d, fourth);
+        self.add_variable_to_map(a.into(), left);
+        self.add_variable_to_map(b.into(), right);
+        self.add_variable_to_map(c.into(), output);
+        self.add_variable_to_map(d.into(), fourth);
     }
 
-    pub(crate) fn add_variable_to_map(
+    pub(crate) fn add_variable_to_map<T: Into<Variable> + Copy>(
         &mut self,
-        var: Variable,
+        var: T,
         wire_data: WireData,
     ) {
-        assert!(self.valid_variables(&[var]));
+        assert!(self.valid_variables(&[var.into()]));
 
         // Since we always allocate space for the Vec of WireData when a
         // Variable is added to the variable_map, this should never fail
-        let vec_wire_data = self.variable_map.get_mut(&var).unwrap();
+        let vec_wire_data = self.variable_map.get_mut(&var.into()).unwrap();
         vec_wire_data.push(wire_data);
     }
 

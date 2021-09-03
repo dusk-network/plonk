@@ -168,7 +168,7 @@ impl VerifierData {
 ///             Some(-self.d),
 ///         );
 ///
-///         let e = composer.add_input(self.e.into());
+///         let e = composer.add_input(self.e);
 ///         let scalar_mul_result =
 ///             composer.fixed_base_scalar_mul(
 ///                 e, dusk_jubjub::GENERATOR_EXTENDED,
@@ -362,7 +362,7 @@ mod tests {
             composer.poly_gate(
                 a,
                 b,
-                composer.zero_var,
+                composer.allocated_zero(),
                 BlsScalar::zero(),
                 BlsScalar::one(),
                 BlsScalar::one(),
@@ -377,7 +377,7 @@ mod tests {
             composer.poly_gate(
                 a,
                 b,
-                composer.zero_var,
+                composer.allocated_zero(),
                 BlsScalar::one(),
                 BlsScalar::zero(),
                 BlsScalar::zero(),
@@ -386,7 +386,7 @@ mod tests {
                 Some(-self.d),
             );
 
-            let e = composer.add_input(self.e.into());
+            let e = composer.add_input(self.e);
             let scalar_mul_result = composer
                 .fixed_base_scalar_mul(e, dusk_jubjub::GENERATOR_EXTENDED);
             // Apply the constrain
