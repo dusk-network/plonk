@@ -27,6 +27,6 @@ pub mod logic;
 pub mod range;
 
 pub use composer::TurboComposer;
-pub use ecc::Point;
-pub use variable::Variable;
+pub use ecc::AllocatedPoint;
 pub(crate) use variable::WireData;
+pub use variable::{AllocatedScalar, Variable};
