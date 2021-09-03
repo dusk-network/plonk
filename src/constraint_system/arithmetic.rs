@@ -3,6 +3,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
+
 use crate::constraint_system::{AllocatedScalar, TurboComposer};
 use dusk_bls12_381::BlsScalar;
 

@@ -23,6 +23,7 @@ use crate::permutation::Permutation;
 use alloc::collections::BTreeMap;
 use alloc::vec::Vec;
 use dusk_bls12_381::BlsScalar;
+use dusk_bytes::Serializable;
 use hashbrown::HashMap;
 
 /// The TurboComposer is the circuit-builder tool that the `dusk-plonk`
@@ -448,6 +449,31 @@ impl TurboComposer {
         );
 
         f_x
+    }
+
+    /// Decomposes an [`AllocatedScalar`] into an array of 256 bits represented
+    /// as [`AllocatedScalar`]s.
+    pub fn scalar_bit_decomposition(
+        &mut self,
+        scalar: AllocatedScalar,
+    ) -> [AllocatedScalar; 256] {
+        let mut res = [self.allocated_zero(); 256];
+        let bytes = BlsScalar::from(scalar).to_bytes();
+        for (byte, bits) in bytes.iter().zip(res.chunks_mut(8)) {
+            bits.iter_mut()
+                .enumerate()
+                .map(|(i, bit)| {
+                    (
+                        self.add_input(BlsScalar::from(
+                            ((byte >> i) & 1) as u64,
+                        )),
+                        bit,
+                    )
+                })
+                .for_each(|(inp, bit)| *bit = inp)
+        }
+
+        res
     }
 
     /// This function is used to add a blinding factor to the witness
