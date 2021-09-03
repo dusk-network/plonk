@@ -16,7 +16,7 @@ pub use crate::{
         key::{CommitKey, OpeningKey},
         PublicParameters,
     },
-    constraint_system::{Point, TurboComposer, Variable},
+    constraint_system::{AllocatedPoint, AllocatedScalar, TurboComposer},
     proof_system::{Prover, ProverKey, Verifier},
 };
 
