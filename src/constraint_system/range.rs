@@ -6,14 +6,15 @@
 
 use crate::bit_iterator::*;
 use crate::constraint_system::TurboComposer;
-use crate::constraint_system::{Variable, WireData};
+use crate::constraint_system::{AllocatedScalar, Variable, WireData};
 use alloc::vec::Vec;
 use dusk_bls12_381::BlsScalar;
 use dusk_bytes::Serializable;
 
 impl TurboComposer {
     /// Adds a range-constraint gate that checks and constrains a
-    /// [`Variable`] to be inside of the range \[0,num_bits\].
+    /// [`Variable`](crate::constraint_system::variable::Variable) to be inside
+    /// of the range \[0,num_bits\].
     ///
     /// This function adds `num_bits/4` gates to the circuit description in
     /// order to add the range constraint.
@@ -21,36 +22,37 @@ impl TurboComposer {
     ///# Panics
     /// This function will panic if the num_bits specified is not even, ie.
     /// `num_bits % 2 != 0`.
-    pub fn range_gate(&mut self, witness: Variable, num_bits: usize) {
+    pub fn range_gate(&mut self, witness: AllocatedScalar, num_bits: usize) {
         // Adds `variable` into the appropriate witness position
         // based on the accumulator number a_i
-        let add_wire =
-            |composer: &mut TurboComposer, i: usize, variable: Variable| {
-                // Since four quads can fit into one gate, the gate index does
-                // not change for every four wires
-                let gate_index = composer.circuit_size() + (i / 4);
+        let add_wire = |composer: &mut TurboComposer,
+                        i: usize,
+                        variable: AllocatedScalar| {
+            // Since four quads can fit into one gate, the gate index does
+            // not change for every four wires
+            let gate_index = composer.circuit_size() + (i / 4);
 
-                let wire_data = match i % 4 {
-                    0 => {
-                        composer.w_4.push(variable);
-                        WireData::Fourth(gate_index)
-                    }
-                    1 => {
-                        composer.w_o.push(variable);
-                        WireData::Output(gate_index)
-                    }
-                    2 => {
-                        composer.w_r.push(variable);
-                        WireData::Right(gate_index)
-                    }
-                    3 => {
-                        composer.w_l.push(variable);
-                        WireData::Left(gate_index)
-                    }
-                    _ => unreachable!(),
-                };
-                composer.perm.add_variable_to_map(variable, wire_data);
+            let wire_data = match i % 4 {
+                0 => {
+                    composer.w_4.push(variable.into());
+                    WireData::Fourth(gate_index)
+                }
+                1 => {
+                    composer.w_o.push(variable.into());
+                    WireData::Output(gate_index)
+                }
+                2 => {
+                    composer.w_r.push(variable.into());
+                    WireData::Right(gate_index)
+                }
+                3 => {
+                    composer.w_l.push(variable.into());
+                    WireData::Left(gate_index)
+                }
+                _ => unreachable!(),
             };
+            composer.perm.add_variable_to_map(variable, wire_data);
+        };
 
         // Note: A quad is a quaternary digit
         //
@@ -59,8 +61,7 @@ impl TurboComposer {
         assert!(num_bits % 2 == 0);
 
         // Convert witness to bit representation and reverse
-        let value = self.variables[&witness];
-        let bit_iter = BitIterator8::new(value.to_bytes());
+        let bit_iter = BitIterator8::new(BlsScalar::from(witness).to_bytes());
         let mut bits: Vec<_> = bit_iter.collect();
         bits.reverse();
 
@@ -138,7 +139,7 @@ impl TurboComposer {
 
         // First we pad our gates by the necessary amount
         for i in 0..pad {
-            add_wire(self, i, self.zero_var);
+            add_wire(self, i, self.allocated_zero());
         }
 
         for i in pad..=num_quads {
@@ -153,7 +154,7 @@ impl TurboComposer {
             accumulator += BlsScalar::from(quad);
 
             let accumulator_var = self.add_input(accumulator);
-            accumulators.push(accumulator_var);
+            accumulators.push(accumulator_var.into());
 
             add_wire(self, i, accumulator_var);
         }
@@ -188,8 +189,11 @@ impl TurboComposer {
         // witness This last constraint will pass as long as
         // - The witness is within the number of bits initially specified
         let last_accumulator = accumulators.len() - 1;
-        self.assert_equal(accumulators[last_accumulator], witness);
-        accumulators[last_accumulator] = witness;
+        self.assert_equal(
+            self.alloc_scalar_from_variable(accumulators[last_accumulator]),
+            witness,
+        );
+        accumulators[last_accumulator] = witness.into();
     }
 }
 

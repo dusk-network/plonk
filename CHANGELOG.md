@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Change `StandardComposer` to `TurboComposer`. [#288](https://github.com/dusk-network/plonk/issue/288)
-
+- Change `Variable` usage in favor of `AllocatedScalar`. [#565]((https://github.com/dusk-network/plonk/issue/565))
 ### Fixed
 
 - Fix the document references and typos [#533](https://github.com/dusk-network/plonk/pull/533)

@@ -6,7 +6,7 @@
 
 use crate::bit_iterator::*;
 use crate::constraint_system::TurboComposer;
-use crate::constraint_system::{Variable, WireData};
+use crate::constraint_system::{AllocatedScalar, WireData};
 use alloc::vec::Vec;
 use dusk_bls12_381::BlsScalar;
 use dusk_bytes::Serializable;
@@ -29,11 +29,11 @@ impl TurboComposer {
     /// `num_bits % 2 != 0`.
     fn logic_gate(
         &mut self,
-        a: Variable,
-        b: Variable,
+        a: AllocatedScalar,
+        b: AllocatedScalar,
         num_bits: usize,
         is_xor_gate: bool,
-    ) -> Variable {
+    ) -> AllocatedScalar {
         // Since we work on base4, we need to guarantee that we have an even
         // number of bits representing the greatest input.
         assert_eq!(num_bits & 1, 0);
@@ -47,9 +47,9 @@ impl TurboComposer {
         let mut left_quad: u8;
         let mut right_quad: u8;
         // Get vars as bits and reverse them to get the Little Endian repr.
-        let a_bit_iter = BitIterator8::new(self.variables[&a].to_bytes());
+        let a_bit_iter = BitIterator8::new(BlsScalar::from(a).to_bytes());
         let a_bits: Vec<_> = a_bit_iter.skip(256 - num_bits).collect();
-        let b_bit_iter = BitIterator8::new(self.variables[&b].to_bytes());
+        let b_bit_iter = BitIterator8::new(BlsScalar::from(b).to_bytes());
         let b_bits: Vec<_> = b_bit_iter.skip(256 - num_bits).collect();
         assert!(a_bits.len() >= num_bits);
         assert!(b_bits.len() >= num_bits);
@@ -200,10 +200,10 @@ impl TurboComposer {
             self.perm
                 .add_variable_to_map(var_c, WireData::Output(self.n - 1));
             // Push the variables to it's actual wire vector storage
-            self.w_l.push(var_a);
-            self.w_r.push(var_b);
-            self.w_o.push(var_c);
-            self.w_4.push(var_4);
+            self.w_l.push(var_a.into());
+            self.w_r.push(var_b.into());
+            self.w_o.push(var_c.into());
+            self.w_4.push(var_4.into());
             // Update the gate index
             self.n += 1;
         }
@@ -271,13 +271,13 @@ impl TurboComposer {
         // checking that they're equal to the original ones behind the variables
         // sent through the function parameters.
         assert_eq!(
-            self.variables[&a]
+            BlsScalar::from(a)
                 & (BlsScalar::from(2u64).pow(&[(num_bits) as u64, 0, 0, 0])
                     - BlsScalar::one()),
             self.variables[&self.w_l[self.n - 1]]
         );
         assert_eq!(
-            self.variables[&b]
+            BlsScalar::from(b)
                 & (BlsScalar::from(2u64).pow(&[(num_bits) as u64, 0, 0, 0])
                     - BlsScalar::one()),
             self.variables[&self.w_r[self.n - 1]]
@@ -287,37 +287,38 @@ impl TurboComposer {
         // we can safely return the resulting variable of the gate computation
         // which is stored on the last program memory row and in the column that
         // `w_4` is holding.
-        self.w_4[self.w_4.len() - 1]
+        self.alloc_scalar_from_variable(self.w_4[self.w_4.len() - 1])
     }
 
     /// Adds a logical XOR gate that performs the XOR between two values for the
-    /// specified first `num_bits` returning a [`Variable`] holding the result.
+    /// specified first `num_bits` returning a [`AllocatedScalar`] holding the
+    /// result.
     ///
     /// # Panics
     ///
     /// If the `num_bits` specified in the fn params is odd.
     pub fn xor_gate(
         &mut self,
-        a: Variable,
-        b: Variable,
+        a: AllocatedScalar,
+        b: AllocatedScalar,
         num_bits: usize,
-    ) -> Variable {
+    ) -> AllocatedScalar {
         self.logic_gate(a, b, num_bits, true)
     }
 
     /// Adds a logical AND gate that performs the bitwise AND between two values
-    /// for the specified first `num_bits` returning a [`Variable`] holding the
-    /// result.
+    /// for the specified first `num_bits` returning a [`AllocatedScalar`]
+    /// holding the result.
     ///
     /// # Panics
     ///
     /// If the `num_bits` specified in the fn params is odd.
     pub fn and_gate(
         &mut self,
-        a: Variable,
-        b: Variable,
+        a: AllocatedScalar,
+        b: AllocatedScalar,
         num_bits: usize,
-    ) -> Variable {
+    ) -> AllocatedScalar {
         self.logic_gate(a, b, num_bits, false)
     }
 }

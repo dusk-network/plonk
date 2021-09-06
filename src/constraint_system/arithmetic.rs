@@ -4,8 +4,7 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use crate::constraint_system::TurboComposer;
-use crate::constraint_system::Variable;
+use crate::constraint_system::{AllocatedScalar, TurboComposer};
 use dusk_bls12_381::BlsScalar;
 
 impl TurboComposer {
@@ -14,15 +13,15 @@ impl TurboComposer {
     /// provided.
     pub fn add_gate(
         &mut self,
-        a: Variable,
-        b: Variable,
-        c: Variable,
+        a: AllocatedScalar,
+        b: AllocatedScalar,
+        c: AllocatedScalar,
         q_l: BlsScalar,
         q_r: BlsScalar,
         q_o: BlsScalar,
         q_c: BlsScalar,
         pi: Option<BlsScalar>,
-    ) -> Variable {
+    ) -> AllocatedScalar {
         self.big_add_gate(
             a,
             b,
@@ -46,27 +45,27 @@ impl TurboComposer {
     /// as scaling value on the gate eq.
     pub fn big_add_gate(
         &mut self,
-        a: Variable,
-        b: Variable,
-        c: Variable,
-        d: Option<Variable>,
+        a: AllocatedScalar,
+        b: AllocatedScalar,
+        c: AllocatedScalar,
+        d: Option<AllocatedScalar>,
         q_l: BlsScalar,
         q_r: BlsScalar,
         q_o: BlsScalar,
         q_4: BlsScalar,
         q_c: BlsScalar,
         pi: Option<BlsScalar>,
-    ) -> Variable {
+    ) -> AllocatedScalar {
         // Check if advice wire has a value
         let d = match d {
-            Some(var) => var,
-            None => self.zero_var,
+            Some(alloc_scalar) => alloc_scalar,
+            None => self.allocated_zero(),
         };
 
-        self.w_l.push(a);
-        self.w_r.push(b);
-        self.w_o.push(c);
-        self.w_4.push(d);
+        self.w_l.push(a.into());
+        self.w_r.push(b.into());
+        self.w_o.push(c.into());
+        self.w_4.push(d.into());
 
         // For an add gate, q_m is zero
         self.q_m.push(BlsScalar::zero());
@@ -101,14 +100,14 @@ impl TurboComposer {
     /// (output wire) since it will just add a `mul constraint` to the circuit.
     pub fn mul_gate(
         &mut self,
-        a: Variable,
-        b: Variable,
-        c: Variable,
+        a: AllocatedScalar,
+        b: AllocatedScalar,
+        c: AllocatedScalar,
         q_m: BlsScalar,
         q_o: BlsScalar,
         q_c: BlsScalar,
         pi: Option<BlsScalar>,
-    ) -> Variable {
+    ) -> AllocatedScalar {
         self.big_mul_gate(a, b, c, None, q_m, q_o, q_c, BlsScalar::zero(), pi)
     }
 
@@ -127,26 +126,26 @@ impl TurboComposer {
     // XXX: Maybe make these tuples instead of individual field?
     pub fn big_mul_gate(
         &mut self,
-        a: Variable,
-        b: Variable,
-        c: Variable,
-        d: Option<Variable>,
+        a: AllocatedScalar,
+        b: AllocatedScalar,
+        c: AllocatedScalar,
+        d: Option<AllocatedScalar>,
         q_m: BlsScalar,
         q_o: BlsScalar,
         q_c: BlsScalar,
         q_4: BlsScalar,
         pi: Option<BlsScalar>,
-    ) -> Variable {
+    ) -> AllocatedScalar {
         // Check if advice wire has a value
         let d = match d {
-            Some(var) => var,
-            None => self.zero_var,
+            Some(alloc_scalar) => alloc_scalar,
+            None => self.allocated_zero(),
         };
 
-        self.w_l.push(a);
-        self.w_r.push(b);
-        self.w_o.push(c);
-        self.w_4.push(d);
+        self.w_l.push(a.into());
+        self.w_r.push(b.into());
+        self.w_o.push(c.into());
+        self.w_4.push(d.into());
 
         // For a mul gate q_L and q_R is zero
         self.q_l.push(BlsScalar::zero());
@@ -179,7 +178,7 @@ impl TurboComposer {
 
     /// Adds a [`TurboComposer::big_add_gate`] with the left and right
     /// inputs and it's scaling factors, computing & returning the output
-    /// (result) [`Variable`], and adding the corresponding addition
+    /// (result) [`AllocatedScalar`], and adding the corresponding addition
     /// constraint.
     ///
     /// This type of gate is usually used when we don't need to have
@@ -190,18 +189,18 @@ impl TurboComposer {
     /// Forces `q_l * w_l + q_r * w_r + q_c + PI = w_o(computed by the gate)`.
     pub fn add(
         &mut self,
-        q_l_a: (BlsScalar, Variable),
-        q_r_b: (BlsScalar, Variable),
+        q_l_a: (BlsScalar, AllocatedScalar),
+        q_r_b: (BlsScalar, AllocatedScalar),
         q_c: BlsScalar,
         pi: Option<BlsScalar>,
-    ) -> Variable {
+    ) -> AllocatedScalar {
         self.big_add(q_l_a, q_r_b, None, q_c, pi)
     }
 
     /// Adds a [`TurboComposer::big_add_gate`] with the left, right and
     /// fourth inputs and it's scaling factors, computing & returning the
-    /// output (result) [`Variable`] and adding the corresponding addition
-    /// constraint.
+    /// output (result) [`AllocatedScalar`] and adding the corresponding
+    /// addition constraint.
     ///
     /// This type of gate is usually used when we don't need to have
     /// the largest amount of performance and the minimum circuit-size
@@ -212,16 +211,16 @@ impl TurboComposer {
     /// the gate)`.
     pub fn big_add(
         &mut self,
-        q_l_a: (BlsScalar, Variable),
-        q_r_b: (BlsScalar, Variable),
-        q_4_d: Option<(BlsScalar, Variable)>,
+        q_l_a: (BlsScalar, AllocatedScalar),
+        q_r_b: (BlsScalar, AllocatedScalar),
+        q_4_d: Option<(BlsScalar, AllocatedScalar)>,
         q_c: BlsScalar,
         pi: Option<BlsScalar>,
-    ) -> Variable {
+    ) -> AllocatedScalar {
         // Check if advice wire is available
         let (q_4, d) = match q_4_d {
-            Some((q_4, var)) => (q_4, var),
-            None => (BlsScalar::zero(), self.zero_var),
+            Some((q_4, alloc_scalar)) => (q_4, alloc_scalar),
+            None => (BlsScalar::zero(), self.allocated_zero()),
         };
 
         let (q_l, a) = q_l_a;
@@ -230,22 +229,16 @@ impl TurboComposer {
         let q_o = -BlsScalar::one();
 
         // Compute the output wire
-        let a_eval = self.variables[&a];
-        let b_eval = self.variables[&b];
-        let d_eval = self.variables[&d];
-        let c_eval = (q_l * a_eval)
-            + (q_r * b_eval)
-            + (q_4 * d_eval)
-            + q_c
-            + pi.unwrap_or_default();
-        let c = self.add_input(c_eval);
+        let c: BlsScalar =
+            (q_l * a) + (q_r * b) + (q_4 * d) + q_c + pi.unwrap_or_default();
+        let c = self.add_input(c);
 
         self.big_add_gate(a, b, c, Some(d), q_l, q_r, q_o, q_4, q_c, pi)
     }
 
     /// Adds a [`TurboComposer::big_mul_gate`] with the left, right
     /// and fourth inputs and it's scaling factors, computing & returning
-    /// the output (result) [`Variable`] and adding the corresponding mul
+    /// the output (result) [`AllocatedScalar`] and adding the corresponding mul
     /// constraint.
     ///
     /// This type of gate is usually used when we don't need to have
@@ -260,17 +253,17 @@ impl TurboComposer {
     pub fn mul(
         &mut self,
         q_m: BlsScalar,
-        a: Variable,
-        b: Variable,
+        a: AllocatedScalar,
+        b: AllocatedScalar,
         q_c: BlsScalar,
         pi: Option<BlsScalar>,
-    ) -> Variable {
+    ) -> AllocatedScalar {
         self.big_mul(q_m, a, b, None, q_c, pi)
     }
 
     /// Adds a width-4 [`TurboComposer::big_mul_gate`] with the left, right
     /// and fourth inputs and it's scaling factors, computing & returning
-    /// the output (result) [`Variable`] and adding the corresponding mul
+    /// the output (result) [`AllocatedScalar`] and adding the corresponding mul
     /// constraint.
     ///
     /// This type of gate is usually used when we don't need to have
@@ -285,29 +278,23 @@ impl TurboComposer {
     pub fn big_mul(
         &mut self,
         q_m: BlsScalar,
-        a: Variable,
-        b: Variable,
-        q_4_d: Option<(BlsScalar, Variable)>,
+        a: AllocatedScalar,
+        b: AllocatedScalar,
+        q_4_d: Option<(BlsScalar, AllocatedScalar)>,
         q_c: BlsScalar,
         pi: Option<BlsScalar>,
-    ) -> Variable {
+    ) -> AllocatedScalar {
         let q_o = -BlsScalar::one();
 
         // Check if advice wire is available
         let (q_4, d) = match q_4_d {
-            Some((q_4, var)) => (q_4, var),
-            None => (BlsScalar::zero(), self.zero_var),
+            Some((q_4, alloc_scalar)) => (q_4, alloc_scalar),
+            None => (BlsScalar::zero(), self.allocated_zero()),
         };
 
         // Compute output wire
-        let a_eval = self.variables[&a];
-        let b_eval = self.variables[&b];
-        let d_eval = self.variables[&d];
-        let c_eval = (q_m * a_eval * b_eval)
-            + (q_4 * d_eval)
-            + q_c
-            + pi.unwrap_or_default();
-        let c = self.add_input(c_eval);
+        let c = (q_m * a * b) + (q_4 * d) + q_c + pi.unwrap_or_default();
+        let c = self.add_input(c);
 
         self.big_mul_gate(a, b, c, Some(d), q_m, q_o, q_c, q_4, pi)
     }
@@ -410,7 +397,7 @@ mod tests {
     fn test_correct_add_gate() {
         let res = gadget_tester(
             |composer| {
-                let zero = composer.zero_var();
+                let zero = composer.allocated_zero();
                 let one = composer.add_input(BlsScalar::one());
 
                 let c = composer.add(

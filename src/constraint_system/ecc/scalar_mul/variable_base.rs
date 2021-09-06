@@ -4,11 +4,10 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use crate::constraint_system::ecc::Point;
-use crate::constraint_system::{variable::Variable, TurboComposer};
+use crate::constraint_system::ecc::AllocatedPoint;
+use crate::constraint_system::{variable::AllocatedScalar, TurboComposer};
 use alloc::vec::Vec;
 use dusk_bls12_381::BlsScalar;
-use dusk_bytes::Serializable;
 
 impl TurboComposer {
     /// Adds a variable-base scalar multiplication to the circuit description.
@@ -19,26 +18,16 @@ impl TurboComposer {
     /// which is optimized for fixed_base ops.
     pub fn variable_base_scalar_mul(
         &mut self,
-        jubjub_var: Variable,
-        point: Point,
-    ) -> Point {
+        jubjub_var: AllocatedScalar,
+        point: AllocatedPoint,
+    ) -> AllocatedPoint {
         // Turn scalar into bits
-        let raw_bls_scalar = *self
-            .variables
-            .get(&jubjub_var)
-            // We can unwrap safely here since it should be impossible to obtain
-            // a `Variable` without first linking it inside of the
-            // HashMap from which we are calling the `get()` now. Therefore, if
-            // the `get()` fn fails now, somethig is going really
-            // bad.
-            .expect("Variable in existance without referenced scalar");
-        let scalar_bits_var =
-            self.scalar_decomposition(jubjub_var, raw_bls_scalar);
+        let scalar_bits = self.scalar_decomposition(jubjub_var);
 
-        let identity = Point::identity(self);
+        let identity = AllocatedPoint::identity(self);
         let mut result = identity;
 
-        for bit in scalar_bits_var.into_iter().rev() {
+        for bit in scalar_bits.into_iter().rev() {
             result = self.point_addition_gate(result, result);
             let point_to_add = self.conditional_select_identity(bit, point);
             result = self.point_addition_gate(result, point_to_add);
@@ -49,23 +38,16 @@ impl TurboComposer {
 
     fn scalar_decomposition(
         &mut self,
-        witness_var: Variable,
-        witness_scalar: BlsScalar,
-    ) -> Vec<Variable> {
+        witness: AllocatedScalar,
+    ) -> Vec<AllocatedScalar> {
         // Decompose the bits
-        let scalar_bits = scalar_to_bits(&witness_scalar);
-
-        // Add all the bits into the composer
-        let scalar_bits_var: Vec<Variable> = scalar_bits
-            .iter()
-            .map(|bit| self.add_input(BlsScalar::from(*bit as u64)))
-            .collect();
+        let scalar_bits = self.scalar_bit_decomposition(witness);
 
         // Take the first 252 bits
-        let scalar_bits_var = scalar_bits_var[..252].to_vec();
+        let scalar_bits_var = scalar_bits[..252].to_vec();
 
         // Now ensure that the bits correctly accumulate to the witness given
-        let mut accumulator_var = self.zero_var;
+        let mut accumulator_var = self.allocated_zero();
         let mut accumulator_scalar = BlsScalar::zero();
 
         for (power, bit) in scalar_bits_var.iter().enumerate() {
@@ -79,32 +61,20 @@ impl TurboComposer {
 
             accumulator_var = self.add(q_l_a, q_r_b, q_c, None);
 
-            accumulator_scalar +=
-                two_pow * BlsScalar::from(scalar_bits[power] as u64);
+            accumulator_scalar += two_pow * scalar_bits[power];
         }
-        self.assert_equal(accumulator_var, witness_var);
+        self.assert_equal(accumulator_var, witness);
 
         scalar_bits_var
     }
 }
 
-fn scalar_to_bits(scalar: &BlsScalar) -> [u8; 256] {
-    let mut res = [0u8; 256];
-    let bytes = scalar.to_bytes();
-    for (byte, bits) in bytes.iter().zip(res.chunks_mut(8)) {
-        bits.iter_mut()
-            .enumerate()
-            .for_each(|(i, bit)| *bit = (byte >> i) & 1)
-    }
-    res
-}
-
 #[cfg(feature = "std")]
 #[cfg(test)]
 mod tests {
-    use super::*;
     use crate::constraint_system::helper::*;
     use dusk_bls12_381::BlsScalar;
+    use dusk_bytes::Serializable;
     use dusk_jubjub::GENERATOR;
     use dusk_jubjub::{JubJubAffine, JubJubExtended, JubJubScalar};
     #[test]
