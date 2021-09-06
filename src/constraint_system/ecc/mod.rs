@@ -11,6 +11,7 @@ pub mod scalar_mul;
 
 use crate::constraint_system::{AllocatedScalar, TurboComposer};
 use dusk_bls12_381::BlsScalar;
+use dusk_jubjub::JubJubAffine;
 
 /// Represents a JubJub point in the circuit
 #[derive(Debug, Clone, Copy)]
@@ -29,23 +30,25 @@ impl AllocatedPoint {
         }
     }
     /// Return the X coordinate of the point
-    pub fn x(&self) -> &AllocatedScalar {
+    pub const fn x(&self) -> &AllocatedScalar {
         &self.x
     }
 
     /// Return the Y coordinate of the point
-    pub fn y(&self) -> &AllocatedScalar {
+    pub const fn y(&self) -> &AllocatedScalar {
         &self.y
+    }
+
+    /// Return the underlying point representation as [`JubJubAffine`].
+    pub fn point(&self) -> JubJubAffine {
+        JubJubAffine::from_raw_unchecked(self.x().scalar(), self.y().scalar())
     }
 }
 
 impl TurboComposer {
     /// Converts an JubJubAffine into a constraint system AllocatedPoint
     /// without constraining the values
-    pub fn add_affine(
-        &mut self,
-        affine: dusk_jubjub::JubJubAffine,
-    ) -> AllocatedPoint {
+    pub fn add_affine(&mut self, affine: JubJubAffine) -> AllocatedPoint {
         let x = self.add_input(affine.get_x());
         let y = self.add_input(affine.get_y());
         AllocatedPoint { x, y }
