@@ -35,7 +35,7 @@ impl StandardComposer {
         let scalar_bits_var =
             self.scalar_decomposition(jubjub_var, raw_bls_scalar);
 
-        let identity = Point::identity(self);
+        let identity = self.identity_point();
         let mut result = identity;
 
         for bit in scalar_bits_var.into_iter().rev() {

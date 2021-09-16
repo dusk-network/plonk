@@ -20,14 +20,19 @@ pub struct Point {
 }
 
 impl Point {
-    /// Returns an identity point
-    pub fn identity(composer: &mut StandardComposer) -> Point {
-        let one = composer.add_witness_to_circuit_description(BlsScalar::one());
-        Point {
-            x: composer.zero_var,
-            y: one,
-        }
+    pub(crate) const fn new(x: Variable, y: Variable) -> Self {
+        Self { x, y }
     }
+
+    /// Returns an identity point
+    #[deprecated(
+        since = "0.8.2",
+        note = "please use `StandardComposer::identity_point` instead"
+    )]
+    pub fn identity(composer: &mut StandardComposer) -> Point {
+        composer.identity_point()
+    }
+
     /// Return the X coordinate of the point
     pub fn x(&self) -> &Variable {
         &self.x
@@ -162,7 +167,7 @@ mod tests {
                 let bit_1 = composer.add_input(BlsScalar::one());
                 let bit_0 = composer.zero_var();
 
-                let point_a = Point::identity(composer);
+                let point_a = composer.identity_point();
                 let point_b = Point {
                     x: composer.add_input(BlsScalar::from(10u64)),
                     y: composer.add_input(BlsScalar::from(20u64)),

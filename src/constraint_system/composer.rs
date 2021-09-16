@@ -18,7 +18,7 @@
 // it is intended to be like this in order to provide
 // maximum performance and minimum circuit sizes.
 
-use crate::constraint_system::Variable;
+use crate::constraint_system::{Point, Variable};
 use crate::permutation::Permutation;
 use alloc::collections::BTreeMap;
 use alloc::vec::Vec;
@@ -212,6 +212,14 @@ impl StandardComposer {
     /// Witness representation of zero of the first variable of any circuit
     pub const fn zero_var(&self) -> Variable {
         self.zero_var
+    }
+
+    /// Add an identity point to the circuit description and returns it.
+    pub fn identity_point(&mut self) -> Point {
+        let x = self.zero_var;
+        let y = self.add_witness_to_circuit_description(BlsScalar::one());
+
+        Point::new(x, y)
     }
 
     /// Add Input first calls the Permutation
