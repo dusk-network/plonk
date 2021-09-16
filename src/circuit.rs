@@ -15,7 +15,7 @@ use alloc::vec::Vec;
 use canonical_derive::Canon;
 use dusk_bls12_381::BlsScalar;
 use dusk_bytes::{DeserializableSlice, Serializable, Write};
-use dusk_jubjub::{JubJubAffine, JubJubScalar};
+use dusk_jubjub::{JubJubAffine, JubJubExtended, JubJubScalar};
 
 #[derive(Default, Debug, Clone)]
 #[cfg_attr(feature = "canon", derive(Canon))]
@@ -38,6 +38,12 @@ impl From<JubJubScalar> for PublicInputValue {
 impl From<JubJubAffine> for PublicInputValue {
     fn from(point: JubJubAffine) -> Self {
         Self(vec![point.get_x(), point.get_y()])
+    }
+}
+
+impl From<JubJubExtended> for PublicInputValue {
+    fn from(point: JubJubExtended) -> Self {
+        JubJubAffine::from(point).into()
     }
 }
 
