@@ -72,6 +72,7 @@ if #[cfg(feature = "alloc")] {
 pub mod commitment_scheme;
 pub mod error;
 mod fft;
+pub mod plookup;
 pub mod prelude;
 pub mod proof_system;
 mod transcript;
