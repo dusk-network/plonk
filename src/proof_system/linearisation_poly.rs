@@ -47,6 +47,8 @@ pub(crate) struct ProofEvaluations {
     pub(crate) q_l_eval: BlsScalar,
     //
     pub(crate) q_r_eval: BlsScalar,
+    //
+    pub(crate) q_lookup_eval: BlsScalar,
     // Evaluation of the left sigma polynomial at `z`
     pub(crate) left_sigma_eval: BlsScalar,
     // Evaluation of the right sigma polynomial at `z`
@@ -60,9 +62,33 @@ pub(crate) struct ProofEvaluations {
     // (Shifted) Evaluation of the permutation polynomial at `z * root of
     // unity`
     pub(crate) perm_eval: BlsScalar,
+
+    // (Shifted) Evaluation of the lookup permutation polynomial at `z * root
+    // of unity`
+    pub lookup_perm_eval: BlsScalar,
+
+    /// Evaluations of the first half of sorted plookup poly at `z`
+    pub h_1_eval: BlsScalar,
+
+    /// (Shifted) Evaluations of the first half of sorted plookup poly at `z *
+    /// root of unity`
+    pub h_1_next_eval: BlsScalar,
+
+    /// (Shifted) Evaluations of the second half of sorted plookup poly at `z *
+    /// root of unity`
+    pub h_2_eval: BlsScalar,
+
+    /// Evaluations of the query polynomial at `z`
+    pub f_eval: BlsScalar,
+
+    /// Evaluations of the table polynomial at `z`
+    pub table_eval: BlsScalar,
+
+    /// Evaluations of the table polynomial at `z * root of unity`
+    pub table_next_eval: BlsScalar,
 }
 
-impl Serializable<{ 16 * BlsScalar::SIZE }> for ProofEvaluations {
+impl Serializable<{ 25 * BlsScalar::SIZE }> for ProofEvaluations {
     type Error = dusk_bytes::Error;
 
     #[allow(unused_must_use)]
@@ -82,11 +108,19 @@ impl Serializable<{ 16 * BlsScalar::SIZE }> for ProofEvaluations {
         writer.write(&self.q_c_eval.to_bytes());
         writer.write(&self.q_l_eval.to_bytes());
         writer.write(&self.q_r_eval.to_bytes());
+        writer.write(&self.q_lookup_eval.to_bytes());
         writer.write(&self.left_sigma_eval.to_bytes());
         writer.write(&self.right_sigma_eval.to_bytes());
         writer.write(&self.out_sigma_eval.to_bytes());
         writer.write(&self.lin_poly_eval.to_bytes());
         writer.write(&self.perm_eval.to_bytes());
+        writer.write(&self.lookup_perm_eval.to_bytes());
+        writer.write(&self.h_1_eval.to_bytes());
+        writer.write(&self.h_1_next_eval.to_bytes());
+        writer.write(&self.h_2_eval.to_bytes());
+        writer.write(&self.f_eval.to_bytes());
+        writer.write(&self.table_eval.to_bytes());
+        writer.write(&self.table_next_eval.to_bytes());
 
         buf
     }
@@ -106,11 +140,19 @@ impl Serializable<{ 16 * BlsScalar::SIZE }> for ProofEvaluations {
         let q_c_eval = BlsScalar::from_reader(&mut buffer)?;
         let q_l_eval = BlsScalar::from_reader(&mut buffer)?;
         let q_r_eval = BlsScalar::from_reader(&mut buffer)?;
+        let q_lookup_eval = BlsScalar::from_reader(&mut buffer)?;
         let left_sigma_eval = BlsScalar::from_reader(&mut buffer)?;
         let right_sigma_eval = BlsScalar::from_reader(&mut buffer)?;
         let out_sigma_eval = BlsScalar::from_reader(&mut buffer)?;
         let lin_poly_eval = BlsScalar::from_reader(&mut buffer)?;
         let perm_eval = BlsScalar::from_reader(&mut buffer)?;
+        let lookup_perm_eval = BlsScalar::from_reader(&mut buffer)?;
+        let h_1_eval = BlsScalar::from_reader(&mut buffer)?;
+        let h_1_next_eval = BlsScalar::from_reader(&mut buffer)?;
+        let h_2_eval = BlsScalar::from_reader(&mut buffer)?;
+        let f_eval = BlsScalar::from_reader(&mut buffer)?;
+        let table_eval = BlsScalar::from_reader(&mut buffer)?;
+        let table_next_eval = BlsScalar::from_reader(&mut buffer)?;
 
         Ok(ProofEvaluations {
             a_eval,
@@ -124,11 +166,19 @@ impl Serializable<{ 16 * BlsScalar::SIZE }> for ProofEvaluations {
             q_c_eval,
             q_l_eval,
             q_r_eval,
+            q_lookup_eval,
             left_sigma_eval,
             right_sigma_eval,
             out_sigma_eval,
             lin_poly_eval,
             perm_eval,
+            lookup_perm_eval,
+            h_1_eval,
+            h_1_next_eval,
+            h_2_eval,
+            f_eval,
+            table_eval,
+            table_next_eval,
         })
     }
 }
@@ -143,12 +193,20 @@ pub(crate) fn compute(
         alpha,
         beta,
         gamma,
+        delta,
+        epsilon,
+        zeta,
         range_separation_challenge,
         logic_separation_challenge,
         fixed_base_separation_challenge,
         var_base_separation_challenge,
+        lookup_separation_challenge,
         z_challenge,
     ): &(
+        BlsScalar,
+        BlsScalar,
+        BlsScalar,
+        BlsScalar,
         BlsScalar,
         BlsScalar,
         BlsScalar,
@@ -164,6 +222,11 @@ pub(crate) fn compute(
     w_4_poly: &Polynomial,
     t_x_poly: &Polynomial,
     z_poly: &Polynomial,
+    f_poly: &Polynomial,
+    h_1_poly: &Polynomial,
+    h_2_poly: &Polynomial,
+    table_poly: &Polynomial,
+    p_poly: &Polynomial,
 ) -> (Polynomial, Evaluations) {
     // Compute evaluations
     let quot_eval = t_x_poly.evaluate(z_challenge);
@@ -181,11 +244,23 @@ pub(crate) fn compute(
     let q_c_eval = prover_key.logic.q_c.0.evaluate(z_challenge);
     let q_l_eval = prover_key.fixed_base.q_l.0.evaluate(z_challenge);
     let q_r_eval = prover_key.fixed_base.q_r.0.evaluate(z_challenge);
+    let q_lookup_eval = prover_key.lookup.q_lookup.0.evaluate(z_challenge);
+    let f_eval = f_poly.evaluate(z_challenge);
+    let h_1_eval = h_1_poly.evaluate(z_challenge);
+    let h_2_eval = h_2_poly.evaluate(z_challenge);
+    let table_eval = table_poly.evaluate(z_challenge);
 
     let a_next_eval = w_l_poly.evaluate(&(z_challenge * domain.group_gen));
     let b_next_eval = w_r_poly.evaluate(&(z_challenge * domain.group_gen));
     let d_next_eval = w_4_poly.evaluate(&(z_challenge * domain.group_gen));
     let perm_eval = z_poly.evaluate(&(z_challenge * domain.group_gen));
+    let lookup_perm_eval = p_poly.evaluate(&(z_challenge * domain.group_gen));
+    let h_1_next_eval = h_1_poly.evaluate(&(z_challenge * domain.group_gen));
+    let table_next_eval =
+        table_poly.evaluate(&(z_challenge * domain.group_gen));
+
+    let l_coeffs = domain.evaluate_all_lagrange_coefficients(*z_challenge);
+    let l1_eval = l_coeffs[0];
 
     let f_1 = compute_circuit_satisfiability(
         (
@@ -193,6 +268,7 @@ pub(crate) fn compute(
             logic_separation_challenge,
             fixed_base_separation_challenge,
             var_base_separation_challenge,
+            lookup_separation_challenge,
         ),
         &a_eval,
         &b_eval,
@@ -202,6 +278,17 @@ pub(crate) fn compute(
         &b_next_eval,
         &d_next_eval,
         &q_arith_eval,
+        &f_eval,
+        &table_eval,
+        &table_next_eval,
+        &h_1_eval,
+        &h_2_eval,
+        &lookup_perm_eval,
+        &l1_eval,
+        &p_poly,
+        &h_2_poly,
+        (delta, epsilon),
+        zeta,
         &q_c_eval,
         &q_l_eval,
         &q_r_eval,
@@ -237,11 +324,19 @@ pub(crate) fn compute(
                 q_c_eval,
                 q_l_eval,
                 q_r_eval,
+                q_lookup_eval,
                 left_sigma_eval,
                 right_sigma_eval,
                 out_sigma_eval,
                 lin_poly_eval,
                 perm_eval,
+                lookup_perm_eval,
+                h_1_eval,
+                h_1_next_eval,
+                h_2_eval,
+                f_eval,
+                table_eval,
+                table_next_eval,
             },
             quot_eval,
         },
@@ -255,7 +350,8 @@ fn compute_circuit_satisfiability(
         logic_separation_challenge,
         fixed_base_separation_challenge,
         var_base_separation_challenge,
-    ): (&BlsScalar, &BlsScalar, &BlsScalar, &BlsScalar),
+        lookup_separation_challenge,
+    ): (&BlsScalar, &BlsScalar, &BlsScalar, &BlsScalar, &BlsScalar),
     a_eval: &BlsScalar,
     b_eval: &BlsScalar,
     c_eval: &BlsScalar,
@@ -264,6 +360,17 @@ fn compute_circuit_satisfiability(
     b_next_eval: &BlsScalar,
     d_next_eval: &BlsScalar,
     q_arith_eval: &BlsScalar,
+    f_eval: &BlsScalar,
+    table_eval: &BlsScalar,
+    table_next_eval: &BlsScalar,
+    h_1_eval: &BlsScalar,
+    h_2_eval: &BlsScalar,
+    p_next_eval: &BlsScalar,
+    l1_eval: &BlsScalar,
+    p_poly: &Polynomial,
+    h_2_poly: &Polynomial,
+    (delta, epsilon): (&BlsScalar, &BlsScalar),
+    zeta: &BlsScalar,
     q_c_eval: &BlsScalar,
     q_l_eval: &BlsScalar,
     q_r_eval: &BlsScalar,
@@ -322,11 +429,30 @@ fn compute_circuit_satisfiability(
         d_eval,
         d_next_eval,
     );
+    let f = prover_key.lookup.compute_linearisation(
+        a_eval,
+        b_eval,
+        c_eval,
+        d_eval,
+        f_eval,
+        table_eval,
+        table_next_eval,
+        h_1_eval,
+        h_2_eval,
+        p_next_eval,
+        l1_eval,
+        p_poly,
+        h_2_poly,
+        (delta, epsilon),
+        zeta,
+        lookup_separation_challenge,
+    );
 
     let mut linearisation_poly = &a + &b;
     linearisation_poly += &c;
     linearisation_poly += &d;
     linearisation_poly += &e;
+    linearisation_poly += &f;
 
     linearisation_poly
 }
