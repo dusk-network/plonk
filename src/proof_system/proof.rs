@@ -35,8 +35,20 @@ pub struct Proof {
     /// Commitment to the witness polynomial for the fourth wires.
     pub(crate) d_comm: Commitment,
 
+    /// Commitment to the lookup query polynomial.
+    pub(crate) f_comm: Commitment,
+
+    /// Commitment to first half of sorted polynomial
+    pub(crate) h_1_comm: Commitment,
+
+    /// Commitment to second half of sorted polynomial
+    pub(crate) h_2_comm: Commitment,
+
     /// Commitment to the permutation polynomial.
     pub(crate) z_comm: Commitment,
+
+    /// Commitment to the plookup permutation polynomial.
+    pub(crate) p_comm: Commitment,
 
     /// Commitment to the quotient polynomial.
     pub(crate) t_1_comm: Commitment,
@@ -55,7 +67,7 @@ pub struct Proof {
     pub(crate) evaluations: ProofEvaluations,
 }
 
-impl Serializable<{ 11 * Commitment::SIZE + ProofEvaluations::SIZE }>
+impl Serializable<{ 15 * Commitment::SIZE + ProofEvaluations::SIZE }>
     for Proof
 {
     type Error = dusk_bytes::Error;
@@ -70,7 +82,11 @@ impl Serializable<{ 11 * Commitment::SIZE + ProofEvaluations::SIZE }>
         writer.write(&self.b_comm.to_bytes());
         writer.write(&self.c_comm.to_bytes());
         writer.write(&self.d_comm.to_bytes());
+        writer.write(&self.f_comm.to_bytes());
+        writer.write(&self.h_1_comm.to_bytes());
+        writer.write(&self.h_2_comm.to_bytes());
         writer.write(&self.z_comm.to_bytes());
+        writer.write(&self.p_comm.to_bytes());
         writer.write(&self.t_1_comm.to_bytes());
         writer.write(&self.t_2_comm.to_bytes());
         writer.write(&self.t_3_comm.to_bytes());
@@ -89,7 +105,11 @@ impl Serializable<{ 11 * Commitment::SIZE + ProofEvaluations::SIZE }>
         let b_comm = Commitment::from_reader(&mut buffer)?;
         let c_comm = Commitment::from_reader(&mut buffer)?;
         let d_comm = Commitment::from_reader(&mut buffer)?;
+        let f_comm = Commitment::from_reader(&mut buffer)?;
+        let h_1_comm = Commitment::from_reader(&mut buffer)?;
+        let h_2_comm = Commitment::from_reader(&mut buffer)?;
         let z_comm = Commitment::from_reader(&mut buffer)?;
+        let p_comm = Commitment::from_reader(&mut buffer)?;
         let t_1_comm = Commitment::from_reader(&mut buffer)?;
         let t_2_comm = Commitment::from_reader(&mut buffer)?;
         let t_3_comm = Commitment::from_reader(&mut buffer)?;
@@ -103,7 +123,11 @@ impl Serializable<{ 11 * Commitment::SIZE + ProofEvaluations::SIZE }>
             b_comm,
             c_comm,
             d_comm,
+            f_comm,
+            h_1_comm,
+            h_2_comm,
             z_comm,
+            p_comm,
             t_1_comm,
             t_2_comm,
             t_3_comm,
@@ -160,12 +184,32 @@ pub(crate) mod alloc {
             transcript.append_commitment(b"w_o", &self.c_comm);
             transcript.append_commitment(b"w_4", &self.d_comm);
 
+            // Compute zeta compression challenge
+            let zeta = transcript.challenge_scalar(b"zeta");
+
+            // Add f_poly commitment to transcript
+            transcript.append_commitment(b"f", &self.f_comm);
+
             // Compute beta and gamma challenges
             let beta = transcript.challenge_scalar(b"beta");
             transcript.append_scalar(b"beta", &beta);
             let gamma = transcript.challenge_scalar(b"gamma");
+            // Compute delta and epsilon challenges
+            let delta = transcript.challenge_scalar(b"delta");
+            let epsilon = transcript.challenge_scalar(b"epsilon");
+
             // Add commitment to permutation polynomial to transcript
             transcript.append_commitment(b"z", &self.z_comm);
+
+            // Compute evaluation challenge
+            let z_challenge = transcript.challenge_scalar(b"z_challenge");
+
+            // Add h polynomials to transcript
+            transcript.append_commitment(b"h1", &self.h_1_comm);
+            transcript.append_commitment(b"h2", &self.h_2_comm);
+
+            // Add permutation polynomial commitment to transcript
+            transcript.append_commitment(b"p", &self.p_comm);
 
             // Compute quotient challenge
             let alpha = transcript.challenge_scalar(b"alpha");
@@ -177,15 +221,14 @@ pub(crate) mod alloc {
                 transcript.challenge_scalar(b"fixed base separation challenge");
             let var_base_sep_challenge = transcript
                 .challenge_scalar(b"variable base separation challenge");
+            let lookup_sep_challenge =
+                transcript.challenge_scalar(b"lookup separation challenge");
 
             // Add commitment to quotient polynomial to transcript
             transcript.append_commitment(b"t_1", &self.t_1_comm);
             transcript.append_commitment(b"t_2", &self.t_2_comm);
             transcript.append_commitment(b"t_3", &self.t_3_comm);
             transcript.append_commitment(b"t_4", &self.t_4_comm);
-
-            // Compute evaluation challenge
-            let z_challenge = transcript.challenge_scalar(b"z");
 
             // Compute zero polynomial evaluated at `z_challenge`
             let z_h_eval = domain.evaluate_vanishing_polynomial(&z_challenge);
@@ -197,6 +240,13 @@ pub(crate) mod alloc {
                 &z_challenge,
             );
 
+            let table_comm = Commitment(G1Affine::from(
+                verifier_key.lookup.table_1.0
+                    + verifier_key.lookup.table_2.0 * zeta
+                    + verifier_key.lookup.table_3.0 * zeta * zeta
+                    + verifier_key.lookup.table_4.0 * zeta * zeta * zeta,
+            ));
+
             // Compute quotient polynomial evaluated at `z_challenge`
             let t_eval = self.compute_quotient_evaluation(
                 &domain,
@@ -204,10 +254,13 @@ pub(crate) mod alloc {
                 &alpha,
                 &beta,
                 &gamma,
+                &delta,
+                &epsilon,
                 &z_challenge,
                 &z_h_eval,
                 &l1_eval,
                 &self.evaluations.perm_eval,
+                &lookup_sep_challenge,
             );
 
             // Compute commitment to quotient polynomial
@@ -244,7 +297,21 @@ pub(crate) mod alloc {
             transcript.append_scalar(b"q_c_eval", &self.evaluations.q_c_eval);
             transcript.append_scalar(b"q_l_eval", &self.evaluations.q_l_eval);
             transcript.append_scalar(b"q_r_eval", &self.evaluations.q_r_eval);
+            transcript.append_scalar(
+                b"q_lookup_eval",
+                &self.evaluations.q_lookup_eval,
+            );
             transcript.append_scalar(b"perm_eval", &self.evaluations.perm_eval);
+            transcript.append_scalar(
+                b"lookup_perm_eval",
+                &self.evaluations.lookup_perm_eval,
+            );
+            transcript.append_scalar(b"h_1_eval", &self.evaluations.h_1_eval);
+            transcript.append_scalar(
+                b"h_1_next_eval",
+                &self.evaluations.h_1_next_eval,
+            );
+            transcript.append_scalar(b"h_2_eval", &self.evaluations.h_2_eval);
             transcript.append_scalar(b"t_eval", &t_eval);
             transcript
                 .append_scalar(b"r_eval", &self.evaluations.lin_poly_eval);
@@ -254,26 +321,30 @@ pub(crate) mod alloc {
                 &alpha,
                 &beta,
                 &gamma,
+                &delta,
+                &epsilon,
+                &zeta,
                 (
                     &range_sep_challenge,
                     &logic_sep_challenge,
                     &fixed_base_sep_challenge,
                     &var_base_sep_challenge,
+                    &lookup_sep_challenge,
                 ),
                 &z_challenge,
                 l1_eval,
+                self.evaluations.table_eval,
+                self.evaluations.table_next_eval,
                 &verifier_key,
             );
 
             // Commitment Scheme
             // Now we delegate computation to the commitment scheme by batch
-            // checking two proofs.
-            //
-            // The `AggregateProof`, which proves that all the necessary
-            // polynomials evaluated at `z_challenge` are
-            // correct and a `Proof` which is proof that the
-            // permutation polynomial evaluated at the shifted root of unity is
-            // correct
+            // checking two proofs The `AggregateProof`, which is a
+            // proof that all the necessary polynomials evaluated at
+            // `z_challenge` are correct and a `SingleProof` which
+            // is proof that the permutation polynomial evaluated at the shifted
+            // root of unity is correct
 
             // Compose the Aggregated Proof
             //
@@ -297,6 +368,12 @@ pub(crate) mod alloc {
                 self.evaluations.out_sigma_eval,
                 verifier_key.permutation.out_sigma,
             ));
+            aggregate_proof.add_part((self.evaluations.f_eval, self.f_comm));
+            aggregate_proof
+                .add_part((self.evaluations.h_1_eval, self.h_1_comm));
+            aggregate_proof
+                .add_part((self.evaluations.h_2_eval, self.h_2_comm));
+            aggregate_proof.add_part((self.evaluations.table_eval, table_comm));
             // Flatten proof with opening challenge
             let flattened_proof_a = aggregate_proof.flatten(transcript);
 
@@ -311,12 +388,16 @@ pub(crate) mod alloc {
                 .add_part((self.evaluations.b_next_eval, self.b_comm));
             shifted_aggregate_proof
                 .add_part((self.evaluations.d_next_eval, self.d_comm));
+            shifted_aggregate_proof
+                .add_part((self.evaluations.h_1_next_eval, self.h_1_comm));
+            shifted_aggregate_proof
+                .add_part((self.evaluations.lookup_perm_eval, self.p_comm));
+            shifted_aggregate_proof
+                .add_part((self.evaluations.table_next_eval, table_comm));
             let flattened_proof_b = shifted_aggregate_proof.flatten(transcript);
-
             // Add commitment to openings to transcript
             transcript.append_commitment(b"w_z", &self.w_z_comm);
             transcript.append_commitment(b"w_z_w", &self.w_zw_comm);
-
             // Batch check
             if opening_key
                 .batch_check(
@@ -326,11 +407,13 @@ pub(crate) mod alloc {
                 )
                 .is_err()
             {
-                return Err(Error::ProofVerificationError);
+                return Err(Error::ProofVerificationError.into());
             }
+
             Ok(())
         }
 
+        #[allow(clippy::too_many_arguments)]
         fn compute_quotient_evaluation(
             &self,
             domain: &EvaluationDomain,
@@ -338,16 +421,28 @@ pub(crate) mod alloc {
             alpha: &BlsScalar,
             beta: &BlsScalar,
             gamma: &BlsScalar,
+            delta: &BlsScalar,
+            epsilon: &BlsScalar,
             z_challenge: &BlsScalar,
             z_h_eval: &BlsScalar,
             l1_eval: &BlsScalar,
             z_hat_eval: &BlsScalar,
+            lookup_sep_challenge: &BlsScalar,
         ) -> BlsScalar {
             // Compute the public input polynomial evaluated at `z_challenge`
             let pi_eval =
                 compute_barycentric_eval(pub_inputs, z_challenge, domain);
 
+            // Compute powers of alpha_0
             let alpha_sq = alpha.square();
+
+            // Compute powers of alpha_1
+            let l_sep_2 = lookup_sep_challenge.square();
+            let l_sep_3 = lookup_sep_challenge * l_sep_2;
+
+            // Compute common term
+            let epsilon_one_plus_delta = epsilon * (BlsScalar::one() + delta);
+
             // r + PI(z)
             let a = self.evaluations.lin_poly_eval + pi_eval;
 
@@ -363,16 +458,30 @@ pub(crate) mod alloc {
             let beta_sig3 = beta * self.evaluations.out_sigma_eval;
             let b_2 = self.evaluations.c_eval + beta_sig3 + gamma;
 
-            // ((d + gamma) * z_hat) * alpha
+            // ((d + gamma) * z_hat) * alpha_0
             let b_3 = (self.evaluations.d_eval + gamma) * z_hat_eval * alpha;
 
             let b = b_0 * b_1 * b_2 * b_3;
 
-            // l_1(z) * alpha^2
+            // l_1(z) * alpha_0^2
             let c = l1_eval * alpha_sq;
 
+            // l_1(z) * alpha_1^2
+            let e = l1_eval * l_sep_2;
+
+            // p_eval * (epsilon( 1+ delta) + h_1_eval + delta *
+            // h_2_eval)(epsilon( 1+ delta) + delta * h_1_next_eval) * alpha_1^3
+            let f_0 = epsilon_one_plus_delta
+                + self.evaluations.h_1_eval
+                + (delta * self.evaluations.h_2_eval);
+            let f_1 = epsilon_one_plus_delta
+                + (delta * self.evaluations.h_1_next_eval);
+            let f = self.evaluations.lookup_perm_eval * f_0 * f_1 * l_sep_3;
+
             // Return t_eval
-            (a - b - c) * z_h_eval.invert().unwrap()
+            (a - b - c //+ d
+                 - e - f)
+                * z_h_eval.invert().unwrap()
         }
 
         fn compute_quotient_commitment(
@@ -383,28 +492,40 @@ pub(crate) mod alloc {
             let z_n = z_challenge.pow(&[n as u64, 0, 0, 0]);
             let z_two_n = z_challenge.pow(&[2 * n as u64, 0, 0, 0]);
             let z_three_n = z_challenge.pow(&[3 * n as u64, 0, 0, 0]);
-            Commitment::from(
-                self.t_1_comm.0
-                    + self.t_2_comm.0 * z_n
-                    + self.t_3_comm.0 * z_two_n
-                    + self.t_4_comm.0 * z_three_n,
-            )
+            let t_comm = self.t_1_comm.0
+                + self.t_2_comm.0 * z_n
+                + self.t_3_comm.0 * z_two_n
+                + self.t_4_comm.0 * z_three_n;
+            Commitment::from(t_comm)
         }
 
         // Commitment to [r]_1
+        #[allow(clippy::too_many_arguments)]
         fn compute_linearisation_commitment(
             &self,
             alpha: &BlsScalar,
             beta: &BlsScalar,
             gamma: &BlsScalar,
+            delta: &BlsScalar,
+            epsilon: &BlsScalar,
+            zeta: &BlsScalar,
             (
                 range_sep_challenge,
                 logic_sep_challenge,
                 fixed_base_sep_challenge,
                 var_base_sep_challenge,
-            ): (&BlsScalar, &BlsScalar, &BlsScalar, &BlsScalar),
+                lookup_sep_challenge,
+            ): (
+                &BlsScalar,
+                &BlsScalar,
+                &BlsScalar,
+                &BlsScalar,
+                &BlsScalar,
+            ),
             z_challenge: &BlsScalar,
             l1_eval: BlsScalar,
+            t_eval: BlsScalar,
+            t_next_eval: BlsScalar,
             verifier_key: &VerifierKey,
         ) -> Commitment {
             let mut scalars: Vec<_> = Vec::with_capacity(6);
@@ -442,6 +563,20 @@ pub(crate) mod alloc {
                 &mut scalars,
                 &mut points,
                 &self.evaluations,
+            );
+
+            verifier_key.lookup.compute_linearisation_commitment(
+                lookup_sep_challenge,
+                &mut scalars,
+                &mut points,
+                &self.evaluations,
+                (&delta, &epsilon),
+                &zeta,
+                &l1_eval,
+                &t_eval,
+                &t_next_eval,
+                self.h_2_comm.0,
+                self.p_comm.0,
             );
 
             verifier_key.permutation.compute_linearisation_commitment(
@@ -536,7 +671,11 @@ mod proof_tests {
             b_comm: Commitment::default(),
             c_comm: Commitment::default(),
             d_comm: Commitment::default(),
+            f_comm: Commitment::default(),
+            h_1_comm: Commitment::default(),
+            h_2_comm: Commitment::default(),
             z_comm: Commitment::default(),
+            p_comm: Commitment::default(),
             t_1_comm: Commitment::default(),
             t_2_comm: Commitment::default(),
             t_3_comm: Commitment::default(),
@@ -555,11 +694,19 @@ mod proof_tests {
                 q_c_eval: BlsScalar::random(&mut OsRng),
                 q_l_eval: BlsScalar::random(&mut OsRng),
                 q_r_eval: BlsScalar::random(&mut OsRng),
+                q_lookup_eval: BlsScalar::random(&mut OsRng),
                 left_sigma_eval: BlsScalar::random(&mut OsRng),
                 right_sigma_eval: BlsScalar::random(&mut OsRng),
                 out_sigma_eval: BlsScalar::random(&mut OsRng),
                 lin_poly_eval: BlsScalar::random(&mut OsRng),
                 perm_eval: BlsScalar::random(&mut OsRng),
+                lookup_perm_eval: BlsScalar::random(&mut OsRng),
+                h_1_eval: BlsScalar::random(&mut OsRng),
+                h_1_next_eval: BlsScalar::random(&mut OsRng),
+                h_2_eval: BlsScalar::random(&mut OsRng),
+                f_eval: BlsScalar::random(&mut OsRng),
+                table_eval: BlsScalar::random(&mut OsRng),
+                table_next_eval: BlsScalar::random(&mut OsRng),
             },
         };
 
