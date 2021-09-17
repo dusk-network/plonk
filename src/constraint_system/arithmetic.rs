@@ -81,6 +81,7 @@ impl TurboComposer {
         self.q_logic.push(BlsScalar::zero());
         self.q_fixed_group_add.push(BlsScalar::zero());
         self.q_variable_group_add.push(BlsScalar::zero());
+        self.q_lookup.push(BlsScalar::zero());
 
         if let Some(pi) = pi {
             assert!(self.public_inputs_sparse_store.insert(self.n, pi).is_none(),"The invariant of already having a PI inserted for this position should never exist");
@@ -162,6 +163,7 @@ impl TurboComposer {
         self.q_logic.push(BlsScalar::zero());
         self.q_fixed_group_add.push(BlsScalar::zero());
         self.q_variable_group_add.push(BlsScalar::zero());
+        self.q_lookup.push(BlsScalar::zero());
 
         if let Some(pi) = pi {
             assert!(

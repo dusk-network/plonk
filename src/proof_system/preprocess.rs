@@ -8,6 +8,7 @@
 
 use crate::commitment_scheme::kzg10::CommitKey;
 use crate::constraint_system::TurboComposer;
+use crate::plookup::PreprocessedTable4Arity;
 
 use crate::error::Error;
 use crate::fft::{EvaluationDomain, Evaluations, Polynomial};
@@ -29,6 +30,8 @@ pub(crate) struct SelectorPolynomials {
     q_logic: Polynomial,
     q_fixed_group_add: Polynomial,
     q_variable_group_add: Polynomial,
+    q_lookup: Polynomial,
+
     left_sigma: Polynomial,
     right_sigma: Polynomial,
     out_sigma: Polynomial,
@@ -59,6 +62,7 @@ impl TurboComposer {
         self.q_logic.extend(zeroes_scalar.iter());
         self.q_fixed_group_add.extend(zeroes_scalar.iter());
         self.q_variable_group_add.extend(zeroes_scalar.iter());
+        self.q_lookup.extend(zeroes_scalar.iter());
 
         self.w_l.extend(zeroes_var.iter());
         self.w_r.extend(zeroes_var.iter());
@@ -83,6 +87,7 @@ impl TurboComposer {
             && self.q_logic.len() == k
             && self.q_fixed_group_add.len() == k
             && self.q_variable_group_add.len() == k
+            && self.q_lookup.len() == k
             && self.w_l.len() == k
             && self.w_r.len() == k
             && self.w_o.len() == k
@@ -103,7 +108,7 @@ impl TurboComposer {
         commit_key: &CommitKey,
         transcript: &mut Transcript,
     ) -> Result<ProverKey, Error> {
-        let (_, selectors, domain) =
+        let (_, selectors, preprocessed_table, domain) =
             self.preprocess_shared(commit_key, transcript)?;
 
         let domain_4n = EvaluationDomain::new(4 * domain.size())?;
@@ -151,6 +156,10 @@ impl TurboComposer {
             domain_4n.coset_fft(&selectors.q_variable_group_add),
             domain_4n,
         );
+        let q_lookup_eval_4n = Evaluations::from_vec_and_domain(
+            domain_4n.coset_fft(&selectors.q_lookup),
+            domain_4n,
+        );
 
         let left_sigma_eval_4n = Evaluations::from_vec_and_domain(
             domain_4n.coset_fft(&selectors.left_sigma),
@@ -166,6 +175,23 @@ impl TurboComposer {
         );
         let fourth_sigma_eval_4n = Evaluations::from_vec_and_domain(
             domain_4n.coset_fft(&selectors.fourth_sigma),
+            domain_4n,
+        );
+
+        let table_1_eval_4n = Evaluations::from_vec_and_domain(
+            domain_4n.coset_fft(&preprocessed_table.t_1.2),
+            domain_4n,
+        );
+        let table_2_eval_4n = Evaluations::from_vec_and_domain(
+            domain_4n.coset_fft(&preprocessed_table.t_2.2),
+            domain_4n,
+        );
+        let table_3_eval_4n = Evaluations::from_vec_and_domain(
+            domain_4n.coset_fft(&preprocessed_table.t_3.2),
+            domain_4n,
+        );
+        let table_4_eval_4n = Evaluations::from_vec_and_domain(
+            domain_4n.coset_fft(&preprocessed_table.t_4.2),
             domain_4n,
         );
         // XXX: Remove this and compute it on the fly
@@ -225,6 +251,31 @@ impl TurboComposer {
                 ),
             };
 
+        // Prover key for lookup operations
+        let lookup_prover_key = widget::lookup::ProverKey {
+            q_lookup: (selectors.q_lookup, q_lookup_eval_4n),
+            table_1: (
+                preprocessed_table.t_1.0,
+                preprocessed_table.t_1.2,
+                table_1_eval_4n,
+            ),
+            table_2: (
+                preprocessed_table.t_2.0,
+                preprocessed_table.t_2.2,
+                table_2_eval_4n,
+            ),
+            table_3: (
+                preprocessed_table.t_3.0,
+                preprocessed_table.t_3.2,
+                table_3_eval_4n,
+            ),
+            table_4: (
+                preprocessed_table.t_4.0,
+                preprocessed_table.t_4.2,
+                table_4_eval_4n,
+            ),
+        };
+
         let prover_key = ProverKey {
             n: domain.size(),
             arithmetic: arithmetic_prover_key,
@@ -233,6 +284,7 @@ impl TurboComposer {
             permutation: permutation_prover_key,
             variable_base: curve_addition_prover_key,
             fixed_base: ecc_prover_key,
+            lookup: lookup_prover_key,
             // Compute 4n evaluations for X^n -1
             v_h_coset_4n: domain_4n
                 .compute_vanishing_poly_over_coset(domain.size() as u64),
@@ -249,7 +301,7 @@ impl TurboComposer {
         commit_key: &CommitKey,
         transcript: &mut Transcript,
     ) -> Result<widget::VerifierKey, Error> {
-        let (verifier_key, _, _) =
+        let (verifier_key, _, _, _) =
             self.preprocess_shared(commit_key, transcript)?;
         Ok(verifier_key)
     }
@@ -263,7 +315,12 @@ impl TurboComposer {
         commit_key: &CommitKey,
         transcript: &mut Transcript,
     ) -> Result<
-        (widget::VerifierKey, SelectorPolynomials, EvaluationDomain),
+        (
+            widget::VerifierKey,
+            SelectorPolynomials,
+            PreprocessedTable4Arity,
+            EvaluationDomain,
+        ),
         Error,
     > {
         let domain = EvaluationDomain::new(self.circuit_size())?;
@@ -298,6 +355,8 @@ impl TurboComposer {
         let q_variable_group_add_poly = Polynomial::from_coefficients_slice(
             &domain.ifft(&self.q_variable_group_add),
         );
+        let q_lookup_poly =
+            Polynomial::from_coefficients_slice(&domain.ifft(&self.q_lookup));
 
         // 2. Compute the sigma polynomials
         let [left_sigma_poly, right_sigma_poly, out_sigma_poly, fourth_sigma_poly] =
@@ -321,11 +380,20 @@ impl TurboComposer {
         let q_variable_group_add_poly_commit = commit_key
             .commit(&q_variable_group_add_poly)
             .unwrap_or_default();
+        let q_lookup_poly_commit =
+            commit_key.commit(&q_lookup_poly).unwrap_or_default();
 
         let left_sigma_poly_commit = commit_key.commit(&left_sigma_poly)?;
         let right_sigma_poly_commit = commit_key.commit(&right_sigma_poly)?;
         let out_sigma_poly_commit = commit_key.commit(&out_sigma_poly)?;
         let fourth_sigma_poly_commit = commit_key.commit(&fourth_sigma_poly)?;
+
+        // Preprocess the lookup table
+        let preprocessed_table = PreprocessedTable4Arity::preprocess(
+            &self.lookup_table,
+            &commit_key,
+            domain.size() as u32,
+        )?;
 
         // Verifier Key for arithmetic circuits
         let arithmetic_verifier_key = widget::arithmetic::VerifierKey {
@@ -358,6 +426,15 @@ impl TurboComposer {
             widget::ecc::curve_addition::VerifierKey {
                 q_variable_group_add: q_variable_group_add_poly_commit,
             };
+
+        // Verifier Key for lookup operations
+        let lookup_verifier_key = widget::lookup::VerifierKey {
+            q_lookup: q_lookup_poly_commit,
+            table_1: preprocessed_table.t_1.1,
+            table_2: preprocessed_table.t_2.1,
+            table_3: preprocessed_table.t_3.1,
+            table_4: preprocessed_table.t_4.1,
+        };
         // Verifier Key for permutation argument
         let permutation_verifier_key = widget::permutation::VerifierKey {
             left_sigma: left_sigma_poly_commit,
@@ -374,6 +451,7 @@ impl TurboComposer {
             fixed_base: ecc_verifier_key,
             variable_base: curve_addition_verifier_key,
             permutation: permutation_verifier_key,
+            lookup: lookup_verifier_key,
         };
 
         let selectors = SelectorPolynomials {
@@ -388,6 +466,7 @@ impl TurboComposer {
             q_logic: q_logic_poly,
             q_fixed_group_add: q_fixed_group_add_poly,
             q_variable_group_add: q_variable_group_add_poly,
+            q_lookup: q_lookup_poly,
             left_sigma: left_sigma_poly,
             right_sigma: right_sigma_poly,
             out_sigma: out_sigma_poly,
@@ -397,7 +476,7 @@ impl TurboComposer {
         // Add the circuit description to the transcript
         verifier_key.seed_transcript(transcript);
 
-        Ok((verifier_key, selectors, domain))
+        Ok((verifier_key, selectors, preprocessed_table, domain))
     }
 }
 
@@ -409,9 +488,9 @@ mod test {
     #[test]
     /// Tests that the circuit gets padded to the correct length
     /// XXX: We can do this test without dummy_gadget method
-    fn test_pad() {
+    fn test_plookup_pad() {
         let mut composer: TurboComposer = TurboComposer::new();
-        dummy_gadget(100, &mut composer);
+        dummy_gadget_plookup(100, &mut composer);
 
         // Pad the circuit to next power of two
         let next_pow_2 = composer.n.next_power_of_two() as u64;
@@ -429,6 +508,7 @@ mod test {
         assert!(composer.q_logic.len() == size);
         assert!(composer.q_fixed_group_add.len() == size);
         assert!(composer.q_variable_group_add.len() == size);
+        assert!(composer.q_lookup.len() == size);
         assert!(composer.w_l.len() == size);
         assert!(composer.w_r.len() == size);
         assert!(composer.w_o.len() == size);

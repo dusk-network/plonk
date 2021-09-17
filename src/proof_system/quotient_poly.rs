@@ -20,22 +20,35 @@ pub(crate) fn compute(
     domain: &EvaluationDomain,
     prover_key: &ProverKey,
     z_poly: &Polynomial,
+    p_poly: &Polynomial,
     (w_l_poly, w_r_poly, w_o_poly, w_4_poly): (
         &Polynomial,
         &Polynomial,
         &Polynomial,
         &Polynomial,
     ),
+    f_poly: &Polynomial,
+    t_poly: &Polynomial,
+    h_1_poly: &Polynomial,
+    h_2_poly: &Polynomial,
     public_inputs_poly: &Polynomial,
     (
         alpha,
         beta,
         gamma,
+        delta,
+        epsilon,
+        zeta,
         range_challenge,
         logic_challenge,
         fixed_base_challenge,
         var_base_challenge,
+        lookup_challenge,
     ): &(
+        BlsScalar,
+        BlsScalar,
+        BlsScalar,
+        BlsScalar,
         BlsScalar,
         BlsScalar,
         BlsScalar,
@@ -52,6 +65,37 @@ pub(crate) fn compute(
     z_eval_4n.push(z_eval_4n[1]);
     z_eval_4n.push(z_eval_4n[2]);
     z_eval_4n.push(z_eval_4n[3]);
+
+    // Compute 4n eval of p(X)
+    let mut p_eval_4n = domain_4n.coset_fft(&p_poly);
+    p_eval_4n.push(p_eval_4n[0]);
+    p_eval_4n.push(p_eval_4n[1]);
+    p_eval_4n.push(p_eval_4n[2]);
+    p_eval_4n.push(p_eval_4n[3]);
+
+    // Compute 4n evals of table poly, t(x)
+    let mut t_eval_4n = domain_4n.coset_fft(&t_poly);
+    t_eval_4n.push(t_eval_4n[0]);
+    t_eval_4n.push(t_eval_4n[1]);
+    t_eval_4n.push(t_eval_4n[2]);
+    t_eval_4n.push(t_eval_4n[3]);
+
+    // Compute f(x)
+    let f_eval_4n = domain_4n.coset_fft(&f_poly);
+
+    // Compute 4n eval of h_1
+    let mut h_1_eval_4n = domain_4n.coset_fft(&h_1_poly);
+    h_1_eval_4n.push(h_1_eval_4n[0]);
+    h_1_eval_4n.push(h_1_eval_4n[1]);
+    h_1_eval_4n.push(h_1_eval_4n[2]);
+    h_1_eval_4n.push(h_1_eval_4n[3]);
+
+    // Compute 4n eval of h_2
+    let mut h_2_eval_4n = domain_4n.coset_fft(&h_2_poly);
+    h_2_eval_4n.push(h_2_eval_4n[0]);
+    h_2_eval_4n.push(h_2_eval_4n[1]);
+    h_2_eval_4n.push(h_2_eval_4n[2]);
+    h_2_eval_4n.push(h_2_eval_4n[3]);
 
     // Compute 4n evaluations of the wire polynomials
     let mut wl_eval_4n = domain_4n.coset_fft(&w_l_poly);
@@ -79,10 +123,18 @@ pub(crate) fn compute(
             logic_challenge,
             fixed_base_challenge,
             var_base_challenge,
+            lookup_challenge,
         ),
         prover_key,
         (&wl_eval_4n, &wr_eval_4n, &wo_eval_4n, &w4_eval_4n),
         public_inputs_poly,
+        zeta,
+        (delta, epsilon),
+        &f_eval_4n,
+        &p_eval_4n,
+        &t_eval_4n,
+        &h_1_eval_4n,
+        &h_2_eval_4n,
     );
 
     let t_2 = compute_permutation_checks(
@@ -113,6 +165,7 @@ pub(crate) fn compute(
 }
 
 // Ensures that the circuit is satisfied
+// Ensures that the circuit is satisfied
 fn compute_circuit_satisfiability_equation(
     domain: &EvaluationDomain,
     (
@@ -120,7 +173,8 @@ fn compute_circuit_satisfiability_equation(
         logic_challenge,
         fixed_base_challenge,
         var_base_challenge,
-    ): (&BlsScalar, &BlsScalar, &BlsScalar, &BlsScalar),
+        lookup_challenge,
+    ): (&BlsScalar, &BlsScalar, &BlsScalar, &BlsScalar, &BlsScalar),
     prover_key: &ProverKey,
     (wl_eval_4n, wr_eval_4n, wo_eval_4n, w4_eval_4n): (
         &[BlsScalar],
@@ -129,9 +183,21 @@ fn compute_circuit_satisfiability_equation(
         &[BlsScalar],
     ),
     pi_poly: &Polynomial,
+    zeta: &BlsScalar,
+    (delta, epsilon): (&BlsScalar, &BlsScalar),
+    f_eval_4n: &[BlsScalar],
+    p_eval_4n: &[BlsScalar],
+    t_eval_4n: &[BlsScalar],
+    h_1_eval_4n: &[BlsScalar],
+    h_2_eval_4n: &[BlsScalar],
 ) -> Vec<BlsScalar> {
     let domain_4n = EvaluationDomain::new(4 * domain.size()).unwrap();
-    let pi_eval_4n = domain_4n.coset_fft(pi_poly);
+    let public_eval_4n = domain_4n.coset_fft(pi_poly);
+
+    let l1_eval_4n = domain_4n.coset_fft(&compute_first_lagrange_poly_scaled(
+        &domain,
+        BlsScalar::one(),
+    ));
 
     #[cfg(not(feature = "std"))]
     let range = (0..domain_4n.size()).into_iter();
@@ -148,7 +214,16 @@ fn compute_circuit_satisfiability_equation(
             let wl_next = &wl_eval_4n[i + 4];
             let wr_next = &wr_eval_4n[i + 4];
             let w4_next = &w4_eval_4n[i + 4];
-            let pi = &pi_eval_4n[i];
+            let pi = &public_eval_4n[i];
+            let p = &p_eval_4n[i];
+            let p_next = &p_eval_4n[i + 4];
+            let fi = &f_eval_4n[i];
+            let ti = &t_eval_4n[i];
+            let ti_next = &t_eval_4n[i + 4];
+            let h1 = &h_1_eval_4n[i];
+            let h2 = &h_2_eval_4n[i];
+            let h1_next = &h_1_eval_4n[i + 4];
+            let l1i = &l1_eval_4n[i];
 
             let a = prover_key.arithmetic.compute_quotient_i(i, wl, wr, wo, w4);
 
@@ -198,7 +273,27 @@ fn compute_circuit_satisfiability_equation(
                 &w4_next,
             );
 
-            (a + pi) + b + c + d + e
+            let f = prover_key.lookup.compute_quotient_i(
+                i,
+                lookup_challenge,
+                &wl,
+                &wr,
+                &wo,
+                &w4,
+                &fi,
+                &p,
+                &p_next,
+                &ti,
+                &ti_next,
+                &h1,
+                &h1_next,
+                &h2,
+                &l1i,
+                (&delta, &epsilon),
+                &zeta,
+            );
+
+            (a + pi) + b + c + d + e + f
         })
         .collect();
     t

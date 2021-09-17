@@ -35,6 +35,7 @@ impl TurboComposer {
         self.q_logic.push(BlsScalar::zero());
         self.q_fixed_group_add.push(BlsScalar::zero());
         self.q_variable_group_add.push(BlsScalar::zero());
+        self.q_lookup.push(BlsScalar::zero());
 
         self.perm
             .add_variables_to_map(a, a, a, self.allocated_zero(), self.n);

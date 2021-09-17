@@ -60,6 +60,7 @@ impl TurboComposer {
         self.q_arith.push(BlsScalar::zero());
         self.q_range.push(BlsScalar::zero());
         self.q_logic.push(BlsScalar::zero());
+        self.q_lookup.push(BlsScalar::zero());
 
         self.perm.add_variables_to_map(
             wnaf_round.acc_x,
