@@ -7,12 +7,12 @@
 pub mod arithmetic;
 pub mod ecc;
 pub mod logic;
+pub mod lookup;
 pub mod permutation;
 pub mod range;
-pub mod lookup;
 use crate::commitment_scheme::kzg10::Commitment;
-use dusk_bytes::{DeserializableSlice, Serializable};
 use crate::plookup::MultiSet;
+use dusk_bytes::{DeserializableSlice, Serializable};
 
 /// PLONK circuit Verification Key.
 ///
@@ -451,7 +451,7 @@ pub(crate) mod alloc {
 
                     eval
                 };
-            
+
             let multiset_from_reader =
                 |buf: &mut &[u8]| -> Result<MultiSet, Error> {
                     let serialized_multiset_len =
@@ -467,7 +467,6 @@ pub(crate) mod alloc {
 
                     multiset
                 };
-            
 
             let q_m_poly = poly_from_reader(&mut buffer)?;
             let q_m_evals = evals_from_reader(&mut buffer)?;
@@ -514,7 +513,7 @@ pub(crate) mod alloc {
             let q_variable_group_add_evals = evals_from_reader(&mut buffer)?;
             let q_variable_group_add =
                 (q_variable_group_add_poly, q_variable_group_add_evals);
-            
+
             let q_lookup_poly = poly_from_reader(&mut buffer)?;
             let q_lookup_evals = evals_from_reader(&mut buffer)?;
             let q_lookup = (q_lookup_poly, q_lookup_evals);

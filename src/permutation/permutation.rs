@@ -384,7 +384,6 @@ impl Permutation {
 
         Polynomial::from_coefficients_vec(domain.ifft(&p))
     }
-
 }
 
 fn plookup_numerator_irreducible(

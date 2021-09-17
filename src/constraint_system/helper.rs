@@ -7,10 +7,10 @@
 use super::TurboComposer;
 use crate::commitment_scheme::kzg10::PublicParameters;
 use crate::error::Error;
+use crate::plookup::PlookupTable4Arity;
 use crate::proof_system::{Prover, Verifier};
 use dusk_bls12_381::BlsScalar;
 use rand_core::OsRng;
-use crate::plookup::PlookupTable4Arity;
 
 /// Adds dummy constraints using arithmetic gates
 pub(crate) fn dummy_gadget(n: usize, composer: &mut TurboComposer) {

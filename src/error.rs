@@ -72,7 +72,7 @@ pub enum Error {
     /// This error occurs when a malformed BLS scalar is decoded from a byte
     /// array.
     BlsScalarMalformed,
-    
+
     // Plookup errors
     /// Query element not found in lookup table
     ElementNotIndexed,

@@ -9,10 +9,10 @@ use crate::{
     constraint_system::{TurboComposer, Variable},
     error::Error,
     fft::{EvaluationDomain, Polynomial},
+    plookup::MultiSet,
     proof_system::{
         linearisation_poly, proof::Proof, quotient_poly, ProverKey,
     },
-    plookup::MultiSet,
     transcript::TranscriptProtocol,
 };
 use alloc::vec::Vec;
@@ -115,7 +115,7 @@ impl Prover {
         let d = t_4_poly * &z_three_n;
         let abc = &(a + &b) + &c;
         &abc + &d
-    }    
+    }
 
     /// Convert variables to their actual witness values.
     pub(crate) fn to_scalars(&self, vars: &[Variable]) -> Vec<BlsScalar> {
@@ -585,6 +585,3 @@ impl Prover {
         Ok(proof)
     }
 }
-
-
-

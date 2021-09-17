@@ -20,11 +20,11 @@
 
 use crate::constraint_system::{AllocatedScalar, Variable};
 use crate::permutation::Permutation;
+use crate::plookup::PlookupTable4Arity;
 use alloc::collections::BTreeMap;
 use alloc::vec::Vec;
 use dusk_bls12_381::BlsScalar;
 use dusk_bytes::Serializable;
-use crate::plookup::PlookupTable4Arity;
 use hashbrown::HashMap;
 
 /// The TurboComposer is the circuit-builder tool that the `dusk-plonk`
@@ -281,7 +281,6 @@ impl TurboComposer {
         self.q_fixed_group_add.push(BlsScalar::zero());
         self.q_variable_group_add.push(BlsScalar::zero());
         self.q_lookup.push(BlsScalar::one());
-
     }
 
     /// Adds a width-3 poly gate.
@@ -1005,16 +1004,20 @@ mod tests {
 
         let two = prover
             .cs
-            .add_witness_to_circuit_description(BlsScalar::from(2)).into();
+            .add_witness_to_circuit_description(BlsScalar::from(2))
+            .into();
         let three = prover
             .cs
-            .add_witness_to_circuit_description(BlsScalar::from(3)).into();
+            .add_witness_to_circuit_description(BlsScalar::from(3))
+            .into();
         let result = prover
             .cs
-            .add_witness_to_circuit_description(output.unwrap()).into();
+            .add_witness_to_circuit_description(output.unwrap())
+            .into();
         let one = prover
             .cs
-            .add_witness_to_circuit_description(BlsScalar::one()).into();
+            .add_witness_to_circuit_description(BlsScalar::one())
+            .into();
 
         prover
             .cs
@@ -1094,5 +1097,3 @@ mod tests {
         assert!(verifier.verify(&proof, &vk, &public_inputs).is_ok());
     }
 }
-
-

@@ -299,7 +299,6 @@ fn compute_circuit_satisfiability_equation(
     t
 }
 
-
 fn compute_permutation_checks(
     domain: &EvaluationDomain,
     prover_key: &ProverKey,
