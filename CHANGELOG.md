@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `identity_point` as method of composer [#572](https://github.com/dusk-network/plonk/pull/572)
+- Add `identity_point` as method of composer [#575](https://github.com/dusk-network/plonk/pull/575)
 
 ### Fixed
 
