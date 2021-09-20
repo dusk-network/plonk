@@ -322,7 +322,7 @@ impl TurboComposer {
         self.q_logic.push(BlsScalar::zero());
         self.q_fixed_group_add.push(BlsScalar::zero());
         self.q_variable_group_add.push(BlsScalar::zero());
-        self.q_lookup.push(BlsScalar::one());
+        self.q_lookup.push(BlsScalar::zero());
 
         if let Some(pi) = pi {
             assert!(self
