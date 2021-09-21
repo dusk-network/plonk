@@ -88,7 +88,7 @@ pub(crate) struct ProofEvaluations {
     pub table_next_eval: BlsScalar,
 }
 
-impl Serializable<{ 25 * BlsScalar::SIZE }> for ProofEvaluations {
+impl Serializable<{ 24 * BlsScalar::SIZE }> for ProofEvaluations {
     type Error = dusk_bytes::Error;
 
     #[allow(unused_must_use)]
