@@ -222,7 +222,7 @@ pub(crate) mod alloc {
             let var_base_sep_challenge = transcript
                 .challenge_scalar(b"variable base separation challenge");
             let lookup_sep_challenge =
-                transcript.challenge_scalar(b"lookup separation challenge");
+                transcript.challenge_scalar(b"lookup challenge");
 
             // Add commitment to quotient polynomial to transcript
             transcript.append_commitment(b"t_1", &self.t_1_comm);

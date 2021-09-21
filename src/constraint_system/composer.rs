@@ -757,7 +757,7 @@ impl TurboComposer {
         b: Variable,
         c: Variable,
         d: Option<Variable>,
-        pi: BlsScalar,
+        _pi: BlsScalar,
     ) -> Variable {
         // Check if advice wire has a value
         let d = match d {
