@@ -37,11 +37,11 @@ impl MultiSet {
 
     /// Generate a `MultiSet` struct from a slice of bytes.
     pub fn from_slice(bytes: &[u8]) -> Result<MultiSet, Error> {
-        let mut buffer = bytes;
-        let elements = buffer
+        let elements = bytes
             .chunks(BlsScalar::SIZE)
             .map(|chunk| BlsScalar::from_slice(chunk))
             .collect::<Result<Vec<BlsScalar>, dusk_bytes::Error>>()?;
+
         Ok(MultiSet(elements))
     }
 
