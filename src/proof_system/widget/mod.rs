@@ -270,9 +270,15 @@ pub(crate) mod alloc {
             15
         }
 
+        /// Returns the number of [`MultiSet`]s contained in a ProverKey.
+        const fn num_multiset() -> usize {
+            // FIXME https://github.com/dusk-network/plonk/issues/581
+            4
+        }
+
         /// Returns the number of [`Evaluations`] contained in a ProverKey.
         const fn num_evals() -> usize {
-            17
+            21
         }
 
         /// Serialises a [`ProverKey`] struct into a Vec of bytes.
@@ -285,12 +291,21 @@ pub(crate) mod alloc {
             let evals_size = self.arithmetic.q_m.1.evals.len()
                 * BlsScalar::SIZE
                 + EvaluationDomain::SIZE;
+
+            // Fetch size in bytes of each MultiSet combo: (MultiSet,
+            // Polynomial, Evaluations)
+            let multiset_size = self.lookup.table_1.0 .0.len()
+                * BlsScalar::SIZE
+                + poly_size
+                + evals_size;
+
             // Create the vec with the capacity counting the 3 u64's plus the 15
             // Polys and the 17 Evaluations.
             let mut bytes = vec![
                 0u8;
                 (Self::num_polys() * poly_size
                     + evals_size * Self::num_evals()
+                    + multiset_size * Self::num_multiset()
                     + 17 * u64::SIZE) as usize
             ];
 
@@ -706,6 +721,14 @@ mod test {
 
         let range = range::ProverKey { q_range };
 
+        let lookup = lookup::ProverKey {
+            q_lookup,
+            table_1,
+            table_2,
+            table_3,
+            table_4,
+        };
+
         let fixed_base = ecc::scalar_mul::fixed_base::ProverKey {
             q_fixed_group_add,
             q_l,
@@ -723,14 +746,6 @@ mod test {
 
         let variable_base = ecc::curve_addition::ProverKey {
             q_variable_group_add,
-        };
-
-        let lookup = lookup::ProverKey {
-            q_lookup,
-            table_1,
-            table_2,
-            table_3,
-            table_4,
         };
 
         let prover_key = ProverKey {
