@@ -11,7 +11,6 @@ pub mod lookup;
 pub mod permutation;
 pub mod range;
 use crate::commitment_scheme::kzg10::Commitment;
-use crate::plookup::MultiSet;
 use dusk_bytes::{DeserializableSlice, Serializable};
 
 /// PLONK circuit Verification Key.
@@ -185,6 +184,7 @@ impl VerifierKey {
 #[cfg(feature = "alloc")]
 pub(crate) mod alloc {
     use super::*;
+    use crate::plookup::MultiSet;
     use crate::{
         error::Error,
         fft::{EvaluationDomain, Evaluations, Polynomial},
@@ -263,7 +263,6 @@ pub(crate) mod alloc {
         pub(crate) v_h_coset_4n: Evaluations,
     }
 
-    #[cfg(feature = "alloc")]
     impl ProverKey {
         /// Returns the number of [`Polynomial`]s contained in a ProverKey.
         const fn num_polys() -> usize {
@@ -644,6 +643,7 @@ mod test {
     use super::alloc::ProverKey;
     use super::*;
     use crate::fft::{EvaluationDomain, Evaluations, Polynomial};
+    use crate::plookup::MultiSet;
     use ::alloc::vec::Vec;
     use dusk_bls12_381::BlsScalar;
     use rand_core::OsRng;
