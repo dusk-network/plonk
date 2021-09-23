@@ -323,7 +323,11 @@ impl TurboComposer {
         ),
         Error,
     > {
-        let domain = EvaluationDomain::new(self.circuit_size())?;
+        // FIXME total_size requires documentation
+        // https://github.com/dusk-network/plonk/issues/580
+        let total_size = core::cmp::max(self.n, self.lookup_table.0.len());
+
+        let domain = EvaluationDomain::new(total_size)?;
 
         // Check that the length of the wires is consistent.
         self.check_poly_same_len()?;
