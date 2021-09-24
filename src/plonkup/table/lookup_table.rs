@@ -5,22 +5,22 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 //! Structs and functions for LookupTables
-//! Denoted as 't' in Plookup paper.
+//! Denoted as 't' in Plonkup paper.
 
 use super::hash_tables::constants::{
     BLS_SCALAR_REAL, DECOMPOSITION_S_I, SBOX_U256,
 };
 use crate::error::Error;
-use crate::plookup::MultiSet;
+use crate::plonkup::MultiSet;
 use crate::prelude::BlsScalar;
 use alloc::vec::Vec;
 
-/// For the implemenation of look up tables in PLONK, aptly named PLOOKup
+/// For the implemenation of look up tables in PLONK, aptly named Plonkup
 /// tables, there will be different fucntions depending on the type of table
 /// that needs to be constructed. All tables entries envisioned will be with
 /// different arity. Meaning each of the wires will correspond to a column.
 ///
-/// If the standard composer calls a plookup gate, then the user will define
+/// If the standard composer calls a plonkup gate, then the user will define
 /// the length of the gate, measured in circuit size.
 
 /// This struct is a table, contaning a vector,
@@ -33,9 +33,9 @@ use alloc::vec::Vec;
 /// the outputs of gates within arithmetic
 /// circuits.
 #[derive(Clone, Eq, PartialEq, Debug)]
-pub struct PlookupTable3Arity(Vec<[BlsScalar; 3]>);
+pub struct PlonkupTable3Arity(Vec<[BlsScalar; 3]>);
 
-impl PlookupTable3Arity {
+impl PlonkupTable3Arity {
     /// Constructs a Lookup table of four columns corresponding to
     /// vectors of witness values, a,b c, and d. The function
     /// takes in a chosen number of 2^n values for the first column,
@@ -76,7 +76,7 @@ impl PlookupTable3Arity {
                 });
         }
 
-        PlookupTable3Arity(table)
+        PlonkupTable3Arity(table)
     }
 
     /// Function takes in two different usize numbers and checks the range
@@ -104,7 +104,7 @@ impl PlookupTable3Arity {
                 });
         }
 
-        PlookupTable3Arity(table)
+        PlonkupTable3Arity(table)
     }
 
     /// Function takes in two different usize numbers and checks the range
@@ -132,7 +132,7 @@ impl PlookupTable3Arity {
                 });
         }
 
-        PlookupTable3Arity(table)
+        PlonkupTable3Arity(table)
     }
 
     // Function takes in two different usize numbers and checks the range
@@ -160,7 +160,7 @@ impl PlookupTable3Arity {
                 });
         }
 
-        PlookupTable3Arity(table)
+        PlonkupTable3Arity(table)
     }
 
     /// Function that generates the S-box used in reinforced concrete
@@ -174,7 +174,7 @@ impl PlookupTable3Arity {
             ]);
         });
 
-        PlookupTable3Arity(s_box)
+        PlonkupTable3Arity(s_box)
     }
 
     /// Takes in a table, which is a list of vectors containing
@@ -222,23 +222,23 @@ impl PlookupTable3Arity {
 /// the outputs of gates within arithmetic
 /// circuits.
 #[derive(Clone, Eq, PartialEq, Debug)]
-pub struct PlookupTable4Arity(pub Vec<[BlsScalar; 4]>);
+pub struct PlonkupTable4Arity(pub Vec<[BlsScalar; 4]>);
 
-impl Default for PlookupTable4Arity {
+impl Default for PlonkupTable4Arity {
     fn default() -> Self {
-        PlookupTable4Arity::new()
+        PlonkupTable4Arity::new()
     }
 }
 
-impl PlookupTable4Arity {
-    /// Create a new, empty Plookup table, with arity 4.
+impl PlonkupTable4Arity {
+    /// Create a new, empty Plonkup table, with arity 4.
     pub fn new() -> Self {
-        PlookupTable4Arity(vec![])
+        PlonkupTable4Arity(vec![])
     }
 
     /// Insert a new row for an addition operation.
     /// This function needs to know the upper bound of the amount of addition
-    /// operations that will be done in the plookup table.
+    /// operations that will be done in the plonkup table.
     pub fn insert_add_row(&mut self, a: u64, b: u64, upper_bound: u64) {
         let c = (a + b) % upper_bound;
         self.0.push([
@@ -251,7 +251,7 @@ impl PlookupTable4Arity {
 
     /// Insert a new row for an addition operation.
     /// This function needs to know the upper bound of the amount of addition
-    /// operations that will be done in the plookup table.
+    /// operations that will be done in the plonkup table.
     pub fn insert_special_row(
         &mut self,
         a: BlsScalar,
@@ -264,7 +264,7 @@ impl PlookupTable4Arity {
 
     /// Insert a new row for an multiplication operation.
     /// This function needs to know the upper bound of the amount of
-    /// multiplication operations that will be done in the plookup table.
+    /// multiplication operations that will be done in the plonkup table.
     pub fn insert_mul_row(&mut self, a: u64, b: u64, upper_bound: u64) {
         let c = (a * b) % upper_bound;
         self.0.push([
@@ -277,7 +277,7 @@ impl PlookupTable4Arity {
 
     /// Insert a new row for an XOR operation.
     /// This function needs to know the upper bound of the amount of XOR
-    /// operations that will be done in the plookup table.
+    /// operations that will be done in the plonkup table.
     pub fn insert_xor_row(&mut self, a: u64, b: u64, upper_bound: u64) {
         let c = (a ^ b) % upper_bound;
         self.0.push([
@@ -290,7 +290,7 @@ impl PlookupTable4Arity {
 
     /// Insert a new row for an AND operation.
     /// This function needs to know the upper bound of the amount of XOR
-    /// operations that will be done in the plookup table.
+    /// operations that will be done in the plonkup table.
     pub fn insert_and_row(&mut self, a: u64, b: u64, upper_bound: u64) {
         let c = (a & b) % upper_bound;
         self.0.push([
@@ -577,7 +577,7 @@ impl PlookupTable4Arity {
             }
         }
 
-        PlookupTable4Arity(table)
+        PlonkupTable4Arity(table)
     }
 }
 
@@ -589,7 +589,7 @@ mod test {
     fn test_add_table() {
         let n = 4;
 
-        let table = PlookupTable3Arity::add_table(0, n);
+        let table = PlonkupTable3Arity::add_table(0, n);
 
         // Create an identical matrix, but with std numbers.
         // This way, we can also do the modulo operation, and properly
@@ -614,7 +614,7 @@ mod test {
     fn test_xor_table() {
         let n = 4;
 
-        let table = PlookupTable3Arity::xor_table(0, n);
+        let table = PlonkupTable3Arity::xor_table(0, n);
 
         // println!("{:?}", table);
         let mut i = 0;
@@ -637,7 +637,7 @@ mod test {
     fn test_mul_table() {
         let n = 4;
 
-        let table = PlookupTable3Arity::mul_table(0, n);
+        let table = PlonkupTable3Arity::mul_table(0, n);
 
         // println!("{:?}", table);
         let mut i = 0;
@@ -658,7 +658,7 @@ mod test {
 
     #[test]
     fn test_lookup_arity_3() {
-        let add_table = PlookupTable3Arity::add_table(0, 3);
+        let add_table = PlonkupTable3Arity::add_table(0, 3);
 
         assert!(add_table
             .lookup(BlsScalar::from(2), BlsScalar::from(3))
@@ -675,7 +675,7 @@ mod test {
 
     #[test]
     fn test_missing_lookup_value() {
-        let xor_table = PlookupTable3Arity::xor_table(0, 5);
+        let xor_table = PlonkupTable3Arity::xor_table(0, 5);
 
         assert!(xor_table
             .lookup(BlsScalar::from(17), BlsScalar::from(367))
@@ -684,7 +684,7 @@ mod test {
 
     #[test]
     fn test_concatenated_table() {
-        let mut table = PlookupTable4Arity::new();
+        let mut table = PlonkupTable4Arity::new();
 
         table.insert_multi_xor(0, 5);
         table.insert_multi_add(4, 7);

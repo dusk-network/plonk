@@ -330,14 +330,14 @@ impl Permutation {
         let product_arguments: Vec<BlsScalar> =
             (f, t, t_next, h_1, h_1_next, h_2)
                 .into_par_iter()
-                // Derive the numerator and denominator for each gate plookup
+                // Derive the numerator and denominator for each gate plonkup
                 // gate and pair the results
                 .map(|(f, t, t_next, h_1, h_1_next, h_2)| {
                     (
-                        plookup_numerator_irreducible(
+                        plonkup_numerator_irreducible(
                             delta, epsilon, &f, &t, t_next,
                         ),
-                        plookup_denominator_irreducible(
+                        plonkup_denominator_irreducible(
                             delta, epsilon, &h_1, &h_1_next, &h_2,
                         ),
                     )
@@ -353,14 +353,14 @@ impl Permutation {
             .zip(h_1)
             .zip(h_1_next)
             .zip(h_2)
-            // Derive the numerator and denominator for each gate plookup
+            // Derive the numerator and denominator for each gate plonkup
             // gate and pair the results
             .map(|(((((f, t), t_next), h_1), h_1_next), h_2)| {
                 (
-                    plookup_numerator_irreducible(
+                    plonkup_numerator_irreducible(
                         delta, epsilon, &f, &t, t_next,
                     ),
-                    plookup_denominator_irreducible(
+                    plonkup_denominator_irreducible(
                         delta, epsilon, &h_1, &h_1_next, &h_2,
                     ),
                 )
@@ -386,7 +386,7 @@ impl Permutation {
     }
 }
 
-fn plookup_numerator_irreducible(
+fn plonkup_numerator_irreducible(
     delta: &BlsScalar,
     epsilon: &BlsScalar,
     f: &BlsScalar,
@@ -400,7 +400,7 @@ fn plookup_numerator_irreducible(
     prod_1 * prod_2 * prod_3
 }
 
-fn plookup_denominator_irreducible(
+fn plonkup_denominator_irreducible(
     delta: &BlsScalar,
     epsilon: &BlsScalar,
     h_1: &BlsScalar,

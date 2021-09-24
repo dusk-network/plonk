@@ -73,7 +73,7 @@ pub enum Error {
     /// array.
     BlsScalarMalformed,
 
-    // Plookup errors
+    // Plonkup errors
     /// Query element not found in lookup table
     ElementNotIndexed,
     /// Cannot commit to table column polynomial

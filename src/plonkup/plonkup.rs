@@ -4,7 +4,7 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-//! Contains the functionality of plookup gates on top of the composer
+//! Contains the functionality of plonkup gates on top of the composer
 
 #![allow(clippy::too_many_arguments)]
 
@@ -13,14 +13,14 @@ use crate::constraint_system::AllocatedScalar;
 use dusk_bls12_381::BlsScalar;
 
 impl TurboComposer {
-    /// Adds a plookup gate to the circuit with its corresponding 
+    /// Adds a plonkup gate to the circuit with its corresponding 
     /// constraints.
     ///
     /// This type of gate is usually used when we need to have
     /// the largest amount of performance and the minimum circuit-size
     /// possible. Since it allows the end-user to set every selector coefficient
     /// as scaling value on the gate eq.
-    pub fn plookup_gate(
+    pub fn plonkup_gate(
         &mut self,
         a: AllocatedScalar,
         b: AllocatedScalar,

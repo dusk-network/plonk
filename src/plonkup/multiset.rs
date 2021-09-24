@@ -13,7 +13,7 @@ use dusk_bytes::{DeserializableSlice, Serializable};
 
 /// MultiSet is struct containing vectors of scalars, which
 /// individually represents either a wire value or an index
-/// of a PlookUp table
+/// of a Plonkup table
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub struct MultiSet(pub Vec<BlsScalar>);
 
@@ -92,7 +92,7 @@ impl MultiSet {
     }
 
     /// Concatenates and sorts two Multisets together.
-    /// From the Plookup paper, if we have t: {1,2,4,3}
+    /// From the Plonkup paper, if we have t: {1,2,4,3}
     /// and f: {2,3,4,1}.
     /// We first check if all elements of f exist in t
     /// Then we combine the multisets together and sort
@@ -242,7 +242,7 @@ impl Mul for MultiSet {
 mod test {
     use super::*;
     use crate::fft::EvaluationDomain;
-    use crate::plookup::WitnessTable3Arity;
+    use crate::plonkup::WitnessTable3Arity;
 
     #[test]
     fn test_halve() {
@@ -387,7 +387,7 @@ mod test {
         let mut table = WitnessTable3Arity::default();
 
         // Fill in wires directly, no need to use a
-        // plookup table as this will not be going
+        // plonkup table as this will not be going
         // into a proof
         table.from_wire_values(
             BlsScalar::from(1),

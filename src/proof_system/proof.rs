@@ -47,7 +47,7 @@ pub struct Proof {
     /// Commitment to the permutation polynomial.
     pub(crate) z_comm: Commitment,
 
-    /// Commitment to the plookup permutation polynomial.
+    /// Commitment to the plonkup permutation polynomial.
     pub(crate) p_comm: Commitment,
 
     /// Commitment to the quotient polynomial.

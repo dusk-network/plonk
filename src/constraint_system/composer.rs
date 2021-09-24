@@ -20,7 +20,7 @@
 
 use crate::constraint_system::{AllocatedScalar, Variable};
 use crate::permutation::Permutation;
-use crate::plookup::PlookupTable4Arity;
+use crate::plonkup::PlonkupTable4Arity;
 use alloc::collections::BTreeMap;
 use alloc::vec::Vec;
 use dusk_bls12_381::BlsScalar;
@@ -81,7 +81,7 @@ pub struct TurboComposer {
     pub(crate) q_fixed_group_add: Vec<BlsScalar>,
     /// Variable base group addition selector
     pub(crate) q_variable_group_add: Vec<BlsScalar>,
-    /// Plookup gate wire selector
+    /// Plonkup gate wire selector
     pub(crate) q_lookup: Vec<BlsScalar>,
 
     /// Sparse representation of the Public Inputs linking the positions of the
@@ -99,7 +99,7 @@ pub struct TurboComposer {
     pub(crate) w_4: Vec<Variable>,
 
     /// Public lookup table
-    pub lookup_table: PlookupTable4Arity,
+    pub lookup_table: PlonkupTable4Arity,
 
     /// A zero Variable that is a part of the circuit description.
     /// We reserve a variable to be zero in the system
@@ -215,7 +215,7 @@ impl TurboComposer {
             w_o: Vec::with_capacity(expected_size),
             w_4: Vec::with_capacity(expected_size),
 
-            lookup_table: PlookupTable4Arity::new(),
+            lookup_table: PlonkupTable4Arity::new(),
 
             zero_var: Variable(0),
 
@@ -744,14 +744,14 @@ impl TurboComposer {
         }
     }
 
-    /// Adds a plookup gate to the circuit with its corresponding
+    /// Adds a plonkup gate to the circuit with its corresponding
     /// constraints.
     ///
     /// This type of gate is usually used when we need to have
     /// the largest amount of performance and the minimum circuit-size
     /// possible. Since it allows the end-user to set every selector coefficient
     /// as scaling value on the gate eq.
-    pub fn plookup_gate(
+    pub fn plonkup_gate(
         &mut self,
         a: Variable,
         b: Variable,
@@ -797,7 +797,7 @@ impl TurboComposer {
     /// When StandardComposer is initialised, it spawns a dummy table
     /// with 3 entries that should not be removed. This function appends
     /// its input table to the composer's dummy table
-    pub fn append_lookup_table(&mut self, table: &PlookupTable4Arity) {
+    pub fn append_lookup_table(&mut self, table: &PlonkupTable4Arity) {
         table.0.iter().for_each(|k| self.lookup_table.0.push(*k))
     }
 }
@@ -864,7 +864,7 @@ mod tests {
 
     #[test]
     fn test_gadget() {
-        let mut t = PlookupTable4Arity::new();
+        let mut t = PlonkupTable4Arity::new();
         t.insert_special_row(
             BlsScalar::from(12),
             BlsScalar::from(12),
@@ -883,7 +883,7 @@ mod tests {
             BlsScalar::from(10),
             BlsScalar::from(10),
         );
-        let res = gadget_plookup_tester(
+        let res = gadget_plonkup_tester(
             |composer| {
                 let bit_1 = composer.add_input(BlsScalar::one());
                 let bit_0 = composer.allocated_zero();
@@ -908,20 +908,20 @@ mod tests {
     #[test]
     #[should_panic]
     fn test_gadget_fail() {
-        let mut t = PlookupTable4Arity::new();
+        let mut t = PlonkupTable4Arity::new();
         t.insert_special_row(
             BlsScalar::from(12),
             BlsScalar::from(12),
             BlsScalar::from(12),
             BlsScalar::from(12),
         );
-        let res = gadget_plookup_tester(
+        let res = gadget_plonkup_tester(
             |composer| {
                 let twelve = composer
                     .add_witness_to_circuit_description(BlsScalar::from(12));
                 let three = composer
                     .add_witness_to_circuit_description(BlsScalar::from(3));
-                composer.plookup_gate(
+                composer.plonkup_gate(
                     twelve.into(),
                     twelve.into(),
                     twelve.into(),
@@ -984,7 +984,7 @@ mod tests {
     }
 
     #[test]
-    fn test_plookup_full() {
+    fn test_plonkup_full() {
         let public_parameters =
             PublicParameters::setup(2 * 70, &mut OsRng).unwrap();
 
@@ -1021,19 +1021,19 @@ mod tests {
 
         prover
             .cs
-            .plookup_gate(two, three, result, Some(one), BlsScalar::one());
+            .plonkup_gate(two, three, result, Some(one), BlsScalar::one());
         prover
             .cs
-            .plookup_gate(two, three, result, Some(one), BlsScalar::one());
+            .plonkup_gate(two, three, result, Some(one), BlsScalar::one());
         prover
             .cs
-            .plookup_gate(two, three, result, Some(one), BlsScalar::one());
+            .plonkup_gate(two, three, result, Some(one), BlsScalar::one());
         prover
             .cs
-            .plookup_gate(two, three, result, Some(one), BlsScalar::one());
+            .plonkup_gate(two, three, result, Some(one), BlsScalar::one());
         prover
             .cs
-            .plookup_gate(two, three, result, Some(one), BlsScalar::one());
+            .plonkup_gate(two, three, result, Some(one), BlsScalar::one());
 
         let a = AllocatedScalar::new(BlsScalar::from(2), two);
         let b = AllocatedScalar::new(BlsScalar::from(3), three);
@@ -1060,7 +1060,7 @@ mod tests {
 
     #[test]
     #[ignore]
-    fn test_plookup_proof() {
+    fn test_plonkup_proof() {
         let public_parameters =
             PublicParameters::setup(2 * 30, &mut OsRng).unwrap();
 
@@ -1068,7 +1068,7 @@ mod tests {
         let mut prover = Prover::new(b"demo");
 
         // Add gadgets
-        dummy_gadget_plookup(4, prover.mut_cs());
+        dummy_gadget_plonkup(4, prover.mut_cs());
         prover.cs.lookup_table.insert_multi_mul(0, 3);
         // prover.cs.
         // Commit Key
@@ -1086,7 +1086,7 @@ mod tests {
         let mut verifier = Verifier::new(b"demo");
 
         // Add gadgets
-        dummy_gadget_plookup(4, verifier.mut_cs());
+        dummy_gadget_plonkup(4, verifier.mut_cs());
 
         // Commit and Verifier Key
         let (ck, vk) = public_parameters.trim(2 * 20).unwrap();

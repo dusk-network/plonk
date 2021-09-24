@@ -184,7 +184,7 @@ impl VerifierKey {
 #[cfg(feature = "alloc")]
 pub(crate) mod alloc {
     use super::*;
-    use crate::plookup::MultiSet;
+    use crate::plonkup::MultiSet;
     use crate::{
         error::Error,
         fft::{EvaluationDomain, Evaluations, Polynomial},
@@ -643,7 +643,7 @@ mod test {
     use super::alloc::ProverKey;
     use super::*;
     use crate::fft::{EvaluationDomain, Evaluations, Polynomial};
-    use crate::plookup::MultiSet;
+    use crate::plonkup::MultiSet;
     use ::alloc::vec::Vec;
     use dusk_bls12_381::BlsScalar;
     use rand_core::OsRng;

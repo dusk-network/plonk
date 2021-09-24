@@ -7,7 +7,7 @@
 use crate::commitment_scheme::kzg10::{CommitKey, Commitment};
 use crate::error::Error;
 use crate::fft::{EvaluationDomain, Polynomial};
-use crate::plookup::{MultiSet, PlookupTable3Arity, PlookupTable4Arity};
+use crate::plonkup::{MultiSet, PlonkupTable3Arity, PlonkupTable4Arity};
 
 /// This table will be the preprocessed version of the
 /// precomputed table, T, of arity 3. This structure is
@@ -40,7 +40,7 @@ impl PreprocessedTable3Arity {
     /// outputted struct will be used in the proof alongside our
     /// circuit witness table.
     pub fn preprocess(
-        table: PlookupTable3Arity,
+        table: PlonkupTable3Arity,
         commit_key: &CommitKey,
         n: u32,
     ) -> Result<Self, Error> {
@@ -111,7 +111,7 @@ impl PreprocessedTable4Arity {
     /// outputted struct will be used in the proof alongside our
     /// circuit witness table.
     pub fn preprocess(
-        table: &PlookupTable4Arity,
+        table: &PlonkupTable4Arity,
         commit_key: &CommitKey,
         n: u32,
     ) -> Result<Self, Error> {

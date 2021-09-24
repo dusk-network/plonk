@@ -8,7 +8,7 @@
 
 use crate::commitment_scheme::kzg10::CommitKey;
 use crate::constraint_system::TurboComposer;
-use crate::plookup::PreprocessedTable4Arity;
+use crate::plonkup::PreprocessedTable4Arity;
 
 use crate::error::Error;
 use crate::fft::{EvaluationDomain, Evaluations, Polynomial};
@@ -492,9 +492,9 @@ mod test {
     #[test]
     /// Tests that the circuit gets padded to the correct length
     /// XXX: We can do this test without dummy_gadget method
-    fn test_plookup_pad() {
+    fn test_plonkup_pad() {
         let mut composer: TurboComposer = TurboComposer::new();
-        dummy_gadget_plookup(100, &mut composer);
+        dummy_gadget_plonkup(100, &mut composer);
 
         // Pad the circuit to next power of two
         let next_pow_2 = composer.n.next_power_of_two() as u64;

@@ -67,14 +67,14 @@ pub(crate) struct ProofEvaluations {
     // of unity`
     pub lookup_perm_eval: BlsScalar,
 
-    /// Evaluations of the first half of sorted plookup poly at `z`
+    /// Evaluations of the first half of sorted plonkup poly at `z`
     pub h_1_eval: BlsScalar,
 
-    /// (Shifted) Evaluations of the first half of sorted plookup poly at `z *
+    /// (Shifted) Evaluations of the first half of sorted plonkup poly at `z *
     /// root of unity`
     pub h_1_next_eval: BlsScalar,
 
-    /// (Shifted) Evaluations of the second half of sorted plookup poly at `z *
+    /// (Shifted) Evaluations of the second half of sorted plonkup poly at `z *
     /// root of unity`
     pub h_2_eval: BlsScalar,
 
