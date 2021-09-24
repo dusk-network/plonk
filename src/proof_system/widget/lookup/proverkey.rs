@@ -6,7 +6,7 @@
 
 use super::compress;
 use crate::fft::{Evaluations, Polynomial};
-use crate::plookup::MultiSet;
+use crate::plonkup::MultiSet;
 
 use dusk_bls12_381::BlsScalar;
 

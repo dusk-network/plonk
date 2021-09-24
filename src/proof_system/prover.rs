@@ -9,7 +9,7 @@ use crate::{
     constraint_system::{TurboComposer, Variable},
     error::Error,
     fft::{EvaluationDomain, Polynomial},
-    plookup::MultiSet,
+    plonkup::MultiSet,
     proof_system::{
         linearisation_poly, proof::Proof, quotient_poly, ProverKey,
     },

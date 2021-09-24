@@ -7,7 +7,7 @@
 use super::TurboComposer;
 use crate::commitment_scheme::kzg10::PublicParameters;
 use crate::error::Error;
-use crate::plookup::PlookupTable4Arity;
+use crate::plonkup::PlonkupTable4Arity;
 use crate::proof_system::{Prover, Verifier};
 use dusk_bls12_381::BlsScalar;
 use rand_core::OsRng;
@@ -30,7 +30,7 @@ pub(crate) fn dummy_gadget(n: usize, composer: &mut TurboComposer) {
 }
 
 /// Adds dummy constraints using arithmetic gates
-pub(crate) fn dummy_gadget_plookup(n: usize, composer: &mut TurboComposer) {
+pub(crate) fn dummy_gadget_plonkup(n: usize, composer: &mut TurboComposer) {
     let one = BlsScalar::one();
 
     let var_one = composer.add_input(one);
@@ -103,11 +103,11 @@ pub(crate) fn gadget_tester(
 
 /// Takes a generic gadget function with no auxillary input and
 /// tests whether it passes an end-to-end test. If using a lookup table,
-/// all plookup gates must correspond to rows in lookup_table
-pub(crate) fn gadget_plookup_tester(
+/// all plonkup gates must correspond to rows in lookup_table
+pub(crate) fn gadget_plonkup_tester(
     gadget: fn(composer: &mut TurboComposer),
     n: usize,
-    lookup_table: PlookupTable4Arity,
+    lookup_table: PlonkupTable4Arity,
 ) -> Result<(), Error> {
     // Common View
     let public_parameters = PublicParameters::setup(2 * n, &mut OsRng)?;

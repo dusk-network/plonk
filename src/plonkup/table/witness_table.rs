@@ -6,8 +6,8 @@
 
 use crate::bls12_381::BlsScalar;
 use crate::error::Error;
-use crate::plookup::MultiSet;
-use crate::plookup::{PlookupTable3Arity, PlookupTable4Arity};
+use crate::plonkup::MultiSet;
+use crate::plonkup::{PlonkupTable3Arity, PlonkupTable4Arity};
 
 /// This witness table contains quieries
 /// to a lookup table for lookup gates
@@ -104,7 +104,7 @@ impl WitnessTable3Arity {
     /// three elements are pushed to their respective multisets.
     pub fn value_from_table(
         &mut self,
-        lookup_table: &PlookupTable3Arity,
+        lookup_table: &PlonkupTable3Arity,
         left_wire_val: BlsScalar,
         right_wire_val: BlsScalar,
     ) -> Result<(), Error> {
@@ -154,7 +154,7 @@ impl WitnessTable4Arity {
     /// elements are pushed to their respective multisets.
     pub fn value_from_table(
         &mut self,
-        lookup_table: &PlookupTable4Arity,
+        lookup_table: &PlonkupTable4Arity,
         left_wire_val: BlsScalar,
         right_wire_val: BlsScalar,
         fourth_wire_val: BlsScalar,
@@ -174,12 +174,12 @@ impl WitnessTable4Arity {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::plookup::{PlookupTable3Arity, PlookupTable4Arity};
+    use crate::plonkup::{PlonkupTable3Arity, PlonkupTable4Arity};
 
     #[test]
     fn test_lookup_fuctionality_arity3() {
         // Build lookup table
-        let lookup_table = PlookupTable3Arity::xor_table(0, 3);
+        let lookup_table = PlonkupTable3Arity::xor_table(0, 3);
 
         // Instantiate empty multisets of wire values in witness table
         let mut f = WitnessTable3Arity::new();
@@ -206,7 +206,7 @@ mod test {
     #[test]
     fn test_lookup_fuctionality_arity4() {
         // Build empty lookup tables
-        let mut lookup_table = PlookupTable4Arity::new();
+        let mut lookup_table = PlonkupTable4Arity::new();
 
         // Add a consecutive set of tables, with
         // XOR operationd and addition operations
