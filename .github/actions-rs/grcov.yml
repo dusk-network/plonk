@@ -1,0 +1,5 @@
+branch: true
+llvm: true
+filter: covered
+output-type: lcov
+output-path: ./report.lcov
