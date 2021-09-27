@@ -59,6 +59,11 @@ trace = []
 trace-print = ["trace"]
 canon = ["dusk-bls12_381/canon", "dusk-jubjub/canon", "canonical", "canonical_derive"]
 
+[profile.release]
+panic = "abort"
+codegen-units = 1
+overflow-checks = false
+
 [profile.bench]
 opt-level = 3
 debug = false
