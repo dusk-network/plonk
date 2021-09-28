@@ -827,12 +827,12 @@ mod tests {
 
     #[allow(unused_variables)]
     #[test]
-    #[ignore]
     /// Tests that an empty circuit proof passes
-    fn test_prove_verify() {
+    fn test_minimal_circuit() {
         let res = gadget_tester(
             |composer| {
                 // do nothing except add the dummy constraints
+                composer.add_dummy_constraints();
             },
             200,
         );
