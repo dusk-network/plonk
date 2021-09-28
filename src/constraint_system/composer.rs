@@ -828,7 +828,7 @@ mod tests {
     #[allow(unused_variables)]
     #[test]
     /// Tests that an empty circuit proof passes
-    fn test_dummy_circuit() {
+    fn test_minimal_circuit() {
         let res = gadget_tester(
             |composer| {
                 // do nothing except add the dummy constraints
