@@ -334,6 +334,26 @@ mod tests {
     use crate::constraint_system::TurboComposer;
     use crate::proof_system::ProverKey;
 
+    type Result<T> = std::result::Result<T, TestError>;
+
+    #[derive(Debug)]
+    enum TestError {
+        Plonk(Error),
+        Io(std::io::Error),
+    }
+
+    impl From<Error> for TestError {
+        fn from(pe: Error) -> Self {
+            Self::Plonk(pe)
+        }
+    }
+
+    impl From<std::io::Error> for TestError {
+        fn from(ie: std::io::Error) -> Self {
+            Self::Io(ie)
+        }
+    }
+
     // Implements a circuit that checks:
     // 1) a + b = c where C is a PI
     // 2) a <= 2^6
@@ -355,7 +375,7 @@ mod tests {
         fn gadget(
             &mut self,
             composer: &mut TurboComposer,
-        ) -> Result<(), Error> {
+        ) -> std::result::Result<(), Error> {
             let a = composer.add_input(self.a);
             let b = composer.add_input(self.b);
             // Make first constraint a + b = c
@@ -399,28 +419,24 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
-    fn test_full() -> Result<(), Error> {
+    fn test_full() -> Result<()> {
         use rand_core::OsRng;
         use std::fs::{self, File};
         use std::io::Write;
         use tempdir::TempDir;
 
-        let tmp = TempDir::new("plonk-keys-test-full")
-            .expect("IO error")
-            .into_path();
-        let pp_path = tmp.clone().join("pp_testcirc");
-        let pk_path = tmp.clone().join("pk_testcirc");
-        let vd_path = tmp.clone().join("vd_testcirc");
+        let tmp = TempDir::new("plonk-keys-test-full")?.into_path();
+        let pp_path = tmp.join("pp_testcirc");
+        let pk_path = tmp.join("pk_testcirc");
+        let vd_path = tmp.join("vd_testcirc");
 
         // Generate CRS
         let pp_p = PublicParameters::setup(1 << 12, &mut OsRng)?;
         File::create(&pp_path)
-            .and_then(|mut f| f.write(pp_p.to_raw_var_bytes().as_slice()))
-            .expect("IO error");
+            .and_then(|mut f| f.write(pp_p.to_raw_var_bytes().as_slice()))?;
 
         // Read PublicParameters
-        let pp = fs::read(pp_path).expect("IO error");
+        let pp = fs::read(pp_path)?;
         let pp =
             unsafe { PublicParameters::from_slice_unchecked(pp.as_slice()) };
 
@@ -432,23 +448,20 @@ mod tests {
 
         // Write the keys
         File::create(&pk_path)
-            .and_then(|mut f| f.write(pk_p.to_var_bytes().as_slice()))
-            .expect("IO error");
+            .and_then(|mut f| f.write(pk_p.to_var_bytes().as_slice()))?;
 
         // Read ProverKey
-        let pk = fs::read(pk_path).expect("IO error");
+        let pk = fs::read(pk_path)?;
         let pk = ProverKey::from_slice(pk.as_slice())?;
 
         assert_eq!(pk, pk_p);
 
         // Store the VerifierData just for the verifier side:
         // (You could also store pi_pos and VerifierKey sepparatedly).
-        File::create(&vd_path)
-            .and_then(|mut f| {
-                f.write(og_verifier_data.to_var_bytes().as_slice())
-            })
-            .expect("IO error");
-        let vd = fs::read(vd_path).expect("IO error");
+        File::create(&vd_path).and_then(|mut f| {
+            f.write(og_verifier_data.to_var_bytes().as_slice())
+        })?;
+        let vd = fs::read(vd_path)?;
         let verif_data = VerifierData::from_slice(vd.as_slice())?;
         assert_eq!(og_verifier_data.key(), verif_data.key());
         assert_eq!(og_verifier_data.pi_pos(), verif_data.pi_pos());
@@ -479,13 +492,13 @@ mod tests {
             .into(),
         ];
 
-        verify_proof(
+        Ok(verify_proof(
             &pp,
-            &verif_data.key(),
+            verif_data.key(),
             &proof,
             &public_inputs,
-            &verif_data.pi_pos(),
+            verif_data.pi_pos(),
             b"Test",
-        )
+        )?)
     }
 }
