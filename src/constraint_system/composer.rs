@@ -808,6 +808,7 @@ mod tests {
     use super::*;
     use crate::commitment_scheme::kzg10::PublicParameters;
     use crate::constraint_system::helper::*;
+    use crate::error::Error;
     use crate::proof_system::{Prover, Verifier};
     use rand_core::OsRng;
 
@@ -1059,41 +1060,33 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
-    fn test_plonkup_proof() {
-        let public_parameters =
-            PublicParameters::setup(2 * 30, &mut OsRng).unwrap();
+    fn test_plonkup_proof() -> Result<(), Error> {
+        let public_parameters = PublicParameters::setup(1 << 8, &mut OsRng)?;
 
         // Create a prover struct
-        let mut prover = Prover::new(b"demo");
+        let mut prover = Prover::new(b"test");
+        let mut verifier = Verifier::new(b"test");
 
         // Add gadgets
         dummy_gadget_plonkup(4, prover.mut_cs());
         prover.cs.lookup_table.insert_multi_mul(0, 3);
-        // prover.cs.
-        // Commit Key
-        let (ck, _) = public_parameters.trim(2 * 20).unwrap();
+
+        dummy_gadget_plonkup(4, verifier.mut_cs());
+        verifier.cs.lookup_table.insert_multi_mul(0, 3);
+
+        // Commit and verifier key
+        let (ck, vk) = public_parameters.trim(1 << 7)?;
 
         // Preprocess circuit
-        prover.preprocess(&ck).unwrap();
+        prover.preprocess(&ck)?;
+        verifier.preprocess(&ck)?;
 
         let public_inputs = prover.cs.construct_dense_pi_vec();
 
-        let proof = prover.prove(&ck).unwrap();
-
-        // Verifier
-        //
-        let mut verifier = Verifier::new(b"demo");
-
-        // Add gadgets
-        dummy_gadget_plonkup(4, verifier.mut_cs());
-
-        // Commit and Verifier Key
-        let (ck, vk) = public_parameters.trim(2 * 20).unwrap();
-
-        // Preprocess
-        verifier.preprocess(&ck).unwrap();
+        let proof = prover.prove(&ck)?;
 
         assert!(verifier.verify(&proof, &vk, &public_inputs).is_ok());
+
+        Ok(())
     }
 }
