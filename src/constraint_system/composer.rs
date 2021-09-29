@@ -1059,20 +1059,18 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn test_plonkup_proof() {
         let public_parameters =
-            PublicParameters::setup(2 * 30, &mut OsRng).unwrap();
+            PublicParameters::setup(1 << 8, &mut OsRng).unwrap();
 
         // Create a prover struct
-        let mut prover = Prover::new(b"demo");
+        let mut prover = Prover::new(b"test");
 
         // Add gadgets
         dummy_gadget_plonkup(4, prover.mut_cs());
         prover.cs.lookup_table.insert_multi_mul(0, 3);
-        // prover.cs.
         // Commit Key
-        let (ck, _) = public_parameters.trim(2 * 20).unwrap();
+        let (ck, _) = public_parameters.trim(1 << 7).unwrap();
 
         // Preprocess circuit
         prover.preprocess(&ck).unwrap();
@@ -1082,14 +1080,14 @@ mod tests {
         let proof = prover.prove(&ck).unwrap();
 
         // Verifier
-        //
-        let mut verifier = Verifier::new(b"demo");
+        let mut verifier = Verifier::new(b"test");
 
         // Add gadgets
         dummy_gadget_plonkup(4, verifier.mut_cs());
+        verifier.mut_cs().lookup_table.insert_multi_mul(0, 3);
 
         // Commit and Verifier Key
-        let (ck, vk) = public_parameters.trim(2 * 20).unwrap();
+        let (ck, vk) = public_parameters.trim(1 << 8).unwrap();
 
         // Preprocess
         verifier.preprocess(&ck).unwrap();
