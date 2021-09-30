@@ -18,7 +18,7 @@
 // it is intended to be like this in order to provide
 // maximum performance and minimum circuit sizes.
 
-use crate::constraint_system::{AllocatedScalar, Variable};
+use crate::constraint_system::Witness;
 use crate::permutation::Permutation;
 use crate::plonkup::PlonkupTable4Arity;
 use alloc::collections::BTreeMap;
@@ -37,11 +37,9 @@ use hashbrown::HashMap;
 /// relationships between the witnesses and how they're repesented as Wires (so
 /// basically the Permutation argument etc..).
 ///
-/// The TurboComposer also grants us a way to introduce our secret
-/// witnesses in a for of a
-/// [`Variable`](crate::constraint_system::variable::Variable) into the circuit
-/// description as well as the public inputs. We can do this with methods like
-/// [`TurboComposer::add_input`].
+/// The TurboComposer also grants us a way to introduce our secret witnesses in
+/// a for of a [`Witness`] into the circuit description as well as the public
+/// inputs. We can do this with methods like [`TurboComposer::append_witness`].
 ///
 /// The TurboComposer also contains as associated functions all the
 /// neccessary tools to be able to istrument the circuits that the user needs
@@ -90,34 +88,38 @@ pub struct TurboComposer {
 
     // Witness vectors
     /// Left wire witness vector.
-    pub(crate) w_l: Vec<Variable>,
+    pub(crate) w_l: Vec<Witness>,
     /// Right wire witness vector.
-    pub(crate) w_r: Vec<Variable>,
+    pub(crate) w_r: Vec<Witness>,
     /// Output wire witness vector.
-    pub(crate) w_o: Vec<Variable>,
+    pub(crate) w_o: Vec<Witness>,
     /// Fourth wire witness vector.
-    pub(crate) w_4: Vec<Variable>,
+    pub(crate) w_4: Vec<Witness>,
 
     /// Public lookup table
     pub lookup_table: PlonkupTable4Arity,
 
-    /// A zero Variable that is a part of the circuit description.
+    /// A zero Witness that is a part of the circuit description.
     /// We reserve a variable to be zero in the system
     /// This is so that when a gate only uses three wires, we set the fourth
     /// wire to be the variable that references zero
-    pub(crate) zero_var: Variable,
+    pub(crate) zero_var: Witness,
 
     /// These are the actual variable values.
-    pub(crate) variables: HashMap<Variable, BlsScalar>,
+    pub(crate) witnesses: HashMap<Witness, BlsScalar>,
 
     /// Permutation argument.
     pub(crate) perm: Permutation,
 }
 
 impl TurboComposer {
-    /// Returns [`AllocatedScalar`] representing zero.
-    pub const fn allocated_zero(&self) -> AllocatedScalar {
-        AllocatedScalar::new(BlsScalar::zero(), self.zero_var)
+    /// Returns a [`Witness`] representation of zero.
+    ///
+    /// Every [`TurboComposer`] is initialized with a circuit description
+    /// containing a representation of zero. This function will return the
+    /// index of that representation.
+    pub const fn zero(&self) -> Witness {
+        self.zero_var
     }
 
     /// Returns the number of gates in the circuit
@@ -125,13 +127,10 @@ impl TurboComposer {
         self.n
     }
 
-    /// Construct an [`AllocatedScalar`] from a
-    /// [`Variable`](crate::constraint_system::variable::Variable).
-    pub(crate) fn alloc_scalar_from_variable(
-        &self,
-        var: Variable,
-    ) -> AllocatedScalar {
-        AllocatedScalar::new(self.variables[&var], var)
+    /// Evaluate the runtime value of a witness
+    #[allow(dead_code)]
+    pub(crate) fn evaluate_witness(&self, witness: &Witness) -> &BlsScalar {
+        &self.witnesses[&witness]
     }
 
     /// Constructs a dense vector of the Public Inputs from the positions and
@@ -177,15 +176,14 @@ impl TurboComposer {
         TurboComposer::with_expected_size(0)
     }
 
-    /// Fixes a [`Variable`](crate::constraint_system::variable::Variable) in
-    /// the witness to be a part of the circuit description.
-    pub fn add_witness_to_circuit_description(
-        &mut self,
-        value: BlsScalar,
-    ) -> AllocatedScalar {
-        let var = self.add_input(value);
-        self.constrain_to_constant(var, value, None);
-        var
+    /// Constrain a scalar into the circuit description and return an allocated
+    /// [`Witness`] with its value
+    pub fn append_circuit_constant(&mut self, value: BlsScalar) -> Witness {
+        let witness = self.append_witness(value);
+
+        self.constrain_to_constant(witness, value, None);
+
+        witness
     }
 
     /// Creates a new circuit with an expected circuit size.
@@ -217,17 +215,15 @@ impl TurboComposer {
 
             lookup_table: PlonkupTable4Arity::new(),
 
-            zero_var: Variable(0),
+            zero_var: Witness::new(0),
 
-            variables: HashMap::with_capacity(expected_size),
+            witnesses: HashMap::with_capacity(expected_size),
 
             perm: Permutation::new(),
         };
 
         // Reserve the first variable to be zero
-        composer.zero_var = composer
-            .add_witness_to_circuit_description(BlsScalar::zero())
-            .into();
+        composer.zero_var = composer.append_circuit_constant(BlsScalar::zero());
 
         // Add dummy constraints
         composer.add_dummy_constraints();
@@ -235,33 +231,23 @@ impl TurboComposer {
         composer
     }
 
-    /// Add Input first calls the Permutation
-    /// to generate and allocate a new
-    /// [`Variable`](crate::constraint_system::variable::Variable) `var`.
-    ///
-    /// The Composer then links the variable to the [`BlsScalar`]
-    /// and returns it for its use in the system in a form of
-    /// [`AllocatedScalar`].
-    pub fn add_input<T: Into<BlsScalar> + Copy>(
+    /// Allocate a witness value into the composer and return its index.
+    pub fn append_witness<T: Into<BlsScalar> + Copy>(
         &mut self,
         s: T,
-    ) -> AllocatedScalar {
-        // Get a new Variable from the permutation
+    ) -> Witness {
+        // Get a new Witness from the permutation
         let var = self.perm.new_variable();
-        // The composer now links the BlsScalar to the Variable returned from
-        // the Permutation
-        self.variables.insert(var, s.into());
 
-        AllocatedScalar::new(s.into(), var)
+        // The composer now links the BlsScalar to the Witness returned from
+        // the Permutation
+        self.witnesses.insert(var, s.into());
+
+        var
     }
 
     /// This pushes the result of a lookup read to a gate
-    pub fn lookup_gate(
-        &mut self,
-        a: AllocatedScalar,
-        b: AllocatedScalar,
-        c: AllocatedScalar,
-    ) {
+    pub fn lookup_gate(&mut self, a: Witness, b: Witness, c: Witness) {
         self.w_l.push(a.into());
         self.w_l.push(b.into());
         self.w_l.push(c.into());
@@ -294,16 +280,16 @@ impl TurboComposer {
     /// `(a * b) * q_m + a * q_l + b * q_r + q_c + PI + q_o * c = 0`.
     pub fn poly_gate(
         &mut self,
-        a: AllocatedScalar,
-        b: AllocatedScalar,
-        c: AllocatedScalar,
+        a: Witness,
+        b: Witness,
+        c: Witness,
         q_m: BlsScalar,
         q_l: BlsScalar,
         q_r: BlsScalar,
         q_o: BlsScalar,
         q_c: BlsScalar,
         pi: Option<BlsScalar>,
-    ) -> (AllocatedScalar, AllocatedScalar, AllocatedScalar) {
+    ) -> (Witness, Witness, Witness) {
         self.w_l.push(a.into());
         self.w_r.push(b.into());
         self.w_o.push(c.into());
@@ -343,14 +329,12 @@ impl TurboComposer {
         (a, b, c)
     }
 
-    /// Constrain a [`Variable`](crate::constraint_system::variable::Variable)
-    /// to be equal to a specific constant value which is part of the
-    /// circuit description and **NOT** a Public Input. ie. this value will
-    /// be the same for all of the circuit instances and
-    /// [`Proof`](crate::proof_system::Proof)s generated.
+    /// Constrain `a` to be equal to `constant + pi`.
+    ///
+    /// `constant` will be defined as part of the public circuit description.
     pub fn constrain_to_constant(
         &mut self,
-        a: AllocatedScalar,
+        a: Witness,
         constant: BlsScalar,
         pi: Option<BlsScalar>,
     ) {
@@ -368,12 +352,12 @@ impl TurboComposer {
     }
 
     /// Add a constraint into the circuit description that states that two
-    /// [`Variable`](crate::constraint_system::variable::Variable)s are equal.
-    pub fn assert_equal(&mut self, a: AllocatedScalar, b: AllocatedScalar) {
+    /// [`Witness`]s are equal.
+    pub fn assert_equal(&mut self, a: Witness, b: Witness) {
         self.poly_gate(
             a.into(),
             b.into(),
-            self.allocated_zero(),
+            self.zero(),
             BlsScalar::zero(),
             BlsScalar::one(),
             -BlsScalar::one(),
@@ -383,25 +367,22 @@ impl TurboComposer {
         );
     }
 
-    /// Conditionally selects a
-    /// [`Variable`](crate::constraint_system::variable::Variable) based on an
-    /// input bit.
+    /// Conditionally selects a [`Witness`] based on an input bit.
     ///
     /// If:
     /// bit == 1 => choice_a,
     /// bit == 0 => choice_b,
     ///
     /// # Note
-    /// The `bit` used as input which is a
-    /// [`Variable`](crate::constraint_system::variable::Variable) should had
-    /// previously been constrained to be either 1 or 0 using a bool
-    /// constrain. See: [`TurboComposer::boolean_gate`].
+    /// The `bit` used as input which is a [`Witness`] should had previously
+    /// been constrained to be either 1 or 0 using a bool constrain. See:
+    /// [`TurboComposer::boolean_gate`].
     pub fn conditional_select(
         &mut self,
-        bit: AllocatedScalar,
-        choice_a: AllocatedScalar,
-        choice_b: AllocatedScalar,
-    ) -> AllocatedScalar {
+        bit: Witness,
+        choice_a: Witness,
+        choice_b: Witness,
+    ) -> Witness {
         // bit * choice_a
         let bit_times_a = self.mul(
             BlsScalar::one(),
@@ -414,7 +395,7 @@ impl TurboComposer {
         // 1 - bit
         let one_min_bit = self.add(
             (-BlsScalar::one(), bit.into()),
-            (BlsScalar::zero(), self.allocated_zero()),
+            (BlsScalar::zero(), self.zero()),
             BlsScalar::one(),
             None,
         );
@@ -443,15 +424,14 @@ impl TurboComposer {
     /// bit == 0 => 0,
     ///
     /// # Note
-    /// The `bit` used as input which is a
-    /// [`Variable`](crate::constraint_system::variable::Variable) should had
-    /// previously been constrained to be either 1 or 0 using a bool
-    /// constrain. See: [`TurboComposer::boolean_gate`].
+    /// The `bit` used as input which is a [`Witness`] should had previously
+    /// been constrained to be either 1 or 0 using a bool constrain. See:
+    /// [`TurboComposer::boolean_gate`].
     pub fn conditional_select_zero(
         &mut self,
-        bit: AllocatedScalar,
-        value: AllocatedScalar,
-    ) -> AllocatedScalar {
+        bit: Witness,
+        value: Witness,
+    ) -> Witness {
         // returns bit * value
         self.mul(BlsScalar::one(), bit, value, BlsScalar::zero(), None)
     }
@@ -462,17 +442,19 @@ impl TurboComposer {
     /// bit == 0 => 1,
     ///
     /// # Note
-    /// The `bit` used as input which is a
-    /// [`Variable`](crate::constraint_system::variable::Variable) should had
-    /// previously been constrained to be either 1 or 0 using a bool
-    /// constrain. See: [`TurboComposer::boolean_gate`].
+    /// The `bit` used as input which is a [`Witness`] should had previously
+    /// been constrained to be either 1 or 0 using a bool constrain. See:
+    /// [`TurboComposer::boolean_gate`].
     pub fn conditional_select_one(
         &mut self,
-        bit: AllocatedScalar,
-        value: AllocatedScalar,
-    ) -> AllocatedScalar {
-        let f_x_scalar = BlsScalar::one() - bit + (bit * value);
-        let f_x = self.add_input(f_x_scalar);
+        bit: Witness,
+        value: Witness,
+    ) -> Witness {
+        let b = self.witnesses[&bit];
+        let v = self.witnesses[&value];
+
+        let f_x = BlsScalar::one() - b + (b * v);
+        let f_x = self.append_witness(f_x);
 
         self.poly_gate(
             bit.into(),
@@ -489,20 +471,21 @@ impl TurboComposer {
         f_x
     }
 
-    /// Decomposes an [`AllocatedScalar`] into an array of 256 bits represented
-    /// as [`AllocatedScalar`]s.
+    /// Decomposes an [`Witness`] into an array of 256 bits represented
+    /// as [`Witness`]s.
     pub fn scalar_bit_decomposition(
         &mut self,
-        scalar: AllocatedScalar,
-    ) -> [AllocatedScalar; 256] {
-        let mut res = [self.allocated_zero(); 256];
-        let bytes = BlsScalar::from(scalar).to_bytes();
+        scalar: Witness,
+    ) -> [Witness; 256] {
+        let mut res = [self.zero(); 256];
+        let bytes = self.witnesses[&scalar].to_bytes();
+
         for (byte, bits) in bytes.iter().zip(res.chunks_mut(8)) {
             bits.iter_mut()
                 .enumerate()
                 .map(|(i, bit)| {
                     (
-                        self.add_input(BlsScalar::from(
+                        self.append_witness(BlsScalar::from(
                             ((byte >> i) & 1) as u64,
                         )),
                         bit,
@@ -531,10 +514,10 @@ impl TurboComposer {
         self.q_fixed_group_add.push(BlsScalar::zero());
         self.q_variable_group_add.push(BlsScalar::zero());
         self.q_lookup.push(BlsScalar::one());
-        let var_six = self.add_input(BlsScalar::from(6));
-        let var_one = self.add_input(BlsScalar::from(1));
-        let var_seven = self.add_input(BlsScalar::from(7));
-        let var_min_twenty = self.add_input(-BlsScalar::from(20));
+        let var_six = self.append_witness(BlsScalar::from(6));
+        let var_one = self.append_witness(BlsScalar::from(1));
+        let var_seven = self.append_witness(BlsScalar::from(7));
+        let var_min_twenty = self.append_witness(-BlsScalar::from(20));
         self.w_l.push(var_six.into());
         self.w_r.push(var_seven.into());
         self.w_o.push(var_min_twenty.into());
@@ -624,23 +607,24 @@ impl TurboComposer {
         let w_l: Vec<&BlsScalar> = self
             .w_l
             .iter()
-            .map(|w_l_i| self.variables.get(&w_l_i).unwrap())
+            .map(|w_l_i| self.witnesses.get(&w_l_i).unwrap())
             .collect();
         let w_r: Vec<&BlsScalar> = self
             .w_r
             .iter()
-            .map(|w_r_i| self.variables.get(&w_r_i).unwrap())
+            .map(|w_r_i| self.witnesses.get(&w_r_i).unwrap())
             .collect();
         let w_o: Vec<&BlsScalar> = self
             .w_o
             .iter()
-            .map(|w_o_i| self.variables.get(&w_o_i).unwrap())
+            .map(|w_o_i| self.witnesses.get(&w_o_i).unwrap())
             .collect();
         let w_4: Vec<&BlsScalar> = self
             .w_4
             .iter()
-            .map(|w_4_i| self.variables.get(&w_4_i).unwrap())
+            .map(|w_4_i| self.witnesses.get(&w_4_i).unwrap())
             .collect();
+
         // Computes f(f-1)(f-2)(f-3)
         let delta = |f: BlsScalar| -> BlsScalar {
             let f_1 = f - BlsScalar::one();
@@ -648,8 +632,10 @@ impl TurboComposer {
             let f_3 = f - BlsScalar::from(3);
             f * f_1 * f_2 * f_3
         };
+
         let pi_vec = self.construct_dense_pi_vec();
         let four = BlsScalar::from(4);
+
         for i in 0..self.n {
             let qm = self.q_m[i];
             let ql = self.q_l[i];
@@ -753,12 +739,12 @@ impl TurboComposer {
     /// as scaling value on the gate eq.
     pub fn plonkup_gate(
         &mut self,
-        a: Variable,
-        b: Variable,
-        c: Variable,
-        d: Option<Variable>,
+        a: Witness,
+        b: Witness,
+        c: Witness,
+        d: Option<Witness>,
         _pi: BlsScalar,
-    ) -> Variable {
+    ) -> Witness {
         // Check if advice wire has a value
         let d = match d {
             Some(var) => var,
@@ -844,11 +830,11 @@ mod tests {
     fn test_conditional_select() {
         let res = gadget_tester(
             |composer| {
-                let bit_1 = composer.add_input(BlsScalar::one());
-                let bit_0 = composer.allocated_zero();
+                let bit_1 = composer.append_witness(BlsScalar::one());
+                let bit_0 = composer.zero();
 
-                let choice_a = composer.add_input(BlsScalar::from(10u64));
-                let choice_b = composer.add_input(BlsScalar::from(20u64));
+                let choice_a = composer.append_witness(BlsScalar::from(10u64));
+                let choice_b = composer.append_witness(BlsScalar::from(20u64));
 
                 let choice =
                     composer.conditional_select(bit_1, choice_a, choice_b);
@@ -886,11 +872,11 @@ mod tests {
         );
         let res = gadget_plonkup_tester(
             |composer| {
-                let bit_1 = composer.add_input(BlsScalar::one());
-                let bit_0 = composer.allocated_zero();
+                let bit_1 = composer.append_witness(BlsScalar::one());
+                let bit_0 = composer.zero();
 
-                let choice_a = composer.add_input(BlsScalar::from(10u64));
-                let choice_b = composer.add_input(BlsScalar::from(20u64));
+                let choice_a = composer.append_witness(BlsScalar::from(10u64));
+                let choice_b = composer.append_witness(BlsScalar::from(20u64));
 
                 let choice =
                     composer.conditional_select(bit_1, choice_a, choice_b);
@@ -918,10 +904,10 @@ mod tests {
         );
         let res = gadget_plonkup_tester(
             |composer| {
-                let twelve = composer
-                    .add_witness_to_circuit_description(BlsScalar::from(12));
-                let three = composer
-                    .add_witness_to_circuit_description(BlsScalar::from(3));
+                let twelve =
+                    composer.append_circuit_constant(BlsScalar::from(12));
+                let three =
+                    composer.append_circuit_constant(BlsScalar::from(3));
                 composer.plonkup_gate(
                     twelve.into(),
                     twelve.into(),
@@ -1003,22 +989,10 @@ mod tests {
             BlsScalar::one(),
         );
 
-        let two = prover
-            .cs
-            .add_witness_to_circuit_description(BlsScalar::from(2))
-            .into();
-        let three = prover
-            .cs
-            .add_witness_to_circuit_description(BlsScalar::from(3))
-            .into();
-        let result = prover
-            .cs
-            .add_witness_to_circuit_description(output.unwrap())
-            .into();
-        let one = prover
-            .cs
-            .add_witness_to_circuit_description(BlsScalar::one())
-            .into();
+        let two = prover.cs.append_circuit_constant(BlsScalar::from(2));
+        let three = prover.cs.append_circuit_constant(BlsScalar::from(3));
+        let result = prover.cs.append_circuit_constant(output.unwrap());
+        let one = prover.cs.append_circuit_constant(BlsScalar::one());
 
         prover
             .cs
@@ -1036,11 +1010,9 @@ mod tests {
             .cs
             .plonkup_gate(two, three, result, Some(one), BlsScalar::one());
 
-        let a = AllocatedScalar::new(BlsScalar::from(2), two);
-        let b = AllocatedScalar::new(BlsScalar::from(3), three);
         prover.cs.big_add(
-            (BlsScalar::one(), a),
-            (BlsScalar::one(), b),
+            (BlsScalar::one(), two),
+            (BlsScalar::one(), three),
             None,
             BlsScalar::zero(),
             Some(BlsScalar::zero()),

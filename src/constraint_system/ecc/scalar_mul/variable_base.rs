@@ -4,8 +4,7 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use crate::constraint_system::ecc::AllocatedPoint;
-use crate::constraint_system::{variable::AllocatedScalar, TurboComposer};
+use crate::constraint_system::{TurboComposer, Witness, WitnessPoint};
 use alloc::vec::Vec;
 use dusk_bls12_381::BlsScalar;
 
@@ -18,13 +17,13 @@ impl TurboComposer {
     /// which is optimized for fixed_base ops.
     pub fn variable_base_scalar_mul(
         &mut self,
-        jubjub_var: AllocatedScalar,
-        point: AllocatedPoint,
-    ) -> AllocatedPoint {
+        jubjub: Witness,
+        point: WitnessPoint,
+    ) -> WitnessPoint {
         // Turn scalar into bits
-        let scalar_bits = self.scalar_decomposition(jubjub_var);
+        let scalar_bits = self.scalar_decomposition(jubjub);
 
-        let identity = AllocatedPoint::identity(self);
+        let identity = WitnessPoint::identity(self);
         let mut result = identity;
 
         for bit in scalar_bits.into_iter().rev() {
@@ -36,36 +35,34 @@ impl TurboComposer {
         result
     }
 
-    fn scalar_decomposition(
-        &mut self,
-        witness: AllocatedScalar,
-    ) -> Vec<AllocatedScalar> {
+    fn scalar_decomposition(&mut self, witness: Witness) -> Vec<Witness> {
         // Decompose the bits
         let scalar_bits = self.scalar_bit_decomposition(witness);
 
         // Take the first 252 bits
-        let scalar_bits_var = scalar_bits[..252].to_vec();
+        let scalar_bits_witness = scalar_bits[..252].to_vec();
 
         // Now ensure that the bits correctly accumulate to the witness given
-        let mut accumulator_var = self.allocated_zero();
+        let mut accumulator_witness = self.zero();
         let mut accumulator_scalar = BlsScalar::zero();
 
-        for (power, bit) in scalar_bits_var.iter().enumerate() {
+        for (power, bit) in scalar_bits_witness.iter().enumerate() {
             self.boolean_gate(*bit);
 
             let two_pow = BlsScalar::pow_of_2(power as u64);
 
             let q_l_a = (two_pow, *bit);
-            let q_r_b = (BlsScalar::one(), accumulator_var);
+            let q_r_b = (BlsScalar::one(), accumulator_witness);
             let q_c = BlsScalar::zero();
 
-            accumulator_var = self.add(q_l_a, q_r_b, q_c, None);
+            accumulator_witness = self.add(q_l_a, q_r_b, q_c, None);
 
-            accumulator_scalar += two_pow * scalar_bits[power];
+            accumulator_scalar += two_pow * self.witnesses[&scalar_bits[power]];
         }
-        self.assert_equal(accumulator_var, witness);
 
-        scalar_bits_var
+        self.assert_equal(accumulator_witness, witness);
+
+        scalar_bits_witness
     }
 }
 
@@ -90,7 +87,7 @@ mod tests {
                 ]);
                 let bls_scalar =
                     BlsScalar::from_bytes(&scalar.to_bytes()).unwrap();
-                let secret_scalar = composer.add_input(bls_scalar);
+                let secret_scalar = composer.append_witness(bls_scalar);
 
                 let expected_point: JubJubAffine =
                     (JubJubExtended::from(GENERATOR) * scalar).into();

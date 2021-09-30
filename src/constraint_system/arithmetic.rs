@@ -4,7 +4,7 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use crate::constraint_system::{AllocatedScalar, TurboComposer};
+use crate::constraint_system::{TurboComposer, Witness};
 use dusk_bls12_381::BlsScalar;
 
 impl TurboComposer {
@@ -13,15 +13,15 @@ impl TurboComposer {
     /// provided.
     pub fn add_gate(
         &mut self,
-        a: AllocatedScalar,
-        b: AllocatedScalar,
-        c: AllocatedScalar,
+        a: Witness,
+        b: Witness,
+        c: Witness,
         q_l: BlsScalar,
         q_r: BlsScalar,
         q_o: BlsScalar,
         q_c: BlsScalar,
         pi: Option<BlsScalar>,
-    ) -> AllocatedScalar {
+    ) -> Witness {
         self.big_add_gate(
             a,
             b,
@@ -45,21 +45,21 @@ impl TurboComposer {
     /// as scaling value on the gate eq.
     pub fn big_add_gate(
         &mut self,
-        a: AllocatedScalar,
-        b: AllocatedScalar,
-        c: AllocatedScalar,
-        d: Option<AllocatedScalar>,
+        a: Witness,
+        b: Witness,
+        c: Witness,
+        d: Option<Witness>,
         q_l: BlsScalar,
         q_r: BlsScalar,
         q_o: BlsScalar,
         q_4: BlsScalar,
         q_c: BlsScalar,
         pi: Option<BlsScalar>,
-    ) -> AllocatedScalar {
+    ) -> Witness {
         // Check if advice wire has a value
         let d = match d {
             Some(alloc_scalar) => alloc_scalar,
-            None => self.allocated_zero(),
+            None => self.zero(),
         };
 
         self.w_l.push(a.into());
@@ -101,20 +101,20 @@ impl TurboComposer {
     /// (output wire) since it will just add a `mul constraint` to the circuit.
     pub fn mul_gate(
         &mut self,
-        a: AllocatedScalar,
-        b: AllocatedScalar,
-        c: AllocatedScalar,
+        a: Witness,
+        b: Witness,
+        c: Witness,
         q_m: BlsScalar,
         q_o: BlsScalar,
         q_c: BlsScalar,
         pi: Option<BlsScalar>,
-    ) -> AllocatedScalar {
+    ) -> Witness {
         self.big_mul_gate(a, b, c, None, q_m, q_o, q_c, BlsScalar::zero(), pi)
     }
 
     /// Adds a width-4 `big_mul_gate` with the left, right and fourth inputs
     /// and it's scaling factors, computing & returning the output (result)
-    /// `Variable` and adding the corresponding mul constraint.
+    /// `Witness` and adding the corresponding mul constraint.
     ///
     /// This type of gate is usually used when we need to have
     /// the largest amount of performance and the minimum circuit-size
@@ -127,20 +127,20 @@ impl TurboComposer {
     // XXX: Maybe make these tuples instead of individual field?
     pub fn big_mul_gate(
         &mut self,
-        a: AllocatedScalar,
-        b: AllocatedScalar,
-        c: AllocatedScalar,
-        d: Option<AllocatedScalar>,
+        a: Witness,
+        b: Witness,
+        c: Witness,
+        d: Option<Witness>,
         q_m: BlsScalar,
         q_o: BlsScalar,
         q_c: BlsScalar,
         q_4: BlsScalar,
         pi: Option<BlsScalar>,
-    ) -> AllocatedScalar {
+    ) -> Witness {
         // Check if advice wire has a value
         let d = match d {
             Some(alloc_scalar) => alloc_scalar,
-            None => self.allocated_zero(),
+            None => self.zero(),
         };
 
         self.w_l.push(a.into());
@@ -180,7 +180,7 @@ impl TurboComposer {
 
     /// Adds a [`TurboComposer::big_add_gate`] with the left and right
     /// inputs and it's scaling factors, computing & returning the output
-    /// (result) [`AllocatedScalar`], and adding the corresponding addition
+    /// (result) [`Witness`], and adding the corresponding addition
     /// constraint.
     ///
     /// This type of gate is usually used when we don't need to have
@@ -191,17 +191,17 @@ impl TurboComposer {
     /// Forces `q_l * w_l + q_r * w_r + q_c + PI = w_o(computed by the gate)`.
     pub fn add(
         &mut self,
-        q_l_a: (BlsScalar, AllocatedScalar),
-        q_r_b: (BlsScalar, AllocatedScalar),
+        q_l_a: (BlsScalar, Witness),
+        q_r_b: (BlsScalar, Witness),
         q_c: BlsScalar,
         pi: Option<BlsScalar>,
-    ) -> AllocatedScalar {
+    ) -> Witness {
         self.big_add(q_l_a, q_r_b, None, q_c, pi)
     }
 
     /// Adds a [`TurboComposer::big_add_gate`] with the left, right and
     /// fourth inputs and it's scaling factors, computing & returning the
-    /// output (result) [`AllocatedScalar`] and adding the corresponding
+    /// output (result) [`Witness`] and adding the corresponding
     /// addition constraint.
     ///
     /// This type of gate is usually used when we don't need to have
@@ -213,16 +213,16 @@ impl TurboComposer {
     /// the gate)`.
     pub fn big_add(
         &mut self,
-        q_l_a: (BlsScalar, AllocatedScalar),
-        q_r_b: (BlsScalar, AllocatedScalar),
-        q_4_d: Option<(BlsScalar, AllocatedScalar)>,
+        q_l_a: (BlsScalar, Witness),
+        q_r_b: (BlsScalar, Witness),
+        q_4_d: Option<(BlsScalar, Witness)>,
         q_c: BlsScalar,
         pi: Option<BlsScalar>,
-    ) -> AllocatedScalar {
+    ) -> Witness {
         // Check if advice wire is available
         let (q_4, d) = match q_4_d {
             Some((q_4, alloc_scalar)) => (q_4, alloc_scalar),
-            None => (BlsScalar::zero(), self.allocated_zero()),
+            None => (BlsScalar::zero(), self.zero()),
         };
 
         let (q_l, a) = q_l_a;
@@ -231,16 +231,19 @@ impl TurboComposer {
         let q_o = -BlsScalar::one();
 
         // Compute the output wire
-        let c: BlsScalar =
-            (q_l * a) + (q_r * b) + (q_4 * d) + q_c + pi.unwrap_or_default();
-        let c = self.add_input(c);
+        let c: BlsScalar = (q_l * self.witnesses[&a])
+            + (q_r * self.witnesses[&b])
+            + (q_4 * self.witnesses[&d])
+            + q_c
+            + pi.unwrap_or_default();
+        let c = self.append_witness(c);
 
         self.big_add_gate(a, b, c, Some(d), q_l, q_r, q_o, q_4, q_c, pi)
     }
 
     /// Adds a [`TurboComposer::big_mul_gate`] with the left, right
     /// and fourth inputs and it's scaling factors, computing & returning
-    /// the output (result) [`AllocatedScalar`] and adding the corresponding mul
+    /// the output (result) [`Witness`] and adding the corresponding mul
     /// constraint.
     ///
     /// This type of gate is usually used when we don't need to have
@@ -255,17 +258,17 @@ impl TurboComposer {
     pub fn mul(
         &mut self,
         q_m: BlsScalar,
-        a: AllocatedScalar,
-        b: AllocatedScalar,
+        a: Witness,
+        b: Witness,
         q_c: BlsScalar,
         pi: Option<BlsScalar>,
-    ) -> AllocatedScalar {
+    ) -> Witness {
         self.big_mul(q_m, a, b, None, q_c, pi)
     }
 
     /// Adds a width-4 [`TurboComposer::big_mul_gate`] with the left, right
     /// and fourth inputs and it's scaling factors, computing & returning
-    /// the output (result) [`AllocatedScalar`] and adding the corresponding mul
+    /// the output (result) [`Witness`] and adding the corresponding mul
     /// constraint.
     ///
     /// This type of gate is usually used when we don't need to have
@@ -280,23 +283,26 @@ impl TurboComposer {
     pub fn big_mul(
         &mut self,
         q_m: BlsScalar,
-        a: AllocatedScalar,
-        b: AllocatedScalar,
-        q_4_d: Option<(BlsScalar, AllocatedScalar)>,
+        a: Witness,
+        b: Witness,
+        q_4_d: Option<(BlsScalar, Witness)>,
         q_c: BlsScalar,
         pi: Option<BlsScalar>,
-    ) -> AllocatedScalar {
+    ) -> Witness {
         let q_o = -BlsScalar::one();
 
         // Check if advice wire is available
         let (q_4, d) = match q_4_d {
             Some((q_4, alloc_scalar)) => (q_4, alloc_scalar),
-            None => (BlsScalar::zero(), self.allocated_zero()),
+            None => (BlsScalar::zero(), self.zero()),
         };
 
         // Compute output wire
-        let c = (q_m * a * b) + (q_4 * d) + q_c + pi.unwrap_or_default();
-        let c = self.add_input(c);
+        let c = (q_m * self.witnesses[&a] * self.witnesses[&b])
+            + (q_4 * self.witnesses[&d])
+            + q_c
+            + pi.unwrap_or_default();
+        let c = self.append_witness(c);
 
         self.big_mul_gate(a, b, c, Some(d), q_m, q_o, q_c, q_4, pi)
     }
@@ -312,11 +318,11 @@ mod tests {
     fn test_public_inputs() {
         let res = gadget_tester(
             |composer| {
-                let var_one = composer.add_input(BlsScalar::one());
+                let one = composer.append_witness(BlsScalar::one());
 
                 let should_be_three = composer.big_add(
-                    (BlsScalar::one(), var_one),
-                    (BlsScalar::one(), var_one),
+                    (BlsScalar::one(), one),
+                    (BlsScalar::one(), one),
                     None,
                     BlsScalar::zero(),
                     Some(BlsScalar::one()),
@@ -327,8 +333,8 @@ mod tests {
                     None,
                 );
                 let should_be_four = composer.big_add(
-                    (BlsScalar::one(), var_one),
-                    (BlsScalar::one(), var_one),
+                    (BlsScalar::one(), one),
+                    (BlsScalar::one(), one),
                     None,
                     BlsScalar::zero(),
                     Some(BlsScalar::from(2)),
@@ -349,10 +355,10 @@ mod tests {
         let res = gadget_tester(
             |composer| {
                 // Verify that (4+5+5) * (6+7+7) = 280
-                let four = composer.add_input(BlsScalar::from(4));
-                let five = composer.add_input(BlsScalar::from(5));
-                let six = composer.add_input(BlsScalar::from(6));
-                let seven = composer.add_input(BlsScalar::from(7));
+                let four = composer.append_witness(BlsScalar::from(4));
+                let five = composer.append_witness(BlsScalar::from(5));
+                let six = composer.append_witness(BlsScalar::from(6));
+                let seven = composer.append_witness(BlsScalar::from(7));
 
                 let fourteen = composer.big_add(
                     (BlsScalar::one(), four),
@@ -399,8 +405,8 @@ mod tests {
     fn test_correct_add_gate() {
         let res = gadget_tester(
             |composer| {
-                let zero = composer.allocated_zero();
-                let one = composer.add_input(BlsScalar::one());
+                let zero = composer.zero();
+                let one = composer.append_witness(BlsScalar::one());
 
                 let c = composer.add(
                     (BlsScalar::one(), one),
@@ -420,11 +426,11 @@ mod tests {
         let res = gadget_tester(
             |composer| {
                 // Verify that (4+5+5) * (6+7+7) + (8*9) = 352
-                let four = composer.add_input(BlsScalar::from(4));
-                let five = composer.add_input(BlsScalar::from(5));
-                let six = composer.add_input(BlsScalar::from(6));
-                let seven = composer.add_input(BlsScalar::from(7));
-                let nine = composer.add_input(BlsScalar::from(9));
+                let four = composer.append_witness(BlsScalar::from(4));
+                let five = composer.append_witness(BlsScalar::from(5));
+                let six = composer.append_witness(BlsScalar::from(6));
+                let seven = composer.append_witness(BlsScalar::from(7));
+                let nine = composer.append_witness(BlsScalar::from(9));
 
                 let fourteen = composer.big_add(
                     (BlsScalar::one(), four),
@@ -466,9 +472,9 @@ mod tests {
         let res = gadget_tester(
             |composer| {
                 // Verify that (5+5) * (6+7) != 117
-                let five = composer.add_input(BlsScalar::from(5));
-                let six = composer.add_input(BlsScalar::from(6));
-                let seven = composer.add_input(BlsScalar::from(7));
+                let five = composer.append_witness(BlsScalar::from(5));
+                let six = composer.append_witness(BlsScalar::from(6));
+                let seven = composer.append_witness(BlsScalar::from(7));
 
                 let five_plus_five = composer.big_add(
                     (BlsScalar::one(), five),

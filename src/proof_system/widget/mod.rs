@@ -359,7 +359,7 @@ pub(crate) mod alloc {
             writer.write(&self.fixed_base.q_fixed_group_add.0.to_var_bytes());
             writer.write(&self.fixed_base.q_fixed_group_add.1.to_var_bytes());
 
-            // Variable base addition
+            // Witness base addition
             writer.write(
                 &(self.variable_base.q_variable_group_add.0.len() as u64)
                     .to_bytes(),

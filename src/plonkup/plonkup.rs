@@ -9,11 +9,11 @@
 #![allow(clippy::too_many_arguments)]
 
 use crate::constraint_system::TurboComposer;
-use crate::constraint_system::AllocatedScalar;
+use crate::constraint_system::Witness;
 use dusk_bls12_381::BlsScalar;
 
 impl TurboComposer {
-    /// Adds a plonkup gate to the circuit with its corresponding 
+    /// Adds a plonkup gate to the circuit with its corresponding
     /// constraints.
     ///
     /// This type of gate is usually used when we need to have
@@ -22,20 +22,20 @@ impl TurboComposer {
     /// as scaling value on the gate eq.
     pub fn plonkup_gate(
         &mut self,
-        a: AllocatedScalar,
-        b: AllocatedScalar,
-        c: AllocatedScalar,
-        d: Option<AllocatedScalar>,
+        a: Witness,
+        b: Witness,
+        c: Witness,
+        d: Option<Witness>,
         q_l: BlsScalar,
         q_r: BlsScalar,
         q_o: BlsScalar,
         q_4: BlsScalar,
         q_c: BlsScalar,
         pi: BlsScalar,
-    ) -> AllocatedScalar {
+    ) -> Witness {
         // Check if advice wire has a value
         let d = match d {
-            Some(var) => var,
+            Some(witness) => witness,
             None => self.zero_var,
         };
 
@@ -57,10 +57,9 @@ impl TurboComposer {
         self.q_fixed_group_add.push(BlsScalar::zero());
         self.q_variable_group_add.push(BlsScalar::zero());
 
-        // For a lookup gate, only one selector poly is 
+        // For a lookup gate, only one selector poly is
         // turned on as the output is inputted directly
         self.q_lookup.push(BlsScalar::one());
-
 
         self.public_inputs.push(pi);
 
@@ -71,4 +70,3 @@ impl TurboComposer {
         c
     }
 }
-

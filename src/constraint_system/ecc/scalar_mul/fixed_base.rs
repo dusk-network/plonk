@@ -5,9 +5,7 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use crate::constraint_system::ecc::curve_addition::fixed_base_gate::WnafRound;
-use crate::constraint_system::{
-    variable::AllocatedScalar, AllocatedPoint, TurboComposer,
-};
+use crate::constraint_system::{TurboComposer, Witness, WitnessPoint};
 use alloc::vec::Vec;
 use dusk_bls12_381::BlsScalar;
 use dusk_bytes::Serializable;
@@ -39,9 +37,9 @@ impl TurboComposer {
     /// [`dusk_jubjub::GENERATOR_NUMS`].
     pub fn fixed_base_scalar_mul(
         &mut self,
-        jubjub_scalar: AllocatedScalar,
+        jubjub_scalar: Witness,
         generator: JubJubExtended,
-    ) -> AllocatedPoint {
+    ) -> WitnessPoint {
         // XXX: we can slice off 3 bits from the top of wnaf, since F_r prime
         // has 252 bits. XXX :We can also move to base4 and have half
         // the number of gates since wnaf adjacent entries product is
@@ -57,9 +55,10 @@ impl TurboComposer {
         // scalar XXX: Not very Tidy, impl From function in JubJub
         // This will panic if the JubJub scalar is not a jubjub scalar indeed
         // and was introduced as a BlsScalar.
-        let raw_jubjub_scalar =
-            JubJubScalar::from_bytes(&jubjub_scalar.scalar().to_bytes())
-                .unwrap();
+        let raw_jubjub_scalar = JubJubScalar::from_bytes(
+            &self.witnesses[&jubjub_scalar].to_bytes(),
+        )
+        .unwrap();
 
         // Convert scalar to wnaf_2(k)
         let wnaf_entries = raw_jubjub_scalar.compute_windowed_naf(2);
@@ -97,10 +96,10 @@ impl TurboComposer {
         }
 
         for i in 0..num_bits {
-            let acc_x = self.add_input(point_acc[i].get_x());
-            let acc_y = self.add_input(point_acc[i].get_y());
+            let acc_x = self.append_witness(point_acc[i].get_x());
+            let acc_y = self.append_witness(point_acc[i].get_y());
 
-            let accumulated_bit = self.add_input(scalar_acc[i]);
+            let accumulated_bit = self.append_witness(scalar_acc[i]);
 
             // We constrain the point accumulator to start from the Identity
             // point and the Scalar accumulator to start from zero
@@ -117,7 +116,7 @@ impl TurboComposer {
             let x_beta = point_multiples[i].get_x();
             let y_beta = point_multiples[i].get_y();
 
-            let xy_alpha = self.add_input(xy_alphas[i]);
+            let xy_alpha = self.append_witness(xy_alphas[i]);
 
             let xy_beta = x_beta * y_beta;
 
@@ -136,14 +135,14 @@ impl TurboComposer {
 
         // Add last gate, but do not activate it for ECC
         // It is for use with the previous gate
-        let acc_x = self.add_input(point_acc[num_bits].get_x());
-        let acc_y = self.add_input(point_acc[num_bits].get_y());
-        let last_accumulated_bit = self.add_input(scalar_acc[num_bits]);
+        let acc_x = self.append_witness(point_acc[num_bits].get_x());
+        let acc_y = self.append_witness(point_acc[num_bits].get_y());
+        let last_accumulated_bit = self.append_witness(scalar_acc[num_bits]);
 
         self.big_add_gate(
             acc_x,
             acc_y,
-            self.allocated_zero(),
+            self.zero(),
             Some(last_accumulated_bit),
             BlsScalar::zero(),
             BlsScalar::zero(),
@@ -157,7 +156,7 @@ impl TurboComposer {
         // input jubjub scalar
         self.assert_equal(last_accumulated_bit, jubjub_scalar);
 
-        AllocatedPoint { x: acc_x, y: acc_y }
+        WitnessPoint { x: acc_x, y: acc_y }
     }
 }
 
@@ -181,7 +180,7 @@ mod tests {
                 ]);
                 let bls_scalar =
                     BlsScalar::from_bytes(&scalar.to_bytes()).unwrap();
-                let secret_scalar = composer.add_input(bls_scalar);
+                let secret_scalar = composer.append_witness(bls_scalar);
 
                 let expected_point: JubJubAffine =
                     (GENERATOR_EXTENDED * scalar).into();
@@ -204,7 +203,7 @@ mod tests {
                 let scalar = JubJubScalar::zero();
                 let bls_scalar =
                     BlsScalar::from_bytes(&scalar.to_bytes()).unwrap();
-                let secret_scalar = composer.add_input(bls_scalar);
+                let secret_scalar = composer.append_witness(bls_scalar);
 
                 let expected_point: JubJubAffine =
                     (GENERATOR_EXTENDED * scalar).into();
@@ -226,7 +225,7 @@ mod tests {
                 let scalar = JubJubScalar::from(100u64);
                 let bls_scalar =
                     BlsScalar::from_bytes(&scalar.to_bytes()).unwrap();
-                let secret_scalar = composer.add_input(bls_scalar);
+                let secret_scalar = composer.append_witness(bls_scalar);
                 // Fails because we are not multiplying by the GENERATOR, it is
                 // double
 
@@ -257,15 +256,19 @@ mod tests {
                 let affine_point_b: JubJubAffine = point_b.into();
                 let affine_expected_point: JubJubAffine = expected_point.into();
 
-                let var_point_a_x = composer.add_input(affine_point_a.get_x());
-                let var_point_a_y = composer.add_input(affine_point_a.get_y());
-                let point_a = AllocatedPoint {
+                let var_point_a_x =
+                    composer.append_witness(affine_point_a.get_x());
+                let var_point_a_y =
+                    composer.append_witness(affine_point_a.get_y());
+                let point_a = WitnessPoint {
                     x: var_point_a_x,
                     y: var_point_a_y,
                 };
-                let var_point_b_x = composer.add_input(affine_point_b.get_x());
-                let var_point_b_y = composer.add_input(affine_point_b.get_y());
-                let point_b = AllocatedPoint {
+                let var_point_b_x =
+                    composer.append_witness(affine_point_b.get_x());
+                let var_point_b_y =
+                    composer.append_witness(affine_point_b.get_y());
+                let point_b = WitnessPoint {
                     x: var_point_b_x,
                     y: var_point_b_y,
                 };
@@ -290,7 +293,7 @@ mod tests {
                 let scalar_a = JubJubScalar::from(112233u64);
                 let bls_scalar =
                     BlsScalar::from_bytes(&scalar_a.to_bytes()).unwrap();
-                let secret_scalar_a = composer.add_input(bls_scalar);
+                let secret_scalar_a = composer.append_witness(bls_scalar);
                 let point_a = GENERATOR_EXTENDED;
                 let c_a: JubJubAffine = (point_a * scalar_a).into();
 
@@ -298,7 +301,7 @@ mod tests {
                 let scalar_b = JubJubScalar::from(445566u64);
                 let bls_scalar =
                     BlsScalar::from_bytes(&scalar_b.to_bytes()).unwrap();
-                let secret_scalar_b = composer.add_input(bls_scalar);
+                let secret_scalar_b = composer.append_witness(bls_scalar);
                 let point_b = point_a.double() + point_a;
                 let c_b: JubJubAffine = (point_b * scalar_b).into();
 
@@ -342,22 +345,22 @@ mod tests {
                 let scalar_a = JubJubScalar::from(25u64);
                 let bls_scalar_a =
                     BlsScalar::from_bytes(&scalar_a.to_bytes()).unwrap();
-                let secret_scalar_a = composer.add_input(bls_scalar_a);
+                let secret_scalar_a = composer.append_witness(bls_scalar_a);
                 // Second component
                 let scalar_b = JubJubScalar::from(30u64);
                 let bls_scalar_b =
                     BlsScalar::from_bytes(&scalar_b.to_bytes()).unwrap();
-                let secret_scalar_b = composer.add_input(bls_scalar_b);
+                let secret_scalar_b = composer.append_witness(bls_scalar_b);
                 // Third component
                 let scalar_c = JubJubScalar::from(10u64);
                 let bls_scalar_c =
                     BlsScalar::from_bytes(&scalar_c.to_bytes()).unwrap();
-                let secret_scalar_c = composer.add_input(bls_scalar_c);
+                let secret_scalar_c = composer.append_witness(bls_scalar_c);
                 // Fourth component
                 let scalar_d = JubJubScalar::from(45u64);
                 let bls_scalar_d =
                     BlsScalar::from_bytes(&scalar_d.to_bytes()).unwrap();
-                let secret_scalar_d = composer.add_input(bls_scalar_d);
+                let secret_scalar_d = composer.append_witness(bls_scalar_d);
 
                 let gen = GENERATOR_EXTENDED;
                 let expected_lhs: JubJubAffine =

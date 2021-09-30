@@ -36,13 +36,13 @@ impl Circuit for TestCircuit {
         &mut self,
         composer: &mut TurboComposer,
     ) -> Result<(), Error> {
-        let a = composer.add_input(self.a);
-        let b = composer.add_input(self.b);
+        let a = composer.append_witness(self.a);
+        let b = composer.append_witness(self.b);
         // Make first constraint a + b = c
         composer.poly_gate(
             a,
             b,
-            composer.allocated_zero(),
+            composer.zero(),
             BlsScalar::zero(),
             BlsScalar::one(),
             BlsScalar::one(),
@@ -57,7 +57,7 @@ impl Circuit for TestCircuit {
         composer.poly_gate(
             a,
             b,
-            composer.allocated_zero(),
+            composer.zero(),
             BlsScalar::one(),
             BlsScalar::zero(),
             BlsScalar::zero(),
@@ -66,7 +66,7 @@ impl Circuit for TestCircuit {
             Some(-self.d),
         );
 
-        let e = composer.add_input(self.e);
+        let e = composer.append_witness(self.e);
         let scalar_mul_result = composer
             .fixed_base_scalar_mul(e, dusk_jubjub::GENERATOR_EXTENDED);
         // Apply the constrain

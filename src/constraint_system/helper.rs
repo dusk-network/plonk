@@ -15,13 +15,12 @@ use rand_core::OsRng;
 /// Adds dummy constraints using arithmetic gates
 pub(crate) fn dummy_gadget(n: usize, composer: &mut TurboComposer) {
     let one = BlsScalar::one();
-
-    let var_one = composer.add_input(one);
+    let one = composer.append_witness(one);
 
     for _ in 0..n {
         composer.big_add(
-            (BlsScalar::one(), var_one),
-            (BlsScalar::one(), var_one),
+            (BlsScalar::one(), one),
+            (BlsScalar::one(), one),
             None,
             BlsScalar::zero(),
             None,
@@ -32,13 +31,12 @@ pub(crate) fn dummy_gadget(n: usize, composer: &mut TurboComposer) {
 /// Adds dummy constraints using arithmetic gates
 pub(crate) fn dummy_gadget_plonkup(n: usize, composer: &mut TurboComposer) {
     let one = BlsScalar::one();
-
-    let var_one = composer.add_input(one);
+    let one = composer.append_witness(one);
 
     for _ in 0..n {
         composer.big_add(
-            (BlsScalar::one(), var_one),
-            (BlsScalar::one(), var_one),
+            (BlsScalar::one(), one),
+            (BlsScalar::one(), one),
             None,
             BlsScalar::zero(),
             Some(BlsScalar::zero()),

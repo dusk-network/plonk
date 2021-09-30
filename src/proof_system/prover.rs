@@ -6,7 +6,7 @@
 
 use crate::{
     commitment_scheme::kzg10::CommitKey,
-    constraint_system::{TurboComposer, Variable},
+    constraint_system::{TurboComposer, Witness},
     error::Error,
     fft::{EvaluationDomain, Polynomial},
     plonkup::MultiSet,
@@ -117,9 +117,9 @@ impl Prover {
         &abc + &d
     }
 
-    /// Convert variables to their actual witness values.
-    pub(crate) fn to_scalars(&self, vars: &[Variable]) -> Vec<BlsScalar> {
-        vars.iter().map(|var| self.cs.variables[var]).collect()
+    /// Convert witnesses to their actual witness values.
+    pub(crate) fn to_scalars(&self, vars: &[Witness]) -> Vec<BlsScalar> {
+        vars.iter().map(|var| self.cs.witnesses[var]).collect()
     }
 
     /// Resets the witnesses in the prover object.
@@ -169,7 +169,7 @@ impl Prover {
 
         // 1. Compute witness Polynomials
         //
-        // Convert Variables to BlsScalars padding them to the
+        // Convert Witness to BlsScalars padding them to the
         // correct domain size.
         let pad = vec![BlsScalar::zero(); domain.size() - self.cs.w_l.len()];
         let w_l_scalar = &[&self.to_scalars(&self.cs.w_l)[..], &pad].concat();

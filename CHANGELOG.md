@@ -10,10 +10,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add back benchmarks to the crate. [#555](https://github.com/dusk-network/plonk/issue/555)
+
 ### Changed
 
 - Change `StandardComposer` to `TurboComposer`. [#288](https://github.com/dusk-network/plonk/issue/288)
 - Change `Variable` usage in favor of `AllocatedScalar`. [#565]((https://github.com/dusk-network/plonk/issue/565))
+- Add `Witness` by removing `AllocatedScalar`. [#588]((https://github.com/dusk-network/plonk/issue/588))
+
 ### Fixed
 
 - Fix the document references and typos [#533](https://github.com/dusk-network/plonk/pull/533)

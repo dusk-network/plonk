@@ -4,7 +4,7 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use crate::constraint_system::ecc::AllocatedPoint;
+use crate::constraint_system::ecc::WitnessPoint;
 use crate::constraint_system::TurboComposer;
 use dusk_bls12_381::BlsScalar;
 use dusk_jubjub::{JubJubAffine, JubJubExtended};
@@ -16,9 +16,9 @@ impl TurboComposer {
     /// width of 4.
     pub fn point_addition_gate(
         &mut self,
-        point_a: AllocatedPoint,
-        point_b: AllocatedPoint,
-    ) -> AllocatedPoint {
+        point_a: WitnessPoint,
+        point_b: WitnessPoint,
+    ) -> WitnessPoint {
         // In order to verify that two points were correctly added
         // without going over a degree 4 polynomial, we will need
         // x_1, y_1, x_2, y_2
@@ -29,19 +29,26 @@ impl TurboComposer {
         let x_2 = point_b.x;
         let y_2 = point_b.y;
 
-        let p1 = JubJubAffine::from_raw_unchecked(x_1.into(), y_1.into());
-        let p2 = JubJubAffine::from_raw_unchecked(x_2.into(), y_2.into());
+        let p1 = JubJubAffine::from_raw_unchecked(
+            self.witnesses[&x_1],
+            self.witnesses[&y_1],
+        );
+
+        let p2 = JubJubAffine::from_raw_unchecked(
+            self.witnesses[&x_2],
+            self.witnesses[&y_2],
+        );
 
         let point: JubJubAffine = (JubJubExtended::from(p1) + p2).into();
         let x_3 = point.get_x();
         let y_3 = point.get_y();
 
-        let x1_y2 = x_1 * y_2;
+        let x1_y2 = self.witnesses[&x_1] * self.witnesses[&y_2];
 
         // Add the rest of the prepared points into the composer
-        let x_1_y_2 = self.add_input(x1_y2);
-        let x_3 = self.add_input(x_3);
-        let y_3 = self.add_input(y_3);
+        let x_1_y_2 = self.append_witness(x1_y2);
+        let x_3 = self.append_witness(x_3);
+        let y_3 = self.append_witness(y_3);
 
         self.w_l.extend(&[x_1.into(), x_3.into()]);
         self.w_r.extend(&[y_1.into(), y_3.into()]);
@@ -67,16 +74,11 @@ impl TurboComposer {
         self.perm.add_variables_to_map(x_1, y_1, x_2, y_2, self.n);
         self.n += 1;
 
-        self.perm.add_variables_to_map(
-            x_3,
-            y_3,
-            self.allocated_zero(),
-            x_1_y_2,
-            self.n,
-        );
+        self.perm
+            .add_variables_to_map(x_3, y_3, self.zero(), x_1_y_2, self.n);
         self.n += 1;
 
-        AllocatedPoint { x: x_3, y: y_3 }
+        WitnessPoint { x: x_3, y: y_3 }
     }
 }
 
@@ -93,9 +95,9 @@ mod test {
     /// source of truth to test the WNaf method.
     pub fn classical_point_addition(
         composer: &mut TurboComposer,
-        point_a: AllocatedPoint,
-        point_b: AllocatedPoint,
-    ) -> AllocatedPoint {
+        point_a: WitnessPoint,
+        point_b: WitnessPoint,
+    ) -> WitnessPoint {
         let x1 = point_a.x;
         let y1 = point_a.y;
 
@@ -137,21 +139,22 @@ mod test {
         // 1 + dx1x2y1y2
         let x_denominator = composer.add(
             (BlsScalar::one(), d_x1_x2_y1_y2),
-            (BlsScalar::zero(), composer.allocated_zero()),
+            (BlsScalar::zero(), composer.zero()),
             BlsScalar::one(),
             None,
         );
 
         // Compute the inverse
-        let inv_x_denom = x_denominator.scalar().invert().unwrap();
-        let inv_x_denom = composer.add_input(inv_x_denom);
+        let inv_x_denom =
+            composer.evaluate_witness(&x_denominator).invert().unwrap();
+        let inv_x_denom = composer.append_witness(inv_x_denom);
 
         // Assert that we actually have the inverse
         // inv_x * x = 1
         composer.mul_gate(
             x_denominator,
             inv_x_denom,
-            composer.allocated_zero(),
+            composer.zero(),
             BlsScalar::one(),
             BlsScalar::zero(),
             -BlsScalar::one(),
@@ -161,18 +164,21 @@ mod test {
         // 1 - dx1x2y1y2
         let y_denominator = composer.add(
             (-BlsScalar::one(), d_x1_x2_y1_y2),
-            (BlsScalar::zero(), composer.allocated_zero()),
+            (BlsScalar::zero(), composer.zero()),
             BlsScalar::one(),
             None,
         );
-        let inv_y_denom = y_denominator.scalar().invert().unwrap();
-        let inv_y_denom = composer.add_input(inv_y_denom);
+
+        let inv_y_denom =
+            composer.evaluate_witness(&y_denominator).invert().unwrap();
+        let inv_y_denom = composer.append_witness(inv_y_denom);
+
         // Assert that we actually have the inverse
         // inv_y * y = 1
         composer.mul_gate(
             y_denominator,
             inv_y_denom,
-            composer.allocated_zero(),
+            composer.zero(),
             BlsScalar::one(),
             BlsScalar::zero(),
             -BlsScalar::one(),
@@ -196,7 +202,7 @@ mod test {
             None,
         );
 
-        AllocatedPoint { x: x_3, y: y_3 }
+        WitnessPoint { x: x_3, y: y_3 }
     }
 
     #[test]
@@ -207,10 +213,10 @@ mod test {
                     (JubJubExtended::from(GENERATOR)
                         + JubJubExtended::from(GENERATOR))
                     .into();
-                let x = composer.add_input(GENERATOR.get_x());
-                let y = composer.add_input(GENERATOR.get_y());
-                let point_a = AllocatedPoint { x, y };
-                let point_b = AllocatedPoint { x, y };
+                let x = composer.append_witness(GENERATOR.get_x());
+                let y = composer.append_witness(GENERATOR.get_y());
+                let point_a = WitnessPoint { x, y };
+                let point_b = WitnessPoint { x, y };
 
                 let point = composer.point_addition_gate(point_a, point_b);
                 let point2 =
