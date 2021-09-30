@@ -8,303 +8,84 @@ use crate::constraint_system::{TurboComposer, Witness};
 use dusk_bls12_381::BlsScalar;
 
 impl TurboComposer {
-    /// Adds a width-3 add gate to the circuit, linking the addition of the
-    /// provided inputs, scaled by the selector coefficients with the output
-    /// provided.
-    pub fn add_gate(
+    /// Evaluate and return `o` by appending a new gate into the circuit.
+    ///
+    /// `o := q_l · a + q_r · b + q_4 · d + q_c + PI`
+    pub fn gate_add(
         &mut self,
         a: Witness,
         b: Witness,
-        c: Witness,
+        d: Witness,
         q_l: BlsScalar,
         q_r: BlsScalar,
-        q_o: BlsScalar,
+        q_4: BlsScalar,
         q_c: BlsScalar,
         pi: Option<BlsScalar>,
     ) -> Witness {
-        self.big_add_gate(
+        // Compute the output wire
+        let o = q_l * self.witnesses[&a]
+            + q_r * self.witnesses[&b]
+            + q_4 * self.witnesses[&d]
+            + q_c
+            + pi.unwrap_or_default();
+
+        let o = self.append_witness(o);
+        let q_o = -BlsScalar::one();
+
+        self.append_gate(
             a,
             b,
-            c,
-            None,
+            o,
+            d,
+            BlsScalar::zero(),
             q_l,
             q_r,
             q_o,
-            BlsScalar::zero(),
+            q_4,
             q_c,
             pi,
-        )
+        );
+
+        o
     }
 
-    /// Adds a width-4 add gate to the circuit and it's corresponding
-    /// constraint.
+    /// Evaluate and return `o` by appending a new gate into the circuit.
     ///
-    /// This type of gate is usually used when we need to have
-    /// the largest amount of performance and the minimum circuit-size
-    /// possible. Since it allows the end-user to set every selector coefficient
-    /// as scaling value on the gate eq.
-    pub fn big_add_gate(
+    /// `o := q_m · a · b + q_4 · d + q_c + PI`
+    pub fn gate_mul(
         &mut self,
         a: Witness,
         b: Witness,
-        c: Witness,
-        d: Option<Witness>,
-        q_l: BlsScalar,
-        q_r: BlsScalar,
-        q_o: BlsScalar,
+        d: Witness,
+        q_m: BlsScalar,
         q_4: BlsScalar,
         q_c: BlsScalar,
         pi: Option<BlsScalar>,
     ) -> Witness {
-        // Check if advice wire has a value
-        let d = match d {
-            Some(alloc_scalar) => alloc_scalar,
-            None => self.zero(),
-        };
-
-        self.w_l.push(a.into());
-        self.w_r.push(b.into());
-        self.w_o.push(c.into());
-        self.w_4.push(d.into());
-
-        // For an add gate, q_m is zero
-        self.q_m.push(BlsScalar::zero());
-
-        // Add selector vectors
-        self.q_l.push(q_l);
-        self.q_r.push(q_r);
-        self.q_o.push(q_o);
-        self.q_c.push(q_c);
-        self.q_4.push(q_4);
-        self.q_arith.push(BlsScalar::one());
-        self.q_range.push(BlsScalar::zero());
-        self.q_logic.push(BlsScalar::zero());
-        self.q_fixed_group_add.push(BlsScalar::zero());
-        self.q_variable_group_add.push(BlsScalar::zero());
-        self.q_lookup.push(BlsScalar::zero());
-
-        if let Some(pi) = pi {
-            assert!(self.public_inputs_sparse_store.insert(self.n, pi).is_none(),"The invariant of already having a PI inserted for this position should never exist");
-        }
-
-        self.perm.add_variables_to_map(a, b, c, d, self.n);
-
-        self.n += 1;
-
-        c
-    }
-    /// Adds a width-3 mul gate to the circuit linking the product of the
-    /// provided inputs scaled by the selector coefficient `q_m` with the output
-    /// provided scaled by `q_o`.
-    ///
-    /// Note that this gate requires to provide the actual result of the gate
-    /// (output wire) since it will just add a `mul constraint` to the circuit.
-    pub fn mul_gate(
-        &mut self,
-        a: Witness,
-        b: Witness,
-        c: Witness,
-        q_m: BlsScalar,
-        q_o: BlsScalar,
-        q_c: BlsScalar,
-        pi: Option<BlsScalar>,
-    ) -> Witness {
-        self.big_mul_gate(a, b, c, None, q_m, q_o, q_c, BlsScalar::zero(), pi)
-    }
-
-    /// Adds a width-4 `big_mul_gate` with the left, right and fourth inputs
-    /// and it's scaling factors, computing & returning the output (result)
-    /// `Witness` and adding the corresponding mul constraint.
-    ///
-    /// This type of gate is usually used when we need to have
-    /// the largest amount of performance and the minimum circuit-size
-    /// possible. Since it allows the end-user to setup all of the selector
-    /// coefficients.
-    ///
-    /// Forces `q_m * (w_l * w_r) + w_4 * q_4 + q_c + PI = q_o * w_o`.
-    ///
-    /// `{w_l, w_r, w_o, w_4} = {a, b, c, d}`
-    // XXX: Maybe make these tuples instead of individual field?
-    pub fn big_mul_gate(
-        &mut self,
-        a: Witness,
-        b: Witness,
-        c: Witness,
-        d: Option<Witness>,
-        q_m: BlsScalar,
-        q_o: BlsScalar,
-        q_c: BlsScalar,
-        q_4: BlsScalar,
-        pi: Option<BlsScalar>,
-    ) -> Witness {
-        // Check if advice wire has a value
-        let d = match d {
-            Some(alloc_scalar) => alloc_scalar,
-            None => self.zero(),
-        };
-
-        self.w_l.push(a.into());
-        self.w_r.push(b.into());
-        self.w_o.push(c.into());
-        self.w_4.push(d.into());
-
-        // For a mul gate q_L and q_R is zero
-        self.q_l.push(BlsScalar::zero());
-        self.q_r.push(BlsScalar::zero());
-
-        // Add selector vectors
-        self.q_m.push(q_m);
-        self.q_o.push(q_o);
-        self.q_c.push(q_c);
-        self.q_4.push(q_4);
-        self.q_arith.push(BlsScalar::one());
-
-        self.q_range.push(BlsScalar::zero());
-        self.q_logic.push(BlsScalar::zero());
-        self.q_fixed_group_add.push(BlsScalar::zero());
-        self.q_variable_group_add.push(BlsScalar::zero());
-        self.q_lookup.push(BlsScalar::zero());
-
-        if let Some(pi) = pi {
-            assert!(
-                self.public_inputs_sparse_store.insert(self.n, pi).is_none(),"The invariant of already having a PI inserted for this position should never exist"
-            );
-        }
-
-        self.perm.add_variables_to_map(a, b, c, d, self.n);
-
-        self.n += 1;
-
-        c
-    }
-
-    /// Adds a [`TurboComposer::big_add_gate`] with the left and right
-    /// inputs and it's scaling factors, computing & returning the output
-    /// (result) [`Witness`], and adding the corresponding addition
-    /// constraint.
-    ///
-    /// This type of gate is usually used when we don't need to have
-    /// the largest amount of performance as well as the minimum circuit-size
-    /// possible. Since it defaults some of the selector coeffs = 0 in order
-    /// to reduce the verbosity and complexity.
-    ///
-    /// Forces `q_l * w_l + q_r * w_r + q_c + PI = w_o(computed by the gate)`.
-    pub fn add(
-        &mut self,
-        q_l_a: (BlsScalar, Witness),
-        q_r_b: (BlsScalar, Witness),
-        q_c: BlsScalar,
-        pi: Option<BlsScalar>,
-    ) -> Witness {
-        self.big_add(q_l_a, q_r_b, None, q_c, pi)
-    }
-
-    /// Adds a [`TurboComposer::big_add_gate`] with the left, right and
-    /// fourth inputs and it's scaling factors, computing & returning the
-    /// output (result) [`Witness`] and adding the corresponding
-    /// addition constraint.
-    ///
-    /// This type of gate is usually used when we don't need to have
-    /// the largest amount of performance and the minimum circuit-size
-    /// possible. Since it defaults some of the selector coeffs = 0 in order
-    /// to reduce the verbosity and complexity.
-    ///
-    /// Forces `q_l * w_l + q_r * w_r + q_4 * w_4 + q_c + PI = w_o(computed by
-    /// the gate)`.
-    pub fn big_add(
-        &mut self,
-        q_l_a: (BlsScalar, Witness),
-        q_r_b: (BlsScalar, Witness),
-        q_4_d: Option<(BlsScalar, Witness)>,
-        q_c: BlsScalar,
-        pi: Option<BlsScalar>,
-    ) -> Witness {
-        // Check if advice wire is available
-        let (q_4, d) = match q_4_d {
-            Some((q_4, alloc_scalar)) => (q_4, alloc_scalar),
-            None => (BlsScalar::zero(), self.zero()),
-        };
-
-        let (q_l, a) = q_l_a;
-        let (q_r, b) = q_r_b;
-
-        let q_o = -BlsScalar::one();
-
         // Compute the output wire
-        let c: BlsScalar = (q_l * self.witnesses[&a])
-            + (q_r * self.witnesses[&b])
-            + (q_4 * self.witnesses[&d])
+        let o = q_m * self.witnesses[&a] * self.witnesses[&b]
+            + q_4 * self.witnesses[&d]
             + q_c
             + pi.unwrap_or_default();
-        let c = self.append_witness(c);
 
-        self.big_add_gate(a, b, c, Some(d), q_l, q_r, q_o, q_4, q_c, pi)
-    }
-
-    /// Adds a [`TurboComposer::big_mul_gate`] with the left, right
-    /// and fourth inputs and it's scaling factors, computing & returning
-    /// the output (result) [`Witness`] and adding the corresponding mul
-    /// constraint.
-    ///
-    /// This type of gate is usually used when we don't need to have
-    /// the largest amount of performance and the minimum circuit-size
-    /// possible. Since it defaults some of the selector coeffs = 0 in order
-    /// to reduce the verbosity and complexity.
-    ///
-    /// Forces `q_m * (w_l * w_r) + w_4 * q_4 + q_c + PI = w_o(computed by the
-    /// gate)`.
-    ///
-    /// `{w_l, w_r, w_4} = {a, b, d}`
-    pub fn mul(
-        &mut self,
-        q_m: BlsScalar,
-        a: Witness,
-        b: Witness,
-        q_c: BlsScalar,
-        pi: Option<BlsScalar>,
-    ) -> Witness {
-        self.big_mul(q_m, a, b, None, q_c, pi)
-    }
-
-    /// Adds a width-4 [`TurboComposer::big_mul_gate`] with the left, right
-    /// and fourth inputs and it's scaling factors, computing & returning
-    /// the output (result) [`Witness`] and adding the corresponding mul
-    /// constraint.
-    ///
-    /// This type of gate is usually used when we don't need to have
-    /// the largest amount of performance and the minimum circuit-size
-    /// possible. Since it defaults some of the selector coeffs = 0 in order
-    /// to reduce the verbosity and complexity.
-    ///
-    /// Forces `q_m * (w_l * w_r) + w_4 * q_4 + q_c + PI = w_o(computed by the
-    /// gate)`.
-    ///
-    /// `{w_l, w_r, w_4} = {a, b, d}`
-    pub fn big_mul(
-        &mut self,
-        q_m: BlsScalar,
-        a: Witness,
-        b: Witness,
-        q_4_d: Option<(BlsScalar, Witness)>,
-        q_c: BlsScalar,
-        pi: Option<BlsScalar>,
-    ) -> Witness {
+        let o = self.append_witness(o);
         let q_o = -BlsScalar::one();
 
-        // Check if advice wire is available
-        let (q_4, d) = match q_4_d {
-            Some((q_4, alloc_scalar)) => (q_4, alloc_scalar),
-            None => (BlsScalar::zero(), self.zero()),
-        };
+        self.append_gate(
+            a,
+            b,
+            o,
+            d,
+            q_m,
+            BlsScalar::zero(),
+            BlsScalar::zero(),
+            q_o,
+            q_4,
+            q_c,
+            pi,
+        );
 
-        // Compute output wire
-        let c = (q_m * self.witnesses[&a] * self.witnesses[&b])
-            + (q_4 * self.witnesses[&d])
-            + q_c
-            + pi.unwrap_or_default();
-        let c = self.append_witness(c);
-
-        self.big_mul_gate(a, b, c, Some(d), q_m, q_o, q_c, q_4, pi)
+        o
     }
 }
 
@@ -319,27 +100,37 @@ mod tests {
         let res = gadget_tester(
             |composer| {
                 let one = composer.append_witness(BlsScalar::one());
+                let zero = composer.constant_zero();
 
-                let should_be_three = composer.big_add(
-                    (BlsScalar::one(), one),
-                    (BlsScalar::one(), one),
-                    None,
+                let should_be_three = composer.gate_add(
+                    one,
+                    one,
+                    zero,
+                    BlsScalar::one(),
+                    BlsScalar::one(),
+                    BlsScalar::zero(),
                     BlsScalar::zero(),
                     Some(BlsScalar::one()),
                 );
-                composer.constrain_to_constant(
+
+                composer.assert_equal_constant(
                     should_be_three,
                     BlsScalar::from(3),
                     None,
                 );
-                let should_be_four = composer.big_add(
-                    (BlsScalar::one(), one),
-                    (BlsScalar::one(), one),
-                    None,
+
+                let should_be_four = composer.gate_add(
+                    one,
+                    one,
+                    zero,
+                    BlsScalar::one(),
+                    BlsScalar::one(),
+                    BlsScalar::zero(),
                     BlsScalar::zero(),
                     Some(BlsScalar::from(2)),
                 );
-                composer.constrain_to_constant(
+
+                composer.assert_equal_constant(
                     should_be_four,
                     BlsScalar::from(4),
                     None,
@@ -359,19 +150,26 @@ mod tests {
                 let five = composer.append_witness(BlsScalar::from(5));
                 let six = composer.append_witness(BlsScalar::from(6));
                 let seven = composer.append_witness(BlsScalar::from(7));
+                let zero = composer.constant_zero();
 
-                let fourteen = composer.big_add(
-                    (BlsScalar::one(), four),
-                    (BlsScalar::one(), five),
-                    Some((BlsScalar::one(), five)),
+                let fourteen = composer.gate_add(
+                    four,
+                    five,
+                    five,
+                    BlsScalar::one(),
+                    BlsScalar::one(),
+                    BlsScalar::one(),
                     BlsScalar::zero(),
                     None,
                 );
 
-                let twenty = composer.big_add(
-                    (BlsScalar::one(), six),
-                    (BlsScalar::one(), seven),
-                    Some((BlsScalar::one(), seven)),
+                let twenty = composer.gate_add(
+                    six,
+                    seven,
+                    seven,
+                    BlsScalar::one(),
+                    BlsScalar::one(),
+                    BlsScalar::one(),
                     BlsScalar::zero(),
                     None,
                 );
@@ -383,14 +181,17 @@ mod tests {
                 // can compute it using the `mul` If the output
                 // is public, we can also constrain the output wire of the mul
                 // gate to it. This is what this test does
-                let output = composer.mul(
-                    BlsScalar::one(),
+                let output = composer.gate_mul(
                     fourteen,
                     twenty,
+                    zero,
+                    BlsScalar::one(),
+                    BlsScalar::zero(),
                     BlsScalar::zero(),
                     None,
                 );
-                composer.constrain_to_constant(
+
+                composer.assert_equal_constant(
                     output,
                     BlsScalar::from(280),
                     None,
@@ -405,16 +206,21 @@ mod tests {
     fn test_correct_add_gate() {
         let res = gadget_tester(
             |composer| {
-                let zero = composer.zero();
+                let zero = composer.constant_zero();
                 let one = composer.append_witness(BlsScalar::one());
 
-                let c = composer.add(
-                    (BlsScalar::one(), one),
-                    (BlsScalar::zero(), zero),
+                let c = composer.gate_add(
+                    one,
+                    zero,
+                    zero,
+                    BlsScalar::one(),
+                    BlsScalar::zero(),
+                    BlsScalar::zero(),
                     BlsScalar::from(2u64),
                     None,
                 );
-                composer.constrain_to_constant(c, BlsScalar::from(3), None);
+
+                composer.assert_equal_constant(c, BlsScalar::from(3), None);
             },
             32,
         );
@@ -432,31 +238,39 @@ mod tests {
                 let seven = composer.append_witness(BlsScalar::from(7));
                 let nine = composer.append_witness(BlsScalar::from(9));
 
-                let fourteen = composer.big_add(
-                    (BlsScalar::one(), four),
-                    (BlsScalar::one(), five),
-                    Some((BlsScalar::one(), five)),
-                    BlsScalar::zero(),
-                    None,
-                );
-
-                let twenty = composer.big_add(
-                    (BlsScalar::one(), six),
-                    (BlsScalar::one(), seven),
-                    Some((BlsScalar::one(), seven)),
-                    BlsScalar::zero(),
-                    None,
-                );
-
-                let output = composer.big_mul(
+                let fourteen = composer.gate_add(
+                    four,
+                    five,
+                    five,
                     BlsScalar::one(),
+                    BlsScalar::one(),
+                    BlsScalar::one(),
+                    BlsScalar::zero(),
+                    None,
+                );
+
+                let twenty = composer.gate_add(
+                    six,
+                    seven,
+                    seven,
+                    BlsScalar::one(),
+                    BlsScalar::one(),
+                    BlsScalar::one(),
+                    BlsScalar::zero(),
+                    None,
+                );
+
+                let output = composer.gate_mul(
                     fourteen,
                     twenty,
-                    Some((BlsScalar::from(8), nine)),
+                    nine,
+                    BlsScalar::one(),
+                    BlsScalar::from(8),
                     BlsScalar::zero(),
                     None,
                 );
-                composer.constrain_to_constant(
+
+                composer.assert_equal_constant(
                     output,
                     BlsScalar::from(352),
                     None,
@@ -475,31 +289,41 @@ mod tests {
                 let five = composer.append_witness(BlsScalar::from(5));
                 let six = composer.append_witness(BlsScalar::from(6));
                 let seven = composer.append_witness(BlsScalar::from(7));
+                let zero = composer.constant_zero();
 
-                let five_plus_five = composer.big_add(
-                    (BlsScalar::one(), five),
-                    (BlsScalar::one(), five),
-                    None,
-                    BlsScalar::zero(),
-                    None,
-                );
-
-                let six_plus_seven = composer.big_add(
-                    (BlsScalar::one(), six),
-                    (BlsScalar::one(), seven),
-                    None,
-                    BlsScalar::zero(),
-                    None,
-                );
-
-                let output = composer.mul(
+                let five_plus_five = composer.gate_add(
+                    five,
+                    five,
+                    zero,
                     BlsScalar::one(),
+                    BlsScalar::one(),
+                    BlsScalar::zero(),
+                    BlsScalar::zero(),
+                    None,
+                );
+
+                let six_plus_seven = composer.gate_add(
+                    six,
+                    seven,
+                    zero,
+                    BlsScalar::one(),
+                    BlsScalar::one(),
+                    BlsScalar::zero(),
+                    BlsScalar::zero(),
+                    None,
+                );
+
+                let output = composer.gate_mul(
                     five_plus_five,
                     six_plus_seven,
+                    zero,
+                    BlsScalar::one(),
+                    BlsScalar::zero(),
                     BlsScalar::zero(),
                     None,
                 );
-                composer.constrain_to_constant(
+
+                composer.assert_equal_constant(
                     output,
                     BlsScalar::from(117),
                     None,

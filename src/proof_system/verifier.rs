@@ -4,7 +4,7 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use crate::commitment_scheme::kzg10::{CommitKey, OpeningKey};
+use crate::commitment_scheme::{CommitKey, OpeningKey};
 use crate::constraint_system::TurboComposer;
 use crate::error::Error;
 use crate::proof_system::widget::VerifierKey;
@@ -44,21 +44,21 @@ impl Verifier {
     }
 
     /// Creates a new `Verifier` instance with some expected size.
-    pub fn with_expected_size(label: &'static [u8], size: usize) -> Verifier {
+    pub fn with_size(label: &'static [u8], size: usize) -> Verifier {
         Verifier {
             verifier_key: None,
-            cs: TurboComposer::with_expected_size(size),
+            cs: TurboComposer::with_size(size),
             preprocessed_transcript: Transcript::new(label),
         }
     }
 
     /// Returns the number of gates in the circuit.
-    pub fn circuit_size(&self) -> usize {
-        self.cs.circuit_size()
+    pub const fn constraints(&self) -> usize {
+        self.cs.constraints()
     }
 
-    /// Returns a mutable copy of the underlying composer.
-    pub fn mut_cs(&mut self) -> &mut TurboComposer {
+    /// Mutable borrow of the [`TurboComposer`].
+    pub fn composer_mut(&mut self) -> &mut TurboComposer {
         &mut self.cs
     }
 

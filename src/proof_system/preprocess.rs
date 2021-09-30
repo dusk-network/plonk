@@ -6,7 +6,7 @@
 
 //! Methods to preprocess the constraint system for use in a proof
 
-use crate::commitment_scheme::kzg10::CommitKey;
+use crate::commitment_scheme::CommitKey;
 use crate::constraint_system::TurboComposer;
 use crate::plonkup::PreprocessedTable4Arity;
 
@@ -46,7 +46,7 @@ impl TurboComposer {
     fn pad(&mut self, diff: usize) {
         // Add a zero variable to circuit
         let zero_scalar = BlsScalar::zero();
-        let zero_var = self.zero_var;
+        let zero_var = self.constant_zero();
 
         let zeroes_scalar = vec![zero_scalar; diff];
         let zeroes_var = vec![zero_var; diff];
@@ -103,7 +103,7 @@ impl TurboComposer {
     /// Although the prover does not need the verification key, he must compute
     /// the commitments in order to seed the transcript, allowing both the
     /// prover and verifier to have the same view
-    pub fn preprocess_prover(
+    pub(crate) fn preprocess_prover(
         &mut self,
         commit_key: &CommitKey,
         transcript: &mut Transcript,
@@ -296,7 +296,7 @@ impl TurboComposer {
     /// The verifier only requires the commitments in order to verify a
     /// [`Proof`](super::Proof) We can therefore speed up preprocessing for the
     /// verifier by skipping the FFTs needed to compute the 4n evaluations.
-    pub fn preprocess_verifier(
+    pub(crate) fn preprocess_verifier(
         &mut self,
         commit_key: &CommitKey,
         transcript: &mut Transcript,
@@ -448,7 +448,7 @@ impl TurboComposer {
         };
 
         let verifier_key = widget::VerifierKey {
-            n: self.circuit_size(),
+            n: self.constraints(),
             arithmetic: arithmetic_verifier_key,
             logic: logic_verifier_key,
             range: range_verifier_key,

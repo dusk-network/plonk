@@ -16,11 +16,11 @@ impl TurboComposer {
     /// Note that using this constraint with whatever [`Witness`] that
     /// is not representing a value equalling 0 or 1, will always force the
     /// equation to fail.
-    pub fn boolean_gate(&mut self, a: Witness) -> Witness {
-        self.w_l.push(a.into());
-        self.w_r.push(a.into());
-        self.w_o.push(a.into());
-        self.w_4.push(self.zero_var);
+    pub fn gate_boolean(&mut self, a: Witness) -> Witness {
+        self.w_l.push(a);
+        self.w_r.push(a);
+        self.w_o.push(a);
+        self.w_4.push(self.constant_zero());
 
         self.q_m.push(BlsScalar::one());
         self.q_l.push(BlsScalar::zero());
@@ -36,7 +36,8 @@ impl TurboComposer {
         self.q_variable_group_add.push(BlsScalar::zero());
         self.q_lookup.push(BlsScalar::zero());
 
-        self.perm.add_variables_to_map(a, a, a, self.zero(), self.n);
+        self.perm
+            .add_variables_to_map(a, a, a, self.constant_zero(), self.n);
 
         self.n += 1;
 
@@ -53,11 +54,11 @@ mod tests {
     fn test_correct_bool_gate() {
         let res = gadget_tester(
             |composer| {
-                let zero = composer.zero();
+                let zero = composer.constant_zero();
                 let one = composer.append_witness(BlsScalar::one());
 
-                composer.boolean_gate(zero);
-                composer.boolean_gate(one);
+                composer.gate_boolean(zero);
+                composer.gate_boolean(one);
             },
             32,
         );
@@ -71,8 +72,8 @@ mod tests {
                 let zero = composer.append_witness(BlsScalar::from(5));
                 let one = composer.append_witness(BlsScalar::one());
 
-                composer.boolean_gate(zero);
-                composer.boolean_gate(one);
+                composer.gate_boolean(zero);
+                composer.gate_boolean(one);
             },
             32,
         );

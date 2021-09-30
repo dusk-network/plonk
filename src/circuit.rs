@@ -6,7 +6,7 @@
 
 //! Tools & traits for PLONK circuits
 
-use crate::commitment_scheme::kzg10::PublicParameters;
+use crate::commitment_scheme::PublicParameters;
 use crate::constraint_system::TurboComposer;
 use crate::error::Error;
 use crate::proof_system::{Proof, Prover, ProverKey, Verifier, VerifierKey};
@@ -15,7 +15,7 @@ use alloc::vec::Vec;
 use canonical_derive::Canon;
 use dusk_bls12_381::BlsScalar;
 use dusk_bytes::{DeserializableSlice, Serializable, Write};
-use dusk_jubjub::{JubJubAffine, JubJubScalar};
+use dusk_jubjub::{JubJubAffine, JubJubExtended, JubJubScalar};
 
 #[derive(Default, Debug, Clone)]
 #[cfg_attr(feature = "canon", derive(Canon))]
@@ -38,6 +38,12 @@ impl From<JubJubScalar> for PublicInputValue {
 impl From<JubJubAffine> for PublicInputValue {
     fn from(point: JubJubAffine) -> Self {
         Self(vec![point.get_x(), point.get_y()])
+    }
+}
+
+impl From<JubJubExtended> for PublicInputValue {
+    fn from(point: JubJubExtended) -> Self {
+        JubJubAffine::from(point).into()
     }
 }
 
@@ -110,7 +116,6 @@ impl VerifierData {
 ///
 /// ```
 /// use dusk_plonk::prelude::*;
-/// use dusk_plonk::constraint_system::ecc::scalar_mul;
 /// use rand_core::OsRng;
 ///
 /// fn main() -> Result<(), Error> {
@@ -137,40 +142,44 @@ impl VerifierData {
 ///         composer: &mut TurboComposer,
 ///     ) -> Result<(), Error> {
 ///         // Add fixed witness zero
-///         let zero = composer.zero();
+///         let zero = composer.constant_zero();
 ///         let a = composer.append_witness(self.a);
 ///         let b = composer.append_witness(self.b);
 ///         // Make first constraint a + b = c
-///         composer.poly_gate(
+///         composer.append_gate(
 ///             a,
 ///             b,
+///             zero,
 ///             zero,
 ///             BlsScalar::zero(),
 ///             BlsScalar::one(),
 ///             BlsScalar::one(),
+///             BlsScalar::zero(),
 ///             BlsScalar::zero(),
 ///             BlsScalar::zero(),
 ///             Some(-self.c),
 ///         );
 ///         // Check that a and b are in range
-///         composer.range_gate(a, 1 << 6);
-///         composer.range_gate(b, 1 << 5);
+///         composer.gate_range(a, 1 << 6);
+///         composer.gate_range(b, 1 << 5);
 ///         // Make second constraint a * b = d
-///         composer.poly_gate(
+///         composer.append_gate(
 ///             a,
 ///             b,
+///             zero,
 ///             zero,
 ///             BlsScalar::one(),
 ///             BlsScalar::zero(),
 ///             BlsScalar::zero(),
 ///             BlsScalar::one(),
+///             BlsScalar::zero(),
 ///             BlsScalar::zero(),
 ///             Some(-self.d),
 ///         );
 ///
 ///         let e = composer.append_witness(self.e);
 ///         let scalar_mul_result =
-///             composer.fixed_base_scalar_mul(
+///             composer.gate_mul_generator(
 ///                 e, dusk_jubjub::GENERATOR_EXTENDED,
 ///             );
 ///         // Apply the constrain
@@ -178,7 +187,12 @@ impl VerifierData {
 ///             .assert_equal_public_point(scalar_mul_result, self.f);
 ///         Ok(())
 ///     }
-///     fn padded_circuit_size(&self) -> usize {
+///
+///     fn into_public_inputs(&self) -> Vec<PublicInputValue> {
+///         vec![self.c.into(), self.d.into(), self.f.into()]
+///     }
+///
+///     fn padded_constraints(&self) -> usize {
 ///         1 << 11
 ///     }
 /// }
@@ -202,7 +216,7 @@ impl VerifierData {
 ///         ),
 ///     };
 ///
-///     circuit.gen_proof(&pp, &pk, b"Test")
+///     circuit.prove(&pp, &pk, b"Test")
 /// }?;
 ///
 /// // Verifier POV
@@ -230,8 +244,10 @@ where
 {
     /// Circuit identifier associated constant.
     const CIRCUIT_ID: [u8; 32];
+
     /// Gadget implementation used to fill the composer.
     fn gadget(&mut self, composer: &mut TurboComposer) -> Result<(), Error>;
+
     /// Compiles the circuit by using a function that returns a `Result`
     /// with the `ProverKey`, `VerifierKey` and the circuit size.
     fn compile(
@@ -239,16 +255,16 @@ where
         pub_params: &PublicParameters,
     ) -> Result<(ProverKey, VerifierData), Error> {
         // Setup PublicParams
-        let (ck, _) = pub_params.trim(self.padded_circuit_size())?;
+        let (ck, _) = pub_params.trim(self.padded_constraints())?;
         // Generate & save `ProverKey` with some random values.
         let mut prover = Prover::new(b"CircuitCompilation");
-        self.gadget(prover.mut_cs())?;
-        let pi_pos = prover.mut_cs().pi_positions();
+        self.gadget(prover.composer_mut())?;
+        let pi_pos = prover.composer_mut().into_public_input_indexes();
         prover.preprocess(&ck)?;
 
         // Generate & save `VerifierKey` with some random values.
         let mut verifier = Verifier::new(b"CircuitCompilation");
-        self.gadget(verifier.mut_cs())?;
+        self.gadget(verifier.composer_mut())?;
         verifier.preprocess(&ck)?;
         Ok((
             prover
@@ -265,24 +281,30 @@ where
 
     /// Generates a proof using the provided `CircuitInputs` & `ProverKey`
     /// instances.
-    fn gen_proof(
+    fn prove(
         &mut self,
         pub_params: &PublicParameters,
         prover_key: &ProverKey,
         transcript_init: &'static [u8],
     ) -> Result<Proof, Error> {
-        let (ck, _) = pub_params.trim(self.padded_circuit_size())?;
+        let (ck, _) = pub_params.trim(self.padded_constraints())?;
+
         // New Prover instance
         let mut prover = Prover::new(transcript_init);
+
         // Fill witnesses for Prover
-        self.gadget(prover.mut_cs())?;
+        self.gadget(prover.composer_mut())?;
+
         // Add ProverKey to Prover
         prover.prover_key = Some(prover_key.clone());
         prover.prove(&ck)
     }
 
+    /// Return the list of public inputs generated by the gadget
+    fn into_public_inputs(&self) -> Vec<PublicInputValue>;
+
     /// Returns the Circuit size padded to the next power of two.
-    fn padded_circuit_size(&self) -> usize;
+    fn padded_constraints(&self) -> usize;
 }
 
 /// Verifies a proof using the provided `CircuitInputs` & `VerifierKey`
@@ -303,7 +325,7 @@ pub fn verify_proof(
         build_pi(
             pub_inputs_values,
             pub_inputs_positions,
-            verifier_key.padded_circuit_size(),
+            verifier_key.padded_constraints(),
         )
         .as_slice(),
     )
@@ -379,41 +401,52 @@ mod tests {
             let a = composer.append_witness(self.a);
             let b = composer.append_witness(self.b);
             // Make first constraint a + b = c
-            composer.poly_gate(
+            composer.append_gate(
                 a,
                 b,
-                composer.zero(),
+                composer.constant_zero(),
+                composer.constant_zero(),
                 BlsScalar::zero(),
                 BlsScalar::one(),
                 BlsScalar::one(),
+                BlsScalar::zero(),
                 BlsScalar::zero(),
                 BlsScalar::zero(),
                 Some(-self.c),
             );
             // Check that a and b are in range
-            composer.range_gate(a, 1 << 6);
-            composer.range_gate(b, 1 << 5);
+            composer.gate_range(a, 1 << 6);
+            composer.gate_range(b, 1 << 5);
             // Make second constraint a * b = d
-            composer.poly_gate(
+            composer.append_gate(
                 a,
                 b,
-                composer.zero(),
+                composer.constant_zero(),
+                composer.constant_zero(),
                 BlsScalar::one(),
                 BlsScalar::zero(),
                 BlsScalar::zero(),
                 BlsScalar::one(),
+                BlsScalar::zero(),
                 BlsScalar::zero(),
                 Some(-self.d),
             );
 
             let e = composer.append_witness(self.e);
-            let scalar_mul_result = composer
-                .fixed_base_scalar_mul(e, dusk_jubjub::GENERATOR_EXTENDED);
+            let scalar_mul_result =
+                composer.gate_mul_generator(e, dusk_jubjub::GENERATOR_EXTENDED);
+
             // Apply the constrain
             composer.assert_equal_public_point(scalar_mul_result, self.f);
+
             Ok(())
         }
-        fn padded_circuit_size(&self) -> usize {
+
+        fn into_public_inputs(&self) -> Vec<PublicInputValue> {
+            vec![self.c.into(), self.d.into(), self.f.into()]
+        }
+
+        fn padded_constraints(&self) -> usize {
             1 << 11
         }
     }
@@ -479,7 +512,7 @@ mod tests {
                 ),
             };
 
-            circuit.gen_proof(&pp, &pk, b"Test")
+            circuit.prove(&pp, &pk, b"Test")
         }?;
 
         // Verifier POV

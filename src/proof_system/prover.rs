@@ -5,7 +5,7 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use crate::{
-    commitment_scheme::kzg10::CommitKey,
+    commitment_scheme::CommitKey,
     constraint_system::{TurboComposer, Witness},
     error::Error,
     fft::{EvaluationDomain, Polynomial},
@@ -33,8 +33,8 @@ pub struct Prover {
 }
 
 impl Prover {
-    /// Returns a mutable copy of the underlying [`TurboComposer`].
-    pub fn mut_cs(&mut self) -> &mut TurboComposer {
+    /// Mutable borrow of [`TurboComposer`].
+    pub fn composer_mut(&mut self) -> &mut TurboComposer {
         &mut self.cs
     }
 
@@ -68,19 +68,20 @@ impl Prover {
     }
 
     /// Creates a new `Prover` object with some expected size.
-    pub fn with_expected_size(label: &'static [u8], size: usize) -> Prover {
+    pub fn with_size(label: &'static [u8], size: usize) -> Prover {
         Prover {
             prover_key: None,
-            cs: TurboComposer::with_expected_size(size),
+            cs: TurboComposer::with_size(size),
             preprocessed_transcript: Transcript::new(label),
         }
     }
 
     /// Returns the number of gates in the circuit thet the `Prover` actually
     /// stores inside.
-    pub fn circuit_size(&self) -> usize {
-        self.cs.circuit_size()
+    pub const fn constraints(&self) -> usize {
+        self.cs.constraints()
     }
+
     /// Split `t(X)` poly into 4 degree `n` polynomials.
     pub(crate) fn split_tx_poly(
         &self,
@@ -158,7 +159,7 @@ impl Prover {
         // make sure the domain is big enough to handle the circuit as well as
         // the lookup table
         let domain = EvaluationDomain::new(core::cmp::max(
-            self.cs.circuit_size(),
+            self.cs.constraints(),
             self.cs.lookup_table.0.len(),
         ))?;
 
@@ -306,7 +307,7 @@ impl Prover {
 
         // 3. Compute public inputs polynomial
         let pi_poly = Polynomial::from_coefficients_vec(
-            domain.ifft(&self.cs.construct_dense_pi_vec()),
+            domain.ifft(&self.cs.into_dense_public_inputs()),
         );
 
         // Compute evaluation challenge; `z`

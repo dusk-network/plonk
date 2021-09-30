@@ -53,29 +53,29 @@
 #![allow(clippy::too_many_arguments)]
 #![deny(rustdoc::broken_intra_doc_links)]
 #![deny(missing_docs)]
-#![no_std]
-
-#[cfg(feature = "std")]
-extern crate std;
+#![cfg_attr(not(feature = "std"), no_std)]
 
 cfg_if::cfg_if!(
 if #[cfg(feature = "alloc")] {
-    #[macro_use]
+    #[cfg_attr(not(feature = "std"), macro_use)]
     extern crate alloc;
-    pub mod constraint_system;
+
     mod bit_iterator;
-    pub mod circuit;
-    mod util;
     mod permutation;
+    mod util;
+
+    pub mod circuit;
+    pub mod constraint_system;
+    pub mod plonkup;
 });
+
+mod fft;
+mod transcript;
 
 pub mod commitment_scheme;
 pub mod error;
-mod fft;
-pub mod plonkup;
 pub mod prelude;
 pub mod proof_system;
-mod transcript;
 
 #[doc = include_str!("../docs/notes-intro.md")]
 pub mod notes {
@@ -89,8 +89,5 @@ pub mod notes {
     pub mod kzg10_docs {}
 }
 
-/// Re-exported dusk-bls12_381 fork.
 pub use dusk_bls12_381 as bls12_381;
-
-/// Re-exported dusk-jubjub fork.
 pub use dusk_jubjub as jubjub;

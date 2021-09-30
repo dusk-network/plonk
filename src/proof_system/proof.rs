@@ -11,7 +11,7 @@
 //! `Proof` structure and it's methods.
 
 use super::linearisation_poly::ProofEvaluations;
-use crate::commitment_scheme::kzg10::Commitment;
+use crate::commitment_scheme::Commitment;
 use dusk_bytes::{DeserializableSlice, Serializable};
 
 /// A Proof is a composition of `Commitment`s to the Witness, Permutation,
@@ -143,7 +143,7 @@ impl Serializable<{ 15 * Commitment::SIZE + ProofEvaluations::SIZE }>
 pub(crate) mod alloc {
     use super::*;
     use crate::{
-        commitment_scheme::kzg10::{AggregateProof, OpeningKey},
+        commitment_scheme::{AggregateProof, OpeningKey},
         error::Error,
         fft::EvaluationDomain,
         proof_system::widget::VerifierKey,
