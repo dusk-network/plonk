@@ -9,57 +9,52 @@ pub mod curve_addition;
 /// Gates related to scalar multiplication
 pub mod scalar_mul;
 
-use crate::constraint_system::{AllocatedScalar, TurboComposer};
+use crate::constraint_system::{TurboComposer, Witness};
 use dusk_bls12_381::BlsScalar;
 use dusk_jubjub::JubJubAffine;
 
 /// Represents a JubJub point in the circuit
 #[derive(Debug, Clone, Copy)]
-pub struct AllocatedPoint {
-    x: AllocatedScalar,
-    y: AllocatedScalar,
+pub struct WitnessPoint {
+    x: Witness,
+    y: Witness,
 }
 
-impl AllocatedPoint {
+impl WitnessPoint {
     /// Returns thes identity point.
-    pub fn identity(composer: &mut TurboComposer) -> AllocatedPoint {
-        let one = composer.add_witness_to_circuit_description(BlsScalar::one());
-        AllocatedPoint {
-            x: composer.allocated_zero(),
+    pub fn identity(composer: &mut TurboComposer) -> WitnessPoint {
+        let one = composer.append_circuit_constant(BlsScalar::one());
+        WitnessPoint {
+            x: composer.zero(),
             y: one,
         }
     }
     /// Return the X coordinate of the point
-    pub const fn x(&self) -> &AllocatedScalar {
+    pub const fn x(&self) -> &Witness {
         &self.x
     }
 
     /// Return the Y coordinate of the point
-    pub const fn y(&self) -> &AllocatedScalar {
+    pub const fn y(&self) -> &Witness {
         &self.y
-    }
-
-    /// Return the underlying point representation as [`JubJubAffine`].
-    pub fn point(&self) -> JubJubAffine {
-        JubJubAffine::from_raw_unchecked(self.x().scalar(), self.y().scalar())
     }
 }
 
 impl TurboComposer {
-    /// Converts an JubJubAffine into a constraint system AllocatedPoint
+    /// Converts an JubJubAffine into a constraint system WitnessPoint
     /// without constraining the values
-    pub fn add_affine(&mut self, affine: JubJubAffine) -> AllocatedPoint {
-        let x = self.add_input(affine.get_x());
-        let y = self.add_input(affine.get_y());
-        AllocatedPoint { x, y }
+    pub fn add_affine(&mut self, affine: JubJubAffine) -> WitnessPoint {
+        let x = self.append_witness(affine.get_x());
+        let y = self.append_witness(affine.get_y());
+        WitnessPoint { x, y }
     }
 
-    /// Converts an JubJubAffine into a constraint system AllocatedPoint
+    /// Converts an JubJubAffine into a constraint system WitnessPoint
     /// without constraining the values
     pub fn add_public_affine(
         &mut self,
         affine: dusk_jubjub::JubJubAffine,
-    ) -> AllocatedPoint {
+    ) -> WitnessPoint {
         let point = self.add_affine(affine);
         self.constrain_to_constant(
             point.x,
@@ -80,19 +75,19 @@ impl TurboComposer {
     pub fn add_affine_to_circuit_description(
         &mut self,
         affine: dusk_jubjub::JubJubAffine,
-    ) -> AllocatedPoint {
+    ) -> WitnessPoint {
         // Not using individual gates because one of these may be zero
-        let x = self.add_witness_to_circuit_description(affine.get_x());
-        let y = self.add_witness_to_circuit_description(affine.get_y());
+        let x = self.append_circuit_constant(affine.get_x());
+        let y = self.append_circuit_constant(affine.get_y());
 
-        AllocatedPoint { x, y }
+        WitnessPoint { x, y }
     }
 
-    /// Asserts that a [`AllocatedPoint`] in the circuit is equal to a known
+    /// Asserts that a [`WitnessPoint`] in the circuit is equal to a known
     /// public point.
     pub fn assert_equal_public_point(
         &mut self,
-        point: AllocatedPoint,
+        point: WitnessPoint,
         public_point: dusk_jubjub::JubJubAffine,
     ) {
         self.constrain_to_constant(
@@ -110,8 +105,8 @@ impl TurboComposer {
     /// circuit
     pub fn assert_equal_point(
         &mut self,
-        point_a: AllocatedPoint,
-        point_b: AllocatedPoint,
+        point_a: WitnessPoint,
+        point_b: WitnessPoint,
     ) {
         self.assert_equal(point_a.x, point_b.x);
         self.assert_equal(point_b.y, point_b.y);
@@ -124,19 +119,18 @@ impl TurboComposer {
     ///
     /// # Note
     /// The `bit` used as input which is a
-    /// [`Variable`](crate::constraint_system::variable::Variable) should had
-    /// previously been constrained to be either 1 or 0 using a bool
-    /// constrain. See: [`TurboComposer::boolean_gate`].
+    /// [`Witness`] should had previously been constrained to be either 1 or 0
+    /// using a bool constrain. See: [`TurboComposer::boolean_gate`].
     pub fn conditional_point_select(
         &mut self,
-        point_a: AllocatedPoint,
-        point_b: AllocatedPoint,
-        bit: AllocatedScalar,
-    ) -> AllocatedPoint {
+        point_a: WitnessPoint,
+        point_b: WitnessPoint,
+        bit: Witness,
+    ) -> WitnessPoint {
         let x = self.conditional_select(bit, *point_a.x(), *point_b.x());
         let y = self.conditional_select(bit, *point_a.y(), *point_b.y());
 
-        AllocatedPoint { x, y }
+        WitnessPoint { x, y }
     }
 
     /// Adds to the circuit description the conditional selection of the
@@ -145,18 +139,18 @@ impl TurboComposer {
     /// bit == 0 => 1,
     ///
     /// # Note
-    /// The `bit` used as input which is a [`AllocatedScalar`] should had
+    /// The `bit` used as input which is a [`Witness`] should had
     /// previously been constrained to be either 1 or 0 using a bool
     /// constrain. See: [`TurboComposer::boolean_gate`].
     fn conditional_select_identity(
         &mut self,
-        bit: AllocatedScalar,
-        point_b: AllocatedPoint,
-    ) -> AllocatedPoint {
+        bit: Witness,
+        point_b: WitnessPoint,
+    ) -> WitnessPoint {
         let x = self.conditional_select_zero(bit, *point_b.x());
         let y = self.conditional_select_one(bit, *point_b.y());
 
-        AllocatedPoint { x, y }
+        WitnessPoint { x, y }
     }
 }
 
@@ -170,13 +164,13 @@ mod tests {
     fn test_conditional_select_point() {
         let res = gadget_tester(
             |composer| {
-                let bit_1 = composer.add_input(BlsScalar::one());
-                let bit_0 = composer.allocated_zero();
+                let bit_1 = composer.append_witness(BlsScalar::one());
+                let bit_0 = composer.zero();
 
-                let point_a = AllocatedPoint::identity(composer);
-                let point_b = AllocatedPoint {
-                    x: composer.add_input(BlsScalar::from(10u64)),
-                    y: composer.add_input(BlsScalar::from(20u64)),
+                let point_a = WitnessPoint::identity(composer);
+                let point_b = WitnessPoint {
+                    x: composer.append_witness(BlsScalar::from(10u64)),
+                    y: composer.append_witness(BlsScalar::from(20u64)),
                 };
 
                 let choice =

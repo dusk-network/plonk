@@ -9,7 +9,7 @@
 //! tools and abstractions, used by the Composer to generate,
 //! build, preprocess circuits.
 pub(crate) mod composer;
-pub(crate) mod variable;
+pub(crate) mod witness;
 
 /// Simple Arithmetic gates
 mod arithmetic;
@@ -27,6 +27,6 @@ pub mod logic;
 pub mod range;
 
 pub use composer::TurboComposer;
-pub use ecc::AllocatedPoint;
-pub(crate) use variable::WireData;
-pub use variable::{AllocatedScalar, Variable};
+pub use ecc::WitnessPoint;
+pub(crate) use witness::WireData;
+pub use witness::Witness;

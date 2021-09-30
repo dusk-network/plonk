@@ -4,13 +4,13 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use crate::constraint_system::{TurboComposer, Variable};
+use crate::constraint_system::{TurboComposer, Witness};
 use dusk_bls12_381::BlsScalar;
 
 #[derive(Debug, Clone, Copy)]
 /// Contains all of the components needed to verify that a bit scalar
 /// multiplication was computed correctly
-pub(crate) struct WnafRound<T: Into<Variable>> {
+pub(crate) struct WnafRound<T: Into<Witness>> {
     /// This is the accumulated x coordinate point that we wish to add (so
     /// far.. depends on where you are in the scalar mul) it is linked to
     /// the wnaf entry, so must not be revealed
@@ -38,7 +38,7 @@ pub(crate) struct WnafRound<T: Into<Variable>> {
 
 impl TurboComposer {
     /// Fixed group addition of a jubjub point
-    pub(crate) fn fixed_group_add<T: Into<Variable> + Copy>(
+    pub(crate) fn fixed_group_add<T: Into<Witness> + Copy>(
         &mut self,
         wnaf_round: WnafRound<T>,
     ) {

@@ -4,20 +4,19 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use crate::constraint_system::AllocatedScalar;
 use crate::constraint_system::TurboComposer;
+use crate::constraint_system::Witness;
 use dusk_bls12_381::BlsScalar;
 
 impl TurboComposer {
-    /// Adds a boolean constraint (also known as binary constraint) where
-    /// the gate eq. will enforce that the
-    /// [`Variable`](crate::constraint_system::variable::Variable) received is
-    /// either `0` or `1` by adding a constraint in the circuit.
+    /// Adds a boolean constraint (also known as binary constraint) where the
+    /// gate eq. will enforce that the [`Witness`] received is either `0` or `1`
+    /// by adding a constraint in the circuit.
     ///
-    /// Note that using this constraint with whatever [`AllocatedScalar`] that
+    /// Note that using this constraint with whatever [`Witness`] that
     /// is not representing a value equalling 0 or 1, will always force the
     /// equation to fail.
-    pub fn boolean_gate(&mut self, a: AllocatedScalar) -> AllocatedScalar {
+    pub fn boolean_gate(&mut self, a: Witness) -> Witness {
         self.w_l.push(a.into());
         self.w_r.push(a.into());
         self.w_o.push(a.into());
@@ -37,8 +36,7 @@ impl TurboComposer {
         self.q_variable_group_add.push(BlsScalar::zero());
         self.q_lookup.push(BlsScalar::zero());
 
-        self.perm
-            .add_variables_to_map(a, a, a, self.allocated_zero(), self.n);
+        self.perm.add_variables_to_map(a, a, a, self.zero(), self.n);
 
         self.n += 1;
 
@@ -55,8 +53,8 @@ mod tests {
     fn test_correct_bool_gate() {
         let res = gadget_tester(
             |composer| {
-                let zero = composer.allocated_zero();
-                let one = composer.add_input(BlsScalar::one());
+                let zero = composer.zero();
+                let one = composer.append_witness(BlsScalar::one());
 
                 composer.boolean_gate(zero);
                 composer.boolean_gate(one);
@@ -70,8 +68,8 @@ mod tests {
     fn test_incorrect_bool_gate() {
         let res = gadget_tester(
             |composer| {
-                let zero = composer.add_input(BlsScalar::from(5));
-                let one = composer.add_input(BlsScalar::one());
+                let zero = composer.append_witness(BlsScalar::from(5));
+                let one = composer.append_witness(BlsScalar::one());
 
                 composer.boolean_gate(zero);
                 composer.boolean_gate(one);

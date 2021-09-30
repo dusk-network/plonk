@@ -5,7 +5,7 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use super::constants::{K1, K2, K3};
-use crate::constraint_system::{Variable, WireData};
+use crate::constraint_system::{WireData, Witness};
 use crate::fft::{EvaluationDomain, Polynomial};
 use alloc::vec::Vec;
 use dusk_bls12_381::BlsScalar;
@@ -21,7 +21,7 @@ use rayon::iter::{IntoParallelIterator, ParallelIterator};
 #[derive(Debug)]
 pub(crate) struct Permutation {
     // Maps a variable to the wires that it is associated to.
-    pub(crate) variable_map: HashMap<Variable, Vec<WireData>>,
+    pub(crate) variable_map: HashMap<Witness, Vec<WireData>>,
 }
 
 impl Permutation {
@@ -37,16 +37,16 @@ impl Permutation {
         }
     }
 
-    /// Creates a new [`Variable`](crate::constraint_system::variable::Variable)
-    /// by incrementing the index of the `variable_map`. This is correct as
-    /// whenever we add a new
-    /// [`Variable`](crate::constraint_system::variable::Variable)
-    /// into the system It is always allocated in the `variable_map`.
-    pub(crate) fn new_variable(&mut self) -> Variable {
-        // Generate the Variable
-        let var = Variable(self.variable_map.keys().len());
+    /// Creates a new [`Witness`] by incrementing the index of the
+    /// `variable_map`.
+    ///
+    /// This is correct as whenever we add a new [`Witness`] into the system It
+    /// is always allocated in the `variable_map`.
+    pub(crate) fn new_variable(&mut self) -> Witness {
+        // Generate the Witness
+        let var = Witness::new(self.variable_map.keys().len());
 
-        // Allocate space for the Variable on the variable_map
+        // Allocate space for the Witness on the variable_map
         // Each vector is initialised with a capacity of 16.
         // This number is a best guess estimate.
         self.variable_map.insert(var, Vec::with_capacity(16usize));
@@ -54,10 +54,9 @@ impl Permutation {
         var
     }
 
-    /// Checks that the
-    /// [`Variable`](crate::constraint_system::variable::Variable)s are valid by
-    /// determining if they have been added to the system
-    fn valid_variables(&self, variables: &[Variable]) -> bool {
+    /// Checks that the [`Witness`]s are valid by determining if they have been
+    /// added to the system
+    fn valid_variables(&self, variables: &[Witness]) -> bool {
         let results: Vec<bool> = variables
             .iter()
             .map(|var| self.variable_map.contains_key(&var))
@@ -67,11 +66,9 @@ impl Permutation {
         results.is_empty()
     }
 
-    /// Maps a set of
-    /// [`Variable`](crate::constraint_system::variable::Variable)s (a,b,c,d) to
-    /// a set of [`Wire`](WireData)s (left, right, out, fourth) with the
-    /// corresponding gate index
-    pub fn add_variables_to_map<T: Into<Variable>>(
+    /// Maps a set of [`Witness`]s (a,b,c,d) to a set of [`Wire`](WireData)s
+    /// (left, right, out, fourth) with the corresponding gate index
+    pub fn add_variables_to_map<T: Into<Witness>>(
         &mut self,
         a: T,
         b: T,
@@ -92,7 +89,7 @@ impl Permutation {
         self.add_variable_to_map(d.into(), fourth);
     }
 
-    pub(crate) fn add_variable_to_map<T: Into<Variable> + Copy>(
+    pub(crate) fn add_variable_to_map<T: Into<Witness> + Copy>(
         &mut self,
         var: T,
         wire_data: WireData,
@@ -100,7 +97,7 @@ impl Permutation {
         assert!(self.valid_variables(&[var.into()]));
 
         // Since we always allocate space for the Vec of WireData when a
-        // Variable is added to the variable_map, this should never fail
+        // Witness is added to the variable_map, this should never fail
         let vec_wire_data = self.variable_map.get_mut(&var.into()).unwrap();
         vec_wire_data.push(wire_data);
     }
@@ -812,10 +809,11 @@ mod test {
     #[test]
     fn test_multizip_permutation_poly() {
         let mut cs = TurboComposer::with_expected_size(4);
-        let x1 = cs.add_input(BlsScalar::from_raw([4, 0, 0, 0]));
-        let x2 = cs.add_input(BlsScalar::from_raw([12, 0, 0, 0]));
-        let x3 = cs.add_input(BlsScalar::from_raw([8, 0, 0, 0]));
-        let x4 = cs.add_input(BlsScalar::from_raw([3, 0, 0, 0]));
+
+        let x1 = cs.append_witness(BlsScalar::from_raw([4, 0, 0, 0]));
+        let x2 = cs.append_witness(BlsScalar::from_raw([12, 0, 0, 0]));
+        let x3 = cs.append_witness(BlsScalar::from_raw([8, 0, 0, 0]));
+        let x4 = cs.append_witness(BlsScalar::from_raw([3, 0, 0, 0]));
 
         let zero = BlsScalar::zero();
         let one = BlsScalar::one();
@@ -836,13 +834,13 @@ mod test {
         let domain = EvaluationDomain::new(cs.circuit_size()).unwrap();
         let pad = vec![BlsScalar::zero(); domain.size() - cs.w_l.len()];
         let mut w_l_scalar: Vec<BlsScalar> =
-            cs.w_l.iter().map(|v| cs.variables[v]).collect();
+            cs.w_l.iter().map(|v| cs.witnesses[v]).collect();
         let mut w_r_scalar: Vec<BlsScalar> =
-            cs.w_r.iter().map(|v| cs.variables[v]).collect();
+            cs.w_r.iter().map(|v| cs.witnesses[v]).collect();
         let mut w_o_scalar: Vec<BlsScalar> =
-            cs.w_o.iter().map(|v| cs.variables[v]).collect();
+            cs.w_o.iter().map(|v| cs.witnesses[v]).collect();
         let mut w_4_scalar: Vec<BlsScalar> =
-            cs.w_4.iter().map(|v| cs.variables[v]).collect();
+            cs.w_4.iter().map(|v| cs.witnesses[v]).collect();
 
         w_l_scalar.extend(&pad);
         w_r_scalar.extend(&pad);
@@ -905,7 +903,7 @@ mod test {
         let num_variables = 10u8;
         for i in 0..num_variables {
             let var = perm.new_variable();
-            assert_eq!(var.0, i as usize);
+            assert_eq!(var.index(), i as usize);
             assert_eq!(perm.variable_map.len(), (i as usize) + 1);
         }
 
