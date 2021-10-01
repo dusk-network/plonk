@@ -57,6 +57,11 @@
 
 cfg_if::cfg_if!(
 if #[cfg(feature = "alloc")] {
+    /// `macro_use` will declare `vec!`. However, if `libstd` is present, then this is declared in
+    /// the prelude and there will be a conflicting implementation.
+    ///
+    /// We might have `no_std + alloc` or `std + alloc`, but `macro_use` should be used only for
+    /// `no_std`
     #[cfg_attr(not(feature = "std"), macro_use)]
     extern crate alloc;
 
