@@ -964,13 +964,9 @@ mod tests {
         let zero = prover.cs.constant_zero();
 
         prover.cs.append_plonkup_gate(two, three, result, one, None);
-
         prover.cs.append_plonkup_gate(two, three, result, one, None);
-
         prover.cs.append_plonkup_gate(two, three, result, one, None);
-
         prover.cs.append_plonkup_gate(two, three, result, one, None);
-
         prover.cs.append_plonkup_gate(two, three, result, one, None);
 
         prover.cs.gate_add(
