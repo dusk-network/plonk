@@ -307,7 +307,7 @@ impl Prover {
 
         // 3. Compute public inputs polynomial
         let pi_poly = Polynomial::from_coefficients_vec(
-            domain.ifft(&self.cs.into_dense_public_inputs()),
+            domain.ifft(&self.cs.to_dense_public_inputs()),
         );
 
         // Compute evaluation challenge; `z`

@@ -39,7 +39,7 @@ impl Circuit for TestCircuit {
         let a = composer.append_witness(self.a);
         let b = composer.append_witness(self.b);
         // Make first constraint a + b = c
-        composer.append_gate(
+        composer.append_constraint(
             a,
             b,
             composer.constant_zero(),
@@ -56,7 +56,7 @@ impl Circuit for TestCircuit {
         composer.gate_range(a, 1 << 6);
         composer.gate_range(b, 1 << 5);
         // Make second constraint a * b = d
-        composer.append_gate(
+        composer.append_constraint(
             a,
             b,
             composer.constant_zero(),
@@ -78,7 +78,7 @@ impl Circuit for TestCircuit {
         Ok(())
     }
 
-    fn into_public_inputs(&self) -> Vec<PublicInputValue> {
+    fn to_public_inputs(&self) -> Vec<PublicInputValue> {
         vec![self.c.into(), self.d.into(), self.f.into()]
     }
 
@@ -117,12 +117,11 @@ let public_inputs: Vec<PublicInputValue> = vec![
     )
     .into(),
 ];
-circuit::verify_proof(
+TestCircuit::verify(
     &pp,
-    &vd.key(),
+    &vd,
     &proof,
-    &public_inputs,
-    &vd.pi_pos(),
+    public_inputs.as_slice(),
     b"Test",
 ).unwrap();
 ```

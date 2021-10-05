@@ -135,7 +135,7 @@ impl TurboComposer {
 
     /// Constructs a dense vector of the Public Inputs from the positions and
     /// the sparse vector that contains the values.
-    pub(crate) fn into_dense_public_inputs(&self) -> Vec<BlsScalar> {
+    pub(crate) fn to_dense_public_inputs(&self) -> Vec<BlsScalar> {
         let mut pi = vec![BlsScalar::zero(); self.n];
         self.public_inputs_sparse_store
             .iter()
@@ -149,7 +149,7 @@ impl TurboComposer {
     /// instance.
     // TODO: Find a more performant solution which can return a ref to a Vec or
     // Iterator.
-    pub fn into_public_input_indexes(&self) -> Vec<usize> {
+    pub fn to_public_inputs_indexes(&self) -> Vec<usize> {
         self.public_inputs_sparse_store
             .keys()
             .copied()
@@ -249,7 +249,7 @@ impl TurboComposer {
     ///
     /// The final constraint added will enforce the following:
     /// `q_m · a · b  + q_l · a + q_r · b + q_o · o + q_4 · d + q_c + PI = 0`.
-    pub fn append_gate(
+    pub fn append_constraint(
         &mut self,
         a: Witness,
         b: Witness,
@@ -305,7 +305,7 @@ impl TurboComposer {
     ) {
         let zero = self.constant_zero();
 
-        self.append_gate(
+        self.append_constraint(
             a,
             zero,
             zero,
@@ -324,7 +324,7 @@ impl TurboComposer {
     pub fn assert_equal(&mut self, a: Witness, b: Witness) {
         let zero = self.constant_zero();
 
-        self.append_gate(
+        self.append_constraint(
             a,
             b,
             zero,
@@ -435,7 +435,7 @@ impl TurboComposer {
         let f_x = BlsScalar::one() - b + (b * v);
         let f_x = self.append_witness(f_x);
 
-        self.append_gate(
+        self.append_constraint(
             bit,
             value,
             f_x,
@@ -611,7 +611,7 @@ impl TurboComposer {
             f * f_1 * f_2 * f_3
         };
 
-        let pi_vec = self.into_dense_public_inputs();
+        let pi_vec = self.to_dense_public_inputs();
         let four = BlsScalar::from(4);
 
         for i in 0..self.n {
@@ -715,7 +715,7 @@ impl TurboComposer {
     /// the largest amount of performance and the minimum circuit-size
     /// possible. Since it allows the end-user to set every selector coefficient
     /// as scaling value on the gate eq.
-    pub fn append_plonkup_gate(
+    pub fn append_plonkup_constraint(
         &mut self,
         a: Witness,
         b: Witness,
@@ -881,8 +881,9 @@ mod tests {
                 let twelve = composer.append_constant(BlsScalar::from(12));
                 let three = composer.append_constant(BlsScalar::from(3));
 
-                composer
-                    .append_plonkup_gate(twelve, twelve, twelve, three, None);
+                composer.append_plonkup_constraint(
+                    twelve, twelve, twelve, three, None,
+                );
             },
             65,
             t,
@@ -908,7 +909,7 @@ mod tests {
         // Preprocess circuit
         prover.preprocess(&ck).unwrap();
 
-        let public_inputs = prover.cs.into_dense_public_inputs();
+        let public_inputs = prover.cs.to_dense_public_inputs();
 
         let mut proofs = Vec::new();
 
@@ -963,11 +964,21 @@ mod tests {
         let one = prover.cs.append_constant(BlsScalar::one());
         let zero = prover.cs.constant_zero();
 
-        prover.cs.append_plonkup_gate(two, three, result, one, None);
-        prover.cs.append_plonkup_gate(two, three, result, one, None);
-        prover.cs.append_plonkup_gate(two, three, result, one, None);
-        prover.cs.append_plonkup_gate(two, three, result, one, None);
-        prover.cs.append_plonkup_gate(two, three, result, one, None);
+        prover
+            .cs
+            .append_plonkup_constraint(two, three, result, one, None);
+        prover
+            .cs
+            .append_plonkup_constraint(two, three, result, one, None);
+        prover
+            .cs
+            .append_plonkup_constraint(two, three, result, one, None);
+        prover
+            .cs
+            .append_plonkup_constraint(two, three, result, one, None);
+        prover
+            .cs
+            .append_plonkup_constraint(two, three, result, one, None);
 
         prover.cs.gate_add(
             two,
@@ -988,7 +999,7 @@ mod tests {
 
         // Once the prove method is called, the public inputs are cleared
         // So pre-fetch these before calling Prove
-        let public_inputs = prover.cs.into_dense_public_inputs();
+        let public_inputs = prover.cs.to_dense_public_inputs();
 
         (prover.prove(&ck).unwrap(), public_inputs);
     }
@@ -1015,7 +1026,7 @@ mod tests {
         prover.preprocess(&ck)?;
         verifier.preprocess(&ck)?;
 
-        let public_inputs = prover.cs.into_dense_public_inputs();
+        let public_inputs = prover.cs.to_dense_public_inputs();
 
         let proof = prover.prove(&ck)?;
 

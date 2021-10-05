@@ -82,7 +82,7 @@ pub(crate) fn gadget_tester(
 
         // Once the prove method is called, the public inputs are cleared
         // So pre-fetch these before calling Prove
-        let public_inputs = prover.cs.into_dense_public_inputs();
+        let public_inputs = prover.cs.to_dense_public_inputs();
 
         // Compute Proof
         (prover.prove(&ck)?, public_inputs)
@@ -142,7 +142,7 @@ pub(crate) fn gadget_plonkup_tester(
 
         // Once the prove method is called, the public inputs are cleared
         // So pre-fetch these before calling Prove
-        let public_inputs = prover.cs.into_dense_public_inputs();
+        let public_inputs = prover.cs.to_dense_public_inputs();
 
         // Compute Proof
         (prover.prove(&ck)?, public_inputs)

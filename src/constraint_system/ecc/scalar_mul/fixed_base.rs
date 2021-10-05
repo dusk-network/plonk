@@ -138,7 +138,7 @@ impl TurboComposer {
 
         // FIXME this gate isn't verifying anything because all the selectors
         // are zeroed. Validate what was the intent
-        self.append_gate(
+        self.append_constraint(
             acc_x,
             acc_y,
             self.constant_zero(),

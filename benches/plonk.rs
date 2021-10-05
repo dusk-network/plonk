@@ -44,11 +44,11 @@ impl Circuit for BenchCircuit {
             b += BlsScalar::one();
             c = a * b + a + b + BlsScalar::one();
 
-            let x = composer.add_input(a);
-            let y = composer.add_input(b);
-            let z = composer.add_input(c);
+            let x = composer.append_witness(a);
+            let y = composer.append_witness(b);
+            let z = composer.append_witness(c);
 
-            composer.append_gate(
+            composer.append_constraint(
                 x,
                 y,
                 z,
@@ -66,7 +66,7 @@ impl Circuit for BenchCircuit {
         Ok(())
     }
 
-    fn into_public_inputs(&self) -> Vec<PublicInputValue> {
+    fn to_public_inputs(&self) -> Vec<PublicInputValue> {
         vec![]
     }
 
@@ -110,7 +110,7 @@ fn constraint_system_benchmark(c: &mut Criterion) {
                     vd.key(),
                     &proof,
                     &[],
-                    vd.pi_pos(),
+                    vd.public_inputs_indexes(),
                     label,
                 )
                 .expect("Failed to verify bench circuit!");
@@ -144,7 +144,7 @@ fn constraint_system_benchmark(c: &mut Criterion) {
                     vd.key(),
                     black_box(proof),
                     &[],
-                    vd.pi_pos(),
+                    vd.public_inputs_indexes(),
                     label,
                 )
                 .expect("Failed to verify bench circuit!");

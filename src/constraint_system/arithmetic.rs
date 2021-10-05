@@ -8,7 +8,7 @@ use crate::constraint_system::{TurboComposer, Witness};
 use dusk_bls12_381::BlsScalar;
 
 impl TurboComposer {
-    /// Evaluate and return `o` by appending a new gate into the circuit.
+    /// Evaluate and return `o` by appending a new constraint into the circuit.
     ///
     /// `o := q_l · a + q_r · b + q_4 · d + q_c + PI`
     pub fn gate_add(
@@ -32,7 +32,7 @@ impl TurboComposer {
         let o = self.append_witness(o);
         let q_o = -BlsScalar::one();
 
-        self.append_gate(
+        self.append_constraint(
             a,
             b,
             o,
@@ -49,7 +49,7 @@ impl TurboComposer {
         o
     }
 
-    /// Evaluate and return `o` by appending a new gate into the circuit.
+    /// Evaluate and return `o` by appending a new constraint into the circuit.
     ///
     /// `o := q_m · a · b + q_4 · d + q_c + PI`
     pub fn gate_mul(
@@ -71,7 +71,7 @@ impl TurboComposer {
         let o = self.append_witness(o);
         let q_o = -BlsScalar::one();
 
-        self.append_gate(
+        self.append_constraint(
             a,
             b,
             o,

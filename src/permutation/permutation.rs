@@ -821,16 +821,24 @@ mod test {
         let z = cs.constant_zero();
 
         // x1 * x4 = x2
-        cs.append_gate(x1, x4, x2, z, one, zero, zero, -one, zero, zero, None);
+        cs.append_constraint(
+            x1, x4, x2, z, one, zero, zero, -one, zero, zero, None,
+        );
 
         // x1 + x3 = x2
-        cs.append_gate(x1, x3, x2, z, zero, one, one, -one, zero, zero, None);
+        cs.append_constraint(
+            x1, x3, x2, z, zero, one, one, -one, zero, zero, None,
+        );
 
         // x1 + x2 = 2*x3
-        cs.append_gate(x1, x2, x3, z, zero, one, one, -two, zero, zero, None);
+        cs.append_constraint(
+            x1, x2, x3, z, zero, one, one, -two, zero, zero, None,
+        );
 
         // x3 * x4 = 2*x2
-        cs.append_gate(x3, x4, x2, z, one, zero, zero, -two, zero, zero, None);
+        cs.append_constraint(
+            x3, x4, x2, z, one, zero, zero, -two, zero, zero, None,
+        );
 
         let domain = EvaluationDomain::new(cs.constraints()).unwrap();
         let pad = vec![BlsScalar::zero(); domain.size() - cs.w_l.len()];

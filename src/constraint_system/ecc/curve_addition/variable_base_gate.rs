@@ -212,7 +212,7 @@ mod test {
 
         // Assert that we actually have the inverse
         // inv_x * x = 1
-        composer.append_gate(
+        composer.append_constraint(
             x_denominator,
             inv_x_denom,
             zero,
@@ -244,7 +244,7 @@ mod test {
 
         // Assert that we actually have the inverse
         // inv_y * y = 1
-        composer.append_gate(
+        composer.append_constraint(
             y_denominator,
             inv_y_denom,
             zero,
