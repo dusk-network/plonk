@@ -21,14 +21,14 @@ impl TurboComposer {
     ///# Panics
     /// This function will panic if the num_bits specified is not even, ie.
     /// `num_bits % 2 != 0`.
-    pub fn gate_range(&mut self, witness: Witness, num_bits: usize) {
+    pub fn component_range(&mut self, witness: Witness, num_bits: usize) {
         // Adds `variable` into the appropriate witness position
         // based on the accumulator number a_i
         let add_wire =
             |composer: &mut TurboComposer, i: usize, witness: Witness| {
                 // Since four quads can fit into one gate, the gate index does
                 // not change for every four wires
-                let gate_index = composer.constraints() + (i / 4);
+                let gate_index = composer.gates() + (i / 4);
 
                 let wire_data = match i % 4 {
                     0 => {
@@ -209,7 +209,7 @@ mod tests {
                 let witness = composer.append_witness(BlsScalar::from(
                     (u32::max_value() as u64) + 1,
                 ));
-                composer.gate_range(witness, 32);
+                composer.component_range(witness, 32);
             },
             200,
         );
@@ -220,7 +220,7 @@ mod tests {
             |composer| {
                 let witness =
                     composer.append_witness(BlsScalar::from(u64::max_value()));
-                composer.gate_range(witness, 32);
+                composer.component_range(witness, 32);
             },
             200,
         );
@@ -231,7 +231,7 @@ mod tests {
             |composer| {
                 let witness =
                     composer.append_witness(BlsScalar::from(2u64.pow(34) - 1));
-                composer.gate_range(witness, 34);
+                composer.component_range(witness, 34);
             },
             200,
         );
@@ -246,7 +246,7 @@ mod tests {
             |composer| {
                 let witness = composer
                     .append_witness(BlsScalar::from(u32::max_value() as u64));
-                composer.gate_range(witness, 33);
+                composer.component_range(witness, 33);
             },
             200,
         );

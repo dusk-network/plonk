@@ -39,7 +39,7 @@ impl Circuit for BenchCircuit {
 
         let zero = composer.constant_zero();
 
-        while composer.constraints() < self.padded_constraints() {
+        while composer.gates() < self.padded_gates() {
             a += BlsScalar::one();
             b += BlsScalar::one();
             c = a * b + a + b + BlsScalar::one();
@@ -48,7 +48,7 @@ impl Circuit for BenchCircuit {
             let y = composer.append_witness(b);
             let z = composer.append_witness(c);
 
-            composer.append_constraint(
+            composer.append_gate(
                 x,
                 y,
                 z,
@@ -70,7 +70,7 @@ impl Circuit for BenchCircuit {
         vec![]
     }
 
-    fn padded_constraints(&self) -> usize {
+    fn padded_gates(&self) -> usize {
         self.degree
     }
 }
@@ -121,9 +121,9 @@ fn constraint_system_benchmark(c: &mut Criterion) {
 
     data.iter().for_each(|(circuit, pk, _, _)| {
         let mut circuit = circuit.clone();
-        let size = circuit.padded_constraints();
+        let size = circuit.padded_gates();
         let power = (size as f64).log2() as usize;
-        let description = format!("Prove 2^{} = {} constraints", power, size);
+        let description = format!("Prove 2^{} = {} gates", power, size);
 
         c.bench_function(description.as_str(), |b| {
             b.iter(|| {
@@ -133,9 +133,9 @@ fn constraint_system_benchmark(c: &mut Criterion) {
     });
 
     data.iter().for_each(|(circuit, _, vd, proof)| {
-        let size = circuit.padded_constraints();
+        let size = circuit.padded_gates();
         let power = (size as f64).log2() as usize;
-        let description = format!("Verify 2^{} = {} constraints", power, size);
+        let description = format!("Verify 2^{} = {} gates", power, size);
 
         c.bench_function(description.as_str(), |b| {
             b.iter(|| {

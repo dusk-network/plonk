@@ -19,10 +19,10 @@ impl TurboComposer {
     /// perform the whole operation.
     ///
     /// ## Selector
-    /// - is_gate_xor = 1 -> Performs XOR between the first `num_bits` for `a`
-    ///   and `b`.
-    /// - is_gate_xor = 0 -> Performs AND between the first `num_bits` for `a`
-    ///   and `b`.
+    /// - is_component_xor = 1 -> Performs XOR between the first `num_bits` for
+    ///   `a` and `b`.
+    /// - is_component_xor = 0 -> Performs AND between the first `num_bits` for
+    ///   `a` and `b`.
     ///
     /// # Panics
     /// This function will panic if the num_bits specified is not even, ie.
@@ -32,7 +32,7 @@ impl TurboComposer {
         a: Witness,
         b: Witness,
         num_bits: usize,
-        is_gate_xor: bool,
+        is_component_xor: bool,
     ) -> Witness {
         // Since we work on base4, we need to guarantee that we have an even
         // number of bits representing the greatest input.
@@ -117,7 +117,7 @@ impl TurboComposer {
             // The `out_quad` is the result of the bitwise ops `&` or `^`
             // between the left and right quads. The op is decided
             // with a boolean flag set as input of the function.
-            let out_quad_fr = match is_gate_xor {
+            let out_quad_fr = match is_component_xor {
                 true => BlsScalar::from((left_quad ^ right_quad) as u64),
                 false => BlsScalar::from((left_quad & right_quad) as u64),
             };
@@ -169,7 +169,7 @@ impl TurboComposer {
             right_accumulator += right_quad_fr;
             out_accumulator *= BlsScalar::from(4u64);
             out_accumulator += out_quad_fr;
-            // Apply logic transition constraints.
+            // Apply logic transition gates.
             assert!(
                 left_accumulator - (prev_left_accum * BlsScalar::from(4u64))
                     < BlsScalar::from(4u64)
@@ -241,7 +241,7 @@ impl TurboComposer {
             self.q_fixed_group_add.push(BlsScalar::zero());
             self.q_variable_group_add.push(BlsScalar::zero());
             self.q_lookup.push(BlsScalar::zero());
-            match is_gate_xor {
+            match is_component_xor {
                 true => {
                     self.q_c.push(-BlsScalar::one());
                     self.q_logic.push(-BlsScalar::one());
@@ -308,7 +308,7 @@ impl TurboComposer {
     /// # Panics
     ///
     /// If the `num_bits` specified in the fn params is odd.
-    pub fn gate_xor(
+    pub fn component_xor(
         &mut self,
         a: Witness,
         b: Witness,
@@ -324,7 +324,7 @@ impl TurboComposer {
     /// # Panics
     ///
     /// If the `num_bits` specified in the fn params is odd.
-    pub fn gate_and(
+    pub fn component_and(
         &mut self,
         a: Witness,
         b: Witness,
@@ -349,7 +349,7 @@ mod tests {
                     composer.append_witness(BlsScalar::from(500u64));
                 let witness_b =
                     composer.append_witness(BlsScalar::from(357u64));
-                let xor_res = composer.gate_xor(witness_a, witness_b, 10);
+                let xor_res = composer.component_xor(witness_a, witness_b, 10);
                 // Check that the XOR result is indeed what we are expecting.
                 composer.assert_equal_constant(
                     xor_res,
@@ -368,7 +368,7 @@ mod tests {
                     composer.append_witness(BlsScalar::from(469u64));
                 let witness_b =
                     composer.append_witness(BlsScalar::from(321u64));
-                let xor_res = composer.gate_and(witness_a, witness_b, 10);
+                let xor_res = composer.component_and(witness_a, witness_b, 10);
                 // Check that the AND result is indeed what we are expecting.
                 composer.assert_equal_constant(
                     xor_res,
@@ -387,7 +387,7 @@ mod tests {
                 let witness_a =
                     composer.append_witness(BlsScalar::from(139u64));
                 let witness_b = composer.append_witness(BlsScalar::from(33u64));
-                let xor_res = composer.gate_xor(witness_a, witness_b, 10);
+                let xor_res = composer.component_xor(witness_a, witness_b, 10);
                 // Check that the XOR result is indeed what we are expecting.
                 composer.assert_equal_constant(
                     xor_res,
@@ -406,7 +406,7 @@ mod tests {
                     composer.append_witness(BlsScalar::from(256u64));
                 let witness_b =
                     composer.append_witness(BlsScalar::from(235u64));
-                let xor_res = composer.gate_xor(witness_a, witness_b, 2);
+                let xor_res = composer.component_xor(witness_a, witness_b, 2);
                 // Check that the XOR result is indeed what we are expecting.
                 composer.assert_equal_constant(
                     xor_res,
@@ -429,7 +429,7 @@ mod tests {
                     composer.append_witness(BlsScalar::from(500u64));
                 let witness_b =
                     composer.append_witness(BlsScalar::from(499u64));
-                let xor_res = composer.gate_xor(witness_a, witness_b, 9);
+                let xor_res = composer.component_xor(witness_a, witness_b, 9);
                 // Check that the XOR result is indeed what we are expecting.
                 composer.assert_equal_constant(
                     xor_res,

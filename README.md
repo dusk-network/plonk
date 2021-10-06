@@ -39,7 +39,7 @@ impl Circuit for TestCircuit {
         let a = composer.append_witness(self.a);
         let b = composer.append_witness(self.b);
         // Make first constraint a + b = c
-        composer.append_constraint(
+        composer.append_gate(
             a,
             b,
             composer.constant_zero(),
@@ -53,10 +53,10 @@ impl Circuit for TestCircuit {
             Some(-self.c),
         );
         // Check that a and b are in range
-        composer.gate_range(a, 1 << 6);
-        composer.gate_range(b, 1 << 5);
+        composer.component_range(a, 1 << 6);
+        composer.component_range(b, 1 << 5);
         // Make second constraint a * b = d
-        composer.append_constraint(
+        composer.append_gate(
             a,
             b,
             composer.constant_zero(),
@@ -72,7 +72,7 @@ impl Circuit for TestCircuit {
 
         let e = composer.append_witness(self.e);
         let scalar_mul_result = composer
-            .gate_mul_generator(e, dusk_jubjub::GENERATOR_EXTENDED);
+            .component_mul_generator(e, dusk_jubjub::GENERATOR_EXTENDED);
         // Apply the constrain
         composer.assert_equal_public_point(scalar_mul_result, self.f);
         Ok(())
@@ -82,7 +82,7 @@ impl Circuit for TestCircuit {
         vec![self.c.into(), self.d.into(), self.f.into()]
     }
 
-    fn padded_constraints(&self) -> usize {
+    fn padded_gates(&self) -> usize {
         1 << 11
     }
 }

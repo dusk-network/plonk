@@ -32,7 +32,7 @@ impl TurboComposer {
         let o = self.append_witness(o);
         let q_o = -BlsScalar::one();
 
-        self.append_constraint(
+        self.append_gate(
             a,
             b,
             o,
@@ -71,7 +71,7 @@ impl TurboComposer {
         let o = self.append_witness(o);
         let q_o = -BlsScalar::one();
 
-        self.append_constraint(
+        self.append_gate(
             a,
             b,
             o,

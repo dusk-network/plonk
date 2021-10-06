@@ -5,32 +5,31 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use crate::constraint_system::{TurboComposer, Witness, WitnessPoint};
-use alloc::vec::Vec;
-use dusk_bls12_381::BlsScalar;
 
 impl TurboComposer {
     /// Evaluate `jubjub · point` as a [`WitnessPoint`]
-    pub fn gate_mul_point(
+    pub fn component_mul_point(
         &mut self,
         jubjub: Witness,
         point: WitnessPoint,
     ) -> WitnessPoint {
         // Turn scalar into bits
-        let scalar_bits = self.scalar_decomposition(jubjub);
+        let scalar_bits = self.component_decomposition::<252>(jubjub);
 
         let identity = self.append_constant_identity();
         let mut result = identity;
 
-        for bit in scalar_bits.into_iter().rev() {
-            result = self.gate_add_point(result, result);
+        for bit in scalar_bits.iter().rev() {
+            result = self.component_add_point(result, result);
 
-            let point_to_add = self.gate_select_identity(bit, point);
-            result = self.gate_add_point(result, point_to_add);
+            let point_to_add = self.component_select_identity(*bit, point);
+            result = self.component_add_point(result, point_to_add);
         }
 
         result
     }
 
+    /*
     fn scalar_decomposition(&mut self, witness: Witness) -> Vec<Witness> {
         // Decompose the bits
         let scalar_bits = self.gate_decomposition(witness);
@@ -65,6 +64,7 @@ impl TurboComposer {
 
         scalar_bits_witness
     }
+    */
 }
 
 #[cfg(feature = "std")]
@@ -96,7 +96,7 @@ mod tests {
                 let point = composer.append_point(GENERATOR);
 
                 let point_scalar =
-                    composer.gate_mul_point(secret_scalar, point);
+                    composer.component_mul_point(secret_scalar, point);
 
                 composer
                     .assert_equal_public_point(point_scalar, expected_point);

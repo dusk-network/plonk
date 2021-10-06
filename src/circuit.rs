@@ -156,7 +156,7 @@ impl VerifierData {
 ///         let a = composer.append_witness(self.a);
 ///         let b = composer.append_witness(self.b);
 ///         // Make first constraint a + b = c
-///         composer.append_constraint(
+///         composer.append_gate(
 ///             a,
 ///             b,
 ///             zero,
@@ -170,10 +170,10 @@ impl VerifierData {
 ///             Some(-self.c),
 ///         );
 ///         // Check that a and b are in range
-///         composer.gate_range(a, 1 << 6);
-///         composer.gate_range(b, 1 << 5);
+///         composer.component_range(a, 1 << 6);
+///         composer.component_range(b, 1 << 5);
 ///         // Make second constraint a * b = d
-///         composer.append_constraint(
+///         composer.append_gate(
 ///             a,
 ///             b,
 ///             zero,
@@ -189,7 +189,7 @@ impl VerifierData {
 ///
 ///         let e = composer.append_witness(self.e);
 ///         let scalar_mul_result =
-///             composer.gate_mul_generator(
+///             composer.component_mul_generator(
 ///                 e, dusk_jubjub::GENERATOR_EXTENDED,
 ///             );
 ///         // Apply the constrain
@@ -202,7 +202,7 @@ impl VerifierData {
 ///         vec![self.c.into(), self.d.into(), self.f.into()]
 ///     }
 ///
-///     fn padded_constraints(&self) -> usize {
+///     fn padded_gates(&self) -> usize {
 ///         1 << 11
 ///     }
 /// }
@@ -264,7 +264,7 @@ where
         pub_params: &PublicParameters,
     ) -> Result<(ProverKey, VerifierData), Error> {
         // Setup PublicParams
-        let (ck, _) = pub_params.trim(self.padded_constraints())?;
+        let (ck, _) = pub_params.trim(self.padded_gates())?;
 
         // Generate & save `ProverKey` with some random values.
         let mut prover = Prover::new(b"CircuitCompilation");
@@ -304,7 +304,7 @@ where
         prover_key: &ProverKey,
         transcript_init: &'static [u8],
     ) -> Result<Proof, Error> {
-        let (ck, _) = pub_params.trim(self.padded_constraints())?;
+        let (ck, _) = pub_params.trim(self.padded_gates())?;
 
         // New Prover instance
         let mut prover = Prover::new(transcript_init);
@@ -325,10 +325,10 @@ where
         public_inputs: &[PublicInputValue],
         transcript_init: &'static [u8],
     ) -> Result<(), Error> {
-        let constraints = verifier_data.key().padded_constraints();
+        let gates = verifier_data.key().padded_gates();
         let pi_indexes = verifier_data.public_inputs_indexes();
 
-        let mut dense_pi = vec![BlsScalar::zero(); constraints];
+        let mut dense_pi = vec![BlsScalar::zero(); gates];
 
         public_inputs
             .iter()
@@ -352,41 +352,8 @@ where
     fn to_public_inputs(&self) -> Vec<PublicInputValue>;
 
     /// Returns the Circuit size padded to the next power of two.
-    fn padded_constraints(&self) -> usize;
+    fn padded_gates(&self) -> usize;
 }
-
-/*
-/// Verifies a proof using the provided `CircuitInputs` & `VerifierKey`
-/// instances.
-pub fn verify_proof(
-    pub_params: &PublicParameters,
-    verifier_key: &VerifierKey,
-    proof: &Proof,
-    public_inputs_values: &[PublicInputValue],
-    public_inputs_indexes: &[usize],
-    transcript_init: &'static [u8],
-) -> Result<(), Error> {
-    let mut dense_public_inputs =
-        vec![BlsScalar::zero(); verifier_key.padded_constraints()];
-
-    public_inputs_values
-        .iter()
-        .map(|pi| pi.0.clone())
-        .flatten()
-        .zip(public_inputs_indexes.iter().copied())
-        .for_each(|(value, pos)| {
-            dense_public_inputs[pos] = -value;
-        });
-
-    let ok = pub_params.opening_key();
-
-    let mut verifier = Verifier::new(transcript_init);
-
-    verifier.verifier_key.replace(*verifier_key);
-
-    verifier.verify(proof, ok, dense_public_inputs.as_slice())
-}
-*/
 
 #[cfg(feature = "std")]
 #[cfg(test)]
@@ -440,7 +407,7 @@ mod tests {
             let a = composer.append_witness(self.a);
             let b = composer.append_witness(self.b);
             // Make first constraint a + b = c
-            composer.append_constraint(
+            composer.append_gate(
                 a,
                 b,
                 composer.constant_zero(),
@@ -454,10 +421,10 @@ mod tests {
                 Some(-self.c),
             );
             // Check that a and b are in range
-            composer.gate_range(a, 1 << 6);
-            composer.gate_range(b, 1 << 5);
+            composer.component_range(a, 1 << 6);
+            composer.component_range(b, 1 << 5);
             // Make second constraint a * b = d
-            composer.append_constraint(
+            composer.append_gate(
                 a,
                 b,
                 composer.constant_zero(),
@@ -472,8 +439,8 @@ mod tests {
             );
 
             let e = composer.append_witness(self.e);
-            let scalar_mul_result =
-                composer.gate_mul_generator(e, dusk_jubjub::GENERATOR_EXTENDED);
+            let scalar_mul_result = composer
+                .component_mul_generator(e, dusk_jubjub::GENERATOR_EXTENDED);
 
             // Apply the constrain
             composer.assert_equal_public_point(scalar_mul_result, self.f);
@@ -485,7 +452,7 @@ mod tests {
             vec![self.c.into(), self.d.into(), self.f.into()]
         }
 
-        fn padded_constraints(&self) -> usize {
+        fn padded_gates(&self) -> usize {
             1 << 11
         }
     }

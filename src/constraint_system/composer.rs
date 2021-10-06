@@ -11,7 +11,7 @@
 //! which has been designed in order to provide the maximum amount of
 //! performance while having a big scope in utility terms.
 //!
-//! It allows us not only to build Add and Mul constraints but also to build
+//! It allows us not only to build Add and Mul gates but also to build
 //! ECC op. gates, Range checks, Logical gates (Bitwise ops) etc.
 
 // Gate fn's have a large number of attributes but
@@ -24,7 +24,6 @@ use crate::plonkup::PlonkupTable4Arity;
 use alloc::collections::BTreeMap;
 use alloc::vec::Vec;
 use dusk_bls12_381::BlsScalar;
-use dusk_bytes::Serializable;
 use hashbrown::HashMap;
 
 /// The TurboComposer is the circuit-builder tool that the `dusk-plonk`
@@ -46,7 +45,7 @@ use hashbrown::HashMap;
 /// through the addition of gates. There are functions that may add a single
 /// gate to the circuit as for example [`TurboComposer::gate_add`] and others
 /// that can add several gates to the circuit description such as
-/// [`TurboComposer::gate_select`].
+/// [`TurboComposer::component_select`].
 ///
 /// Each gate or group of gates adds an specific functionallity or operation to
 /// de circuit description, and so, that's why we can understand
@@ -122,8 +121,8 @@ impl TurboComposer {
         self.constant_zero
     }
 
-    /// Return the number of constraints in the circuit
-    pub const fn constraints(&self) -> usize {
+    /// Return the number of gates in the circuit
+    pub const fn gates(&self) -> usize {
         self.n
     }
 
@@ -225,8 +224,8 @@ impl TurboComposer {
         // Reserve the first variable to be zero
         composer.constant_zero = composer.append_constant(BlsScalar::zero());
 
-        // Add dummy constraints
-        composer.append_dummy_constraints();
+        // Add dummy gates
+        composer.append_dummy_gates();
 
         composer
     }
@@ -249,7 +248,7 @@ impl TurboComposer {
     ///
     /// The final constraint added will enforce the following:
     /// `q_m · a · b  + q_l · a + q_r · b + q_o · o + q_4 · d + q_c + PI = 0`.
-    pub fn append_constraint(
+    pub fn append_gate(
         &mut self,
         a: Witness,
         b: Witness,
@@ -305,7 +304,7 @@ impl TurboComposer {
     ) {
         let zero = self.constant_zero();
 
-        self.append_constraint(
+        self.append_gate(
             a,
             zero,
             zero,
@@ -324,7 +323,7 @@ impl TurboComposer {
     pub fn assert_equal(&mut self, a: Witness, b: Witness) {
         let zero = self.constant_zero();
 
-        self.append_constraint(
+        self.append_gate(
             a,
             b,
             zero,
@@ -345,7 +344,7 @@ impl TurboComposer {
     /// bit == 0 => b,
     ///
     /// `bit` is expected to be constrained by [`TurboComposer::gate_boolean`]
-    pub fn gate_select(
+    pub fn component_select(
         &mut self,
         bit: Witness,
         a: Witness,
@@ -435,7 +434,7 @@ impl TurboComposer {
         let f_x = BlsScalar::one() - b + (b * v);
         let f_x = self.append_witness(f_x);
 
-        self.append_constraint(
+        self.append_gate(
             bit,
             value,
             f_x,
@@ -452,32 +451,51 @@ impl TurboComposer {
         f_x
     }
 
-    /// Decomposes `scalar` into an array of 256 bits.
-    pub fn gate_decomposition(&mut self, scalar: Witness) -> [Witness; 256] {
-        let mut res = [self.constant_zero(); 256];
-        let bytes = self.witnesses[&scalar].to_bytes();
+    /// Decomposes `scalar` into an array truncated to `N` bits (max 256).
+    ///
+    /// Asserts the reconstruction of the bits to be equal to `scalar`.
+    ///
+    /// Consume `2 · N + 1` gates
+    pub fn component_decomposition<const N: usize>(
+        &mut self,
+        scalar: Witness,
+    ) -> [Witness; N] {
+        // Static assertion
+        assert!(0 < N && N <= 256);
 
-        for (byte, bits) in bytes.iter().zip(res.chunks_mut(8)) {
-            bits.iter_mut()
-                .enumerate()
-                .map(|(i, bit)| {
-                    (
-                        self.append_witness(BlsScalar::from(
-                            ((byte >> i) & 1) as u64,
-                        )),
-                        bit,
-                    )
-                })
-                .for_each(|(inp, bit)| *bit = inp)
-        }
+        let mut decomposition = [self.constant_zero(); N];
 
-        res
+        let acc = self.constant_zero();
+        let acc = self.witnesses[&scalar]
+            .to_bits()
+            .iter()
+            .enumerate()
+            .zip(decomposition.iter_mut())
+            .fold(acc, |acc, ((i, w), d)| {
+                *d = self.append_witness(BlsScalar::from(*w as u64));
+
+                self.gate_boolean(*d);
+                self.gate_add(
+                    *d,
+                    acc,
+                    self.constant_zero(),
+                    BlsScalar::pow_of_2(i as u64),
+                    BlsScalar::one(),
+                    BlsScalar::zero(),
+                    BlsScalar::zero(),
+                    None,
+                )
+            });
+
+        self.assert_equal(acc, scalar);
+
+        decomposition
     }
 
     /// This function is used to add a blinding factor to the witness
     /// polynomials. It essentially adds two dummy gates to the circuit
     /// description which are guaranteed to always satisfy the gate equation.
-    pub fn append_dummy_constraints(&mut self) {
+    pub fn append_dummy_gates(&mut self) {
         // Add a dummy constraint so that we do not have zero polynomials
         self.q_m.push(BlsScalar::from(1));
         self.q_l.push(BlsScalar::from(2));
@@ -709,13 +727,13 @@ impl TurboComposer {
     }
 
     /// Adds a plonkup gate to the circuit with its corresponding
-    /// constraints.
+    /// gates.
     ///
     /// This type of gate is usually used when we need to have
     /// the largest amount of performance and the minimum circuit-size
     /// possible. Since it allows the end-user to set every selector coefficient
     /// as scaling value on the gate eq.
-    pub fn append_plonkup_constraint(
+    pub fn append_plonkup_gate(
         &mut self,
         a: Witness,
         b: Witness,
@@ -787,7 +805,7 @@ mod tests {
         //   not the identity and
         // - Another gate which ensures that the selector polynomials are not
         //   all zeroes
-        assert_eq!(3, composer.constraints())
+        assert_eq!(3, composer.gates())
     }
 
     #[allow(unused_variables)]
@@ -796,8 +814,8 @@ mod tests {
     fn test_minimal_circuit() {
         let res = gadget_tester(
             |composer| {
-                // do nothing except add the dummy constraints
-                composer.append_dummy_constraints();
+                // do nothing except add the dummy gates
+                composer.append_dummy_gates();
             },
             200,
         );
@@ -805,7 +823,7 @@ mod tests {
     }
 
     #[test]
-    fn test_gate_select() {
+    fn test_component_select() {
         let res = gadget_tester(
             |composer| {
                 let bit_1 = composer.append_witness(BlsScalar::one());
@@ -814,10 +832,12 @@ mod tests {
                 let choice_a = composer.append_witness(BlsScalar::from(10u64));
                 let choice_b = composer.append_witness(BlsScalar::from(20u64));
 
-                let choice = composer.gate_select(bit_1, choice_a, choice_b);
+                let choice =
+                    composer.component_select(bit_1, choice_a, choice_b);
                 composer.assert_equal(choice, choice_a);
 
-                let choice = composer.gate_select(bit_0, choice_a, choice_b);
+                let choice =
+                    composer.component_select(bit_0, choice_a, choice_b);
                 composer.assert_equal(choice, choice_b);
             },
             32,
@@ -854,10 +874,12 @@ mod tests {
                 let choice_a = composer.append_witness(BlsScalar::from(10u64));
                 let choice_b = composer.append_witness(BlsScalar::from(20u64));
 
-                let choice = composer.gate_select(bit_1, choice_a, choice_b);
+                let choice =
+                    composer.component_select(bit_1, choice_a, choice_b);
                 composer.assert_equal(choice, choice_a);
 
-                let choice = composer.gate_select(bit_0, choice_a, choice_b);
+                let choice =
+                    composer.component_select(bit_0, choice_a, choice_b);
                 composer.assert_equal(choice, choice_b);
             },
             65,
@@ -881,9 +903,8 @@ mod tests {
                 let twelve = composer.append_constant(BlsScalar::from(12));
                 let three = composer.append_constant(BlsScalar::from(3));
 
-                composer.append_plonkup_constraint(
-                    twelve, twelve, twelve, three, None,
-                );
+                composer
+                    .append_plonkup_gate(twelve, twelve, twelve, three, None);
             },
             65,
             t,
@@ -964,21 +985,11 @@ mod tests {
         let one = prover.cs.append_constant(BlsScalar::one());
         let zero = prover.cs.constant_zero();
 
-        prover
-            .cs
-            .append_plonkup_constraint(two, three, result, one, None);
-        prover
-            .cs
-            .append_plonkup_constraint(two, three, result, one, None);
-        prover
-            .cs
-            .append_plonkup_constraint(two, three, result, one, None);
-        prover
-            .cs
-            .append_plonkup_constraint(two, three, result, one, None);
-        prover
-            .cs
-            .append_plonkup_constraint(two, three, result, one, None);
+        prover.cs.append_plonkup_gate(two, three, result, one, None);
+        prover.cs.append_plonkup_gate(two, three, result, one, None);
+        prover.cs.append_plonkup_gate(two, three, result, one, None);
+        prover.cs.append_plonkup_gate(two, three, result, one, None);
+        prover.cs.append_plonkup_gate(two, three, result, one, None);
 
         prover.cs.gate_add(
             two,

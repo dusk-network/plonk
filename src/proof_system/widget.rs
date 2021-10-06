@@ -103,7 +103,7 @@ impl Serializable<{ 20 * Commitment::SIZE + u64::SIZE }> for VerifierKey {
 
 impl VerifierKey {
     /// Returns the Circuit size padded to the next power of two.
-    pub const fn padded_constraints(&self) -> usize {
+    pub const fn padded_gates(&self) -> usize {
         self.n.next_power_of_two()
     }
 

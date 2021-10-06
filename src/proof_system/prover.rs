@@ -78,8 +78,8 @@ impl Prover {
 
     /// Returns the number of gates in the circuit thet the `Prover` actually
     /// stores inside.
-    pub const fn constraints(&self) -> usize {
-        self.cs.constraints()
+    pub const fn gates(&self) -> usize {
+        self.cs.gates()
     }
 
     /// Split `t(X)` poly into 4 degree `n` polynomials.
@@ -159,7 +159,7 @@ impl Prover {
         // make sure the domain is big enough to handle the circuit as well as
         // the lookup table
         let domain = EvaluationDomain::new(core::cmp::max(
-            self.cs.constraints(),
+            self.cs.gates(),
             self.cs.lookup_table.0.len(),
         ))?;
 

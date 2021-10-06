@@ -30,7 +30,7 @@ impl TurboComposer {
     /// Evaluate `jubjub · Generator` as a [`WitnessPoint`]
     ///
     /// `generator` will be appended to the circuit description as constant
-    pub fn gate_mul_generator<P: Into<JubJubExtended>>(
+    pub fn component_mul_generator<P: Into<JubJubExtended>>(
         &mut self,
         jubjub: Witness,
         generator: P,
@@ -138,7 +138,7 @@ impl TurboComposer {
 
         // FIXME this gate isn't verifying anything because all the selectors
         // are zeroed. Validate what was the intent
-        self.append_constraint(
+        self.append_gate(
             acc_x,
             acc_y,
             self.constant_zero(),
@@ -186,7 +186,7 @@ mod tests {
                     (GENERATOR_EXTENDED * scalar).into();
 
                 let point_scalar = composer
-                    .gate_mul_generator(secret_scalar, GENERATOR_EXTENDED);
+                    .component_mul_generator(secret_scalar, GENERATOR_EXTENDED);
 
                 composer
                     .assert_equal_public_point(point_scalar, expected_point);
@@ -209,7 +209,7 @@ mod tests {
                     (GENERATOR_EXTENDED * scalar).into();
 
                 let point_scalar = composer
-                    .gate_mul_generator(secret_scalar, GENERATOR_EXTENDED);
+                    .component_mul_generator(secret_scalar, GENERATOR_EXTENDED);
 
                 composer
                     .assert_equal_public_point(point_scalar, expected_point);
@@ -234,7 +234,7 @@ mod tests {
                 let expected_point: JubJubAffine = (double_gen * scalar).into();
 
                 let point_scalar = composer
-                    .gate_mul_generator(secret_scalar, GENERATOR_EXTENDED);
+                    .component_mul_generator(secret_scalar, GENERATOR_EXTENDED);
 
                 composer
                     .assert_equal_public_point(point_scalar, expected_point);
@@ -272,7 +272,7 @@ mod tests {
                     x: var_point_b_x,
                     y: var_point_b_y,
                 };
-                let new_point = composer.gate_add_point(point_a, point_b);
+                let new_point = composer.component_add_point(point_a, point_b);
 
                 composer.assert_equal_public_point(
                     new_point,
@@ -314,8 +314,10 @@ mod tests {
                 // - One curve addition
                 //
                 // Scalar multiplications
-                let aG = composer.gate_mul_generator(secret_scalar_a, point_a);
-                let bH = composer.gate_mul_generator(secret_scalar_b, point_b);
+                let aG =
+                    composer.component_mul_generator(secret_scalar_a, point_a);
+                let bH =
+                    composer.component_mul_generator(secret_scalar_b, point_b);
 
                 // Depending on the context, one can check if the resulting aG
                 // and bH are as expected
@@ -324,9 +326,9 @@ mod tests {
                 composer.assert_equal_public_point(bH, c_b);
 
                 // Curve addition
-                let commitment = composer.gate_add_point(aG, bH);
+                let commitment = composer.component_add_point(aG, bH);
 
-                // Add final constraints to ensure that the commitment that we
+                // Add final gates to ensure that the commitment that we
                 // computed is equal to the public point
                 composer.assert_equal_public_point(commitment, expected_point);
             },
@@ -366,13 +368,13 @@ mod tests {
                 let expected_rhs: JubJubAffine =
                     (gen * (scalar_c + scalar_d)).into();
 
-                let P1 = composer.gate_mul_generator(secret_scalar_a, gen);
-                let P2 = composer.gate_mul_generator(secret_scalar_b, gen);
-                let P3 = composer.gate_mul_generator(secret_scalar_c, gen);
-                let P4 = composer.gate_mul_generator(secret_scalar_d, gen);
+                let P1 = composer.component_mul_generator(secret_scalar_a, gen);
+                let P2 = composer.component_mul_generator(secret_scalar_b, gen);
+                let P3 = composer.component_mul_generator(secret_scalar_c, gen);
+                let P4 = composer.component_mul_generator(secret_scalar_d, gen);
 
-                let commitment_a = composer.gate_add_point(P1, P2);
-                let commitment_b = composer.gate_add_point(P3, P4);
+                let commitment_a = composer.component_add_point(P1, P2);
+                let commitment_b = composer.component_add_point(P3, P4);
 
                 composer.assert_equal_point(commitment_a, commitment_b);
 

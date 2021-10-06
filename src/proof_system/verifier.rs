@@ -53,8 +53,8 @@ impl Verifier {
     }
 
     /// Returns the number of gates in the circuit.
-    pub const fn constraints(&self) -> usize {
-        self.cs.constraints()
+    pub const fn gates(&self) -> usize {
+        self.cs.gates()
     }
 
     /// Mutable borrow of the [`TurboComposer`].

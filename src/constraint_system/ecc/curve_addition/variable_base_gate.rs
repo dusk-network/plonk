@@ -10,13 +10,8 @@ use dusk_bls12_381::BlsScalar;
 use dusk_jubjub::{JubJubAffine, JubJubExtended};
 
 impl TurboComposer {
-    /// Adds two curve points together using a curve addition gate
-    /// Note that since the points are not fixed the generator is not a part of
-    /// the circuit description, however it is less efficient for a program
-    /// width of 4.
-    ///
-    /// Adds two curve points
-    pub fn gate_add_point(
+    /// Adds two curve points by consuming 2 gates.
+    pub fn component_add_point(
         &mut self,
         a: WitnessPoint,
         b: WitnessPoint,
@@ -52,6 +47,10 @@ impl TurboComposer {
         let x_3 = self.append_witness(x_3);
         let y_3 = self.append_witness(y_3);
 
+        // TODO encapsulate this gate addition into a generic `append` method
+        // The function must be a special case of `append_gate` because of
+        // `q_arith` and `q_variable_group_add`
+
         self.w_l.extend(&[x_1, x_3]);
         self.w_r.extend(&[y_1, y_3]);
         self.w_o.extend(&[x_2, self.constant_zero()]);
@@ -83,6 +82,7 @@ impl TurboComposer {
             x_1_y_2,
             self.n,
         );
+
         self.n += 1;
 
         WitnessPoint { x: x_3, y: y_3 }
@@ -212,7 +212,7 @@ mod test {
 
         // Assert that we actually have the inverse
         // inv_x * x = 1
-        composer.append_constraint(
+        composer.append_gate(
             x_denominator,
             inv_x_denom,
             zero,
@@ -244,7 +244,7 @@ mod test {
 
         // Assert that we actually have the inverse
         // inv_y * y = 1
-        composer.append_constraint(
+        composer.append_gate(
             y_denominator,
             inv_y_denom,
             zero,
@@ -296,7 +296,7 @@ mod test {
                 let point_a = WitnessPoint { x, y };
                 let point_b = WitnessPoint { x, y };
 
-                let point = composer.gate_add_point(point_a, point_b);
+                let point = composer.component_add_point(point_a, point_b);
                 let point2 =
                     classical_point_addition(composer, point_a, point_b);
 

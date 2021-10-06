@@ -16,32 +16,20 @@ impl TurboComposer {
     /// Note that using this constraint with whatever [`Witness`] that
     /// is not representing a value equalling 0 or 1, will always force the
     /// equation to fail.
-    pub fn gate_boolean(&mut self, a: Witness) -> Witness {
-        self.w_l.push(a);
-        self.w_r.push(a);
-        self.w_o.push(a);
-        self.w_4.push(self.constant_zero());
-
-        self.q_m.push(BlsScalar::one());
-        self.q_l.push(BlsScalar::zero());
-        self.q_r.push(BlsScalar::zero());
-        self.q_o.push(-BlsScalar::one());
-        self.q_c.push(BlsScalar::zero());
-        self.q_4.push(BlsScalar::zero());
-        self.q_arith.push(BlsScalar::one());
-
-        self.q_range.push(BlsScalar::zero());
-        self.q_logic.push(BlsScalar::zero());
-        self.q_fixed_group_add.push(BlsScalar::zero());
-        self.q_variable_group_add.push(BlsScalar::zero());
-        self.q_lookup.push(BlsScalar::zero());
-
-        self.perm
-            .add_variables_to_map(a, a, a, self.constant_zero(), self.n);
-
-        self.n += 1;
-
-        a
+    pub fn gate_boolean(&mut self, a: Witness) {
+        self.append_gate(
+            a,
+            a,
+            a,
+            self.constant_zero(),
+            BlsScalar::one(),
+            BlsScalar::zero(),
+            BlsScalar::zero(),
+            -BlsScalar::one(),
+            BlsScalar::zero(),
+            BlsScalar::zero(),
+            None,
+        );
     }
 }
 

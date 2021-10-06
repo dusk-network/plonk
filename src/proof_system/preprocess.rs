@@ -448,7 +448,7 @@ impl TurboComposer {
         };
 
         let verifier_key = widget::VerifierKey {
-            n: self.constraints(),
+            n: self.gates(),
             arithmetic: arithmetic_verifier_key,
             logic: logic_verifier_key,
             range: range_verifier_key,

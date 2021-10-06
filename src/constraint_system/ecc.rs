@@ -129,14 +129,14 @@ impl TurboComposer {
     /// bit == 0 => b,
     ///
     /// `bit` is expected to be constrained by [`TurboComposer::gate_boolean`]
-    pub fn gate_select_point(
+    pub fn component_select_point(
         &mut self,
         a: WitnessPoint,
         b: WitnessPoint,
         bit: Witness,
     ) -> WitnessPoint {
-        let x = self.gate_select(bit, *a.x(), *b.x());
-        let y = self.gate_select(bit, *a.y(), *b.y());
+        let x = self.component_select(bit, *a.x(), *b.x());
+        let y = self.component_select(bit, *a.y(), *b.y());
 
         WitnessPoint { x, y }
     }
@@ -148,7 +148,7 @@ impl TurboComposer {
     /// bit == 0 => identity,
     ///
     /// `bit` is expected to be constrained by [`TurboComposer::gate_boolean`]
-    pub fn gate_select_identity(
+    pub fn component_select_identity(
         &mut self,
         bit: Witness,
         a: WitnessPoint,
@@ -167,7 +167,7 @@ mod tests {
     use crate::constraint_system::helper::*;
 
     #[test]
-    fn test_gate_select_point() {
+    fn test_component_select_point() {
         let res = gadget_tester(
             |composer| {
                 let bit_1 = composer.append_witness(BlsScalar::one());
@@ -180,12 +180,12 @@ mod tests {
                 };
 
                 let choice =
-                    composer.gate_select_point(point_a, point_b, bit_1);
+                    composer.component_select_point(point_a, point_b, bit_1);
 
                 composer.assert_equal_point(point_a, choice);
 
                 let choice =
-                    composer.gate_select_point(point_a, point_b, bit_0);
+                    composer.component_select_point(point_a, point_b, bit_0);
                 composer.assert_equal_point(point_b, choice);
             },
             32,

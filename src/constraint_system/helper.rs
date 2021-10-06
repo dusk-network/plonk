@@ -12,7 +12,7 @@ use crate::proof_system::{Prover, Verifier};
 use dusk_bls12_381::BlsScalar;
 use rand_core::OsRng;
 
-/// Adds dummy constraints using arithmetic gates
+/// Adds dummy gates using arithmetic gates
 pub(crate) fn dummy_gadget(n: usize, composer: &mut TurboComposer) {
     let one = BlsScalar::one();
     let one = composer.append_witness(one);
@@ -33,7 +33,7 @@ pub(crate) fn dummy_gadget(n: usize, composer: &mut TurboComposer) {
     }
 }
 
-/// Adds dummy constraints using arithmetic gates
+/// Adds dummy gates using arithmetic gates
 pub(crate) fn dummy_gadget_plonkup(n: usize, composer: &mut TurboComposer) {
     // FIXME duplicate of `dummy_gadget` for no clear reason
     let one = BlsScalar::one();
@@ -75,7 +75,7 @@ pub(crate) fn gadget_tester(
 
         // Commit Key
         let (ck, _) = public_parameters
-            .trim(2 * prover.cs.constraints().next_power_of_two())?;
+            .trim(2 * prover.cs.gates().next_power_of_two())?;
 
         // Preprocess circuit
         prover.preprocess(&ck)?;
@@ -99,8 +99,8 @@ pub(crate) fn gadget_tester(
     gadget(&mut verifier.composer_mut());
 
     // Compute Commit and Verifier Key
-    let (ck, vk) = public_parameters
-        .trim(verifier.cs.constraints().next_power_of_two())?;
+    let (ck, vk) =
+        public_parameters.trim(verifier.cs.gates().next_power_of_two())?;
 
     // Preprocess circuit
     verifier.preprocess(&ck)?;
@@ -135,7 +135,7 @@ pub(crate) fn gadget_plonkup_tester(
 
         // Commit Key
         let (ck, _) = public_parameters
-            .trim(2 * prover.cs.constraints().next_power_of_two())?;
+            .trim(2 * prover.cs.gates().next_power_of_two())?;
 
         // Preprocess circuit
         prover.preprocess(&ck)?;
@@ -162,8 +162,8 @@ pub(crate) fn gadget_plonkup_tester(
     gadget(&mut verifier.composer_mut());
 
     // Compute Commit and Verifier Key
-    let (ck, vk) = public_parameters
-        .trim(verifier.cs.constraints().next_power_of_two())?;
+    let (ck, vk) =
+        public_parameters.trim(verifier.cs.gates().next_power_of_two())?;
 
     // Preprocess circuit
     verifier.preprocess(&ck)?;
