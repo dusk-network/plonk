@@ -112,7 +112,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --release --no-run
+          args: --release --all-features --no-run
         env:
           CARGO_INCREMENTAL: '0'
           RUSTFLAGS: '-Zprofile -Cdebuginfo=2 -Cinline-threshold=0 -Clink-dead-code -Zpanic_abort_tests'
@@ -120,7 +120,7 @@ jobs:
 
       - name: Test with kcov
         if: ${{ matrix.os == 'ubuntu-latest' && matrix.toolchain == 'nightly' }}
-        run: kcov --exclude-pattern=/.cargo,/usr/lib --verify target/cov target/release/deps/dusk_plonk-*[^.d] && cat target/cov/dusk_plonk-*/cobertura.xml
+        run: kcov --exclude-pattern=/.cargo,/usr/lib --verify target/cov target/release/deps/dusk_plonk-*[^.d][^.gcno]
 
       - name: Upload coverage
         if: ${{ matrix.os == 'ubuntu-latest' && matrix.toolchain == 'nightly' }}
