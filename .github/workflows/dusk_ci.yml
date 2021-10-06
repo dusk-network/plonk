@@ -121,3 +121,5 @@ jobs:
       - name: Upload coverage
         if: ${{ matrix.os == 'ubuntu-latest' && matrix.toolchain == 'nightly' }}
         uses: codecov/codecov-action@v1.0.2
+        with:
+          token: ${{secrets.CODECOV_TOKEN}}
