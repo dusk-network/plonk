@@ -113,6 +113,10 @@ jobs:
         with:
           command: test
           args: --release --no-run
+        env:
+          CARGO_INCREMENTAL: '0'
+          RUSTFLAGS: '-Zprofile -Cdebuginfo=2 -Cinline-threshold=0 -Clink-dead-code -Zpanic_abort_tests'
+          RUSTDOCFLAGS: '-Zprofile -Cdebuginfo=2 -Cinline-threshold=0 -Clink-dead-code -Zpanic_abort_tests'
 
       - name: Test with kcov
         if: ${{ matrix.os == 'ubuntu-latest' && matrix.toolchain == 'nightly' }}
