@@ -120,7 +120,7 @@ jobs:
 
       - name: Test with kcov
         if: ${{ matrix.os == 'ubuntu-latest' && matrix.toolchain == 'nightly' }}
-        run: kcov --exclude-pattern=/.cargo,/usr/lib --verify target/cov target/release/deps/dusk_plonk-*[^.d]
+        run: kcov --exclude-pattern=/.cargo,/usr/lib --verify target/cov --strip-path=$PWD target/release/deps/dusk_plonk-*[^.d]
 
       - name: Upload coverage
         if: ${{ matrix.os == 'ubuntu-latest' && matrix.toolchain == 'nightly' }}
