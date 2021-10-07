@@ -5,41 +5,51 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use super::TurboComposer;
-use crate::commitment_scheme::kzg10::PublicParameters;
+use crate::commitment_scheme::PublicParameters;
 use crate::error::Error;
 use crate::plonkup::PlonkupTable4Arity;
 use crate::proof_system::{Prover, Verifier};
 use dusk_bls12_381::BlsScalar;
 use rand_core::OsRng;
 
-/// Adds dummy constraints using arithmetic gates
+/// Adds dummy gates using arithmetic gates
 pub(crate) fn dummy_gadget(n: usize, composer: &mut TurboComposer) {
     let one = BlsScalar::one();
     let one = composer.append_witness(one);
+    let zero = composer.constant_zero();
 
     for _ in 0..n {
-        composer.big_add(
-            (BlsScalar::one(), one),
-            (BlsScalar::one(), one),
-            None,
+        // FIXME dummy gates with zeroed selectors doesn't make sense
+        composer.gate_add(
+            one,
+            one,
+            zero,
+            BlsScalar::one(),
+            BlsScalar::one(),
+            BlsScalar::zero(),
             BlsScalar::zero(),
             None,
         );
     }
 }
 
-/// Adds dummy constraints using arithmetic gates
+/// Adds dummy gates using arithmetic gates
 pub(crate) fn dummy_gadget_plonkup(n: usize, composer: &mut TurboComposer) {
+    // FIXME duplicate of `dummy_gadget` for no clear reason
     let one = BlsScalar::one();
     let one = composer.append_witness(one);
+    let zero = composer.constant_zero();
 
     for _ in 0..n {
-        composer.big_add(
-            (BlsScalar::one(), one),
-            (BlsScalar::one(), one),
-            None,
+        composer.gate_add(
+            one,
+            one,
+            zero,
+            BlsScalar::one(),
+            BlsScalar::one(),
             BlsScalar::zero(),
-            Some(BlsScalar::zero()),
+            BlsScalar::zero(),
+            None,
         );
     }
 }
@@ -61,18 +71,18 @@ pub(crate) fn gadget_tester(
         prover.key_transcript(b"key", b"additional seed information");
 
         // Add gadgets
-        gadget(&mut prover.mut_cs());
+        gadget(&mut prover.composer_mut());
 
         // Commit Key
         let (ck, _) = public_parameters
-            .trim(2 * prover.cs.circuit_size().next_power_of_two())?;
+            .trim(2 * prover.cs.gates().next_power_of_two())?;
 
         // Preprocess circuit
         prover.preprocess(&ck)?;
 
         // Once the prove method is called, the public inputs are cleared
         // So pre-fetch these before calling Prove
-        let public_inputs = prover.cs.construct_dense_pi_vec();
+        let public_inputs = prover.cs.to_dense_public_inputs();
 
         // Compute Proof
         (prover.prove(&ck)?, public_inputs)
@@ -86,11 +96,11 @@ pub(crate) fn gadget_tester(
     verifier.key_transcript(b"key", b"additional seed information");
 
     // Add gadgets
-    gadget(&mut verifier.mut_cs());
+    gadget(&mut verifier.composer_mut());
 
     // Compute Commit and Verifier Key
-    let (ck, vk) = public_parameters
-        .trim(verifier.cs.circuit_size().next_power_of_two())?;
+    let (ck, vk) =
+        public_parameters.trim(verifier.cs.gates().next_power_of_two())?;
 
     // Preprocess circuit
     verifier.preprocess(&ck)?;
@@ -115,24 +125,24 @@ pub(crate) fn gadget_plonkup_tester(
         let mut prover = Prover::new(b"demo");
 
         // Add lookup table to the composer
-        prover.mut_cs().append_lookup_table(&lookup_table);
+        prover.composer_mut().append_plonkup_table(&lookup_table);
 
         // Additionally key the transcript
         prover.key_transcript(b"key", b"additional seed information");
 
         // Add gadgets
-        gadget(&mut prover.mut_cs());
+        gadget(&mut prover.composer_mut());
 
         // Commit Key
         let (ck, _) = public_parameters
-            .trim(2 * prover.cs.circuit_size().next_power_of_two())?;
+            .trim(2 * prover.cs.gates().next_power_of_two())?;
 
         // Preprocess circuit
         prover.preprocess(&ck)?;
 
         // Once the prove method is called, the public inputs are cleared
         // So pre-fetch these before calling Prove
-        let public_inputs = prover.cs.construct_dense_pi_vec();
+        let public_inputs = prover.cs.to_dense_public_inputs();
 
         // Compute Proof
         (prover.prove(&ck)?, public_inputs)
@@ -143,17 +153,17 @@ pub(crate) fn gadget_plonkup_tester(
     let mut verifier = Verifier::new(b"demo");
 
     // Add lookup table to the composer
-    verifier.mut_cs().append_lookup_table(&lookup_table);
+    verifier.composer_mut().append_plonkup_table(&lookup_table);
 
     // Additionally key the transcript
     verifier.key_transcript(b"key", b"additional seed information");
 
     // Add gadgets
-    gadget(&mut verifier.mut_cs());
+    gadget(&mut verifier.composer_mut());
 
     // Compute Commit and Verifier Key
-    let (ck, vk) = public_parameters
-        .trim(verifier.cs.circuit_size().next_power_of_two())?;
+    let (ck, vk) =
+        public_parameters.trim(verifier.cs.gates().next_power_of_two())?;
 
     // Preprocess circuit
     verifier.preprocess(&ck)?;

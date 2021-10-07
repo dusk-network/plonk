@@ -4,14 +4,15 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
+use crate::commitment_scheme::Commitment;
+use dusk_bytes::{DeserializableSlice, Serializable};
+
 pub mod arithmetic;
 pub mod ecc;
 pub mod logic;
 pub mod lookup;
 pub mod permutation;
 pub mod range;
-use crate::commitment_scheme::kzg10::Commitment;
-use dusk_bytes::{DeserializableSlice, Serializable};
 
 /// PLONK circuit Verification Key.
 ///
@@ -102,7 +103,7 @@ impl Serializable<{ 20 * Commitment::SIZE + u64::SIZE }> for VerifierKey {
 
 impl VerifierKey {
     /// Returns the Circuit size padded to the next power of two.
-    pub const fn padded_circuit_size(&self) -> usize {
+    pub const fn padded_gates(&self) -> usize {
         self.n.next_power_of_two()
     }
 
@@ -769,7 +770,7 @@ mod test {
 
     #[test]
     fn test_serialise_deserialise_verifier_key() {
-        use crate::commitment_scheme::kzg10::Commitment;
+        use crate::commitment_scheme::Commitment;
         use dusk_bls12_381::G1Affine;
 
         let n = 2usize.pow(5);

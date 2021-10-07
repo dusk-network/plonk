@@ -39,41 +39,50 @@ impl Circuit for TestCircuit {
         let a = composer.append_witness(self.a);
         let b = composer.append_witness(self.b);
         // Make first constraint a + b = c
-        composer.poly_gate(
+        composer.append_gate(
             a,
             b,
-            composer.zero(),
+            composer.constant_zero(),
+            composer.constant_zero(),
             BlsScalar::zero(),
             BlsScalar::one(),
             BlsScalar::one(),
+            BlsScalar::zero(),
             BlsScalar::zero(),
             BlsScalar::zero(),
             Some(-self.c),
         );
         // Check that a and b are in range
-        composer.range_gate(a, 1 << 6);
-        composer.range_gate(b, 1 << 5);
+        composer.component_range(a, 1 << 6);
+        composer.component_range(b, 1 << 5);
         // Make second constraint a * b = d
-        composer.poly_gate(
+        composer.append_gate(
             a,
             b,
-            composer.zero(),
+            composer.constant_zero(),
+            composer.constant_zero(),
             BlsScalar::one(),
             BlsScalar::zero(),
             BlsScalar::zero(),
             BlsScalar::one(),
+            BlsScalar::zero(),
             BlsScalar::zero(),
             Some(-self.d),
         );
 
         let e = composer.append_witness(self.e);
         let scalar_mul_result = composer
-            .fixed_base_scalar_mul(e, dusk_jubjub::GENERATOR_EXTENDED);
+            .component_mul_generator(e, dusk_jubjub::GENERATOR_EXTENDED);
         // Apply the constrain
         composer.assert_equal_public_point(scalar_mul_result, self.f);
         Ok(())
     }
-    fn padded_circuit_size(&self) -> usize {
+
+    fn public_inputs(&self) -> Vec<PublicInputValue> {
+        vec![self.c.into(), self.d.into(), self.f.into()]
+    }
+
+    fn padded_gates(&self) -> usize {
         1 << 11
     }
 }
@@ -97,7 +106,7 @@ let proof = {
             dusk_jubjub::GENERATOR_EXTENDED * JubJubScalar::from(2u64),
         ),
     };
-    circuit.gen_proof(&pp, &pk, b"Test").unwrap()
+    circuit.prove(&pp, &pk, b"Test").unwrap()
 };
 // Verifier POV
 let public_inputs: Vec<PublicInputValue> = vec![
@@ -108,12 +117,11 @@ let public_inputs: Vec<PublicInputValue> = vec![
     )
     .into(),
 ];
-circuit::verify_proof(
+TestCircuit::verify(
     &pp,
-    &vd.key(),
+    &vd,
     &proof,
-    &public_inputs,
-    &vd.pi_pos(),
+    public_inputs.as_slice(),
     b"Test",
 ).unwrap();
 ```

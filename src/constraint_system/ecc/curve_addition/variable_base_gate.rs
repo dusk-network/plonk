@@ -10,24 +10,21 @@ use dusk_bls12_381::BlsScalar;
 use dusk_jubjub::{JubJubAffine, JubJubExtended};
 
 impl TurboComposer {
-    /// Adds two curve points together using a curve addition gate
-    /// Note that since the points are not fixed the generator is not a part of
-    /// the circuit description, however it is less efficient for a program
-    /// width of 4.
-    pub fn point_addition_gate(
+    /// Adds two curve points by consuming 2 gates.
+    pub fn component_add_point(
         &mut self,
-        point_a: WitnessPoint,
-        point_b: WitnessPoint,
+        a: WitnessPoint,
+        b: WitnessPoint,
     ) -> WitnessPoint {
         // In order to verify that two points were correctly added
         // without going over a degree 4 polynomial, we will need
         // x_1, y_1, x_2, y_2
-        // x_3, y_3,      x_1 * y_2
+        // x_3, y_3, x_1 * y_2
 
-        let x_1 = point_a.x;
-        let y_1 = point_a.y;
-        let x_2 = point_b.x;
-        let y_2 = point_b.y;
+        let x_1 = a.x;
+        let y_1 = a.y;
+        let x_2 = b.x;
+        let y_2 = b.y;
 
         let p1 = JubJubAffine::from_raw_unchecked(
             self.witnesses[&x_1],
@@ -50,10 +47,14 @@ impl TurboComposer {
         let x_3 = self.append_witness(x_3);
         let y_3 = self.append_witness(y_3);
 
-        self.w_l.extend(&[x_1.into(), x_3.into()]);
-        self.w_r.extend(&[y_1.into(), y_3.into()]);
-        self.w_o.extend(&[x_2.into(), self.zero_var]);
-        self.w_4.extend(&[y_2.into(), x_1_y_2.into()]);
+        // TODO encapsulate this gate addition into a generic `append` method
+        // The function must be a special case of `append_gate` because of
+        // `q_arith` and `q_variable_group_add`
+
+        self.w_l.extend(&[x_1, x_3]);
+        self.w_r.extend(&[y_1, y_3]);
+        self.w_o.extend(&[x_2, self.constant_zero()]);
+        self.w_4.extend(&[y_2, x_1_y_2]);
         let zeros = [BlsScalar::zero(), BlsScalar::zero()];
 
         self.q_l.extend(&zeros);
@@ -74,8 +75,14 @@ impl TurboComposer {
         self.perm.add_variables_to_map(x_1, y_1, x_2, y_2, self.n);
         self.n += 1;
 
-        self.perm
-            .add_variables_to_map(x_3, y_3, self.zero(), x_1_y_2, self.n);
+        self.perm.add_variables_to_map(
+            x_3,
+            y_3,
+            self.constant_zero(),
+            x_1_y_2,
+            self.n,
+        );
+
         self.n += 1;
 
         WitnessPoint { x: x_3, y: y_3 }
@@ -95,51 +102,105 @@ mod test {
     /// source of truth to test the WNaf method.
     pub fn classical_point_addition(
         composer: &mut TurboComposer,
-        point_a: WitnessPoint,
-        point_b: WitnessPoint,
+        a: WitnessPoint,
+        b: WitnessPoint,
     ) -> WitnessPoint {
-        let x1 = point_a.x;
-        let y1 = point_a.y;
+        let zero = composer.constant_zero();
 
-        let x2 = point_b.x;
-        let y2 = point_b.y;
+        let x1 = a.x;
+        let y1 = a.y;
+
+        let x2 = b.x;
+        let y2 = b.y;
 
         // x1 * y2
-        let x1_y2 =
-            composer.mul(BlsScalar::one(), x1, y2, BlsScalar::zero(), None);
+        let x1_y2 = composer.gate_mul(
+            x1,
+            y2,
+            zero,
+            BlsScalar::one(),
+            BlsScalar::zero(),
+            BlsScalar::zero(),
+            None,
+        );
+
         // y1 * x2
-        let y1_x2 =
-            composer.mul(BlsScalar::one(), y1, x2, BlsScalar::zero(), None);
+        let y1_x2 = composer.gate_mul(
+            y1,
+            x2,
+            zero,
+            BlsScalar::one(),
+            BlsScalar::zero(),
+            BlsScalar::zero(),
+            None,
+        );
+
         // y1 * y2
-        let y1_y2 =
-            composer.mul(BlsScalar::one(), y1, y2, BlsScalar::zero(), None);
+        let y1_y2 = composer.gate_mul(
+            y1,
+            y2,
+            zero,
+            BlsScalar::one(),
+            BlsScalar::zero(),
+            BlsScalar::zero(),
+            None,
+        );
+
         // x1 * x2
-        let x1_x2 =
-            composer.mul(BlsScalar::one(), x1, x2, BlsScalar::zero(), None);
+        let x1_x2 = composer.gate_mul(
+            x1,
+            x2,
+            zero,
+            BlsScalar::one(),
+            BlsScalar::zero(),
+            BlsScalar::zero(),
+            None,
+        );
+
         // d x1x2 * y1y2
-        let d_x1_x2_y1_y2 =
-            composer.mul(EDWARDS_D, x1_x2, y1_y2, BlsScalar::zero(), None);
+        let d_x1_x2_y1_y2 = composer.gate_mul(
+            x1_x2,
+            y1_y2,
+            zero,
+            EDWARDS_D,
+            BlsScalar::zero(),
+            BlsScalar::zero(),
+            None,
+        );
 
         // x1y2 + y1x2
-        let x_numerator = composer.add(
-            (BlsScalar::one(), x1_y2),
-            (BlsScalar::one(), y1_x2),
+        let zero = composer.constant_zero();
+        let x_numerator = composer.gate_add(
+            x1_y2,
+            y1_x2,
+            zero,
+            BlsScalar::one(),
+            BlsScalar::one(),
+            BlsScalar::zero(),
             BlsScalar::zero(),
             None,
         );
 
         // y1y2 - a * x1x2 (a=-1) => y1y2 + x1x2
-        let y_numerator = composer.add(
-            (BlsScalar::one(), y1_y2),
-            (BlsScalar::one(), x1_x2),
+        let y_numerator = composer.gate_add(
+            y1_y2,
+            x1_x2,
+            zero,
+            BlsScalar::one(),
+            BlsScalar::one(),
+            BlsScalar::zero(),
             BlsScalar::zero(),
             None,
         );
 
         // 1 + dx1x2y1y2
-        let x_denominator = composer.add(
-            (BlsScalar::one(), d_x1_x2_y1_y2),
-            (BlsScalar::zero(), composer.zero()),
+        let x_denominator = composer.gate_add(
+            d_x1_x2_y1_y2,
+            zero,
+            zero,
+            BlsScalar::one(),
+            BlsScalar::zero(),
+            BlsScalar::zero(),
             BlsScalar::one(),
             None,
         );
@@ -151,20 +212,28 @@ mod test {
 
         // Assert that we actually have the inverse
         // inv_x * x = 1
-        composer.mul_gate(
+        composer.append_gate(
             x_denominator,
             inv_x_denom,
-            composer.zero(),
+            zero,
+            zero,
             BlsScalar::one(),
+            BlsScalar::zero(),
+            BlsScalar::zero(),
+            BlsScalar::zero(),
             BlsScalar::zero(),
             -BlsScalar::one(),
             None,
         );
 
         // 1 - dx1x2y1y2
-        let y_denominator = composer.add(
-            (-BlsScalar::one(), d_x1_x2_y1_y2),
-            (BlsScalar::zero(), composer.zero()),
+        let y_denominator = composer.gate_add(
+            d_x1_x2_y1_y2,
+            zero,
+            zero,
+            -BlsScalar::one(),
+            BlsScalar::zero(),
+            BlsScalar::zero(),
             BlsScalar::one(),
             None,
         );
@@ -175,11 +244,15 @@ mod test {
 
         // Assert that we actually have the inverse
         // inv_y * y = 1
-        composer.mul_gate(
+        composer.append_gate(
             y_denominator,
             inv_y_denom,
-            composer.zero(),
+            zero,
+            zero,
             BlsScalar::one(),
+            BlsScalar::zero(),
+            BlsScalar::zero(),
+            BlsScalar::zero(),
             BlsScalar::zero(),
             -BlsScalar::one(),
             None,
@@ -187,17 +260,22 @@ mod test {
 
         // We can now use the inverses
 
-        let x_3 = composer.mul(
-            BlsScalar::one(),
+        let x_3 = composer.gate_mul(
             inv_x_denom,
             x_numerator,
+            zero,
+            BlsScalar::one(),
+            BlsScalar::zero(),
             BlsScalar::zero(),
             None,
         );
-        let y_3 = composer.mul(
-            BlsScalar::one(),
+
+        let y_3 = composer.gate_mul(
             inv_y_denom,
             y_numerator,
+            zero,
+            BlsScalar::one(),
+            BlsScalar::zero(),
             BlsScalar::zero(),
             None,
         );
@@ -218,7 +296,7 @@ mod test {
                 let point_a = WitnessPoint { x, y };
                 let point_b = WitnessPoint { x, y };
 
-                let point = composer.point_addition_gate(point_a, point_b);
+                let point = composer.component_add_point(point_a, point_b);
                 let point2 =
                     classical_point_addition(composer, point_a, point_b);
 

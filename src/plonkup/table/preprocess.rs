@@ -4,7 +4,7 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use crate::commitment_scheme::kzg10::{CommitKey, Commitment};
+use crate::commitment_scheme::{CommitKey, Commitment};
 use crate::error::Error;
 use crate::fft::{EvaluationDomain, Polynomial};
 use crate::plonkup::{MultiSet, PlonkupTable3Arity, PlonkupTable4Arity};
