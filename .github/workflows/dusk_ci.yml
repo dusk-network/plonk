@@ -110,12 +110,12 @@ jobs:
       - name: Build test executable
         if: ${{ matrix.os == 'ubuntu-latest' && matrix.toolchain == 'nightly' }}
         uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --release --all-features --no-run
         env:
           RUSTFLAGS: '-Cdebuginfo=2 -Cinline-threshold=0 -Clink-dead-code'
           RUSTDOCFLAGS: '-Cdebuginfo=2 -Cinline-threshold=0 -Clink-dead-code'
+        with:
+          command: test
+          args: --release --all-features --no-run
 
       - name: Test with kcov
         if: ${{ matrix.os == 'ubuntu-latest' && matrix.toolchain == 'nightly' }}
