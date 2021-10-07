@@ -13,11 +13,13 @@
 //! FRI are not homomorphic and therefore for PLONK to be usable with all
 //! commitment schemes without modification, one would need to remove the
 //! lineariser
-// XXX: This empty trait is left here so that Rust docs does not complain that
-// we are documenting nothing. It is also a reminder that we ideally should find
-// a good abstraction.
-trait CommitmentScheme {
-    type Proof;
-}
 
-pub mod kzg10;
+mod kzg10;
+
+pub(crate) use kzg10::Commitment;
+
+#[cfg(feature = "alloc")]
+pub(crate) use kzg10::AggregateProof;
+
+#[cfg(feature = "alloc")]
+pub use kzg10::{CommitKey, OpeningKey, PublicParameters};

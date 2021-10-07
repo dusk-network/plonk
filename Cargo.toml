@@ -3,25 +3,18 @@ name = "dusk-plonk"
 version = "0.8.1"
 authors = ["Kevaundray Wedderburn <kevtheappdev@gmail.com>",
            "Luke Pearson <luke@dusk.network>", 
-           "CPerezz <carlos@dusk.network>"] 
-readme = "README.md"
-repository = "https://github.com/dusk-network/plonk"
-keywords = ["cryptography", "plonk", "zk-snarks", "zero-knowledge", "crypto"]
+           "CPerezz <carlos@dusk.network>",
+           "Victor Lopez <victor@dusk.network>"] 
 categories =["algorithms", "cryptography", "science"]
-description = "A pure-Rust implementation of the PLONK ZK-Proof algorithm"
-exclude = [
-    "**/.gitignore",
-    ".gitignore",
-    "Cargo.lock",
-    "**/examples",
-    "benchmarks/",
-    ".github/"
-]
-license = "MPL-2.0"
 edition = "2018"
+keywords = ["cryptography", "plonk", "zk-snarks", "zero-knowledge", "crypto"]
+license = "MPL-2.0"
+repository = "https://github.com/dusk-network/plonk"
+description = "A pure-Rust implementation of the PLONK ZK-Proof algorithm"
+exclude = [ ".github/" ]
 
 [dependencies]
-bigint = "4.4.3"
+bigint = "4.4"
 merlin = {version = "3.0", default-features = false}
 rand_core = {version="0.6", default-features=false}
 dusk-bytes = "0.1"

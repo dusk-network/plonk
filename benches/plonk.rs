@@ -37,23 +37,27 @@ impl Circuit for BenchCircuit {
         let mut b = BlsScalar::from(3u64);
         let mut c;
 
-        while composer.circuit_size() < self.padded_circuit_size() {
+        let zero = composer.constant_zero();
+
+        while composer.gates() < self.padded_gates() {
             a += BlsScalar::one();
             b += BlsScalar::one();
             c = a * b + a + b + BlsScalar::one();
 
-            let x = composer.add_input(a);
-            let y = composer.add_input(b);
-            let z = composer.add_input(c);
+            let x = composer.append_witness(a);
+            let y = composer.append_witness(b);
+            let z = composer.append_witness(c);
 
-            composer.poly_gate(
+            composer.append_gate(
                 x,
                 y,
                 z,
+                zero,
                 BlsScalar::one(),
                 BlsScalar::one(),
                 BlsScalar::one(),
                 -BlsScalar::one(),
+                BlsScalar::zero(),
                 BlsScalar::one(),
                 None,
             );
@@ -62,7 +66,11 @@ impl Circuit for BenchCircuit {
         Ok(())
     }
 
-    fn padded_circuit_size(&self) -> usize {
+    fn public_inputs(&self) -> Vec<PublicInputValue> {
+        vec![]
+    }
+
+    fn padded_gates(&self) -> usize {
         self.degree
     }
 }
@@ -74,7 +82,7 @@ fn constraint_system_prove(
     label: &'static [u8],
 ) -> Proof {
     circuit
-        .gen_proof(&pp, &pk, label)
+        .prove(&pp, &pk, label)
         .expect("Failed to prove bench circuit!")
 }
 
@@ -102,7 +110,7 @@ fn constraint_system_benchmark(c: &mut Criterion) {
                     vd.key(),
                     &proof,
                     &[],
-                    vd.pi_pos(),
+                    vd.public_inputs_indexes(),
                     label,
                 )
                 .expect("Failed to verify bench circuit!");
@@ -113,9 +121,9 @@ fn constraint_system_benchmark(c: &mut Criterion) {
 
     data.iter().for_each(|(circuit, pk, _, _)| {
         let mut circuit = circuit.clone();
-        let size = circuit.padded_circuit_size();
+        let size = circuit.padded_gates();
         let power = (size as f64).log2() as usize;
-        let description = format!("Prove 2^{} = {} constraints", power, size);
+        let description = format!("Prove 2^{} = {} gates", power, size);
 
         c.bench_function(description.as_str(), |b| {
             b.iter(|| {
@@ -125,9 +133,9 @@ fn constraint_system_benchmark(c: &mut Criterion) {
     });
 
     data.iter().for_each(|(circuit, _, vd, proof)| {
-        let size = circuit.padded_circuit_size();
+        let size = circuit.padded_gates();
         let power = (size as f64).log2() as usize;
-        let description = format!("Verify 2^{} = {} constraints", power, size);
+        let description = format!("Verify 2^{} = {} gates", power, size);
 
         c.bench_function(description.as_str(), |b| {
             b.iter(|| {
@@ -136,7 +144,7 @@ fn constraint_system_benchmark(c: &mut Criterion) {
                     vd.key(),
                     black_box(proof),
                     &[],
-                    vd.pi_pos(),
+                    vd.public_inputs_indexes(),
                     label,
                 )
                 .expect("Failed to verify bench circuit!");

@@ -7,9 +7,10 @@
 use super::Commitment;
 use dusk_bls12_381::BlsScalar;
 
-#[derive(Copy, Clone, Debug)]
 /// Proof that a polynomial `p` was correctly evaluated at a point `z`
 /// producing the evaluated point p(z).
+#[derive(Copy, Clone, Debug)]
+#[allow(dead_code)]
 pub(crate) struct Proof {
     /// This is a commitment to the witness polynomial.
     pub(crate) commitment_to_witness: Commitment,

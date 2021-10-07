@@ -6,7 +6,7 @@
 
 //! This is an extension over the [Merlin Transcript](Transcript)
 //! which adds a few extra functionalities.
-use crate::commitment_scheme::kzg10::Commitment;
+use crate::commitment_scheme::Commitment;
 use dusk_bls12_381::BlsScalar;
 use dusk_bytes::Serializable;
 use merlin::Transcript;

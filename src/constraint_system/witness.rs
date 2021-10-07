@@ -23,7 +23,7 @@ pub(crate) enum WireData {
     Fourth(usize),
 }
 
-/// Witness data indexed in a [`super::TurboComposer`] instance
+/// Witness data indexed in a [`TurboComposer`](super::TurboComposer) instance
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Witness {
     index: usize,
