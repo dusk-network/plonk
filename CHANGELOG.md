@@ -10,12 +10,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add back benchmarks to the crate. [#555](https://github.com/dusk-network/plonk/issue/555)
+- Add `Witness` by removing `AllocatedScalar`. [#588](https://github.com/dusk-network/plonk/issue/588)
 
 ### Changed
 
 - Change `StandardComposer` to `TurboComposer`. [#288](https://github.com/dusk-network/plonk/issue/288)
-- Change `Variable` usage in favor of `AllocatedScalar`. [#565]((https://github.com/dusk-network/plonk/issue/565))
-- Add `Witness` by removing `AllocatedScalar`. [#588]((https://github.com/dusk-network/plonk/issue/588))
+- Change `TurboComposer` to consistent API. [#587](https://github.com/dusk-network/plonk/issue/587)
+- Change `plonkup_gate` to use public inputs. [#584](https://github.com/dusk-network/plonk/issue/584)
 
 ### Fixed
 
@@ -23,7 +24,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix if condition to match [#545](https://github.com/dusk-network/plonk/pull/545)
 
 ### Removed
+
 - Remove old perm-computation fns from perm module [#515](https://github.com/dusk-network/plonk/issues/515)
+- Remove unused `plonkup` module. [#583](https://github.com/dusk-network/plonk/issue/583)
 
 ## [0.8.1] - 07-06-21
 

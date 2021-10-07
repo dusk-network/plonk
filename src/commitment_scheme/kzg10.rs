@@ -11,11 +11,14 @@ if #[cfg(feature = "alloc")]
 {
     pub mod key;
     pub mod srs;
-    pub use key::{CommitKey, OpeningKey};
+
     pub(crate) use proof::alloc::AggregateProof;
+
+    pub use key::{CommitKey, OpeningKey};
     pub use srs::PublicParameters;
 });
 
 pub(crate) mod commitment;
 pub(crate) mod proof;
+
 pub(crate) use commitment::Commitment;

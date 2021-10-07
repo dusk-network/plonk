@@ -4,13 +4,15 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use super::constants::{K1, K2, K3};
 use crate::constraint_system::{WireData, Witness};
 use crate::fft::{EvaluationDomain, Polynomial};
 use alloc::vec::Vec;
+use constants::{K1, K2, K3};
 use dusk_bls12_381::BlsScalar;
 use hashbrown::HashMap;
 use itertools::izip;
+
+pub(crate) mod constants;
 
 #[cfg(feature = "std")]
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
@@ -31,9 +33,9 @@ impl Permutation {
     }
 
     /// Creates a Permutation struct with an expected capacity of `n`.
-    pub(crate) fn with_capacity(expected_size: usize) -> Permutation {
+    pub(crate) fn with_capacity(size: usize) -> Permutation {
         Permutation {
-            variable_map: HashMap::with_capacity(expected_size),
+            variable_map: HashMap::with_capacity(size),
         }
     }
 
@@ -808,7 +810,7 @@ mod test {
 
     #[test]
     fn test_multizip_permutation_poly() {
-        let mut cs = TurboComposer::with_expected_size(4);
+        let mut cs = TurboComposer::with_size(4);
 
         let x1 = cs.append_witness(BlsScalar::from_raw([4, 0, 0, 0]));
         let x2 = cs.append_witness(BlsScalar::from_raw([12, 0, 0, 0]));
@@ -818,20 +820,21 @@ mod test {
         let zero = BlsScalar::zero();
         let one = BlsScalar::one();
         let two = BlsScalar::from_raw([2, 0, 0, 0]);
+        let z = cs.constant_zero();
 
         // x1 * x4 = x2
-        cs.poly_gate(x1, x4, x2, one, zero, zero, -one, zero, None);
+        cs.append_gate(x1, x4, x2, z, one, zero, zero, -one, zero, zero, None);
 
         // x1 + x3 = x2
-        cs.poly_gate(x1, x3, x2, zero, one, one, -one, zero, None);
+        cs.append_gate(x1, x3, x2, z, zero, one, one, -one, zero, zero, None);
 
         // x1 + x2 = 2*x3
-        cs.poly_gate(x1, x2, x3, zero, one, one, -two, zero, None);
+        cs.append_gate(x1, x2, x3, z, zero, one, one, -two, zero, zero, None);
 
         // x3 * x4 = 2*x2
-        cs.poly_gate(x3, x4, x2, one, zero, zero, -two, zero, None);
+        cs.append_gate(x3, x4, x2, z, one, zero, zero, -two, zero, zero, None);
 
-        let domain = EvaluationDomain::new(cs.circuit_size()).unwrap();
+        let domain = EvaluationDomain::new(cs.gates()).unwrap();
         let pad = vec![BlsScalar::zero(); domain.size() - cs.w_l.len()];
         let mut w_l_scalar: Vec<BlsScalar> =
             cs.w_l.iter().map(|v| cs.witnesses[v]).collect();
