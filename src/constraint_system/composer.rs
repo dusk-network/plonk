@@ -148,7 +148,7 @@ impl TurboComposer {
     /// instance.
     // TODO: Find a more performant solution which can return a ref to a Vec or
     // Iterator.
-    pub fn to_public_inputs_indexes(&self) -> Vec<usize> {
+    pub fn public_input_indexes(&self) -> Vec<usize> {
         self.public_inputs_sparse_store
             .keys()
             .copied()

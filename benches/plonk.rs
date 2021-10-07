@@ -66,7 +66,7 @@ impl Circuit for BenchCircuit {
         Ok(())
     }
 
-    fn to_public_inputs(&self) -> Vec<PublicInputValue> {
+    fn public_inputs(&self) -> Vec<PublicInputValue> {
         vec![]
     }
 

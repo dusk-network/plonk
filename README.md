@@ -78,7 +78,7 @@ impl Circuit for TestCircuit {
         Ok(())
     }
 
-    fn to_public_inputs(&self) -> Vec<PublicInputValue> {
+    fn public_inputs(&self) -> Vec<PublicInputValue> {
         vec![self.c.into(), self.d.into(), self.f.into()]
     }
 
