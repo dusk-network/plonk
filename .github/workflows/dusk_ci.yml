@@ -114,9 +114,8 @@ jobs:
           command: test
           args: --release --all-features --no-run
         env:
-          CARGO_INCREMENTAL: '0'
-          RUSTFLAGS: '-Zprofile -Cdebuginfo=2 -Cinline-threshold=0 -Clink-dead-code -Zpanic_abort_tests'
-          RUSTDOCFLAGS: '-Zprofile -Cdebuginfo=2 -Cinline-threshold=0 -Clink-dead-code -Zpanic_abort_tests'
+          RUSTFLAGS: '-Cdebuginfo=2 -Cinline-threshold=0 -Clink-dead-code'
+          RUSTDOCFLAGS: '-Cdebuginfo=2 -Cinline-threshold=0 -Clink-dead-code'
 
       - name: Test with kcov
         if: ${{ matrix.os == 'ubuntu-latest' && matrix.toolchain == 'nightly' }}
