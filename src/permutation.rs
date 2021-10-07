@@ -417,7 +417,7 @@ fn plonkup_denominator_irreducible(
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::constraint_system::TurboComposer;
+    use crate::constraint_system::{Constraint, TurboComposer};
     use crate::fft::Polynomial;
     use dusk_bls12_381::BlsScalar;
     use rand_core::OsRng;
@@ -817,22 +817,25 @@ mod test {
         let x3 = cs.append_witness(BlsScalar::from_raw([8, 0, 0, 0]));
         let x4 = cs.append_witness(BlsScalar::from_raw([3, 0, 0, 0]));
 
-        let zero = BlsScalar::zero();
         let one = BlsScalar::one();
         let two = BlsScalar::from_raw([2, 0, 0, 0]);
         let z = cs.constant_zero();
 
         // x1 * x4 = x2
-        cs.append_gate(x1, x4, x2, z, one, zero, zero, -one, zero, zero, None);
+        let constraint = Constraint::new().mul(1).output(-one);
+        cs.append_gate(x1, x4, x2, z, constraint);
 
         // x1 + x3 = x2
-        cs.append_gate(x1, x3, x2, z, zero, one, one, -one, zero, zero, None);
+        let constraint = Constraint::new().left(1).right(1).output(-one);
+        cs.append_gate(x1, x3, x2, z, constraint);
 
         // x1 + x2 = 2*x3
-        cs.append_gate(x1, x2, x3, z, zero, one, one, -two, zero, zero, None);
+        let constraint = Constraint::new().left(1).right(1).output(-two);
+        cs.append_gate(x1, x2, x3, z, constraint);
 
         // x3 * x4 = 2*x2
-        cs.append_gate(x3, x4, x2, z, one, zero, zero, -two, zero, zero, None);
+        let constraint = Constraint::new().mul(1).output(-two);
+        cs.append_gate(x3, x4, x2, z, constraint);
 
         let domain = EvaluationDomain::new(cs.gates()).unwrap();
         let pad = vec![BlsScalar::zero(); domain.size() - cs.w_l.len()];

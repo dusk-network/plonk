@@ -10,11 +10,13 @@
 //! build, preprocess circuits.
 
 pub(crate) mod composer;
+pub(crate) mod constraint;
 pub(crate) mod ecc;
 pub(crate) mod logic;
 pub(crate) mod range;
 pub(crate) mod witness;
 
+pub(crate) use constraint::Selector;
 pub(crate) use witness::WireData;
 
 mod arithmetic;
@@ -25,5 +27,6 @@ mod boolean;
 pub(crate) mod helper;
 
 pub use composer::TurboComposer;
+pub use constraint::Constraint;
 pub use ecc::WitnessPoint;
 pub use witness::Witness;
