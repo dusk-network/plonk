@@ -103,20 +103,24 @@ jobs:
           command: test
           args: --release --all-features
 
-      - name: Test project generating coverage data
+      - name: Install kcov
+        if: ${{ matrix.os == 'ubuntu-latest' && matrix.toolchain == 'nightly' }}
+        run: sudo apt install -y kcov
+
+      - name: Build test executable
         if: ${{ matrix.os == 'ubuntu-latest' && matrix.toolchain == 'nightly' }}
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --release --all-features --no-fail-fast
+          args: --release --all-features --no-run
         env:
           CARGO_INCREMENTAL: '0'
           RUSTFLAGS: '-Zprofile -Cdebuginfo=2 -Cinline-threshold=0 -Clink-dead-code -Zpanic_abort_tests'
           RUSTDOCFLAGS: '-Zprofile -Cdebuginfo=2 -Cinline-threshold=0 -Clink-dead-code -Zpanic_abort_tests'
 
-      - name: Aggregate test coverage results
+      - name: Test with kcov
         if: ${{ matrix.os == 'ubuntu-latest' && matrix.toolchain == 'nightly' }}
-        uses: actions-rs/grcov@v0.1
+        run: kcov --exclude-pattern=/.cargo,/usr/lib --verify target/cov target/release/deps/dusk_plonk-*[^.d][^.gcno]
 
       - name: Upload coverage
         if: ${{ matrix.os == 'ubuntu-latest' && matrix.toolchain == 'nightly' }}
