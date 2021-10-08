@@ -5,7 +5,9 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use crate::constraint_system::ecc::curve_addition::fixed_base_gate::WnafRound;
-use crate::constraint_system::{TurboComposer, Witness, WitnessPoint};
+use crate::constraint_system::{
+    Constraint, TurboComposer, Witness, WitnessPoint,
+};
 use alloc::vec::Vec;
 use dusk_bls12_381::BlsScalar;
 use dusk_bytes::Serializable;
@@ -138,18 +140,13 @@ impl TurboComposer {
 
         // FIXME this gate isn't verifying anything because all the selectors
         // are zeroed. Validate what was the intent
+        let constraint = Constraint::new();
         self.append_gate(
             acc_x,
             acc_y,
             self.constant_zero(),
             last_accumulated_bit,
-            BlsScalar::zero(),
-            BlsScalar::zero(),
-            BlsScalar::zero(),
-            BlsScalar::zero(),
-            BlsScalar::zero(),
-            BlsScalar::zero(),
-            None,
+            constraint,
         );
 
         // Constrain the last element in the accumulator to be equal to the

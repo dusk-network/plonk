@@ -94,8 +94,8 @@ impl TurboComposer {
 mod test {
     use super::*;
     use crate::constraint_system::helper::*;
-    use dusk_jubjub::GENERATOR;
-    use dusk_jubjub::{JubJubAffine, JubJubExtended, EDWARDS_D};
+    use crate::constraint_system::Constraint;
+    use dusk_jubjub::{EDWARDS_D, GENERATOR, GENERATOR_EXTENDED};
 
     /// Adds two curve points together using the classical point addition
     /// algorithm. This method is slower than WNaf and is just meant to be the
@@ -113,102 +113,41 @@ mod test {
         let x2 = b.x;
         let y2 = b.y;
 
+        let constraint = Constraint::new().mul(1);
+
         // x1 * y2
-        let x1_y2 = composer.gate_mul(
-            x1,
-            y2,
-            zero,
-            BlsScalar::one(),
-            BlsScalar::zero(),
-            BlsScalar::zero(),
-            None,
-        );
-
         // y1 * x2
-        let y1_x2 = composer.gate_mul(
-            y1,
-            x2,
-            zero,
-            BlsScalar::one(),
-            BlsScalar::zero(),
-            BlsScalar::zero(),
-            None,
-        );
-
         // y1 * y2
-        let y1_y2 = composer.gate_mul(
-            y1,
-            y2,
-            zero,
-            BlsScalar::one(),
-            BlsScalar::zero(),
-            BlsScalar::zero(),
-            None,
-        );
-
         // x1 * x2
-        let x1_x2 = composer.gate_mul(
-            x1,
-            x2,
-            zero,
-            BlsScalar::one(),
-            BlsScalar::zero(),
-            BlsScalar::zero(),
-            None,
-        );
+
+        let x1_y2 = composer.gate_mul(x1, y2, zero, constraint);
+        let y1_x2 = composer.gate_mul(y1, x2, zero, constraint);
+        let y1_y2 = composer.gate_mul(y1, y2, zero, constraint);
+        let x1_x2 = composer.gate_mul(x1, x2, zero, constraint);
 
         // d x1x2 * y1y2
-        let d_x1_x2_y1_y2 = composer.gate_mul(
-            x1_x2,
-            y1_y2,
-            zero,
-            EDWARDS_D,
-            BlsScalar::zero(),
-            BlsScalar::zero(),
-            None,
-        );
+        let constraint = Constraint::new().mul(EDWARDS_D);
+        let d_x1_x2_y1_y2 = composer.gate_mul(x1_x2, y1_y2, zero, constraint);
+
+        let constraint = Constraint::new().left(1).right(1);
 
         // x1y2 + y1x2
-        let zero = composer.constant_zero();
-        let x_numerator = composer.gate_add(
-            x1_y2,
-            y1_x2,
-            zero,
-            BlsScalar::one(),
-            BlsScalar::one(),
-            BlsScalar::zero(),
-            BlsScalar::zero(),
-            None,
-        );
-
         // y1y2 - a * x1x2 (a=-1) => y1y2 + x1x2
-        let y_numerator = composer.gate_add(
-            y1_y2,
-            x1_x2,
-            zero,
-            BlsScalar::one(),
-            BlsScalar::one(),
-            BlsScalar::zero(),
-            BlsScalar::zero(),
-            None,
-        );
+
+        let x_numerator = composer.gate_add(x1_y2, y1_x2, zero, constraint);
+        let y_numerator = composer.gate_add(y1_y2, x1_x2, zero, constraint);
 
         // 1 + dx1x2y1y2
-        let x_denominator = composer.gate_add(
-            d_x1_x2_y1_y2,
-            zero,
-            zero,
-            BlsScalar::one(),
-            BlsScalar::zero(),
-            BlsScalar::zero(),
-            BlsScalar::one(),
-            None,
-        );
+        let constraint = Constraint::new().left(1).constant(1);
+        let x_denominator =
+            composer.gate_add(d_x1_x2_y1_y2, zero, zero, constraint);
 
         // Compute the inverse
         let inv_x_denom =
             composer.evaluate_witness(&x_denominator).invert().unwrap();
         let inv_x_denom = composer.append_witness(inv_x_denom);
+
+        let constraint = Constraint::new().mul(1).constant(-BlsScalar::one());
 
         // Assert that we actually have the inverse
         // inv_x * x = 1
@@ -217,26 +156,13 @@ mod test {
             inv_x_denom,
             zero,
             zero,
-            BlsScalar::one(),
-            BlsScalar::zero(),
-            BlsScalar::zero(),
-            BlsScalar::zero(),
-            BlsScalar::zero(),
-            -BlsScalar::one(),
-            None,
+            constraint,
         );
 
         // 1 - dx1x2y1y2
-        let y_denominator = composer.gate_add(
-            d_x1_x2_y1_y2,
-            zero,
-            zero,
-            -BlsScalar::one(),
-            BlsScalar::zero(),
-            BlsScalar::zero(),
-            BlsScalar::one(),
-            None,
-        );
+        let constraint = Constraint::new().left(-BlsScalar::one()).constant(1);
+        let y_denominator =
+            composer.gate_add(d_x1_x2_y1_y2, zero, zero, constraint);
 
         let inv_y_denom =
             composer.evaluate_witness(&y_denominator).invert().unwrap();
@@ -244,69 +170,43 @@ mod test {
 
         // Assert that we actually have the inverse
         // inv_y * y = 1
+        let constraint = Constraint::new().mul(1).constant(-BlsScalar::one());
         composer.append_gate(
             y_denominator,
             inv_y_denom,
             zero,
             zero,
-            BlsScalar::one(),
-            BlsScalar::zero(),
-            BlsScalar::zero(),
-            BlsScalar::zero(),
-            BlsScalar::zero(),
-            -BlsScalar::one(),
-            None,
+            constraint,
         );
 
         // We can now use the inverses
+        let constraint = Constraint::new().mul(1);
 
-        let x_3 = composer.gate_mul(
-            inv_x_denom,
-            x_numerator,
-            zero,
-            BlsScalar::one(),
-            BlsScalar::zero(),
-            BlsScalar::zero(),
-            None,
-        );
-
-        let y_3 = composer.gate_mul(
-            inv_y_denom,
-            y_numerator,
-            zero,
-            BlsScalar::one(),
-            BlsScalar::zero(),
-            BlsScalar::zero(),
-            None,
-        );
+        let x_3 = composer.gate_mul(inv_x_denom, x_numerator, zero, constraint);
+        let y_3 = composer.gate_mul(inv_y_denom, y_numerator, zero, constraint);
 
         WitnessPoint { x: x_3, y: y_3 }
     }
 
     #[test]
     fn test_curve_addition() {
-        let res = gadget_tester(
+        gadget_tester(
             |composer| {
-                let expected_point: JubJubAffine =
-                    (JubJubExtended::from(GENERATOR)
-                        + JubJubExtended::from(GENERATOR))
-                    .into();
-                let x = composer.append_witness(GENERATOR.get_x());
-                let y = composer.append_witness(GENERATOR.get_y());
-                let point_a = WitnessPoint { x, y };
-                let point_b = WitnessPoint { x, y };
+                let expected = GENERATOR_EXTENDED + GENERATOR_EXTENDED;
+
+                let point_a = composer.append_point(GENERATOR);
+                let point_b = composer.append_point(GENERATOR);
 
                 let point = composer.component_add_point(point_a, point_b);
+
                 let point2 =
                     classical_point_addition(composer, point_a, point_b);
 
                 composer.assert_equal_point(point, point2);
-
-                composer
-                    .assert_equal_public_point(point.into(), expected_point);
+                composer.assert_equal_public_point(point, expected);
             },
             2000,
-        );
-        assert!(res.is_ok());
+        )
+        .expect("Curve addition failed");
     }
 }

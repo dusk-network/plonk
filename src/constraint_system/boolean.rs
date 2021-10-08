@@ -4,8 +4,7 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use crate::constraint_system::TurboComposer;
-use crate::constraint_system::Witness;
+use crate::constraint_system::{Constraint, TurboComposer, Witness};
 use dusk_bls12_381::BlsScalar;
 
 impl TurboComposer {
@@ -17,19 +16,10 @@ impl TurboComposer {
     /// is not representing a value equalling 0 or 1, will always force the
     /// equation to fail.
     pub fn gate_boolean(&mut self, a: Witness) {
-        self.append_gate(
-            a,
-            a,
-            a,
-            self.constant_zero(),
-            BlsScalar::one(),
-            BlsScalar::zero(),
-            BlsScalar::zero(),
-            -BlsScalar::one(),
-            BlsScalar::zero(),
-            BlsScalar::zero(),
-            None,
-        );
+        let zero = self.constant_zero();
+        let constraint = Constraint::new().mul(1).output(-BlsScalar::one());
+
+        self.append_gate(a, a, a, zero, constraint);
     }
 }
 

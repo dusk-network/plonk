@@ -155,36 +155,37 @@ impl VerifierData {
 ///         let zero = composer.constant_zero();
 ///         let a = composer.append_witness(self.a);
 ///         let b = composer.append_witness(self.b);
+///
 ///         // Make first constraint a + b = c
+///         let constraint = Constraint::new()
+///             .left(1)
+///             .right(1)
+///             .public(-self.c);
+///
 ///         composer.append_gate(
 ///             a,
 ///             b,
 ///             zero,
 ///             zero,
-///             BlsScalar::zero(),
-///             BlsScalar::one(),
-///             BlsScalar::one(),
-///             BlsScalar::zero(),
-///             BlsScalar::zero(),
-///             BlsScalar::zero(),
-///             Some(-self.c),
+///             constraint,
 ///         );
+///
 ///         // Check that a and b are in range
 ///         composer.component_range(a, 1 << 6);
 ///         composer.component_range(b, 1 << 5);
+///
 ///         // Make second constraint a * b = d
+///         let constraint = Constraint::new()
+///             .mul(1)
+///             .output(1)
+///             .public(-self.d);
+///
 ///         composer.append_gate(
 ///             a,
 ///             b,
 ///             zero,
 ///             zero,
-///             BlsScalar::one(),
-///             BlsScalar::zero(),
-///             BlsScalar::zero(),
-///             BlsScalar::one(),
-///             BlsScalar::zero(),
-///             BlsScalar::zero(),
-///             Some(-self.d),
+///             constraint,
 ///         );
 ///
 ///         let e = composer.append_witness(self.e);
@@ -359,7 +360,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::constraint_system::TurboComposer;
+    use crate::constraint_system::{Constraint, TurboComposer};
     use crate::proof_system::ProverKey;
 
     type Result<T> = std::result::Result<T, TestError>;
@@ -406,36 +407,29 @@ mod tests {
         ) -> std::result::Result<(), Error> {
             let a = composer.append_witness(self.a);
             let b = composer.append_witness(self.b);
+
             // Make first constraint a + b = c
+            let constraint = Constraint::new().left(1).right(1).public(-self.c);
             composer.append_gate(
                 a,
                 b,
                 composer.constant_zero(),
                 composer.constant_zero(),
-                BlsScalar::zero(),
-                BlsScalar::one(),
-                BlsScalar::one(),
-                BlsScalar::zero(),
-                BlsScalar::zero(),
-                BlsScalar::zero(),
-                Some(-self.c),
+                constraint,
             );
+
             // Check that a and b are in range
             composer.component_range(a, 1 << 6);
             composer.component_range(b, 1 << 5);
+
             // Make second constraint a * b = d
+            let constraint = Constraint::new().mul(1).output(1).public(-self.d);
             composer.append_gate(
                 a,
                 b,
                 composer.constant_zero(),
                 composer.constant_zero(),
-                BlsScalar::one(),
-                BlsScalar::zero(),
-                BlsScalar::zero(),
-                BlsScalar::one(),
-                BlsScalar::zero(),
-                BlsScalar::zero(),
-                Some(-self.d),
+                constraint,
             );
 
             let e = composer.append_witness(self.e);
