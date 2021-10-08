@@ -18,7 +18,7 @@ impl TurboComposer {
     /// Each logic gate adds `(num_bits / 2) + 1` gates to the circuit to
     /// perform the whole operation.
     ///
-    /// ## Selector
+    /// ## Constraint
     /// - is_component_xor = 1 -> Performs XOR between the first `num_bits` for
     ///   `a` and `b`.
     /// - is_component_xor = 0 -> Performs AND between the first `num_bits` for

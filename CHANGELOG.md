@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add back benchmarks to the crate. [#555](https://github.com/dusk-network/plonk/issue/555)
 - Add `Witness` by removing `AllocatedScalar`. [#588](https://github.com/dusk-network/plonk/issue/588)
+- Add `Constraint` for circuit description. [#608](https://github.com/dusk-network/plonk/issue/608)
 
 ### Changed
 

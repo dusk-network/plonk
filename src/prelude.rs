@@ -13,7 +13,7 @@
 pub use crate::{
     circuit::{self, Circuit, PublicInputValue, VerifierData},
     commitment_scheme::{CommitKey, OpeningKey, PublicParameters},
-    constraint_system::{TurboComposer, Witness, WitnessPoint},
+    constraint_system::{Constraint, TurboComposer, Witness, WitnessPoint},
     proof_system::{Prover, ProverKey, Verifier},
 };
 

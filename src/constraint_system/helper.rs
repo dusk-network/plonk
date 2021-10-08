@@ -6,6 +6,7 @@
 
 use super::TurboComposer;
 use crate::commitment_scheme::PublicParameters;
+use crate::constraint_system::Constraint;
 use crate::error::Error;
 use crate::plonkup::PlonkupTable4Arity;
 use crate::proof_system::{Prover, Verifier};
@@ -20,16 +21,8 @@ pub(crate) fn dummy_gadget(n: usize, composer: &mut TurboComposer) {
 
     for _ in 0..n {
         // FIXME dummy gates with zeroed selectors doesn't make sense
-        composer.gate_add(
-            one,
-            one,
-            zero,
-            BlsScalar::one(),
-            BlsScalar::one(),
-            BlsScalar::zero(),
-            BlsScalar::zero(),
-            None,
-        );
+        let constraint = Constraint::new().left(1).right(1);
+        composer.gate_add(one, one, zero, constraint);
     }
 }
 
@@ -41,16 +34,8 @@ pub(crate) fn dummy_gadget_plonkup(n: usize, composer: &mut TurboComposer) {
     let zero = composer.constant_zero();
 
     for _ in 0..n {
-        composer.gate_add(
-            one,
-            one,
-            zero,
-            BlsScalar::one(),
-            BlsScalar::one(),
-            BlsScalar::zero(),
-            BlsScalar::zero(),
-            None,
-        );
+        let constraint = Constraint::new().left(1).right(1);
+        composer.gate_add(one, one, zero, constraint);
     }
 }
 
