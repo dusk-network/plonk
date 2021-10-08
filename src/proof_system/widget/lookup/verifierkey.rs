@@ -64,8 +64,8 @@ mod alloc {
                 let c_0 = &evaluations.lookup_perm_eval;
 
                 let c_1 = epsilon * (BlsScalar::one() + delta)
-                    + &evaluations.h_1_eval
-                    + delta * &evaluations.h_2_eval;
+                    + evaluations.h_1_eval
+                    + delta * evaluations.h_2_eval;
 
                 -c_0 * c_1 * l_sep_3
             };

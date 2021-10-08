@@ -537,24 +537,16 @@ impl PlonkupTable4Arity {
             if k == 26 {
                 // v_1 = 678
                 for j in 659..(v_rev_k + 1) {
+                    let first = BlsScalar::from(j);
+
                     // Fourth column is 1, unless j=v_i, in which case it is 0
-                    if j == v_rev_k {
-                        let first = BlsScalar::from(j);
-                        table.push([
-                            first,
-                            BlsScalar::one(),
-                            first,
-                            BlsScalar::zero(),
-                        ]);
+                    let fourth = if j == v_rev_k {
+                        BlsScalar::zero()
                     } else {
-                        let first = BlsScalar::from(j);
-                        table.push([
-                            first,
-                            BlsScalar::one(),
-                            first,
-                            BlsScalar::one(),
-                        ]);
-                    }
+                        BlsScalar::one()
+                    };
+
+                    table.push([first, BlsScalar::one(), first, fourth]);
                 }
             } else {
                 // When j is between p' and v_i the fourth column is always 1

@@ -207,10 +207,10 @@ impl TurboComposer {
             self.perm
                 .add_variable_to_map(var_c, WireData::Output(self.n - 1));
             // Push the variables to it's actual wire vector storage
-            self.w_l.push(var_a.into());
-            self.w_r.push(var_b.into());
-            self.w_o.push(var_c.into());
-            self.w_4.push(var_4.into());
+            self.w_l.push(var_a);
+            self.w_r.push(var_b);
+            self.w_o.push(var_c);
+            self.w_4.push(var_4);
             // Update the gate index
             self.n += 1;
         }

@@ -220,7 +220,7 @@ impl Prover {
 
         // Compute table poly
         let table_poly = Polynomial::from_coefficients_vec(
-            domain.ifft(&compressed_t_multiset.0.as_slice()),
+            domain.ifft(&compressed_t_multiset.0),
         );
 
         // Compute table f
@@ -263,7 +263,7 @@ impl Prover {
 
         // Compute long query poly
         let f_poly = Polynomial::from_coefficients_vec(
-            domain.ifft(&compressed_f_multiset.0.as_slice()),
+            domain.ifft(&compressed_f_multiset.0),
         );
 
         // Commit to query polynomial
@@ -286,7 +286,7 @@ impl Prover {
         let z_poly = Polynomial::from_coefficients_slice(
             &self.cs.perm.compute_permutation_poly(
                 &domain,
-                [&w_l_scalar, &w_r_scalar, &w_o_scalar, &w_4_scalar],
+                [w_l_scalar, w_r_scalar, w_o_scalar, w_4_scalar],
                 &beta,
                 &gamma,
                 [
@@ -322,10 +322,8 @@ impl Prover {
         let (h_1, h_2) = s.halve_alternating();
 
         // Compute h polys
-        let h_1_poly =
-            Polynomial::from_coefficients_vec(domain.ifft(&h_1.0.as_slice()));
-        let h_2_poly =
-            Polynomial::from_coefficients_vec(domain.ifft(&h_2.0.as_slice()));
+        let h_1_poly = Polynomial::from_coefficients_vec(domain.ifft(&h_1.0));
+        let h_2_poly = Polynomial::from_coefficients_vec(domain.ifft(&h_2.0));
 
         // Commit to h polys
         let h_1_poly_commit = commit_key.commit(&h_1_poly).unwrap();
@@ -372,7 +370,7 @@ impl Prover {
 
         let t_poly = quotient_poly::compute(
             &domain,
-            &prover_key,
+            prover_key,
             &z_poly,
             &p_poly,
             (&w_l_poly, &w_r_poly, &w_o_poly, &w_4_poly),
@@ -417,7 +415,7 @@ impl Prover {
 
         let (lin_poly, evaluations) = linearisation_poly::compute(
             &domain,
-            &prover_key,
+            prover_key,
             &(
                 alpha,
                 beta,

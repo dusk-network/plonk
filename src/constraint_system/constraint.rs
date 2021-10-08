@@ -106,6 +106,7 @@ impl Constraint {
 
     /// Set `s` as the polynomial selector for the multiplication coefficient
     /// index.
+    #[allow(clippy::should_implement_trait)]
     pub fn mul<T: Into<BlsScalar>>(self, s: T) -> Self {
         self.set(Selector::Multiplication, s)
     }
