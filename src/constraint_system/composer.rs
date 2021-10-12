@@ -127,8 +127,14 @@ impl TurboComposer {
     }
 
     /// Evaluate the runtime value of a witness
-    #[allow(dead_code)]
-    pub(crate) fn evaluate_witness(&self, witness: &Witness) -> &BlsScalar {
+    ///
+    /// # Safety
+    ///
+    /// Witness evaluation inside a gadget isn't expected and could produce an
+    /// unsound circuit (different circuit representation for the same code).
+    ///
+    /// Calling this function performs operations outside the circuit.
+    pub unsafe fn evaluate_witness(&self, witness: &Witness) -> &BlsScalar {
         &self.witnesses[witness]
     }
 
