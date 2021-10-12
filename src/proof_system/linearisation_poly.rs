@@ -186,6 +186,8 @@ impl Serializable<{ 24 * BlsScalar::SIZE }> for ProofEvaluations {
 #[cfg(feature = "alloc")]
 
 /// Compute the linearisation polynomial.
+// TODO: Improve the method signature
+#[allow(clippy::type_complexity)]
 pub(crate) fn compute(
     domain: &EvaluationDomain,
     prover_key: &ProverKey,
@@ -285,8 +287,8 @@ pub(crate) fn compute(
         &h_2_eval,
         &lookup_perm_eval,
         &l1_eval,
-        &p_poly,
-        &h_2_poly,
+        p_poly,
+        h_2_poly,
         (delta, epsilon),
         zeta,
         &q_c_eval,
@@ -390,7 +392,7 @@ fn compute_circuit_satisfiability(
         b_eval,
         c_eval,
         d_eval,
-        &d_next_eval,
+        d_next_eval,
     );
 
     let c = prover_key.logic.compute_linearisation(

@@ -59,13 +59,9 @@ impl Permutation {
     /// Checks that the [`Witness`]s are valid by determining if they have been
     /// added to the system
     fn valid_variables(&self, variables: &[Witness]) -> bool {
-        let results: Vec<bool> = variables
+        variables
             .iter()
-            .map(|var| self.variable_map.contains_key(&var))
-            .filter(|boolean| boolean == &false)
-            .collect();
-
-        results.is_empty()
+            .all(|var| self.variable_map.contains_key(var))
     }
 
     /// Maps a set of [`Witness`]s (a,b,c,d) to a set of [`Wire`](WireData)s
@@ -334,10 +330,10 @@ impl Permutation {
                 .map(|(f, t, t_next, h_1, h_1_next, h_2)| {
                     (
                         plonkup_numerator_irreducible(
-                            delta, epsilon, &f, &t, t_next,
+                            delta, epsilon, f, t, t_next,
                         ),
                         plonkup_denominator_irreducible(
-                            delta, epsilon, &h_1, &h_1_next, &h_2,
+                            delta, epsilon, h_1, &h_1_next, h_2,
                         ),
                     )
                 })

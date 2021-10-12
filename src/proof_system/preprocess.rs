@@ -395,7 +395,7 @@ impl TurboComposer {
         // Preprocess the lookup table
         let preprocessed_table = PreprocessedTable4Arity::preprocess(
             &self.lookup_table,
-            &commit_key,
+            commit_key,
             domain.size() as u32,
         )?;
 

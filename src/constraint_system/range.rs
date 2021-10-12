@@ -154,7 +154,7 @@ impl TurboComposer {
             accumulator += BlsScalar::from(quad);
 
             let accumulator_var = self.append_witness(accumulator);
-            accumulators.push(accumulator_var.into());
+            accumulators.push(accumulator_var);
 
             add_wire(self, i, accumulator_var);
         }
@@ -191,7 +191,7 @@ impl TurboComposer {
         // - The witness is within the number of bits initially specified
         let last_accumulator = accumulators.len() - 1;
         self.assert_equal(accumulators[last_accumulator], witness);
-        accumulators[last_accumulator] = witness.into();
+        accumulators[last_accumulator] = witness;
     }
 }
 
