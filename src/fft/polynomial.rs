@@ -103,13 +103,10 @@ impl Polynomial {
         // Compute powers of points
         let powers = util::powers_of(point, self.len());
 
-        let p_evals: Vec<_> = self
-            .iter()
-            .zip(powers.into_iter())
-            .map(|(c, p)| p * c)
-            .collect();
+        let p_evals = self.iter().zip(powers.into_iter()).map(|(c, p)| p * c);
+
         let mut sum = BlsScalar::zero();
-        for eval in p_evals.into_iter() {
+        for eval in p_evals {
             sum += &eval;
         }
         sum

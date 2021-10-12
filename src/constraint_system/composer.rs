@@ -129,7 +129,7 @@ impl TurboComposer {
     /// Evaluate the runtime value of a witness
     #[allow(dead_code)]
     pub(crate) fn evaluate_witness(&self, witness: &Witness) -> &BlsScalar {
-        &self.witnesses[&witness]
+        &self.witnesses[witness]
     }
 
     /// Constructs a dense vector of the Public Inputs from the positions and
@@ -558,9 +558,7 @@ impl TurboComposer {
         let y = -y.expect("Inconsistent internal usage of `Constraint::evaluate_output`: Output selector should not be zero");
 
         let o = x * y;
-        let o = self.append_witness(o);
-
-        o
+        self.append_witness(o)
     }
 
     /// Utility function that allows to check on the "front-end"

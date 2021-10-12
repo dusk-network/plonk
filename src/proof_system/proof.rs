@@ -335,7 +335,7 @@ pub(crate) mod alloc {
                 l1_eval,
                 self.evaluations.table_eval,
                 self.evaluations.table_next_eval,
-                &verifier_key,
+                verifier_key,
             );
 
             // Commitment Scheme
@@ -407,7 +407,7 @@ pub(crate) mod alloc {
                 )
                 .is_err()
             {
-                return Err(Error::ProofVerificationError.into());
+                return Err(Error::ProofVerificationError);
             }
 
             Ok(())
@@ -538,28 +538,28 @@ pub(crate) mod alloc {
             );
 
             verifier_key.range.compute_linearisation_commitment(
-                &range_sep_challenge,
+                range_sep_challenge,
                 &mut scalars,
                 &mut points,
                 &self.evaluations,
             );
 
             verifier_key.logic.compute_linearisation_commitment(
-                &logic_sep_challenge,
+                logic_sep_challenge,
                 &mut scalars,
                 &mut points,
                 &self.evaluations,
             );
 
             verifier_key.fixed_base.compute_linearisation_commitment(
-                &fixed_base_sep_challenge,
+                fixed_base_sep_challenge,
                 &mut scalars,
                 &mut points,
                 &self.evaluations,
             );
 
             verifier_key.variable_base.compute_linearisation_commitment(
-                &var_base_sep_challenge,
+                var_base_sep_challenge,
                 &mut scalars,
                 &mut points,
                 &self.evaluations,
@@ -570,8 +570,8 @@ pub(crate) mod alloc {
                 &mut scalars,
                 &mut points,
                 &self.evaluations,
-                (&delta, &epsilon),
-                &zeta,
+                (delta, epsilon),
+                zeta,
                 &l1_eval,
                 &t_eval,
                 &t_next_eval,

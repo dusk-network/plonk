@@ -149,7 +149,7 @@ impl PublicParameters {
         }
         let mut buf = bytes;
         let opening_key = OpeningKey::from_reader(&mut buf)?;
-        let commit_key = CommitKey::from_slice(&buf)?;
+        let commit_key = CommitKey::from_slice(buf)?;
 
         let pp = PublicParameters {
             commit_key,
