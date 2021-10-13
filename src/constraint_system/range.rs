@@ -57,7 +57,7 @@ impl TurboComposer {
         //
         // Number of bits should be even, this means that user must pad the
         // number of bits external.
-        assert!(num_bits % 2 == 0);
+        assert_eq!(num_bits % 2, 0);
 
         // Convert witness to bit representation and reverse
         let bits = self.witnesses[&witness];

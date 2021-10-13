@@ -17,7 +17,7 @@ fn compute_wnaf_point_multiples(
     generator: JubJubExtended,
     num_bits: usize,
 ) -> Vec<JubJubAffine> {
-    assert!(generator.is_prime_order().unwrap_u8() == 1);
+    assert_eq!(generator.is_prime_order().unwrap_u8(), 1);
 
     let mut multiples = vec![JubJubExtended::default(); num_bits];
     multiples[0] = generator;
@@ -74,11 +74,11 @@ impl TurboComposer {
         for (i, entry) in wnaf_entries.iter().rev().enumerate() {
             // Based on the WNAF, we decide what scalar and point to add
             let (scalar_to_add, point_to_add) = match entry {
-            0 => { (BlsScalar::zero(), JubJubAffine::identity())},
-            -1 => {(BlsScalar::one().neg(), -point_multiples[i])},
-            1 => {(BlsScalar::one(), point_multiples[i])},
-            _ => unreachable!("Currently WNAF_2(k) is supported. The possible values are 1, -1 and 0. Current entry is {}", entry),
-        };
+                0 => { (BlsScalar::zero(), JubJubAffine::identity()) }
+                -1 => { (BlsScalar::one().neg(), -point_multiples[i]) }
+                1 => { (BlsScalar::one(), point_multiples[i]) }
+                _ => unreachable!("Currently WNAF_2(k) is supported. The possible values are 1, -1 and 0. Current entry is {}", entry),
+            };
 
             let prev_accumulator = BlsScalar::from(2u64) * scalar_acc[i];
             scalar_acc.push(prev_accumulator + scalar_to_add);
@@ -215,6 +215,7 @@ mod tests {
         );
         assert!(res.is_ok());
     }
+
     #[test]
     fn test_ecc_constraint_should_fail() {
         let res = gadget_tester(
@@ -241,6 +242,7 @@ mod tests {
 
         assert!(res.is_err());
     }
+
     #[test]
     fn test_point_addition() {
         let res = gadget_tester(
@@ -281,6 +283,7 @@ mod tests {
 
         assert!(res.is_ok());
     }
+
     #[test]
     #[allow(non_snake_case)]
     fn test_pedersen_hash() {
@@ -333,6 +336,7 @@ mod tests {
         );
         assert!(res.is_ok());
     }
+
     #[test]
     #[allow(non_snake_case)]
     fn test_pedersen_balance() {

@@ -502,19 +502,19 @@ mod test {
 
         let size = composer.n;
         assert!(size.is_power_of_two());
-        assert!(composer.q_m.len() == size);
-        assert!(composer.q_l.len() == size);
-        assert!(composer.q_o.len() == size);
-        assert!(composer.q_r.len() == size);
-        assert!(composer.q_c.len() == size);
-        assert!(composer.q_arith.len() == size);
-        assert!(composer.q_range.len() == size);
-        assert!(composer.q_logic.len() == size);
-        assert!(composer.q_fixed_group_add.len() == size);
-        assert!(composer.q_variable_group_add.len() == size);
-        assert!(composer.q_lookup.len() == size);
-        assert!(composer.w_l.len() == size);
-        assert!(composer.w_r.len() == size);
-        assert!(composer.w_o.len() == size);
+        assert_eq!(composer.q_m.len(), size);
+        assert_eq!(composer.q_l.len(), size);
+        assert_eq!(composer.q_o.len(), size);
+        assert_eq!(composer.q_r.len(), size);
+        assert_eq!(composer.q_c.len(), size);
+        assert_eq!(composer.q_arith.len(), size);
+        assert_eq!(composer.q_range.len(), size);
+        assert_eq!(composer.q_logic.len(), size);
+        assert_eq!(composer.q_fixed_group_add.len(), size);
+        assert_eq!(composer.q_variable_group_add.len(), size);
+        assert_eq!(composer.q_lookup.len(), size);
+        assert_eq!(composer.w_l.len(), size);
+        assert_eq!(composer.w_r.len(), size);
+        assert_eq!(composer.w_o.len(), size);
     }
 }
