@@ -143,8 +143,9 @@ mod test {
             composer.gate_add(d_x1_x2_y1_y2, zero, zero, constraint);
 
         // Compute the inverse
-        let inv_x_denom =
-            composer.evaluate_witness(&x_denominator).invert().unwrap();
+        let inv_x_denom = unsafe {
+            composer.evaluate_witness(&x_denominator).invert().unwrap()
+        };
         let inv_x_denom = composer.append_witness(inv_x_denom);
 
         let constraint = Constraint::new().mul(1).constant(-BlsScalar::one());
@@ -164,8 +165,9 @@ mod test {
         let y_denominator =
             composer.gate_add(d_x1_x2_y1_y2, zero, zero, constraint);
 
-        let inv_y_denom =
-            composer.evaluate_witness(&y_denominator).invert().unwrap();
+        let inv_y_denom = unsafe {
+            composer.evaluate_witness(&y_denominator).invert().unwrap()
+        };
         let inv_y_denom = composer.append_witness(inv_y_denom);
 
         // Assert that we actually have the inverse
