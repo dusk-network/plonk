@@ -4,14 +4,10 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
+#![allow(clippy::many_single_char_names)]
+
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use dusk_bls12_381::BlsScalar;
-use dusk_plonk::circuit::{self, Circuit, VerifierData};
-// Using prelude until PP is available on regular import path
-use dusk_plonk::constraint_system::TurboComposer;
-use dusk_plonk::error::Error;
-use dusk_plonk::prelude::PublicParameters;
-use dusk_plonk::proof_system::{Proof, ProverKey};
+use dusk_plonk::prelude::*;
 
 #[derive(Debug, Clone, Copy)]
 struct BenchCircuit {
@@ -48,19 +44,14 @@ impl Circuit for BenchCircuit {
             let y = composer.append_witness(b);
             let z = composer.append_witness(c);
 
-            composer.append_gate(
-                x,
-                y,
-                z,
-                zero,
-                BlsScalar::one(),
-                BlsScalar::one(),
-                BlsScalar::one(),
-                -BlsScalar::one(),
-                BlsScalar::zero(),
-                BlsScalar::one(),
-                None,
-            );
+            let constraint = Constraint::new()
+                .mul(1)
+                .left(1)
+                .right(1)
+                .output(-BlsScalar::one())
+                .constant(1);
+
+            composer.append_gate(x, y, z, zero, constraint);
         }
 
         Ok(())
@@ -82,7 +73,7 @@ fn constraint_system_prove(
     label: &'static [u8],
 ) -> Proof {
     circuit
-        .prove(&pp, &pk, label)
+        .prove(pp, pk, label)
         .expect("Failed to prove bench circuit!")
 }
 
@@ -105,22 +96,14 @@ fn constraint_system_benchmark(c: &mut Criterion) {
                 let proof =
                     constraint_system_prove(&mut circuit, &pp, &pk, label);
 
-                circuit::verify_proof(
-                    &pp,
-                    vd.key(),
-                    &proof,
-                    &[],
-                    vd.public_inputs_indexes(),
-                    label,
-                )
-                .expect("Failed to verify bench circuit!");
+                BenchCircuit::verify(&pp, &vd, &proof, &[], label)
+                    .expect("Failed to verify bench circuit");
 
                 (circuit, pk, vd, proof)
             })
             .collect();
 
-    data.iter().for_each(|(circuit, pk, _, _)| {
-        let mut circuit = circuit.clone();
+    data.iter().for_each(|(mut circuit, pk, _, _)| {
         let size = circuit.padded_gates();
         let power = (size as f64).log2() as usize;
         let description = format!("Prove 2^{} = {} gates", power, size);
@@ -139,15 +122,8 @@ fn constraint_system_benchmark(c: &mut Criterion) {
 
         c.bench_function(description.as_str(), |b| {
             b.iter(|| {
-                circuit::verify_proof(
-                    &pp,
-                    vd.key(),
-                    black_box(proof),
-                    &[],
-                    vd.public_inputs_indexes(),
-                    label,
-                )
-                .expect("Failed to verify bench circuit!");
+                BenchCircuit::verify(&pp, vd, black_box(proof), &[], label)
+                    .expect("Failed to verify bench circuit!");
             })
         });
     });

@@ -63,6 +63,12 @@ jobs:
       - name: Add target
         run: rustup target add ${{ matrix.target }}
 
+      - name: Run cargo check
+        uses: actions-rs/cargo@v1
+        with:
+          command: check
+          args: --all-targets
+
       - name: Build project with alloc
         uses: actions-rs/cargo@v1
         with:
@@ -94,6 +100,12 @@ jobs:
         with:
           profile: minimal
           toolchain: ${{ matrix.toolchain }}
+
+      - name: Run cargo check
+        uses: actions-rs/cargo@v1
+        with:
+          command: check
+          args: --all-targets
 
       - name: Test project
         if: ${{ matrix.os != 'ubuntu-latest' || matrix.toolchain != 'nightly' }}
