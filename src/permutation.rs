@@ -313,10 +313,10 @@ impl Permutation {
     ) -> Polynomial {
         let n = domain.size();
 
-        assert!(f.len() == domain.size());
-        assert!(t.len() == domain.size());
-        assert!(h_1.len() == domain.size());
-        assert!(h_2.len() == domain.size());
+        assert_eq!(f.len(), domain.size());
+        assert_eq!(t.len(), domain.size());
+        assert_eq!(h_1.len(), domain.size());
+        assert_eq!(h_2.len(), domain.size());
 
         let t_next: Vec<BlsScalar> = [&t[1..], &[t[0]]].concat();
         let h_1_next: Vec<BlsScalar> = [&h_1[1..], &[h_1[0]]].concat();
@@ -880,10 +880,10 @@ mod test {
         let old_z = Polynomial::from_coefficients_vec(domain.ifft(
             &compute_fast_permutation_poly(
                 &domain,
-                &w_l_scalar.as_slice(),
-                &w_r_scalar.as_slice(),
-                &w_o_scalar.as_slice(),
-                &w_4_scalar.as_slice(),
+                &w_l_scalar,
+                &w_r_scalar,
+                &w_o_scalar,
+                &w_4_scalar,
                 &beta,
                 &gamma,
                 (
@@ -895,7 +895,7 @@ mod test {
             ),
         ));
 
-        assert!(mz == old_z);
+        assert_eq!(mz, old_z);
     }
 
     #[test]
@@ -1078,6 +1078,7 @@ mod test {
             w_4.clone(),
         );
     }
+
     #[test]
     fn test_permutation_compute_sigmas() {
         let mut perm: Permutation = Permutation::new();
