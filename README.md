@@ -122,7 +122,7 @@ TestCircuit::verify(
     &pp,
     &vd,
     &proof,
-    public_inputs.as_slice(),
+    &public_inputs,
     b"Test",
 ).unwrap();
 ```
