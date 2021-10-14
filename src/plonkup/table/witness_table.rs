@@ -4,10 +4,10 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use crate::bls12_381::BlsScalar;
 use crate::error::Error;
 use crate::plonkup::MultiSet;
 use crate::plonkup::{PlonkupTable3Arity, PlonkupTable4Arity};
+use dusk_bls12_381::BlsScalar;
 
 /// This witness table contains quieries
 /// to a lookup table for lookup gates
