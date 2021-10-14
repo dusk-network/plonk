@@ -414,9 +414,62 @@ fn plonkup_denominator_irreducible(
 mod test {
     use super::*;
     use crate::constraint_system::{Constraint, TurboComposer};
+    use crate::error::Error;
     use crate::fft::Polynomial;
+    use crate::plonkup::MultiSet;
     use dusk_bls12_381::BlsScalar;
     use rand_core::OsRng;
+
+    #[test]
+    fn test_compute_lookup_permutation_poly() -> Result<(), Error> {
+        // FIXME: use `usize` everywhere for such things
+        const SIZE: u32 = 4;
+
+        let delta = BlsScalar::from(10);
+        let epsilon = BlsScalar::from(20);
+
+        let mut t = MultiSet::from(
+            &[BlsScalar::one(), BlsScalar::from(2), BlsScalar::from(3)][..],
+        );
+        t.pad(SIZE);
+
+        let mut f = MultiSet::from(
+            &[BlsScalar::one(), BlsScalar::from(3), BlsScalar::from(3)][..],
+        );
+        f.pad(SIZE);
+
+        let mut h_1 = MultiSet::from(
+            &[BlsScalar::one(), BlsScalar::one(), BlsScalar::one()][..],
+        );
+        h_1.pad(SIZE);
+
+        let mut h_2 = MultiSet::from(
+            &[BlsScalar::from(2), BlsScalar::from(3), BlsScalar::one()][..],
+        );
+        h_2.pad(SIZE);
+
+        let domain = EvaluationDomain::new(SIZE as usize)?;
+        let perm = Permutation::new();
+
+        let poly = perm.compute_lookup_permutation_poly(
+            &domain, &f.0, &t.0, &h_1.0, &h_2.0, &delta, &epsilon,
+        );
+
+        const TEST_VECTORS: [&str; 4] = [
+            "0x0eaa2fe1c155cfb88bf91f7800c3b855fc67989c949da6cc87a68c9499680d1c",
+            "0x077d37bc33db4e8809cc64da6e65d911d3d14ae877e61d9afe13d8229c3c9667",
+            "0x504f5bba23e3439bb5c1ac5968bea1db2491ad7237d03f4cccc5258c605c3e17",
+            "0x9e893da8e4eb9d23b330cb532e61476416e5b21bcc5b6fb33d7ab00f104df94c",
+        ];
+
+        assert_eq!(TEST_VECTORS.len(), poly.coeffs.len());
+
+        for i in 0..TEST_VECTORS.len() {
+            assert_eq!(format!("{:#x}", poly.coeffs[i]), TEST_VECTORS[i]);
+        }
+
+        Ok(())
+    }
 
     #[allow(dead_code)]
     fn compute_fast_permutation_poly(
