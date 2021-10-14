@@ -15,203 +15,6 @@ use crate::plonkup::MultiSet;
 use crate::prelude::BlsScalar;
 use alloc::vec::Vec;
 
-/// For the implemenation of look up tables in PLONK, aptly named Plonkup
-/// tables, there will be different fucntions depending on the type of table
-/// that needs to be constructed. All tables entries envisioned will be with
-/// different arity. Meaning each of the wires will correspond to a column.
-///
-/// If the standard composer calls a plonkup gate, then the user will define
-/// the length of the gate, measured in circuit size.
-
-/// This struct is a table, contaning a vector,
-/// of arity 3 where each of the values is a
-/// BlsScalar. The elements of the table are
-/// determined by the function g for
-/// g(x,y), used to compute tuples.
-///
-/// This struct will be used to determine
-/// the outputs of gates within arithmetic
-/// circuits.
-#[derive(Clone, Eq, PartialEq, Debug)]
-pub struct PlonkupTable3Arity(Vec<[BlsScalar; 3]>);
-
-impl PlonkupTable3Arity {
-    /// Constructs a Lookup table of four columns corresponding to
-    /// vectors of witness values, a,b c, and d. The function
-    /// takes in a chosen number of 2^n values for the first column,
-    /// containing values of a. Then builds the combinations with b
-    /// and results them, modular the n, to construct c.
-    ///
-    /// The domain of the table is defined by the user. By default, it
-    /// will be 0 -> domain input. However, for checks within certain
-    /// ranges, the user will be able to specify values to and from.
-    /// The inputted domain size will apply only to the first column
-    /// and the corresponding columns will be filled in and an assertion
-    /// that they are equal in length will be given.
-    ///
-    /// XXX: Decide what use cases the 4th wire requires
-    ///
-    /// Function takes in two different usize numbers and checks the range
-    /// between them, as well as computing the value of their additions.
-    /// These numbers require exponentiation outside, for the lower bound,
-    /// otherwise the range cannot start from zero, as 2^0 = 1.
-    pub fn add_table(lower_bound: u64, n: u8) -> Self {
-        let upper_bound = 2u64.pow(n.into());
-
-        let range = lower_bound..upper_bound;
-
-        let cap = ((upper_bound - lower_bound) * upper_bound) as usize;
-
-        let mut table: Vec<[BlsScalar; 3]> = Vec::with_capacity(cap);
-
-        for a in range.clone() {
-            range
-                .clone()
-                .map(|b| {
-                    let c = (a + b) % upper_bound;
-                    [BlsScalar::from(a), BlsScalar::from(b), BlsScalar::from(c)]
-                })
-                .for_each(|row| {
-                    table.push(row);
-                });
-        }
-
-        PlonkupTable3Arity(table)
-    }
-
-    /// Function takes in two different usize numbers and checks the range
-    /// between them, as well as computing the value of their XOR operation.
-    /// These numbers require exponentiation outside, for the lower bound,
-    /// otherwise the range cannot start from zero, as 2^0 = 1.
-    pub fn xor_table(lower_bound: u64, n: u8) -> Self {
-        let upper_bound = 2u64.pow(n.into());
-
-        let range = lower_bound..upper_bound;
-
-        let cap = ((upper_bound - lower_bound) * upper_bound) as usize;
-
-        let mut table: Vec<[BlsScalar; 3]> = Vec::with_capacity(cap);
-
-        for a in range.clone() {
-            range
-                .clone()
-                .map(|b| {
-                    let c = (a ^ b) % upper_bound;
-                    [BlsScalar::from(a), BlsScalar::from(b), BlsScalar::from(c)]
-                })
-                .for_each(|row| {
-                    table.push(row);
-                });
-        }
-
-        PlonkupTable3Arity(table)
-    }
-
-    /// Function takes in two different usize numbers and checks the range
-    /// between them, as well as computing the value of their product.
-    /// These numbers require exponentiation outside, for the lower bound,
-    /// otherwise the range cannot start from zero, as 2^0 = 1.
-    pub fn mul_table(lower_bound: u64, n: u8) -> Self {
-        let upper_bound = 2u64.pow(n.into());
-
-        let range = lower_bound..upper_bound;
-
-        let cap = ((upper_bound - lower_bound) * upper_bound) as usize;
-
-        let mut table: Vec<[BlsScalar; 3]> = Vec::with_capacity(cap);
-
-        for a in range.clone() {
-            range
-                .clone()
-                .map(|b| {
-                    let c = (a * b) % upper_bound;
-                    [BlsScalar::from(a), BlsScalar::from(b), BlsScalar::from(c)]
-                })
-                .for_each(|row| {
-                    table.push(row);
-                });
-        }
-
-        PlonkupTable3Arity(table)
-    }
-
-    // Function takes in two different usize numbers and checks the range
-    /// between them, as well as computing the value of their AND bitwise
-    /// operation. These numbers require exponentiation outside, for the lower
-    /// bound, otherwise the range cannot start from zero, as 2^0 = 1.
-    pub fn and_table(lower_bound: u64, n: u8) -> Self {
-        let upper_bound = 2u64.pow(n.into());
-
-        let range = lower_bound..upper_bound;
-
-        let cap = ((upper_bound - lower_bound) * upper_bound) as usize;
-
-        let mut table: Vec<[BlsScalar; 3]> = Vec::with_capacity(cap);
-
-        for a in range.clone() {
-            range
-                .clone()
-                .map(|b| {
-                    let c = (a & b) % upper_bound;
-                    [BlsScalar::from(a), BlsScalar::from(b), BlsScalar::from(c)]
-                })
-                .for_each(|row| {
-                    table.push(row);
-                });
-        }
-
-        PlonkupTable3Arity(table)
-    }
-
-    /// Function that generates the S-box used in reinforced concrete
-    pub fn s_box_table() -> Self {
-        let mut s_box = Vec::with_capacity(659);
-        (0..659).for_each(|k| {
-            s_box.push([
-                BlsScalar([k, 0, 0, 0]),
-                BlsScalar([k, 0, 0, 0]),
-                BlsScalar(SBOX_U256[k as usize].0),
-            ]);
-        });
-
-        PlonkupTable3Arity(s_box)
-    }
-
-    /// Takes in a table, which is a list of vectors containing
-    /// 3 elements, and turns them into 3 distinct multisets for
-    /// a, b and c.
-    pub fn vec_to_multiset(&self) -> (MultiSet, MultiSet, MultiSet) {
-        let mut multiset_a = MultiSet::new();
-        let mut multiset_b = MultiSet::new();
-        let mut multiset_c = MultiSet::new();
-
-        self.0.iter().for_each(|row| {
-            multiset_a.push(row[0]);
-            multiset_b.push(row[1]);
-            multiset_c.push(row[2]);
-        });
-
-        (multiset_a, multiset_b, multiset_c)
-    }
-
-    /// Attempts to find an output value, given two input values, by querying
-    /// the lookup table. If the element does not exist, it will return an
-    /// error.
-    pub fn lookup(
-        &self,
-        a: BlsScalar,
-        b: BlsScalar,
-    ) -> Result<BlsScalar, Error> {
-        let pos = self
-            .0
-            .iter()
-            .position(|row| row[0] == a && row[1] == b)
-            .ok_or(Error::ElementNotIndexed)?;
-
-        Ok(self.0[pos][2])
-    }
-}
-
 /// This struct is a table, contaning a vector,
 /// of arity 4 where each of the values is a
 /// BlsScalar. The elements of the table are
@@ -222,18 +25,18 @@ impl PlonkupTable3Arity {
 /// the outputs of gates within arithmetic
 /// circuits.
 #[derive(Clone, Eq, PartialEq, Debug)]
-pub struct PlonkupTable4Arity(pub Vec<[BlsScalar; 4]>);
+pub struct IndexTable(pub Vec<[BlsScalar; 4]>);
 
-impl Default for PlonkupTable4Arity {
+impl Default for IndexTable {
     fn default() -> Self {
-        PlonkupTable4Arity::new()
+        IndexTable::new()
     }
 }
 
-impl PlonkupTable4Arity {
+impl IndexTable {
     /// Create a new, empty Plonkup table, with arity 4.
     pub fn new() -> Self {
-        PlonkupTable4Arity(vec![])
+        IndexTable(vec![])
     }
 
     /// Insert a new row for an addition operation.
@@ -569,7 +372,7 @@ impl PlonkupTable4Arity {
             }
         }
 
-        PlonkupTable4Arity(table)
+        IndexTable(table)
     }
 }
 
@@ -581,7 +384,11 @@ mod test {
     fn test_add_table() {
         let n = 4;
 
-        let table = PlonkupTable3Arity::add_table(0, n);
+        let table = {
+            let mut table = IndexTable::default();
+            table.insert_multi_add(0, n);
+            table
+        };
 
         // Create an identical matrix, but with std numbers.
         // This way, we can also do the modulo operation, and properly
@@ -606,7 +413,11 @@ mod test {
     fn test_xor_table() {
         let n = 4;
 
-        let table = PlonkupTable3Arity::xor_table(0, n);
+        let table = {
+            let mut table = IndexTable::default();
+            table.insert_multi_xor(0, n);
+            table
+        };
 
         // println!("{:?}", table);
         let mut i = 0;
@@ -629,7 +440,11 @@ mod test {
     fn test_mul_table() {
         let n = 4;
 
-        let table = PlonkupTable3Arity::mul_table(0, n);
+        let table = {
+            let mut table = IndexTable::default();
+            table.insert_multi_mul(0, n);
+            table
+        };
 
         // println!("{:?}", table);
         let mut i = 0;
@@ -649,40 +464,54 @@ mod test {
     }
 
     #[test]
-    fn test_lookup_arity_3() {
-        let add_table = PlonkupTable3Arity::add_table(0, 3);
+    fn test_lookup() {
+        let add_table = {
+            let mut table = IndexTable::default();
+            table.insert_multi_add(0, 3);
+            table
+        };
 
+        // FIXME this is failing
         assert!(add_table
-            .lookup(BlsScalar::from(2), BlsScalar::from(3))
+            .lookup(BlsScalar::from(2), BlsScalar::from(3), BlsScalar::zero())
             .is_ok());
 
-        let output = add_table.0[1][0] + add_table.0[1][1];
+        let output = add_table.0[1][0] + add_table.0[1][1] + add_table.0[1][2]; // TODO are we sure this is right
 
-        assert_eq!(output, BlsScalar::one());
+        assert_eq!(output, BlsScalar::from(2));
 
-        let second_output = add_table.0[12][0] + add_table.0[12][1];
+        let second_output =
+            add_table.0[12][0] + add_table.0[12][1] + add_table.0[12][2]; // TODO are we sure this is right
 
-        assert_eq!(second_output, BlsScalar::from(5));
+        assert_eq!(second_output, BlsScalar::from(10));
     }
 
     #[test]
     fn test_missing_lookup_value() {
-        let xor_table = PlonkupTable3Arity::xor_table(0, 5);
+        let xor_table = {
+            let mut table = IndexTable::default();
+            table.insert_multi_xor(0, 5);
+            table
+        };
 
         assert!(xor_table
-            .lookup(BlsScalar::from(17), BlsScalar::from(367))
+            .lookup(
+                BlsScalar::from(17),
+                BlsScalar::from(367),
+                BlsScalar::from(1)
+            )
             .is_err());
     }
 
     #[test]
     fn test_concatenated_table() {
-        let mut table = PlonkupTable4Arity::new();
+        let mut table = IndexTable::new();
 
         table.insert_multi_xor(0, 5);
         table.insert_multi_add(4, 7);
 
         assert_eq!(table.0.last().unwrap()[2], BlsScalar::from(126u64));
-        let xor = table.0[36][0] ^ table.0[36][1];
-        assert_eq!(xor, BlsScalar::from(5u64));
+        let xor = table.0[36][0] ^ table.0[36][1] ^ table.0[36][2];
+        assert_eq!(xor, BlsScalar::zero());
     }
 }

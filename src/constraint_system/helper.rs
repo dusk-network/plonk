@@ -8,7 +8,7 @@ use super::TurboComposer;
 use crate::commitment_scheme::PublicParameters;
 use crate::constraint_system::Constraint;
 use crate::error::Error;
-use crate::plonkup::PlonkupTable4Arity;
+use crate::plonkup::IndexTable;
 use crate::proof_system::{Prover, Verifier};
 use dusk_bls12_381::BlsScalar;
 use rand_core::OsRng;
@@ -100,7 +100,7 @@ pub(crate) fn gadget_tester(
 pub(crate) fn gadget_plonkup_tester(
     gadget: fn(composer: &mut TurboComposer),
     n: usize,
-    lookup_table: PlonkupTable4Arity,
+    lookup_table: IndexTable,
 ) -> Result<(), Error> {
     // Common View
     let public_parameters = PublicParameters::setup(2 * n, &mut OsRng)?;
