@@ -815,23 +815,36 @@ mod test {
 
         let one = BlsScalar::one();
         let two = BlsScalar::from_raw([2, 0, 0, 0]);
-        let z = cs.constant_zero();
 
         // x1 * x4 = x2
-        let constraint = Constraint::new().mul(1).output(-one);
-        cs.append_gate(x1, x4, x2, z, constraint);
+        let constraint =
+            Constraint::new().mult(1).output(-one).a(x1).b(x4).o(x2);
+        cs.append_gate(constraint);
 
         // x1 + x3 = x2
-        let constraint = Constraint::new().left(1).right(1).output(-one);
-        cs.append_gate(x1, x3, x2, z, constraint);
+        let constraint = Constraint::new()
+            .left(1)
+            .right(1)
+            .output(-one)
+            .a(x1)
+            .b(x3)
+            .o(x2);
+        cs.append_gate(constraint);
 
         // x1 + x2 = 2*x3
-        let constraint = Constraint::new().left(1).right(1).output(-two);
-        cs.append_gate(x1, x2, x3, z, constraint);
+        let constraint = Constraint::new()
+            .left(1)
+            .right(1)
+            .output(-two)
+            .a(x1)
+            .b(x2)
+            .o(x3);
+        cs.append_gate(constraint);
 
         // x3 * x4 = 2*x2
-        let constraint = Constraint::new().mul(1).output(-two);
-        cs.append_gate(x3, x4, x2, z, constraint);
+        let constraint =
+            Constraint::new().mult(1).output(-two).a(x3).b(x4).o(x2);
+        cs.append_gate(constraint);
 
         let domain = EvaluationDomain::new(cs.gates()).unwrap();
         let pad = vec![BlsScalar::zero(); domain.size() - cs.w_l.len()];

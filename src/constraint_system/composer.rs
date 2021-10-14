@@ -18,7 +18,7 @@
 // it is intended to be like this in order to provide
 // maximum performance and minimum circuit sizes.
 
-use crate::constraint_system::{Constraint, Selector, Witness};
+use crate::constraint_system::{Constraint, Selector, WiredWitness, Witness};
 use crate::permutation::Permutation;
 use crate::plonkup::PlonkupTable4Arity;
 use alloc::collections::BTreeMap;
@@ -98,12 +98,6 @@ pub struct TurboComposer {
     /// Public lookup table
     pub(crate) lookup_table: PlonkupTable4Arity,
 
-    /// A zero Witness that is a part of the circuit description.
-    /// We reserve a variable to be zero in the system
-    /// This is so that when a gate only uses three wires, we set the fourth
-    /// wire to be the variable that references zero
-    pub(crate) constant_zero: Witness,
-
     /// These are the actual variable values.
     pub(crate) witnesses: HashMap<Witness, BlsScalar>,
 
@@ -117,8 +111,8 @@ impl TurboComposer {
     /// Every [`TurboComposer`] is initialized with a circuit description
     /// containing a representation of zero. This function will return the
     /// index of that representation.
-    pub const fn constant_zero(&self) -> Witness {
-        self.constant_zero
+    pub const fn constant_zero() -> Witness {
+        Witness::new(0)
     }
 
     /// Return the number of gates in the circuit
@@ -220,15 +214,13 @@ impl TurboComposer {
 
             lookup_table: PlonkupTable4Arity::new(),
 
-            constant_zero: Witness::new(0),
-
             witnesses: HashMap::with_capacity(size),
 
             perm: Permutation::new(),
         };
 
-        // Reserve the first variable to be zero
-        composer.constant_zero = composer.append_constant(BlsScalar::zero());
+        // Reserve the first witness to be zero
+        composer.append_constant(BlsScalar::zero());
 
         // Add dummy gates
         composer.append_dummy_gates();
@@ -254,14 +246,12 @@ impl TurboComposer {
     ///
     /// The final constraint added will enforce the following:
     /// `q_m · a · b  + q_l · a + q_r · b + q_o · o + q_4 · d + q_c + PI = 0`.
-    pub fn append_gate(
-        &mut self,
-        a: Witness,
-        b: Witness,
-        o: Witness,
-        d: Witness,
-        s: Constraint,
-    ) {
+    pub fn append_gate(&mut self, s: Constraint) {
+        let a = s.witness(WiredWitness::A);
+        let b = s.witness(WiredWitness::B);
+        let o = s.witness(WiredWitness::O);
+        let d = s.witness(WiredWitness::D);
+
         let s = Constraint::arithmetic(&s);
 
         let q_m = *s.coeff(Selector::Multiplication);
@@ -317,8 +307,7 @@ impl TurboComposer {
         constant: BlsScalar,
         pi: Option<BlsScalar>,
     ) {
-        let zero = self.constant_zero();
-        let constraint = Constraint::new().left(1).constant(-constant);
+        let constraint = Constraint::new().left(1).constant(-constant).a(a);
 
         // TODO maybe accept `Constraint` instead of `Option<Scalar>`?
         let constraint = match pi {
@@ -326,15 +315,15 @@ impl TurboComposer {
             None => constraint,
         };
 
-        self.append_gate(a, zero, zero, zero, constraint);
+        self.append_gate(constraint);
     }
 
     /// Asserts `a == b` by appending a gate
     pub fn assert_equal(&mut self, a: Witness, b: Witness) {
-        let zero = self.constant_zero();
-        let constraint = Constraint::new().left(1).right(-BlsScalar::one());
+        let constraint =
+            Constraint::new().left(1).right(-BlsScalar::one()).a(a).b(b);
 
-        self.append_gate(a, b, zero, zero, constraint);
+        self.append_gate(constraint);
     }
 
     /// Conditionally selects a [`Witness`] based on an input bit.
@@ -342,31 +331,39 @@ impl TurboComposer {
     /// bit == 1 => a,
     /// bit == 0 => b,
     ///
-    /// `bit` is expected to be constrained by [`TurboComposer::gate_boolean`]
+    /// `bit` is expected to be constrained by
+    /// [`TurboComposer::component_boolean`]
     pub fn component_select(
         &mut self,
         bit: Witness,
         a: Witness,
         b: Witness,
     ) -> Witness {
-        let zero = self.constant_zero();
+        debug_assert!(
+            self.witnesses[&bit] == BlsScalar::one()
+                || self.witnesses[&bit] == BlsScalar::zero()
+        );
 
         // bit * a
-        let constraint = Constraint::new().mul(1);
-        let bit_times_a =
-            self.gate_mul(bit, a, self.constant_zero(), constraint);
+        let constraint = Constraint::new().mult(1).a(bit).b(a);
+        let bit_times_a = self.gate_mul(constraint);
 
         // 1 - bit
-        let constraint = Constraint::new().left(-BlsScalar::one()).constant(1);
-        let one_min_bit = self.gate_add(bit, zero, zero, constraint);
+        let constraint =
+            Constraint::new().left(-BlsScalar::one()).constant(1).a(bit);
+        let one_min_bit = self.gate_add(constraint);
 
         // (1 - bit) * b
-        let constraint = Constraint::new().mul(1);
-        let one_min_bit_b = self.gate_mul(one_min_bit, b, zero, constraint);
+        let constraint = Constraint::new().mult(1).a(one_min_bit).b(b);
+        let one_min_bit_b = self.gate_mul(constraint);
 
         // [ (1 - bit) * b ] + [ bit * a ]
-        let constraint = Constraint::new().left(1).right(1);
-        self.gate_add(one_min_bit_b, bit_times_a, zero, constraint)
+        let constraint = Constraint::new()
+            .left(1)
+            .right(1)
+            .a(one_min_bit_b)
+            .b(bit_times_a);
+        self.gate_add(constraint)
     }
 
     /// Conditionally selects a [`Witness`] based on an input bit.
@@ -374,19 +371,21 @@ impl TurboComposer {
     /// bit == 1 => value,
     /// bit == 0 => 0,
     ///
-    /// `bit` is expected to be constrained by [`TurboComposer::gate_boolean`]
-    pub fn gate_select_zero(
+    /// `bit` is expected to be constrained by
+    /// [`TurboComposer::component_boolean`]
+    pub fn component_select_zero(
         &mut self,
         bit: Witness,
         value: Witness,
     ) -> Witness {
-        // returns bit * value
-        self.gate_mul(
-            bit,
-            value,
-            self.constant_zero(),
-            Constraint::new().mul(1),
-        )
+        debug_assert!(
+            self.witnesses[&bit] == BlsScalar::one()
+                || self.witnesses[&bit] == BlsScalar::zero()
+        );
+
+        let constraint = Constraint::new().mult(1).a(bit).b(value);
+
+        self.gate_mul(constraint)
     }
 
     /// Conditionally selects a [`Witness`] based on an input bit.
@@ -394,21 +393,34 @@ impl TurboComposer {
     /// bit == 1 => value,
     /// bit == 0 => 1,
     ///
-    /// `bit` is expected to be constrained by [`TurboComposer::gate_boolean`]
-    pub fn gate_select_one(&mut self, bit: Witness, value: Witness) -> Witness {
+    /// `bit` is expected to be constrained by
+    /// [`TurboComposer::component_boolean`]
+    pub fn component_select_one(
+        &mut self,
+        bit: Witness,
+        value: Witness,
+    ) -> Witness {
+        debug_assert!(
+            self.witnesses[&bit] == BlsScalar::one()
+                || self.witnesses[&bit] == BlsScalar::zero()
+        );
+
         let b = self.witnesses[&bit];
         let v = self.witnesses[&value];
-        let zero = self.constant_zero();
 
         let f_x = BlsScalar::one() - b + (b * v);
         let f_x = self.append_witness(f_x);
 
         let constraint = Constraint::new()
-            .mul(1)
+            .mult(1)
             .left(-BlsScalar::one())
             .output(-BlsScalar::one())
-            .constant(1);
-        self.append_gate(bit, value, f_x, zero, constraint);
+            .constant(1)
+            .a(bit)
+            .b(value)
+            .o(f_x);
+
+        self.append_gate(constraint);
 
         f_x
     }
@@ -425,9 +437,9 @@ impl TurboComposer {
         // Static assertion
         assert!(0 < N && N <= 256);
 
-        let mut decomposition = [self.constant_zero(); N];
+        let mut decomposition = [Self::constant_zero(); N];
 
-        let acc = self.constant_zero();
+        let acc = Self::constant_zero();
         let acc = self.witnesses[&scalar]
             .to_bits()
             .iter()
@@ -436,12 +448,15 @@ impl TurboComposer {
             .fold(acc, |acc, ((i, w), d)| {
                 *d = self.append_witness(BlsScalar::from(*w as u64));
 
-                self.gate_boolean(*d);
+                self.component_boolean(*d);
 
                 let constraint = Constraint::new()
                     .left(BlsScalar::pow_of_2(i as u64))
-                    .right(1);
-                self.gate_add(*d, acc, self.constant_zero(), constraint)
+                    .right(1)
+                    .a(*d)
+                    .b(acc);
+
+                self.gate_add(constraint)
             });
 
         self.assert_equal(acc, scalar);
@@ -499,12 +514,12 @@ impl TurboComposer {
         self.w_l.push(var_min_twenty);
         self.w_r.push(var_six);
         self.w_o.push(var_seven);
-        self.w_4.push(self.constant_zero());
+        self.w_4.push(Self::constant_zero());
         self.perm.add_variables_to_map(
             var_min_twenty,
             var_six,
             var_seven,
-            self.constant_zero(),
+            Self::constant_zero(),
             self.n,
         );
 
@@ -543,21 +558,23 @@ impl TurboComposer {
         self.n += 1;
     }
 
-    pub(crate) fn append_output_witness(
-        &mut self,
-        a: Witness,
-        b: Witness,
-        d: Witness,
-        s: Constraint,
-    ) -> Witness {
-        let x = s.coeff(Selector::Multiplication)
-            * self.witnesses[&a]
-            * self.witnesses[&b]
-            + s.coeff(Selector::Left) * self.witnesses[&a]
-            + s.coeff(Selector::Right) * self.witnesses[&b]
-            + s.coeff(Selector::Fourth) * self.witnesses[&d]
-            + s.coeff(Selector::Constant)
-            + s.coeff(Selector::PublicInput);
+    pub(crate) fn append_output_witness(&mut self, s: Constraint) -> Witness {
+        let a = s.witness(WiredWitness::A);
+        let b = s.witness(WiredWitness::B);
+        let d = s.witness(WiredWitness::D);
+
+        let a = self.witnesses[&a];
+        let b = self.witnesses[&b];
+        let d = self.witnesses[&d];
+
+        let qm = s.coeff(Selector::Multiplication);
+        let ql = s.coeff(Selector::Left);
+        let qr = s.coeff(Selector::Right);
+        let qd = s.coeff(Selector::Fourth);
+        let qc = s.coeff(Selector::Constant);
+        let pi = s.coeff(Selector::PublicInput);
+
+        let x = qm * a * b + ql * a + qr * b + qd * d + qc + pi;
 
         let y = s.coeff(Selector::Output);
         let y: Option<BlsScalar> = y.invert().into();
@@ -808,7 +825,7 @@ mod tests {
         let res = gadget_tester(
             |composer| {
                 let bit_1 = composer.append_witness(BlsScalar::one());
-                let bit_0 = composer.constant_zero();
+                let bit_0 = TurboComposer::constant_zero();
 
                 let choice_a = composer.append_witness(BlsScalar::from(10u64));
                 let choice_b = composer.append_witness(BlsScalar::from(20u64));
@@ -850,7 +867,7 @@ mod tests {
         let res = gadget_plonkup_tester(
             |composer| {
                 let bit_1 = composer.append_witness(BlsScalar::one());
-                let bit_0 = composer.constant_zero();
+                let bit_0 = TurboComposer::constant_zero();
 
                 let choice_a = composer.append_witness(BlsScalar::from(10u64));
                 let choice_b = composer.append_witness(BlsScalar::from(20u64));
@@ -964,7 +981,6 @@ mod tests {
         let three = prover.cs.append_constant(BlsScalar::from(3));
         let result = prover.cs.append_constant(output.unwrap());
         let one = prover.cs.append_constant(BlsScalar::one());
-        let zero = prover.cs.constant_zero();
 
         prover.cs.append_plonkup_gate(two, three, result, one, None);
         prover.cs.append_plonkup_gate(two, three, result, one, None);
@@ -972,8 +988,8 @@ mod tests {
         prover.cs.append_plonkup_gate(two, three, result, one, None);
         prover.cs.append_plonkup_gate(two, three, result, one, None);
 
-        let constraint = Constraint::new().left(1).right(1);
-        prover.cs.gate_add(two, three, zero, constraint);
+        let constraint = Constraint::new().left(1).right(1).a(two).b(three);
+        prover.cs.gate_add(constraint);
 
         // Commit Key
         let (ck, _) = public_parameters.trim(2 * 70).unwrap();

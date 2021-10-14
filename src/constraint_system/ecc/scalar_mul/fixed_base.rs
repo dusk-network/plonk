@@ -140,14 +140,9 @@ impl TurboComposer {
 
         // FIXME this gate isn't verifying anything because all the selectors
         // are zeroed. Validate what was the intent
-        let constraint = Constraint::new();
-        self.append_gate(
-            acc_x,
-            acc_y,
-            self.constant_zero(),
-            last_accumulated_bit,
-            constraint,
-        );
+        let constraint =
+            Constraint::new().a(acc_x).b(acc_y).d(last_accumulated_bit);
+        self.append_gate(constraint);
 
         // Constrain the last element in the accumulator to be equal to the
         // input jubjub scalar

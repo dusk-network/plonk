@@ -17,12 +17,12 @@ use rand_core::OsRng;
 pub(crate) fn dummy_gadget(n: usize, composer: &mut TurboComposer) {
     let one = BlsScalar::one();
     let one = composer.append_witness(one);
-    let zero = composer.constant_zero();
 
     for _ in 0..n {
         // FIXME dummy gates with zeroed selectors doesn't make sense
-        let constraint = Constraint::new().left(1).right(1);
-        composer.gate_add(one, one, zero, constraint);
+        let constraint = Constraint::new().left(1).right(1).a(one).b(one);
+
+        composer.gate_add(constraint);
     }
 }
 
@@ -31,11 +31,11 @@ pub(crate) fn dummy_gadget_plonkup(n: usize, composer: &mut TurboComposer) {
     // FIXME duplicate of `dummy_gadget` for no clear reason
     let one = BlsScalar::one();
     let one = composer.append_witness(one);
-    let zero = composer.constant_zero();
 
     for _ in 0..n {
-        let constraint = Constraint::new().left(1).right(1);
-        composer.gate_add(one, one, zero, constraint);
+        let constraint = Constraint::new().left(1).right(1).a(one).b(one);
+
+        composer.gate_add(constraint);
     }
 }
 

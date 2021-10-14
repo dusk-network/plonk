@@ -88,7 +88,7 @@ impl TurboComposer {
     /// Create an identity [`WitnessPoint`] constrained by the circuit
     /// description
     pub fn append_constant_identity(&mut self) -> WitnessPoint {
-        let x = self.constant_zero();
+        let x = Self::constant_zero();
         let y = self.append_constant(BlsScalar::one());
 
         WitnessPoint { x, y }
@@ -128,13 +128,19 @@ impl TurboComposer {
     /// bit == 1 => a,
     /// bit == 0 => b,
     ///
-    /// `bit` is expected to be constrained by [`TurboComposer::gate_boolean`]
+    /// `bit` is expected to be constrained by
+    /// [`TurboComposer::component_boolean`]
     pub fn component_select_point(
         &mut self,
         a: WitnessPoint,
         b: WitnessPoint,
         bit: Witness,
     ) -> WitnessPoint {
+        debug_assert!(
+            self.witnesses[&bit] == BlsScalar::one()
+                || self.witnesses[&bit] == BlsScalar::zero()
+        );
+
         let x = self.component_select(bit, *a.x(), *b.x());
         let y = self.component_select(bit, *a.y(), *b.y());
 
@@ -147,14 +153,20 @@ impl TurboComposer {
     /// bit == 1 => a,
     /// bit == 0 => identity,
     ///
-    /// `bit` is expected to be constrained by [`TurboComposer::gate_boolean`]
+    /// `bit` is expected to be constrained by
+    /// [`TurboComposer::component_boolean`]
     pub fn component_select_identity(
         &mut self,
         bit: Witness,
         a: WitnessPoint,
     ) -> WitnessPoint {
-        let x = self.gate_select_zero(bit, *a.x());
-        let y = self.gate_select_one(bit, *a.y());
+        debug_assert!(
+            self.witnesses[&bit] == BlsScalar::one()
+                || self.witnesses[&bit] == BlsScalar::zero()
+        );
+
+        let x = self.component_select_zero(bit, *a.x());
+        let y = self.component_select_one(bit, *a.y());
 
         WitnessPoint { x, y }
     }
@@ -171,7 +183,7 @@ mod tests {
         let res = gadget_tester(
             |composer| {
                 let bit_1 = composer.append_witness(BlsScalar::one());
-                let bit_0 = composer.constant_zero();
+                let bit_0 = TurboComposer::constant_zero();
 
                 let point_a = composer.append_constant_identity();
                 let point_b = WitnessPoint {

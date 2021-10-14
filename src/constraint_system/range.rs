@@ -139,7 +139,7 @@ impl TurboComposer {
 
         // First we pad our gates by the necessary amount
         for i in 0..pad {
-            add_wire(self, i, self.constant_zero());
+            add_wire(self, i, Self::constant_zero());
         }
 
         for i in pad..=num_quads {
@@ -182,9 +182,9 @@ impl TurboComposer {
         // wire, which will be used in the gate before it
         // Furthermore, we set the left, right and output wires to zero
         *self.q_range.last_mut().unwrap() = BlsScalar::zero();
-        self.w_l.push(self.constant_zero());
-        self.w_r.push(self.constant_zero());
-        self.w_o.push(self.constant_zero());
+        self.w_l.push(Self::constant_zero());
+        self.w_r.push(Self::constant_zero());
+        self.w_o.push(Self::constant_zero());
 
         // Lastly, we must link the last accumulator value to the initial
         // witness This last constraint will pass as long as
