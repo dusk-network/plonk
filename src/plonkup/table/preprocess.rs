@@ -7,7 +7,7 @@
 use crate::commitment_scheme::{CommitKey, Commitment};
 use crate::error::Error;
 use crate::fft::{EvaluationDomain, Polynomial};
-use crate::plonkup::{IndexTable, MultiSet};
+use crate::plonkup::{LookupTable, MultiSet};
 
 /// This table will be the preprocessed version of the
 /// precomputed table, T, with arity 4. This structure
@@ -47,7 +47,7 @@ impl PreprocessedIndexTable {
     /// outputted struct will be used in the proof alongside our
     /// circuit witness table.
     pub fn preprocess(
-        table: &IndexTable,
+        table: &LookupTable,
         commit_key: &CommitKey,
         n: u32,
     ) -> Result<Self, Error> {

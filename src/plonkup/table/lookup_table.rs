@@ -23,18 +23,18 @@ use alloc::vec::Vec;
 /// the outputs of gates within arithmetic
 /// circuits.
 #[derive(Clone, Eq, PartialEq, Debug)]
-pub struct IndexTable(pub Vec<[BlsScalar; 4]>);
+pub struct LookupTable(pub Vec<[BlsScalar; 4]>);
 
-impl Default for IndexTable {
+impl Default for LookupTable {
     fn default() -> Self {
-        IndexTable::new()
+        LookupTable::new()
     }
 }
 
-impl IndexTable {
+impl LookupTable {
     /// Create a new, empty Plonkup table, with arity 4.
     pub fn new() -> Self {
-        IndexTable(vec![])
+        LookupTable(vec![])
     }
 
     /// Insert a new row for an addition operation.
@@ -370,7 +370,7 @@ impl IndexTable {
             }
         }
 
-        IndexTable(table)
+        LookupTable(table)
     }
 }
 
@@ -383,7 +383,7 @@ mod test {
         let n = 4;
 
         let table = {
-            let mut table = IndexTable::default();
+            let mut table = LookupTable::default();
             table.insert_multi_add(0, n);
             table
         };
@@ -412,7 +412,7 @@ mod test {
         let n = 4;
 
         let table = {
-            let mut table = IndexTable::default();
+            let mut table = LookupTable::default();
             table.insert_multi_xor(0, n);
             table
         };
@@ -439,7 +439,7 @@ mod test {
         let n = 4;
 
         let table = {
-            let mut table = IndexTable::default();
+            let mut table = LookupTable::default();
             table.insert_multi_mul(0, n);
             table
         };
@@ -464,7 +464,7 @@ mod test {
     #[test]
     fn test_lookup() {
         let add_table = {
-            let mut table = IndexTable::default();
+            let mut table = LookupTable::default();
             table.insert_multi_add(0, 3);
             table
         };
@@ -486,7 +486,7 @@ mod test {
     #[test]
     fn test_missing_lookup_value() {
         let xor_table = {
-            let mut table = IndexTable::default();
+            let mut table = LookupTable::default();
             table.insert_multi_xor(0, 5);
             table
         };
@@ -502,7 +502,7 @@ mod test {
 
     #[test]
     fn test_concatenated_table() {
-        let mut table = IndexTable::new();
+        let mut table = LookupTable::new();
 
         table.insert_multi_xor(0, 5);
         table.insert_multi_add(4, 7);

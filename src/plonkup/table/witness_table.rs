@@ -5,7 +5,7 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use crate::error::Error;
-use crate::plonkup::IndexTable;
+use crate::plonkup::LookupTable;
 use crate::plonkup::MultiSet;
 use dusk_bls12_381::BlsScalar;
 
@@ -80,7 +80,7 @@ impl WitnessTable {
     /// elements are pushed to their respective multisets.
     pub fn value_from_table(
         &mut self,
-        lookup_table: &IndexTable,
+        lookup_table: &LookupTable,
         left_wire_val: BlsScalar,
         right_wire_val: BlsScalar,
         fourth_wire_val: BlsScalar,
@@ -100,12 +100,12 @@ impl WitnessTable {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::plonkup::IndexTable;
+    use crate::plonkup::LookupTable;
 
     #[test]
     fn test_lookup() {
         // Build empty lookup tables
-        let mut lookup_table = IndexTable::new();
+        let mut lookup_table = LookupTable::new();
 
         // Add a consecutive set of tables, with
         // XOR operationd and addition operations
