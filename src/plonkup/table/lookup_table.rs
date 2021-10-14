@@ -7,9 +7,7 @@
 //! Structs and functions for LookupTables
 //! Denoted as 't' in Plonkup paper.
 
-use super::hash_tables::constants::{
-    BLS_SCALAR_REAL, DECOMPOSITION_S_I, SBOX_U256,
-};
+use super::hash_tables::constants::{BLS_SCALAR_REAL, DECOMPOSITION_S_I, SBOX};
 use crate::error::Error;
 use crate::plonkup::MultiSet;
 use crate::prelude::BlsScalar;
@@ -170,7 +168,7 @@ impl PlonkupTable3Arity {
             s_box.push([
                 BlsScalar([k, 0, 0, 0]),
                 BlsScalar([k, 0, 0, 0]),
-                BlsScalar(SBOX_U256[k as usize].0),
+                BlsScalar([SBOX[k as usize] as u64, 0, 0, 0]),
             ]);
         });
 
@@ -523,7 +521,7 @@ impl PlonkupTable4Arity {
         // Build the permutation part of the table (the top section)
         for k in 0..659 {
             let first = BlsScalar::from(k);
-            let third = BlsScalar::from_raw(SBOX_U256[k as usize].0);
+            let third = BlsScalar::from_raw([SBOX[k as usize] as u64, 0, 0, 0]);
             table.push([first, BlsScalar::zero(), third, BlsScalar::one()]);
         }
         // Build the remaining 27 sections that range from p' to s_i (except
@@ -532,12 +530,12 @@ impl PlonkupTable4Arity {
             // The rev denotes that it is inverted, so s_rev_26 will actually be
             // s_1 (i.e. i = 27-k)
             let s_rev_k = DECOMPOSITION_S_I[k].0[0];
-            let v_rev_k = BLS_SCALAR_REAL[k].as_u64();
+            let v_rev_k = BLS_SCALAR_REAL[k] as u64;
             // If i=1, then we go to v_1 and not s_1
             if k == 26 {
                 // v_1 = 678
                 for j in 659..(v_rev_k + 1) {
-                    let first = BlsScalar::from(j);
+                    let first = BlsScalar::from(j as u64);
 
                     // Fourth column is 1, unless j=v_i, in which case it is 0
                     let fourth = if j == v_rev_k {

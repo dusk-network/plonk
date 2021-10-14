@@ -14,7 +14,6 @@ description = "A pure-Rust implementation of the PLONK ZK-Proof algorithm"
 exclude = [ ".github/" ]
 
 [dependencies]
-bigint = "4.4"
 merlin = {version = "3.0", default-features = false}
 rand_core = {version="0.6", default-features=false}
 dusk-bytes = "0.1"
