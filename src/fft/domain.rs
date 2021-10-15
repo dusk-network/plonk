@@ -406,7 +406,7 @@ mod tests {
 
     #[test]
     fn dusk_bytes_evaluation_domain_serde() {
-        let eval_domain = EvaluationDomain::new(1 << 13 - 1)
+        let eval_domain = EvaluationDomain::new(1 << (13 - 1))
             .expect("Error in eval_domain generation");
         let bytes = eval_domain.to_bytes();
         let obtained_eval_domain = EvaluationDomain::from_slice(&bytes)
