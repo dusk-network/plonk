@@ -170,8 +170,7 @@ mod tests {
                     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                     0, 0,
                 ]);
-                let bls_scalar =
-                    BlsScalar::from_bytes(&scalar.to_bytes()).unwrap();
+                let bls_scalar = BlsScalar::from(scalar);
                 let secret_scalar = composer.append_witness(bls_scalar);
 
                 let expected_point: JubJubAffine =
@@ -193,8 +192,7 @@ mod tests {
         let res = gadget_tester(
             |composer| {
                 let scalar = JubJubScalar::zero();
-                let bls_scalar =
-                    BlsScalar::from_bytes(&scalar.to_bytes()).unwrap();
+                let bls_scalar = BlsScalar::from(scalar);
                 let secret_scalar = composer.append_witness(bls_scalar);
 
                 let expected_point: JubJubAffine =
@@ -216,8 +214,7 @@ mod tests {
         let res = gadget_tester(
             |composer| {
                 let scalar = JubJubScalar::from(100u64);
-                let bls_scalar =
-                    BlsScalar::from_bytes(&scalar.to_bytes()).unwrap();
+                let bls_scalar = BlsScalar::from(scalar);
                 let secret_scalar = composer.append_witness(bls_scalar);
                 // Fails because we are not multiplying by the GENERATOR, it is
                 // double
@@ -286,16 +283,14 @@ mod tests {
             |composer| {
                 // First component
                 let scalar_a = JubJubScalar::from(112233u64);
-                let bls_scalar =
-                    BlsScalar::from_bytes(&scalar_a.to_bytes()).unwrap();
+                let bls_scalar = BlsScalar::from(scalar_a);
                 let secret_scalar_a = composer.append_witness(bls_scalar);
                 let point_a = GENERATOR_EXTENDED;
                 let c_a: JubJubAffine = (point_a * scalar_a).into();
 
                 // Second component
                 let scalar_b = JubJubScalar::from(445566u64);
-                let bls_scalar =
-                    BlsScalar::from_bytes(&scalar_b.to_bytes()).unwrap();
+                let bls_scalar = BlsScalar::from(scalar_b);
                 let secret_scalar_b = composer.append_witness(bls_scalar);
                 let point_b = point_a.double() + point_a;
                 let c_b: JubJubAffine = (point_b * scalar_b).into();
@@ -339,23 +334,19 @@ mod tests {
             |composer| {
                 // First component
                 let scalar_a = JubJubScalar::from(25u64);
-                let bls_scalar_a =
-                    BlsScalar::from_bytes(&scalar_a.to_bytes()).unwrap();
+                let bls_scalar_a = BlsScalar::from(scalar_a);
                 let secret_scalar_a = composer.append_witness(bls_scalar_a);
                 // Second component
                 let scalar_b = JubJubScalar::from(30u64);
-                let bls_scalar_b =
-                    BlsScalar::from_bytes(&scalar_b.to_bytes()).unwrap();
+                let bls_scalar_b = BlsScalar::from(scalar_b);
                 let secret_scalar_b = composer.append_witness(bls_scalar_b);
                 // Third component
                 let scalar_c = JubJubScalar::from(10u64);
-                let bls_scalar_c =
-                    BlsScalar::from_bytes(&scalar_c.to_bytes()).unwrap();
+                let bls_scalar_c = BlsScalar::from(scalar_c);
                 let secret_scalar_c = composer.append_witness(bls_scalar_c);
                 // Fourth component
                 let scalar_d = JubJubScalar::from(45u64);
-                let bls_scalar_d =
-                    BlsScalar::from_bytes(&scalar_d.to_bytes()).unwrap();
+                let bls_scalar_d = BlsScalar::from(scalar_d);
                 let secret_scalar_d = composer.append_witness(bls_scalar_d);
 
                 let gen = GENERATOR_EXTENDED;
