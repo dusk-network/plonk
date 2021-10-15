@@ -17,7 +17,6 @@ pub(crate) mod table;
 pub use multiset::MultiSet;
 pub use table::hash_tables::constants;
 pub use table::{
-    lookup_table::{PlonkupTable3Arity, PlonkupTable4Arity},
-    preprocess::{PreprocessedTable3Arity, PreprocessedTable4Arity},
-    witness_table::{WitnessTable3Arity, WitnessTable4Arity},
+    lookup_table::LookupTable, preprocess::PreprocessedLookupTable,
+    witness_table::WitnessTable,
 };
