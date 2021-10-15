@@ -658,8 +658,8 @@ mod test {
         let domain = EvaluationDomain::new(4 * n).unwrap();
         let values: Vec<_> =
             (0..4 * n).map(|_| BlsScalar::random(&mut OsRng)).collect();
-        let evaluations = Evaluations::from_vec_and_domain(values, domain);
-        evaluations
+
+        Evaluations::from_vec_and_domain(values, domain)
     }
 
     fn rand_multiset(n: usize) -> (MultiSet, Polynomial, Evaluations) {
