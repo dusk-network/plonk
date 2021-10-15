@@ -592,50 +592,28 @@ mod test {
                 // 1 / w_{3n+j} + beta * sigma(3n+j) + gamma
                 let ac8 = (w_4_gamma + beta_fourth_sigma).invert().unwrap();
 
-                (ac1, ac2, ac3, ac4, ac5, ac6, ac7, ac8)
+                [ac1, ac2, ac3, ac4, ac5, ac6, ac7, ac8]
             },
         )
         .collect();
 
         // Prepend ones to the beginning of each accumulator to signify L_1(x)
-        let accumulator_components = core::iter::once((
-            BlsScalar::one(),
-            BlsScalar::one(),
-            BlsScalar::one(),
-            BlsScalar::one(),
-            BlsScalar::one(),
-            BlsScalar::one(),
-            BlsScalar::one(),
-            BlsScalar::one(),
-        ))
-        .chain(accumulator_components_without_l1);
+        let accumulator_components = core::iter::once([BlsScalar::one(); 8])
+            .chain(accumulator_components_without_l1);
 
         // Multiply each component of the accumulators
         // A simplified example is the following:
         // A1 = [1,2,3,4]
         // result = [1, 1*2, 1*2*3, 1*2*3*4]
         // Non Parallelizable
-        let mut prev = (
-            BlsScalar::one(),
-            BlsScalar::one(),
-            BlsScalar::one(),
-            BlsScalar::one(),
-            BlsScalar::one(),
-            BlsScalar::one(),
-            BlsScalar::one(),
-            BlsScalar::one(),
-        );
-        let product_accumulated_components: Vec<_> = accumulator_components
-            .map(move |current_component| {
-                prev.0 *= current_component.0;
-                prev.1 *= current_component.1;
-                prev.2 *= current_component.2;
-                prev.3 *= current_component.3;
-                prev.4 *= current_component.4;
-                prev.5 *= current_component.5;
-                prev.6 *= current_component.6;
-                prev.7 *= current_component.7;
+        let mut prev = [BlsScalar::one(); 8];
 
+        let product_accumulated_components: Vec<_> = accumulator_components
+            .map(|current_component| {
+                current_component
+                    .iter()
+                    .zip(prev.iter_mut())
+                    .for_each(|(curr, prev)| *prev *= curr);
                 prev
             })
             .collect();
@@ -650,19 +628,7 @@ mod test {
         // Parallelizable
         let mut z: Vec<_> = product_accumulated_components
             .iter()
-            .map(move |current_component| {
-                let mut prev = BlsScalar::one();
-                prev *= current_component.0;
-                prev *= current_component.1;
-                prev *= current_component.2;
-                prev *= current_component.3;
-                prev *= current_component.4;
-                prev *= current_component.5;
-                prev *= current_component.6;
-                prev *= current_component.7;
-
-                prev
-            })
+            .map(move |current_component| current_component.iter().product())
             .collect();
         // Remove the last(n+1'th) element
         z.remove(n);
