@@ -72,9 +72,9 @@ impl TurboComposer {
 mod tests {
     use crate::constraint_system::helper::*;
     use dusk_bls12_381::BlsScalar;
-    use dusk_bytes::Serializable;
     use dusk_jubjub::GENERATOR;
     use dusk_jubjub::{JubJubAffine, JubJubExtended, JubJubScalar};
+
     #[test]
     fn test_var_base_scalar_mul() {
         let res = gadget_tester(
@@ -86,8 +86,7 @@ mod tests {
                     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                     0, 0,
                 ]);
-                let bls_scalar =
-                    BlsScalar::from_bytes(&scalar.to_bytes()).unwrap();
+                let bls_scalar = BlsScalar::from(scalar);
                 let secret_scalar = composer.append_witness(bls_scalar);
 
                 let expected_point: JubJubAffine =
