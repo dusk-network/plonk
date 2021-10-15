@@ -14,7 +14,7 @@ use crate::plonkup::{LookupTable, MultiSet};
 /// is passed to the proof alongside the table of witness
 /// values.
 #[derive(Clone, Eq, PartialEq, Debug)]
-pub struct PreprocessedIndexTable {
+pub struct PreprocessedLookupTable {
     /// This is the circuit size
     pub n: u32,
 
@@ -39,7 +39,7 @@ pub struct PreprocessedIndexTable {
     pub(crate) t_4: (MultiSet, Commitment, Polynomial),
 }
 
-impl PreprocessedIndexTable {
+impl PreprocessedLookupTable {
     /// This function takes in a precomputed look up table and
     /// pads it to the length of the circuit entries, as a power
     /// of 2. The function then interpolates a polynomial from the
@@ -75,7 +75,7 @@ impl PreprocessedIndexTable {
         let t_3_commit = commit_key.commit(&t_3_poly)?;
         let t_4_commit = commit_key.commit(&t_4_poly)?;
 
-        Ok(PreprocessedIndexTable {
+        Ok(PreprocessedLookupTable {
             n,
             t_1: (t_1, t_1_commit, t_1_poly),
             t_2: (t_2, t_2_commit, t_2_poly),
