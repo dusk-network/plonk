@@ -28,43 +28,6 @@ impl TurboComposer {
 
         result
     }
-
-    /*
-    fn scalar_decomposition(&mut self, witness: Witness) -> Vec<Witness> {
-        // Decompose the bits
-        let scalar_bits = self.gate_decomposition(witness);
-
-        // Take the first 252 bits
-        let scalar_bits_witness = scalar_bits[..252].to_vec();
-
-        // Now ensure that the bits correctly accumulate to the witness given
-        let mut accumulator_witness = self.constant_zero();
-        let mut accumulator_scalar = BlsScalar::zero();
-
-        for (power, bit) in scalar_bits_witness.iter().enumerate() {
-            self.gate_boolean(*bit);
-
-            let two_pow = BlsScalar::pow_of_2(power as u64);
-
-            accumulator_witness = self.gate_add(
-                *bit,
-                accumulator_witness,
-                self.constant_zero(),
-                two_pow,
-                BlsScalar::one(),
-                BlsScalar::zero(),
-                BlsScalar::zero(),
-                None,
-            );
-
-            accumulator_scalar += two_pow * self.witnesses[&scalar_bits[power]];
-        }
-
-        self.assert_equal(accumulator_witness, witness);
-
-        scalar_bits_witness
-    }
-    */
 }
 
 #[cfg(feature = "std")]

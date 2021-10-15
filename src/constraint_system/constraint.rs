@@ -4,20 +4,21 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
+use crate::constraint_system::{TurboComposer, Witness};
 use dusk_bls12_381::BlsScalar;
 
-/// Index the coefficients in a polynomial description of the circuit
+/// Selectors used to address a coefficient inside of a [`Constraint`]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Selector {
-    /// Multiplication coefficient index `q_m`
+    /// Multiplication coefficient `q_m`
     Multiplication = 0x00,
-    /// Left coefficient index `q_l`
+    /// Left coefficient `q_l`
     Left = 0x01,
-    /// Right coefficient index `q_r`
+    /// Right coefficient `q_r`
     Right = 0x02,
-    /// Output coefficient index `q_o`
+    /// Output coefficient `q_o`
     Output = 0x03,
-    /// Fourth advice coefficient index `q_4`
+    /// Fourth advice coefficient `q_4`
     Fourth = 0x04,
     /// Constant expression `q_c`
     Constant = 0x05,
@@ -38,11 +39,25 @@ pub(crate) enum Selector {
     Lookup = 0x0c,
 }
 
+/// Wire used to address a witness inside of a [`Constraint`]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum WiredWitness {
+    /// `A` witness
+    A = 0x00,
+    /// `B` witness
+    B = 0x01,
+    /// `O` witness
+    O = 0x02,
+    /// `D` witness
+    D = 0x03,
+}
+
 /// Constraint representation containing the coefficients of a polynomial
 /// evaluation
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Constraint {
     coefficients: [BlsScalar; 13],
+    witnesses: [Witness; 4],
 
     // TODO Workaround solution to keep the sparse public input indexes in the
     // composer
@@ -66,6 +81,12 @@ pub struct Constraint {
     has_public_input: bool,
 }
 
+impl Default for Constraint {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AsRef<[BlsScalar]> for Constraint {
     fn as_ref(&self) -> &[BlsScalar] {
         &self.coefficients
@@ -77,6 +98,7 @@ impl Constraint {
     pub const fn new() -> Self {
         Self {
             coefficients: [BlsScalar::zero(); 13],
+            witnesses: [TurboComposer::constant_zero(); 4],
             has_public_input: false,
         }
     }
@@ -87,16 +109,20 @@ impl Constraint {
         self
     }
 
-    fn copy_public_selectors(mut self, rhs: &Self) -> Self {
+    fn from_external(constraint: &Self) -> Self {
         const EXTERNAL: usize = Selector::Arithmetic as usize;
 
-        let src = &rhs.coefficients[..EXTERNAL];
-        let dst = &mut self.coefficients[..EXTERNAL];
+        let mut s = Self::default();
+
+        let src = &constraint.coefficients[..EXTERNAL];
+        let dst = &mut s.coefficients[..EXTERNAL];
 
         dst.copy_from_slice(src);
-        self.has_public_input = rhs.has_public_input();
 
-        self
+        s.has_public_input = constraint.has_public_input();
+        s.witnesses.copy_from_slice(&constraint.witnesses);
+
+        s
     }
 
     /// Return a reference to the specified selector of a circuit constraint.
@@ -104,30 +130,32 @@ impl Constraint {
         &self.coefficients[r as usize]
     }
 
-    /// Set `s` as the polynomial selector for the multiplication coefficient
-    /// index.
-    #[allow(clippy::should_implement_trait)]
-    pub fn mul<T: Into<BlsScalar>>(self, s: T) -> Self {
+    /// Return the wired witness in the constraint
+    pub(crate) const fn witness(&self, w: WiredWitness) -> Witness {
+        self.witnesses[w as usize]
+    }
+
+    /// Set `s` as the polynomial selector for the multiplication coefficient.
+    pub fn mult<T: Into<BlsScalar>>(self, s: T) -> Self {
         self.set(Selector::Multiplication, s)
     }
 
-    /// Set `s` as the polynomial selector for the left coefficient index.
+    /// Set `s` as the polynomial selector for the left coefficient.
     pub fn left<T: Into<BlsScalar>>(self, s: T) -> Self {
         self.set(Selector::Left, s)
     }
 
-    /// Set `s` as the polynomial selector for the right coefficient index.
+    /// Set `s` as the polynomial selector for the right coefficient.
     pub fn right<T: Into<BlsScalar>>(self, s: T) -> Self {
         self.set(Selector::Right, s)
     }
 
-    /// Set `s` as the polynomial selector for the output coefficient index.
+    /// Set `s` as the polynomial selector for the output coefficient.
     pub fn output<T: Into<BlsScalar>>(self, s: T) -> Self {
         self.set(Selector::Output, s)
     }
 
-    /// Set `s` as the polynomial selector for the fourth (advice) coefficient
-    /// index.
+    /// Set `s` as the polynomial selector for the fourth (advice) coefficient.
     pub fn fourth<T: Into<BlsScalar>>(self, s: T) -> Self {
         self.set(Selector::Fourth, s)
     }
@@ -144,31 +172,54 @@ impl Constraint {
         self.set(Selector::PublicInput, s)
     }
 
+    /// Set witness `a` wired to `qM` and `qL`
+    pub fn a(mut self, w: Witness) -> Self {
+        self.witnesses[WiredWitness::A as usize] = w;
+
+        self
+    }
+
+    /// Set witness `b` wired to `qM` and `qR`
+    pub fn b(mut self, w: Witness) -> Self {
+        self.witnesses[WiredWitness::B as usize] = w;
+
+        self
+    }
+
+    /// Set witness `o` wired to `qO`
+    pub fn o(mut self, w: Witness) -> Self {
+        self.witnesses[WiredWitness::O as usize] = w;
+
+        self
+    }
+
+    /// Set witness `d` wired to the fourth/advice `q4` coefficient
+    pub fn d(mut self, w: Witness) -> Self {
+        self.witnesses[WiredWitness::D as usize] = w;
+
+        self
+    }
+
     pub(crate) const fn has_public_input(&self) -> bool {
         self.has_public_input
     }
 
     pub(crate) fn arithmetic(s: &Self) -> Self {
-        Self::default()
-            .copy_public_selectors(s)
-            .set(Selector::Arithmetic, 1)
+        Self::from_external(s).set(Selector::Arithmetic, 1)
     }
 
     #[allow(dead_code)]
     // TODO to be used when `TurboComposer` replaces internal selectors with
     // this struct
     pub(crate) fn range(s: &Self) -> Self {
-        Self::default()
-            .copy_public_selectors(s)
-            .set(Selector::Range, 1)
+        Self::from_external(s).set(Selector::Range, 1)
     }
 
     #[allow(dead_code)]
     // TODO to be used when `TurboComposer` replaces internal selectors with
     // this struct
     pub(crate) fn logic(s: &Self) -> Self {
-        Self::default()
-            .copy_public_selectors(s)
+        Self::from_external(s)
             .set(Selector::Constant, 1)
             .set(Selector::Logic, 1)
     }
@@ -177,8 +228,7 @@ impl Constraint {
     // TODO to be used when `TurboComposer` replaces internal selectors with
     // this struct
     pub(crate) fn logic_xor(s: &Self) -> Self {
-        Self::default()
-            .copy_public_selectors(s)
+        Self::from_external(s)
             .set(Selector::Constant, -BlsScalar::one())
             .set(Selector::Logic, -BlsScalar::one())
     }
@@ -187,26 +237,20 @@ impl Constraint {
     // TODO to be used when `TurboComposer` replaces internal selectors with
     // this struct
     pub(crate) fn group_add_fixed_base(s: &Self) -> Self {
-        Self::default()
-            .copy_public_selectors(s)
-            .set(Selector::GroupAddFixedBase, 1)
+        Self::from_external(s).set(Selector::GroupAddFixedBase, 1)
     }
 
     #[allow(dead_code)]
     // TODO to be used when `TurboComposer` replaces internal selectors with
     // this struct
     pub(crate) fn group_add_variable_base(s: &Self) -> Self {
-        Self::default()
-            .copy_public_selectors(s)
-            .set(Selector::GroupAddVariableBase, 1)
+        Self::from_external(s).set(Selector::GroupAddVariableBase, 1)
     }
 
     #[allow(dead_code)]
     // TODO to be used when `TurboComposer` replaces internal selectors with
     // this struct
     pub(crate) fn lookup(s: &Self) -> Self {
-        Self::default()
-            .copy_public_selectors(s)
-            .set(Selector::Lookup, 1)
+        Self::from_external(s).set(Selector::Lookup, 1)
     }
 }

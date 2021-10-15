@@ -33,8 +33,6 @@ impl Circuit for BenchCircuit {
         let mut b = BlsScalar::from(3u64);
         let mut c;
 
-        let zero = composer.constant_zero();
-
         while composer.gates() < self.padded_gates() {
             a += BlsScalar::one();
             b += BlsScalar::one();
@@ -45,13 +43,16 @@ impl Circuit for BenchCircuit {
             let z = composer.append_witness(c);
 
             let constraint = Constraint::new()
-                .mul(1)
+                .mult(1)
                 .left(1)
                 .right(1)
                 .output(-BlsScalar::one())
-                .constant(1);
+                .constant(1)
+                .a(x)
+                .b(y)
+                .o(z);
 
-            composer.append_gate(x, y, z, zero, constraint);
+            composer.append_gate(constraint);
         }
 
         Ok(())

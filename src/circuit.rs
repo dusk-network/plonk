@@ -152,7 +152,7 @@ impl VerifierData {
 ///         composer: &mut TurboComposer,
 ///     ) -> Result<(), Error> {
 ///         // Add fixed witness zero
-///         let zero = composer.constant_zero();
+///         let zero = TurboComposer::constant_zero();
 ///         let a = composer.append_witness(self.a);
 ///         let b = composer.append_witness(self.b);
 ///
@@ -160,15 +160,11 @@ impl VerifierData {
 ///         let constraint = Constraint::new()
 ///             .left(1)
 ///             .right(1)
-///             .public(-self.c);
+///             .public(-self.c)
+///             .a(a)
+///             .b(b);
 ///
-///         composer.append_gate(
-///             a,
-///             b,
-///             zero,
-///             zero,
-///             constraint,
-///         );
+///         composer.append_gate(constraint);
 ///
 ///         // Check that a and b are in range
 ///         composer.component_range(a, 1 << 6);
@@ -176,17 +172,13 @@ impl VerifierData {
 ///
 ///         // Make second constraint a * b = d
 ///         let constraint = Constraint::new()
-///             .mul(1)
+///             .mult(1)
 ///             .output(1)
-///             .public(-self.d);
+///             .public(-self.d)
+///             .a(a)
+///             .b(b);
 ///
-///         composer.append_gate(
-///             a,
-///             b,
-///             zero,
-///             zero,
-///             constraint,
-///         );
+///         composer.append_gate(constraint);
 ///
 ///         let e = composer.append_witness(self.e);
 ///         let scalar_mul_result =

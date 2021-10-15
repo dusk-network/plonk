@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Change `StandardComposer` to `TurboComposer`. [#288](https://github.com/dusk-network/plonk/issue/288)
 - Change `TurboComposer` to consistent API. [#587](https://github.com/dusk-network/plonk/issue/587)
 - Change `plonkup_gate` to use public inputs. [#584](https://github.com/dusk-network/plonk/issue/584)
+- Change `Constraint` to accept witness args. [#624](https://github.com/dusk-network/plonk/issue/624)
 
 ### Fixed
 
