@@ -8,7 +8,7 @@
 
 use crate::commitment_scheme::CommitKey;
 use crate::constraint_system::TurboComposer;
-use crate::plonkup::PreprocessedTable4Arity;
+use crate::plonkup::PreprocessedLookupTable;
 
 use crate::error::Error;
 use crate::fft::{EvaluationDomain, Evaluations, Polynomial};
@@ -318,7 +318,7 @@ impl TurboComposer {
         (
             widget::VerifierKey,
             SelectorPolynomials,
-            PreprocessedTable4Arity,
+            PreprocessedLookupTable,
             EvaluationDomain,
         ),
         Error,
@@ -393,7 +393,7 @@ impl TurboComposer {
         let fourth_sigma_poly_commit = commit_key.commit(&fourth_sigma_poly)?;
 
         // Preprocess the lookup table
-        let preprocessed_table = PreprocessedTable4Arity::preprocess(
+        let preprocessed_table = PreprocessedLookupTable::preprocess(
             &self.lookup_table,
             commit_key,
             domain.size() as u32,

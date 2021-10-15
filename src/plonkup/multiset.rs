@@ -242,7 +242,7 @@ impl Mul for MultiSet {
 mod test {
     use super::*;
     use crate::fft::EvaluationDomain;
-    use crate::plonkup::WitnessTable3Arity;
+    use crate::plonkup::WitnessTable;
 
     #[test]
     fn test_halve() {
@@ -384,7 +384,7 @@ mod test {
         let alpha = BlsScalar::from(2);
         let alpha_squared = alpha * alpha;
 
-        let mut table = WitnessTable3Arity::default();
+        let mut table = WitnessTable::default();
 
         // Fill in wires directly, no need to use a
         // plonkup table as this will not be going
@@ -393,6 +393,7 @@ mod test {
             BlsScalar::from(1),
             BlsScalar::from(2),
             BlsScalar::from(3),
+            BlsScalar::from(4),
         );
 
         // Computed expected result

@@ -20,7 +20,7 @@
 
 use crate::constraint_system::{Constraint, Selector, Witness};
 use crate::permutation::Permutation;
-use crate::plonkup::PlonkupTable4Arity;
+use crate::plonkup::LookupTable;
 use alloc::collections::BTreeMap;
 use alloc::vec::Vec;
 use dusk_bls12_381::BlsScalar;
@@ -96,7 +96,7 @@ pub struct TurboComposer {
     pub(crate) w_4: Vec<Witness>,
 
     /// Public lookup table
-    pub(crate) lookup_table: PlonkupTable4Arity,
+    pub(crate) lookup_table: LookupTable,
 
     /// A zero Witness that is a part of the circuit description.
     /// We reserve a variable to be zero in the system
@@ -218,7 +218,7 @@ impl TurboComposer {
             w_o: Vec::with_capacity(size),
             w_4: Vec::with_capacity(size),
 
-            lookup_table: PlonkupTable4Arity::new(),
+            lookup_table: LookupTable::new(),
 
             constant_zero: Witness::new(0),
 
@@ -760,7 +760,7 @@ impl TurboComposer {
     /// When [`TurboComposer`] is initialised, it spawns a dummy table
     /// with 3 entries that should not be removed. This function appends
     /// its input table to the composer's dummy table
-    pub fn append_plonkup_table(&mut self, table: &PlonkupTable4Arity) {
+    pub fn append_plonkup_table(&mut self, table: &LookupTable) {
         table.0.iter().for_each(|k| self.lookup_table.0.push(*k))
     }
 }
@@ -828,7 +828,7 @@ mod tests {
 
     #[test]
     fn test_gadget() {
-        let mut t = PlonkupTable4Arity::new();
+        let mut t = LookupTable::new();
         t.insert_special_row(
             BlsScalar::from(12),
             BlsScalar::from(12),
@@ -872,7 +872,7 @@ mod tests {
     #[test]
     #[should_panic]
     fn test_gadget_fail() {
-        let mut t = PlonkupTable4Arity::new();
+        let mut t = LookupTable::new();
         t.insert_special_row(
             BlsScalar::from(12),
             BlsScalar::from(12),
