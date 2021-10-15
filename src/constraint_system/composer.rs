@@ -584,22 +584,22 @@ impl TurboComposer {
         let w_l: Vec<&BlsScalar> = self
             .w_l
             .iter()
-            .map(|w_l_i| self.witnesses.get(&w_l_i).unwrap())
+            .map(|w_l_i| self.witnesses.get(w_l_i).unwrap())
             .collect();
         let w_r: Vec<&BlsScalar> = self
             .w_r
             .iter()
-            .map(|w_r_i| self.witnesses.get(&w_r_i).unwrap())
+            .map(|w_r_i| self.witnesses.get(w_r_i).unwrap())
             .collect();
         let w_o: Vec<&BlsScalar> = self
             .w_o
             .iter()
-            .map(|w_o_i| self.witnesses.get(&w_o_i).unwrap())
+            .map(|w_o_i| self.witnesses.get(w_o_i).unwrap())
             .collect();
         let w_4: Vec<&BlsScalar> = self
             .w_4
             .iter()
-            .map(|w_4_i| self.witnesses.get(&w_4_i).unwrap())
+            .map(|w_4_i| self.witnesses.get(w_4_i).unwrap())
             .collect();
 
         // Computes f(f-1)(f-2)(f-3)
@@ -985,7 +985,8 @@ mod tests {
         // So pre-fetch these before calling Prove
         let public_inputs = prover.cs.to_dense_public_inputs();
 
-        (prover.prove(&ck).unwrap(), public_inputs);
+        prover.prove(&ck).unwrap();
+        drop(public_inputs);
     }
 
     #[test]
