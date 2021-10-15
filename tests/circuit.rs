@@ -36,28 +36,22 @@ impl Circuit for TestCircuit {
         let b = composer.append_witness(self.b);
 
         // Make first constraint a + b = c
-        let constraint = Constraint::new().left(1).right(1).public(-self.c);
-        composer.append_gate(
-            a,
-            b,
-            composer.constant_zero(),
-            composer.constant_zero(),
-            constraint,
-        );
+        let constraint =
+            Constraint::new().left(1).right(1).public(-self.c).a(a).b(b);
+        composer.append_gate(constraint);
 
         // Check that a and b are in range
         composer.component_range(a, 1 << 6);
         composer.component_range(b, 1 << 5);
 
         // Make second constraint a * b = d
-        let constraint = Constraint::new().mul(1).output(1).public(-self.d);
-        composer.append_gate(
-            a,
-            b,
-            composer.constant_zero(),
-            composer.constant_zero(),
-            constraint,
-        );
+        let constraint = Constraint::new()
+            .mult(1)
+            .output(1)
+            .public(-self.d)
+            .a(a)
+            .b(b);
+        composer.append_gate(constraint);
 
         let e = composer.append_witness(self.e);
         let scalar_mul_result = composer

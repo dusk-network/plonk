@@ -53,7 +53,7 @@ impl TurboComposer {
 
         self.w_l.extend(&[x_1, x_3]);
         self.w_r.extend(&[y_1, y_3]);
-        self.w_o.extend(&[x_2, self.constant_zero()]);
+        self.w_o.extend(&[x_2, Self::constant_zero()]);
         self.w_4.extend(&[y_2, x_1_y_2]);
         let zeros = [BlsScalar::zero(), BlsScalar::zero()];
 
@@ -78,7 +78,7 @@ impl TurboComposer {
         self.perm.add_variables_to_map(
             x_3,
             y_3,
-            self.constant_zero(),
+            Self::constant_zero(),
             x_1_y_2,
             self.n,
         );
@@ -105,42 +105,43 @@ mod test {
         a: WitnessPoint,
         b: WitnessPoint,
     ) -> WitnessPoint {
-        let zero = composer.constant_zero();
-
         let x1 = a.x;
         let y1 = a.y;
 
         let x2 = b.x;
         let y2 = b.y;
 
-        let constraint = Constraint::new().mul(1);
-
         // x1 * y2
-        // y1 * x2
-        // y1 * y2
-        // x1 * x2
+        let constraint = Constraint::new().mult(1).a(x1).b(y2);
+        let x1_y2 = composer.gate_mul(constraint);
 
-        let x1_y2 = composer.gate_mul(x1, y2, zero, constraint);
-        let y1_x2 = composer.gate_mul(y1, x2, zero, constraint);
-        let y1_y2 = composer.gate_mul(y1, y2, zero, constraint);
-        let x1_x2 = composer.gate_mul(x1, x2, zero, constraint);
+        // y1 * x2
+        let constraint = Constraint::new().mult(1).a(y1).b(x2);
+        let y1_x2 = composer.gate_mul(constraint);
+
+        // y1 * y2
+        let constraint = Constraint::new().mult(1).a(y1).b(y2);
+        let y1_y2 = composer.gate_mul(constraint);
+
+        // x1 * x2
+        let constraint = Constraint::new().mult(1).a(x1).b(x2);
+        let x1_x2 = composer.gate_mul(constraint);
 
         // d x1x2 * y1y2
-        let constraint = Constraint::new().mul(EDWARDS_D);
-        let d_x1_x2_y1_y2 = composer.gate_mul(x1_x2, y1_y2, zero, constraint);
-
-        let constraint = Constraint::new().left(1).right(1);
+        let constraint = Constraint::new().mult(EDWARDS_D).a(x1_x2).b(y1_y2);
+        let d_x1_x2_y1_y2 = composer.gate_mul(constraint);
 
         // x1y2 + y1x2
-        // y1y2 - a * x1x2 (a=-1) => y1y2 + x1x2
+        let constraint = Constraint::new().left(1).right(1).a(x1_y2).b(y1_x2);
+        let x_numerator = composer.gate_add(constraint);
 
-        let x_numerator = composer.gate_add(x1_y2, y1_x2, zero, constraint);
-        let y_numerator = composer.gate_add(y1_y2, x1_x2, zero, constraint);
+        // y1y2 - a * x1x2 (a=-1) => y1y2 + x1x2
+        let constraint = Constraint::new().left(1).right(1).a(y1_y2).b(x1_x2);
+        let y_numerator = composer.gate_add(constraint);
 
         // 1 + dx1x2y1y2
-        let constraint = Constraint::new().left(1).constant(1);
-        let x_denominator =
-            composer.gate_add(d_x1_x2_y1_y2, zero, zero, constraint);
+        let constraint = Constraint::new().left(1).constant(1).a(d_x1_x2_y1_y2);
+        let x_denominator = composer.gate_add(constraint);
 
         // Compute the inverse
         let inv_x_denom = unsafe {
@@ -148,22 +149,21 @@ mod test {
         };
         let inv_x_denom = composer.append_witness(inv_x_denom);
 
-        let constraint = Constraint::new().mul(1).constant(-BlsScalar::one());
-
         // Assert that we actually have the inverse
         // inv_x * x = 1
-        composer.append_gate(
-            x_denominator,
-            inv_x_denom,
-            zero,
-            zero,
-            constraint,
-        );
+        let constraint = Constraint::new()
+            .mult(1)
+            .constant(-BlsScalar::one())
+            .a(x_denominator)
+            .b(inv_x_denom);
+        composer.append_gate(constraint);
 
         // 1 - dx1x2y1y2
-        let constraint = Constraint::new().left(-BlsScalar::one()).constant(1);
-        let y_denominator =
-            composer.gate_add(d_x1_x2_y1_y2, zero, zero, constraint);
+        let constraint = Constraint::new()
+            .left(-BlsScalar::one())
+            .constant(1)
+            .a(d_x1_x2_y1_y2);
+        let y_denominator = composer.gate_add(constraint);
 
         let inv_y_denom = unsafe {
             composer.evaluate_witness(&y_denominator).invert().unwrap()
@@ -172,20 +172,21 @@ mod test {
 
         // Assert that we actually have the inverse
         // inv_y * y = 1
-        let constraint = Constraint::new().mul(1).constant(-BlsScalar::one());
-        composer.append_gate(
-            y_denominator,
-            inv_y_denom,
-            zero,
-            zero,
-            constraint,
-        );
+        let constraint = Constraint::new()
+            .mult(1)
+            .constant(-BlsScalar::one())
+            .a(y_denominator)
+            .b(inv_y_denom);
+        composer.append_gate(constraint);
 
         // We can now use the inverses
-        let constraint = Constraint::new().mul(1);
+        let constraint =
+            Constraint::new().mult(1).a(inv_x_denom).b(x_numerator);
+        let x_3 = composer.gate_mul(constraint);
 
-        let x_3 = composer.gate_mul(inv_x_denom, x_numerator, zero, constraint);
-        let y_3 = composer.gate_mul(inv_y_denom, y_numerator, zero, constraint);
+        let constraint =
+            Constraint::new().mult(1).a(inv_y_denom).b(y_numerator);
+        let y_3 = composer.gate_mul(constraint);
 
         WitnessPoint { x: x_3, y: y_3 }
     }

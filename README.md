@@ -43,15 +43,11 @@ impl Circuit for TestCircuit {
         let constraint = Constraint::new()
             .left(1)
             .right(1)
-            .public(-self.c);
+            .public(-self.c)
+            .a(a)
+            .b(b);
 
-        composer.append_gate(
-            a,
-            b,
-            composer.constant_zero(),
-            composer.constant_zero(),
-            constraint,
-        );
+        composer.append_gate(constraint);
 
         // Check that a and b are in range
         composer.component_range(a, 1 << 6);
@@ -59,17 +55,13 @@ impl Circuit for TestCircuit {
 
         // Make second constraint a * b = d
         let constraint = Constraint::new()
-            .mul(1)
+            .mult(1)
             .output(1)
-            .public(-self.d);
+            .public(-self.d)
+            .a(a)
+            .b(b);
 
-        composer.append_gate(
-            a,
-            b,
-            composer.constant_zero(),
-            composer.constant_zero(),
-            constraint,
-        );
+        composer.append_gate(constraint);
 
         let e = composer.append_witness(self.e);
         let scalar_mul_result = composer

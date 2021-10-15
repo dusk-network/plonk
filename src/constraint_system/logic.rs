@@ -74,16 +74,18 @@ impl TurboComposer {
         // Now we can add the first row as: `| 0 | 0 | -- | 0 |`.
         // Note that `w_1` will be set on the first loop iteration.
         self.perm
-            .add_variable_to_map(self.constant_zero(), WireData::Left(self.n));
-        self.perm
-            .add_variable_to_map(self.constant_zero(), WireData::Right(self.n));
+            .add_variable_to_map(Self::constant_zero(), WireData::Left(self.n));
         self.perm.add_variable_to_map(
-            self.constant_zero(),
+            Self::constant_zero(),
+            WireData::Right(self.n),
+        );
+        self.perm.add_variable_to_map(
+            Self::constant_zero(),
             WireData::Fourth(self.n),
         );
-        self.w_l.push(self.constant_zero());
-        self.w_r.push(self.constant_zero());
-        self.w_4.push(self.constant_zero());
+        self.w_l.push(Self::constant_zero());
+        self.w_r.push(Self::constant_zero());
+        self.w_4.push(Self::constant_zero());
         // Increase the gate index so we can add the following rows in the
         // correct order.
         self.n += 1;
@@ -221,10 +223,10 @@ impl TurboComposer {
         // the program memory will look like this:
         // | an  | bn  | --- | cn  |
         self.perm.add_variable_to_map(
-            self.constant_zero(),
+            Self::constant_zero(),
             WireData::Output(self.n - 1),
         );
-        self.w_o.push(self.constant_zero());
+        self.w_o.push(Self::constant_zero());
 
         // Now the wire values are set for each gate, indexed and mapped in the
         // `variable_map` inside of the `Permutation` struct.

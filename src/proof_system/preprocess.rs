@@ -46,7 +46,7 @@ impl TurboComposer {
     fn pad(&mut self, diff: usize) {
         // Add a zero variable to circuit
         let zero_scalar = BlsScalar::zero();
-        let zero_var = self.constant_zero();
+        let zero_var = Self::constant_zero();
 
         let zeroes_scalar = vec![zero_scalar; diff];
         let zeroes_var = vec![zero_var; diff];

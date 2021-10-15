@@ -16,7 +16,7 @@ pub(crate) mod logic;
 pub(crate) mod range;
 pub(crate) mod witness;
 
-pub(crate) use constraint::Selector;
+pub(crate) use constraint::{Selector, WiredWitness};
 pub(crate) use witness::WireData;
 
 mod arithmetic;
