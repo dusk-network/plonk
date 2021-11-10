@@ -49,6 +49,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Remove `Plonkup3Arity` [#589](https://github.com/dusk-network/plonk/issues/589)
 - Remove windows from CI. [#616](https://github.com/dusk-network/plonk/issues/616)
 
+## [0.8.2] - 17-09-21
+
+### Added
+
+- Add `From` extended point to `PublicInputValue` [#573](https://github.com/dusk-network/plonk/issues/574)
+
 ## [0.8.1] - 07-06-21
 
 ### Added
