@@ -4,7 +4,7 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-pub(crate) mod constants;
-#[allow(clippy::module_inception)]
-pub(crate) mod permutation;
-pub(crate) use permutation::Permutation;
+/// Fixed base scalar multiplication gate
+pub mod fixed_base;
+/// Witness base scalar multiplication gate
+pub mod variable_base;

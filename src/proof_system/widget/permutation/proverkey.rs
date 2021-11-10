@@ -127,17 +127,17 @@ impl ProverKey {
         z_poly: &Polynomial,
     ) -> Polynomial {
         let a = self.compute_lineariser_identity_range_check(
-            (&a_eval, &b_eval, &c_eval, &d_eval),
+            (a_eval, b_eval, c_eval, d_eval),
             z_challenge,
             (alpha, beta, gamma),
             z_poly,
         );
         let b = self.compute_lineariser_copy_range_check(
-            (&a_eval, &b_eval, &c_eval),
+            (a_eval, b_eval, c_eval),
             z_eval,
-            &sigma_1_eval,
-            &sigma_2_eval,
-            &sigma_3_eval,
+            sigma_1_eval,
+            sigma_2_eval,
+            sigma_3_eval,
             (alpha, beta, gamma),
             &self.fourth_sigma.0,
         );

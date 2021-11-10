@@ -34,46 +34,48 @@ impl Circuit for TestCircuit {
     const CIRCUIT_ID: [u8; 32] = [0xff; 32];
     fn gadget(
         &mut self,
-        composer: &mut StandardComposer,
+        composer: &mut TurboComposer,
     ) -> Result<(), Error> {
-        let a = composer.add_input(self.a);
-        let b = composer.add_input(self.b);
-        // Make first constraint a + b = c
-        composer.poly_gate(
-            a,
-            b,
-            composer.zero_var(),
-            BlsScalar::zero(),
-            BlsScalar::one(),
-            BlsScalar::one(),
-            BlsScalar::zero(),
-            BlsScalar::zero(),
-            Some(-self.c),
-        );
-        // Check that a and b are in range
-        composer.range_gate(a, 1 << 6);
-        composer.range_gate(b, 1 << 5);
-        // Make second constraint a * b = d
-        composer.poly_gate(
-            a,
-            b,
-            composer.zero_var(),
-            BlsScalar::one(),
-            BlsScalar::zero(),
-            BlsScalar::zero(),
-            BlsScalar::one(),
-            BlsScalar::zero(),
-            Some(-self.d),
-        );
+        let a = composer.append_witness(self.a);
+        let b = composer.append_witness(self.b);
 
-        let e = composer.add_input(self.e.into());
+        // Make first constraint a + b = c
+        let constraint = Constraint::new()
+            .left(1)
+            .right(1)
+            .public(-self.c)
+            .a(a)
+            .b(b);
+
+        composer.append_gate(constraint);
+
+        // Check that a and b are in range
+        composer.component_range(a, 1 << 6);
+        composer.component_range(b, 1 << 5);
+
+        // Make second constraint a * b = d
+        let constraint = Constraint::new()
+            .mult(1)
+            .output(1)
+            .public(-self.d)
+            .a(a)
+            .b(b);
+
+        composer.append_gate(constraint);
+
+        let e = composer.append_witness(self.e);
         let scalar_mul_result = composer
-            .fixed_base_scalar_mul(e, dusk_jubjub::GENERATOR_EXTENDED);
+            .component_mul_generator(e, dusk_jubjub::GENERATOR_EXTENDED);
         // Apply the constrain
         composer.assert_equal_public_point(scalar_mul_result, self.f);
         Ok(())
     }
-    fn padded_circuit_size(&self) -> usize {
+
+    fn public_inputs(&self) -> Vec<PublicInputValue> {
+        vec![self.c.into(), self.d.into(), self.f.into()]
+    }
+
+    fn padded_gates(&self) -> usize {
         1 << 11
     }
 }
@@ -97,7 +99,7 @@ let proof = {
             dusk_jubjub::GENERATOR_EXTENDED * JubJubScalar::from(2u64),
         ),
     };
-    circuit.gen_proof(&pp, &pk, b"Test").unwrap()
+    circuit.prove(&pp, &pk, b"Test").unwrap()
 };
 // Verifier POV
 let public_inputs: Vec<PublicInputValue> = vec![
@@ -108,12 +110,11 @@ let public_inputs: Vec<PublicInputValue> = vec![
     )
     .into(),
 ];
-circuit::verify_proof(
+TestCircuit::verify(
     &pp,
-    &vd.key(),
+    &vd,
     &proof,
     &public_inputs,
-    &vd.pi_pos(),
     b"Test",
 ).unwrap();
 ```
@@ -158,6 +159,8 @@ For a circuit-size of `2^16` constraints/gates:
 
 - Proving time: `5.46s`
 - Verification time: `9.34ms`. **(This time will not vary depending on the circuit-size.)**
+
+For more results, please run `cargo bench` to get a full report of benchmarks in respect of constraint numbers.
 
 ## Acknowledgements
 

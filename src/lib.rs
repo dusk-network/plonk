@@ -39,11 +39,12 @@
 //!
 //! If you want to see library usage examples, please check:
 //! <https://github.com/dusk-network/plonk/tree/v0.1.0/examples>
+
 // Bitshift/Bitwise ops are allowed to gain performance.
 #![allow(clippy::suspicious_arithmetic_impl)]
 // Some structs do not have AddAssign or MulAssign impl.
 #![allow(clippy::suspicious_op_assign_impl)]
-// Variables have always the same names in respect to wires.
+// Witness have always the same names in respect to wires.
 #![allow(clippy::many_single_char_names)]
 // Bool expr are usually easier to read with match statements.
 #![allow(clippy::match_bool)]
@@ -52,28 +53,34 @@
 #![allow(clippy::too_many_arguments)]
 #![deny(rustdoc::broken_intra_doc_links)]
 #![deny(missing_docs)]
-#![no_std]
-
-#[cfg(feature = "std")]
-extern crate std;
+#![cfg_attr(not(feature = "std"), no_std)]
 
 cfg_if::cfg_if!(
 if #[cfg(feature = "alloc")] {
-    #[macro_use]
+    /// `macro_use` will declare `vec!`. However, if `libstd` is present, then this is declared in
+    /// the prelude and there will be a conflicting implementation.
+    ///
+    /// We might have `no_std + alloc` or `std + alloc`, but `macro_use` should be used only for
+    /// `no_std`
+    #[cfg_attr(not(feature = "std"), macro_use)]
     extern crate alloc;
-    pub mod constraint_system;
+
     mod bit_iterator;
-    pub mod circuit;
-    mod util;
     mod permutation;
+    mod util;
+
+    pub mod circuit;
+    pub mod constraint_system;
+    pub mod plonkup;
 });
+
+mod fft;
+mod transcript;
 
 pub mod commitment_scheme;
 pub mod error;
-mod fft;
 pub mod prelude;
 pub mod proof_system;
-mod transcript;
 
 #[doc = include_str!("../docs/notes-intro.md")]
 pub mod notes {
@@ -86,9 +93,3 @@ pub mod notes {
     #[doc = include_str!("../docs/notes-KZG10.md")]
     pub mod kzg10_docs {}
 }
-
-/// Re-exported dusk-bls12_381 fork.
-pub use dusk_bls12_381 as bls12_381;
-
-/// Re-exported dusk-jubjub fork.
-pub use dusk_jubjub as jubjub;

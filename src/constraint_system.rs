@@ -8,25 +8,25 @@
 //! of the PLONK Standard Composer, as well as the circuit
 //! tools and abstractions, used by the Composer to generate,
 //! build, preprocess circuits.
-pub(crate) mod composer;
-pub(crate) mod variable;
 
-/// Simple Arithmetic gates
+pub(crate) mod composer;
+pub(crate) mod constraint;
+pub(crate) mod ecc;
+pub(crate) mod logic;
+pub(crate) mod range;
+pub(crate) mod witness;
+
+pub(crate) use constraint::{Selector, WiredWitness};
+pub(crate) use witness::WireData;
+
 mod arithmetic;
-/// Boolean gate
 mod boolean;
-/// Elliptic Curve Crypto gates
-pub mod ecc;
 
 #[cfg(feature = "std")]
 #[cfg(test)]
 pub(crate) mod helper;
-/// XOR and AND gates
-pub mod logic;
-/// Range gate
-pub mod range;
 
-pub use composer::StandardComposer;
-pub use ecc::Point;
-pub use variable::Variable;
-pub(crate) use variable::WireData;
+pub use composer::TurboComposer;
+pub use constraint::Constraint;
+pub use ecc::WitnessPoint;
+pub use witness::Witness;

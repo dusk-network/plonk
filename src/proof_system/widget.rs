@@ -4,13 +4,15 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
+use crate::commitment_scheme::Commitment;
+use dusk_bytes::{DeserializableSlice, Serializable};
+
 pub mod arithmetic;
 pub mod ecc;
 pub mod logic;
+pub mod lookup;
 pub mod permutation;
 pub mod range;
-use crate::commitment_scheme::kzg10::Commitment;
-use dusk_bytes::{DeserializableSlice, Serializable};
 
 /// PLONK circuit Verification Key.
 ///
@@ -30,11 +32,13 @@ pub struct VerifierKey {
     pub(crate) fixed_base: ecc::scalar_mul::fixed_base::VerifierKey,
     /// VerifierKey for variable base curve addition gates
     pub(crate) variable_base: ecc::curve_addition::VerifierKey,
+    /// VerifierKey for lookup operations
+    pub(crate) lookup: lookup::VerifierKey,
     /// VerifierKey for permutation checks
     pub(crate) permutation: permutation::VerifierKey,
 }
 
-impl Serializable<{ 15 * Commitment::SIZE + u64::SIZE }> for VerifierKey {
+impl Serializable<{ 20 * Commitment::SIZE + u64::SIZE }> for VerifierKey {
     type Error = dusk_bytes::Error;
 
     #[allow(unused_must_use)]
@@ -55,10 +59,15 @@ impl Serializable<{ 15 * Commitment::SIZE + u64::SIZE }> for VerifierKey {
         writer.write(&self.range.q_range.to_bytes());
         writer.write(&self.fixed_base.q_fixed_group_add.to_bytes());
         writer.write(&self.variable_base.q_variable_group_add.to_bytes());
+        writer.write(&self.lookup.q_lookup.to_bytes());
         writer.write(&self.permutation.left_sigma.to_bytes());
         writer.write(&self.permutation.right_sigma.to_bytes());
         writer.write(&self.permutation.out_sigma.to_bytes());
         writer.write(&self.permutation.fourth_sigma.to_bytes());
+        writer.write(&self.lookup.table_1.to_bytes());
+        writer.write(&self.lookup.table_2.to_bytes());
+        writer.write(&self.lookup.table_3.to_bytes());
+        writer.write(&self.lookup.table_4.to_bytes());
 
         buff
     }
@@ -83,13 +92,18 @@ impl Serializable<{ 15 * Commitment::SIZE + u64::SIZE }> for VerifierKey {
             Commitment::from_reader(&mut buffer)?,
             Commitment::from_reader(&mut buffer)?,
             Commitment::from_reader(&mut buffer)?,
+            Commitment::from_reader(&mut buffer)?,
+            Commitment::from_reader(&mut buffer)?,
+            Commitment::from_reader(&mut buffer)?,
+            Commitment::from_reader(&mut buffer)?,
+            Commitment::from_reader(&mut buffer)?,
         ))
     }
 }
 
 impl VerifierKey {
     /// Returns the Circuit size padded to the next power of two.
-    pub const fn padded_circuit_size(&self) -> usize {
+    pub const fn padded_gates(&self) -> usize {
         self.n.next_power_of_two()
     }
 
@@ -109,10 +123,15 @@ impl VerifierKey {
         q_range: Commitment,
         q_fixed_group_add: Commitment,
         q_variable_group_add: Commitment,
+        q_lookup: Commitment,
         left_sigma: Commitment,
         right_sigma: Commitment,
         out_sigma: Commitment,
         fourth_sigma: Commitment,
+        table_1: Commitment,
+        table_2: Commitment,
+        table_3: Commitment,
+        table_4: Commitment,
     ) -> VerifierKey {
         let arithmetic = arithmetic::VerifierKey {
             q_m,
@@ -135,6 +154,14 @@ impl VerifierKey {
             q_variable_group_add,
         };
 
+        let lookup = lookup::VerifierKey {
+            q_lookup,
+            table_1,
+            table_2,
+            table_3,
+            table_4,
+        };
+
         let permutation = permutation::VerifierKey {
             left_sigma,
             right_sigma,
@@ -149,6 +176,7 @@ impl VerifierKey {
             range,
             fixed_base,
             variable_base,
+            lookup,
             permutation,
         }
     }
@@ -157,6 +185,7 @@ impl VerifierKey {
 #[cfg(feature = "alloc")]
 pub(crate) mod alloc {
     use super::*;
+    use crate::plonkup::MultiSet;
     use crate::{
         error::Error,
         fft::{EvaluationDomain, Evaluations, Polynomial},
@@ -223,6 +252,8 @@ pub(crate) mod alloc {
         pub(crate) fixed_base: ecc::scalar_mul::fixed_base::ProverKey,
         /// ProverKey for variable base curve addition gates
         pub(crate) variable_base: ecc::curve_addition::ProverKey,
+        /// ProverKey for lookup gates
+        pub(crate) lookup: lookup::ProverKey,
         /// ProverKey for permutation checks
         pub(crate) permutation: permutation::ProverKey,
         // Pre-processes the 4n Evaluations for the vanishing polynomial, so
@@ -233,16 +264,21 @@ pub(crate) mod alloc {
         pub(crate) v_h_coset_4n: Evaluations,
     }
 
-    #[cfg(feature = "alloc")]
     impl ProverKey {
         /// Returns the number of [`Polynomial`]s contained in a ProverKey.
         const fn num_polys() -> usize {
             15
         }
 
+        /// Returns the number of [`MultiSet`]s contained in a ProverKey.
+        const fn num_multiset() -> usize {
+            // FIXME https://github.com/dusk-network/plonk/issues/581
+            4
+        }
+
         /// Returns the number of [`Evaluations`] contained in a ProverKey.
         const fn num_evals() -> usize {
-            17
+            21
         }
 
         /// Serialises a [`ProverKey`] struct into a Vec of bytes.
@@ -255,12 +291,21 @@ pub(crate) mod alloc {
             let evals_size = self.arithmetic.q_m.1.evals.len()
                 * BlsScalar::SIZE
                 + EvaluationDomain::SIZE;
+
+            // Fetch size in bytes of each MultiSet combo: (MultiSet,
+            // Polynomial, Evaluations)
+            let multiset_size = self.lookup.table_1.0 .0.len()
+                * BlsScalar::SIZE
+                + poly_size
+                + evals_size;
+
             // Create the vec with the capacity counting the 3 u64's plus the 15
             // Polys and the 17 Evaluations.
             let mut bytes = vec![
                 0u8;
                 (Self::num_polys() * poly_size
                     + evals_size * Self::num_evals()
+                    + multiset_size * Self::num_multiset()
                     + 17 * u64::SIZE) as usize
             ];
 
@@ -315,7 +360,7 @@ pub(crate) mod alloc {
             writer.write(&self.fixed_base.q_fixed_group_add.0.to_var_bytes());
             writer.write(&self.fixed_base.q_fixed_group_add.1.to_var_bytes());
 
-            // Variable base addition
+            // Witness base addition
             writer.write(
                 &(self.variable_base.q_variable_group_add.0.len() as u64)
                     .to_bytes(),
@@ -326,6 +371,35 @@ pub(crate) mod alloc {
             writer.write(
                 &self.variable_base.q_variable_group_add.1.to_var_bytes(),
             );
+
+            // Lookup
+            writer.write(&(self.lookup.q_lookup.0.len() as u64).to_bytes());
+            writer.write(&self.lookup.q_lookup.0.to_var_bytes());
+            writer.write(&self.lookup.q_lookup.1.to_var_bytes());
+
+            writer.write(&(self.lookup.table_1.0.len() as u64).to_bytes());
+            writer.write(&(self.lookup.table_1.0).to_var_bytes());
+            writer.write(&(self.lookup.table_1.1.len() as u64).to_bytes());
+            writer.write(&(self.lookup.table_1.1).to_var_bytes());
+            writer.write(&(self.lookup.table_1.2).to_var_bytes());
+
+            writer.write(&(self.lookup.table_2.0.len() as u64).to_bytes());
+            writer.write(&(self.lookup.table_2.0).to_var_bytes());
+            writer.write(&(self.lookup.table_2.1.len() as u64).to_bytes());
+            writer.write(&(self.lookup.table_2.1).to_var_bytes());
+            writer.write(&(self.lookup.table_2.2).to_var_bytes());
+
+            writer.write(&(self.lookup.table_3.0.len() as u64).to_bytes());
+            writer.write(&(self.lookup.table_3.0).to_var_bytes());
+            writer.write(&(self.lookup.table_3.1.len() as u64).to_bytes());
+            writer.write(&(self.lookup.table_3.1).to_var_bytes());
+            writer.write(&(self.lookup.table_3.2).to_var_bytes());
+
+            writer.write(&(self.lookup.table_4.0.len() as u64).to_bytes());
+            writer.write(&(self.lookup.table_4.0).to_var_bytes());
+            writer.write(&(self.lookup.table_4.1.len() as u64).to_bytes());
+            writer.write(&(self.lookup.table_4.1).to_var_bytes());
+            writer.write(&(self.lookup.table_4.2).to_var_bytes());
 
             // Permutation
             writer.write(
@@ -393,6 +467,22 @@ pub(crate) mod alloc {
                     eval
                 };
 
+            let multiset_from_reader =
+                |buf: &mut &[u8]| -> Result<MultiSet, Error> {
+                    let serialized_multiset_len =
+                        u64::from_reader(buf)? as usize * BlsScalar::SIZE;
+                    // If the announced len is zero, simply return an empty
+                    // MultiSet and leave the buffer intact.
+                    if serialized_multiset_len == 0 {
+                        return Ok(MultiSet::new());
+                    }
+                    let (a, b) = buf.split_at(serialized_multiset_len);
+                    let multiset = MultiSet::from_slice(a);
+                    *buf = b;
+
+                    multiset
+                };
+
             let q_m_poly = poly_from_reader(&mut buffer)?;
             let q_m_evals = evals_from_reader(&mut buffer)?;
             let q_m = (q_m_poly, q_m_evals);
@@ -438,6 +528,30 @@ pub(crate) mod alloc {
             let q_variable_group_add_evals = evals_from_reader(&mut buffer)?;
             let q_variable_group_add =
                 (q_variable_group_add_poly, q_variable_group_add_evals);
+
+            let q_lookup_poly = poly_from_reader(&mut buffer)?;
+            let q_lookup_evals = evals_from_reader(&mut buffer)?;
+            let q_lookup = (q_lookup_poly, q_lookup_evals);
+
+            let table_1_multiset = multiset_from_reader(&mut buffer)?;
+            let table_1_poly = poly_from_reader(&mut buffer)?;
+            let table_1_evals = evals_from_reader(&mut buffer)?;
+            let table_1 = (table_1_multiset, table_1_poly, table_1_evals);
+
+            let table_2_multiset = multiset_from_reader(&mut buffer)?;
+            let table_2_poly = poly_from_reader(&mut buffer)?;
+            let table_2_evals = evals_from_reader(&mut buffer)?;
+            let table_2 = (table_2_multiset, table_2_poly, table_2_evals);
+
+            let table_3_multiset = multiset_from_reader(&mut buffer)?;
+            let table_3_poly = poly_from_reader(&mut buffer)?;
+            let table_3_evals = evals_from_reader(&mut buffer)?;
+            let table_3 = (table_3_multiset, table_3_poly, table_3_evals);
+
+            let table_4_multiset = multiset_from_reader(&mut buffer)?;
+            let table_4_poly = poly_from_reader(&mut buffer)?;
+            let table_4_evals = evals_from_reader(&mut buffer)?;
+            let table_4 = (table_4_multiset, table_4_poly, table_4_evals);
 
             let left_sigma_poly = poly_from_reader(&mut buffer)?;
             let left_sigma_evals = evals_from_reader(&mut buffer)?;
@@ -495,6 +609,14 @@ pub(crate) mod alloc {
                 q_variable_group_add,
             };
 
+            let lookup = lookup::ProverKey {
+                q_lookup,
+                table_1,
+                table_2,
+                table_3,
+                table_4,
+            };
+
             let prover_key = ProverKey {
                 n,
                 arithmetic,
@@ -502,6 +624,7 @@ pub(crate) mod alloc {
                 range,
                 fixed_base,
                 variable_base,
+                lookup,
                 permutation,
                 v_h_coset_4n,
             };
@@ -521,6 +644,7 @@ mod test {
     use super::alloc::ProverKey;
     use super::*;
     use crate::fft::{EvaluationDomain, Evaluations, Polynomial};
+    use crate::plonkup::MultiSet;
     use ::alloc::vec::Vec;
     use dusk_bls12_381::BlsScalar;
     use rand_core::OsRng;
@@ -534,8 +658,16 @@ mod test {
         let domain = EvaluationDomain::new(4 * n).unwrap();
         let values: Vec<_> =
             (0..4 * n).map(|_| BlsScalar::random(&mut OsRng)).collect();
-        let evaluations = Evaluations::from_vec_and_domain(values, domain);
-        evaluations
+
+        Evaluations::from_vec_and_domain(values, domain)
+    }
+
+    fn rand_multiset(n: usize) -> (MultiSet, Polynomial, Evaluations) {
+        let values: Vec<_> =
+            (0..n).map(|_| BlsScalar::random(&mut OsRng)).collect();
+        let multiset = MultiSet(values);
+        let polynomial = Polynomial::rand(n, &mut OsRng);
+        (multiset, polynomial, rand_evaluations(n))
     }
 
     #[test]
@@ -554,6 +686,8 @@ mod test {
 
         let q_range = rand_poly_eval(n);
 
+        let q_lookup = rand_poly_eval(n);
+
         let q_fixed_group_add = rand_poly_eval(n);
 
         let q_variable_group_add = rand_poly_eval(n);
@@ -563,6 +697,11 @@ mod test {
         let out_sigma = rand_poly_eval(n);
         let fourth_sigma = rand_poly_eval(n);
         let linear_evaluations = rand_evaluations(n);
+
+        let table_1 = rand_multiset(n);
+        let table_2 = rand_multiset(n);
+        let table_3 = rand_multiset(n);
+        let table_4 = rand_multiset(n);
 
         let v_h_coset_4n = rand_evaluations(n);
 
@@ -582,6 +721,14 @@ mod test {
         };
 
         let range = range::ProverKey { q_range };
+
+        let lookup = lookup::ProverKey {
+            q_lookup,
+            table_1,
+            table_2,
+            table_3,
+            table_4,
+        };
 
         let fixed_base = ecc::scalar_mul::fixed_base::ProverKey {
             q_fixed_group_add,
@@ -609,6 +756,7 @@ mod test {
             fixed_base,
             range,
             variable_base,
+            lookup,
             permutation,
             v_h_coset_4n,
         };
@@ -622,7 +770,7 @@ mod test {
 
     #[test]
     fn test_serialise_deserialise_verifier_key() {
-        use crate::commitment_scheme::kzg10::Commitment;
+        use crate::commitment_scheme::Commitment;
         use dusk_bls12_381::G1Affine;
 
         let n = 2usize.pow(5);
@@ -641,11 +789,17 @@ mod test {
         let q_variable_group_add = Commitment(G1Affine::generator());
 
         let q_logic = Commitment(G1Affine::generator());
+        let q_lookup = Commitment(G1Affine::generator());
 
         let left_sigma = Commitment(G1Affine::generator());
         let right_sigma = Commitment(G1Affine::generator());
         let out_sigma = Commitment(G1Affine::generator());
         let fourth_sigma = Commitment(G1Affine::generator());
+
+        let table_1 = Commitment(G1Affine::generator());
+        let table_2 = Commitment(G1Affine::generator());
+        let table_3 = Commitment(G1Affine::generator());
+        let table_4 = Commitment(G1Affine::generator());
 
         let arithmetic = arithmetic::VerifierKey {
             q_m,
@@ -660,6 +814,14 @@ mod test {
         let logic = logic::VerifierKey { q_logic, q_c };
 
         let range = range::VerifierKey { q_range };
+
+        let lookup = lookup::VerifierKey {
+            q_lookup,
+            table_1,
+            table_2,
+            table_3,
+            table_4,
+        };
 
         let fixed_base = ecc::scalar_mul::fixed_base::VerifierKey {
             q_fixed_group_add,
@@ -684,6 +846,7 @@ mod test {
             range,
             fixed_base,
             variable_base,
+            lookup,
             permutation,
         };
 

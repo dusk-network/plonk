@@ -72,6 +72,12 @@ pub enum Error {
     /// This error occurs when a malformed BLS scalar is decoded from a byte
     /// array.
     BlsScalarMalformed,
+
+    // Plonkup errors
+    /// Query element not found in lookup table
+    ElementNotIndexed,
+    /// Cannot commit to table column polynomial
+    TablePreProcessingError,
 }
 
 #[cfg(feature = "std")]
@@ -127,6 +133,14 @@ impl std::fmt::Display for Error {
             Self::PointMalformed => write!(f, "BLS point bytes malformed"),
             Self::BlsScalarMalformed => write!(f, "BLS scalar bytes malformed"),
             Self::BytesError(err) => write!(f, "{:?}", err),
+            Self::ElementNotIndexed => write!(
+                f,
+                "the requested element was not indexed in the lookup table"
+            ),
+            Self::TablePreProcessingError => write!(
+                f,
+                "cannot commit to one of the table column polynomials"
+            ),
         }
     }
 }

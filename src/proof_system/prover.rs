@@ -5,10 +5,11 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use crate::{
-    commitment_scheme::kzg10::CommitKey,
-    constraint_system::{StandardComposer, Variable},
+    commitment_scheme::CommitKey,
+    constraint_system::{TurboComposer, Witness},
     error::Error,
     fft::{EvaluationDomain, Polynomial},
+    plonkup::MultiSet,
     proof_system::{
         linearisation_poly, proof::Proof, quotient_poly, ProverKey,
     },
@@ -25,15 +26,15 @@ pub struct Prover {
     /// ProverKey which is used to create proofs about a specific PLONK circuit
     pub prover_key: Option<ProverKey>,
 
-    pub(crate) cs: StandardComposer,
+    pub(crate) cs: TurboComposer,
     /// Store the messages exchanged during the preprocessing stage
     /// This is copied each time, we make a proof
     pub preprocessed_transcript: Transcript,
 }
 
 impl Prover {
-    /// Returns a mutable copy of the underlying [`StandardComposer`].
-    pub fn mut_cs(&mut self) -> &mut StandardComposer {
+    /// Mutable borrow of [`TurboComposer`].
+    pub fn composer_mut(&mut self) -> &mut TurboComposer {
         &mut self.cs
     }
 
@@ -61,24 +62,24 @@ impl Prover {
     pub fn new(label: &'static [u8]) -> Prover {
         Prover {
             prover_key: None,
-            cs: StandardComposer::new(),
+            cs: TurboComposer::new(),
             preprocessed_transcript: Transcript::new(label),
         }
     }
 
     /// Creates a new `Prover` object with some expected size.
-    pub fn with_expected_size(label: &'static [u8], size: usize) -> Prover {
+    pub fn with_size(label: &'static [u8], size: usize) -> Prover {
         Prover {
             prover_key: None,
-            cs: StandardComposer::with_expected_size(size),
+            cs: TurboComposer::with_size(size),
             preprocessed_transcript: Transcript::new(label),
         }
     }
 
     /// Returns the number of gates in the circuit thet the `Prover` actually
     /// stores inside.
-    pub fn circuit_size(&self) -> usize {
-        self.cs.circuit_size()
+    pub const fn gates(&self) -> usize {
+        self.cs.gates()
     }
 
     /// Split `t(X)` poly into 4 degree `n` polynomials.
@@ -117,16 +118,16 @@ impl Prover {
         &abc + &d
     }
 
-    /// Convert variables to their actual witness values.
-    pub(crate) fn to_scalars(&self, vars: &[Variable]) -> Vec<BlsScalar> {
-        vars.iter().map(|var| self.cs.variables[var]).collect()
+    /// Convert witnesses to their actual witness values.
+    pub(crate) fn to_scalars(&self, vars: &[Witness]) -> Vec<BlsScalar> {
+        vars.iter().map(|var| self.cs.witnesses[var]).collect()
     }
 
     /// Resets the witnesses in the prover object.
     /// This function is used when the user wants to make multiple proofs with
     /// the same circuit.
     pub fn clear_witness(&mut self) {
-        self.cs = StandardComposer::new();
+        self.cs = TurboComposer::new();
     }
 
     /// Clears all data in the `Prover` instance.
@@ -155,22 +156,30 @@ impl Prover {
         commit_key: &CommitKey,
         prover_key: &ProverKey,
     ) -> Result<Proof, Error> {
-        let domain = EvaluationDomain::new(self.cs.circuit_size())?;
+        // make sure the domain is big enough to handle the circuit as well as
+        // the lookup table
+        let domain = EvaluationDomain::new(core::cmp::max(
+            self.cs.gates(),
+            self.cs.lookup_table.0.len(),
+        ))?;
 
         // Since the caller is passing a pre-processed circuit
         // We assume that the Transcript has been seeded with the preprocessed
         // Commitments
         let mut transcript = self.preprocessed_transcript.clone();
 
-        //1. Compute witness Polynomials
+        // 1. Compute witness Polynomials
         //
-        // Convert Variables to BlsScalars padding them to the
+        // Convert Witness to BlsScalars padding them to the
         // correct domain size.
         let pad = vec![BlsScalar::zero(); domain.size() - self.cs.w_l.len()];
         let w_l_scalar = &[&self.to_scalars(&self.cs.w_l)[..], &pad].concat();
         let w_r_scalar = &[&self.to_scalars(&self.cs.w_r)[..], &pad].concat();
         let w_o_scalar = &[&self.to_scalars(&self.cs.w_o)[..], &pad].concat();
         let w_4_scalar = &[&self.to_scalars(&self.cs.w_4)[..], &pad].concat();
+
+        // make sure q_lookup is also the right size for constructing f
+        let padded_q_lookup = [&self.cs.q_lookup[..], &pad].concat();
 
         // Witnesses are now in evaluation form, convert them to coefficients
         // So that we may commit to them
@@ -195,26 +204,97 @@ impl Prover {
         transcript.append_commitment(b"w_o", &w_o_poly_commit);
         transcript.append_commitment(b"w_4", &w_4_poly_commit);
 
+        // Generate table compression factor
+        let zeta = transcript.challenge_scalar(b"zeta");
+
+        // Compress table into vector of single elements
+        let compressed_t_multiset = MultiSet::compress_four_arity(
+            [
+                &prover_key.lookup.table_1.0,
+                &prover_key.lookup.table_2.0,
+                &prover_key.lookup.table_3.0,
+                &prover_key.lookup.table_4.0,
+            ],
+            zeta,
+        );
+
+        // Compute table poly
+        let table_poly = Polynomial::from_coefficients_vec(
+            domain.ifft(&compressed_t_multiset.0),
+        );
+
+        // Compute table f
+        // When q_lookup[i] is zero the wire value is replaced with a dummy
+        // value Currently set as the first row of the public table
+        // If q_lookup is one the wire values are preserved
+        let f_1_scalar = w_l_scalar
+            .iter()
+            .zip(&padded_q_lookup)
+            .map(|(w, s)| {
+                w * s + (BlsScalar::one() - s) * compressed_t_multiset.0[0]
+            })
+            .collect::<Vec<BlsScalar>>();
+        let f_2_scalar = w_r_scalar
+            .iter()
+            .zip(&padded_q_lookup)
+            .map(|(w, s)| w * s)
+            .collect::<Vec<BlsScalar>>();
+        let f_3_scalar = w_o_scalar
+            .iter()
+            .zip(&padded_q_lookup)
+            .map(|(w, s)| w * s)
+            .collect::<Vec<BlsScalar>>();
+        let f_4_scalar = w_4_scalar
+            .iter()
+            .zip(&padded_q_lookup)
+            .map(|(w, s)| w * s)
+            .collect::<Vec<BlsScalar>>();
+
+        // Compress all wires into a single vector
+        let compressed_f_multiset = MultiSet::compress_four_arity(
+            [
+                &MultiSet::from(&f_1_scalar[..]),
+                &MultiSet::from(&f_2_scalar[..]),
+                &MultiSet::from(&f_3_scalar[..]),
+                &MultiSet::from(&f_4_scalar[..]),
+            ],
+            zeta,
+        );
+
+        // Compute long query poly
+        let f_poly = Polynomial::from_coefficients_vec(
+            domain.ifft(&compressed_f_multiset.0),
+        );
+
+        // Commit to query polynomial
+        let f_poly_commit = commit_key.commit(&f_poly)?;
+
+        // Add f_poly commitment to transcript
+        transcript.append_commitment(b"f", &f_poly_commit);
+
         // 2. Compute permutation polynomial
         //
         //
-        // Compute permutation challenges; `beta` and `gamma`
+        // Compute permutation challenges; `beta`, `gamma`, `delta` and
+        // `epsilon`.
         let beta = transcript.challenge_scalar(b"beta");
         transcript.append_scalar(b"beta", &beta);
         let gamma = transcript.challenge_scalar(b"gamma");
+        let delta = transcript.challenge_scalar(b"delta");
+        let epsilon = transcript.challenge_scalar(b"epsilon");
 
         let z_poly = Polynomial::from_coefficients_slice(
             &self.cs.perm.compute_permutation_poly(
                 &domain,
-                (&w_l_scalar, &w_r_scalar, &w_o_scalar, &w_4_scalar),
+                [w_l_scalar, w_r_scalar, w_o_scalar, w_4_scalar],
                 &beta,
                 &gamma,
-                (
+                [
                     &prover_key.permutation.left_sigma.0,
                     &prover_key.permutation.right_sigma.0,
                     &prover_key.permutation.out_sigma.0,
                     &prover_key.permutation.fourth_sigma.0,
-                ),
+                ],
             ),
         );
 
@@ -222,13 +302,56 @@ impl Prover {
         //
         let z_poly_commit = commit_key.commit(&z_poly)?;
 
-        // Add permutation polynomial commitment to transcript
+        // Add commitment to permutation polynomial to transcript
         transcript.append_commitment(b"z", &z_poly_commit);
 
         // 3. Compute public inputs polynomial
         let pi_poly = Polynomial::from_coefficients_vec(
-            domain.ifft(&self.cs.construct_dense_pi_vec()),
+            domain.ifft(&self.cs.to_dense_public_inputs()),
         );
+
+        // Compute evaluation challenge; `z`
+        let z_challenge = transcript.challenge_scalar(b"z_challenge");
+
+        // Compute s, as the sorted and concatenated version of f and t
+        let s = compressed_t_multiset
+            .sorted_concat(&compressed_f_multiset)
+            .unwrap();
+
+        // Compute first and second halves of s, as h_1 and h_2
+        let (h_1, h_2) = s.halve_alternating();
+
+        // Compute h polys
+        let h_1_poly = Polynomial::from_coefficients_vec(domain.ifft(&h_1.0));
+        let h_2_poly = Polynomial::from_coefficients_vec(domain.ifft(&h_2.0));
+
+        // Commit to h polys
+        let h_1_poly_commit = commit_key.commit(&h_1_poly).unwrap();
+        let h_2_poly_commit = commit_key.commit(&h_2_poly).unwrap();
+
+        // Add h polynomials to transcript
+        transcript.append_commitment(b"h1", &h_1_poly_commit);
+        transcript.append_commitment(b"h2", &h_2_poly_commit);
+
+        // Compute lookup permutation poly
+        let p_poly = Polynomial::from_coefficients_slice(
+            &self.cs.perm.compute_lookup_permutation_poly(
+                &domain,
+                &compressed_f_multiset.0,
+                &compressed_t_multiset.0,
+                &h_1.0,
+                &h_2.0,
+                &delta,
+                &epsilon,
+            ),
+        );
+
+        // Commit to permutation polynomial
+        //
+        let p_poly_commit = commit_key.commit(&p_poly)?;
+
+        // Add permutation polynomial commitment to transcript
+        transcript.append_commitment(b"p", &p_poly_commit);
 
         // 4. Compute quotient polynomial
         //
@@ -242,21 +365,32 @@ impl Prover {
             transcript.challenge_scalar(b"fixed base separation challenge");
         let var_base_sep_challenge =
             transcript.challenge_scalar(b"variable base separation challenge");
+        let lookup_sep_challenge =
+            transcript.challenge_scalar(b"lookup challenge");
 
         let t_poly = quotient_poly::compute(
             &domain,
-            &prover_key,
+            prover_key,
             &z_poly,
+            &p_poly,
             (&w_l_poly, &w_r_poly, &w_o_poly, &w_4_poly),
+            &f_poly,
+            &table_poly,
+            &h_1_poly,
+            &h_2_poly,
             &pi_poly,
             &(
                 alpha,
                 beta,
                 gamma,
+                delta,
+                epsilon,
+                zeta,
                 range_sep_challenge,
                 logic_sep_challenge,
                 fixed_base_sep_challenge,
                 var_base_sep_challenge,
+                lookup_sep_challenge,
             ),
         )?;
 
@@ -278,20 +412,22 @@ impl Prover {
 
         // 4. Compute linearisation polynomial
         //
-        // Compute evaluation challenge; `z`
-        let z_challenge = transcript.challenge_scalar(b"z");
 
         let (lin_poly, evaluations) = linearisation_poly::compute(
             &domain,
-            &prover_key,
+            prover_key,
             &(
                 alpha,
                 beta,
                 gamma,
+                delta,
+                epsilon,
+                zeta,
                 range_sep_challenge,
                 logic_sep_challenge,
                 fixed_base_sep_challenge,
                 var_base_sep_challenge,
+                lookup_sep_challenge,
                 z_challenge,
             ),
             &w_l_poly,
@@ -300,6 +436,11 @@ impl Prover {
             &w_4_poly,
             &t_poly,
             &z_poly,
+            &f_poly,
+            &h_1_poly,
+            &h_2_poly,
+            &table_poly,
+            &p_poly,
         );
 
         // Add evaluations to transcript
@@ -328,7 +469,17 @@ impl Prover {
         transcript.append_scalar(b"q_c_eval", &evaluations.proof.q_c_eval);
         transcript.append_scalar(b"q_l_eval", &evaluations.proof.q_l_eval);
         transcript.append_scalar(b"q_r_eval", &evaluations.proof.q_r_eval);
+        transcript
+            .append_scalar(b"q_lookup_eval", &evaluations.proof.q_lookup_eval);
         transcript.append_scalar(b"perm_eval", &evaluations.proof.perm_eval);
+        transcript.append_scalar(
+            b"lookup_perm_eval",
+            &evaluations.proof.lookup_perm_eval,
+        );
+        transcript.append_scalar(b"h_1_eval", &evaluations.proof.h_1_eval);
+        transcript
+            .append_scalar(b"h_1_next_eval", &evaluations.proof.h_1_next_eval);
+        transcript.append_scalar(b"h_2_eval", &evaluations.proof.h_2_eval);
         transcript.append_scalar(b"t_eval", &evaluations.quot_eval);
         transcript.append_scalar(b"r_eval", &evaluations.proof.lin_poly_eval);
 
@@ -358,6 +509,10 @@ impl Prover {
                 prover_key.permutation.left_sigma.0.clone(),
                 prover_key.permutation.right_sigma.0.clone(),
                 prover_key.permutation.out_sigma.0.clone(),
+                f_poly,
+                h_1_poly.clone(),
+                h_2_poly,
+                table_poly.clone(),
             ],
             &z_challenge,
             &mut transcript,
@@ -367,7 +522,10 @@ impl Prover {
         // Compute aggregate witness to polynomials evaluated at the shifted
         // evaluation challenge
         let shifted_aggregate_witness = commit_key.compute_aggregate_witness(
-            &[z_poly, w_l_poly, w_r_poly, w_4_poly],
+            &[
+                z_poly, w_l_poly, w_r_poly, w_4_poly, h_1_poly, p_poly,
+                table_poly,
+            ],
             &(z_challenge * domain.group_gen),
             &mut transcript,
         );
@@ -380,7 +538,13 @@ impl Prover {
             c_comm: w_o_poly_commit,
             d_comm: w_4_poly_commit,
 
+            f_comm: f_poly_commit,
+
+            h_1_comm: h_1_poly_commit,
+            h_2_comm: h_2_poly_commit,
+
             z_comm: z_poly_commit,
+            p_comm: p_poly_commit,
 
             t_1_comm: t_1_commit,
             t_2_comm: t_2_commit,

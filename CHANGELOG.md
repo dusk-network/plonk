@@ -5,16 +5,55 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.8.2] - 17-09-21
+## [0.9.0] - 10-11-21
 
 ### Added
 
-- Add `From` extended point to `PublicInputValue` [#573](https://github.com/dusk-network/plonk/issues/574)
+- Add back benchmarks to the crate. [#555](https://github.com/dusk-network/plonk/issues/555)
+- Add `ProverKey::num_multiset` [#581](https://github.com/dusk-network/plonk/issues/581)
+- Add alloc feature for lookup Vec structs [#582](https://github.com/dusk-network/plonk/issues/582)
+- Add test coverage for polynomial evaluations [#586](https://github.com/dusk-network/plonk/issues/586)
+- Add `Witness` by removing `AllocatedScalar`. [#588](https://github.com/dusk-network/plonk/issues/588)
+- Add missing dummy constraints in test [#592](https://github.com/dusk-network/plonk/issues/592)
+- Add codeconv config [#594](https://github.com/dusk-network/plonk/issues/594)
+- Add `Constraint` for circuit description. [#608](https://github.com/dusk-network/plonk/issues/608)
+- Add public unsafe `evaluate_witness()` to the composer [#612](https://github.com/dusk-network/plonk/issues/612)
+
+### Changed
+
+- Change `StandardComposer` to `TurboComposer`. [#288](https://github.com/dusk-network/plonk/issues/288)
+- Change to use `From<JubJubScalar>` for BlsScalar [#294](https://github.com/dusk-network/plonk/issues/294)
+- Change unit tests as integration tests when possible [#500](https://github.com/dusk-network/plonk/issues/500)
+- Change to arrays some tuples in permutation module [#562](https://github.com/dusk-network/plonk/issues/562)
+- Change `poly_gate` to init lookup wire with zero [#578](https://github.com/dusk-network/plonk/issues/578)
+- Change `TurboComposer` to consistent API. [#587](https://github.com/dusk-network/plonk/issues/587)
+- Change `plonkup_gate` to use public inputs. [#584](https://github.com/dusk-network/plonk/issues/584)
+- Change coverage to use less compile flags. [#605](https://github.com/dusk-network/plonk/issues/605)
+- Change `Constraint` to accept witness args. [#624](https://github.com/dusk-network/plonk/issues/624)
 
 ### Fixed
 
 - Fix the document references and typos [#533](https://github.com/dusk-network/plonk/pull/533)
 - Fix if condition to match [#545](https://github.com/dusk-network/plonk/pull/545)
+- Fix `Prover::preprocess` circuit size for plookup [#580](https://github.com/dusk-network/plonk/pull/580)
+- Fix ignored tests by reincluding them [#593](https://github.com/dusk-network/plonk/issues/593)
+- Fix benches and make CI fail if they don't compile [#610](https://github.com/dusk-network/plonk/issues/610)
+- Fix several small nits and unnecessary operations [#611](https://github.com/dusk-network/plonk/issues/611)
+- Fix clippy reports [#622](https://github.com/dusk-network/plonk/pull/622)
+
+### Removed
+
+- Remove old perm-computation fns from perm module [#515](https://github.com/dusk-network/plonk/issues/515)
+- Remove unused `plonkup` module. [#583](https://github.com/dusk-network/plonk/issues/583)
+- Remove the re-export of jubjub and bls libs [#558](https://github.com/dusk-network/plonk/issues/558)
+- Remove `Plonkup3Arity` [#589](https://github.com/dusk-network/plonk/issues/589)
+- Remove windows from CI. [#616](https://github.com/dusk-network/plonk/issues/616)
+
+## [0.8.2] - 17-09-21
+
+### Added
+
+- Add `From` extended point to `PublicInputValue` [#573](https://github.com/dusk-network/plonk/issues/574)
 
 ## [0.8.1] - 07-06-21
 

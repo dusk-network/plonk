@@ -4,7 +4,7 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use crate::commitment_scheme::kzg10::Commitment;
+use crate::commitment_scheme::Commitment;
 use dusk_bytes::{DeserializableSlice, Serializable};
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]

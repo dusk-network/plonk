@@ -5,15 +5,15 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use crate::bit_iterator::*;
-use crate::constraint_system::StandardComposer;
-use crate::constraint_system::{Variable, WireData};
+use crate::constraint_system::TurboComposer;
+use crate::constraint_system::{WireData, Witness};
 use alloc::vec::Vec;
 use dusk_bls12_381::BlsScalar;
 use dusk_bytes::Serializable;
 
-impl StandardComposer {
+impl TurboComposer {
     /// Adds a range-constraint gate that checks and constrains a
-    /// [`Variable`] to be inside of the range \[0,num_bits\].
+    /// [`Witness`] to be inside of the range \[0,num_bits\].
     ///
     /// This function adds `num_bits/4` gates to the circuit description in
     /// order to add the range constraint.
@@ -21,46 +21,47 @@ impl StandardComposer {
     ///# Panics
     /// This function will panic if the num_bits specified is not even, ie.
     /// `num_bits % 2 != 0`.
-    pub fn range_gate(&mut self, witness: Variable, num_bits: usize) {
+    pub fn component_range(&mut self, witness: Witness, num_bits: usize) {
         // Adds `variable` into the appropriate witness position
         // based on the accumulator number a_i
         let add_wire =
-            |composer: &mut StandardComposer, i: usize, variable: Variable| {
+            |composer: &mut TurboComposer, i: usize, witness: Witness| {
                 // Since four quads can fit into one gate, the gate index does
                 // not change for every four wires
-                let gate_index = composer.circuit_size() + (i / 4);
+                let gate_index = composer.gates() + (i / 4);
 
                 let wire_data = match i % 4 {
                     0 => {
-                        composer.w_4.push(variable);
+                        composer.w_4.push(witness);
                         WireData::Fourth(gate_index)
                     }
                     1 => {
-                        composer.w_o.push(variable);
+                        composer.w_o.push(witness);
                         WireData::Output(gate_index)
                     }
                     2 => {
-                        composer.w_r.push(variable);
+                        composer.w_r.push(witness);
                         WireData::Right(gate_index)
                     }
                     3 => {
-                        composer.w_l.push(variable);
+                        composer.w_l.push(witness);
                         WireData::Left(gate_index)
                     }
                     _ => unreachable!(),
                 };
-                composer.perm.add_variable_to_map(variable, wire_data);
+
+                composer.perm.add_variable_to_map(witness, wire_data);
             };
 
         // Note: A quad is a quaternary digit
         //
         // Number of bits should be even, this means that user must pad the
         // number of bits external.
-        assert!(num_bits % 2 == 0);
+        assert_eq!(num_bits % 2, 0);
 
         // Convert witness to bit representation and reverse
-        let value = self.variables[&witness];
-        let bit_iter = BitIterator8::new(value.to_bytes());
+        let bits = self.witnesses[&witness];
+        let bit_iter = BitIterator8::new(bits.to_bytes());
         let mut bits: Vec<_> = bit_iter.collect();
         bits.reverse();
 
@@ -132,13 +133,13 @@ impl StandardComposer {
 
         // We collect the set of accumulators to return back to the user
         // and keep a running count of the current accumulator
-        let mut accumulators: Vec<Variable> = Vec::new();
+        let mut accumulators: Vec<Witness> = Vec::new();
         let mut accumulator = BlsScalar::zero();
         let four = BlsScalar::from(4);
 
         // First we pad our gates by the necessary amount
         for i in 0..pad {
-            add_wire(self, i, self.zero_var);
+            add_wire(self, i, Self::constant_zero());
         }
 
         for i in pad..=num_quads {
@@ -152,7 +153,7 @@ impl StandardComposer {
             accumulator = four * accumulator;
             accumulator += BlsScalar::from(quad);
 
-            let accumulator_var = self.add_input(accumulator);
+            let accumulator_var = self.append_witness(accumulator);
             accumulators.push(accumulator_var);
 
             add_wire(self, i, accumulator_var);
@@ -173,6 +174,7 @@ impl StandardComposer {
         self.q_variable_group_add.extend(zeros.iter());
         self.q_range.extend(ones.iter());
         self.q_logic.extend(zeros.iter());
+        self.q_lookup.extend(zeros.iter());
         self.n += used_gates;
 
         // As mentioned above, we must switch off the range constraint for the
@@ -180,9 +182,9 @@ impl StandardComposer {
         // wire, which will be used in the gate before it
         // Furthermore, we set the left, right and output wires to zero
         *self.q_range.last_mut().unwrap() = BlsScalar::zero();
-        self.w_l.push(self.zero_var);
-        self.w_r.push(self.zero_var);
-        self.w_o.push(self.zero_var);
+        self.w_l.push(Self::constant_zero());
+        self.w_r.push(Self::constant_zero());
+        self.w_o.push(Self::constant_zero());
 
         // Lastly, we must link the last accumulator value to the initial
         // witness This last constraint will pass as long as
@@ -204,9 +206,10 @@ mod tests {
         // Should fail as the number is not 32 bits
         let res = gadget_tester(
             |composer| {
-                let witness = composer
-                    .add_input(BlsScalar::from((u32::max_value() as u64) + 1));
-                composer.range_gate(witness, 32);
+                let witness = composer.append_witness(BlsScalar::from(
+                    (u32::max_value() as u64) + 1,
+                ));
+                composer.component_range(witness, 32);
             },
             200,
         );
@@ -216,8 +219,8 @@ mod tests {
         let res = gadget_tester(
             |composer| {
                 let witness =
-                    composer.add_input(BlsScalar::from(u64::max_value()));
-                composer.range_gate(witness, 32);
+                    composer.append_witness(BlsScalar::from(u64::max_value()));
+                composer.component_range(witness, 32);
             },
             200,
         );
@@ -227,8 +230,8 @@ mod tests {
         let res = gadget_tester(
             |composer| {
                 let witness =
-                    composer.add_input(BlsScalar::from(2u64.pow(34) - 1));
-                composer.range_gate(witness, 34);
+                    composer.append_witness(BlsScalar::from(2u64.pow(34) - 1));
+                composer.component_range(witness, 34);
             },
             200,
         );
@@ -242,8 +245,8 @@ mod tests {
         let _ok = gadget_tester(
             |composer| {
                 let witness = composer
-                    .add_input(BlsScalar::from(u32::max_value() as u64));
-                composer.range_gate(witness, 33);
+                    .append_witness(BlsScalar::from(u32::max_value() as u64));
+                composer.component_range(witness, 33);
             },
             200,
         );

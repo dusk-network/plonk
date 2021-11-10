@@ -1,13 +1,11 @@
 [package]
 name = "dusk-plonk"
-version = "0.8.2"
-authors = ["Kevaundray Wedderburn <kevtheappdev@gmail.com>",
-           "Luke Pearson <luke@dusk.network>", 
-           "CPerezz <carlos@dusk.network>"] 
-readme = "README.md"
-repository = "https://github.com/dusk-network/plonk"
-keywords = ["cryptography", "plonk", "zk-snarks", "zero-knowledge", "crypto"]
+version = "0.9.0"
 categories =["algorithms", "cryptography", "science"]
+edition = "2018"
+keywords = ["cryptography", "plonk", "zk-snarks", "zero-knowledge", "crypto"]
+license = "MPL-2.0"
+repository = "https://github.com/dusk-network/plonk"
 description = "A pure-Rust implementation of the PLONK ZK-Proof algorithm"
 exclude = [
     "**/.gitignore",
@@ -17,8 +15,6 @@ exclude = [
     "benchmarks/",
     ".github/"
 ]
-license = "MPL-2.0"
-edition = "2018"
 
 [dependencies]
 merlin = {version = "3.0", default-features = false}
@@ -35,7 +31,12 @@ canonical = {version = "0.6", optional = true}
 canonical_derive = {version = "0.6", optional = true}
 
 [dev-dependencies]
+criterion = "0.3"
 tempdir = "0.3"
+
+[[bench]]
+name = "plonk"
+harness = false
 
 [features]
 default = ["std"]
@@ -52,3 +53,17 @@ alloc = ["dusk-bls12_381/alloc"]
 trace = []
 trace-print = ["trace"]
 canon = ["dusk-bls12_381/canon", "dusk-jubjub/canon", "canonical", "canonical_derive"]
+
+[profile.release]
+panic = "abort"
+codegen-units = 1
+overflow-checks = false
+
+[profile.bench]
+opt-level = 3
+debug = false
+debug-assertions = false
+overflow-checks = false
+lto = true
+incremental = false
+codegen-units = 1

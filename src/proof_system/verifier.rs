@@ -4,8 +4,8 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use crate::commitment_scheme::kzg10::{CommitKey, OpeningKey};
-use crate::constraint_system::StandardComposer;
+use crate::commitment_scheme::{CommitKey, OpeningKey};
+use crate::constraint_system::TurboComposer;
 use crate::error::Error;
 use crate::proof_system::widget::VerifierKey;
 use crate::proof_system::Proof;
@@ -18,7 +18,7 @@ pub struct Verifier {
     /// VerificationKey which is used to verify a specific PLONK circuit
     pub verifier_key: Option<VerifierKey>,
 
-    pub(crate) cs: StandardComposer,
+    pub(crate) cs: TurboComposer,
     /// Store the messages exchanged during the preprocessing stage
     /// This is copied each time, we make a proof, so that we can use the same
     /// verifier to Verify multiple proofs from the same circuit. If this
@@ -38,27 +38,27 @@ impl Verifier {
     pub fn new(label: &'static [u8]) -> Verifier {
         Verifier {
             verifier_key: None,
-            cs: StandardComposer::new(),
+            cs: TurboComposer::new(),
             preprocessed_transcript: Transcript::new(label),
         }
     }
 
     /// Creates a new `Verifier` instance with some expected size.
-    pub fn with_expected_size(label: &'static [u8], size: usize) -> Verifier {
+    pub fn with_size(label: &'static [u8], size: usize) -> Verifier {
         Verifier {
             verifier_key: None,
-            cs: StandardComposer::with_expected_size(size),
+            cs: TurboComposer::with_size(size),
             preprocessed_transcript: Transcript::new(label),
         }
     }
 
     /// Returns the number of gates in the circuit.
-    pub fn circuit_size(&self) -> usize {
-        self.cs.circuit_size()
+    pub const fn gates(&self) -> usize {
+        self.cs.gates()
     }
 
-    /// Returns a mutable copy of the underlying composer.
-    pub fn mut_cs(&mut self) -> &mut StandardComposer {
+    /// Mutable borrow of the [`TurboComposer`].
+    pub fn composer_mut(&mut self) -> &mut TurboComposer {
         &mut self.cs
     }
 

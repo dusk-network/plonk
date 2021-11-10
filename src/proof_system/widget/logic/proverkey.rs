@@ -49,7 +49,7 @@ impl ProverKey {
         let w = w_o_i;
         let c_3 = (w - a * b) * kappa_cu;
 
-        let c_4 = delta_xor_and(&a, &b, w, &d, &q_c_i) * kappa_qu;
+        let c_4 = delta_xor_and(&a, &b, w, &d, q_c_i) * kappa_qu;
 
         q_logic_i * (c_3 + c_0 + c_1 + c_2 + c_4) * logic_separation_challenge
     }
@@ -86,7 +86,7 @@ impl ProverKey {
         let w = c_eval;
         let c_3 = (w - a * b) * kappa_cu;
 
-        let c_4 = delta_xor_and(&a, &b, w, &d, &q_c_eval) * kappa_qu;
+        let c_4 = delta_xor_and(&a, &b, w, &d, q_c_eval) * kappa_qu;
 
         let t = (c_0 + c_1 + c_2 + c_3 + c_4) * logic_separation_challenge;
 

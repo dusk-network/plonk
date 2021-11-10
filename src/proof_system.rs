@@ -6,24 +6,23 @@
 
 //! Proving system
 
+pub(crate) mod linearisation_poly;
+pub(crate) mod proof;
+pub(crate) mod widget;
+
 cfg_if::cfg_if!(
     if #[cfg(feature = "alloc")] {
         mod preprocess;
-        /// Represents a PLONK Prover
-        pub mod prover;
-        pub use proof::alloc::*;
+
         pub(crate) mod quotient_poly;
-        /// Represents a PLONK Verifier
-        pub mod verifier;
+        pub(crate) mod prover;
+        pub(crate) mod verifier;
+
         pub use prover::Prover;
         pub use verifier::Verifier;
-        pub use widget::alloc::*;
+        pub use widget::alloc::ProverKey;
     }
 );
 
-/// Represents a PLONK Proof
-pub mod proof;
-pub(crate) mod widget;
 pub use proof::Proof;
 pub use widget::VerifierKey;
-pub(crate) mod linearisation_poly;

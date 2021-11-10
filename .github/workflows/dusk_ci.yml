@@ -1,4 +1,4 @@
-on: [pull_request]
+on: [ pull_request ]
 name: Continuous integration
 
 jobs:
@@ -10,7 +10,6 @@ jobs:
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: nightly
       - uses: actions-rs/cargo@v1
         with:
           command: install
@@ -19,8 +18,8 @@ jobs:
         with:
           command: dusk-analyzer
 
-  test_nightly:
-    name: Nightly tests std # This is already testing the `alloc` feature.
+  fmt:
+    name: Check code formatting
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -28,64 +27,117 @@ jobs:
         with:
           profile: minimal
           toolchain: nightly
+      - run: rustup component add rustfmt
       - uses: actions-rs/cargo@v1
         with:
-          command: test
-          args: --release 
+          command: fmt
+          args: --all -- --check
 
-  test_nightly_canon:
-    name: Nightly tests canon
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: nightly
-      - uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --release --features canon
-
-  build_nightly_nostd:
-    name: Nightly build no_std
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal  
-          toolchain: nightly
-      # ARM contains no std lib. Just core and alloc.
-      - run: rustup target add thumbv6m-none-eabi
-      - uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --release --no-default-features --features alloc --target thumbv6m-none-eabi
-      - uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --release --no-default-features --target thumbv6m-none-eabi
-
-  test_docs:
-    name: Doc tests
+  build_docs:
+    name: Build documentation
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
       - run: make doc
       - run: make doc-internal
 
-  fmt:
-      name: Rustfmt
-      runs-on: ubuntu-latest
-      steps:
-        - uses: actions/checkout@v2
-        - uses: actions-rs/toolchain@v1
-          with:
-            profile: minimal
-            toolchain: nightly
-        - run: rustup component add rustfmt
-        - uses: actions-rs/cargo@v1
-          with:
-            command: fmt
-            args: --all -- --check
+  build_no_std:
+    name: Build no_std
+    strategy:
+      fail-fast: false
+      matrix:
+        toolchain:
+          - nightly
+        target: [ thumbv6m-none-eabi ]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v2
+
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: ${{ matrix.toolchain }}
+
+      - name: Add target
+        run: rustup target add ${{ matrix.target }}
+
+      - name: Run cargo check
+        uses: actions-rs/cargo@v1
+        with:
+          command: check
+          args: --all-targets
+
+      - name: Build project with alloc
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release --no-default-features --features alloc --target ${{ matrix.target }}
+
+      - name: Build project without alloc
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release --no-default-features --target ${{ matrix.target }}
+
+  ci:
+    name: Test with all features
+    strategy:
+      fail-fast: false
+      matrix:
+        toolchain:
+          - nightly
+        os:
+          - ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v2
+
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: ${{ matrix.toolchain }}
+
+      - name: Run cargo check
+        uses: actions-rs/cargo@v1
+        with:
+          command: check
+          args: --all-targets
+
+      - name: Test project
+        if: ${{ matrix.os != 'ubuntu-latest' || matrix.toolchain != 'nightly' }}
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --release --all-features
+
+      - name: Install kcov
+        if: ${{ matrix.os == 'ubuntu-latest' && matrix.toolchain == 'nightly' }}
+        run: sudo apt install -y kcov
+
+      - name: Build test executable
+        if: ${{ matrix.os == 'ubuntu-latest' && matrix.toolchain == 'nightly' }}
+        uses: actions-rs/cargo@v1
+        env:
+          RUSTFLAGS: '-Cdebuginfo=2 -Cinline-threshold=0 -Clink-dead-code'
+          RUSTDOCFLAGS: '-Cdebuginfo=2 -Cinline-threshold=0 -Clink-dead-code'
+        with:
+          command: test
+          args: --release --all-features --no-run
+
+      - name: Test with kcov
+        if: ${{ matrix.os == 'ubuntu-latest' && matrix.toolchain == 'nightly' }}
+        # Find every executable resulting from building the tests and run each
+        # one of them with kcov. This ensures all the code we cover is measured.
+        run: >
+          find target/release/deps -type f -executable ! -name "*.*" -exec
+          kcov --exclude-pattern=/.cargo,/usr/lib --verify target/cov {} \;
+
+      - name: Upload coverage
+        if: ${{ matrix.os == 'ubuntu-latest' && matrix.toolchain == 'nightly' }}
+        uses: codecov/codecov-action@v1.0.2
+        with:
+          token: ${{secrets.CODECOV_TOKEN}}
