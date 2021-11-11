@@ -82,14 +82,14 @@ pub mod error;
 pub mod prelude;
 pub mod proof_system;
 
-#[doc = include_str!("../docs/notes-intro.md")]
-pub mod notes {
-    #[doc = include_str!("../docs/notes-commitments.md")]
-    pub mod commitment_schemes {}
-    #[doc = include_str!("../docs/notes-snark.md")]
-    pub mod snark_construction {}
-    #[doc = include_str!("../docs/notes-prove-verify.md")]
-    pub mod prove_verify {}
-    #[doc = include_str!("../docs/notes-KZG10.md")]
-    pub mod kzg10_docs {}
+#[doc = include_str!("../docs/intro.md")]
+pub mod documentation {
+    #[doc = include_str!("../docs/zero_knowledge.md")]
+    pub mod zero_knowledge_proofs {}
+    #[doc = include_str!("../docs/finite_fields_elliptic_curve.md")]
+    pub mod elliptic_curves_and_finite_fields {}
+    #[doc = include_str!("../docs/pairing.md")]
+    pub mod elliptic_curve_pairing {}
+    #[doc = include_str!("../docs/plonk_basics.md")]
+    pub mod plonk_basics {}
 }
