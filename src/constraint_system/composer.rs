@@ -64,10 +64,12 @@ pub struct TurboComposer {
     pub(crate) q_r: Vec<BlsScalar>,
     /// Output wire selector
     pub(crate) q_o: Vec<BlsScalar>,
-    /// Fourth wire selector
-    pub(crate) q_4: Vec<BlsScalar>,
     /// Constant wire selector
     pub(crate) q_c: Vec<BlsScalar>,
+    /// Fourth wire selector
+    pub(crate) q_4: Vec<BlsScalar>,
+    /// Plonkup gate wire selector
+    pub(crate) q_k: Vec<BlsScalar>,
     /// Arithmetic wire selector
     pub(crate) q_arith: Vec<BlsScalar>,
     /// Range selector
@@ -78,8 +80,6 @@ pub struct TurboComposer {
     pub(crate) q_fixed_group_add: Vec<BlsScalar>,
     /// Variable base group addition selector
     pub(crate) q_variable_group_add: Vec<BlsScalar>,
-    /// Plonkup gate wire selector
-    pub(crate) q_lookup: Vec<BlsScalar>,
 
     /// Sparse representation of the Public Inputs linking the positions of the
     /// non-zero ones to it's actual values.
@@ -199,12 +199,12 @@ impl TurboComposer {
             q_o: Vec::with_capacity(size),
             q_c: Vec::with_capacity(size),
             q_4: Vec::with_capacity(size),
+            q_k: Vec::with_capacity(size),
             q_arith: Vec::with_capacity(size),
             q_range: Vec::with_capacity(size),
             q_logic: Vec::with_capacity(size),
             q_fixed_group_add: Vec::with_capacity(size),
             q_variable_group_add: Vec::with_capacity(size),
-            q_lookup: Vec::with_capacity(size),
             public_inputs_sparse_store: BTreeMap::new(),
 
             w_l: Vec::with_capacity(size),
@@ -267,7 +267,7 @@ impl TurboComposer {
         let q_logic = *s.coeff(Selector::Logic);
         let q_fixed_group_add = *s.coeff(Selector::GroupAddFixedBase);
         let q_variable_group_add = *s.coeff(Selector::GroupAddVariableBase);
-        let q_lookup = *s.coeff(Selector::Lookup);
+        let q_k = *s.coeff(Selector::Lookup);
 
         self.w_l.push(a);
         self.w_r.push(b);
@@ -281,13 +281,13 @@ impl TurboComposer {
         self.q_o.push(q_o);
         self.q_4.push(q_4);
         self.q_c.push(q_c);
+        self.q_k.push(q_k);
 
         self.q_arith.push(q_arith);
         self.q_range.push(q_range);
         self.q_logic.push(q_logic);
         self.q_fixed_group_add.push(q_fixed_group_add);
         self.q_variable_group_add.push(q_variable_group_add);
-        self.q_lookup.push(q_lookup);
 
         if s.has_public_input() {
             self.public_inputs_sparse_store.insert(self.n, pi);
@@ -475,12 +475,12 @@ impl TurboComposer {
         self.q_o.push(BlsScalar::from(4));
         self.q_c.push(BlsScalar::from(4));
         self.q_4.push(BlsScalar::one());
+        self.q_k.push(BlsScalar::one());
         self.q_arith.push(BlsScalar::one());
         self.q_range.push(BlsScalar::zero());
         self.q_logic.push(BlsScalar::zero());
         self.q_fixed_group_add.push(BlsScalar::zero());
         self.q_variable_group_add.push(BlsScalar::zero());
-        self.q_lookup.push(BlsScalar::one());
         let var_six = self.append_witness(BlsScalar::from(6));
         let var_one = self.append_witness(BlsScalar::from(1));
         let var_seven = self.append_witness(BlsScalar::from(7));
@@ -505,12 +505,12 @@ impl TurboComposer {
         self.q_o.push(BlsScalar::from(1));
         self.q_c.push(BlsScalar::from(127));
         self.q_4.push(BlsScalar::zero());
+        self.q_k.push(BlsScalar::one());
         self.q_arith.push(BlsScalar::one());
         self.q_range.push(BlsScalar::zero());
         self.q_logic.push(BlsScalar::zero());
         self.q_fixed_group_add.push(BlsScalar::zero());
         self.q_variable_group_add.push(BlsScalar::zero());
-        self.q_lookup.push(BlsScalar::one());
         self.w_l.push(var_min_twenty);
         self.w_r.push(var_six);
         self.w_o.push(var_seven);
@@ -750,16 +750,16 @@ impl TurboComposer {
         self.q_o.push(BlsScalar::zero());
         self.q_c.push(BlsScalar::zero());
         self.q_4.push(BlsScalar::zero());
+        // For a lookup gate, only one selector poly is
+        // turned on as the output is inputted directly
+        self.q_k.push(BlsScalar::one());
+
         self.q_arith.push(BlsScalar::zero());
         self.q_m.push(BlsScalar::zero());
         self.q_range.push(BlsScalar::zero());
         self.q_logic.push(BlsScalar::zero());
         self.q_fixed_group_add.push(BlsScalar::zero());
         self.q_variable_group_add.push(BlsScalar::zero());
-
-        // For a lookup gate, only one selector poly is
-        // turned on as the output is inputted directly
-        self.q_lookup.push(BlsScalar::one());
 
         if let Some(pi) = pi {
             debug_assert!(self.public_inputs_sparse_store.get(&self.n).is_none(), "The invariant of already having a PI inserted for this position should never exist");
@@ -768,9 +768,7 @@ impl TurboComposer {
         }
 
         self.perm.add_variables_to_map(a, b, c, d, self.n);
-
         self.n += 1;
-
         c
     }
 

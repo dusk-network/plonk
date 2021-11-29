@@ -16,33 +16,37 @@ use crate::proof_system::{widget, ProverKey};
 use dusk_bls12_381::BlsScalar;
 use merlin::Transcript;
 
-/// Struct that contains all of the selector and permutation [`Polynomial`]s in
-/// PLONK.
-pub(crate) struct SelectorPolynomials {
+// Struct that contains all selector and permutation Polynomials
+pub(crate) struct Polynomials {
+    // selector polynomials defining arithmetic circuits
     q_m: Polynomial,
     q_l: Polynomial,
     q_r: Polynomial,
     q_o: Polynomial,
     q_c: Polynomial,
-    q_4: Polynomial,
-    q_arith: Polynomial,
-    q_range: Polynomial,
-    q_logic: Polynomial,
-    q_fixed_group_add: Polynomial,
-    q_variable_group_add: Polynomial,
-    q_lookup: Polynomial,
+    q_4: Polynomial, // additional selector for 3-input gates 
 
-    left_sigma: Polynomial,
-    right_sigma: Polynomial,
-    out_sigma: Polynomial,
-    fourth_sigma: Polynomial,
+    // additional selector polynomial which activates the lookup gates
+    // --> if (lookup_gate) q_k[i] = 1 else q_k[i] = 0
+    q_k: Polynomial,
+
+    // specific selectors for different kinds of circuits
+    q_arith: Polynomial, // arithmetic circuits
+    q_range: Polynomial, // range proofs
+    q_logic: Polynomial, // boolean operations
+    q_fixed_group_add: Polynomial, // ecc circuits
+    q_variable_group_add: Polynomial, // ecc circuits
+
+    // copy permutation polynomials
+    left_sigma: Polynomial, // Ssigma1
+    right_sigma: Polynomial, // Ssigma2
+    out_sigma: Polynomial, // Ssigma3
+    fourth_sigma: Polynomial, // Ssigma4 for q_4
 }
 
 impl TurboComposer {
-    /// Pads the circuit to the next power of two.
-    ///
-    /// # Note
-    /// `diff` is the difference between circuit size and next power of two.
+    // Pads the circuit to the next power of two
+    // # Note: `diff` is the difference between circuit size and next power of two
     fn pad(&mut self, diff: usize) {
         // Add a zero variable to circuit
         let zero_scalar = BlsScalar::zero();
@@ -57,12 +61,12 @@ impl TurboComposer {
         self.q_o.extend(zeroes_scalar.iter());
         self.q_c.extend(zeroes_scalar.iter());
         self.q_4.extend(zeroes_scalar.iter());
+        self.q_k.extend(zeroes_scalar.iter());
         self.q_arith.extend(zeroes_scalar.iter());
         self.q_range.extend(zeroes_scalar.iter());
         self.q_logic.extend(zeroes_scalar.iter());
         self.q_fixed_group_add.extend(zeroes_scalar.iter());
         self.q_variable_group_add.extend(zeroes_scalar.iter());
-        self.q_lookup.extend(zeroes_scalar.iter());
 
         self.w_l.extend(zeroes_var.iter());
         self.w_r.extend(zeroes_var.iter());
@@ -82,12 +86,12 @@ impl TurboComposer {
             && self.q_r.len() == k
             && self.q_c.len() == k
             && self.q_4.len() == k
+            && self.q_k.len() == k
             && self.q_arith.len() == k
             && self.q_range.len() == k
             && self.q_logic.len() == k
             && self.q_fixed_group_add.len() == k
             && self.q_variable_group_add.len() == k
-            && self.q_lookup.len() == k
             && self.w_l.len() == k
             && self.w_r.len() == k
             && self.w_o.len() == k
@@ -99,6 +103,7 @@ impl TurboComposer {
         }
     }
 
+    // this should be clearified, everything is done in the setup
     /// These are the parts of preprocessing that the prover must compute
     /// Although the prover does not need the verification key, he must compute
     /// the commitments in order to seed the transcript, allowing both the
@@ -136,6 +141,10 @@ impl TurboComposer {
             domain_4n.coset_fft(&selectors.q_4),
             domain_4n,
         );
+        let q_k_eval_4n = Evaluations::from_vec_and_domain(
+            domain_4n.coset_fft(&selectors.q_k),
+            domain_4n,
+        );
         let q_arith_eval_4n = Evaluations::from_vec_and_domain(
             domain_4n.coset_fft(&selectors.q_arith),
             domain_4n,
@@ -154,10 +163,6 @@ impl TurboComposer {
         );
         let q_variable_group_add_eval_4n = Evaluations::from_vec_and_domain(
             domain_4n.coset_fft(&selectors.q_variable_group_add),
-            domain_4n,
-        );
-        let q_lookup_eval_4n = Evaluations::from_vec_and_domain(
-            domain_4n.coset_fft(&selectors.q_lookup),
             domain_4n,
         );
 
@@ -253,7 +258,7 @@ impl TurboComposer {
 
         // Prover key for lookup operations
         let lookup_prover_key = widget::lookup::ProverKey {
-            q_lookup: (selectors.q_lookup, q_lookup_eval_4n),
+            q_k: (selectors.q_k, q_k_eval_4n),
             table_1: (
                 preprocessed_table.t_1.0,
                 preprocessed_table.t_1.2,
@@ -317,7 +322,7 @@ impl TurboComposer {
     ) -> Result<
         (
             widget::VerifierKey,
-            SelectorPolynomials,
+            Polynomials,
             PreprocessedLookupTable,
             EvaluationDomain,
         ),
@@ -347,6 +352,8 @@ impl TurboComposer {
             Polynomial::from_coefficients_slice(&domain.ifft(&self.q_c));
         let q_4_poly =
             Polynomial::from_coefficients_slice(&domain.ifft(&self.q_4));
+        let q_k_poly =
+            Polynomial::from_coefficients_slice(&domain.ifft(&self.q_k));
         let q_arith_poly =
             Polynomial::from_coefficients_slice(&domain.ifft(&self.q_arith));
         let q_range_poly =
@@ -359,8 +366,6 @@ impl TurboComposer {
         let q_variable_group_add_poly = Polynomial::from_coefficients_slice(
             &domain.ifft(&self.q_variable_group_add),
         );
-        let q_lookup_poly =
-            Polynomial::from_coefficients_slice(&domain.ifft(&self.q_lookup));
 
         // 2. Compute the sigma polynomials
         let [left_sigma_poly, right_sigma_poly, out_sigma_poly, fourth_sigma_poly] =
@@ -372,6 +377,7 @@ impl TurboComposer {
         let q_o_poly_commit = commit_key.commit(&q_o_poly).unwrap_or_default();
         let q_c_poly_commit = commit_key.commit(&q_c_poly).unwrap_or_default();
         let q_4_poly_commit = commit_key.commit(&q_4_poly).unwrap_or_default();
+        let q_k_poly_commit = commit_key.commit(&q_k_poly).unwrap_or_default();
         let q_arith_poly_commit =
             commit_key.commit(&q_arith_poly).unwrap_or_default();
         let q_range_poly_commit =
@@ -384,8 +390,6 @@ impl TurboComposer {
         let q_variable_group_add_poly_commit = commit_key
             .commit(&q_variable_group_add_poly)
             .unwrap_or_default();
-        let q_lookup_poly_commit =
-            commit_key.commit(&q_lookup_poly).unwrap_or_default();
 
         let left_sigma_poly_commit = commit_key.commit(&left_sigma_poly)?;
         let right_sigma_poly_commit = commit_key.commit(&right_sigma_poly)?;
@@ -433,7 +437,7 @@ impl TurboComposer {
 
         // Verifier Key for lookup operations
         let lookup_verifier_key = widget::lookup::VerifierKey {
-            q_lookup: q_lookup_poly_commit,
+            q_k: q_k_poly_commit,
             table_1: preprocessed_table.t_1.1,
             table_2: preprocessed_table.t_2.1,
             table_3: preprocessed_table.t_3.1,
@@ -458,19 +462,19 @@ impl TurboComposer {
             lookup: lookup_verifier_key,
         };
 
-        let selectors = SelectorPolynomials {
+        let selectors = Polynomials {
             q_m: q_m_poly,
             q_l: q_l_poly,
             q_r: q_r_poly,
             q_o: q_o_poly,
             q_c: q_c_poly,
             q_4: q_4_poly,
+            q_k: q_k_poly,
             q_arith: q_arith_poly,
             q_range: q_range_poly,
             q_logic: q_logic_poly,
             q_fixed_group_add: q_fixed_group_add_poly,
             q_variable_group_add: q_variable_group_add_poly,
-            q_lookup: q_lookup_poly,
             left_sigma: left_sigma_poly,
             right_sigma: right_sigma_poly,
             out_sigma: out_sigma_poly,
@@ -507,12 +511,12 @@ mod test {
         assert_eq!(composer.q_o.len(), size);
         assert_eq!(composer.q_r.len(), size);
         assert_eq!(composer.q_c.len(), size);
+        assert_eq!(composer.q_k.len(), size);
         assert_eq!(composer.q_arith.len(), size);
         assert_eq!(composer.q_range.len(), size);
         assert_eq!(composer.q_logic.len(), size);
         assert_eq!(composer.q_fixed_group_add.len(), size);
         assert_eq!(composer.q_variable_group_add.len(), size);
-        assert_eq!(composer.q_lookup.len(), size);
         assert_eq!(composer.w_l.len(), size);
         assert_eq!(composer.w_r.len(), size);
         assert_eq!(composer.w_o.len(), size);

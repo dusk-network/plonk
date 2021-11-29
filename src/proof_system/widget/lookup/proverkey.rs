@@ -12,7 +12,7 @@ use dusk_bls12_381::BlsScalar;
 
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub struct ProverKey {
-    pub(crate) q_lookup: (Polynomial, Evaluations),
+    pub(crate) q_k: (Polynomial, Evaluations),
     pub(crate) table_1: (MultiSet, Polynomial, Evaluations),
     pub(crate) table_2: (MultiSet, Polynomial, Evaluations),
     pub(crate) table_3: (MultiSet, Polynomial, Evaluations),
@@ -47,14 +47,14 @@ impl ProverKey {
         let one_plus_delta = delta + BlsScalar::one();
         let epsilon_one_plus_delta = epsilon * one_plus_delta;
 
-        // q_lookup(X) * (a(X) + zeta * b(X) + (zeta^2 * c(X)) + (zeta^3 * d(X)
+        // q_k(X) * (a(X) + zeta * b(X) + (zeta^2 * c(X)) + (zeta^3 * d(X)
         // - f(X))) * α_1
         let a = {
-            let q_lookup_i = self.q_lookup.1[index];
+            let q_k_i = self.q_k.1[index];
             let compressed_tuple =
                 compress(*w_l_i, *w_r_i, *w_o_i, *w_4_i, *zeta);
 
-            q_lookup_i * (compressed_tuple - f_i) * lookup_separation_challenge
+            q_k_i * (compressed_tuple - f_i) * lookup_separation_challenge
         };
 
         // L0(X) * (p(X) − 1) * α_1^2
@@ -108,12 +108,12 @@ impl ProverKey {
         let epsilon_one_plus_delta = epsilon * one_plus_delta;
 
         //
-        // - q_lookup(X) * f_eval * lookup_separation_challenge
+        // - q_k(X) * f_eval * lookup_separation_challenge
         let a = {
             let a_0 =
                 a_eval + zeta * b_eval + zeta_sq * c_eval + zeta_cu * d_eval;
 
-            &self.q_lookup.0 * &((a_0 - f_eval) * lookup_separation_challenge)
+            &self.q_k.0 * &((a_0 - f_eval) * lookup_separation_challenge)
         };
 
         // p(X) * L0(z) * α_1^2

@@ -48,7 +48,7 @@ pub(crate) struct ProofEvaluations {
     //
     pub(crate) q_r_eval: BlsScalar,
     //
-    pub(crate) q_lookup_eval: BlsScalar,
+    pub(crate) q_k_eval: BlsScalar,
     // Evaluation of the left sigma polynomial at `z`
     pub(crate) left_sigma_eval: BlsScalar,
     // Evaluation of the right sigma polynomial at `z`
@@ -108,7 +108,7 @@ impl Serializable<{ 24 * BlsScalar::SIZE }> for ProofEvaluations {
         writer.write(&self.q_c_eval.to_bytes());
         writer.write(&self.q_l_eval.to_bytes());
         writer.write(&self.q_r_eval.to_bytes());
-        writer.write(&self.q_lookup_eval.to_bytes());
+        writer.write(&self.q_k_eval.to_bytes());
         writer.write(&self.left_sigma_eval.to_bytes());
         writer.write(&self.right_sigma_eval.to_bytes());
         writer.write(&self.out_sigma_eval.to_bytes());
@@ -140,7 +140,7 @@ impl Serializable<{ 24 * BlsScalar::SIZE }> for ProofEvaluations {
         let q_c_eval = BlsScalar::from_reader(&mut buffer)?;
         let q_l_eval = BlsScalar::from_reader(&mut buffer)?;
         let q_r_eval = BlsScalar::from_reader(&mut buffer)?;
-        let q_lookup_eval = BlsScalar::from_reader(&mut buffer)?;
+        let q_k_eval = BlsScalar::from_reader(&mut buffer)?;
         let left_sigma_eval = BlsScalar::from_reader(&mut buffer)?;
         let right_sigma_eval = BlsScalar::from_reader(&mut buffer)?;
         let out_sigma_eval = BlsScalar::from_reader(&mut buffer)?;
@@ -166,7 +166,7 @@ impl Serializable<{ 24 * BlsScalar::SIZE }> for ProofEvaluations {
             q_c_eval,
             q_l_eval,
             q_r_eval,
-            q_lookup_eval,
+            q_k_eval,
             left_sigma_eval,
             right_sigma_eval,
             out_sigma_eval,
@@ -246,7 +246,7 @@ pub(crate) fn compute(
     let q_c_eval = prover_key.logic.q_c.0.evaluate(z_challenge);
     let q_l_eval = prover_key.fixed_base.q_l.0.evaluate(z_challenge);
     let q_r_eval = prover_key.fixed_base.q_r.0.evaluate(z_challenge);
-    let q_lookup_eval = prover_key.lookup.q_lookup.0.evaluate(z_challenge);
+    let q_k_eval = prover_key.lookup.q_k.0.evaluate(z_challenge);
     let f_eval = f_poly.evaluate(z_challenge);
     let h_1_eval = h_1_poly.evaluate(z_challenge);
     let h_2_eval = h_2_poly.evaluate(z_challenge);
@@ -326,7 +326,7 @@ pub(crate) fn compute(
                 q_c_eval,
                 q_l_eval,
                 q_r_eval,
-                q_lookup_eval,
+                q_k_eval,
                 left_sigma_eval,
                 right_sigma_eval,
                 out_sigma_eval,

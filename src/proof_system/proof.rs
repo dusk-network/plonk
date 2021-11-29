@@ -298,8 +298,8 @@ pub(crate) mod alloc {
             transcript.append_scalar(b"q_l_eval", &self.evaluations.q_l_eval);
             transcript.append_scalar(b"q_r_eval", &self.evaluations.q_r_eval);
             transcript.append_scalar(
-                b"q_lookup_eval",
-                &self.evaluations.q_lookup_eval,
+                b"q_k_eval",
+                &self.evaluations.q_k_eval,
             );
             transcript.append_scalar(b"perm_eval", &self.evaluations.perm_eval);
             transcript.append_scalar(
@@ -694,7 +694,7 @@ mod proof_tests {
                 q_c_eval: BlsScalar::random(&mut OsRng),
                 q_l_eval: BlsScalar::random(&mut OsRng),
                 q_r_eval: BlsScalar::random(&mut OsRng),
-                q_lookup_eval: BlsScalar::random(&mut OsRng),
+                q_k_eval: BlsScalar::random(&mut OsRng),
                 left_sigma_eval: BlsScalar::random(&mut OsRng),
                 right_sigma_eval: BlsScalar::random(&mut OsRng),
                 out_sigma_eval: BlsScalar::random(&mut OsRng),

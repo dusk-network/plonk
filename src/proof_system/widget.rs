@@ -54,12 +54,12 @@ impl Serializable<{ 20 * Commitment::SIZE + u64::SIZE }> for VerifierKey {
         writer.write(&self.arithmetic.q_o.to_bytes());
         writer.write(&self.arithmetic.q_4.to_bytes());
         writer.write(&self.arithmetic.q_c.to_bytes());
+        writer.write(&self.lookup.q_k.to_bytes());
         writer.write(&self.arithmetic.q_arith.to_bytes());
         writer.write(&self.logic.q_logic.to_bytes());
         writer.write(&self.range.q_range.to_bytes());
         writer.write(&self.fixed_base.q_fixed_group_add.to_bytes());
         writer.write(&self.variable_base.q_variable_group_add.to_bytes());
-        writer.write(&self.lookup.q_lookup.to_bytes());
         writer.write(&self.permutation.left_sigma.to_bytes());
         writer.write(&self.permutation.right_sigma.to_bytes());
         writer.write(&self.permutation.out_sigma.to_bytes());
@@ -118,12 +118,12 @@ impl VerifierKey {
         q_o: Commitment,
         q_4: Commitment,
         q_c: Commitment,
+        q_k: Commitment,
         q_arith: Commitment,
         q_logic: Commitment,
         q_range: Commitment,
         q_fixed_group_add: Commitment,
         q_variable_group_add: Commitment,
-        q_lookup: Commitment,
         left_sigma: Commitment,
         right_sigma: Commitment,
         out_sigma: Commitment,
@@ -155,7 +155,7 @@ impl VerifierKey {
         };
 
         let lookup = lookup::VerifierKey {
-            q_lookup,
+            q_k,
             table_1,
             table_2,
             table_3,
@@ -373,9 +373,9 @@ pub(crate) mod alloc {
             );
 
             // Lookup
-            writer.write(&(self.lookup.q_lookup.0.len() as u64).to_bytes());
-            writer.write(&self.lookup.q_lookup.0.to_var_bytes());
-            writer.write(&self.lookup.q_lookup.1.to_var_bytes());
+            writer.write(&(self.lookup.q_k.0.len() as u64).to_bytes());
+            writer.write(&self.lookup.q_k.0.to_var_bytes());
+            writer.write(&self.lookup.q_k.1.to_var_bytes());
 
             writer.write(&(self.lookup.table_1.0.len() as u64).to_bytes());
             writer.write(&(self.lookup.table_1.0).to_var_bytes());
@@ -529,9 +529,9 @@ pub(crate) mod alloc {
             let q_variable_group_add =
                 (q_variable_group_add_poly, q_variable_group_add_evals);
 
-            let q_lookup_poly = poly_from_reader(&mut buffer)?;
-            let q_lookup_evals = evals_from_reader(&mut buffer)?;
-            let q_lookup = (q_lookup_poly, q_lookup_evals);
+            let q_k_poly = poly_from_reader(&mut buffer)?;
+            let q_k_evals = evals_from_reader(&mut buffer)?;
+            let q_k = (q_k_poly, q_k_evals);
 
             let table_1_multiset = multiset_from_reader(&mut buffer)?;
             let table_1_poly = poly_from_reader(&mut buffer)?;
@@ -610,7 +610,7 @@ pub(crate) mod alloc {
             };
 
             let lookup = lookup::ProverKey {
-                q_lookup,
+                q_k,
                 table_1,
                 table_2,
                 table_3,
@@ -686,7 +686,7 @@ mod test {
 
         let q_range = rand_poly_eval(n);
 
-        let q_lookup = rand_poly_eval(n);
+        let q_k = rand_poly_eval(n);
 
         let q_fixed_group_add = rand_poly_eval(n);
 
@@ -723,7 +723,7 @@ mod test {
         let range = range::ProverKey { q_range };
 
         let lookup = lookup::ProverKey {
-            q_lookup,
+            q_k,
             table_1,
             table_2,
             table_3,
@@ -789,7 +789,7 @@ mod test {
         let q_variable_group_add = Commitment(G1Affine::generator());
 
         let q_logic = Commitment(G1Affine::generator());
-        let q_lookup = Commitment(G1Affine::generator());
+        let q_k = Commitment(G1Affine::generator());
 
         let left_sigma = Commitment(G1Affine::generator());
         let right_sigma = Commitment(G1Affine::generator());
@@ -816,7 +816,7 @@ mod test {
         let range = range::VerifierKey { q_range };
 
         let lookup = lookup::VerifierKey {
-            q_lookup,
+            q_k,
             table_1,
             table_2,
             table_3,

@@ -178,8 +178,8 @@ impl Prover {
         let w_o_scalar = &[&self.to_scalars(&self.cs.w_o)[..], &pad].concat();
         let w_4_scalar = &[&self.to_scalars(&self.cs.w_4)[..], &pad].concat();
 
-        // make sure q_lookup is also the right size for constructing f
-        let padded_q_lookup = [&self.cs.q_lookup[..], &pad].concat();
+        // make sure q_k is also the right size for constructing f
+        let padded_q_k = [&self.cs.q_k[..], &pad].concat();
 
         // Witnesses are now in evaluation form, convert them to coefficients
         // So that we may commit to them
@@ -224,29 +224,29 @@ impl Prover {
         );
 
         // Compute table f
-        // When q_lookup[i] is zero the wire value is replaced with a dummy
+        // When q_k[i] is zero the wire value is replaced with a dummy
         // value Currently set as the first row of the public table
-        // If q_lookup is one the wire values are preserved
+        // If q_k is one the wire values are preserved
         let f_1_scalar = w_l_scalar
             .iter()
-            .zip(&padded_q_lookup)
+            .zip(&padded_q_k)
             .map(|(w, s)| {
                 w * s + (BlsScalar::one() - s) * compressed_t_multiset.0[0]
             })
             .collect::<Vec<BlsScalar>>();
         let f_2_scalar = w_r_scalar
             .iter()
-            .zip(&padded_q_lookup)
+            .zip(&padded_q_k)
             .map(|(w, s)| w * s)
             .collect::<Vec<BlsScalar>>();
         let f_3_scalar = w_o_scalar
             .iter()
-            .zip(&padded_q_lookup)
+            .zip(&padded_q_k)
             .map(|(w, s)| w * s)
             .collect::<Vec<BlsScalar>>();
         let f_4_scalar = w_4_scalar
             .iter()
-            .zip(&padded_q_lookup)
+            .zip(&padded_q_k)
             .map(|(w, s)| w * s)
             .collect::<Vec<BlsScalar>>();
 
@@ -470,7 +470,7 @@ impl Prover {
         transcript.append_scalar(b"q_l_eval", &evaluations.proof.q_l_eval);
         transcript.append_scalar(b"q_r_eval", &evaluations.proof.q_r_eval);
         transcript
-            .append_scalar(b"q_lookup_eval", &evaluations.proof.q_lookup_eval);
+            .append_scalar(b"q_k_eval", &evaluations.proof.q_k_eval);
         transcript.append_scalar(b"perm_eval", &evaluations.proof.perm_eval);
         transcript.append_scalar(
             b"lookup_perm_eval",
