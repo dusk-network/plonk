@@ -25,10 +25,10 @@ impl ProverKey {
         &self,
         index: usize,
         lookup_separation_challenge: &BlsScalar,
-        w_l_i: &BlsScalar,
-        w_r_i: &BlsScalar,
-        w_o_i: &BlsScalar,
-        w_4_i: &BlsScalar,
+        a_w_i: &BlsScalar,
+        b_w_i: &BlsScalar,
+        c_w_i: &BlsScalar,
+        d_w_i: &BlsScalar,
         f_i: &BlsScalar,
         p_i: &BlsScalar,
         p_i_next: &BlsScalar,
@@ -52,7 +52,7 @@ impl ProverKey {
         let a = {
             let q_k_i = self.q_k.1[index];
             let compressed_tuple =
-                compress(*w_l_i, *w_r_i, *w_o_i, *w_4_i, *zeta);
+                compress(*a_w_i, *b_w_i, *c_w_i, *d_w_i, *zeta);
 
             q_k_i * (compressed_tuple - f_i) * lookup_separation_challenge
         };

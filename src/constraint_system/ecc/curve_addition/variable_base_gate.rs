@@ -51,10 +51,10 @@ impl TurboComposer {
         // The function must be a special case of `append_gate` because of
         // `q_arith` and `q_variable_group_add`
 
-        self.w_l.extend(&[x_1, x_3]);
-        self.w_r.extend(&[y_1, y_3]);
-        self.w_o.extend(&[x_2, Self::constant_zero()]);
-        self.w_4.extend(&[y_2, x_1_y_2]);
+        self.a_w.extend(&[x_1, x_3]);
+        self.b_w.extend(&[y_1, y_3]);
+        self.c_w.extend(&[x_2, Self::constant_zero()]);
+        self.d_w.extend(&[y_2, x_1_y_2]);
         let zeros = [BlsScalar::zero(), BlsScalar::zero()];
 
         self.q_l.extend(&zeros);

@@ -22,10 +22,10 @@ impl ProverKey {
     pub(crate) fn compute_quotient_i(
         &self,
         index: usize,
-        w_l_i: &BlsScalar,
-        w_r_i: &BlsScalar,
-        w_o_i: &BlsScalar,
-        w_4_i: &BlsScalar,
+        a_w_i: &BlsScalar,
+        b_w_i: &BlsScalar,
+        c_w_i: &BlsScalar,
+        d_w_i: &BlsScalar,
     ) -> BlsScalar {
         let q_m_i = &self.q_m.1[index];
         let q_l_i = &self.q_l.1[index];
@@ -38,11 +38,11 @@ impl ProverKey {
         // (a(x)b(x)q_M(x) + a(x)q_L(x) + b(X)q_R(x) + c(X)q_O(X) + d(x)q_4(X) +
         // Q_C(X)) * Q_Arith(X)
         //
-        let a_1 = w_l_i * w_r_i * q_m_i;
-        let a_2 = w_l_i * q_l_i;
-        let a_3 = w_r_i * q_r_i;
-        let a_4 = w_o_i * q_o_i;
-        let a_5 = w_4_i * q_4_i;
+        let a_1 = a_w_i * b_w_i * q_m_i;
+        let a_2 = a_w_i * q_l_i;
+        let a_3 = b_w_i * q_r_i;
+        let a_4 = c_w_i * q_o_i;
+        let a_5 = d_w_i * q_4_i;
         let a_6 = q_c_i;
         (a_1 + a_2 + a_3 + a_4 + a_5 + a_6) * q_arith_i
     }

@@ -69,10 +69,10 @@ impl TurboComposer {
         self.q_fixed_group_add.extend(zeroes_scalar.iter());
         self.q_variable_group_add.extend(zeroes_scalar.iter());
 
-        self.w_l.extend(zeroes_var.iter());
-        self.w_r.extend(zeroes_var.iter());
-        self.w_o.extend(zeroes_var.iter());
-        self.w_4.extend(zeroes_var.iter());
+        self.a_w.extend(zeroes_var.iter());
+        self.b_w.extend(zeroes_var.iter());
+        self.c_w.extend(zeroes_var.iter());
+        self.d_w.extend(zeroes_var.iter());
 
         self.n += diff;
     }
@@ -93,10 +93,10 @@ impl TurboComposer {
             && self.q_logic.len() == k
             && self.q_fixed_group_add.len() == k
             && self.q_variable_group_add.len() == k
-            && self.w_l.len() == k
-            && self.w_r.len() == k
-            && self.w_o.len() == k
-            && self.w_4.len() == k
+            && self.a_w.len() == k
+            && self.b_w.len() == k
+            && self.c_w.len() == k
+            && self.d_w.len() == k
         {
             Ok(())
         } else {
@@ -518,8 +518,8 @@ mod test {
         assert_eq!(composer.q_logic.len(), size);
         assert_eq!(composer.q_fixed_group_add.len(), size);
         assert_eq!(composer.q_variable_group_add.len(), size);
-        assert_eq!(composer.w_l.len(), size);
-        assert_eq!(composer.w_r.len(), size);
-        assert_eq!(composer.w_o.len(), size);
+        assert_eq!(composer.a_w.len(), size);
+        assert_eq!(composer.b_w.len(), size);
+        assert_eq!(composer.c_w.len(), size);
     }
 }

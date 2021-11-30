@@ -87,13 +87,13 @@ pub struct TurboComposer {
 
     // Witness vectors
     /// Left wire witness vector.
-    pub(crate) w_l: Vec<Witness>,
+    pub(crate) a_w: Vec<Witness>,
     /// Right wire witness vector.
-    pub(crate) w_r: Vec<Witness>,
+    pub(crate) b_w: Vec<Witness>,
     /// Output wire witness vector.
-    pub(crate) w_o: Vec<Witness>,
+    pub(crate) c_w: Vec<Witness>,
     /// Fourth wire witness vector.
-    pub(crate) w_4: Vec<Witness>,
+    pub(crate) d_w: Vec<Witness>,
 
     /// Public lookup table
     pub(crate) lookup_table: LookupTable,
@@ -207,10 +207,10 @@ impl TurboComposer {
             q_variable_group_add: Vec::with_capacity(size),
             public_inputs_sparse_store: BTreeMap::new(),
 
-            w_l: Vec::with_capacity(size),
-            w_r: Vec::with_capacity(size),
-            w_o: Vec::with_capacity(size),
-            w_4: Vec::with_capacity(size),
+            a_w: Vec::with_capacity(size),
+            b_w: Vec::with_capacity(size),
+            c_w: Vec::with_capacity(size),
+            d_w: Vec::with_capacity(size),
 
             lookup_table: LookupTable::new(),
 
@@ -269,10 +269,10 @@ impl TurboComposer {
         let q_variable_group_add = *s.coeff(Selector::GroupAddVariableBase);
         let q_k = *s.coeff(Selector::Lookup);
 
-        self.w_l.push(a);
-        self.w_r.push(b);
-        self.w_o.push(o);
-        self.w_4.push(d);
+        self.a_w.push(a);
+        self.b_w.push(b);
+        self.c_w.push(o);
+        self.d_w.push(d);
 
         // Add selector vectors
         self.q_m.push(q_m);
@@ -485,10 +485,10 @@ impl TurboComposer {
         let var_one = self.append_witness(BlsScalar::from(1));
         let var_seven = self.append_witness(BlsScalar::from(7));
         let var_min_twenty = self.append_witness(-BlsScalar::from(20));
-        self.w_l.push(var_six);
-        self.w_r.push(var_seven);
-        self.w_o.push(var_min_twenty);
-        self.w_4.push(var_one);
+        self.a_w.push(var_six);
+        self.b_w.push(var_seven);
+        self.c_w.push(var_min_twenty);
+        self.d_w.push(var_one);
         self.perm.add_variables_to_map(
             var_six,
             var_seven,
@@ -511,10 +511,10 @@ impl TurboComposer {
         self.q_logic.push(BlsScalar::zero());
         self.q_fixed_group_add.push(BlsScalar::zero());
         self.q_variable_group_add.push(BlsScalar::zero());
-        self.w_l.push(var_min_twenty);
-        self.w_r.push(var_six);
-        self.w_o.push(var_seven);
-        self.w_4.push(Self::constant_zero());
+        self.a_w.push(var_min_twenty);
+        self.b_w.push(var_six);
+        self.c_w.push(var_seven);
+        self.d_w.push(Self::constant_zero());
         self.perm.add_variables_to_map(
             var_min_twenty,
             var_six,
@@ -598,25 +598,25 @@ impl TurboComposer {
     #[cfg(feature = "trace")]
     #[allow(dead_code)]
     pub(crate) fn check_circuit_satisfied(&self) {
-        let w_l: Vec<&BlsScalar> = self
-            .w_l
+        let a_w: Vec<&BlsScalar> = self
+            .a_w
             .iter()
-            .map(|w_l_i| self.witnesses.get(w_l_i).unwrap())
+            .map(|a_w_i| self.witnesses.get(a_w_i).unwrap())
             .collect();
-        let w_r: Vec<&BlsScalar> = self
-            .w_r
+        let b_w: Vec<&BlsScalar> = self
+            .b_w
             .iter()
-            .map(|w_r_i| self.witnesses.get(w_r_i).unwrap())
+            .map(|b_w_i| self.witnesses.get(b_w_i).unwrap())
             .collect();
-        let w_o: Vec<&BlsScalar> = self
-            .w_o
+        let c_w: Vec<&BlsScalar> = self
+            .c_w
             .iter()
-            .map(|w_o_i| self.witnesses.get(w_o_i).unwrap())
+            .map(|c_w_i| self.witnesses.get(c_w_i).unwrap())
             .collect();
-        let w_4: Vec<&BlsScalar> = self
-            .w_4
+        let d_w: Vec<&BlsScalar> = self
+            .d_w
             .iter()
-            .map(|w_4_i| self.witnesses.get(w_4_i).unwrap())
+            .map(|d_w_i| self.witnesses.get(d_w_i).unwrap())
             .collect();
 
         // Computes f(f-1)(f-2)(f-3)
@@ -644,13 +644,13 @@ impl TurboComposer {
             let qvar = self.q_variable_group_add[i];
             let pi = pi_vec[i];
 
-            let a = w_l[i];
-            let a_next = w_l[(i + 1) % self.n];
-            let b = w_r[i];
-            let b_next = w_r[(i + 1) % self.n];
-            let c = w_o[i];
-            let d = w_4[i];
-            let d_next = w_4[(i + 1) % self.n];
+            let a = a_w[i];
+            let a_next = a_w[(i + 1) % self.n];
+            let b = b_w[i];
+            let b_next = b_w[(i + 1) % self.n];
+            let c = c_w[i];
+            let d = d_w[i];
+            let d_next = d_w[(i + 1) % self.n];
 
             #[cfg(all(feature = "trace-print", feature = "std"))]
             std::println!(
@@ -669,10 +669,10 @@ impl TurboComposer {
             - q_fixed_group_add -> {:?}\n
             - q_variable_group_add -> {:?}\n
             # Witness polynomials:\n
-            - w_l -> {:?}\n
-            - w_r -> {:?}\n
-            - w_o -> {:?}\n
-            - w_4 -> {:?}\n",
+            - a_w -> {:?}\n
+            - b_w -> {:?}\n
+            - c_w -> {:?}\n
+            - d_w -> {:?}\n",
                 i,
                 qm,
                 ql,
@@ -739,10 +739,10 @@ impl TurboComposer {
         d: Witness,
         pi: Option<BlsScalar>,
     ) -> Witness {
-        self.w_l.push(a);
-        self.w_r.push(b);
-        self.w_o.push(c);
-        self.w_4.push(d);
+        self.a_w.push(a);
+        self.b_w.push(b);
+        self.c_w.push(c);
+        self.d_w.push(d);
 
         // Add selector vectors
         self.q_l.push(BlsScalar::zero());

@@ -21,13 +21,13 @@ impl ProverKey {
         &self,
         index: usize,
         ecc_separation_challenge: &BlsScalar,
-        w_l_i: &BlsScalar,      // acc_x or curr_x
-        w_l_i_next: &BlsScalar, //  // next_x
-        w_r_i: &BlsScalar,      // acc_y or curr_y
-        w_r_i_next: &BlsScalar, // next_y
-        w_o_i: &BlsScalar,      // xy_alpha
-        w_4_i: &BlsScalar,      // accumulated_bit
-        w_4_i_next: &BlsScalar, // accumulated_bit_next
+        a_w_i: &BlsScalar,      // acc_x or curr_x
+        a_w_i_next: &BlsScalar, //  // next_x
+        b_w_i: &BlsScalar,      // acc_y or curr_y
+        b_w_i_next: &BlsScalar, // next_y
+        c_w_i: &BlsScalar,      // xy_alpha
+        d_w_i: &BlsScalar,      // accumulated_bit
+        d_w_i_next: &BlsScalar, // accumulated_bit_next
     ) -> BlsScalar {
         let q_fixed_group_add_i = &self.q_fixed_group_add.1[index];
         let q_c_i = &self.q_c.1[index];
@@ -39,15 +39,15 @@ impl ProverKey {
         let x_beta = &self.q_l.1[index];
         let y_beta = &self.q_r.1[index];
 
-        let acc_x = w_l_i;
-        let acc_x_next = w_l_i_next;
-        let acc_y = w_r_i;
-        let acc_y_next = w_r_i_next;
+        let acc_x = a_w_i;
+        let acc_x_next = a_w_i_next;
+        let acc_y = b_w_i;
+        let acc_y_next = b_w_i_next;
 
-        let xy_alpha = w_o_i;
+        let xy_alpha = c_w_i;
 
-        let accumulated_bit = w_4_i;
-        let accumulated_bit_next = w_4_i_next;
+        let accumulated_bit = d_w_i;
+        let accumulated_bit_next = d_w_i_next;
         let bit = extract_bit(accumulated_bit, accumulated_bit_next);
 
         // Checks

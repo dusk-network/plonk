@@ -181,15 +181,15 @@ impl CommitKey {
         point: &BlsScalar,
         transcript: &mut Transcript,
     ) -> Polynomial {
-        let challenge = transcript.challenge_scalar(b"aggregate_witness");
-        let powers = util::powers_of(&challenge, polynomials.len() - 1);
+        let v = transcript.challenge_scalar(b"v");
+        let powers = util::powers_of(&v, polynomials.len() - 1);
 
         assert_eq!(powers.len(), polynomials.len());
 
         let numerator: Polynomial = polynomials
             .iter()
             .zip(powers.iter())
-            .map(|(poly, challenge)| poly * challenge)
+            .map(|(poly, v)| poly * v)
             .sum();
         numerator.ruffini(*point)
     }

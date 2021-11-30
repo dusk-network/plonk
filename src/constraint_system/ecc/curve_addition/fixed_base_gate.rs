@@ -42,10 +42,10 @@ impl TurboComposer {
         &mut self,
         wnaf_round: WnafRound<T>,
     ) {
-        self.w_l.push(wnaf_round.acc_x.into());
-        self.w_r.push(wnaf_round.acc_y.into());
-        self.w_o.push(wnaf_round.xy_alpha.into());
-        self.w_4.push(wnaf_round.accumulated_bit.into());
+        self.a_w.push(wnaf_round.acc_x.into());
+        self.b_w.push(wnaf_round.acc_y.into());
+        self.c_w.push(wnaf_round.xy_alpha.into());
+        self.d_w.push(wnaf_round.accumulated_bit.into());
 
         self.q_l.push(wnaf_round.x_beta);
         self.q_r.push(wnaf_round.y_beta);
