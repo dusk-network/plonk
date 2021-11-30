@@ -187,26 +187,25 @@ impl Permutation {
         assert_eq!(sigmas[3].len(), n);
 
         // define the sigma permutations using two non quadratic residues
-        let left_sigma = self.compute_permutation_lagrange(&sigmas[0], domain);
-        let right_sigma = self.compute_permutation_lagrange(&sigmas[1], domain);
-        let out_sigma = self.compute_permutation_lagrange(&sigmas[2], domain);
-        let fourth_sigma =
-            self.compute_permutation_lagrange(&sigmas[3], domain);
+        let s_sigma_1 = self.compute_permutation_lagrange(&sigmas[0], domain);
+        let s_sigma_2 = self.compute_permutation_lagrange(&sigmas[1], domain);
+        let s_sigma_3 = self.compute_permutation_lagrange(&sigmas[2], domain);
+        let s_sigma_4 = self.compute_permutation_lagrange(&sigmas[3], domain);
 
-        let left_sigma_poly =
-            Polynomial::from_coefficients_vec(domain.ifft(&left_sigma));
-        let right_sigma_poly =
-            Polynomial::from_coefficients_vec(domain.ifft(&right_sigma));
-        let out_sigma_poly =
-            Polynomial::from_coefficients_vec(domain.ifft(&out_sigma));
-        let fourth_sigma_poly =
-            Polynomial::from_coefficients_vec(domain.ifft(&fourth_sigma));
+        let s_sigma_1_poly =
+            Polynomial::from_coefficients_vec(domain.ifft(&s_sigma_1));
+        let s_sigma_2_poly =
+            Polynomial::from_coefficients_vec(domain.ifft(&s_sigma_2));
+        let s_sigma_3_poly =
+            Polynomial::from_coefficients_vec(domain.ifft(&s_sigma_3));
+        let s_sigma_4_poly =
+            Polynomial::from_coefficients_vec(domain.ifft(&s_sigma_4));
 
         [
-            left_sigma_poly,
-            right_sigma_poly,
-            out_sigma_poly,
-            fourth_sigma_poly,
+            s_sigma_1_poly,
+            s_sigma_2_poly,
+            s_sigma_3_poly,
+            s_sigma_4_poly,
         ]
     }
 
@@ -479,7 +478,7 @@ mod test {
         w_4: &[BlsScalar],
         beta: &BlsScalar,
         gamma: &BlsScalar,
-        (left_sigma_poly, right_sigma_poly, out_sigma_poly, fourth_sigma_poly): (
+        (s_sigma_1_poly, s_sigma_2_poly, s_sigma_3_poly, s_sigma_4_poly): (
             &Polynomial,
             &Polynomial,
             &Polynomial,
@@ -492,26 +491,20 @@ mod test {
         let common_roots: Vec<BlsScalar> =
             domain.elements().map(|root| root * beta).collect();
 
-        let left_sigma_mapping = domain.fft(left_sigma_poly);
-        let right_sigma_mapping = domain.fft(right_sigma_poly);
-        let out_sigma_mapping = domain.fft(out_sigma_poly);
-        let fourth_sigma_mapping = domain.fft(fourth_sigma_poly);
+        let s_sigma_1_mapping = domain.fft(s_sigma_1_poly);
+        let s_sigma_2_mapping = domain.fft(s_sigma_2_poly);
+        let s_sigma_3_mapping = domain.fft(s_sigma_3_poly);
+        let s_sigma_4_mapping = domain.fft(s_sigma_4_poly);
 
         // Compute beta * sigma polynomials
-        let beta_left_sigmas: Vec<_> = left_sigma_mapping
-            .iter()
-            .map(|sigma| sigma * beta)
-            .collect();
-        let beta_right_sigmas: Vec<_> = right_sigma_mapping
-            .iter()
-            .map(|sigma| sigma * beta)
-            .collect();
-        let beta_out_sigmas: Vec<_> =
-            out_sigma_mapping.iter().map(|sigma| sigma * beta).collect();
-        let beta_fourth_sigmas: Vec<_> = fourth_sigma_mapping
-            .iter()
-            .map(|sigma| sigma * beta)
-            .collect();
+        let beta_s_sigma_1: Vec<_> =
+            s_sigma_1_mapping.iter().map(|sigma| sigma * beta).collect();
+        let beta_s_sigma_2: Vec<_> =
+            s_sigma_2_mapping.iter().map(|sigma| sigma * beta).collect();
+        let beta_s_sigma_3: Vec<_> =
+            s_sigma_3_mapping.iter().map(|sigma| sigma * beta).collect();
+        let beta_s_sigma_4: Vec<_> =
+            s_sigma_4_mapping.iter().map(|sigma| sigma * beta).collect();
 
         // Compute beta * roots * K1
         let beta_roots_k1: Vec<_> =
@@ -548,10 +541,10 @@ mod test {
             beta_roots_k1,
             beta_roots_k2,
             beta_roots_k3,
-            beta_left_sigmas,
-            beta_right_sigmas,
-            beta_out_sigmas,
-            beta_fourth_sigmas,
+            beta_s_sigma_1,
+            beta_s_sigma_2,
+            beta_s_sigma_3,
+            beta_s_sigma_4,
         )
         .map(
             |(
@@ -563,10 +556,10 @@ mod test {
                 beta_root_k1,
                 beta_root_k2,
                 beta_root_k3,
-                beta_left_sigma,
-                beta_right_sigma,
-                beta_out_sigma,
-                beta_fourth_sigma,
+                beta_s_sigma_1,
+                beta_s_sigma_2,
+                beta_s_sigma_3,
+                beta_s_sigma_4,
             )| {
                 // w_j + beta * root^j-1 + gamma
                 let ac1 = w_l_gamma + beta_root;
@@ -581,16 +574,16 @@ mod test {
                 let ac4 = w_4_gamma + beta_root_k3;
 
                 // 1 / w_j + beta * sigma(j) + gamma
-                let ac5 = (w_l_gamma + beta_left_sigma).invert().unwrap();
+                let ac5 = (w_l_gamma + beta_s_sigma_1).invert().unwrap();
 
                 // 1 / w_{n+j} + beta * sigma(n+j) + gamma
-                let ac6 = (w_r_gamma + beta_right_sigma).invert().unwrap();
+                let ac6 = (w_r_gamma + beta_s_sigma_2).invert().unwrap();
 
                 // 1 / w_{2n+j} + beta * sigma(2n+j) + gamma
-                let ac7 = (w_o_gamma + beta_out_sigma).invert().unwrap();
+                let ac7 = (w_o_gamma + beta_s_sigma_3).invert().unwrap();
 
                 // 1 / w_{3n+j} + beta * sigma(3n+j) + gamma
-                let ac8 = (w_4_gamma + beta_fourth_sigma).invert().unwrap();
+                let ac8 = (w_4_gamma + beta_s_sigma_4).invert().unwrap();
 
                 [ac1, ac2, ac3, ac4, ac5, ac6, ac7, ac8]
             },
@@ -646,7 +639,7 @@ mod test {
         w_4: I,
         beta: &BlsScalar,
         gamma: &BlsScalar,
-        (left_sigma_poly, right_sigma_poly, out_sigma_poly, fourth_sigma_poly): (
+        (s_sigma_1_poly, s_sigma_2_poly, s_sigma_3_poly, s_sigma_4_poly): (
             &Polynomial,
             &Polynomial,
             &Polynomial,
@@ -658,20 +651,20 @@ mod test {
     {
         let n = domain.size();
 
-        let left_sigma_mapping = domain.fft(left_sigma_poly);
-        let right_sigma_mapping = domain.fft(right_sigma_poly);
-        let out_sigma_mapping = domain.fft(out_sigma_poly);
-        let fourth_sigma_mapping = domain.fft(fourth_sigma_poly);
+        let s_sigma_1_mapping = domain.fft(s_sigma_1_poly);
+        let s_sigma_2_mapping = domain.fft(s_sigma_2_poly);
+        let s_sigma_3_mapping = domain.fft(s_sigma_3_poly);
+        let s_sigma_4_mapping = domain.fft(s_sigma_4_poly);
 
         // Compute beta * sigma polynomials
-        let beta_left_sigma_iter =
-            left_sigma_mapping.iter().map(|sigma| *sigma * beta);
-        let beta_right_sigma_iter =
-            right_sigma_mapping.iter().map(|sigma| *sigma * beta);
-        let beta_out_sigma_iter =
-            out_sigma_mapping.iter().map(|sigma| *sigma * beta);
-        let beta_fourth_sigma_iter =
-            fourth_sigma_mapping.iter().map(|sigma| *sigma * beta);
+        let beta_s_sigma_1_iter =
+            s_sigma_1_mapping.iter().map(|sigma| *sigma * beta);
+        let beta_s_sigma_2_iter =
+            s_sigma_2_mapping.iter().map(|sigma| *sigma * beta);
+        let beta_s_sigma_3_iter =
+            s_sigma_3_mapping.iter().map(|sigma| *sigma * beta);
+        let beta_s_sigma_4_iter =
+            s_sigma_4_mapping.iter().map(|sigma| *sigma * beta);
 
         // Compute beta * roots
         let beta_roots_iter = domain.elements().map(|root| root * beta);
@@ -757,31 +750,31 @@ mod test {
             w_r_gamma,
             w_o_gamma,
             w_4_gamma,
-            beta_left_sigma,
-            beta_right_sigma,
-            beta_out_sigma,
-            beta_fourth_sigma,
+            beta_s_sigma_1,
+            beta_s_sigma_2,
+            beta_s_sigma_3,
+            beta_s_sigma_4,
         ) in izip!(
             w_l_gamma,
             w_r_gamma,
             w_o_gamma,
             w_4_gamma,
-            beta_left_sigma_iter,
-            beta_right_sigma_iter,
-            beta_out_sigma_iter,
-            beta_fourth_sigma_iter,
+            beta_s_sigma_1_iter,
+            beta_s_sigma_2_iter,
+            beta_s_sigma_3_iter,
+            beta_s_sigma_4_iter,
         ) {
-            // (w_l + beta * left_sigma + gamma)
-            let prod_a = beta_left_sigma + w_l_gamma;
+            // (w_l + beta * s_sigma_1 + gamma)
+            let prod_a = beta_s_sigma_1 + w_l_gamma;
 
-            // (w_r + beta * right_sigma + gamma)
-            let prod_b = beta_right_sigma + w_r_gamma;
+            // (w_r + beta * s_sigma_2 + gamma)
+            let prod_b = beta_s_sigma_2 + w_r_gamma;
 
-            // (w_o + beta * out_sigma + gamma)
-            let prod_c = beta_out_sigma + w_o_gamma;
+            // (w_o + beta * s_sigma_3 + gamma)
+            let prod_c = beta_s_sigma_3 + w_o_gamma;
 
-            // (w_4 + beta * fourth_sigma + gamma)
-            let prod_d = beta_fourth_sigma + w_4_gamma;
+            // (w_4 + beta * s_sigma_4 + gamma)
+            let prod_d = beta_s_sigma_4 + w_4_gamma;
 
             let mut prod = prod_a * prod_b * prod_c * prod_d;
 
@@ -994,40 +987,40 @@ mod test {
         var_seven = {O2}
         var_eight = {O3}
         var_nine = {F0, F1, F2, F3}
-        Left_sigma = {R0, L2, L3, L0}
-        Right_sigma = {L1, R1, R2, R3}
-        Out_sigma = {O0, O1, O2, O3}
-        Fourth_sigma = {F1, F2, F3, F0}
+        s_sigma_1 = {R0, L2, L3, L0}
+        s_sigma_2 = {L1, R1, R2, R3}
+        s_sigma_3 = {O0, O1, O2, O3}
+        s_sigma_4 = {F1, F2, F3, F0}
         */
         let sigmas = perm.compute_sigma_permutations(num_wire_mappings);
-        let left_sigma = &sigmas[0];
-        let right_sigma = &sigmas[1];
-        let out_sigma = &sigmas[2];
-        let fourth_sigma = &sigmas[3];
+        let s_sigma_1 = &sigmas[0];
+        let s_sigma_2 = &sigmas[1];
+        let s_sigma_3 = &sigmas[2];
+        let s_sigma_4 = &sigmas[3];
 
         // Check the left sigma polynomial
-        assert_eq!(left_sigma[0], WireData::Right(0));
-        assert_eq!(left_sigma[1], WireData::Left(2));
-        assert_eq!(left_sigma[2], WireData::Left(3));
-        assert_eq!(left_sigma[3], WireData::Left(0));
+        assert_eq!(s_sigma_1[0], WireData::Right(0));
+        assert_eq!(s_sigma_1[1], WireData::Left(2));
+        assert_eq!(s_sigma_1[2], WireData::Left(3));
+        assert_eq!(s_sigma_1[3], WireData::Left(0));
 
         // Check the right sigma polynomial
-        assert_eq!(right_sigma[0], WireData::Left(1));
-        assert_eq!(right_sigma[1], WireData::Right(1));
-        assert_eq!(right_sigma[2], WireData::Right(2));
-        assert_eq!(right_sigma[3], WireData::Right(3));
+        assert_eq!(s_sigma_2[0], WireData::Left(1));
+        assert_eq!(s_sigma_2[1], WireData::Right(1));
+        assert_eq!(s_sigma_2[2], WireData::Right(2));
+        assert_eq!(s_sigma_2[3], WireData::Right(3));
 
         // Check the output sigma polynomial
-        assert_eq!(out_sigma[0], WireData::Output(0));
-        assert_eq!(out_sigma[1], WireData::Output(1));
-        assert_eq!(out_sigma[2], WireData::Output(2));
-        assert_eq!(out_sigma[3], WireData::Output(3));
+        assert_eq!(s_sigma_3[0], WireData::Output(0));
+        assert_eq!(s_sigma_3[1], WireData::Output(1));
+        assert_eq!(s_sigma_3[2], WireData::Output(2));
+        assert_eq!(s_sigma_3[3], WireData::Output(3));
 
         // Check the output sigma polynomial
-        assert_eq!(fourth_sigma[0], WireData::Fourth(1));
-        assert_eq!(fourth_sigma[1], WireData::Fourth(2));
-        assert_eq!(fourth_sigma[2], WireData::Fourth(3));
-        assert_eq!(fourth_sigma[3], WireData::Fourth(0));
+        assert_eq!(s_sigma_4[0], WireData::Fourth(1));
+        assert_eq!(s_sigma_4[1], WireData::Fourth(2));
+        assert_eq!(s_sigma_4[2], WireData::Fourth(3));
+        assert_eq!(s_sigma_4[3], WireData::Fourth(0));
 
         let domain = EvaluationDomain::new(num_wire_mappings).unwrap();
         let w = domain.group_gen;
@@ -1035,44 +1028,44 @@ mod test {
         let w_cubed = w.pow(&[3, 0, 0, 0]);
 
         // Check the left sigmas have been encoded properly
-        // Left_sigma = {R0, L2, L3, L0}
+        // s_sigma_1 = {R0, L2, L3, L0}
         // Should turn into {1 * K1, w^2, w^3, 1}
-        let encoded_left_sigma =
-            perm.compute_permutation_lagrange(left_sigma, &domain);
-        assert_eq!(encoded_left_sigma[0], BlsScalar::one() * K1);
-        assert_eq!(encoded_left_sigma[1], w_squared);
-        assert_eq!(encoded_left_sigma[2], w_cubed);
-        assert_eq!(encoded_left_sigma[3], BlsScalar::one());
+        let encoded_s_sigma_1 =
+            perm.compute_permutation_lagrange(s_sigma_1, &domain);
+        assert_eq!(encoded_s_sigma_1[0], BlsScalar::one() * K1);
+        assert_eq!(encoded_s_sigma_1[1], w_squared);
+        assert_eq!(encoded_s_sigma_1[2], w_cubed);
+        assert_eq!(encoded_s_sigma_1[3], BlsScalar::one());
 
         // Check the right sigmas have been encoded properly
-        // Right_sigma = {L1, R1, R2, R3}
+        // s_sigma_2 = {L1, R1, R2, R3}
         // Should turn into {w, w * K1, w^2 * K1, w^3 * K1}
-        let encoded_right_sigma =
-            perm.compute_permutation_lagrange(right_sigma, &domain);
-        assert_eq!(encoded_right_sigma[0], w);
-        assert_eq!(encoded_right_sigma[1], w * K1);
-        assert_eq!(encoded_right_sigma[2], w_squared * K1);
-        assert_eq!(encoded_right_sigma[3], w_cubed * K1);
+        let encoded_s_sigma_2 =
+            perm.compute_permutation_lagrange(s_sigma_2, &domain);
+        assert_eq!(encoded_s_sigma_2[0], w);
+        assert_eq!(encoded_s_sigma_2[1], w * K1);
+        assert_eq!(encoded_s_sigma_2[2], w_squared * K1);
+        assert_eq!(encoded_s_sigma_2[3], w_cubed * K1);
 
         // Check the output sigmas have been encoded properly
-        // Out_sigma = {O0, O1, O2, O3}
+        // s_sigma_3 = {O0, O1, O2, O3}
         // Should turn into {1 * K2, w * K2, w^2 * K2, w^3 * K2}
-        let encoded_output_sigma =
-            perm.compute_permutation_lagrange(out_sigma, &domain);
-        assert_eq!(encoded_output_sigma[0], BlsScalar::one() * K2);
-        assert_eq!(encoded_output_sigma[1], w * K2);
-        assert_eq!(encoded_output_sigma[2], w_squared * K2);
-        assert_eq!(encoded_output_sigma[3], w_cubed * K2);
+        let encoded_s_sigma_3 =
+            perm.compute_permutation_lagrange(s_sigma_3, &domain);
+        assert_eq!(encoded_s_sigma_3[0], BlsScalar::one() * K2);
+        assert_eq!(encoded_s_sigma_3[1], w * K2);
+        assert_eq!(encoded_s_sigma_3[2], w_squared * K2);
+        assert_eq!(encoded_s_sigma_3[3], w_cubed * K2);
 
         // Check the fourth sigmas have been encoded properly
-        // Out_sigma = {F1, F2, F3, F0}
+        // s_sigma_4 = {F1, F2, F3, F0}
         // Should turn into {w * K3, w^2 * K3, w^3 * K3, 1 * K3}
-        let encoded_fourth_sigma =
-            perm.compute_permutation_lagrange(fourth_sigma, &domain);
-        assert_eq!(encoded_fourth_sigma[0], w * K3);
-        assert_eq!(encoded_fourth_sigma[1], w_squared * K3);
-        assert_eq!(encoded_fourth_sigma[2], w_cubed * K3);
-        assert_eq!(encoded_fourth_sigma[3], K3);
+        let encoded_s_sigma_4 =
+            perm.compute_permutation_lagrange(s_sigma_4, &domain);
+        assert_eq!(encoded_s_sigma_4[0], w * K3);
+        assert_eq!(encoded_s_sigma_4[1], w_squared * K3);
+        assert_eq!(encoded_s_sigma_4[2], w_cubed * K3);
+        assert_eq!(encoded_s_sigma_4[3], K3);
 
         let w_l = vec![
             BlsScalar::from(2),
@@ -1133,50 +1126,50 @@ mod test {
         var_two : {O0, L1, O1, L3}
         var_three : {L2, R2, O3}
         var_four : {F0, F1, F2, F3}
-        Left_Sigma : {0,1,2,3} -> {R0,O1,R2,O0}
-        Right_Sigma : {0,1,2,3} -> {R1, O2, O3, L0}
-        Out_Sigma : {0,1,2,3} -> {L1, L3, R3, L2}
-        Fourth_Sigma : {0,1,2,3} -> {F1, F2, F3, F0}
+        s_sigma_1 : {0,1,2,3} -> {R0,O1,R2,O0}
+        s_sigma_2 : {0,1,2,3} -> {R1, O2, O3, L0}
+        s_sigma_3 : {0,1,2,3} -> {L1, L3, R3, L2}
+        s_sigma_4 : {0,1,2,3} -> {F1, F2, F3, F0}
         */
         let sigmas = perm.compute_sigma_permutations(num_wire_mappings);
-        let left_sigma = &sigmas[0];
-        let right_sigma = &sigmas[1];
-        let out_sigma = &sigmas[2];
-        let fourth_sigma = &sigmas[3];
+        let s_sigma_1 = &sigmas[0];
+        let s_sigma_2 = &sigmas[1];
+        let s_sigma_3 = &sigmas[2];
+        let s_sigma_4 = &sigmas[3];
 
         // Check the left sigma polynomial
-        assert_eq!(left_sigma[0], WireData::Right(0));
-        assert_eq!(left_sigma[1], WireData::Output(1));
-        assert_eq!(left_sigma[2], WireData::Right(2));
-        assert_eq!(left_sigma[3], WireData::Output(0));
+        assert_eq!(s_sigma_1[0], WireData::Right(0));
+        assert_eq!(s_sigma_1[1], WireData::Output(1));
+        assert_eq!(s_sigma_1[2], WireData::Right(2));
+        assert_eq!(s_sigma_1[3], WireData::Output(0));
 
         // Check the right sigma polynomial
-        assert_eq!(right_sigma[0], WireData::Right(1));
-        assert_eq!(right_sigma[1], WireData::Output(2));
-        assert_eq!(right_sigma[2], WireData::Output(3));
-        assert_eq!(right_sigma[3], WireData::Left(0));
+        assert_eq!(s_sigma_2[0], WireData::Right(1));
+        assert_eq!(s_sigma_2[1], WireData::Output(2));
+        assert_eq!(s_sigma_2[2], WireData::Output(3));
+        assert_eq!(s_sigma_2[3], WireData::Left(0));
 
         // Check the output sigma polynomial
-        assert_eq!(out_sigma[0], WireData::Left(1));
-        assert_eq!(out_sigma[1], WireData::Left(3));
-        assert_eq!(out_sigma[2], WireData::Right(3));
-        assert_eq!(out_sigma[3], WireData::Left(2));
+        assert_eq!(s_sigma_3[0], WireData::Left(1));
+        assert_eq!(s_sigma_3[1], WireData::Left(3));
+        assert_eq!(s_sigma_3[2], WireData::Right(3));
+        assert_eq!(s_sigma_3[3], WireData::Left(2));
 
         // Check the fourth sigma polynomial
-        assert_eq!(fourth_sigma[0], WireData::Fourth(1));
-        assert_eq!(fourth_sigma[1], WireData::Fourth(2));
-        assert_eq!(fourth_sigma[2], WireData::Fourth(3));
-        assert_eq!(fourth_sigma[3], WireData::Fourth(0));
+        assert_eq!(s_sigma_4[0], WireData::Fourth(1));
+        assert_eq!(s_sigma_4[1], WireData::Fourth(2));
+        assert_eq!(s_sigma_4[2], WireData::Fourth(3));
+        assert_eq!(s_sigma_4[3], WireData::Fourth(0));
 
         /*
         Check that the unique encodings of the sigma polynomials have been computed properly
-        Left_Sigma : {R0,O1,R2,O0}
+        s_sigma_1 : {R0,O1,R2,O0}
             When encoded using w, K1,K2,K3 we have {1 * K1, w * K2, w^2 * K1, 1 * K2}
-        Right_Sigma : {R1, O2, O3, L0}
+        s_sigma_2 : {R1, O2, O3, L0}
             When encoded using w, K1,K2,K3 we have {w * K1, w^2 * K2, w^3 * K2, 1}
-        Out_Sigma : {L1, L3, R3, L2}
+        s_sigma_3 : {L1, L3, R3, L2}
             When encoded using w, K1, K2,K3 we have {w, w^3 , w^3 * K1, w^2}
-        Fourth_Sigma : {0,1,2,3} -> {F1, F2, F3, F0}
+        s_sigma_4 : {0,1,2,3} -> {F1, F2, F3, F0}
             When encoded using w, K1, K2,K3 we have {w * K3, w^2 * K3, w^3 * K3, 1 * K3}
         */
         let domain = EvaluationDomain::new(num_wire_mappings).unwrap();
@@ -1184,36 +1177,36 @@ mod test {
         let w_squared = w.pow(&[2, 0, 0, 0]);
         let w_cubed = w.pow(&[3, 0, 0, 0]);
         // check the left sigmas have been encoded properly
-        let encoded_left_sigma =
-            perm.compute_permutation_lagrange(left_sigma, &domain);
-        assert_eq!(encoded_left_sigma[0], K1);
-        assert_eq!(encoded_left_sigma[1], w * K2);
-        assert_eq!(encoded_left_sigma[2], w_squared * K1);
-        assert_eq!(encoded_left_sigma[3], BlsScalar::one() * K2);
+        let encoded_s_sigma_1 =
+            perm.compute_permutation_lagrange(s_sigma_1, &domain);
+        assert_eq!(encoded_s_sigma_1[0], K1);
+        assert_eq!(encoded_s_sigma_1[1], w * K2);
+        assert_eq!(encoded_s_sigma_1[2], w_squared * K1);
+        assert_eq!(encoded_s_sigma_1[3], BlsScalar::one() * K2);
 
         // check the right sigmas have been encoded properly
-        let encoded_right_sigma =
-            perm.compute_permutation_lagrange(right_sigma, &domain);
-        assert_eq!(encoded_right_sigma[0], w * K1);
-        assert_eq!(encoded_right_sigma[1], w_squared * K2);
-        assert_eq!(encoded_right_sigma[2], w_cubed * K2);
-        assert_eq!(encoded_right_sigma[3], BlsScalar::one());
+        let encoded_s_sigma_2 =
+            perm.compute_permutation_lagrange(s_sigma_2, &domain);
+        assert_eq!(encoded_s_sigma_2[0], w * K1);
+        assert_eq!(encoded_s_sigma_2[1], w_squared * K2);
+        assert_eq!(encoded_s_sigma_2[2], w_cubed * K2);
+        assert_eq!(encoded_s_sigma_2[3], BlsScalar::one());
 
         // check the output sigmas have been encoded properly
-        let encoded_output_sigma =
-            perm.compute_permutation_lagrange(out_sigma, &domain);
-        assert_eq!(encoded_output_sigma[0], w);
-        assert_eq!(encoded_output_sigma[1], w_cubed);
-        assert_eq!(encoded_output_sigma[2], w_cubed * K1);
-        assert_eq!(encoded_output_sigma[3], w_squared);
+        let encoded_s_sigma_3 =
+            perm.compute_permutation_lagrange(s_sigma_3, &domain);
+        assert_eq!(encoded_s_sigma_3[0], w);
+        assert_eq!(encoded_s_sigma_3[1], w_cubed);
+        assert_eq!(encoded_s_sigma_3[2], w_cubed * K1);
+        assert_eq!(encoded_s_sigma_3[3], w_squared);
 
         // check the fourth sigmas have been encoded properly
-        let encoded_fourth_sigma =
-            perm.compute_permutation_lagrange(fourth_sigma, &domain);
-        assert_eq!(encoded_fourth_sigma[0], w * K3);
-        assert_eq!(encoded_fourth_sigma[1], w_squared * K3);
-        assert_eq!(encoded_fourth_sigma[2], w_cubed * K3);
-        assert_eq!(encoded_fourth_sigma[3], K3);
+        let encoded_s_sigma_4 =
+            perm.compute_permutation_lagrange(s_sigma_4, &domain);
+        assert_eq!(encoded_s_sigma_4[0], w * K3);
+        assert_eq!(encoded_s_sigma_4[1], w_squared * K3);
+        assert_eq!(encoded_s_sigma_4[2], w_cubed * K3);
+        assert_eq!(encoded_s_sigma_4[3], K3);
     }
 
     #[test]
@@ -1270,7 +1263,7 @@ mod test {
         assert_ne!(gamma, beta);
 
         //1. Compute the permutation polynomial using both methods
-        let [left_sigma_poly, right_sigma_poly, out_sigma_poly, fourth_sigma_poly] =
+        let [s_sigma_1_poly, s_sigma_2_poly, s_sigma_3_poly, s_sigma_4_poly] =
             perm.compute_sigma_polynomials(n, domain);
         let (z_vec, numerator_components, denominator_components) =
             compute_slow_permutation_poly(
@@ -1282,10 +1275,10 @@ mod test {
                 &beta,
                 &gamma,
                 (
-                    &left_sigma_poly,
-                    &right_sigma_poly,
-                    &out_sigma_poly,
-                    &fourth_sigma_poly,
+                    &s_sigma_1_poly,
+                    &s_sigma_2_poly,
+                    &s_sigma_3_poly,
+                    &s_sigma_4_poly,
                 ),
             );
 
@@ -1298,10 +1291,10 @@ mod test {
             &beta,
             &gamma,
             (
-                &left_sigma_poly,
-                &right_sigma_poly,
-                &out_sigma_poly,
-                &fourth_sigma_poly,
+                &s_sigma_1_poly,
+                &s_sigma_2_poly,
+                &s_sigma_3_poly,
+                &s_sigma_4_poly,
             ),
         );
         assert_eq!(fast_z_vec, z_vec);

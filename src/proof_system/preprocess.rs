@@ -24,29 +24,30 @@ pub(crate) struct Polynomials {
     q_r: Polynomial,
     q_o: Polynomial,
     q_c: Polynomial,
-    q_4: Polynomial, // additional selector for 3-input gates 
+    q_4: Polynomial, // additional selector for 3-input gates
 
     // additional selector polynomial which activates the lookup gates
     // --> if (lookup_gate) q_k[i] = 1 else q_k[i] = 0
     q_k: Polynomial,
 
     // specific selectors for different kinds of circuits
-    q_arith: Polynomial, // arithmetic circuits
-    q_range: Polynomial, // range proofs
-    q_logic: Polynomial, // boolean operations
-    q_fixed_group_add: Polynomial, // ecc circuits
+    q_arith: Polynomial,              // arithmetic circuits
+    q_range: Polynomial,              // range proofs
+    q_logic: Polynomial,              // boolean operations
+    q_fixed_group_add: Polynomial,    // ecc circuits
     q_variable_group_add: Polynomial, // ecc circuits
 
     // copy permutation polynomials
-    left_sigma: Polynomial, // Ssigma1
-    right_sigma: Polynomial, // Ssigma2
-    out_sigma: Polynomial, // Ssigma3
-    fourth_sigma: Polynomial, // Ssigma4 for q_4
+    s_sigma_1: Polynomial,
+    s_sigma_2: Polynomial,
+    s_sigma_3: Polynomial,
+    s_sigma_4: Polynomial, // for q_4
 }
 
 impl TurboComposer {
     // Pads the circuit to the next power of two
-    // # Note: `diff` is the difference between circuit size and next power of two
+    // # Note: `diff` is the difference between circuit size and next power of
+    // two
     fn pad(&mut self, diff: usize) {
         // Add a zero variable to circuit
         let zero_scalar = BlsScalar::zero();
@@ -166,20 +167,20 @@ impl TurboComposer {
             domain_4n,
         );
 
-        let left_sigma_eval_4n = Evaluations::from_vec_and_domain(
-            domain_4n.coset_fft(&selectors.left_sigma),
+        let s_sigma_1_eval_4n = Evaluations::from_vec_and_domain(
+            domain_4n.coset_fft(&selectors.s_sigma_1),
             domain_4n,
         );
-        let right_sigma_eval_4n = Evaluations::from_vec_and_domain(
-            domain_4n.coset_fft(&selectors.right_sigma),
+        let s_sigma_2_eval_4n = Evaluations::from_vec_and_domain(
+            domain_4n.coset_fft(&selectors.s_sigma_2),
             domain_4n,
         );
-        let out_sigma_eval_4n = Evaluations::from_vec_and_domain(
-            domain_4n.coset_fft(&selectors.out_sigma),
+        let s_sigma_3_eval_4n = Evaluations::from_vec_and_domain(
+            domain_4n.coset_fft(&selectors.s_sigma_3),
             domain_4n,
         );
-        let fourth_sigma_eval_4n = Evaluations::from_vec_and_domain(
-            domain_4n.coset_fft(&selectors.fourth_sigma),
+        let s_sigma_4_eval_4n = Evaluations::from_vec_and_domain(
+            domain_4n.coset_fft(&selectors.s_sigma_4),
             domain_4n,
         );
 
@@ -240,10 +241,10 @@ impl TurboComposer {
 
         // Prover Key for permutation argument
         let permutation_prover_key = widget::permutation::ProverKey {
-            left_sigma: (selectors.left_sigma, left_sigma_eval_4n),
-            right_sigma: (selectors.right_sigma, right_sigma_eval_4n),
-            out_sigma: (selectors.out_sigma, out_sigma_eval_4n),
-            fourth_sigma: (selectors.fourth_sigma, fourth_sigma_eval_4n),
+            s_sigma_1: (selectors.s_sigma_1, s_sigma_1_eval_4n),
+            s_sigma_2: (selectors.s_sigma_2, s_sigma_2_eval_4n),
+            s_sigma_3: (selectors.s_sigma_3, s_sigma_3_eval_4n),
+            s_sigma_4: (selectors.s_sigma_4, s_sigma_4_eval_4n),
             linear_evaluations: linear_eval_4n,
         };
 
@@ -368,7 +369,7 @@ impl TurboComposer {
         );
 
         // 2. Compute the sigma polynomials
-        let [left_sigma_poly, right_sigma_poly, out_sigma_poly, fourth_sigma_poly] =
+        let [s_sigma_1_poly, s_sigma_2_poly, s_sigma_3_poly, s_sigma_4_poly] =
             self.perm.compute_sigma_polynomials(self.n, &domain);
 
         let q_m_poly_commit = commit_key.commit(&q_m_poly).unwrap_or_default();
@@ -391,10 +392,10 @@ impl TurboComposer {
             .commit(&q_variable_group_add_poly)
             .unwrap_or_default();
 
-        let left_sigma_poly_commit = commit_key.commit(&left_sigma_poly)?;
-        let right_sigma_poly_commit = commit_key.commit(&right_sigma_poly)?;
-        let out_sigma_poly_commit = commit_key.commit(&out_sigma_poly)?;
-        let fourth_sigma_poly_commit = commit_key.commit(&fourth_sigma_poly)?;
+        let s_sigma_1_poly_commit = commit_key.commit(&s_sigma_1_poly)?;
+        let s_sigma_2_poly_commit = commit_key.commit(&s_sigma_2_poly)?;
+        let s_sigma_3_poly_commit = commit_key.commit(&s_sigma_3_poly)?;
+        let s_sigma_4_poly_commit = commit_key.commit(&s_sigma_4_poly)?;
 
         // Preprocess the lookup table
         let preprocessed_table = PreprocessedLookupTable::preprocess(
@@ -445,10 +446,10 @@ impl TurboComposer {
         };
         // Verifier Key for permutation argument
         let permutation_verifier_key = widget::permutation::VerifierKey {
-            left_sigma: left_sigma_poly_commit,
-            right_sigma: right_sigma_poly_commit,
-            out_sigma: out_sigma_poly_commit,
-            fourth_sigma: fourth_sigma_poly_commit,
+            s_sigma_1: s_sigma_1_poly_commit,
+            s_sigma_2: s_sigma_2_poly_commit,
+            s_sigma_3: s_sigma_3_poly_commit,
+            s_sigma_4: s_sigma_4_poly_commit,
         };
 
         let verifier_key = widget::VerifierKey {
@@ -475,10 +476,10 @@ impl TurboComposer {
             q_logic: q_logic_poly,
             q_fixed_group_add: q_fixed_group_add_poly,
             q_variable_group_add: q_variable_group_add_poly,
-            left_sigma: left_sigma_poly,
-            right_sigma: right_sigma_poly,
-            out_sigma: out_sigma_poly,
-            fourth_sigma: fourth_sigma_poly,
+            s_sigma_1: s_sigma_1_poly,
+            s_sigma_2: s_sigma_2_poly,
+            s_sigma_3: s_sigma_3_poly,
+            s_sigma_4: s_sigma_4_poly,
         };
 
         // Add the circuit description to the transcript

@@ -281,26 +281,23 @@ pub(crate) mod alloc {
             transcript
                 .append_scalar(b"d_next_eval", &self.evaluations.d_next_eval);
             transcript.append_scalar(
-                b"left_sig_eval",
-                &self.evaluations.left_sigma_eval,
+                b"s_sigma_1_eval",
+                &self.evaluations.s_sigma_1_eval,
             );
             transcript.append_scalar(
-                b"right_sig_eval",
-                &self.evaluations.right_sigma_eval,
+                b"s_sigma_2_eval",
+                &self.evaluations.s_sigma_2_eval,
             );
             transcript.append_scalar(
-                b"out_sig_eval",
-                &self.evaluations.out_sigma_eval,
+                b"s_sigma_3_eval",
+                &self.evaluations.s_sigma_3_eval,
             );
             transcript
                 .append_scalar(b"q_arith_eval", &self.evaluations.q_arith_eval);
             transcript.append_scalar(b"q_c_eval", &self.evaluations.q_c_eval);
             transcript.append_scalar(b"q_l_eval", &self.evaluations.q_l_eval);
             transcript.append_scalar(b"q_r_eval", &self.evaluations.q_r_eval);
-            transcript.append_scalar(
-                b"q_k_eval",
-                &self.evaluations.q_k_eval,
-            );
+            transcript.append_scalar(b"q_k_eval", &self.evaluations.q_k_eval);
             transcript.append_scalar(b"perm_eval", &self.evaluations.perm_eval);
             transcript.append_scalar(
                 b"lookup_perm_eval",
@@ -357,16 +354,16 @@ pub(crate) mod alloc {
             aggregate_proof.add_part((self.evaluations.c_eval, self.c_comm));
             aggregate_proof.add_part((self.evaluations.d_eval, self.d_comm));
             aggregate_proof.add_part((
-                self.evaluations.left_sigma_eval,
-                verifier_key.permutation.left_sigma,
+                self.evaluations.s_sigma_1_eval,
+                verifier_key.permutation.s_sigma_1,
             ));
             aggregate_proof.add_part((
-                self.evaluations.right_sigma_eval,
-                verifier_key.permutation.right_sigma,
+                self.evaluations.s_sigma_2_eval,
+                verifier_key.permutation.s_sigma_2,
             ));
             aggregate_proof.add_part((
-                self.evaluations.out_sigma_eval,
-                verifier_key.permutation.out_sigma,
+                self.evaluations.s_sigma_3_eval,
+                verifier_key.permutation.s_sigma_3,
             ));
             aggregate_proof.add_part((self.evaluations.f_eval, self.f_comm));
             aggregate_proof
@@ -447,15 +444,15 @@ pub(crate) mod alloc {
             let a = self.evaluations.lin_poly_eval + pi_eval;
 
             // a + beta * sigma_1 + gamma
-            let beta_sig1 = beta * self.evaluations.left_sigma_eval;
+            let beta_sig1 = beta * self.evaluations.s_sigma_1_eval;
             let b_0 = self.evaluations.a_eval + beta_sig1 + gamma;
 
             // b+ beta * sigma_2 + gamma
-            let beta_sig2 = beta * self.evaluations.right_sigma_eval;
+            let beta_sig2 = beta * self.evaluations.s_sigma_2_eval;
             let b_1 = self.evaluations.b_eval + beta_sig2 + gamma;
 
             // c+ beta * sigma_3 + gamma
-            let beta_sig3 = beta * self.evaluations.out_sigma_eval;
+            let beta_sig3 = beta * self.evaluations.s_sigma_3_eval;
             let b_2 = self.evaluations.c_eval + beta_sig3 + gamma;
 
             // ((d + gamma) * z_hat) * alpha_0
@@ -695,9 +692,9 @@ mod proof_tests {
                 q_l_eval: BlsScalar::random(&mut OsRng),
                 q_r_eval: BlsScalar::random(&mut OsRng),
                 q_k_eval: BlsScalar::random(&mut OsRng),
-                left_sigma_eval: BlsScalar::random(&mut OsRng),
-                right_sigma_eval: BlsScalar::random(&mut OsRng),
-                out_sigma_eval: BlsScalar::random(&mut OsRng),
+                s_sigma_1_eval: BlsScalar::random(&mut OsRng),
+                s_sigma_2_eval: BlsScalar::random(&mut OsRng),
+                s_sigma_3_eval: BlsScalar::random(&mut OsRng),
                 lin_poly_eval: BlsScalar::random(&mut OsRng),
                 perm_eval: BlsScalar::random(&mut OsRng),
                 lookup_perm_eval: BlsScalar::random(&mut OsRng),

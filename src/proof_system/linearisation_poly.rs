@@ -50,11 +50,11 @@ pub(crate) struct ProofEvaluations {
     //
     pub(crate) q_k_eval: BlsScalar,
     // Evaluation of the left sigma polynomial at `z`
-    pub(crate) left_sigma_eval: BlsScalar,
+    pub(crate) s_sigma_1_eval: BlsScalar,
     // Evaluation of the right sigma polynomial at `z`
-    pub(crate) right_sigma_eval: BlsScalar,
+    pub(crate) s_sigma_2_eval: BlsScalar,
     // Evaluation of the out sigma polynomial at `z`
-    pub(crate) out_sigma_eval: BlsScalar,
+    pub(crate) s_sigma_3_eval: BlsScalar,
 
     // Evaluation of the linearisation sigma polynomial at `z`
     pub(crate) lin_poly_eval: BlsScalar,
@@ -109,9 +109,9 @@ impl Serializable<{ 24 * BlsScalar::SIZE }> for ProofEvaluations {
         writer.write(&self.q_l_eval.to_bytes());
         writer.write(&self.q_r_eval.to_bytes());
         writer.write(&self.q_k_eval.to_bytes());
-        writer.write(&self.left_sigma_eval.to_bytes());
-        writer.write(&self.right_sigma_eval.to_bytes());
-        writer.write(&self.out_sigma_eval.to_bytes());
+        writer.write(&self.s_sigma_1_eval.to_bytes());
+        writer.write(&self.s_sigma_2_eval.to_bytes());
+        writer.write(&self.s_sigma_3_eval.to_bytes());
         writer.write(&self.lin_poly_eval.to_bytes());
         writer.write(&self.perm_eval.to_bytes());
         writer.write(&self.lookup_perm_eval.to_bytes());
@@ -141,9 +141,9 @@ impl Serializable<{ 24 * BlsScalar::SIZE }> for ProofEvaluations {
         let q_l_eval = BlsScalar::from_reader(&mut buffer)?;
         let q_r_eval = BlsScalar::from_reader(&mut buffer)?;
         let q_k_eval = BlsScalar::from_reader(&mut buffer)?;
-        let left_sigma_eval = BlsScalar::from_reader(&mut buffer)?;
-        let right_sigma_eval = BlsScalar::from_reader(&mut buffer)?;
-        let out_sigma_eval = BlsScalar::from_reader(&mut buffer)?;
+        let s_sigma_1_eval = BlsScalar::from_reader(&mut buffer)?;
+        let s_sigma_2_eval = BlsScalar::from_reader(&mut buffer)?;
+        let s_sigma_3_eval = BlsScalar::from_reader(&mut buffer)?;
         let lin_poly_eval = BlsScalar::from_reader(&mut buffer)?;
         let perm_eval = BlsScalar::from_reader(&mut buffer)?;
         let lookup_perm_eval = BlsScalar::from_reader(&mut buffer)?;
@@ -167,9 +167,9 @@ impl Serializable<{ 24 * BlsScalar::SIZE }> for ProofEvaluations {
             q_l_eval,
             q_r_eval,
             q_k_eval,
-            left_sigma_eval,
-            right_sigma_eval,
-            out_sigma_eval,
+            s_sigma_1_eval,
+            s_sigma_2_eval,
+            s_sigma_3_eval,
             lin_poly_eval,
             perm_eval,
             lookup_perm_eval,
@@ -236,12 +236,14 @@ pub(crate) fn compute(
     let b_eval = w_r_poly.evaluate(z_challenge);
     let c_eval = w_o_poly.evaluate(z_challenge);
     let d_eval = w_4_poly.evaluate(z_challenge);
-    let left_sigma_eval =
-        prover_key.permutation.left_sigma.0.evaluate(z_challenge);
-    let right_sigma_eval =
-        prover_key.permutation.right_sigma.0.evaluate(z_challenge);
-    let out_sigma_eval =
-        prover_key.permutation.out_sigma.0.evaluate(z_challenge);
+
+    let s_sigma_1_eval =
+        prover_key.permutation.s_sigma_1.0.evaluate(z_challenge);
+    let s_sigma_2_eval =
+        prover_key.permutation.s_sigma_2.0.evaluate(z_challenge);
+    let s_sigma_3_eval =
+        prover_key.permutation.s_sigma_3.0.evaluate(z_challenge);
+
     let q_arith_eval = prover_key.arithmetic.q_arith.0.evaluate(z_challenge);
     let q_c_eval = prover_key.logic.q_c.0.evaluate(z_challenge);
     let q_l_eval = prover_key.fixed_base.q_l.0.evaluate(z_challenge);
@@ -301,7 +303,7 @@ pub(crate) fn compute(
         z_challenge,
         (alpha, beta, gamma),
         (&a_eval, &b_eval, &c_eval, &d_eval),
-        (&left_sigma_eval, &right_sigma_eval, &out_sigma_eval),
+        (&s_sigma_1_eval, &s_sigma_2_eval, &s_sigma_3_eval),
         &perm_eval,
         z_poly,
     );
@@ -327,9 +329,9 @@ pub(crate) fn compute(
                 q_l_eval,
                 q_r_eval,
                 q_k_eval,
-                left_sigma_eval,
-                right_sigma_eval,
-                out_sigma_eval,
+                s_sigma_1_eval,
+                s_sigma_2_eval,
+                s_sigma_3_eval,
                 lin_poly_eval,
                 perm_eval,
                 lookup_perm_eval,

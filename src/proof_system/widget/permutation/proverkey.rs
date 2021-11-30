@@ -10,10 +10,10 @@ use dusk_bls12_381::BlsScalar;
 
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub(crate) struct ProverKey {
-    pub(crate) left_sigma: (Polynomial, Evaluations),
-    pub(crate) right_sigma: (Polynomial, Evaluations),
-    pub(crate) out_sigma: (Polynomial, Evaluations),
-    pub(crate) fourth_sigma: (Polynomial, Evaluations),
+    pub(crate) s_sigma_1: (Polynomial, Evaluations),
+    pub(crate) s_sigma_2: (Polynomial, Evaluations),
+    pub(crate) s_sigma_3: (Polynomial, Evaluations),
+    pub(crate) s_sigma_4: (Polynomial, Evaluations),
     pub(crate) linear_evaluations: Evaluations,
     /* Evaluations of f(x) = X
      * [XXX: Remove this and
@@ -85,15 +85,15 @@ impl ProverKey {
         beta: &BlsScalar,
         gamma: &BlsScalar,
     ) -> BlsScalar {
-        let left_sigma_eval = self.left_sigma.1[index];
-        let right_sigma_eval = self.right_sigma.1[index];
-        let out_sigma_eval = self.out_sigma.1[index];
-        let fourth_sigma_eval = self.fourth_sigma.1[index];
+        let s_sigma_1_eval = self.s_sigma_1.1[index];
+        let s_sigma_2_eval = self.s_sigma_2.1[index];
+        let s_sigma_3_eval = self.s_sigma_3.1[index];
+        let s_sigma_4_eval = self.s_sigma_4.1[index];
 
-        let product = (w_l_i + (beta * left_sigma_eval) + gamma)
-            * (w_r_i + (beta * right_sigma_eval) + gamma)
-            * (w_o_i + (beta * out_sigma_eval) + gamma)
-            * (w_4_i + (beta * fourth_sigma_eval) + gamma)
+        let product = (w_l_i + (beta * s_sigma_1_eval) + gamma)
+            * (w_r_i + (beta * s_sigma_2_eval) + gamma)
+            * (w_o_i + (beta * s_sigma_3_eval) + gamma)
+            * (w_4_i + (beta * s_sigma_4_eval) + gamma)
             * z_i_next
             * alpha;
 
@@ -139,7 +139,7 @@ impl ProverKey {
             sigma_2_eval,
             sigma_3_eval,
             (alpha, beta, gamma),
-            &self.fourth_sigma.0,
+            &self.s_sigma_4.0,
         );
 
         let domain = EvaluationDomain::new(z_poly.degree()).unwrap();
@@ -206,7 +206,7 @@ impl ProverKey {
         sigma_2_eval: &BlsScalar,
         sigma_3_eval: &BlsScalar,
         (alpha, beta, gamma): (&BlsScalar, &BlsScalar, &BlsScalar),
-        fourth_sigma_poly: &Polynomial,
+        s_sigma_4_poly: &Polynomial,
     ) -> Polynomial {
         // a_eval + beta * sigma_1 + gamma
         let beta_sigma_1 = beta * sigma_1_eval;
@@ -230,10 +230,10 @@ impl ProverKey {
         a *= alpha; // (a_eval + beta * sigma_1 + gamma)(b_eval + beta * sigma_2 +
                     // gamma)(c_eval + beta * sigma_3 + gamma) * beta * z_eval * alpha
 
-        fourth_sigma_poly * &-a // -(a_eval + beta * sigma_1 + gamma)(b_eval +
-                                // beta * sigma_2 + gamma) (c_eval + beta *
-                                // sigma_3 + gamma) * beta * z_eval * alpha^2 *
-                                // Sigma_4(X)
+        s_sigma_4_poly * &-a // -(a_eval + beta * sigma_1 + gamma)(b_eval +
+                             // beta * sigma_2 + gamma) (c_eval + beta *
+                             // sigma_3 + gamma) * beta * z_eval * alpha^2 *
+                             // Sigma_4(X)
     }
 
     fn compute_lineariser_check_is_one(
