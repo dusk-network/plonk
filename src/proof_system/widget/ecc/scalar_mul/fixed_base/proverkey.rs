@@ -83,7 +83,7 @@ impl ProverKey {
         identity * q_fixed_group_add_i * ecc_separation_challenge
     }
 
-    pub(crate) fn compute_linearisation(
+    pub(crate) fn compute_linearization(
         &self,
         ecc_separation_challenge: &BlsScalar,
         a_eval: &BlsScalar,

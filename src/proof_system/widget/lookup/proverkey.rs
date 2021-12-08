@@ -80,8 +80,8 @@ impl ProverKey {
         a + b + c + d
     }
 
-    /// Compute linearisation for lookup gates
-    pub(crate) fn compute_linearisation(
+    /// Compute linearization for lookup gates
+    pub(crate) fn compute_linearization(
         &self,
         a_eval: &BlsScalar,
         b_eval: &BlsScalar,

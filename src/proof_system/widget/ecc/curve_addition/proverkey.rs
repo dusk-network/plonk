@@ -62,7 +62,7 @@ impl ProverKey {
         identity * q_variable_group_add_i * curve_add_separation_challenge
     }
 
-    pub(crate) fn compute_linearisation(
+    pub(crate) fn compute_linearization(
         &self,
         curve_add_separation_challenge: &BlsScalar,
         a_eval: &BlsScalar,

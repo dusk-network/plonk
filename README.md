@@ -6,7 +6,7 @@
 
 _This is a pure Rust implementation of the PLONK proving system over BLS12-381_
 
-This library contains a modularised implementation of KZG10 as the default polynomial commitment scheme.
+This library contains a modularized implementation of KZG10 as the default polynomial commitment scheme.
 
 ## Usage
 
@@ -56,7 +56,6 @@ impl Circuit for TestCircuit {
         // Make second constraint a * b = d
         let constraint = Constraint::new()
             .mult(1)
-            .output(1)
             .public(-self.d)
             .a(a)
             .b(b);
@@ -66,7 +65,8 @@ impl Circuit for TestCircuit {
         let e = composer.append_witness(self.e);
         let scalar_mul_result = composer
             .component_mul_generator(e, dusk_jubjub::GENERATOR_EXTENDED);
-        // Apply the constrain
+
+        // Apply the constraint
         composer.assert_equal_public_point(scalar_mul_result, self.f);
         Ok(())
     }
@@ -85,8 +85,9 @@ impl Circuit for TestCircuit {
 let pp = PublicParameters::setup(1 << 12, &mut OsRng).unwrap();
 // Initialize the circuit
 let mut circuit = TestCircuit::default();
-// Compile the circuit
+// Compile/preproces the circuit
 let (pk, vd) = circuit.compile(&pp).unwrap();
+
 // Prover POV
 let proof = {
     let mut circuit = TestCircuit {
@@ -101,6 +102,7 @@ let proof = {
     };
     circuit.prove(&pp, &pk, b"Test").unwrap()
 };
+
 // Verifier POV
 let public_inputs: Vec<PublicInputValue> = vec![
     BlsScalar::from(25u64).into(),
@@ -124,9 +126,9 @@ TestCircuit::verify(
 This crate includes a variety of features which will briefly be explained below:
 - `alloc`: Enables the usage of an allocator and with it the capability of performing `Proof` constructions and 
   verifications. Without this feature it **IS NOT** possible to prove or verify anything. 
-  Its absence only makes `dusk-plonk` export certain fixed-size data structures such as `Proof` which can be useful in no_std envoirments where we don't have allocators either.
-- `std`: Enables `std` usage as well as `rayon` parallelisation in some proving and verifying ops. 
-  It also uses the `std` versions of the elliptic curve deps, which utilises the `parallel` feature 
+  Its absence only makes `dusk-plonk` export certain fixed-size data structures such as `Proof` which can be useful in no_std environments where we don't have allocators either.
+- `std`: Enables `std` usage as well as `rayon` parallelization in some proving and verifying ops. 
+  It also uses the `std` versions of the elliptic curve deps, which utilizes the `parallel` feature 
   from `dusk-bls12-381`. By default, this is the feature that comes enabled with the crate.
 - `trace`: Enables the Circuit debugger tooling. This is essentially the capability of using the 
   `StandardComposer::check_circuit_satisfied` function. The function will output information about each circuit gate until 
@@ -136,8 +138,7 @@ This crate includes a variety of features which will briefly be explained below:
   values which make up the circuit that we're constructing. 
   __The recommended method is to derive the std output, and the std error, and then place them in text file 
     which can be used to efficiently analyse the gates.__
-- `canon`: Enables `canonical` serialisation for particular data structures, which is very useful in integrating
-  this library within the rest of the Dusk stack - especially for storage purposes.
+- `canon`: Enables `canonical` serialization for particular data structures, which is very useful in integrating  this library within the rest of the Dusk stack - especially for storage purposes.
 
 
 ## Documentation

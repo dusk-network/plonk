@@ -82,7 +82,7 @@ impl CommitKey {
         Self { powers_of_g }
     }
 
-    /// Serialises the [`CommitKey`] into a byte slice.
+    /// Serializes the [`CommitKey`] into a byte slice.
     pub fn to_var_bytes(&self) -> Vec<u8> {
         self.powers_of_g
             .iter()
@@ -90,7 +90,7 @@ impl CommitKey {
             .collect()
     }
 
-    /// Deserialise a slice of bytes into a [`CommitKey`] struct performing
+    /// Deserialize a slice of bytes into a [`CommitKey`] struct performing
     /// security and consistency checks for each point that the bytes
     /// contain.
     ///
@@ -173,7 +173,7 @@ impl CommitKey {
 
     /// Computes a single witness for multiple polynomials at the same point, by
     /// taking a random linear combination of the individual witnesses.
-    /// We apply the same optimisation mentioned in when computing each witness;
+    /// We apply the same optimization mentioned in when computing each witness;
     /// removing f(z).
     pub(crate) fn compute_aggregate_witness(
         &self,
@@ -181,15 +181,15 @@ impl CommitKey {
         point: &BlsScalar,
         transcript: &mut Transcript,
     ) -> Polynomial {
-        let v = transcript.challenge_scalar(b"v");
-        let powers = util::powers_of(&v, polynomials.len() - 1);
+        let v_chall = transcript.challenge_scalar(b"v_chall");
+        let powers = util::powers_of(&v_chall, polynomials.len() - 1);
 
         assert_eq!(powers.len(), polynomials.len());
 
         let numerator: Polynomial = polynomials
             .iter()
             .zip(powers.iter())
-            .map(|(poly, v)| poly * v)
+            .map(|(poly, v_chall)| poly * v_chall)
             .sum();
         numerator.ruffini(*point)
     }
@@ -264,22 +264,21 @@ impl OpeningKey {
         let mut total_c = G1Projective::identity();
         let mut total_w = G1Projective::identity();
 
-        let challenge = transcript.challenge_scalar(b"batch"); // XXX: Verifier can add their own randomness at this point
-        let powers = util::powers_of(&challenge, proofs.len() - 1);
+        let u_chall = transcript.challenge_scalar(b"batch"); // XXX: Verifier can add their own randomness at this point
+        let powers = util::powers_of(&u_chall, proofs.len() - 1);
         // Instead of multiplying g and gamma_g in each turn, we simply
         // accumulate their coefficients and perform a final
         // multiplication at the end.
         let mut g_multiplier = BlsScalar::zero();
 
-        for ((proof, challenge), point) in proofs.iter().zip(powers).zip(points)
-        {
+        for ((proof, u_chall), point) in proofs.iter().zip(powers).zip(points) {
             let mut c = G1Projective::from(proof.commitment_to_polynomial.0);
             let w = proof.commitment_to_witness.0;
             c += w * point;
-            g_multiplier += challenge * proof.evaluated_point;
+            g_multiplier += u_chall * proof.evaluated_point;
 
-            total_c += c * challenge;
-            total_w += w * challenge;
+            total_c += c * u_chall;
+            total_w += w * u_chall;
         }
         total_c -= self.g * g_multiplier;
 

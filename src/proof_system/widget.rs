@@ -191,6 +191,7 @@ pub(crate) mod alloc {
         fft::{EvaluationDomain, Evaluations, Polynomial},
         transcript::TranscriptProtocol,
     };
+    #[rustfmt::skip]
     use ::alloc::vec::Vec;
     use dusk_bls12_381::BlsScalar;
     use merlin::Transcript;
@@ -277,7 +278,7 @@ pub(crate) mod alloc {
             21
         }
 
-        /// Serialises a [`ProverKey`] struct into a Vec of bytes.
+        /// Serializes a [`ProverKey`] struct into a Vec of bytes.
         #[allow(unused_must_use)]
         pub fn to_var_bytes(&self) -> Vec<u8> {
             use dusk_bytes::Write;
@@ -425,7 +426,7 @@ pub(crate) mod alloc {
             bytes
         }
 
-        /// Deserialises a slice of bytes into a [`ProverKey`].
+        /// Deserializes a slice of bytes into a [`ProverKey`].
         pub fn from_slice(bytes: &[u8]) -> Result<ProverKey, Error> {
             let mut buffer = bytes;
             let n = u64::from_reader(&mut buffer)? as usize;
@@ -638,6 +639,7 @@ mod test {
     use super::*;
     use crate::fft::{EvaluationDomain, Evaluations, Polynomial};
     use crate::plonkup::MultiSet;
+    #[rustfmt::skip]
     use ::alloc::vec::Vec;
     use dusk_bls12_381::BlsScalar;
     use rand_core::OsRng;
@@ -664,7 +666,7 @@ mod test {
     }
 
     #[test]
-    fn test_serialise_deserialise_prover_key() {
+    fn test_serialize_deserialize_prover_key() {
         let n = 1 << 11;
 
         let q_m = rand_poly_eval(n);
@@ -762,7 +764,7 @@ mod test {
     }
 
     #[test]
-    fn test_serialise_deserialise_verifier_key() {
+    fn test_serialize_deserialize_verifier_key() {
         use crate::commitment_scheme::Commitment;
         use dusk_bls12_381::G1Affine;
 

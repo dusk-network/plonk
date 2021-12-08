@@ -54,7 +54,7 @@ impl ProverKey {
         q_logic_i * (c_3 + c_0 + c_1 + c_2 + c_4) * logic_separation_challenge
     }
 
-    pub(crate) fn compute_linearisation(
+    pub(crate) fn compute_linearization(
         &self,
         logic_separation_challenge: &BlsScalar,
         a_eval: &BlsScalar,

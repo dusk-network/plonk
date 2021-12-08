@@ -14,13 +14,14 @@ pub(crate) struct VerifierKey {
 #[cfg(feature = "alloc")]
 mod alloc {
     use super::*;
-    use crate::proof_system::linearisation_poly::ProofEvaluations;
+    use crate::proof_system::linearization_poly::ProofEvaluations;
+    #[rustfmt::skip]
     use ::alloc::vec::Vec;
     use dusk_bls12_381::{BlsScalar, G1Affine};
     use dusk_jubjub::EDWARDS_D;
 
     impl VerifierKey {
-        pub(crate) fn compute_linearisation_commitment(
+        pub(crate) fn compute_linearization_commitment(
             &self,
             curve_add_separation_challenge: &BlsScalar,
             scalars: &mut Vec<BlsScalar>,

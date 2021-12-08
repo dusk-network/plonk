@@ -49,7 +49,7 @@ impl Permutation {
         let var = Witness::new(self.variable_map.keys().len());
 
         // Allocate space for the Witness on the variable_map
-        // Each vector is initialised with a capacity of 16.
+        // Each vector is initialized with a capacity of 16.
         // This number is a best guess estimate.
         self.variable_map.insert(var, Vec::with_capacity(16usize));
 

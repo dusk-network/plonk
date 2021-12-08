@@ -6,7 +6,7 @@
 
 //! Proving system
 
-pub(crate) mod linearisation_poly;
+pub(crate) mod linearization_poly;
 pub(crate) mod proof;
 pub(crate) mod widget;
 

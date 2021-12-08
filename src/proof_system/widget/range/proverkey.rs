@@ -40,7 +40,7 @@ impl ProverKey {
         (b_1 + b_2 + b_3 + b_4) * q_range_i * range_separation_challenge
     }
 
-    pub(crate) fn compute_linearisation(
+    pub(crate) fn compute_linearization(
         &self,
         range_separation_challenge: &BlsScalar,
         a_eval: &BlsScalar,

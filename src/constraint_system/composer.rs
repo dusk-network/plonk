@@ -30,26 +30,26 @@ use hashbrown::HashMap;
 /// repository provides so that circuit descriptions can be written, stored and
 /// transformed into a [`Proof`](crate::proof_system::Proof) at some point.
 ///
-/// A TurboComposer stores all of the circuit information, being this one
+/// A TurboComposer stores all of the circuit information, this one being
 /// all of the witness and circuit descriptors info (values, positions in the
 /// circuits, gates and Wires that occupy..), the public inputs, the connection
-/// relationships between the witnesses and how they're repesented as Wires (so
+/// relationships between the witnesses and how they're represented as Wires (so
 /// basically the Permutation argument etc..).
 ///
 /// The TurboComposer also grants us a way to introduce our secret witnesses in
-/// a for of a [`Witness`] into the circuit description as well as the public
-/// inputs. We can do this with methods like [`TurboComposer::append_witness`].
+/// into the circuit description as well as the public inputs. We can do this
+/// with methods like [`TurboComposer::append_witness`].
 ///
-/// The TurboComposer also contains as associated functions all the
-/// neccessary tools to be able to istrument the circuits that the user needs
+/// The TurboComposer also contains as associated functions all the necessary
+/// tools to be able to instrument the circuits that the user needs
 /// through the addition of gates. There are functions that may add a single
 /// gate to the circuit as for example [`TurboComposer::gate_add`] and others
 /// that can add several gates to the circuit description such as
 /// [`TurboComposer::component_select`].
 ///
-/// Each gate or group of gates adds an specific functionallity or operation to
-/// de circuit description, and so, that's why we can understand
-/// the TurboComposer as a builder.
+/// Each gate or group of gates adds a specific functionality or operation to
+/// the circuit description, and so, that's why we can understand the
+/// TurboComposer as a builder.
 #[derive(Debug)]
 pub struct TurboComposer {
     /// Number of arithmetic gates in the circuit
@@ -66,19 +66,21 @@ pub struct TurboComposer {
     pub(crate) q_o: Vec<BlsScalar>,
     /// Constant wire selector
     pub(crate) q_c: Vec<BlsScalar>,
-    /// Fourth wire selector
+    /// Fourth wire selector added for efficiency of implementation
     pub(crate) q_4: Vec<BlsScalar>,
     /// Plonkup gate wire selector
     pub(crate) q_k: Vec<BlsScalar>,
-    /// Arithmetic wire selector
+    /// Arithmetic wire selector added for efficiency of implementation
     pub(crate) q_arith: Vec<BlsScalar>,
-    /// Range selector
+    /// Range selector added for efficiency of implementation
     pub(crate) q_range: Vec<BlsScalar>,
-    /// Logic selector
+    /// Logic selector added for efficiency of implementation
     pub(crate) q_logic: Vec<BlsScalar>,
-    /// Fixed base group addition selector
+    /// Fixed base group addition selector added for efficiency of
+    /// implementation
     pub(crate) q_fixed_group_add: Vec<BlsScalar>,
-    /// Variable base group addition selector
+    /// Variable base group addition selector added for efficiency of
+    /// implementation
     pub(crate) q_variable_group_add: Vec<BlsScalar>,
 
     /// Sparse representation of the Public Inputs linking the positions of the
@@ -92,7 +94,7 @@ pub struct TurboComposer {
     pub(crate) b_w: Vec<Witness>,
     /// Output wire witness vector.
     pub(crate) c_w: Vec<Witness>,
-    /// Fourth wire witness vector.
+    /// Fourth wire witness vector added for efficiency of implementation.
     pub(crate) d_w: Vec<Witness>,
 
     /// Public lookup table
@@ -163,8 +165,8 @@ impl Default for TurboComposer {
 }
 
 impl TurboComposer {
-    /// Generates a new empty `TurboComposer` with all of it's fields
-    /// set to hold an initial capacity of 0.
+    /// Generates a new empty `TurboComposer` with all of it's fields set to
+    /// hold an initial capacity of 0.
     ///
     /// # Note
     ///
@@ -772,7 +774,7 @@ impl TurboComposer {
         c
     }
 
-    /// When [`TurboComposer`] is initialised, it spawns a dummy table
+    /// When [`TurboComposer`] is initialized, it spawns a dummy table
     /// with 3 entries that should not be removed. This function appends
     /// its input table to the composer's dummy table
     pub fn append_plonkup_table(&mut self, table: &LookupTable) {

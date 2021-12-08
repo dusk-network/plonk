@@ -16,16 +16,17 @@ pub(crate) struct VerifierKey {
 #[cfg(feature = "alloc")]
 mod alloc {
     use super::*;
-    use crate::proof_system::linearisation_poly::ProofEvaluations;
+    use crate::proof_system::linearization_poly::ProofEvaluations;
     use crate::proof_system::widget::ecc::scalar_mul::fixed_base::proverkey::{
         check_bit_consistency, extract_bit,
     };
+    #[rustfmt::skip]
     use ::alloc::vec::Vec;
     use dusk_bls12_381::{BlsScalar, G1Affine};
     use dusk_jubjub::EDWARDS_D;
 
     impl VerifierKey {
-        pub(crate) fn compute_linearisation_commitment(
+        pub(crate) fn compute_linearization_commitment(
             &self,
             ecc_separation_challenge: &BlsScalar,
             scalars: &mut Vec<BlsScalar>,

@@ -24,13 +24,17 @@ pub(crate) struct Polynomials {
     q_r: Polynomial,
     q_o: Polynomial,
     q_c: Polynomial,
-    q_4: Polynomial, // additional selector for 3-input gates
 
-    // additional selector polynomial which activates the lookup gates
-    // --> if (lookup_gate) q_k[i] = 1 else q_k[i] = 0
+    // additional selector for 3-input gates added for efficiency of
+    // implementation
+    q_4: Polynomial,
+
+    // selector polynomial which activates the lookup gates
+    // --> if (ith gate is lookup_gate) q_k[i] = 1 else q_k[i] = 0
     q_k: Polynomial,
 
-    // specific selectors for different kinds of circuits
+    // additional selectors for different kinds of circuits added for
+    // efficiency of implementation
     q_arith: Polynomial,              // arithmetic circuits
     q_range: Polynomial,              // range proofs
     q_logic: Polynomial,              // boolean operations
@@ -45,9 +49,11 @@ pub(crate) struct Polynomials {
 }
 
 impl TurboComposer {
-    // Pads the circuit to the next power of two
-    // # Note: `diff` is the difference between circuit size and next power of
-    // two
+    /// Pads the circuit to the next power of two
+    ///
+    /// # Note:
+    ///
+    /// `diff` is the difference between circuit size and next power of two
     fn pad(&mut self, diff: usize) {
         // Add a zero variable to circuit
         let zero_scalar = BlsScalar::zero();
@@ -77,8 +83,7 @@ impl TurboComposer {
         self.n += diff;
     }
 
-    /// Checks that all of the wires of the composer have the same
-    /// length.
+    /// Checks that all of the wires of the composer have the same length.
     fn check_poly_same_len(&self) -> Result<(), Error> {
         let k = self.q_m.len();
 
@@ -397,7 +402,7 @@ impl TurboComposer {
         let s_sigma_3_poly_commit = commit_key.commit(&s_sigma_3_poly)?;
         let s_sigma_4_poly_commit = commit_key.commit(&s_sigma_4_poly)?;
 
-        // Preprocess the lookup table
+        // 3. Preprocess the lookup table, this generates T_1, T_2, T_3 and T_4
         let preprocessed_table = PreprocessedLookupTable::preprocess(
             &self.lookup_table,
             commit_key,

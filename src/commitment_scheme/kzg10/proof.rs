@@ -26,6 +26,7 @@ pub(crate) mod alloc {
     use super::*;
     use crate::transcript::TranscriptProtocol;
     use crate::util::powers_of;
+    #[rustfmt::skip]
     use ::alloc::vec::Vec;
     use dusk_bls12_381::G1Projective;
     use merlin::Transcript;
@@ -47,7 +48,7 @@ pub(crate) mod alloc {
     }
 
     impl AggregateProof {
-        /// Initialises an `AggregatedProof` with the commitment to the witness.
+        /// Initializes an `AggregatedProof` with the commitment to the witness.
         pub(crate) fn with_witness(witness: Commitment) -> AggregateProof {
             AggregateProof {
                 commitment_to_witness: witness,
@@ -67,9 +68,9 @@ pub(crate) mod alloc {
         /// The transcript must have the same view as the transcript that was
         /// used to aggregate the witness in the proving stage.
         pub(crate) fn flatten(&self, transcript: &mut Transcript) -> Proof {
-            let v = transcript.challenge_scalar(b"v");
+            let v_chall = transcript.challenge_scalar(b"v_chall");
             let powers =
-                powers_of(&v, self.commitments_to_polynomials.len() - 1);
+                powers_of(&v_chall, self.commitments_to_polynomials.len() - 1);
 
             #[cfg(not(feature = "std"))]
             let flattened_poly_commitments_iter =
@@ -87,15 +88,15 @@ pub(crate) mod alloc {
             let flattened_poly_evaluations_iter =
                 self.evaluated_points.par_iter().zip(powers.par_iter());
 
-            // Flattened polynomial commitments using v
+            // Flattened polynomial commitments using v_chall
             let flattened_poly_commitments: G1Projective =
                 flattened_poly_commitments_iter
-                    .map(|(poly, v)| poly.0 * v)
+                    .map(|(poly, v_chall)| poly.0 * v_chall)
                     .sum();
             // Flattened evaluation points
             let flattened_poly_evaluations: BlsScalar =
                 flattened_poly_evaluations_iter
-                    .map(|(eval, v)| eval * v)
+                    .map(|(eval, v_chall)| eval * v_chall)
                     .sum();
 
             Proof {

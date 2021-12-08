@@ -47,7 +47,7 @@ impl ProverKey {
         (a_1 + a_2 + a_3 + a_4 + a_5 + a_6) * q_arith_i
     }
 
-    pub(crate) fn compute_linearisation(
+    pub(crate) fn compute_linearization(
         &self,
         a_eval: &BlsScalar,
         b_eval: &BlsScalar,

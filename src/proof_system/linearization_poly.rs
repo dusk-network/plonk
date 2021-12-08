@@ -16,7 +16,7 @@ use dusk_bytes::{DeserializableSlice, Serializable};
 /// Evaluations at points `z` or and `z * root of unity`
 pub(crate) struct Evaluations {
     pub(crate) proof: ProofEvaluations,
-    // Evaluation of the linearisation sigma polynomial at `z`
+    // Evaluation of the linearization sigma polynomial at `z`
     pub(crate) t_eval: BlsScalar,
 }
 
@@ -56,7 +56,7 @@ pub(crate) struct ProofEvaluations {
     // Evaluation of the out sigma polynomial at `z`
     pub(crate) s_sigma_3_eval: BlsScalar,
 
-    // Evaluation of the linearisation sigma polynomial at `z`
+    // Evaluation of the linearization sigma polynomial at `z`
     pub(crate) r_poly_eval: BlsScalar,
 
     // (Shifted) Evaluation of the permutation polynomial at `z * root of
@@ -185,7 +185,7 @@ impl Serializable<{ 24 * BlsScalar::SIZE }> for ProofEvaluations {
 
 #[cfg(feature = "alloc")]
 
-/// Compute the linearisation polynomial.
+/// Compute the linearization polynomial.
 // TODO: Improve the method signature
 #[allow(clippy::type_complexity)]
 pub(crate) fn compute(
@@ -203,7 +203,7 @@ pub(crate) fn compute(
         fixed_base_separation_challenge,
         var_base_separation_challenge,
         lookup_separation_challenge,
-        zeta_frak,
+        z_chall,
     ): &(
         BlsScalar,
         BlsScalar,
@@ -231,36 +231,36 @@ pub(crate) fn compute(
     p_poly: &Polynomial,
 ) -> (Polynomial, Evaluations) {
     // Compute evaluations
-    let t_eval = t_x_poly.evaluate(zeta_frak);
-    let a_eval = a_w_poly.evaluate(zeta_frak);
-    let b_eval = b_w_poly.evaluate(zeta_frak);
-    let c_eval = c_w_poly.evaluate(zeta_frak);
-    let d_eval = d_w_poly.evaluate(zeta_frak);
+    let t_eval = t_x_poly.evaluate(z_chall);
+    let a_eval = a_w_poly.evaluate(z_chall);
+    let b_eval = b_w_poly.evaluate(z_chall);
+    let c_eval = c_w_poly.evaluate(z_chall);
+    let d_eval = d_w_poly.evaluate(z_chall);
 
-    let s_sigma_1_eval = prover_key.permutation.s_sigma_1.0.evaluate(zeta_frak);
-    let s_sigma_2_eval = prover_key.permutation.s_sigma_2.0.evaluate(zeta_frak);
-    let s_sigma_3_eval = prover_key.permutation.s_sigma_3.0.evaluate(zeta_frak);
+    let s_sigma_1_eval = prover_key.permutation.s_sigma_1.0.evaluate(z_chall);
+    let s_sigma_2_eval = prover_key.permutation.s_sigma_2.0.evaluate(z_chall);
+    let s_sigma_3_eval = prover_key.permutation.s_sigma_3.0.evaluate(z_chall);
 
-    let q_arith_eval = prover_key.arithmetic.q_arith.0.evaluate(zeta_frak);
-    let q_c_eval = prover_key.logic.q_c.0.evaluate(zeta_frak);
-    let q_l_eval = prover_key.fixed_base.q_l.0.evaluate(zeta_frak);
-    let q_r_eval = prover_key.fixed_base.q_r.0.evaluate(zeta_frak);
-    let q_k_eval = prover_key.lookup.q_k.0.evaluate(zeta_frak);
-    let f_eval = f_poly.evaluate(zeta_frak);
-    let h_1_eval = h_1_poly.evaluate(zeta_frak);
-    let h_2_eval = h_2_poly.evaluate(zeta_frak);
-    let t_prime_eval = t_prime_poly.evaluate(zeta_frak);
+    let q_arith_eval = prover_key.arithmetic.q_arith.0.evaluate(z_chall);
+    let q_c_eval = prover_key.logic.q_c.0.evaluate(z_chall);
+    let q_l_eval = prover_key.fixed_base.q_l.0.evaluate(z_chall);
+    let q_r_eval = prover_key.fixed_base.q_r.0.evaluate(z_chall);
+    let q_k_eval = prover_key.lookup.q_k.0.evaluate(z_chall);
+    let f_eval = f_poly.evaluate(z_chall);
+    let h_1_eval = h_1_poly.evaluate(z_chall);
+    let h_2_eval = h_2_poly.evaluate(z_chall);
+    let t_prime_eval = t_prime_poly.evaluate(z_chall);
 
-    let a_next_eval = a_w_poly.evaluate(&(zeta_frak * domain.group_gen));
-    let b_next_eval = b_w_poly.evaluate(&(zeta_frak * domain.group_gen));
-    let d_next_eval = d_w_poly.evaluate(&(zeta_frak * domain.group_gen));
-    let perm_eval = z_poly.evaluate(&(zeta_frak * domain.group_gen));
-    let lookup_perm_eval = p_poly.evaluate(&(zeta_frak * domain.group_gen));
-    let h_1_next_eval = h_1_poly.evaluate(&(zeta_frak * domain.group_gen));
+    let a_next_eval = a_w_poly.evaluate(&(z_chall * domain.group_gen));
+    let b_next_eval = b_w_poly.evaluate(&(z_chall * domain.group_gen));
+    let d_next_eval = d_w_poly.evaluate(&(z_chall * domain.group_gen));
+    let perm_eval = z_poly.evaluate(&(z_chall * domain.group_gen));
+    let lookup_perm_eval = p_poly.evaluate(&(z_chall * domain.group_gen));
+    let h_1_next_eval = h_1_poly.evaluate(&(z_chall * domain.group_gen));
     let t_prime_next_eval =
-        t_prime_poly.evaluate(&(zeta_frak * domain.group_gen));
+        t_prime_poly.evaluate(&(z_chall * domain.group_gen));
 
-    let l_coeffs = domain.evaluate_all_lagrange_coefficients(*zeta_frak);
+    let l_coeffs = domain.evaluate_all_lagrange_coefficients(*z_chall);
     let l1_eval = l_coeffs[0];
 
     let f_1 = compute_circuit_satisfiability(
@@ -296,8 +296,8 @@ pub(crate) fn compute(
         prover_key,
     );
 
-    let f_2 = prover_key.permutation.compute_linearisation(
-        zeta_frak,
+    let f_2 = prover_key.permutation.compute_linearization(
+        z_chall,
         (alpha, beta, gamma),
         (&a_eval, &b_eval, &c_eval, &d_eval),
         (&s_sigma_1_eval, &s_sigma_2_eval, &s_sigma_3_eval),
@@ -307,8 +307,8 @@ pub(crate) fn compute(
 
     let r_poly = &f_1 + &f_2;
 
-    // Evaluate linearisation polynomial at zeta_frak
-    let r_poly_eval = r_poly.evaluate(zeta_frak);
+    // Evaluate linearization polynomial at z_chall
+    let r_poly_eval = r_poly.evaluate(z_chall);
 
     (
         r_poly,
@@ -377,7 +377,7 @@ fn compute_circuit_satisfiability(
     q_r_eval: &BlsScalar,
     prover_key: &ProverKey,
 ) -> Polynomial {
-    let a = prover_key.arithmetic.compute_linearisation(
+    let a = prover_key.arithmetic.compute_linearization(
         a_eval,
         b_eval,
         c_eval,
@@ -385,7 +385,7 @@ fn compute_circuit_satisfiability(
         q_arith_eval,
     );
 
-    let b = prover_key.range.compute_linearisation(
+    let b = prover_key.range.compute_linearization(
         range_separation_challenge,
         a_eval,
         b_eval,
@@ -394,7 +394,7 @@ fn compute_circuit_satisfiability(
         d_next_eval,
     );
 
-    let c = prover_key.logic.compute_linearisation(
+    let c = prover_key.logic.compute_linearization(
         logic_separation_challenge,
         a_eval,
         a_next_eval,
@@ -406,7 +406,7 @@ fn compute_circuit_satisfiability(
         q_c_eval,
     );
 
-    let d = prover_key.fixed_base.compute_linearisation(
+    let d = prover_key.fixed_base.compute_linearization(
         fixed_base_separation_challenge,
         a_eval,
         a_next_eval,
@@ -420,7 +420,7 @@ fn compute_circuit_satisfiability(
         q_c_eval,
     );
 
-    let e = prover_key.variable_base.compute_linearisation(
+    let e = prover_key.variable_base.compute_linearization(
         var_base_separation_challenge,
         a_eval,
         a_next_eval,
@@ -430,7 +430,7 @@ fn compute_circuit_satisfiability(
         d_eval,
         d_next_eval,
     );
-    let f = prover_key.lookup.compute_linearisation(
+    let f = prover_key.lookup.compute_linearization(
         a_eval,
         b_eval,
         c_eval,
@@ -449,13 +449,13 @@ fn compute_circuit_satisfiability(
         lookup_separation_challenge,
     );
 
-    let mut linearisation_poly = &a + &b;
-    linearisation_poly += &c;
-    linearisation_poly += &d;
-    linearisation_poly += &e;
-    linearisation_poly += &f;
+    let mut linearization_poly = &a + &b;
+    linearization_poly += &c;
+    linearization_poly += &d;
+    linearization_poly += &e;
+    linearization_poly += &f;
 
-    linearisation_poly
+    linearization_poly
 }
 
 #[cfg(test)]

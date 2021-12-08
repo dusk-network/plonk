@@ -108,9 +108,9 @@ impl ProverKey {
         (z_i - BlsScalar::one()) * l1_alpha_sq
     }
 
-    pub(crate) fn compute_linearisation(
+    pub(crate) fn compute_linearization(
         &self,
-        zeta_frak: &BlsScalar,
+        z_chall: &BlsScalar,
         (alpha, beta, gamma): (&BlsScalar, &BlsScalar, &BlsScalar),
         (a_eval, b_eval, c_eval, d_eval): (
             &BlsScalar,
@@ -126,13 +126,13 @@ impl ProverKey {
         z_eval: &BlsScalar,
         z_poly: &Polynomial,
     ) -> Polynomial {
-        let a = self.compute_lineariser_identity_range_check(
+        let a = self.compute_linearizer_identity_range_check(
             (a_eval, b_eval, c_eval, d_eval),
-            zeta_frak,
+            z_chall,
             (alpha, beta, gamma),
             z_poly,
         );
-        let b = self.compute_lineariser_copy_range_check(
+        let b = self.compute_linearizer_copy_range_check(
             (a_eval, b_eval, c_eval),
             z_eval,
             sigma_1_eval,
@@ -143,17 +143,17 @@ impl ProverKey {
         );
 
         let domain = EvaluationDomain::new(z_poly.degree()).unwrap();
-        let c = self.compute_lineariser_check_is_one(
+        let c = self.compute_linearizer_check_is_one(
             &domain,
-            zeta_frak,
+            z_chall,
             &alpha.square(),
             z_poly,
         );
         &(&a + &b) + &c
     }
-    // (a_eval + beta * zeta_frak + gamma)(b_eval + beta * K1 * zeta_frak +
-    // gamma)(c_eval + beta * K2 * zeta_frak + gamma) * alpha z(X)
-    fn compute_lineariser_identity_range_check(
+    // (a_eval + beta * z_chall + gamma)(b_eval + beta * K1 * z_chall +
+    // gamma)(c_eval + beta * K2 * z_chall + gamma) * alpha z(X)
+    fn compute_linearizer_identity_range_check(
         &self,
         (a_eval, b_eval, c_eval, d_eval): (
             &BlsScalar,
@@ -161,27 +161,27 @@ impl ProverKey {
             &BlsScalar,
             &BlsScalar,
         ),
-        zeta_frak: &BlsScalar,
+        z_chall: &BlsScalar,
         (alpha, beta, gamma): (&BlsScalar, &BlsScalar, &BlsScalar),
         z_poly: &Polynomial,
     ) -> Polynomial {
-        let beta_z = beta * zeta_frak;
+        let beta_z = beta * z_chall;
 
-        // a_eval + beta * zeta_frak + gamma
+        // a_eval + beta * z_chall + gamma
         let mut a_0 = a_eval + beta_z;
         a_0 += gamma;
 
-        // b_eval + beta * K1 * zeta_frak + gamma
+        // b_eval + beta * K1 * z_chall + gamma
         let beta_z_k1 = K1 * beta_z;
         let mut a_1 = b_eval + beta_z_k1;
         a_1 += gamma;
 
-        // c_eval + beta * K2 * zeta_frak + gamma
+        // c_eval + beta * K2 * z_chall + gamma
         let beta_z_k2 = K2 * beta_z;
         let mut a_2 = c_eval + beta_z_k2;
         a_2 += gamma;
 
-        // d_eval + beta * K3 * zeta_frak + gamma
+        // d_eval + beta * K3 * z_chall + gamma
         let beta_z_k3 = K3 * beta_z;
         let mut a_3 = d_eval + beta_z_k3;
         a_3 += gamma;
@@ -189,16 +189,16 @@ impl ProverKey {
         let mut a = a_0 * a_1;
         a *= a_2;
         a *= a_3;
-        a *= alpha; // (a_eval + beta * zeta_frak + gamma)(b_eval + beta * K1 *
-                    // zeta_frak + gamma)(c_eval + beta * K2 * zeta_frak + gamma)(d_eval
-                    // + beta * K3 * zeta_frak + gamma) * alpha
-        z_poly * &a // (a_eval + beta * zeta_frak + gamma)(b_eval + beta * K1
-                    // * zeta_frak + gamma)(c_eval + beta * K2 * zeta_frak +
+        a *= alpha; // (a_eval + beta * z_chall + gamma)(b_eval + beta * K1 *
+                    // z_chall + gamma)(c_eval + beta * K2 * z_chall + gamma)(d_eval
+                    // + beta * K3 * z_chall + gamma) * alpha
+        z_poly * &a // (a_eval + beta * z_chall + gamma)(b_eval + beta * K1
+                    // * z_chall + gamma)(c_eval + beta * K2 * z_chall +
                     // gamma) * alpha z(X)
     }
     // -(a_eval + beta * sigma_1 + gamma)(b_eval + beta * sigma_2 + gamma)
     // (c_eval + beta * sigma_3 + gamma) * beta *z_eval * alpha^2 * Sigma_4(X)
-    fn compute_lineariser_copy_range_check(
+    fn compute_linearizer_copy_range_check(
         &self,
         (a_eval, b_eval, c_eval): (&BlsScalar, &BlsScalar, &BlsScalar),
         z_eval: &BlsScalar,
@@ -236,15 +236,15 @@ impl ProverKey {
                              // Sigma_4(X)
     }
 
-    fn compute_lineariser_check_is_one(
+    fn compute_linearizer_check_is_one(
         &self,
         domain: &EvaluationDomain,
-        zeta_frak: &BlsScalar,
+        z_chall: &BlsScalar,
         alpha_sq: &BlsScalar,
         z_coeffs: &Polynomial,
     ) -> Polynomial {
         // Evaluate l_1(z)
-        let l_1_z = domain.evaluate_all_lagrange_coefficients(*zeta_frak)[0];
+        let l_1_z = domain.evaluate_all_lagrange_coefficients(*z_chall)[0];
 
         z_coeffs * &(l_1_z * alpha_sq)
     }

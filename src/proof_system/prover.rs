@@ -11,7 +11,7 @@ use crate::{
     fft::{EvaluationDomain, Polynomial},
     plonkup::MultiSet,
     proof_system::{
-        linearisation_poly, proof::Proof, quotient_poly, ProverKey,
+        linearization_poly, proof::Proof, quotient_poly, ProverKey,
     },
     transcript::TranscriptProtocol,
 };
@@ -103,12 +103,12 @@ impl Prover {
         q_mid_poly: &Polynomial,
         q_high_poly: &Polynomial,
         q_4_poly: &Polynomial,
-        zeta_frak: &BlsScalar,
+        z_chall: &BlsScalar,
     ) -> Polynomial {
         // Compute z^n , z^2n , z^3n
-        let z_n = zeta_frak.pow(&[n as u64, 0, 0, 0]);
-        let z_two_n = zeta_frak.pow(&[2 * n as u64, 0, 0, 0]);
-        let z_three_n = zeta_frak.pow(&[3 * n as u64, 0, 0, 0]);
+        let z_n = z_chall.pow(&[n as u64, 0, 0, 0]);
+        let z_two_n = z_chall.pow(&[2 * n as u64, 0, 0, 0]);
+        let z_three_n = z_chall.pow(&[3 * n as u64, 0, 0, 0]);
 
         let a = q_low_poly;
         let b = q_mid_poly * &z_n;
@@ -146,7 +146,9 @@ impl Prover {
     }
 
     /// Creates a [`Proof]` that demonstrates that a circuit is satisfied.
+    ///
     /// # Note
+    ///
     /// If you intend to construct multiple [`Proof`]s with different witnesses,
     /// after calling this method, the user should then call
     /// [`Prover::clear_witness`].
@@ -163,25 +165,25 @@ impl Prover {
             self.cs.lookup_table.0.len(),
         ))?;
 
-        // Since the caller is passing a pre-processed circuit
-        // We assume that the Transcript has been seeded with the preprocessed
-        // Commitments
+        // Since the caller is passing a pre-processed circuit we assume that
+        // the Transcript has been seeded with the preprocessed commitments
         let mut transcript = self.preprocessed_transcript.clone();
 
-        //** ROUND 1 ****************************************************
-        // Convert wires to BlsScalars padding them to the
-        // correct domain size.
+        //** ROUND 1 **********************************************************
+        // Convert wires to BlsScalars padding them to the correct domain size.
+        // Note that `d_w` is added for the additional selector for 3-input
+        // gates `q_4`.
         let pad = vec![BlsScalar::zero(); domain.size() - self.cs.a_w.len()];
         let a_w_scalar = &[&self.to_scalars(&self.cs.a_w)[..], &pad].concat();
         let b_w_scalar = &[&self.to_scalars(&self.cs.b_w)[..], &pad].concat();
         let c_w_scalar = &[&self.to_scalars(&self.cs.c_w)[..], &pad].concat();
         let d_w_scalar = &[&self.to_scalars(&self.cs.d_w)[..], &pad].concat();
 
-        // make sure q_k is also the right size for constructing f
+        // Make sure q_k is also the right size for constructing f
         let padded_q_k = [&self.cs.q_k[..], &pad].concat();
 
-        // Wires are now in evaluation form, convert them to coefficients
-        // so that we may commit to them
+        // Wires are now in evaluation form, convert them to coefficients so
+        // that we may commit to them
         let a_w_poly =
             Polynomial::from_coefficients_vec(domain.ifft(a_w_scalar));
         let b_w_poly =
@@ -204,7 +206,7 @@ impl Prover {
         transcript.append_commitment(b"c_w", &c_w_poly_commit);
         transcript.append_commitment(b"d_w", &d_w_poly_commit);
 
-        //** ROUND 2 ****************************************************
+        //** ROUND 2 **********************************************************
         // Generate table compression factor
         let zeta = transcript.challenge_scalar(b"zeta");
 
@@ -293,7 +295,7 @@ impl Prover {
         transcript.append_commitment(b"h1", &h_1_poly_commit);
         transcript.append_commitment(b"h2", &h_2_poly_commit);
 
-        //** ROUND 3 ****************************************************
+        //** ROUND 3 **********************************************************
         // Permutation challenges
         let beta = transcript.challenge_scalar(b"beta");
         transcript.append_scalar(b"beta", &beta);
@@ -341,7 +343,7 @@ impl Prover {
         // Add permutation polynomial commitment to transcript
         transcript.append_commitment(b"z_2", &z_2_poly_commit);
 
-        //** ROUND 4 ****************************************************
+        //** ROUND 4 **********************************************************
         // Compute quotient challenge 'alpha'
         let alpha = transcript.challenge_scalar(b"alpha");
         let range_sep_challenge =
@@ -391,7 +393,7 @@ impl Prover {
         let (q_low_poly, q_mid_poly, q_high_poly, q_4_poly) =
             self.split_tx_poly(domain.size(), &q_poly);
 
-        // Commit to splitted quotient polynomial
+        // Commit to split quotient polynomial
         let q_low_commit = commit_key.commit(&q_low_poly)?;
         let q_mid_commit = commit_key.commit(&q_mid_poly)?;
         let q_high_commit = commit_key.commit(&q_high_poly)?;
@@ -403,14 +405,16 @@ impl Prover {
         transcript.append_commitment(b"q_high", &q_high_commit);
         transcript.append_commitment(b"q_4", &q_4_commit);
 
-        //** ROUND 5 ****************************************************
+        //** ROUND 5 **********************************************************
         // Compute evaluation challenge 'z'
-        let zeta_frak = transcript.challenge_scalar(b"zeta_frak");
+        let z_chall = transcript.challenge_scalar(b"z_chall");
         // the evaluations are computed altogether in next round
 
-        //** ROUND 6 ****************************************************
-        // Compute linearisation polynomial
-        let (r_poly, evaluations) = linearisation_poly::compute(
+        //** ROUND 6 **********************************************************
+        // Compute linearization polynomial
+        // We compute also `f_eval`, `t_eval`, `t_prime_eval` and
+        // `t_prime_next_eval` when creating the linearization poly.
+        let (r_poly, evaluations) = linearization_poly::compute(
             &domain,
             prover_key,
             &(
@@ -425,7 +429,7 @@ impl Prover {
                 fixed_base_sep_challenge,
                 var_base_sep_challenge,
                 lookup_sep_challenge,
-                zeta_frak,
+                z_chall,
             ),
             &a_w_poly,
             &b_w_poly,
@@ -440,7 +444,11 @@ impl Prover {
             &z_2_poly,
         );
 
-        // Add evaluations to transcript
+        // Add evaluations to transcript.
+        // Part of these are from round 5 in the paper.
+        // Note that even tough some of the evaluations are not added to the
+        // transcript, they are still sent as part of the `Proof` in the return
+        // value.
         transcript.append_scalar(b"a_eval", &evaluations.proof.a_eval);
         transcript.append_scalar(b"b_eval", &evaluations.proof.b_eval);
         transcript.append_scalar(b"c_eval", &evaluations.proof.c_eval);
@@ -482,7 +490,7 @@ impl Prover {
         transcript.append_scalar(b"r_eval", &evaluations.proof.r_poly_eval);
 
         // Compute Openings using KZG10
-        // We merge the quotient polynomial using the `zeta_frak` so the SRS
+        // We merge the quotient polynomial using the `z_chall` so the SRS
         // is linear in the circuit size `n`
         let quot = Self::compute_quotient_opening_poly(
             domain.size(),
@@ -490,11 +498,11 @@ impl Prover {
             &q_mid_poly,
             &q_high_poly,
             &q_4_poly,
-            &zeta_frak,
+            &z_chall,
         );
 
         // Compute aggregate witness to polynomials evaluated at the evaluation
-        // challenge `zeta_frak`. The challenge 'v' is selected inside
+        // challenge `z_chall`. The challenge v is selected inside
         let aggregate_witness = commit_key.compute_aggregate_witness(
             &[
                 quot,
@@ -511,10 +519,10 @@ impl Prover {
                 h_2_poly,
                 t_prime_poly.clone(),
             ],
-            &zeta_frak,
+            &z_chall,
             &mut transcript,
         );
-        let w_zeta_frak_comm = commit_key.commit(&aggregate_witness)?;
+        let w_z_chall_comm = commit_key.commit(&aggregate_witness)?;
 
         // Compute aggregate witness to polynomials evaluated at the shifted
         // evaluation challenge
@@ -528,10 +536,10 @@ impl Prover {
                 z_2_poly,
                 t_prime_poly,
             ],
-            &(zeta_frak * domain.group_gen),
+            &(z_chall * domain.group_gen),
             &mut transcript,
         );
-        let w_zeta_frak_w_comm =
+        let w_z_chall_shift_comm =
             commit_key.commit(&shifted_aggregate_witness)?;
 
         // Create Proof
@@ -554,8 +562,8 @@ impl Prover {
             q_high_comm: q_high_commit,
             q_4_comm: q_4_commit,
 
-            w_zeta_frak_comm,
-            w_zeta_frak_w_comm,
+            w_z_chall_comm,
+            w_z_chall_w_comm: w_z_chall_shift_comm,
 
             evaluations: evaluations.proof,
         })
