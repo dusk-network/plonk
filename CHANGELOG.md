@@ -9,7 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add support for rendering LaTeX in the docs [#630](https://github.com/dusk-network/plonk/pull/630)
+### Changed
+
+- Change variable names for more consistency with the paper [#631](https://github.com/dusk-network/plonk/issues/631)
 
 ## [0.9.0] - 10-11-21
 
