@@ -229,14 +229,17 @@ pub(crate) mod alloc {
             transcript.append_commitment(b"q_4", &self.q_4_comm);
 
             // Compute evaluation challenge z
-            let z_chall = transcript.challenge_scalar(b"z_chall");
+            let z_challenge = transcript.challenge_scalar(b"z_challenge");
 
-            // Compute zero polynomial evaluated at `z_chall`
-            let z_h_eval = domain.evaluate_vanishing_polynomial(&z_chall);
+            // Compute zero polynomial evaluated at challenge `z`
+            let z_h_eval = domain.evaluate_vanishing_polynomial(&z_challenge);
 
-            // Compute first lagrange polynomial evaluated at `z_chall`
-            let l1_eval =
-                compute_first_lagrange_evaluation(&domain, &z_h_eval, &z_chall);
+            // Compute first lagrange polynomial evaluated at challenge `z`
+            let l1_eval = compute_first_lagrange_evaluation(
+                &domain,
+                &z_h_eval,
+                &z_challenge,
+            );
 
             let t_prime_comm = Commitment(G1Affine::from(
                 verifier_key.lookup.table_1.0
@@ -245,7 +248,7 @@ pub(crate) mod alloc {
                     + verifier_key.lookup.table_4.0 * zeta * zeta * zeta,
             ));
 
-            // Compute quotient polynomial evaluated at `z_chall`
+            // Compute quotient polynomial evaluated at challenge `z`
             let t_eval = self.compute_quotient_evaluation(
                 &domain,
                 pub_inputs,
@@ -254,7 +257,7 @@ pub(crate) mod alloc {
                 &gamma,
                 &delta,
                 &epsilon,
-                &z_chall,
+                &z_challenge,
                 &z_h_eval,
                 &l1_eval,
                 &self.evaluations.perm_eval,
@@ -265,7 +268,7 @@ pub(crate) mod alloc {
             // This method is necessary as we pass the `un-splitted` variation
             // to our commitment scheme
             let t_comm =
-                self.compute_quotient_commitment(&z_chall, domain.size());
+                self.compute_quotient_commitment(&z_challenge, domain.size());
 
             // Add evaluations to transcript
             transcript.append_scalar(b"a_eval", &self.evaluations.a_eval);
@@ -325,7 +328,7 @@ pub(crate) mod alloc {
                     &var_base_sep_challenge,
                     &lookup_sep_challenge,
                 ),
-                &z_chall,
+                &z_challenge,
                 l1_eval,
                 self.evaluations.t_prime_eval,
                 self.evaluations.t_prime_next_eval,
@@ -336,7 +339,7 @@ pub(crate) mod alloc {
             // Now we delegate computation to the commitment scheme by batch
             // checking two proofs The `AggregateProof`, which is a
             // proof that all the necessary polynomials evaluated at
-            // `z_chall` are correct and a `SingleProof` which
+            // challenge `z` are correct and a `SingleProof` which
             // is proof that the permutation polynomial evaluated at the shifted
             // root of unity is correct
 
@@ -396,7 +399,7 @@ pub(crate) mod alloc {
             // Batch check
             if opening_key
                 .batch_check(
-                    &[z_chall, (z_chall * domain.group_gen)],
+                    &[z_challenge, (z_challenge * domain.group_gen)],
                     &[flattened_proof_a, flattened_proof_b],
                     transcript,
                 )
@@ -418,14 +421,15 @@ pub(crate) mod alloc {
             gamma: &BlsScalar,
             delta: &BlsScalar,
             epsilon: &BlsScalar,
-            z_chall: &BlsScalar,
+            z_challenge: &BlsScalar,
             z_h_eval: &BlsScalar,
             l1_eval: &BlsScalar,
             z_hat_eval: &BlsScalar,
             lookup_sep_challenge: &BlsScalar,
         ) -> BlsScalar {
-            // Compute the public input polynomial evaluated at `z_chall`
-            let pi_eval = compute_barycentric_eval(pub_inputs, z_chall, domain);
+            // Compute the public input polynomial evaluated at challenge `z`
+            let pi_eval =
+                compute_barycentric_eval(pub_inputs, z_challenge, domain);
 
             // Compute powers of alpha_0
             let alpha_sq = alpha.square();
@@ -480,12 +484,12 @@ pub(crate) mod alloc {
 
         fn compute_quotient_commitment(
             &self,
-            z_chall: &BlsScalar,
+            z_challenge: &BlsScalar,
             n: usize,
         ) -> Commitment {
-            let z_n = z_chall.pow(&[n as u64, 0, 0, 0]);
-            let z_two_n = z_chall.pow(&[2 * n as u64, 0, 0, 0]);
-            let z_three_n = z_chall.pow(&[3 * n as u64, 0, 0, 0]);
+            let z_n = z_challenge.pow(&[n as u64, 0, 0, 0]);
+            let z_two_n = z_challenge.pow(&[2 * n as u64, 0, 0, 0]);
+            let z_three_n = z_challenge.pow(&[3 * n as u64, 0, 0, 0]);
             let t_comm = self.q_low_comm.0
                 + self.q_mid_comm.0 * z_n
                 + self.q_high_comm.0 * z_two_n
@@ -516,7 +520,7 @@ pub(crate) mod alloc {
                 &BlsScalar,
                 &BlsScalar,
             ),
-            z_chall: &BlsScalar,
+            z_challenge: &BlsScalar,
             l1_eval: BlsScalar,
             t_eval: BlsScalar,
             t_next_eval: BlsScalar,
@@ -577,7 +581,7 @@ pub(crate) mod alloc {
                 &mut scalars,
                 &mut points,
                 &self.evaluations,
-                z_chall,
+                z_challenge,
                 (alpha, beta, gamma),
                 &l1_eval,
                 self.z_1_comm.0,
@@ -590,10 +594,10 @@ pub(crate) mod alloc {
     fn compute_first_lagrange_evaluation(
         domain: &EvaluationDomain,
         z_h_eval: &BlsScalar,
-        z_chall: &BlsScalar,
+        z_challenge: &BlsScalar,
     ) -> BlsScalar {
         let n_fr = BlsScalar::from(domain.size() as u64);
-        let denom = n_fr * (z_chall - BlsScalar::one());
+        let denom = n_fr * (z_challenge - BlsScalar::one());
         z_h_eval * denom.invert().unwrap()
     }
 

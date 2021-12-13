@@ -110,7 +110,7 @@ impl ProverKey {
 
     pub(crate) fn compute_linearization(
         &self,
-        z_chall: &BlsScalar,
+        z_challenge: &BlsScalar,
         (alpha, beta, gamma): (&BlsScalar, &BlsScalar, &BlsScalar),
         (a_eval, b_eval, c_eval, d_eval): (
             &BlsScalar,
@@ -128,7 +128,7 @@ impl ProverKey {
     ) -> Polynomial {
         let a = self.compute_linearizer_identity_range_check(
             (a_eval, b_eval, c_eval, d_eval),
-            z_chall,
+            z_challenge,
             (alpha, beta, gamma),
             z_poly,
         );
@@ -145,14 +145,14 @@ impl ProverKey {
         let domain = EvaluationDomain::new(z_poly.degree()).unwrap();
         let c = self.compute_linearizer_check_is_one(
             &domain,
-            z_chall,
+            z_challenge,
             &alpha.square(),
             z_poly,
         );
         &(&a + &b) + &c
     }
-    // (a_eval + beta * z_chall + gamma)(b_eval + beta * K1 * z_chall +
-    // gamma)(c_eval + beta * K2 * z_chall + gamma) * alpha z(X)
+    // (a_eval + beta * z_challenge + gamma)(b_eval + beta * K1 * z_challenge +
+    // gamma)(c_eval + beta * K2 * z_challenge + gamma) * alpha z(X)
     fn compute_linearizer_identity_range_check(
         &self,
         (a_eval, b_eval, c_eval, d_eval): (
@@ -161,27 +161,27 @@ impl ProverKey {
             &BlsScalar,
             &BlsScalar,
         ),
-        z_chall: &BlsScalar,
+        z_challenge: &BlsScalar,
         (alpha, beta, gamma): (&BlsScalar, &BlsScalar, &BlsScalar),
         z_poly: &Polynomial,
     ) -> Polynomial {
-        let beta_z = beta * z_chall;
+        let beta_z = beta * z_challenge;
 
-        // a_eval + beta * z_chall + gamma
+        // a_eval + beta * z_challenge + gamma
         let mut a_0 = a_eval + beta_z;
         a_0 += gamma;
 
-        // b_eval + beta * K1 * z_chall + gamma
+        // b_eval + beta * K1 * z_challenge + gamma
         let beta_z_k1 = K1 * beta_z;
         let mut a_1 = b_eval + beta_z_k1;
         a_1 += gamma;
 
-        // c_eval + beta * K2 * z_chall + gamma
+        // c_eval + beta * K2 * z_challenge + gamma
         let beta_z_k2 = K2 * beta_z;
         let mut a_2 = c_eval + beta_z_k2;
         a_2 += gamma;
 
-        // d_eval + beta * K3 * z_chall + gamma
+        // d_eval + beta * K3 * z_challenge + gamma
         let beta_z_k3 = K3 * beta_z;
         let mut a_3 = d_eval + beta_z_k3;
         a_3 += gamma;
@@ -189,11 +189,11 @@ impl ProverKey {
         let mut a = a_0 * a_1;
         a *= a_2;
         a *= a_3;
-        a *= alpha; // (a_eval + beta * z_chall + gamma)(b_eval + beta * K1 *
-                    // z_chall + gamma)(c_eval + beta * K2 * z_chall + gamma)(d_eval
-                    // + beta * K3 * z_chall + gamma) * alpha
-        z_poly * &a // (a_eval + beta * z_chall + gamma)(b_eval + beta * K1
-                    // * z_chall + gamma)(c_eval + beta * K2 * z_chall +
+        a *= alpha; // (a_eval + beta * z_challenge + gamma)(b_eval + beta * K1 *
+                    // z_challenge + gamma)(c_eval + beta * K2 * z_challenge + gamma)(d_eval
+                    // + beta * K3 * z_challenge + gamma) * alpha
+        z_poly * &a // (a_eval + beta * z_challenge + gamma)(b_eval + beta * K1
+                    // * z_challenge + gamma)(c_eval + beta * K2 * z_challenge +
                     // gamma) * alpha z(X)
     }
     // -(a_eval + beta * sigma_1 + gamma)(b_eval + beta * sigma_2 + gamma)
@@ -239,12 +239,12 @@ impl ProverKey {
     fn compute_linearizer_check_is_one(
         &self,
         domain: &EvaluationDomain,
-        z_chall: &BlsScalar,
+        z_challenge: &BlsScalar,
         alpha_sq: &BlsScalar,
         z_coeffs: &Polynomial,
     ) -> Polynomial {
         // Evaluate l_1(z)
-        let l_1_z = domain.evaluate_all_lagrange_coefficients(*z_chall)[0];
+        let l_1_z = domain.evaluate_all_lagrange_coefficients(*z_challenge)[0];
 
         z_coeffs * &(l_1_z * alpha_sq)
     }

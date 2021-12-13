@@ -68,9 +68,11 @@ pub(crate) mod alloc {
         /// The transcript must have the same view as the transcript that was
         /// used to aggregate the witness in the proving stage.
         pub(crate) fn flatten(&self, transcript: &mut Transcript) -> Proof {
-            let v_chall = transcript.challenge_scalar(b"v_chall");
-            let powers =
-                powers_of(&v_chall, self.commitments_to_polynomials.len() - 1);
+            let v_challenge = transcript.challenge_scalar(b"v_challenge");
+            let powers = powers_of(
+                &v_challenge,
+                self.commitments_to_polynomials.len() - 1,
+            );
 
             #[cfg(not(feature = "std"))]
             let flattened_poly_commitments_iter =
@@ -88,15 +90,15 @@ pub(crate) mod alloc {
             let flattened_poly_evaluations_iter =
                 self.evaluated_points.par_iter().zip(powers.par_iter());
 
-            // Flattened polynomial commitments using v_chall
+            // Flattened polynomial commitments using challenge `v`
             let flattened_poly_commitments: G1Projective =
                 flattened_poly_commitments_iter
-                    .map(|(poly, v_chall)| poly.0 * v_chall)
+                    .map(|(poly, v_challenge)| poly.0 * v_challenge)
                     .sum();
             // Flattened evaluation points
             let flattened_poly_evaluations: BlsScalar =
                 flattened_poly_evaluations_iter
-                    .map(|(eval, v_chall)| eval * v_chall)
+                    .map(|(eval, v_challenge)| eval * v_challenge)
                     .sum();
 
             Proof {

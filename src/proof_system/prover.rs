@@ -103,12 +103,12 @@ impl Prover {
         q_mid_poly: &Polynomial,
         q_high_poly: &Polynomial,
         q_4_poly: &Polynomial,
-        z_chall: &BlsScalar,
+        z_challenge: &BlsScalar,
     ) -> Polynomial {
         // Compute z^n , z^2n , z^3n
-        let z_n = z_chall.pow(&[n as u64, 0, 0, 0]);
-        let z_two_n = z_chall.pow(&[2 * n as u64, 0, 0, 0]);
-        let z_three_n = z_chall.pow(&[3 * n as u64, 0, 0, 0]);
+        let z_n = z_challenge.pow(&[n as u64, 0, 0, 0]);
+        let z_two_n = z_challenge.pow(&[2 * n as u64, 0, 0, 0]);
+        let z_three_n = z_challenge.pow(&[3 * n as u64, 0, 0, 0]);
 
         let a = q_low_poly;
         let b = q_mid_poly * &z_n;
@@ -407,7 +407,7 @@ impl Prover {
 
         //** ROUND 5 **********************************************************
         // Compute evaluation challenge 'z'
-        let z_chall = transcript.challenge_scalar(b"z_chall");
+        let z_challenge = transcript.challenge_scalar(b"z_challenge");
         // the evaluations are computed altogether in next round
 
         //** ROUND 6 **********************************************************
@@ -429,7 +429,7 @@ impl Prover {
                 fixed_base_sep_challenge,
                 var_base_sep_challenge,
                 lookup_sep_challenge,
-                z_chall,
+                z_challenge,
             ),
             &a_w_poly,
             &b_w_poly,
@@ -490,7 +490,7 @@ impl Prover {
         transcript.append_scalar(b"r_eval", &evaluations.proof.r_poly_eval);
 
         // Compute Openings using KZG10
-        // We merge the quotient polynomial using the `z_chall` so the SRS
+        // We merge the quotient polynomial using the challenge z so the SRS
         // is linear in the circuit size `n`
         let quot = Self::compute_quotient_opening_poly(
             domain.size(),
@@ -498,11 +498,11 @@ impl Prover {
             &q_mid_poly,
             &q_high_poly,
             &q_4_poly,
-            &z_chall,
+            &z_challenge,
         );
 
         // Compute aggregate witness to polynomials evaluated at the evaluation
-        // challenge `z_chall`. The challenge v is selected inside
+        // challenge z. The challenge v is selected inside
         let aggregate_witness = commit_key.compute_aggregate_witness(
             &[
                 quot,
@@ -519,7 +519,7 @@ impl Prover {
                 h_2_poly,
                 t_prime_poly.clone(),
             ],
-            &z_chall,
+            &z_challenge,
             &mut transcript,
         );
         let w_z_chall_comm = commit_key.commit(&aggregate_witness)?;
@@ -536,11 +536,10 @@ impl Prover {
                 z_2_poly,
                 t_prime_poly,
             ],
-            &(z_chall * domain.group_gen),
+            &(z_challenge * domain.group_gen),
             &mut transcript,
         );
-        let w_z_chall_shift_comm =
-            commit_key.commit(&shifted_aggregate_witness)?;
+        let w_z_chall_w_comm = commit_key.commit(&shifted_aggregate_witness)?;
 
         // Create Proof
         Ok(Proof {
@@ -563,7 +562,7 @@ impl Prover {
             q_4_comm: q_4_commit,
 
             w_z_chall_comm,
-            w_z_chall_w_comm: w_z_chall_shift_comm,
+            w_z_chall_w_comm,
 
             evaluations: evaluations.proof,
         })

@@ -29,7 +29,7 @@ mod alloc {
             scalars: &mut Vec<BlsScalar>,
             points: &mut Vec<G1Affine>,
             evaluations: &ProofEvaluations,
-            z_chall: &BlsScalar,
+            z_challenge: &BlsScalar,
             (alpha, beta, gamma): (&BlsScalar, &BlsScalar, &BlsScalar),
             l1_eval: &BlsScalar,
             z_comm: G1Affine,
@@ -40,16 +40,16 @@ mod alloc {
             // gamma)(c_eval + beta * k2 * z + gamma)(d_eval + beta
             // * k3 * z + gamma) * alpha
             let x = {
-                let beta_z = beta * z_chall;
+                let beta_z = beta * z_challenge;
                 let q_0 = evaluations.a_eval + beta_z + gamma;
 
-                let beta_k1_z = beta * K1 * z_chall;
+                let beta_k1_z = beta * K1 * z_challenge;
                 let q_1 = evaluations.b_eval + beta_k1_z + gamma;
 
-                let beta_k2_z = beta * K2 * z_chall;
+                let beta_k2_z = beta * K2 * z_challenge;
                 let q_2 = evaluations.c_eval + beta_k2_z + gamma;
 
-                let beta_k3_z = beta * K3 * z_chall;
+                let beta_k3_z = beta * K3 * z_challenge;
                 let q_3 = (evaluations.d_eval + beta_k3_z + gamma) * alpha;
 
                 q_0 * q_1 * q_2 * q_3

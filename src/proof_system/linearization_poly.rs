@@ -203,7 +203,7 @@ pub(crate) fn compute(
         fixed_base_separation_challenge,
         var_base_separation_challenge,
         lookup_separation_challenge,
-        z_chall,
+        z_challenge,
     ): &(
         BlsScalar,
         BlsScalar,
@@ -231,36 +231,39 @@ pub(crate) fn compute(
     p_poly: &Polynomial,
 ) -> (Polynomial, Evaluations) {
     // Compute evaluations
-    let t_eval = t_x_poly.evaluate(z_chall);
-    let a_eval = a_w_poly.evaluate(z_chall);
-    let b_eval = b_w_poly.evaluate(z_chall);
-    let c_eval = c_w_poly.evaluate(z_chall);
-    let d_eval = d_w_poly.evaluate(z_chall);
+    let t_eval = t_x_poly.evaluate(z_challenge);
+    let a_eval = a_w_poly.evaluate(z_challenge);
+    let b_eval = b_w_poly.evaluate(z_challenge);
+    let c_eval = c_w_poly.evaluate(z_challenge);
+    let d_eval = d_w_poly.evaluate(z_challenge);
 
-    let s_sigma_1_eval = prover_key.permutation.s_sigma_1.0.evaluate(z_chall);
-    let s_sigma_2_eval = prover_key.permutation.s_sigma_2.0.evaluate(z_chall);
-    let s_sigma_3_eval = prover_key.permutation.s_sigma_3.0.evaluate(z_chall);
+    let s_sigma_1_eval =
+        prover_key.permutation.s_sigma_1.0.evaluate(z_challenge);
+    let s_sigma_2_eval =
+        prover_key.permutation.s_sigma_2.0.evaluate(z_challenge);
+    let s_sigma_3_eval =
+        prover_key.permutation.s_sigma_3.0.evaluate(z_challenge);
 
-    let q_arith_eval = prover_key.arithmetic.q_arith.0.evaluate(z_chall);
-    let q_c_eval = prover_key.logic.q_c.0.evaluate(z_chall);
-    let q_l_eval = prover_key.fixed_base.q_l.0.evaluate(z_chall);
-    let q_r_eval = prover_key.fixed_base.q_r.0.evaluate(z_chall);
-    let q_k_eval = prover_key.lookup.q_k.0.evaluate(z_chall);
-    let f_eval = f_poly.evaluate(z_chall);
-    let h_1_eval = h_1_poly.evaluate(z_chall);
-    let h_2_eval = h_2_poly.evaluate(z_chall);
-    let t_prime_eval = t_prime_poly.evaluate(z_chall);
+    let q_arith_eval = prover_key.arithmetic.q_arith.0.evaluate(z_challenge);
+    let q_c_eval = prover_key.logic.q_c.0.evaluate(z_challenge);
+    let q_l_eval = prover_key.fixed_base.q_l.0.evaluate(z_challenge);
+    let q_r_eval = prover_key.fixed_base.q_r.0.evaluate(z_challenge);
+    let q_k_eval = prover_key.lookup.q_k.0.evaluate(z_challenge);
+    let f_eval = f_poly.evaluate(z_challenge);
+    let h_1_eval = h_1_poly.evaluate(z_challenge);
+    let h_2_eval = h_2_poly.evaluate(z_challenge);
+    let t_prime_eval = t_prime_poly.evaluate(z_challenge);
 
-    let a_next_eval = a_w_poly.evaluate(&(z_chall * domain.group_gen));
-    let b_next_eval = b_w_poly.evaluate(&(z_chall * domain.group_gen));
-    let d_next_eval = d_w_poly.evaluate(&(z_chall * domain.group_gen));
-    let perm_eval = z_poly.evaluate(&(z_chall * domain.group_gen));
-    let lookup_perm_eval = p_poly.evaluate(&(z_chall * domain.group_gen));
-    let h_1_next_eval = h_1_poly.evaluate(&(z_chall * domain.group_gen));
+    let a_next_eval = a_w_poly.evaluate(&(z_challenge * domain.group_gen));
+    let b_next_eval = b_w_poly.evaluate(&(z_challenge * domain.group_gen));
+    let d_next_eval = d_w_poly.evaluate(&(z_challenge * domain.group_gen));
+    let perm_eval = z_poly.evaluate(&(z_challenge * domain.group_gen));
+    let lookup_perm_eval = p_poly.evaluate(&(z_challenge * domain.group_gen));
+    let h_1_next_eval = h_1_poly.evaluate(&(z_challenge * domain.group_gen));
     let t_prime_next_eval =
-        t_prime_poly.evaluate(&(z_chall * domain.group_gen));
+        t_prime_poly.evaluate(&(z_challenge * domain.group_gen));
 
-    let l_coeffs = domain.evaluate_all_lagrange_coefficients(*z_chall);
+    let l_coeffs = domain.evaluate_all_lagrange_coefficients(*z_challenge);
     let l1_eval = l_coeffs[0];
 
     let f_1 = compute_circuit_satisfiability(
@@ -297,7 +300,7 @@ pub(crate) fn compute(
     );
 
     let f_2 = prover_key.permutation.compute_linearization(
-        z_chall,
+        z_challenge,
         (alpha, beta, gamma),
         (&a_eval, &b_eval, &c_eval, &d_eval),
         (&s_sigma_1_eval, &s_sigma_2_eval, &s_sigma_3_eval),
@@ -307,8 +310,8 @@ pub(crate) fn compute(
 
     let r_poly = &f_1 + &f_2;
 
-    // Evaluate linearization polynomial at z_chall
-    let r_poly_eval = r_poly.evaluate(z_chall);
+    // Evaluate linearization polynomial at challenge `z`
+    let r_poly_eval = r_poly.evaluate(z_challenge);
 
     (
         r_poly,
