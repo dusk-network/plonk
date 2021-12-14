@@ -253,12 +253,12 @@ pub(crate) mod alloc {
         pub(crate) lookup: lookup::ProverKey,
         /// ProverKey for permutation checks
         pub(crate) permutation: permutation::ProverKey,
-        // Pre-processes the 4n Evaluations for the vanishing polynomial, so
+        // Pre-processes the 8n Evaluations for the vanishing polynomial, so
         // they do not need to be computed at the proving stage.
         // Note: With this, we can combine all parts of the quotient polynomial
         // in their evaluation phase and divide by the quotient
         // polynomial without having to perform IFFT
-        pub(crate) v_h_coset_4n: Evaluations,
+        pub(crate) v_h_coset_8n: Evaluations,
     }
 
     impl ProverKey {
@@ -421,7 +421,7 @@ pub(crate) mod alloc {
 
             writer.write(&self.permutation.linear_evaluations.to_var_bytes());
 
-            writer.write(&self.v_h_coset_4n.to_var_bytes());
+            writer.write(&self.v_h_coset_8n.to_var_bytes());
 
             bytes
         }
@@ -565,7 +565,7 @@ pub(crate) mod alloc {
 
             let perm_linear_evaluations = evals_from_reader(&mut buffer)?;
 
-            let v_h_coset_4n = evals_from_reader(&mut buffer)?;
+            let v_h_coset_8n = evals_from_reader(&mut buffer)?;
 
             let arithmetic = arithmetic::ProverKey {
                 q_m,
@@ -620,14 +620,14 @@ pub(crate) mod alloc {
                 variable_base,
                 lookup,
                 permutation,
-                v_h_coset_4n,
+                v_h_coset_8n,
             };
 
             Ok(prover_key)
         }
 
-        pub(crate) fn v_h_coset_4n(&self) -> &Evaluations {
-            &self.v_h_coset_4n
+        pub(crate) fn v_h_coset_8n(&self) -> &Evaluations {
+            &self.v_h_coset_8n
         }
     }
 }
@@ -698,7 +698,7 @@ mod test {
         let table_3 = rand_multiset(n);
         let table_4 = rand_multiset(n);
 
-        let v_h_coset_4n = rand_evaluations(n);
+        let v_h_coset_8n = rand_evaluations(n);
 
         let arithmetic = arithmetic::ProverKey {
             q_m,
@@ -753,7 +753,7 @@ mod test {
             variable_base,
             lookup,
             permutation,
-            v_h_coset_4n,
+            v_h_coset_8n,
         };
 
         let prover_key_bytes = prover_key.to_var_bytes();

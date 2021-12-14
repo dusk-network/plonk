@@ -1007,7 +1007,7 @@ mod tests {
 
     #[test]
     fn test_plonkup_proof() -> Result<(), Error> {
-        let public_parameters = PublicParameters::setup(1 << 8, &mut OsRng)?;
+        let public_parameters = PublicParameters::setup(1 << 9, &mut OsRng)?;
 
         // Create a prover struct
         let mut prover = Prover::new(b"test");
@@ -1021,7 +1021,7 @@ mod tests {
         verifier.cs.lookup_table.insert_multi_mul(0, 3);
 
         // Commit and verifier key
-        let (ck, vk) = public_parameters.trim(1 << 7)?;
+        let (ck, vk) = public_parameters.trim(1 << 8)?;
 
         // Preprocess circuit
         prover.preprocess(&ck)?;

@@ -58,63 +58,34 @@ pub(crate) fn compute(
         BlsScalar,
     ),
 ) -> Result<Polynomial, Error> {
-    // Compute 4n eval of z(X)
-    let domain_4n = EvaluationDomain::new(4 * domain.size())?;
-    let mut z_eval_4n = domain_4n.coset_fft(z_poly);
-    z_eval_4n.push(z_eval_4n[0]);
-    z_eval_4n.push(z_eval_4n[1]);
-    z_eval_4n.push(z_eval_4n[2]);
-    z_eval_4n.push(z_eval_4n[3]);
+    // Compute 8n evals
+    let domain_8n = EvaluationDomain::new(8 * domain.size())?;
 
-    // Compute 4n eval of p(X)
-    let mut p_eval_4n = domain_4n.coset_fft(p_poly);
-    p_eval_4n.push(p_eval_4n[0]);
-    p_eval_4n.push(p_eval_4n[1]);
-    p_eval_4n.push(p_eval_4n[2]);
-    p_eval_4n.push(p_eval_4n[3]);
+    let mut z_eval_8n = domain_8n.coset_fft(z_poly);
+    let mut p_eval_8n = domain_8n.coset_fft(p_poly);
+    let mut t_eval_8n = domain_8n.coset_fft(t_poly);
 
-    // Compute 4n evals of table poly, t(x)
-    let mut t_eval_4n = domain_4n.coset_fft(t_poly);
-    t_eval_4n.push(t_eval_4n[0]);
-    t_eval_4n.push(t_eval_4n[1]);
-    t_eval_4n.push(t_eval_4n[2]);
-    t_eval_4n.push(t_eval_4n[3]);
+    let f_eval_8n = domain_8n.coset_fft(f_poly);
 
-    // Compute f(x)
-    let f_eval_4n = domain_4n.coset_fft(f_poly);
+    let mut h_1_eval_8n = domain_8n.coset_fft(h_1_poly);
+    let mut h_2_eval_8n = domain_8n.coset_fft(h_2_poly);
 
-    // Compute 4n eval of h_1
-    let mut h_1_eval_4n = domain_4n.coset_fft(h_1_poly);
-    h_1_eval_4n.push(h_1_eval_4n[0]);
-    h_1_eval_4n.push(h_1_eval_4n[1]);
-    h_1_eval_4n.push(h_1_eval_4n[2]);
-    h_1_eval_4n.push(h_1_eval_4n[3]);
+    let mut a_w_eval_8n = domain_8n.coset_fft(a_w_poly);
+    let mut b_w_eval_8n = domain_8n.coset_fft(b_w_poly);
+    let c_w_eval_8n = domain_8n.coset_fft(c_w_poly);
+    let mut d_w_eval_8n = domain_8n.coset_fft(d_w_poly);
 
-    // Compute 4n eval of h_2
-    let mut h_2_eval_4n = domain_4n.coset_fft(h_2_poly);
-    h_2_eval_4n.push(h_2_eval_4n[0]);
-    h_2_eval_4n.push(h_2_eval_4n[1]);
-    h_2_eval_4n.push(h_2_eval_4n[2]);
-    h_2_eval_4n.push(h_2_eval_4n[3]);
-
-    // Compute 4n evaluations of the wire polynomials
-    let mut a_w_eval_4n = domain_4n.coset_fft(a_w_poly);
-    a_w_eval_4n.push(a_w_eval_4n[0]);
-    a_w_eval_4n.push(a_w_eval_4n[1]);
-    a_w_eval_4n.push(a_w_eval_4n[2]);
-    a_w_eval_4n.push(a_w_eval_4n[3]);
-    let mut b_w_eval_4n = domain_4n.coset_fft(b_w_poly);
-    b_w_eval_4n.push(b_w_eval_4n[0]);
-    b_w_eval_4n.push(b_w_eval_4n[1]);
-    b_w_eval_4n.push(b_w_eval_4n[2]);
-    b_w_eval_4n.push(b_w_eval_4n[3]);
-    let c_w_eval_4n = domain_4n.coset_fft(c_w_poly);
-
-    let mut d_w_eval_4n = domain_4n.coset_fft(d_w_poly);
-    d_w_eval_4n.push(d_w_eval_4n[0]);
-    d_w_eval_4n.push(d_w_eval_4n[1]);
-    d_w_eval_4n.push(d_w_eval_4n[2]);
-    d_w_eval_4n.push(d_w_eval_4n[3]);
+    for i in 0..8 {
+        z_eval_8n.push(z_eval_8n[i]);
+        p_eval_8n.push(p_eval_8n[i]);
+        t_eval_8n.push(t_eval_8n[i]);
+        h_1_eval_8n.push(h_1_eval_8n[i]);
+        h_2_eval_8n.push(h_2_eval_8n[i]);
+        a_w_eval_8n.push(a_w_eval_8n[i]);
+        b_w_eval_8n.push(b_w_eval_8n[i]);
+        // c_w_eval_8n push not required
+        d_w_eval_8n.push(d_w_eval_8n[i]);
+    }
 
     let t_1 = compute_circuit_satisfiability_equation(
         domain,
@@ -126,41 +97,41 @@ pub(crate) fn compute(
             lookup_challenge,
         ),
         prover_key,
-        (&a_w_eval_4n, &b_w_eval_4n, &c_w_eval_4n, &d_w_eval_4n),
+        (&a_w_eval_8n, &b_w_eval_8n, &c_w_eval_8n, &d_w_eval_8n),
         public_inputs_poly,
         zeta,
         (delta, epsilon),
-        &f_eval_4n,
-        &p_eval_4n,
-        &t_eval_4n,
-        &h_1_eval_4n,
-        &h_2_eval_4n,
+        &f_eval_8n,
+        &p_eval_8n,
+        &t_eval_8n,
+        &h_1_eval_8n,
+        &h_2_eval_8n,
     );
 
     let t_2 = compute_permutation_checks(
         domain,
         prover_key,
-        (&a_w_eval_4n, &b_w_eval_4n, &c_w_eval_4n, &d_w_eval_4n),
-        &z_eval_4n,
+        (&a_w_eval_8n, &b_w_eval_8n, &c_w_eval_8n, &d_w_eval_8n),
+        &z_eval_8n,
         (alpha, beta, gamma),
     );
 
     #[cfg(not(feature = "std"))]
-    let range = (0..domain_4n.size()).into_iter();
+    let range = (0..domain_8n.size()).into_iter();
 
     #[cfg(feature = "std")]
-    let range = (0..domain_4n.size()).into_par_iter();
+    let range = (0..domain_8n.size()).into_par_iter();
 
     let quotient: Vec<_> = range
         .map(|i| {
             let numerator = t_1[i] + t_2[i];
-            let denominator = prover_key.v_h_coset_4n()[i];
+            let denominator = prover_key.v_h_coset_8n()[i];
             numerator * denominator.invert().unwrap()
         })
         .collect();
 
     Ok(Polynomial::from_coefficients_vec(
-        domain_4n.coset_ifft(&quotient),
+        domain_8n.coset_ifft(&quotient),
     ))
 }
 
@@ -176,7 +147,7 @@ fn compute_circuit_satisfiability_equation(
         lookup_challenge,
     ): (&BlsScalar, &BlsScalar, &BlsScalar, &BlsScalar, &BlsScalar),
     prover_key: &ProverKey,
-    (a_w_eval_4n, b_w_eval_4n, c_w_eval_4n, d_w_eval_4n): (
+    (a_w_eval_8n, b_w_eval_8n, c_w_eval_8n, d_w_eval_8n): (
         &[BlsScalar],
         &[BlsScalar],
         &[BlsScalar],
@@ -185,45 +156,45 @@ fn compute_circuit_satisfiability_equation(
     pi_poly: &Polynomial,
     zeta: &BlsScalar,
     (delta, epsilon): (&BlsScalar, &BlsScalar),
-    f_eval_4n: &[BlsScalar],
-    p_eval_4n: &[BlsScalar],
-    t_eval_4n: &[BlsScalar],
-    h_1_eval_4n: &[BlsScalar],
-    h_2_eval_4n: &[BlsScalar],
+    f_eval_8n: &[BlsScalar],
+    p_eval_8n: &[BlsScalar],
+    t_eval_8n: &[BlsScalar],
+    h_1_eval_8n: &[BlsScalar],
+    h_2_eval_8n: &[BlsScalar],
 ) -> Vec<BlsScalar> {
-    let domain_4n = EvaluationDomain::new(4 * domain.size()).unwrap();
-    let public_eval_4n = domain_4n.coset_fft(pi_poly);
+    let domain_8n = EvaluationDomain::new(8 * domain.size()).unwrap();
+    let public_eval_8n = domain_8n.coset_fft(pi_poly);
 
-    let l1_eval_4n = domain_4n.coset_fft(&compute_first_lagrange_poly_scaled(
+    let l1_eval_8n = domain_8n.coset_fft(&compute_first_lagrange_poly_scaled(
         domain,
         BlsScalar::one(),
     ));
 
     #[cfg(not(feature = "std"))]
-    let range = (0..domain_4n.size()).into_iter();
+    let range = (0..domain_8n.size()).into_iter();
 
     #[cfg(feature = "std")]
-    let range = (0..domain_4n.size()).into_par_iter();
+    let range = (0..domain_8n.size()).into_par_iter();
 
     let t: Vec<_> = range
         .map(|i| {
-            let a_w = &a_w_eval_4n[i];
-            let b_w = &b_w_eval_4n[i];
-            let c_w = &c_w_eval_4n[i];
-            let d_w = &d_w_eval_4n[i];
-            let a_w_next = &a_w_eval_4n[i + 4];
-            let b_w_next = &b_w_eval_4n[i + 4];
-            let d_w_next = &d_w_eval_4n[i + 4];
-            let pi = &public_eval_4n[i];
-            let p = &p_eval_4n[i];
-            let p_next = &p_eval_4n[i + 4];
-            let fi = &f_eval_4n[i];
-            let ti = &t_eval_4n[i];
-            let ti_next = &t_eval_4n[i + 4];
-            let h1 = &h_1_eval_4n[i];
-            let h2 = &h_2_eval_4n[i];
-            let h1_next = &h_1_eval_4n[i + 4];
-            let l1i = &l1_eval_4n[i];
+            let a_w = &a_w_eval_8n[i];
+            let b_w = &b_w_eval_8n[i];
+            let c_w = &c_w_eval_8n[i];
+            let d_w = &d_w_eval_8n[i];
+            let a_w_next = &a_w_eval_8n[i + 8];
+            let b_w_next = &b_w_eval_8n[i + 8];
+            let d_w_next = &d_w_eval_8n[i + 8];
+            let pi = &public_eval_8n[i];
+            let p = &p_eval_8n[i];
+            let p_next = &p_eval_8n[i + 8];
+            let fi = &f_eval_8n[i];
+            let ti = &t_eval_8n[i];
+            let ti_next = &t_eval_8n[i + 8];
+            let h1 = &h_1_eval_8n[i];
+            let h2 = &h_2_eval_8n[i];
+            let h1_next = &h_1_eval_8n[i + 8];
+            let l1i = &l1_eval_8n[i];
 
             let a = prover_key
                 .arithmetic
@@ -304,36 +275,36 @@ fn compute_circuit_satisfiability_equation(
 fn compute_permutation_checks(
     domain: &EvaluationDomain,
     prover_key: &ProverKey,
-    (a_w_eval_4n, b_w_eval_4n, c_w_eval_4n, d_w_eval_4n): (
+    (a_w_eval_8n, b_w_eval_8n, c_w_eval_8n, d_w_eval_8n): (
         &[BlsScalar],
         &[BlsScalar],
         &[BlsScalar],
         &[BlsScalar],
     ),
-    z_eval_4n: &[BlsScalar],
+    z_eval_8n: &[BlsScalar],
     (alpha, beta, gamma): (&BlsScalar, &BlsScalar, &BlsScalar),
 ) -> Vec<BlsScalar> {
-    let domain_4n = EvaluationDomain::new(4 * domain.size()).unwrap();
+    let domain_8n = EvaluationDomain::new(8 * domain.size()).unwrap();
     let l1_poly_alpha =
         compute_first_lagrange_poly_scaled(domain, alpha.square());
-    let l1_alpha_sq_evals = domain_4n.coset_fft(&l1_poly_alpha.coeffs);
+    let l1_alpha_sq_evals = domain_8n.coset_fft(&l1_poly_alpha.coeffs);
 
     #[cfg(not(feature = "std"))]
-    let range = (0..domain_4n.size()).into_iter();
+    let range = (0..domain_8n.size()).into_iter();
 
     #[cfg(feature = "std")]
-    let range = (0..domain_4n.size()).into_par_iter();
+    let range = (0..domain_8n.size()).into_par_iter();
 
     let t: Vec<_> = range
         .map(|i| {
             prover_key.permutation.compute_quotient_i(
                 i,
-                &a_w_eval_4n[i],
-                &b_w_eval_4n[i],
-                &c_w_eval_4n[i],
-                &d_w_eval_4n[i],
-                &z_eval_4n[i],
-                &z_eval_4n[i + 4],
+                &a_w_eval_8n[i],
+                &b_w_eval_8n[i],
+                &c_w_eval_8n[i],
+                &d_w_eval_8n[i],
+                &z_eval_8n[i],
+                &z_eval_8n[i + 8],
                 alpha,
                 &l1_alpha_sq_evals[i],
                 beta,

@@ -121,135 +121,135 @@ impl TurboComposer {
         let (_, selectors, preprocessed_table, domain) =
             self.preprocess_shared(commit_key, transcript)?;
 
-        let domain_4n = EvaluationDomain::new(4 * domain.size())?;
-        let q_m_eval_4n = Evaluations::from_vec_and_domain(
-            domain_4n.coset_fft(&selectors.q_m),
-            domain_4n,
+        let domain_8n = EvaluationDomain::new(8 * domain.size())?;
+        let q_m_eval_8n = Evaluations::from_vec_and_domain(
+            domain_8n.coset_fft(&selectors.q_m),
+            domain_8n,
         );
-        let q_l_eval_4n = Evaluations::from_vec_and_domain(
-            domain_4n.coset_fft(&selectors.q_l),
-            domain_4n,
+        let q_l_eval_8n = Evaluations::from_vec_and_domain(
+            domain_8n.coset_fft(&selectors.q_l),
+            domain_8n,
         );
-        let q_r_eval_4n = Evaluations::from_vec_and_domain(
-            domain_4n.coset_fft(&selectors.q_r),
-            domain_4n,
+        let q_r_eval_8n = Evaluations::from_vec_and_domain(
+            domain_8n.coset_fft(&selectors.q_r),
+            domain_8n,
         );
-        let q_o_eval_4n = Evaluations::from_vec_and_domain(
-            domain_4n.coset_fft(&selectors.q_o),
-            domain_4n,
+        let q_o_eval_8n = Evaluations::from_vec_and_domain(
+            domain_8n.coset_fft(&selectors.q_o),
+            domain_8n,
         );
-        let q_c_eval_4n = Evaluations::from_vec_and_domain(
-            domain_4n.coset_fft(&selectors.q_c),
-            domain_4n,
+        let q_c_eval_8n = Evaluations::from_vec_and_domain(
+            domain_8n.coset_fft(&selectors.q_c),
+            domain_8n,
         );
-        let q_4_eval_4n = Evaluations::from_vec_and_domain(
-            domain_4n.coset_fft(&selectors.q_4),
-            domain_4n,
+        let q_4_eval_8n = Evaluations::from_vec_and_domain(
+            domain_8n.coset_fft(&selectors.q_4),
+            domain_8n,
         );
-        let q_k_eval_4n = Evaluations::from_vec_and_domain(
-            domain_4n.coset_fft(&selectors.q_k),
-            domain_4n,
+        let q_k_eval_8n = Evaluations::from_vec_and_domain(
+            domain_8n.coset_fft(&selectors.q_k),
+            domain_8n,
         );
-        let q_arith_eval_4n = Evaluations::from_vec_and_domain(
-            domain_4n.coset_fft(&selectors.q_arith),
-            domain_4n,
+        let q_arith_eval_8n = Evaluations::from_vec_and_domain(
+            domain_8n.coset_fft(&selectors.q_arith),
+            domain_8n,
         );
-        let q_range_eval_4n = Evaluations::from_vec_and_domain(
-            domain_4n.coset_fft(&selectors.q_range),
-            domain_4n,
+        let q_range_eval_8n = Evaluations::from_vec_and_domain(
+            domain_8n.coset_fft(&selectors.q_range),
+            domain_8n,
         );
-        let q_logic_eval_4n = Evaluations::from_vec_and_domain(
-            domain_4n.coset_fft(&selectors.q_logic),
-            domain_4n,
+        let q_logic_eval_8n = Evaluations::from_vec_and_domain(
+            domain_8n.coset_fft(&selectors.q_logic),
+            domain_8n,
         );
-        let q_fixed_group_add_eval_4n = Evaluations::from_vec_and_domain(
-            domain_4n.coset_fft(&selectors.q_fixed_group_add),
-            domain_4n,
+        let q_fixed_group_add_eval_8n = Evaluations::from_vec_and_domain(
+            domain_8n.coset_fft(&selectors.q_fixed_group_add),
+            domain_8n,
         );
-        let q_variable_group_add_eval_4n = Evaluations::from_vec_and_domain(
-            domain_4n.coset_fft(&selectors.q_variable_group_add),
-            domain_4n,
-        );
-
-        let s_sigma_1_eval_4n = Evaluations::from_vec_and_domain(
-            domain_4n.coset_fft(&selectors.s_sigma_1),
-            domain_4n,
-        );
-        let s_sigma_2_eval_4n = Evaluations::from_vec_and_domain(
-            domain_4n.coset_fft(&selectors.s_sigma_2),
-            domain_4n,
-        );
-        let s_sigma_3_eval_4n = Evaluations::from_vec_and_domain(
-            domain_4n.coset_fft(&selectors.s_sigma_3),
-            domain_4n,
-        );
-        let s_sigma_4_eval_4n = Evaluations::from_vec_and_domain(
-            domain_4n.coset_fft(&selectors.s_sigma_4),
-            domain_4n,
+        let q_variable_group_add_eval_8n = Evaluations::from_vec_and_domain(
+            domain_8n.coset_fft(&selectors.q_variable_group_add),
+            domain_8n,
         );
 
-        let table_1_eval_4n = Evaluations::from_vec_and_domain(
-            domain_4n.coset_fft(&preprocessed_table.t_1.2),
-            domain_4n,
+        let s_sigma_1_eval_8n = Evaluations::from_vec_and_domain(
+            domain_8n.coset_fft(&selectors.s_sigma_1),
+            domain_8n,
         );
-        let table_2_eval_4n = Evaluations::from_vec_and_domain(
-            domain_4n.coset_fft(&preprocessed_table.t_2.2),
-            domain_4n,
+        let s_sigma_2_eval_8n = Evaluations::from_vec_and_domain(
+            domain_8n.coset_fft(&selectors.s_sigma_2),
+            domain_8n,
         );
-        let table_3_eval_4n = Evaluations::from_vec_and_domain(
-            domain_4n.coset_fft(&preprocessed_table.t_3.2),
-            domain_4n,
+        let s_sigma_3_eval_8n = Evaluations::from_vec_and_domain(
+            domain_8n.coset_fft(&selectors.s_sigma_3),
+            domain_8n,
         );
-        let table_4_eval_4n = Evaluations::from_vec_and_domain(
-            domain_4n.coset_fft(&preprocessed_table.t_4.2),
-            domain_4n,
+        let s_sigma_4_eval_8n = Evaluations::from_vec_and_domain(
+            domain_8n.coset_fft(&selectors.s_sigma_4),
+            domain_8n,
+        );
+
+        let table_1_eval_8n = Evaluations::from_vec_and_domain(
+            domain_8n.coset_fft(&preprocessed_table.t_1.2),
+            domain_8n,
+        );
+        let table_2_eval_8n = Evaluations::from_vec_and_domain(
+            domain_8n.coset_fft(&preprocessed_table.t_2.2),
+            domain_8n,
+        );
+        let table_3_eval_8n = Evaluations::from_vec_and_domain(
+            domain_8n.coset_fft(&preprocessed_table.t_3.2),
+            domain_8n,
+        );
+        let table_4_eval_8n = Evaluations::from_vec_and_domain(
+            domain_8n.coset_fft(&preprocessed_table.t_4.2),
+            domain_8n,
         );
         // XXX: Remove this and compute it on the fly
-        let linear_eval_4n = Evaluations::from_vec_and_domain(
-            domain_4n.coset_fft(&[BlsScalar::zero(), BlsScalar::one()]),
-            domain_4n,
+        let linear_eval_8n = Evaluations::from_vec_and_domain(
+            domain_8n.coset_fft(&[BlsScalar::zero(), BlsScalar::one()]),
+            domain_8n,
         );
 
         // Prover Key for arithmetic circuits
         let arithmetic_prover_key = widget::arithmetic::ProverKey {
-            q_m: (selectors.q_m, q_m_eval_4n),
-            q_l: (selectors.q_l.clone(), q_l_eval_4n.clone()),
-            q_r: (selectors.q_r.clone(), q_r_eval_4n.clone()),
-            q_o: (selectors.q_o, q_o_eval_4n),
-            q_c: (selectors.q_c.clone(), q_c_eval_4n.clone()),
-            q_4: (selectors.q_4, q_4_eval_4n),
-            q_arith: (selectors.q_arith, q_arith_eval_4n),
+            q_m: (selectors.q_m, q_m_eval_8n),
+            q_l: (selectors.q_l.clone(), q_l_eval_8n.clone()),
+            q_r: (selectors.q_r.clone(), q_r_eval_8n.clone()),
+            q_o: (selectors.q_o, q_o_eval_8n),
+            q_c: (selectors.q_c.clone(), q_c_eval_8n.clone()),
+            q_4: (selectors.q_4, q_4_eval_8n),
+            q_arith: (selectors.q_arith, q_arith_eval_8n),
         };
 
         // Prover Key for range circuits
         let range_prover_key = widget::range::ProverKey {
-            q_range: (selectors.q_range, q_range_eval_4n),
+            q_range: (selectors.q_range, q_range_eval_8n),
         };
 
         // Prover Key for logic circuits
         let logic_prover_key = widget::logic::ProverKey {
-            q_c: (selectors.q_c.clone(), q_c_eval_4n.clone()),
-            q_logic: (selectors.q_logic, q_logic_eval_4n),
+            q_c: (selectors.q_c.clone(), q_c_eval_8n.clone()),
+            q_logic: (selectors.q_logic, q_logic_eval_8n),
         };
 
         // Prover Key for ecc circuits
         let ecc_prover_key = widget::ecc::scalar_mul::fixed_base::ProverKey {
-            q_l: (selectors.q_l, q_l_eval_4n),
-            q_r: (selectors.q_r, q_r_eval_4n),
-            q_c: (selectors.q_c, q_c_eval_4n),
+            q_l: (selectors.q_l, q_l_eval_8n),
+            q_r: (selectors.q_r, q_r_eval_8n),
+            q_c: (selectors.q_c, q_c_eval_8n),
             q_fixed_group_add: (
                 selectors.q_fixed_group_add,
-                q_fixed_group_add_eval_4n,
+                q_fixed_group_add_eval_8n,
             ),
         };
 
         // Prover Key for permutation argument
         let permutation_prover_key = widget::permutation::ProverKey {
-            s_sigma_1: (selectors.s_sigma_1, s_sigma_1_eval_4n),
-            s_sigma_2: (selectors.s_sigma_2, s_sigma_2_eval_4n),
-            s_sigma_3: (selectors.s_sigma_3, s_sigma_3_eval_4n),
-            s_sigma_4: (selectors.s_sigma_4, s_sigma_4_eval_4n),
-            linear_evaluations: linear_eval_4n,
+            s_sigma_1: (selectors.s_sigma_1, s_sigma_1_eval_8n),
+            s_sigma_2: (selectors.s_sigma_2, s_sigma_2_eval_8n),
+            s_sigma_3: (selectors.s_sigma_3, s_sigma_3_eval_8n),
+            s_sigma_4: (selectors.s_sigma_4, s_sigma_4_eval_8n),
+            linear_evaluations: linear_eval_8n,
         };
 
         // Prover Key for curve addition
@@ -257,32 +257,32 @@ impl TurboComposer {
             widget::ecc::curve_addition::ProverKey {
                 q_variable_group_add: (
                     selectors.q_variable_group_add,
-                    q_variable_group_add_eval_4n,
+                    q_variable_group_add_eval_8n,
                 ),
             };
 
         // Prover key for lookup operations
         let lookup_prover_key = widget::lookup::ProverKey {
-            q_k: (selectors.q_k, q_k_eval_4n),
+            q_k: (selectors.q_k, q_k_eval_8n),
             table_1: (
                 preprocessed_table.t_1.0,
                 preprocessed_table.t_1.2,
-                table_1_eval_4n,
+                table_1_eval_8n,
             ),
             table_2: (
                 preprocessed_table.t_2.0,
                 preprocessed_table.t_2.2,
-                table_2_eval_4n,
+                table_2_eval_8n,
             ),
             table_3: (
                 preprocessed_table.t_3.0,
                 preprocessed_table.t_3.2,
-                table_3_eval_4n,
+                table_3_eval_8n,
             ),
             table_4: (
                 preprocessed_table.t_4.0,
                 preprocessed_table.t_4.2,
-                table_4_eval_4n,
+                table_4_eval_8n,
             ),
         };
 
@@ -295,8 +295,8 @@ impl TurboComposer {
             variable_base: curve_addition_prover_key,
             fixed_base: ecc_prover_key,
             lookup: lookup_prover_key,
-            // Compute 4n evaluations for X^n -1
-            v_h_coset_4n: domain_4n
+            // Compute 8n evaluations for X^n -1
+            v_h_coset_8n: domain_8n
                 .compute_vanishing_poly_over_coset(domain.size() as u64),
         };
 
@@ -305,7 +305,7 @@ impl TurboComposer {
 
     /// The verifier only requires the commitments in order to verify a
     /// [`Proof`](super::Proof) We can therefore speed up preprocessing for the
-    /// verifier by skipping the FFTs needed to compute the 4n evaluations.
+    /// verifier by skipping the FFTs needed to compute the 8n evaluations.
     pub(crate) fn preprocess_verifier(
         &mut self,
         commit_key: &CommitKey,
