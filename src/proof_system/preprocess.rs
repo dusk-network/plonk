@@ -16,7 +16,7 @@ use crate::proof_system::{widget, ProverKey};
 use dusk_bls12_381::BlsScalar;
 use merlin::Transcript;
 
-// Struct that contains all selector and permutation Polynomials
+/// Struct that contains all selector and permutation [`Polynomials`]s
 pub(crate) struct Polynomials {
     // selector polynomials defining arithmetic circuits
     q_m: Polynomial,
@@ -109,7 +109,6 @@ impl TurboComposer {
         }
     }
 
-    // this should be clearified, everything is done in the setup
     /// These are the parts of preprocessing that the prover must compute
     /// Although the prover does not need the verification key, he must compute
     /// the commitments in order to seed the transcript, allowing both the
