@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## [0.9.1] - 05-01-22
+
 ### Added
 
 - Add support for rendering LaTeX in the docs [#630](https://github.com/dusk-network/plonk/pull/630)
