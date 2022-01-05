@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add support for rendering LaTeX in the docs [#630](https://github.com/dusk-network/plonk/pull/630)
+- Add `append_public_witness` to `TurboComposer`. [#654](https://github.com/dusk-network/plonk/issues/654)
 
 ## [0.9.0] - 10-11-21
 
