@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## [0.9.2] - 06-01-22
+
 ### Added
 
 - Add `circuit::verify` to `Circuit` module. [#656](https://github.com/dusk-network/plonk/pull/656)
