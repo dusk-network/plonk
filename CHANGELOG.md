@@ -209,7 +209,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - dusk-bls12_381 update to `v0.1.5`
 - dusk-jubjub update to `v0.3.10`
-- Fixes #311 - big_mul and big_mul_gate documentation nit.
+- Fixes [#311](https://github.com/dusk-network/plonk/issues/311) - big_mul and big_mul_gate documentation nit.
 
 ## [0.3.1] - 05-10-20
 
@@ -221,7 +221,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- `Circuit` trait API & usability improvements (#313)
+- `Circuit` trait API & usability improvements [#313](https://github.com/dusk-network/plonk/issues/313)
 
 ## [0.2.11] - 29-09-20
 
@@ -281,7 +281,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `add_witness_to_circuit_description` requires now just to send
   a `Scalar` and returns a constant & constrained witness `Variable`.
-- Update `add_witness_to_circuit_description` fn sig (#282, #284)
+- Update `add_witness_to_circuit_description` fn sig [#282](https://github.com/dusk-network/plonk/issues/282), [#284](https://github.com/dusk-network/plonk/issues/284)
 - dusk-jubjub version updated to 0.3.6
 - `ecc::scalar_mul` now named fixed_base_scalar_mul
 
@@ -367,3 +367,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - KZG10 polynomial commitment scheme implementation.
 - fft module with Polynomial ops implemented.
 - Proof system module.
+
+<!-- VERSIONS -->
+[unreleased]: https://github.com/dusk-network/plonk/compare/v0.9.0...HEAD
+[0.9.0]: https://github.com/dusk-network/plonk/compare/v0.8.2...v0.9.0
+[0.8.2]: https://github.com/dusk-network/plonk/compare/v0.8.1...v0.8.2
+[0.8.1]: https://github.com/dusk-network/plonk/compare/v0.8.0...v0.8.1
+[0.8.0]: https://github.com/dusk-network/plonk/compare/v0.7.0...v0.8.0
+[0.7.0]: https://github.com/dusk-network/plonk/compare/v0.6.1...v0.7.0
+[0.6.1]: https://github.com/dusk-network/plonk/compare/v0.6.0...v0.6.1
+[0.6.0]: https://github.com/dusk-network/plonk/compare/v0.5.1...v0.6.0
+[0.5.1]: https://github.com/dusk-network/plonk/compare/v0.5.0...v0.5.1
+[0.5.0]: https://github.com/dusk-network/plonk/compare/v0.4.0...v0.5.0
+[0.4.0]: https://github.com/dusk-network/plonk/compare/v0.3.6...v0.4.0
+[0.3.6]: https://github.com/dusk-network/plonk/compare/v0.3.5...v0.3.6
+[0.3.5]: https://github.com/dusk-network/plonk/compare/v0.3.4...v0.3.5
+[0.3.4]: https://github.com/dusk-network/plonk/compare/v0.3.3...v0.3.4
+[0.3.3]: https://github.com/dusk-network/plonk/compare/v0.3.2...v0.3.3
+[0.3.2]: https://github.com/dusk-network/plonk/compare/v0.3.1...v0.3.2
+[0.3.1]: https://github.com/dusk-network/plonk/compare/v0.3.0...v0.3.1
+[0.3.0]: https://github.com/dusk-network/plonk/compare/v0.2.11...v0.3.0
+[0.2.11]: https://github.com/dusk-network/plonk/compare/v0.2.10...v0.2.11
+[0.2.10]: https://github.com/dusk-network/plonk/compare/v0.2.9...v0.2.10
+[0.2.9]: https://github.com/dusk-network/plonk/compare/v0.2.8...v0.2.9
+[0.2.8]: https://github.com/dusk-network/plonk/compare/v0.2.7...v0.2.8
+[0.2.7]: https://github.com/dusk-network/plonk/compare/v0.2.6...v0.2.7
+[0.2.6]: https://github.com/dusk-network/plonk/compare/v0.2.5...v0.2.6
+[0.2.5]: https://github.com/dusk-network/plonk/compare/v0.2.4...v0.2.5
+[0.2.4]: https://github.com/dusk-network/plonk/compare/v0.2.3...v0.2.4
+[0.2.3]: https://github.com/dusk-network/plonk/compare/v0.2.2...v0.2.3
+[0.2.2]: https://github.com/dusk-network/plonk/compare/v0.2.1...v0.2.2
+[0.2.1]: https://github.com/dusk-network/plonk/compare/v0.2.0...v0.2.1
+[0.2.0]: https://github.com/dusk-network/plonk/compare/v0.1.0...v0.2.0
+[0.1.0]: https://github.com/dusk-network/plonk/releases/tag/v0.1.0
