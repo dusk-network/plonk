@@ -6,7 +6,11 @@
 
 _This is a pure Rust implementation of the PLONK proving system over BLS12-381_
 
-This library contains a modularised implementation of KZG10 as the default polynomial commitment scheme.
+This library contains a modularised implementation of KZG10 as the default
+polynomial commitment scheme.
+
+**DISCLAIMER**: This library is currently unstable and still needs to go through
+an exhaustive security analysis. Use at your own risk.
 
 ## Usage
 
