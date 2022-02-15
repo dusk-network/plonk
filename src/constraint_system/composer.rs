@@ -576,6 +576,8 @@ impl TurboComposer {
         self.n += 1;
     }
 
+    /// Calculate the output witness `o` of a [`Constraint`] and append it.
+    /// `o = (q_m · a · b  + q_l · a + q_r · b + q_4 · d + q_c + PI) / (-q_m)`
     pub(crate) fn append_output_witness(&mut self, s: Constraint) -> Witness {
         let a = s.witness(WiredWitness::A);
         let b = s.witness(WiredWitness::B);
@@ -585,20 +587,23 @@ impl TurboComposer {
         let b = self.witnesses[&b];
         let d = self.witnesses[&d];
 
-        let qm = s.coeff(Selector::Multiplication);
-        let ql = s.coeff(Selector::Left);
-        let qr = s.coeff(Selector::Right);
-        let qd = s.coeff(Selector::Fourth);
-        let qc = s.coeff(Selector::Constant);
+        let q_m = s.coeff(Selector::Multiplication);
+        let q_l = s.coeff(Selector::Left);
+        let q_r = s.coeff(Selector::Right);
+        let q_d = s.coeff(Selector::Fourth);
+        let q_c = s.coeff(Selector::Constant);
         let pi = s.coeff(Selector::PublicInput);
 
-        let x = qm * a * b + ql * a + qr * b + qd * d + qc + pi;
+        let dividend = q_m * a * b + q_l * a + q_r * b + q_d * d + q_c + pi;
+        let q_o: BlsScalar = *s.coeff(Selector::Output);
+        let divisor_inverse = if q_o * q_o == BlsScalar::one() {
+            -q_o
+        } else {
+            let q_o_inverse: Option<BlsScalar> = q_o.invert().into();
+            -q_o_inverse.expect("Inconsistent internal usage of 'Constraint::evaluate_output': Output selector should not be zero")
+        };
 
-        let y = s.coeff(Selector::Output);
-        let y: Option<BlsScalar> = y.invert().into();
-        let y = -y.expect("Inconsistent internal usage of `Constraint::evaluate_output`: Output selector should not be zero");
-
-        let o = x * y;
+        let o = dividend * divisor_inverse;
         self.append_witness(o)
     }
 
