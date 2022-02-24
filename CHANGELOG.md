@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## Changed
+
+- Update canonical and canonical-derive to 0.7 [#666](https://github.com/dusk-network/plonk/pull/666)
+- Update dusk-bls12_381 to 0.9 [#666](https://github.com/dusk-network/plonk/pull/666)
+- Update jubjub to 0.11 [#666](https://github.com/dusk-network/plonk/pull/666)
+- Update rust edition to 2021 [#667](https://github.com/dusk-network/plonk/pull/667)
+
 ## [0.9.2] - 06-01-22
 
 ### Added
