@@ -45,19 +45,14 @@ impl Circuit for TestCircuit {
         composer.component_range(b, 1 << 5);
 
         // Make second constraint a * b = d
-        let constraint = Constraint::new()
-            .mult(1)
-            .output(1)
-            .public(-self.d)
-            .a(a)
-            .b(b);
+        let constraint = Constraint::new().mult(1).public(-self.d).a(a).b(b);
         composer.append_gate(constraint);
 
         let e = composer.append_witness(self.e);
         let scalar_mul_result = composer
             .component_mul_generator(e, dusk_jubjub::GENERATOR_EXTENDED);
 
-        // Apply the constrain
+        // Apply the constraint
         composer.assert_equal_public_point(scalar_mul_result, self.f);
 
         Ok(())
@@ -92,7 +87,7 @@ fn test_full() -> Result<()> {
     // Initialize the circuit
     let mut circuit = TestCircuit::default();
 
-    // Compile the circuit
+    // Compile/preprocess the circuit
     let (pk_p, vd_p) = circuit.compile(&pp)?;
 
     // Write the keys
@@ -105,8 +100,7 @@ fn test_full() -> Result<()> {
     assert_eq!(pk, pk_p);
 
     // Store the VerifierData just for the verifier side:
-    // (You could also store public_inputs_indexes and VerifierKey
-    // sepparatedly).
+    // (You could also store public_inputs_indexes and VerifierKey separately).
     fs::write(&vd_path, &vd_p.to_var_bytes())?;
     let vd = fs::read(vd_path)?;
     let vd = VerifierData::from_slice(&vd)?;

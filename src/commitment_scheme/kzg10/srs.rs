@@ -52,32 +52,32 @@ impl PublicParameters {
             return Err(Error::DegreeIsZero);
         }
 
-        // Generate the secret scalar beta
-        let beta = util::random_scalar(&mut rng);
+        // Generate the secret scalar x
+        let x = util::random_scalar(&mut rng);
 
-        // Compute powers of beta up to and including beta^max_degree
-        let powers_of_beta = util::powers_of(&beta, max_degree);
+        // Compute powers of x up to and including x^max_degree
+        let powers_of_x = util::powers_of(&x, max_degree);
 
         // Powers of G1 that will be used to commit to a specified polynomial
         let g = util::random_g1_point(&mut rng);
         let powers_of_g: Vec<G1Projective> =
-            util::slow_multiscalar_mul_single_base(&powers_of_beta, g);
+            util::slow_multiscalar_mul_single_base(&powers_of_x, g);
         assert_eq!(powers_of_g.len(), max_degree + 1);
 
-        // Normalise all projective points
-        let mut normalised_g = vec![G1Affine::identity(); max_degree + 1];
-        G1Projective::batch_normalize(&powers_of_g, &mut normalised_g);
+        // Normalize all projective points
+        let mut normalized_g = vec![G1Affine::identity(); max_degree + 1];
+        G1Projective::batch_normalize(&powers_of_g, &mut normalized_g);
 
-        // Compute beta*G2 element and stored cached elements for verifying
+        // Compute x_2 = x*h element and stored cached elements for verifying
         // multiple proofs.
         let h: G2Affine = util::random_g2_point(&mut rng).into();
-        let beta_h: G2Affine = (h * beta).into();
+        let x_2: G2Affine = (h * x).into();
 
         Ok(PublicParameters {
             commit_key: CommitKey {
-                powers_of_g: normalised_g,
+                powers_of_g: normalized_g,
             },
-            opening_key: OpeningKey::new(g.into(), h, beta_h),
+            opening_key: OpeningKey::new(g.into(), h, x_2),
         })
     }
 
@@ -126,14 +126,14 @@ impl PublicParameters {
         }
     }
 
-    /// Serialises a [`PublicParameters`] struct into a slice of bytes.
+    /// Serializes a [`PublicParameters`] struct into a slice of bytes.
     pub fn to_var_bytes(&self) -> Vec<u8> {
         let mut bytes = self.opening_key.to_bytes().to_vec();
         bytes.extend(self.commit_key.to_var_bytes().iter());
         bytes
     }
 
-    /// Deserialise a slice of bytes into a Public Parameter struct performing
+    /// Deserialize a slice of bytes into a Public Parameter struct performing
     /// security and consistency checks for each point that the bytes
     /// contain.
     ///
@@ -206,7 +206,7 @@ mod test {
     }
 
     #[test]
-    fn test_serialise_deserialise_public_parameter() {
+    fn test_serialize_deserialize_public_parameter() {
         let pp = PublicParameters::setup(1 << 7, &mut OsRng).unwrap();
 
         let got_pp = PublicParameters::from_slice(&pp.to_var_bytes()).unwrap();

@@ -62,12 +62,13 @@ impl Serializable<{ 7 * Commitment::SIZE }> for VerifierKey {
 #[cfg(feature = "alloc")]
 mod alloc {
     use super::*;
-    use crate::proof_system::linearisation_poly::ProofEvaluations;
+    use crate::proof_system::linearization_poly::ProofEvaluations;
+    #[rustfmt::skip]
     use ::alloc::vec::Vec;
     use dusk_bls12_381::{BlsScalar, G1Affine};
 
     impl VerifierKey {
-        pub(crate) fn compute_linearisation_commitment(
+        pub(crate) fn compute_linearization_commitment(
             &self,
             scalars: &mut Vec<BlsScalar>,
             points: &mut Vec<G1Affine>,

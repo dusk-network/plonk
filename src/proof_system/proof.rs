@@ -10,7 +10,7 @@
 //! This module contains the implementation of the `TurboComposer`s
 //! `Proof` structure and it's methods.
 
-use super::linearisation_poly::ProofEvaluations;
+use super::linearization_poly::ProofEvaluations;
 use crate::commitment_scheme::Commitment;
 use dusk_bytes::{DeserializableSlice, Serializable};
 
@@ -45,24 +45,24 @@ pub struct Proof {
     pub(crate) h_2_comm: Commitment,
 
     /// Commitment to the permutation polynomial.
-    pub(crate) z_comm: Commitment,
+    pub(crate) z_1_comm: Commitment,
 
     /// Commitment to the plonkup permutation polynomial.
-    pub(crate) p_comm: Commitment,
+    pub(crate) z_2_comm: Commitment,
 
     /// Commitment to the quotient polynomial.
-    pub(crate) t_1_comm: Commitment,
+    pub(crate) q_low_comm: Commitment,
     /// Commitment to the quotient polynomial.
-    pub(crate) t_2_comm: Commitment,
+    pub(crate) q_mid_comm: Commitment,
     /// Commitment to the quotient polynomial.
-    pub(crate) t_3_comm: Commitment,
+    pub(crate) q_high_comm: Commitment,
     /// Commitment to the quotient polynomial.
-    pub(crate) t_4_comm: Commitment,
+    pub(crate) q_4_comm: Commitment,
 
     /// Commitment to the opening polynomial.
-    pub(crate) w_z_comm: Commitment,
+    pub(crate) w_z_chall_comm: Commitment,
     /// Commitment to the shifted opening polynomial.
-    pub(crate) w_zw_comm: Commitment,
+    pub(crate) w_z_chall_w_comm: Commitment,
     /// Subset of all of the evaluations added to the proof.
     pub(crate) evaluations: ProofEvaluations,
 }
@@ -85,14 +85,14 @@ impl Serializable<{ 15 * Commitment::SIZE + ProofEvaluations::SIZE }>
         writer.write(&self.f_comm.to_bytes());
         writer.write(&self.h_1_comm.to_bytes());
         writer.write(&self.h_2_comm.to_bytes());
-        writer.write(&self.z_comm.to_bytes());
-        writer.write(&self.p_comm.to_bytes());
-        writer.write(&self.t_1_comm.to_bytes());
-        writer.write(&self.t_2_comm.to_bytes());
-        writer.write(&self.t_3_comm.to_bytes());
-        writer.write(&self.t_4_comm.to_bytes());
-        writer.write(&self.w_z_comm.to_bytes());
-        writer.write(&self.w_zw_comm.to_bytes());
+        writer.write(&self.z_1_comm.to_bytes());
+        writer.write(&self.z_2_comm.to_bytes());
+        writer.write(&self.q_low_comm.to_bytes());
+        writer.write(&self.q_mid_comm.to_bytes());
+        writer.write(&self.q_high_comm.to_bytes());
+        writer.write(&self.q_4_comm.to_bytes());
+        writer.write(&self.w_z_chall_comm.to_bytes());
+        writer.write(&self.w_z_chall_w_comm.to_bytes());
         writer.write(&self.evaluations.to_bytes());
 
         buf
@@ -108,14 +108,14 @@ impl Serializable<{ 15 * Commitment::SIZE + ProofEvaluations::SIZE }>
         let f_comm = Commitment::from_reader(&mut buffer)?;
         let h_1_comm = Commitment::from_reader(&mut buffer)?;
         let h_2_comm = Commitment::from_reader(&mut buffer)?;
-        let z_comm = Commitment::from_reader(&mut buffer)?;
-        let p_comm = Commitment::from_reader(&mut buffer)?;
-        let t_1_comm = Commitment::from_reader(&mut buffer)?;
-        let t_2_comm = Commitment::from_reader(&mut buffer)?;
-        let t_3_comm = Commitment::from_reader(&mut buffer)?;
-        let t_4_comm = Commitment::from_reader(&mut buffer)?;
-        let w_z_comm = Commitment::from_reader(&mut buffer)?;
-        let w_zw_comm = Commitment::from_reader(&mut buffer)?;
+        let z_1_comm = Commitment::from_reader(&mut buffer)?;
+        let z_2_comm = Commitment::from_reader(&mut buffer)?;
+        let q_low_comm = Commitment::from_reader(&mut buffer)?;
+        let q_mid_comm = Commitment::from_reader(&mut buffer)?;
+        let q_high_comm = Commitment::from_reader(&mut buffer)?;
+        let q_4_comm = Commitment::from_reader(&mut buffer)?;
+        let w_z_chall_comm = Commitment::from_reader(&mut buffer)?;
+        let w_z_chall_w_comm = Commitment::from_reader(&mut buffer)?;
         let evaluations = ProofEvaluations::from_reader(&mut buffer)?;
 
         Ok(Proof {
@@ -126,14 +126,14 @@ impl Serializable<{ 15 * Commitment::SIZE + ProofEvaluations::SIZE }>
             f_comm,
             h_1_comm,
             h_2_comm,
-            z_comm,
-            p_comm,
-            t_1_comm,
-            t_2_comm,
-            t_3_comm,
-            t_4_comm,
-            w_z_comm,
-            w_zw_comm,
+            z_1_comm,
+            z_2_comm,
+            q_low_comm,
+            q_mid_comm,
+            q_high_comm,
+            q_4_comm,
+            w_z_chall_comm,
+            w_z_chall_w_comm,
             evaluations,
         })
     }
@@ -150,6 +150,7 @@ pub(crate) mod alloc {
         transcript::TranscriptProtocol,
         util::batch_inversion,
     };
+    #[rustfmt::skip]
     use ::alloc::vec::Vec;
     use dusk_bls12_381::{
         multiscalar_mul::msm_variable_base, BlsScalar, G1Affine,
@@ -169,7 +170,7 @@ pub(crate) mod alloc {
         ) -> Result<(), Error> {
             let domain = EvaluationDomain::new(verifier_key.n)?;
 
-            // Subgroup checks are done when the proof is deserialised.
+            // Subgroup checks are done when the proof is deserialized.
 
             // In order for the Verifier and Prover to have the same view in the
             // non-interactive setting Both parties must commit the same
@@ -179,16 +180,20 @@ pub(crate) mod alloc {
             // same challenges
             //
             // Add commitment to witness polynomials to transcript
-            transcript.append_commitment(b"w_l", &self.a_comm);
-            transcript.append_commitment(b"w_r", &self.b_comm);
-            transcript.append_commitment(b"w_o", &self.c_comm);
-            transcript.append_commitment(b"w_4", &self.d_comm);
+            transcript.append_commitment(b"a_w", &self.a_comm);
+            transcript.append_commitment(b"b_w", &self.b_comm);
+            transcript.append_commitment(b"c_w", &self.c_comm);
+            transcript.append_commitment(b"d_w", &self.d_comm);
 
             // Compute zeta compression challenge
             let zeta = transcript.challenge_scalar(b"zeta");
 
             // Add f_poly commitment to transcript
             transcript.append_commitment(b"f", &self.f_comm);
+
+            // Add h polynomials to transcript
+            transcript.append_commitment(b"h1", &self.h_1_comm);
+            transcript.append_commitment(b"h2", &self.h_2_comm);
 
             // Compute beta and gamma challenges
             let beta = transcript.challenge_scalar(b"beta");
@@ -199,17 +204,10 @@ pub(crate) mod alloc {
             let epsilon = transcript.challenge_scalar(b"epsilon");
 
             // Add commitment to permutation polynomial to transcript
-            transcript.append_commitment(b"z", &self.z_comm);
-
-            // Compute evaluation challenge
-            let z_challenge = transcript.challenge_scalar(b"z_challenge");
-
-            // Add h polynomials to transcript
-            transcript.append_commitment(b"h1", &self.h_1_comm);
-            transcript.append_commitment(b"h2", &self.h_2_comm);
+            transcript.append_commitment(b"z_1", &self.z_1_comm);
 
             // Add permutation polynomial commitment to transcript
-            transcript.append_commitment(b"p", &self.p_comm);
+            transcript.append_commitment(b"z_2", &self.z_2_comm);
 
             // Compute quotient challenge
             let alpha = transcript.challenge_scalar(b"alpha");
@@ -225,29 +223,32 @@ pub(crate) mod alloc {
                 transcript.challenge_scalar(b"lookup challenge");
 
             // Add commitment to quotient polynomial to transcript
-            transcript.append_commitment(b"t_1", &self.t_1_comm);
-            transcript.append_commitment(b"t_2", &self.t_2_comm);
-            transcript.append_commitment(b"t_3", &self.t_3_comm);
-            transcript.append_commitment(b"t_4", &self.t_4_comm);
+            transcript.append_commitment(b"q_low", &self.q_low_comm);
+            transcript.append_commitment(b"q_mid", &self.q_mid_comm);
+            transcript.append_commitment(b"q_high", &self.q_high_comm);
+            transcript.append_commitment(b"q_4", &self.q_4_comm);
 
-            // Compute zero polynomial evaluated at `z_challenge`
+            // Compute evaluation challenge z
+            let z_challenge = transcript.challenge_scalar(b"z_challenge");
+
+            // Compute zero polynomial evaluated at challenge `z`
             let z_h_eval = domain.evaluate_vanishing_polynomial(&z_challenge);
 
-            // Compute first lagrange polynomial evaluated at `z_challenge`
+            // Compute first lagrange polynomial evaluated at challenge `z`
             let l1_eval = compute_first_lagrange_evaluation(
                 &domain,
                 &z_h_eval,
                 &z_challenge,
             );
 
-            let table_comm = Commitment(G1Affine::from(
+            let t_prime_comm = Commitment(G1Affine::from(
                 verifier_key.lookup.table_1.0
                     + verifier_key.lookup.table_2.0 * zeta
                     + verifier_key.lookup.table_3.0 * zeta * zeta
                     + verifier_key.lookup.table_4.0 * zeta * zeta * zeta,
             ));
 
-            // Compute quotient polynomial evaluated at `z_challenge`
+            // Compute quotient polynomial evaluated at challenge `z`
             let t_eval = self.compute_quotient_evaluation(
                 &domain,
                 pub_inputs,
@@ -281,26 +282,23 @@ pub(crate) mod alloc {
             transcript
                 .append_scalar(b"d_next_eval", &self.evaluations.d_next_eval);
             transcript.append_scalar(
-                b"left_sig_eval",
-                &self.evaluations.left_sigma_eval,
+                b"s_sigma_1_eval",
+                &self.evaluations.s_sigma_1_eval,
             );
             transcript.append_scalar(
-                b"right_sig_eval",
-                &self.evaluations.right_sigma_eval,
+                b"s_sigma_2_eval",
+                &self.evaluations.s_sigma_2_eval,
             );
             transcript.append_scalar(
-                b"out_sig_eval",
-                &self.evaluations.out_sigma_eval,
+                b"s_sigma_3_eval",
+                &self.evaluations.s_sigma_3_eval,
             );
             transcript
                 .append_scalar(b"q_arith_eval", &self.evaluations.q_arith_eval);
             transcript.append_scalar(b"q_c_eval", &self.evaluations.q_c_eval);
             transcript.append_scalar(b"q_l_eval", &self.evaluations.q_l_eval);
             transcript.append_scalar(b"q_r_eval", &self.evaluations.q_r_eval);
-            transcript.append_scalar(
-                b"q_lookup_eval",
-                &self.evaluations.q_lookup_eval,
-            );
+            transcript.append_scalar(b"q_k_eval", &self.evaluations.q_k_eval);
             transcript.append_scalar(b"perm_eval", &self.evaluations.perm_eval);
             transcript.append_scalar(
                 b"lookup_perm_eval",
@@ -313,11 +311,10 @@ pub(crate) mod alloc {
             );
             transcript.append_scalar(b"h_2_eval", &self.evaluations.h_2_eval);
             transcript.append_scalar(b"t_eval", &t_eval);
-            transcript
-                .append_scalar(b"r_eval", &self.evaluations.lin_poly_eval);
+            transcript.append_scalar(b"r_eval", &self.evaluations.r_poly_eval);
 
-            // Compute linearisation commitment
-            let r_comm = self.compute_linearisation_commitment(
+            // Compute linearization commitment
+            let r_comm = self.compute_linearization_commitment(
                 &alpha,
                 &beta,
                 &gamma,
@@ -333,8 +330,8 @@ pub(crate) mod alloc {
                 ),
                 &z_challenge,
                 l1_eval,
-                self.evaluations.table_eval,
-                self.evaluations.table_next_eval,
+                self.evaluations.t_prime_eval,
+                self.evaluations.t_prime_next_eval,
                 verifier_key,
             );
 
@@ -342,46 +339,47 @@ pub(crate) mod alloc {
             // Now we delegate computation to the commitment scheme by batch
             // checking two proofs The `AggregateProof`, which is a
             // proof that all the necessary polynomials evaluated at
-            // `z_challenge` are correct and a `SingleProof` which
+            // challenge `z` are correct and a `SingleProof` which
             // is proof that the permutation polynomial evaluated at the shifted
             // root of unity is correct
 
             // Compose the Aggregated Proof
             //
             let mut aggregate_proof =
-                AggregateProof::with_witness(self.w_z_comm);
+                AggregateProof::with_witness(self.w_z_chall_comm);
             aggregate_proof.add_part((t_eval, t_comm));
-            aggregate_proof.add_part((self.evaluations.lin_poly_eval, r_comm));
+            aggregate_proof.add_part((self.evaluations.r_poly_eval, r_comm));
             aggregate_proof.add_part((self.evaluations.a_eval, self.a_comm));
             aggregate_proof.add_part((self.evaluations.b_eval, self.b_comm));
             aggregate_proof.add_part((self.evaluations.c_eval, self.c_comm));
             aggregate_proof.add_part((self.evaluations.d_eval, self.d_comm));
             aggregate_proof.add_part((
-                self.evaluations.left_sigma_eval,
-                verifier_key.permutation.left_sigma,
+                self.evaluations.s_sigma_1_eval,
+                verifier_key.permutation.s_sigma_1,
             ));
             aggregate_proof.add_part((
-                self.evaluations.right_sigma_eval,
-                verifier_key.permutation.right_sigma,
+                self.evaluations.s_sigma_2_eval,
+                verifier_key.permutation.s_sigma_2,
             ));
             aggregate_proof.add_part((
-                self.evaluations.out_sigma_eval,
-                verifier_key.permutation.out_sigma,
+                self.evaluations.s_sigma_3_eval,
+                verifier_key.permutation.s_sigma_3,
             ));
             aggregate_proof.add_part((self.evaluations.f_eval, self.f_comm));
             aggregate_proof
                 .add_part((self.evaluations.h_1_eval, self.h_1_comm));
             aggregate_proof
                 .add_part((self.evaluations.h_2_eval, self.h_2_comm));
-            aggregate_proof.add_part((self.evaluations.table_eval, table_comm));
+            aggregate_proof
+                .add_part((self.evaluations.t_prime_eval, t_prime_comm));
             // Flatten proof with opening challenge
             let flattened_proof_a = aggregate_proof.flatten(transcript);
 
             // Compose the shifted aggregate proof
             let mut shifted_aggregate_proof =
-                AggregateProof::with_witness(self.w_zw_comm);
+                AggregateProof::with_witness(self.w_z_chall_w_comm);
             shifted_aggregate_proof
-                .add_part((self.evaluations.perm_eval, self.z_comm));
+                .add_part((self.evaluations.perm_eval, self.z_1_comm));
             shifted_aggregate_proof
                 .add_part((self.evaluations.a_next_eval, self.a_comm));
             shifted_aggregate_proof
@@ -391,13 +389,13 @@ pub(crate) mod alloc {
             shifted_aggregate_proof
                 .add_part((self.evaluations.h_1_next_eval, self.h_1_comm));
             shifted_aggregate_proof
-                .add_part((self.evaluations.lookup_perm_eval, self.p_comm));
+                .add_part((self.evaluations.lookup_perm_eval, self.z_2_comm));
             shifted_aggregate_proof
-                .add_part((self.evaluations.table_next_eval, table_comm));
+                .add_part((self.evaluations.t_prime_next_eval, t_prime_comm));
             let flattened_proof_b = shifted_aggregate_proof.flatten(transcript);
             // Add commitment to openings to transcript
-            transcript.append_commitment(b"w_z", &self.w_z_comm);
-            transcript.append_commitment(b"w_z_w", &self.w_zw_comm);
+            transcript.append_commitment(b"w_z", &self.w_z_chall_comm);
+            transcript.append_commitment(b"w_z_w", &self.w_z_chall_w_comm);
             // Batch check
             if opening_key
                 .batch_check(
@@ -429,7 +427,7 @@ pub(crate) mod alloc {
             z_hat_eval: &BlsScalar,
             lookup_sep_challenge: &BlsScalar,
         ) -> BlsScalar {
-            // Compute the public input polynomial evaluated at `z_challenge`
+            // Compute the public input polynomial evaluated at challenge `z`
             let pi_eval =
                 compute_barycentric_eval(pub_inputs, z_challenge, domain);
 
@@ -444,18 +442,18 @@ pub(crate) mod alloc {
             let epsilon_one_plus_delta = epsilon * (BlsScalar::one() + delta);
 
             // r + PI(z)
-            let a = self.evaluations.lin_poly_eval + pi_eval;
+            let a = self.evaluations.r_poly_eval + pi_eval;
 
             // a + beta * sigma_1 + gamma
-            let beta_sig1 = beta * self.evaluations.left_sigma_eval;
+            let beta_sig1 = beta * self.evaluations.s_sigma_1_eval;
             let b_0 = self.evaluations.a_eval + beta_sig1 + gamma;
 
-            // b+ beta * sigma_2 + gamma
-            let beta_sig2 = beta * self.evaluations.right_sigma_eval;
+            // b + beta * sigma_2 + gamma
+            let beta_sig2 = beta * self.evaluations.s_sigma_2_eval;
             let b_1 = self.evaluations.b_eval + beta_sig2 + gamma;
 
-            // c+ beta * sigma_3 + gamma
-            let beta_sig3 = beta * self.evaluations.out_sigma_eval;
+            // c + beta * sigma_3 + gamma
+            let beta_sig3 = beta * self.evaluations.s_sigma_3_eval;
             let b_2 = self.evaluations.c_eval + beta_sig3 + gamma;
 
             // ((d + gamma) * z_hat) * alpha_0
@@ -492,16 +490,16 @@ pub(crate) mod alloc {
             let z_n = z_challenge.pow(&[n as u64, 0, 0, 0]);
             let z_two_n = z_challenge.pow(&[2 * n as u64, 0, 0, 0]);
             let z_three_n = z_challenge.pow(&[3 * n as u64, 0, 0, 0]);
-            let t_comm = self.t_1_comm.0
-                + self.t_2_comm.0 * z_n
-                + self.t_3_comm.0 * z_two_n
-                + self.t_4_comm.0 * z_three_n;
+            let t_comm = self.q_low_comm.0
+                + self.q_mid_comm.0 * z_n
+                + self.q_high_comm.0 * z_two_n
+                + self.q_4_comm.0 * z_three_n;
             Commitment::from(t_comm)
         }
 
         // Commitment to [r]_1
         #[allow(clippy::too_many_arguments)]
-        fn compute_linearisation_commitment(
+        fn compute_linearization_commitment(
             &self,
             alpha: &BlsScalar,
             beta: &BlsScalar,
@@ -531,41 +529,41 @@ pub(crate) mod alloc {
             let mut scalars: Vec<_> = Vec::with_capacity(6);
             let mut points: Vec<G1Affine> = Vec::with_capacity(6);
 
-            verifier_key.arithmetic.compute_linearisation_commitment(
+            verifier_key.arithmetic.compute_linearization_commitment(
                 &mut scalars,
                 &mut points,
                 &self.evaluations,
             );
 
-            verifier_key.range.compute_linearisation_commitment(
+            verifier_key.range.compute_linearization_commitment(
                 range_sep_challenge,
                 &mut scalars,
                 &mut points,
                 &self.evaluations,
             );
 
-            verifier_key.logic.compute_linearisation_commitment(
+            verifier_key.logic.compute_linearization_commitment(
                 logic_sep_challenge,
                 &mut scalars,
                 &mut points,
                 &self.evaluations,
             );
 
-            verifier_key.fixed_base.compute_linearisation_commitment(
+            verifier_key.fixed_base.compute_linearization_commitment(
                 fixed_base_sep_challenge,
                 &mut scalars,
                 &mut points,
                 &self.evaluations,
             );
 
-            verifier_key.variable_base.compute_linearisation_commitment(
+            verifier_key.variable_base.compute_linearization_commitment(
                 var_base_sep_challenge,
                 &mut scalars,
                 &mut points,
                 &self.evaluations,
             );
 
-            verifier_key.lookup.compute_linearisation_commitment(
+            verifier_key.lookup.compute_linearization_commitment(
                 lookup_sep_challenge,
                 &mut scalars,
                 &mut points,
@@ -576,17 +574,17 @@ pub(crate) mod alloc {
                 &t_eval,
                 &t_next_eval,
                 self.h_2_comm.0,
-                self.p_comm.0,
+                self.z_2_comm.0,
             );
 
-            verifier_key.permutation.compute_linearisation_commitment(
+            verifier_key.permutation.compute_linearization_commitment(
                 &mut scalars,
                 &mut points,
                 &self.evaluations,
                 z_challenge,
                 (alpha, beta, gamma),
                 &l1_eval,
-                self.z_comm.0,
+                self.z_1_comm.0,
             );
 
             Commitment::from(msm_variable_base(&points, &scalars))
@@ -674,14 +672,14 @@ mod proof_tests {
             f_comm: Commitment::default(),
             h_1_comm: Commitment::default(),
             h_2_comm: Commitment::default(),
-            z_comm: Commitment::default(),
-            p_comm: Commitment::default(),
-            t_1_comm: Commitment::default(),
-            t_2_comm: Commitment::default(),
-            t_3_comm: Commitment::default(),
-            t_4_comm: Commitment::default(),
-            w_z_comm: Commitment::default(),
-            w_zw_comm: Commitment::default(),
+            z_1_comm: Commitment::default(),
+            z_2_comm: Commitment::default(),
+            q_low_comm: Commitment::default(),
+            q_mid_comm: Commitment::default(),
+            q_high_comm: Commitment::default(),
+            q_4_comm: Commitment::default(),
+            w_z_chall_comm: Commitment::default(),
+            w_z_chall_w_comm: Commitment::default(),
             evaluations: ProofEvaluations {
                 a_eval: BlsScalar::random(&mut OsRng),
                 b_eval: BlsScalar::random(&mut OsRng),
@@ -694,19 +692,19 @@ mod proof_tests {
                 q_c_eval: BlsScalar::random(&mut OsRng),
                 q_l_eval: BlsScalar::random(&mut OsRng),
                 q_r_eval: BlsScalar::random(&mut OsRng),
-                q_lookup_eval: BlsScalar::random(&mut OsRng),
-                left_sigma_eval: BlsScalar::random(&mut OsRng),
-                right_sigma_eval: BlsScalar::random(&mut OsRng),
-                out_sigma_eval: BlsScalar::random(&mut OsRng),
-                lin_poly_eval: BlsScalar::random(&mut OsRng),
+                q_k_eval: BlsScalar::random(&mut OsRng),
+                s_sigma_1_eval: BlsScalar::random(&mut OsRng),
+                s_sigma_2_eval: BlsScalar::random(&mut OsRng),
+                s_sigma_3_eval: BlsScalar::random(&mut OsRng),
+                r_poly_eval: BlsScalar::random(&mut OsRng),
                 perm_eval: BlsScalar::random(&mut OsRng),
                 lookup_perm_eval: BlsScalar::random(&mut OsRng),
                 h_1_eval: BlsScalar::random(&mut OsRng),
                 h_1_next_eval: BlsScalar::random(&mut OsRng),
                 h_2_eval: BlsScalar::random(&mut OsRng),
                 f_eval: BlsScalar::random(&mut OsRng),
-                table_eval: BlsScalar::random(&mut OsRng),
-                table_next_eval: BlsScalar::random(&mut OsRng),
+                t_prime_eval: BlsScalar::random(&mut OsRng),
+                t_prime_next_eval: BlsScalar::random(&mut OsRng),
             },
         };
 

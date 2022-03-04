@@ -15,13 +15,14 @@ pub(crate) struct VerifierKey {
 #[cfg(feature = "alloc")]
 mod alloc {
     use super::*;
-    use crate::proof_system::linearisation_poly::ProofEvaluations;
+    use crate::proof_system::linearization_poly::ProofEvaluations;
     use crate::proof_system::widget::logic::proverkey::{delta, delta_xor_and};
+    #[rustfmt::skip]
     use ::alloc::vec::Vec;
     use dusk_bls12_381::{BlsScalar, G1Affine};
 
     impl VerifierKey {
-        pub(crate) fn compute_linearisation_commitment(
+        pub(crate) fn compute_linearization_commitment(
             &self,
             logic_separation_challenge: &BlsScalar,
             scalars: &mut Vec<BlsScalar>,

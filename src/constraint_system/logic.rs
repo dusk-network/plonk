@@ -69,8 +69,8 @@ impl TurboComposer {
         // * |  :  |  :  |  :  |  :  |
         // * | an  | bn  | --- | cn  |
         // * +-----+-----+-----+-----+
-        // We need to have w_4, w_l and w_r pointing to one gate ahead of w_o.
-        // We increase the gate idx and assign w_4, w_l and w_r to `zero`.
+        // We need to have d_w, a_w and b_w pointing to one gate ahead of c_w.
+        // We increase the gate idx and assign d_w, a_w and b_w to `zero`.
         // Now we can add the first row as: `| 0 | 0 | -- | 0 |`.
         // Note that `w_1` will be set on the first loop iteration.
         self.perm
@@ -83,9 +83,9 @@ impl TurboComposer {
             Self::constant_zero(),
             WireData::Fourth(self.n),
         );
-        self.w_l.push(Self::constant_zero());
-        self.w_r.push(Self::constant_zero());
-        self.w_4.push(Self::constant_zero());
+        self.a_w.push(Self::constant_zero());
+        self.b_w.push(Self::constant_zero());
+        self.d_w.push(Self::constant_zero());
         // Increase the gate index so we can add the following rows in the
         // correct order.
         self.n += 1;
@@ -209,16 +209,16 @@ impl TurboComposer {
             self.perm
                 .add_variable_to_map(var_c, WireData::Output(self.n - 1));
             // Push the variables to it's actual wire vector storage
-            self.w_l.push(var_a);
-            self.w_r.push(var_b);
-            self.w_o.push(var_c);
-            self.w_4.push(var_4);
+            self.a_w.push(var_a);
+            self.b_w.push(var_b);
+            self.c_w.push(var_c);
+            self.d_w.push(var_4);
             // Update the gate index
             self.n += 1;
         }
 
         // We have one missing value for the last row of the program memory
-        // which is `w_o` since the rest of wires are pointing one gate
+        // which is `c_w` since the rest of wires are pointing one gate
         // ahead. To fix this, we simply pad with a 0 so the last row of
         // the program memory will look like this:
         // | an  | bn  | --- | cn  |
@@ -226,7 +226,7 @@ impl TurboComposer {
             Self::constant_zero(),
             WireData::Output(self.n - 1),
         );
-        self.w_o.push(Self::constant_zero());
+        self.c_w.push(Self::constant_zero());
 
         // Now the wire values are set for each gate, indexed and mapped in the
         // `variable_map` inside of the `Permutation` struct.
@@ -242,7 +242,7 @@ impl TurboComposer {
             self.q_range.push(BlsScalar::zero());
             self.q_fixed_group_add.push(BlsScalar::zero());
             self.q_variable_group_add.push(BlsScalar::zero());
-            self.q_lookup.push(BlsScalar::zero());
+            self.q_k.push(BlsScalar::zero());
             match is_component_xor {
                 true => {
                     self.q_c.push(-BlsScalar::one());
@@ -264,7 +264,7 @@ impl TurboComposer {
         self.q_range.push(BlsScalar::zero());
         self.q_fixed_group_add.push(BlsScalar::zero());
         self.q_variable_group_add.push(BlsScalar::zero());
-        self.q_lookup.push(BlsScalar::zero());
+        self.q_k.push(BlsScalar::zero());
 
         self.q_c.push(BlsScalar::zero());
         self.q_logic.push(BlsScalar::zero());
@@ -280,27 +280,27 @@ impl TurboComposer {
         // original values introduced in the function taking into account the
         // bitnum specified on the fn call parameters.
         // This can be done with an `assert_equal` constraint gate or simply
-        // by taking the values behind the n'th variables of `w_l` & `w_r` and
+        // by taking the values behind the n'th variables of `a_w` & `b_w` and
         // checking that they're equal to the original ones behind the variables
         // sent through the function parameters.
         assert_eq!(
             self.witnesses[&a]
                 & (BlsScalar::from(2u64).pow(&[(num_bits) as u64, 0, 0, 0])
                     - BlsScalar::one()),
-            self.witnesses[&self.w_l[self.n - 1]]
+            self.witnesses[&self.a_w[self.n - 1]]
         );
         assert_eq!(
             self.witnesses[&b]
                 & (BlsScalar::from(2u64).pow(&[(num_bits) as u64, 0, 0, 0])
                     - BlsScalar::one()),
-            self.witnesses[&self.w_r[self.n - 1]]
+            self.witnesses[&self.b_w[self.n - 1]]
         );
 
         // Once the inputs are checked against the accumulated additions,
         // we can safely return the resulting variable of the gate computation
         // which is stored on the last program memory row and in the column that
-        // `w_4` is holding.
-        self.w_4[self.w_4.len() - 1]
+        // `d_w` is holding.
+        self.d_w[self.d_w.len() - 1]
     }
 
     /// Adds a logical XOR gate that performs the XOR between two values for the

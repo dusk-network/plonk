@@ -32,19 +32,19 @@ impl TurboComposer {
 
                 let wire_data = match i % 4 {
                     0 => {
-                        composer.w_4.push(witness);
+                        composer.d_w.push(witness);
                         WireData::Fourth(gate_index)
                     }
                     1 => {
-                        composer.w_o.push(witness);
+                        composer.c_w.push(witness);
                         WireData::Output(gate_index)
                     }
                     2 => {
-                        composer.w_r.push(witness);
+                        composer.b_w.push(witness);
                         WireData::Right(gate_index)
                     }
                     3 => {
-                        composer.w_l.push(witness);
+                        composer.a_w.push(witness);
                         WireData::Left(gate_index)
                     }
                     _ => unreachable!(),
@@ -174,7 +174,7 @@ impl TurboComposer {
         self.q_variable_group_add.extend(zeros.iter());
         self.q_range.extend(ones.iter());
         self.q_logic.extend(zeros.iter());
-        self.q_lookup.extend(zeros.iter());
+        self.q_k.extend(zeros.iter());
         self.n += used_gates;
 
         // As mentioned above, we must switch off the range constraint for the
@@ -182,9 +182,9 @@ impl TurboComposer {
         // wire, which will be used in the gate before it
         // Furthermore, we set the left, right and output wires to zero
         *self.q_range.last_mut().unwrap() = BlsScalar::zero();
-        self.w_l.push(Self::constant_zero());
-        self.w_r.push(Self::constant_zero());
-        self.w_o.push(Self::constant_zero());
+        self.a_w.push(Self::constant_zero());
+        self.b_w.push(Self::constant_zero());
+        self.c_w.push(Self::constant_zero());
 
         // Lastly, we must link the last accumulator value to the initial
         // witness This last constraint will pass as long as

@@ -19,13 +19,13 @@ impl ProverKey {
         &self,
         index: usize,
         logic_separation_challenge: &BlsScalar,
-        w_l_i: &BlsScalar,
-        w_l_i_next: &BlsScalar,
-        w_r_i: &BlsScalar,
-        w_r_i_next: &BlsScalar,
-        w_o_i: &BlsScalar,
-        w_4_i: &BlsScalar,
-        w_4_i_next: &BlsScalar,
+        a_w_i: &BlsScalar,
+        a_w_i_next: &BlsScalar,
+        b_w_i: &BlsScalar,
+        b_w_i_next: &BlsScalar,
+        c_w_i: &BlsScalar,
+        d_w_i: &BlsScalar,
+        d_w_i_next: &BlsScalar,
     ) -> BlsScalar {
         let four = BlsScalar::from(4);
 
@@ -37,16 +37,16 @@ impl ProverKey {
         let kappa_cu = kappa_sq * kappa;
         let kappa_qu = kappa_cu * kappa;
 
-        let a = w_l_i_next - four * w_l_i;
+        let a = a_w_i_next - four * a_w_i;
         let c_0 = delta(a);
 
-        let b = w_r_i_next - four * w_r_i;
+        let b = b_w_i_next - four * b_w_i;
         let c_1 = delta(b) * kappa;
 
-        let d = w_4_i_next - four * w_4_i;
+        let d = d_w_i_next - four * d_w_i;
         let c_2 = delta(d) * kappa_sq;
 
-        let w = w_o_i;
+        let w = c_w_i;
         let c_3 = (w - a * b) * kappa_cu;
 
         let c_4 = delta_xor_and(&a, &b, w, &d, q_c_i) * kappa_qu;
@@ -54,7 +54,7 @@ impl ProverKey {
         q_logic_i * (c_3 + c_0 + c_1 + c_2 + c_4) * logic_separation_challenge
     }
 
-    pub(crate) fn compute_linearisation(
+    pub(crate) fn compute_linearization(
         &self,
         logic_separation_challenge: &BlsScalar,
         a_eval: &BlsScalar,

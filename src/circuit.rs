@@ -121,7 +121,7 @@ impl VerifierData {
 
 /// Trait that should be implemented for any circuit function to provide to it
 /// the capabilities of automatically being able to generate, and verify proofs
-/// as well as compile the circuit.
+/// as well as compile/preprocess the circuit.
 /// # Example
 ///
 /// ```
@@ -173,7 +173,6 @@ impl VerifierData {
 ///         // Make second constraint a * b = d
 ///         let constraint = Constraint::new()
 ///             .mult(1)
-///             .output(1)
 ///             .public(-self.d)
 ///             .a(a)
 ///             .b(b);
@@ -185,7 +184,7 @@ impl VerifierData {
 ///             composer.component_mul_generator(
 ///                 e, dusk_jubjub::GENERATOR_EXTENDED,
 ///             );
-///         // Apply the constrain
+///         // Apply the constraint
 ///         composer
 ///             .assert_equal_public_point(scalar_mul_result, self.f);
 ///         Ok(())
@@ -203,7 +202,7 @@ impl VerifierData {
 /// let pp = PublicParameters::setup(1 << 12, &mut OsRng)?;
 /// // Initialize the circuit
 /// let mut circuit = TestCircuit::default();
-/// // Compile the circuit
+/// // Compile/preprocess the circuit
 /// let (pk, vd) = circuit.compile(&pp)?;
 ///
 /// // Prover POV

@@ -36,9 +36,6 @@
 //! this one done by the creators of the protocol:
 //!
 //! <https://github.com/AztecProtocol/barretenberg/blob/master/barretenberg/src/aztec/plonk/>
-//!
-//! If you want to see library usage examples, please check:
-//! <https://github.com/dusk-network/plonk/tree/v0.1.0/examples>
 
 // Bitshift/Bitwise ops are allowed to gain performance.
 #![allow(clippy::suspicious_arithmetic_impl)]
@@ -57,11 +54,11 @@
 
 cfg_if::cfg_if!(
 if #[cfg(feature = "alloc")] {
-    /// `macro_use` will declare `vec!`. However, if `libstd` is present, then this is declared in
-    /// the prelude and there will be a conflicting implementation.
+    /// `macro_use` will declare `vec!`. However, if `libstd` is present, then this
+    /// is declared in the prelude and there will be a conflicting implementation.
     ///
-    /// We might have `no_std + alloc` or `std + alloc`, but `macro_use` should be used only for
-    /// `no_std`
+    /// We might have `no_std + alloc` or `std + alloc`, but `macro_use` should be
+    /// used only for `no_std`
     #[cfg_attr(not(feature = "std"), macro_use)]
     extern crate alloc;
 

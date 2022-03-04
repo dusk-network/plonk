@@ -88,6 +88,7 @@ pub(crate) mod alloc {
     use super::*;
     use crate::error::Error;
     use crate::fft::Evaluations;
+    #[rustfmt::skip]
     use ::alloc::vec::Vec;
     use core::ops::MulAssign;
     use dusk_bls12_381::{GENERATOR, ROOT_OF_UNITY, TWO_ADACITY};

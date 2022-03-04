@@ -8,7 +8,7 @@ use crate::commitment_scheme::Commitment;
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub struct VerifierKey {
-    pub(crate) q_lookup: Commitment,
+    pub(crate) q_k: Commitment,
     pub(crate) table_1: Commitment,
     pub(crate) table_2: Commitment,
     pub(crate) table_3: Commitment,
@@ -18,12 +18,12 @@ pub struct VerifierKey {
 #[cfg(feature = "alloc")]
 mod alloc {
     use super::VerifierKey;
-    use crate::proof_system::linearisation_poly::ProofEvaluations;
+    use crate::proof_system::linearization_poly::ProofEvaluations;
     use alloc::vec::Vec;
     use dusk_bls12_381::{BlsScalar, G1Affine};
 
     impl VerifierKey {
-        pub(crate) fn compute_linearisation_commitment(
+        pub(crate) fn compute_linearization_commitment(
             &self,
             lookup_separation_challenge: &BlsScalar,
             scalars: &mut Vec<BlsScalar>,
@@ -43,7 +43,7 @@ mod alloc {
             let zeta_cu = zeta * zeta_sq;
 
             // (a_eval + zeta*b_eval + zeta^2*c_eval + zeta^3d_eval - f_eval) *
-            // q_lookup * alpha_1
+            // q_k * alpha_1
             let a = {
                 let a_0 = evaluations.a_eval
                     + zeta * evaluations.b_eval
@@ -55,7 +55,7 @@ mod alloc {
             };
 
             scalars.push(a);
-            points.push(self.q_lookup.0);
+            points.push(self.q_k.0);
 
             //
             // - (p_next_eval*(epsilon*(1 + delta) + h_1_eval +

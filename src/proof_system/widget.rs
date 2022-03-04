@@ -54,16 +54,16 @@ impl Serializable<{ 20 * Commitment::SIZE + u64::SIZE }> for VerifierKey {
         writer.write(&self.arithmetic.q_o.to_bytes());
         writer.write(&self.arithmetic.q_4.to_bytes());
         writer.write(&self.arithmetic.q_c.to_bytes());
+        writer.write(&self.lookup.q_k.to_bytes());
         writer.write(&self.arithmetic.q_arith.to_bytes());
         writer.write(&self.logic.q_logic.to_bytes());
         writer.write(&self.range.q_range.to_bytes());
         writer.write(&self.fixed_base.q_fixed_group_add.to_bytes());
         writer.write(&self.variable_base.q_variable_group_add.to_bytes());
-        writer.write(&self.lookup.q_lookup.to_bytes());
-        writer.write(&self.permutation.left_sigma.to_bytes());
-        writer.write(&self.permutation.right_sigma.to_bytes());
-        writer.write(&self.permutation.out_sigma.to_bytes());
-        writer.write(&self.permutation.fourth_sigma.to_bytes());
+        writer.write(&self.permutation.s_sigma_1.to_bytes());
+        writer.write(&self.permutation.s_sigma_2.to_bytes());
+        writer.write(&self.permutation.s_sigma_3.to_bytes());
+        writer.write(&self.permutation.s_sigma_4.to_bytes());
         writer.write(&self.lookup.table_1.to_bytes());
         writer.write(&self.lookup.table_2.to_bytes());
         writer.write(&self.lookup.table_3.to_bytes());
@@ -118,16 +118,16 @@ impl VerifierKey {
         q_o: Commitment,
         q_4: Commitment,
         q_c: Commitment,
+        q_k: Commitment,
         q_arith: Commitment,
         q_logic: Commitment,
         q_range: Commitment,
         q_fixed_group_add: Commitment,
         q_variable_group_add: Commitment,
-        q_lookup: Commitment,
-        left_sigma: Commitment,
-        right_sigma: Commitment,
-        out_sigma: Commitment,
-        fourth_sigma: Commitment,
+        s_sigma_1: Commitment,
+        s_sigma_2: Commitment,
+        s_sigma_3: Commitment,
+        s_sigma_4: Commitment,
         table_1: Commitment,
         table_2: Commitment,
         table_3: Commitment,
@@ -155,7 +155,7 @@ impl VerifierKey {
         };
 
         let lookup = lookup::VerifierKey {
-            q_lookup,
+            q_k,
             table_1,
             table_2,
             table_3,
@@ -163,10 +163,10 @@ impl VerifierKey {
         };
 
         let permutation = permutation::VerifierKey {
-            left_sigma,
-            right_sigma,
-            out_sigma,
-            fourth_sigma,
+            s_sigma_1,
+            s_sigma_2,
+            s_sigma_3,
+            s_sigma_4,
         };
 
         VerifierKey {
@@ -191,6 +191,7 @@ pub(crate) mod alloc {
         fft::{EvaluationDomain, Evaluations, Polynomial},
         transcript::TranscriptProtocol,
     };
+    #[rustfmt::skip]
     use ::alloc::vec::Vec;
     use dusk_bls12_381::BlsScalar;
     use merlin::Transcript;
@@ -217,17 +218,13 @@ pub(crate) mod alloc {
             );
 
             transcript
-                .append_commitment(b"left_sigma", &self.permutation.left_sigma);
-            transcript.append_commitment(
-                b"right_sigma",
-                &self.permutation.right_sigma,
-            );
+                .append_commitment(b"s_sigma_1", &self.permutation.s_sigma_1);
             transcript
-                .append_commitment(b"out_sigma", &self.permutation.out_sigma);
-            transcript.append_commitment(
-                b"fourth_sigma",
-                &self.permutation.fourth_sigma,
-            );
+                .append_commitment(b"s_sigma_2", &self.permutation.s_sigma_2);
+            transcript
+                .append_commitment(b"s_sigma_3", &self.permutation.s_sigma_3);
+            transcript
+                .append_commitment(b"s_sigma_4", &self.permutation.s_sigma_1);
 
             // Append circuit size to transcript
             transcript.circuit_domain_sep(self.n as u64);
@@ -281,7 +278,7 @@ pub(crate) mod alloc {
             21
         }
 
-        /// Serialises a [`ProverKey`] struct into a Vec of bytes.
+        /// Serializes a [`ProverKey`] struct into a Vec of bytes.
         #[allow(unused_must_use)]
         pub fn to_var_bytes(&self) -> Vec<u8> {
             use dusk_bytes::Write;
@@ -373,9 +370,9 @@ pub(crate) mod alloc {
             );
 
             // Lookup
-            writer.write(&(self.lookup.q_lookup.0.len() as u64).to_bytes());
-            writer.write(&self.lookup.q_lookup.0.to_var_bytes());
-            writer.write(&self.lookup.q_lookup.1.to_var_bytes());
+            writer.write(&(self.lookup.q_k.0.len() as u64).to_bytes());
+            writer.write(&self.lookup.q_k.0.to_var_bytes());
+            writer.write(&self.lookup.q_k.1.to_var_bytes());
 
             writer.write(&(self.lookup.table_1.0.len() as u64).to_bytes());
             writer.write(&(self.lookup.table_1.0).to_var_bytes());
@@ -402,28 +399,25 @@ pub(crate) mod alloc {
             writer.write(&(self.lookup.table_4.2).to_var_bytes());
 
             // Permutation
-            writer.write(
-                &(self.permutation.left_sigma.0.len() as u64).to_bytes(),
-            );
-            writer.write(&self.permutation.left_sigma.0.to_var_bytes());
-            writer.write(&self.permutation.left_sigma.1.to_var_bytes());
-
-            writer.write(
-                &(self.permutation.right_sigma.0.len() as u64).to_bytes(),
-            );
-            writer.write(&self.permutation.right_sigma.0.to_var_bytes());
-            writer.write(&self.permutation.right_sigma.1.to_var_bytes());
+            writer
+                .write(&(self.permutation.s_sigma_1.0.len() as u64).to_bytes());
+            writer.write(&self.permutation.s_sigma_1.0.to_var_bytes());
+            writer.write(&self.permutation.s_sigma_1.1.to_var_bytes());
 
             writer
-                .write(&(self.permutation.out_sigma.0.len() as u64).to_bytes());
-            writer.write(&self.permutation.out_sigma.0.to_var_bytes());
-            writer.write(&self.permutation.out_sigma.1.to_var_bytes());
+                .write(&(self.permutation.s_sigma_2.0.len() as u64).to_bytes());
+            writer.write(&self.permutation.s_sigma_2.0.to_var_bytes());
+            writer.write(&self.permutation.s_sigma_2.1.to_var_bytes());
 
-            writer.write(
-                &(self.permutation.fourth_sigma.0.len() as u64).to_bytes(),
-            );
-            writer.write(&self.permutation.fourth_sigma.0.to_var_bytes());
-            writer.write(&self.permutation.fourth_sigma.1.to_var_bytes());
+            writer
+                .write(&(self.permutation.s_sigma_3.0.len() as u64).to_bytes());
+            writer.write(&self.permutation.s_sigma_3.0.to_var_bytes());
+            writer.write(&self.permutation.s_sigma_3.1.to_var_bytes());
+
+            writer
+                .write(&(self.permutation.s_sigma_4.0.len() as u64).to_bytes());
+            writer.write(&self.permutation.s_sigma_4.0.to_var_bytes());
+            writer.write(&self.permutation.s_sigma_4.1.to_var_bytes());
 
             writer.write(&self.permutation.linear_evaluations.to_var_bytes());
 
@@ -432,7 +426,7 @@ pub(crate) mod alloc {
             bytes
         }
 
-        /// Deserialises a slice of bytes into a [`ProverKey`].
+        /// Deserializes a slice of bytes into a [`ProverKey`].
         pub fn from_slice(bytes: &[u8]) -> Result<ProverKey, Error> {
             let mut buffer = bytes;
             let n = u64::from_reader(&mut buffer)? as usize;
@@ -529,9 +523,9 @@ pub(crate) mod alloc {
             let q_variable_group_add =
                 (q_variable_group_add_poly, q_variable_group_add_evals);
 
-            let q_lookup_poly = poly_from_reader(&mut buffer)?;
-            let q_lookup_evals = evals_from_reader(&mut buffer)?;
-            let q_lookup = (q_lookup_poly, q_lookup_evals);
+            let q_k_poly = poly_from_reader(&mut buffer)?;
+            let q_k_evals = evals_from_reader(&mut buffer)?;
+            let q_k = (q_k_poly, q_k_evals);
 
             let table_1_multiset = multiset_from_reader(&mut buffer)?;
             let table_1_poly = poly_from_reader(&mut buffer)?;
@@ -553,21 +547,21 @@ pub(crate) mod alloc {
             let table_4_evals = evals_from_reader(&mut buffer)?;
             let table_4 = (table_4_multiset, table_4_poly, table_4_evals);
 
-            let left_sigma_poly = poly_from_reader(&mut buffer)?;
-            let left_sigma_evals = evals_from_reader(&mut buffer)?;
-            let left_sigma = (left_sigma_poly, left_sigma_evals);
+            let s_sigma_1_poly = poly_from_reader(&mut buffer)?;
+            let s_sigma_1_evals = evals_from_reader(&mut buffer)?;
+            let s_sigma_1 = (s_sigma_1_poly, s_sigma_1_evals);
 
-            let right_sigma_poly = poly_from_reader(&mut buffer)?;
-            let right_sigma_evals = evals_from_reader(&mut buffer)?;
-            let right_sigma = (right_sigma_poly, right_sigma_evals);
+            let s_sigma_2_poly = poly_from_reader(&mut buffer)?;
+            let s_sigma_2_evals = evals_from_reader(&mut buffer)?;
+            let s_sigma_2 = (s_sigma_2_poly, s_sigma_2_evals);
 
-            let out_sigma_poly = poly_from_reader(&mut buffer)?;
-            let out_sigma_evals = evals_from_reader(&mut buffer)?;
-            let out_sigma = (out_sigma_poly, out_sigma_evals);
+            let s_sigma_3_poly = poly_from_reader(&mut buffer)?;
+            let s_sigma_3_evals = evals_from_reader(&mut buffer)?;
+            let s_sigma_3 = (s_sigma_3_poly, s_sigma_3_evals);
 
-            let fourth_sigma_poly = poly_from_reader(&mut buffer)?;
-            let fourth_sigma_evals = evals_from_reader(&mut buffer)?;
-            let fourth_sigma = (fourth_sigma_poly, fourth_sigma_evals);
+            let s_sigma_4_poly = poly_from_reader(&mut buffer)?;
+            let s_sigma_4_evals = evals_from_reader(&mut buffer)?;
+            let s_sigma_4 = (s_sigma_4_poly, s_sigma_4_evals);
 
             let perm_linear_evaluations = evals_from_reader(&mut buffer)?;
 
@@ -598,10 +592,10 @@ pub(crate) mod alloc {
             };
 
             let permutation = permutation::ProverKey {
-                left_sigma,
-                right_sigma,
-                out_sigma,
-                fourth_sigma,
+                s_sigma_1,
+                s_sigma_2,
+                s_sigma_3,
+                s_sigma_4,
                 linear_evaluations: perm_linear_evaluations,
             };
 
@@ -610,7 +604,7 @@ pub(crate) mod alloc {
             };
 
             let lookup = lookup::ProverKey {
-                q_lookup,
+                q_k,
                 table_1,
                 table_2,
                 table_3,
@@ -645,6 +639,7 @@ mod test {
     use super::*;
     use crate::fft::{EvaluationDomain, Evaluations, Polynomial};
     use crate::plonkup::MultiSet;
+    #[rustfmt::skip]
     use ::alloc::vec::Vec;
     use dusk_bls12_381::BlsScalar;
     use rand_core::OsRng;
@@ -671,7 +666,7 @@ mod test {
     }
 
     #[test]
-    fn test_serialise_deserialise_prover_key() {
+    fn test_serialize_deserialize_prover_key() {
         let n = 1 << 11;
 
         let q_m = rand_poly_eval(n);
@@ -686,16 +681,16 @@ mod test {
 
         let q_range = rand_poly_eval(n);
 
-        let q_lookup = rand_poly_eval(n);
+        let q_k = rand_poly_eval(n);
 
         let q_fixed_group_add = rand_poly_eval(n);
 
         let q_variable_group_add = rand_poly_eval(n);
 
-        let left_sigma = rand_poly_eval(n);
-        let right_sigma = rand_poly_eval(n);
-        let out_sigma = rand_poly_eval(n);
-        let fourth_sigma = rand_poly_eval(n);
+        let s_sigma_1 = rand_poly_eval(n);
+        let s_sigma_2 = rand_poly_eval(n);
+        let s_sigma_3 = rand_poly_eval(n);
+        let s_sigma_4 = rand_poly_eval(n);
         let linear_evaluations = rand_evaluations(n);
 
         let table_1 = rand_multiset(n);
@@ -723,7 +718,7 @@ mod test {
         let range = range::ProverKey { q_range };
 
         let lookup = lookup::ProverKey {
-            q_lookup,
+            q_k,
             table_1,
             table_2,
             table_3,
@@ -738,10 +733,10 @@ mod test {
         };
 
         let permutation = permutation::ProverKey {
-            left_sigma,
-            right_sigma,
-            out_sigma,
-            fourth_sigma,
+            s_sigma_1,
+            s_sigma_2,
+            s_sigma_3,
+            s_sigma_4,
             linear_evaluations,
         };
 
@@ -769,7 +764,7 @@ mod test {
     }
 
     #[test]
-    fn test_serialise_deserialise_verifier_key() {
+    fn test_serialize_deserialize_verifier_key() {
         use crate::commitment_scheme::Commitment;
         use dusk_bls12_381::G1Affine;
 
@@ -789,12 +784,12 @@ mod test {
         let q_variable_group_add = Commitment(G1Affine::generator());
 
         let q_logic = Commitment(G1Affine::generator());
-        let q_lookup = Commitment(G1Affine::generator());
+        let q_k = Commitment(G1Affine::generator());
 
-        let left_sigma = Commitment(G1Affine::generator());
-        let right_sigma = Commitment(G1Affine::generator());
-        let out_sigma = Commitment(G1Affine::generator());
-        let fourth_sigma = Commitment(G1Affine::generator());
+        let s_sigma_1 = Commitment(G1Affine::generator());
+        let s_sigma_2 = Commitment(G1Affine::generator());
+        let s_sigma_3 = Commitment(G1Affine::generator());
+        let s_sigma_4 = Commitment(G1Affine::generator());
 
         let table_1 = Commitment(G1Affine::generator());
         let table_2 = Commitment(G1Affine::generator());
@@ -816,7 +811,7 @@ mod test {
         let range = range::VerifierKey { q_range };
 
         let lookup = lookup::VerifierKey {
-            q_lookup,
+            q_k,
             table_1,
             table_2,
             table_3,
@@ -833,10 +828,10 @@ mod test {
         };
 
         let permutation = permutation::VerifierKey {
-            left_sigma,
-            right_sigma,
-            out_sigma,
-            fourth_sigma,
+            s_sigma_1,
+            s_sigma_2,
+            s_sigma_3,
+            s_sigma_4,
         };
 
         let verifier_key = VerifierKey {

@@ -19,22 +19,22 @@ use dusk_bls12_381::BlsScalar;
 
 #[cfg(feature = "alloc")]
 fn compress(
-    w_l: BlsScalar,
-    w_r: BlsScalar,
-    w_o: BlsScalar,
-    w_4: BlsScalar,
+    a_w: BlsScalar,
+    b_w: BlsScalar,
+    c_w: BlsScalar,
+    d_w: BlsScalar,
     zeta: BlsScalar,
 ) -> BlsScalar {
     let zeta_sq = zeta.square();
     let zeta_cu = zeta_sq * zeta;
 
-    let a = w_l;
+    let a = a_w;
 
-    let b = w_r * zeta;
+    let b = b_w * zeta;
 
-    let c = w_o * zeta_sq;
+    let c = c_w * zeta_sq;
 
-    let d = w_4 * zeta_cu;
+    let d = d_w * zeta_cu;
 
     a + b + c + d
 }

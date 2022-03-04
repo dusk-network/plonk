@@ -17,11 +17,11 @@ impl ProverKey {
         &self,
         index: usize,
         range_separation_challenge: &BlsScalar,
-        w_l_i: &BlsScalar,
-        w_r_i: &BlsScalar,
-        w_o_i: &BlsScalar,
-        w_4_i: &BlsScalar,
-        w_4_i_next: &BlsScalar,
+        a_w_i: &BlsScalar,
+        b_w_i: &BlsScalar,
+        c_w_i: &BlsScalar,
+        d_w_i: &BlsScalar,
+        d_w_i_next: &BlsScalar,
     ) -> BlsScalar {
         let four = BlsScalar::from(4);
         let q_range_i = &self.q_range.1[index];
@@ -33,14 +33,14 @@ impl ProverKey {
         // Delta([c(X) - 4 * d(X)]) + Delta([b(X) - 4 * c(X)]) + Delta([a(X) - 4
         // * b(X)]) + Delta([d(Xg) - 4 * a(X)]) * Q_Range(X)
         //
-        let b_1 = delta(w_o_i - four * w_4_i);
-        let b_2 = delta(w_r_i - four * w_o_i) * kappa;
-        let b_3 = delta(w_l_i - four * w_r_i) * kappa_sq;
-        let b_4 = delta(w_4_i_next - four * w_l_i) * kappa_cu;
+        let b_1 = delta(c_w_i - four * d_w_i);
+        let b_2 = delta(b_w_i - four * c_w_i) * kappa;
+        let b_3 = delta(a_w_i - four * b_w_i) * kappa_sq;
+        let b_4 = delta(d_w_i_next - four * a_w_i) * kappa_cu;
         (b_1 + b_2 + b_3 + b_4) * q_range_i * range_separation_challenge
     }
 
-    pub(crate) fn compute_linearisation(
+    pub(crate) fn compute_linearization(
         &self,
         range_separation_challenge: &BlsScalar,
         a_eval: &BlsScalar,

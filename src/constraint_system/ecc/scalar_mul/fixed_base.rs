@@ -63,7 +63,7 @@ impl TurboComposer {
         let wnaf_entries = raw_jubjub_scalar.compute_windowed_naf(2);
         assert_eq!(wnaf_entries.len(), num_bits);
 
-        // Initialise the accumulators
+        // Initialize the accumulators
         let mut scalar_acc = vec![BlsScalar::zero()];
         let mut point_acc = vec![JubJubAffine::identity()];
 

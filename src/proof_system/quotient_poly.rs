@@ -21,7 +21,7 @@ pub(crate) fn compute(
     prover_key: &ProverKey,
     z_poly: &Polynomial,
     p_poly: &Polynomial,
-    (w_l_poly, w_r_poly, w_o_poly, w_4_poly): (
+    (a_w_poly, b_w_poly, c_w_poly, d_w_poly): (
         &Polynomial,
         &Polynomial,
         &Polynomial,
@@ -98,23 +98,23 @@ pub(crate) fn compute(
     h_2_eval_4n.push(h_2_eval_4n[3]);
 
     // Compute 4n evaluations of the wire polynomials
-    let mut wl_eval_4n = domain_4n.coset_fft(w_l_poly);
-    wl_eval_4n.push(wl_eval_4n[0]);
-    wl_eval_4n.push(wl_eval_4n[1]);
-    wl_eval_4n.push(wl_eval_4n[2]);
-    wl_eval_4n.push(wl_eval_4n[3]);
-    let mut wr_eval_4n = domain_4n.coset_fft(w_r_poly);
-    wr_eval_4n.push(wr_eval_4n[0]);
-    wr_eval_4n.push(wr_eval_4n[1]);
-    wr_eval_4n.push(wr_eval_4n[2]);
-    wr_eval_4n.push(wr_eval_4n[3]);
-    let wo_eval_4n = domain_4n.coset_fft(w_o_poly);
+    let mut a_w_eval_4n = domain_4n.coset_fft(a_w_poly);
+    a_w_eval_4n.push(a_w_eval_4n[0]);
+    a_w_eval_4n.push(a_w_eval_4n[1]);
+    a_w_eval_4n.push(a_w_eval_4n[2]);
+    a_w_eval_4n.push(a_w_eval_4n[3]);
+    let mut b_w_eval_4n = domain_4n.coset_fft(b_w_poly);
+    b_w_eval_4n.push(b_w_eval_4n[0]);
+    b_w_eval_4n.push(b_w_eval_4n[1]);
+    b_w_eval_4n.push(b_w_eval_4n[2]);
+    b_w_eval_4n.push(b_w_eval_4n[3]);
+    let c_w_eval_4n = domain_4n.coset_fft(c_w_poly);
 
-    let mut w4_eval_4n = domain_4n.coset_fft(w_4_poly);
-    w4_eval_4n.push(w4_eval_4n[0]);
-    w4_eval_4n.push(w4_eval_4n[1]);
-    w4_eval_4n.push(w4_eval_4n[2]);
-    w4_eval_4n.push(w4_eval_4n[3]);
+    let mut d_w_eval_4n = domain_4n.coset_fft(d_w_poly);
+    d_w_eval_4n.push(d_w_eval_4n[0]);
+    d_w_eval_4n.push(d_w_eval_4n[1]);
+    d_w_eval_4n.push(d_w_eval_4n[2]);
+    d_w_eval_4n.push(d_w_eval_4n[3]);
 
     let t_1 = compute_circuit_satisfiability_equation(
         domain,
@@ -126,7 +126,7 @@ pub(crate) fn compute(
             lookup_challenge,
         ),
         prover_key,
-        (&wl_eval_4n, &wr_eval_4n, &wo_eval_4n, &w4_eval_4n),
+        (&a_w_eval_4n, &b_w_eval_4n, &c_w_eval_4n, &d_w_eval_4n),
         public_inputs_poly,
         zeta,
         (delta, epsilon),
@@ -140,7 +140,7 @@ pub(crate) fn compute(
     let t_2 = compute_permutation_checks(
         domain,
         prover_key,
-        (&wl_eval_4n, &wr_eval_4n, &wo_eval_4n, &w4_eval_4n),
+        (&a_w_eval_4n, &b_w_eval_4n, &c_w_eval_4n, &d_w_eval_4n),
         &z_eval_4n,
         (alpha, beta, gamma),
     );
@@ -176,7 +176,7 @@ fn compute_circuit_satisfiability_equation(
         lookup_challenge,
     ): (&BlsScalar, &BlsScalar, &BlsScalar, &BlsScalar, &BlsScalar),
     prover_key: &ProverKey,
-    (wl_eval_4n, wr_eval_4n, wo_eval_4n, w4_eval_4n): (
+    (a_w_eval_4n, b_w_eval_4n, c_w_eval_4n, d_w_eval_4n): (
         &[BlsScalar],
         &[BlsScalar],
         &[BlsScalar],
@@ -207,13 +207,13 @@ fn compute_circuit_satisfiability_equation(
 
     let t: Vec<_> = range
         .map(|i| {
-            let wl = &wl_eval_4n[i];
-            let wr = &wr_eval_4n[i];
-            let wo = &wo_eval_4n[i];
-            let w4 = &w4_eval_4n[i];
-            let wl_next = &wl_eval_4n[i + 4];
-            let wr_next = &wr_eval_4n[i + 4];
-            let w4_next = &w4_eval_4n[i + 4];
+            let a_w = &a_w_eval_4n[i];
+            let b_w = &b_w_eval_4n[i];
+            let c_w = &c_w_eval_4n[i];
+            let d_w = &d_w_eval_4n[i];
+            let a_w_next = &a_w_eval_4n[i + 4];
+            let b_w_next = &b_w_eval_4n[i + 4];
+            let d_w_next = &d_w_eval_4n[i + 4];
             let pi = &public_eval_4n[i];
             let p = &p_eval_4n[i];
             let p_next = &p_eval_4n[i + 4];
@@ -225,61 +225,63 @@ fn compute_circuit_satisfiability_equation(
             let h1_next = &h_1_eval_4n[i + 4];
             let l1i = &l1_eval_4n[i];
 
-            let a = prover_key.arithmetic.compute_quotient_i(i, wl, wr, wo, w4);
+            let a = prover_key
+                .arithmetic
+                .compute_quotient_i(i, a_w, b_w, c_w, d_w);
 
             let b = prover_key.range.compute_quotient_i(
                 i,
                 range_challenge,
-                wl,
-                wr,
-                wo,
-                w4,
-                w4_next,
+                a_w,
+                b_w,
+                c_w,
+                d_w,
+                d_w_next,
             );
 
             let c = prover_key.logic.compute_quotient_i(
                 i,
                 logic_challenge,
-                wl,
-                wl_next,
-                wr,
-                wr_next,
-                wo,
-                w4,
-                w4_next,
+                a_w,
+                a_w_next,
+                b_w,
+                b_w_next,
+                c_w,
+                d_w,
+                d_w_next,
             );
 
             let d = prover_key.fixed_base.compute_quotient_i(
                 i,
                 fixed_base_challenge,
-                wl,
-                wl_next,
-                wr,
-                wr_next,
-                wo,
-                w4,
-                w4_next,
+                a_w,
+                a_w_next,
+                b_w,
+                b_w_next,
+                c_w,
+                d_w,
+                d_w_next,
             );
 
             let e = prover_key.variable_base.compute_quotient_i(
                 i,
                 var_base_challenge,
-                wl,
-                wl_next,
-                wr,
-                wr_next,
-                wo,
-                w4,
-                w4_next,
+                a_w,
+                a_w_next,
+                b_w,
+                b_w_next,
+                c_w,
+                d_w,
+                d_w_next,
             );
 
             let f = prover_key.lookup.compute_quotient_i(
                 i,
                 lookup_challenge,
-                wl,
-                wr,
-                wo,
-                w4,
+                a_w,
+                b_w,
+                c_w,
+                d_w,
                 fi,
                 p,
                 p_next,
@@ -302,7 +304,7 @@ fn compute_circuit_satisfiability_equation(
 fn compute_permutation_checks(
     domain: &EvaluationDomain,
     prover_key: &ProverKey,
-    (wl_eval_4n, wr_eval_4n, wo_eval_4n, w4_eval_4n): (
+    (a_w_eval_4n, b_w_eval_4n, c_w_eval_4n, d_w_eval_4n): (
         &[BlsScalar],
         &[BlsScalar],
         &[BlsScalar],
@@ -326,10 +328,10 @@ fn compute_permutation_checks(
         .map(|i| {
             prover_key.permutation.compute_quotient_i(
                 i,
-                &wl_eval_4n[i],
-                &wr_eval_4n[i],
-                &wo_eval_4n[i],
-                &w4_eval_4n[i],
+                &a_w_eval_4n[i],
+                &b_w_eval_4n[i],
+                &c_w_eval_4n[i],
+                &d_w_eval_4n[i],
                 &z_eval_4n[i],
                 &z_eval_4n[i + 4],
                 alpha,

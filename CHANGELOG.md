@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Changed
+
+- Change variable names for more consistency with the paper [#631](https://github.com/dusk-network/plonk/issues/631)
+
 ## [0.10.0] - 24-02-22
 
 ## Changed

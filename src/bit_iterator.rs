@@ -4,7 +4,7 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-//! Code taken from zcash repo and generalised as we do not have access to the
+//! Code taken from zcash repo and generalized as we do not have access to the
 //! limbs
 use core::mem;
 

@@ -30,26 +30,26 @@ use hashbrown::HashMap;
 /// repository provides so that circuit descriptions can be written, stored and
 /// transformed into a [`Proof`](crate::proof_system::Proof) at some point.
 ///
-/// A TurboComposer stores all of the circuit information, being this one
+/// A TurboComposer stores all of the circuit information, this one being
 /// all of the witness and circuit descriptors info (values, positions in the
 /// circuits, gates and Wires that occupy..), the public inputs, the connection
-/// relationships between the witnesses and how they're repesented as Wires (so
+/// relationships between the witnesses and how they're represented as Wires (so
 /// basically the Permutation argument etc..).
 ///
 /// The TurboComposer also grants us a way to introduce our secret witnesses in
-/// a for of a [`Witness`] into the circuit description as well as the public
-/// inputs. We can do this with methods like [`TurboComposer::append_witness`].
+/// into the circuit description as well as the public inputs. We can do this
+/// with methods like [`TurboComposer::append_witness`].
 ///
-/// The TurboComposer also contains as associated functions all the
-/// neccessary tools to be able to istrument the circuits that the user needs
+/// The TurboComposer also contains as associated functions all the necessary
+/// tools to be able to instrument the circuits that the user needs
 /// through the addition of gates. There are functions that may add a single
 /// gate to the circuit as for example [`TurboComposer::gate_add`] and others
 /// that can add several gates to the circuit description such as
 /// [`TurboComposer::component_select`].
 ///
-/// Each gate or group of gates adds an specific functionallity or operation to
-/// de circuit description, and so, that's why we can understand
-/// the TurboComposer as a builder.
+/// Each gate or group of gates adds a specific functionality or operation to
+/// the circuit description, and so, that's why we can understand the
+/// TurboComposer as a builder.
 #[derive(Debug)]
 pub struct TurboComposer {
     /// Number of arithmetic gates in the circuit
@@ -64,22 +64,24 @@ pub struct TurboComposer {
     pub(crate) q_r: Vec<BlsScalar>,
     /// Output wire selector
     pub(crate) q_o: Vec<BlsScalar>,
-    /// Fourth wire selector
-    pub(crate) q_4: Vec<BlsScalar>,
     /// Constant wire selector
     pub(crate) q_c: Vec<BlsScalar>,
-    /// Arithmetic wire selector
-    pub(crate) q_arith: Vec<BlsScalar>,
-    /// Range selector
-    pub(crate) q_range: Vec<BlsScalar>,
-    /// Logic selector
-    pub(crate) q_logic: Vec<BlsScalar>,
-    /// Fixed base group addition selector
-    pub(crate) q_fixed_group_add: Vec<BlsScalar>,
-    /// Variable base group addition selector
-    pub(crate) q_variable_group_add: Vec<BlsScalar>,
+    /// Fourth wire selector added for efficiency of implementation
+    pub(crate) q_4: Vec<BlsScalar>,
     /// Plonkup gate wire selector
-    pub(crate) q_lookup: Vec<BlsScalar>,
+    pub(crate) q_k: Vec<BlsScalar>,
+    /// Arithmetic wire selector added for efficiency of implementation
+    pub(crate) q_arith: Vec<BlsScalar>,
+    /// Range selector added for efficiency of implementation
+    pub(crate) q_range: Vec<BlsScalar>,
+    /// Logic selector added for efficiency of implementation
+    pub(crate) q_logic: Vec<BlsScalar>,
+    /// Fixed base group addition selector added for efficiency of
+    /// implementation
+    pub(crate) q_fixed_group_add: Vec<BlsScalar>,
+    /// Variable base group addition selector added for efficiency of
+    /// implementation
+    pub(crate) q_variable_group_add: Vec<BlsScalar>,
 
     /// Sparse representation of the Public Inputs linking the positions of the
     /// non-zero ones to it's actual values.
@@ -87,13 +89,13 @@ pub struct TurboComposer {
 
     // Witness vectors
     /// Left wire witness vector.
-    pub(crate) w_l: Vec<Witness>,
+    pub(crate) a_w: Vec<Witness>,
     /// Right wire witness vector.
-    pub(crate) w_r: Vec<Witness>,
+    pub(crate) b_w: Vec<Witness>,
     /// Output wire witness vector.
-    pub(crate) w_o: Vec<Witness>,
-    /// Fourth wire witness vector.
-    pub(crate) w_4: Vec<Witness>,
+    pub(crate) c_w: Vec<Witness>,
+    /// Fourth wire witness vector added for efficiency of implementation.
+    pub(crate) d_w: Vec<Witness>,
 
     /// Public lookup table
     pub(crate) lookup_table: LookupTable,
@@ -163,8 +165,8 @@ impl Default for TurboComposer {
 }
 
 impl TurboComposer {
-    /// Generates a new empty `TurboComposer` with all of it's fields
-    /// set to hold an initial capacity of 0.
+    /// Generates a new empty `TurboComposer` with all of it's fields set to
+    /// hold an initial capacity of 0.
     ///
     /// # Note
     ///
@@ -199,18 +201,18 @@ impl TurboComposer {
             q_o: Vec::with_capacity(size),
             q_c: Vec::with_capacity(size),
             q_4: Vec::with_capacity(size),
+            q_k: Vec::with_capacity(size),
             q_arith: Vec::with_capacity(size),
             q_range: Vec::with_capacity(size),
             q_logic: Vec::with_capacity(size),
             q_fixed_group_add: Vec::with_capacity(size),
             q_variable_group_add: Vec::with_capacity(size),
-            q_lookup: Vec::with_capacity(size),
             public_inputs_sparse_store: BTreeMap::new(),
 
-            w_l: Vec::with_capacity(size),
-            w_r: Vec::with_capacity(size),
-            w_o: Vec::with_capacity(size),
-            w_4: Vec::with_capacity(size),
+            a_w: Vec::with_capacity(size),
+            b_w: Vec::with_capacity(size),
+            c_w: Vec::with_capacity(size),
+            d_w: Vec::with_capacity(size),
 
             lookup_table: LookupTable::new(),
 
@@ -282,12 +284,12 @@ impl TurboComposer {
         let q_logic = *s.coeff(Selector::Logic);
         let q_fixed_group_add = *s.coeff(Selector::GroupAddFixedBase);
         let q_variable_group_add = *s.coeff(Selector::GroupAddVariableBase);
-        let q_lookup = *s.coeff(Selector::Lookup);
+        let q_k = *s.coeff(Selector::Lookup);
 
-        self.w_l.push(a);
-        self.w_r.push(b);
-        self.w_o.push(o);
-        self.w_4.push(d);
+        self.a_w.push(a);
+        self.b_w.push(b);
+        self.c_w.push(o);
+        self.d_w.push(d);
 
         // Add selector vectors
         self.q_m.push(q_m);
@@ -296,13 +298,13 @@ impl TurboComposer {
         self.q_o.push(q_o);
         self.q_4.push(q_4);
         self.q_c.push(q_c);
+        self.q_k.push(q_k);
 
         self.q_arith.push(q_arith);
         self.q_range.push(q_range);
         self.q_logic.push(q_logic);
         self.q_fixed_group_add.push(q_fixed_group_add);
         self.q_variable_group_add.push(q_variable_group_add);
-        self.q_lookup.push(q_lookup);
 
         if s.has_public_input() {
             self.public_inputs_sparse_store.insert(self.n, pi);
@@ -491,20 +493,20 @@ impl TurboComposer {
         self.q_o.push(BlsScalar::from(4));
         self.q_c.push(BlsScalar::from(4));
         self.q_4.push(BlsScalar::one());
+        self.q_k.push(BlsScalar::one());
         self.q_arith.push(BlsScalar::one());
         self.q_range.push(BlsScalar::zero());
         self.q_logic.push(BlsScalar::zero());
         self.q_fixed_group_add.push(BlsScalar::zero());
         self.q_variable_group_add.push(BlsScalar::zero());
-        self.q_lookup.push(BlsScalar::one());
         let var_six = self.append_witness(BlsScalar::from(6));
         let var_one = self.append_witness(BlsScalar::from(1));
         let var_seven = self.append_witness(BlsScalar::from(7));
         let var_min_twenty = self.append_witness(-BlsScalar::from(20));
-        self.w_l.push(var_six);
-        self.w_r.push(var_seven);
-        self.w_o.push(var_min_twenty);
-        self.w_4.push(var_one);
+        self.a_w.push(var_six);
+        self.b_w.push(var_seven);
+        self.c_w.push(var_min_twenty);
+        self.d_w.push(var_one);
         self.perm.add_variables_to_map(
             var_six,
             var_seven,
@@ -521,16 +523,16 @@ impl TurboComposer {
         self.q_o.push(BlsScalar::from(1));
         self.q_c.push(BlsScalar::from(127));
         self.q_4.push(BlsScalar::zero());
+        self.q_k.push(BlsScalar::one());
         self.q_arith.push(BlsScalar::one());
         self.q_range.push(BlsScalar::zero());
         self.q_logic.push(BlsScalar::zero());
         self.q_fixed_group_add.push(BlsScalar::zero());
         self.q_variable_group_add.push(BlsScalar::zero());
-        self.q_lookup.push(BlsScalar::one());
-        self.w_l.push(var_min_twenty);
-        self.w_r.push(var_six);
-        self.w_o.push(var_seven);
-        self.w_4.push(Self::constant_zero());
+        self.a_w.push(var_min_twenty);
+        self.b_w.push(var_six);
+        self.c_w.push(var_seven);
+        self.d_w.push(Self::constant_zero());
         self.perm.add_variables_to_map(
             var_min_twenty,
             var_six,
@@ -614,25 +616,25 @@ impl TurboComposer {
     #[cfg(feature = "trace")]
     #[allow(dead_code)]
     pub(crate) fn check_circuit_satisfied(&self) {
-        let w_l: Vec<&BlsScalar> = self
-            .w_l
+        let a_w: Vec<&BlsScalar> = self
+            .a_w
             .iter()
-            .map(|w_l_i| self.witnesses.get(w_l_i).unwrap())
+            .map(|a_w_i| self.witnesses.get(a_w_i).unwrap())
             .collect();
-        let w_r: Vec<&BlsScalar> = self
-            .w_r
+        let b_w: Vec<&BlsScalar> = self
+            .b_w
             .iter()
-            .map(|w_r_i| self.witnesses.get(w_r_i).unwrap())
+            .map(|b_w_i| self.witnesses.get(b_w_i).unwrap())
             .collect();
-        let w_o: Vec<&BlsScalar> = self
-            .w_o
+        let c_w: Vec<&BlsScalar> = self
+            .c_w
             .iter()
-            .map(|w_o_i| self.witnesses.get(w_o_i).unwrap())
+            .map(|c_w_i| self.witnesses.get(c_w_i).unwrap())
             .collect();
-        let w_4: Vec<&BlsScalar> = self
-            .w_4
+        let d_w: Vec<&BlsScalar> = self
+            .d_w
             .iter()
-            .map(|w_4_i| self.witnesses.get(w_4_i).unwrap())
+            .map(|d_w_i| self.witnesses.get(d_w_i).unwrap())
             .collect();
 
         // Computes f(f-1)(f-2)(f-3)
@@ -660,13 +662,13 @@ impl TurboComposer {
             let qvar = self.q_variable_group_add[i];
             let pi = pi_vec[i];
 
-            let a = w_l[i];
-            let a_next = w_l[(i + 1) % self.n];
-            let b = w_r[i];
-            let b_next = w_r[(i + 1) % self.n];
-            let c = w_o[i];
-            let d = w_4[i];
-            let d_next = w_4[(i + 1) % self.n];
+            let a = a_w[i];
+            let a_next = a_w[(i + 1) % self.n];
+            let b = b_w[i];
+            let b_next = b_w[(i + 1) % self.n];
+            let c = c_w[i];
+            let d = d_w[i];
+            let d_next = d_w[(i + 1) % self.n];
 
             #[cfg(all(feature = "trace-print", feature = "std"))]
             std::println!(
@@ -685,10 +687,10 @@ impl TurboComposer {
             - q_fixed_group_add -> {:?}\n
             - q_variable_group_add -> {:?}\n
             # Witness polynomials:\n
-            - w_l -> {:?}\n
-            - w_r -> {:?}\n
-            - w_o -> {:?}\n
-            - w_4 -> {:?}\n",
+            - a_w -> {:?}\n
+            - b_w -> {:?}\n
+            - c_w -> {:?}\n
+            - d_w -> {:?}\n",
                 i,
                 qm,
                 ql,
@@ -755,10 +757,10 @@ impl TurboComposer {
         d: Witness,
         pi: Option<BlsScalar>,
     ) -> Witness {
-        self.w_l.push(a);
-        self.w_r.push(b);
-        self.w_o.push(c);
-        self.w_4.push(d);
+        self.a_w.push(a);
+        self.b_w.push(b);
+        self.c_w.push(c);
+        self.d_w.push(d);
 
         // Add selector vectors
         self.q_l.push(BlsScalar::zero());
@@ -766,16 +768,16 @@ impl TurboComposer {
         self.q_o.push(BlsScalar::zero());
         self.q_c.push(BlsScalar::zero());
         self.q_4.push(BlsScalar::zero());
+        // For a lookup gate, only one selector poly is
+        // turned on as the output is inputted directly
+        self.q_k.push(BlsScalar::one());
+
         self.q_arith.push(BlsScalar::zero());
         self.q_m.push(BlsScalar::zero());
         self.q_range.push(BlsScalar::zero());
         self.q_logic.push(BlsScalar::zero());
         self.q_fixed_group_add.push(BlsScalar::zero());
         self.q_variable_group_add.push(BlsScalar::zero());
-
-        // For a lookup gate, only one selector poly is
-        // turned on as the output is inputted directly
-        self.q_lookup.push(BlsScalar::one());
 
         if let Some(pi) = pi {
             debug_assert!(self.public_inputs_sparse_store.get(&self.n).is_none(), "The invariant of already having a PI inserted for this position should never exist");
@@ -784,13 +786,11 @@ impl TurboComposer {
         }
 
         self.perm.add_variables_to_map(a, b, c, d, self.n);
-
         self.n += 1;
-
         c
     }
 
-    /// When [`TurboComposer`] is initialised, it spawns a dummy table
+    /// When [`TurboComposer`] is initialized, it spawns a dummy table
     /// with 3 entries that should not be removed. This function appends
     /// its input table to the composer's dummy table
     pub fn append_plonkup_table(&mut self, table: &LookupTable) {

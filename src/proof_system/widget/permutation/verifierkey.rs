@@ -8,22 +8,23 @@ use crate::commitment_scheme::Commitment;
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub(crate) struct VerifierKey {
-    pub(crate) left_sigma: Commitment,
-    pub(crate) right_sigma: Commitment,
-    pub(crate) out_sigma: Commitment,
-    pub(crate) fourth_sigma: Commitment,
+    pub(crate) s_sigma_1: Commitment,
+    pub(crate) s_sigma_2: Commitment,
+    pub(crate) s_sigma_3: Commitment,
+    pub(crate) s_sigma_4: Commitment,
 }
 
 #[cfg(feature = "alloc")]
 mod alloc {
     use super::*;
     use crate::permutation::constants::{K1, K2, K3};
-    use crate::proof_system::linearisation_poly::ProofEvaluations;
+    use crate::proof_system::linearization_poly::ProofEvaluations;
+    #[rustfmt::skip]
     use ::alloc::vec::Vec;
     use dusk_bls12_381::{BlsScalar, G1Affine};
 
     impl VerifierKey {
-        pub(crate) fn compute_linearisation_commitment(
+        pub(crate) fn compute_linearization_commitment(
             &self,
             scalars: &mut Vec<BlsScalar>,
             points: &mut Vec<G1Affine>,
@@ -64,13 +65,13 @@ mod alloc {
             // sigma_2_eval + gamma)(c_eval + beta * sigma_3_eval +
             // gamma) * alpha^2
             let y = {
-                let beta_sigma_1 = beta * evaluations.left_sigma_eval;
+                let beta_sigma_1 = beta * evaluations.s_sigma_1_eval;
                 let q_0 = evaluations.a_eval + beta_sigma_1 + gamma;
 
-                let beta_sigma_2 = beta * evaluations.right_sigma_eval;
+                let beta_sigma_2 = beta * evaluations.s_sigma_2_eval;
                 let q_1 = evaluations.b_eval + beta_sigma_2 + gamma;
 
-                let beta_sigma_3 = beta * evaluations.out_sigma_eval;
+                let beta_sigma_3 = beta * evaluations.s_sigma_3_eval;
                 let q_2 = evaluations.c_eval + beta_sigma_3 + gamma;
 
                 let q_3 = beta * evaluations.perm_eval * alpha;
@@ -78,7 +79,7 @@ mod alloc {
                 -(q_0 * q_1 * q_2 * q_3)
             };
             scalars.push(y);
-            points.push(self.fourth_sigma.0);
+            points.push(self.s_sigma_4.0);
         }
     }
 }

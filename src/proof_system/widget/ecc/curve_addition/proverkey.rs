@@ -18,25 +18,25 @@ impl ProverKey {
         &self,
         index: usize,
         curve_add_separation_challenge: &BlsScalar,
-        w_l_i: &BlsScalar,      // x_1
-        w_l_i_next: &BlsScalar, // x_3
-        w_r_i: &BlsScalar,      // y_1
-        w_r_i_next: &BlsScalar, // y_3
-        w_o_i: &BlsScalar,      // x_2
-        w_4_i: &BlsScalar,      // y_2
-        w_4_i_next: &BlsScalar, // x_1 * y_2
+        a_w_i: &BlsScalar,      // x_1
+        a_w_i_next: &BlsScalar, // x_3
+        b_w_i: &BlsScalar,      // y_1
+        b_w_i_next: &BlsScalar, // y_3
+        c_w_i: &BlsScalar,      // x_2
+        d_w_i: &BlsScalar,      // y_2
+        d_w_i_next: &BlsScalar, // x_1 * y_2
     ) -> BlsScalar {
         let q_variable_group_add_i = &self.q_variable_group_add.1[index];
 
         let kappa = curve_add_separation_challenge.square();
 
-        let x_1 = w_l_i;
-        let x_3 = w_l_i_next;
-        let y_1 = w_r_i;
-        let y_3 = w_r_i_next;
-        let x_2 = w_o_i;
-        let y_2 = w_4_i;
-        let x1_y2 = w_4_i_next;
+        let x_1 = a_w_i;
+        let x_3 = a_w_i_next;
+        let y_1 = b_w_i;
+        let y_3 = b_w_i_next;
+        let x_2 = c_w_i;
+        let y_2 = d_w_i;
+        let x1_y2 = d_w_i_next;
 
         // Checks
         //
@@ -62,7 +62,7 @@ impl ProverKey {
         identity * q_variable_group_add_i * curve_add_separation_challenge
     }
 
-    pub(crate) fn compute_linearisation(
+    pub(crate) fn compute_linearization(
         &self,
         curve_add_separation_challenge: &BlsScalar,
         a_eval: &BlsScalar,

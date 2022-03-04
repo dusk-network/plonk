@@ -10,7 +10,7 @@ SNARK construction,
 here we will give the set up
 of a PLONK proof and show 
 which steps need to be satisfied
-to utilise the protocol.
+to utilize the protocol.
 
 First we will explain the 
 derivation and simplification 
