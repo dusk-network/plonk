@@ -244,6 +244,21 @@ impl TurboComposer {
         var
     }
 
+    /// Allocate a witness value into the composer and return its index.
+    ///
+    /// Create a public input with the scalar
+    pub fn append_public_witness<T: Into<BlsScalar>>(
+        &mut self,
+        scalar: T,
+    ) -> Witness {
+        let scalar = scalar.into();
+        let witness = self.append_witness(scalar);
+
+        self.assert_equal_constant(witness, 0, Some(-scalar));
+
+        witness
+    }
+
     /// Adds a width-4 poly gate.
     ///
     /// The final constraint added will enforce the following:
@@ -303,12 +318,13 @@ impl TurboComposer {
     /// Constrain `a` to be equal to `constant + pi`.
     ///
     /// `constant` will be defined as part of the public circuit description.
-    pub fn assert_equal_constant(
+    pub fn assert_equal_constant<C: Into<BlsScalar>>(
         &mut self,
         a: Witness,
-        constant: BlsScalar,
+        constant: C,
         pi: Option<BlsScalar>,
     ) {
+        let constant = constant.into();
         let constraint = Constraint::new().left(1).constant(-constant).a(a);
 
         // TODO maybe accept `Constraint` instead of `Option<Scalar>`?
