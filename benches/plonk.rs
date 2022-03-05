@@ -84,7 +84,7 @@ fn constraint_system_benchmark(c: &mut Criterion) {
 
     let rng = &mut rand_core::OsRng;
     let label = b"dusk-network";
-    let pp = PublicParameters::setup(1 << (final_degree - 1), rng)
+    let pp = PublicParameters::setup(1 << final_degree, rng)
         .expect("Failed to create PP");
 
     let data: Vec<(BenchCircuit, ProverKey, VerifierData, Proof)> =

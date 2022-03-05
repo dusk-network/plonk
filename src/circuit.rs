@@ -256,7 +256,7 @@ where
         pub_params: &PublicParameters,
     ) -> Result<(ProverKey, VerifierData), Error> {
         // Setup PublicParams
-        let (ck, _) = pub_params.trim(self.padded_gates())?;
+        let (ck, _) = pub_params.trim(self.padded_gates() + 6)?;
 
         // Generate & save `ProverKey` with some random values.
         let mut prover = Prover::new(b"CircuitCompilation");
@@ -296,7 +296,7 @@ where
         prover_key: &ProverKey,
         transcript_init: &'static [u8],
     ) -> Result<Proof, Error> {
-        let (ck, _) = pub_params.trim(self.padded_gates())?;
+        let (ck, _) = pub_params.trim(self.padded_gates() + 6)?;
 
         // New Prover instance
         let mut prover = Prover::new(transcript_init);
