@@ -288,7 +288,8 @@ impl Prover {
         );
 
         // Compute long query poly
-        let f_poly = Prover::blind_poly(&compressed_f_multiset.0, 1, &domain, &mut rng);
+        let f_poly =
+            Prover::blind_poly(&compressed_f_multiset.0, 1, &domain, &mut rng);
 
         // Commit to query polynomial
         let f_poly_commit = commit_key.commit(&f_poly)?;
@@ -339,7 +340,7 @@ impl Prover {
             ),
             2,
             &domain,
-            &mut rng
+            &mut rng,
         );
 
         // Commit to permutation polynomial
@@ -361,7 +362,7 @@ impl Prover {
             ),
             2,
             &domain,
-            &mut rng
+            &mut rng,
         );
 
         // Commit to permutation polynomial
@@ -598,7 +599,11 @@ impl Prover {
     /// Proves a circuit is satisfied, then clears the witness variables
     /// If the circuit is not pre-processed, then the preprocessed circuit will
     /// also be computed.
-    pub fn prove<R: RngCore + CryptoRng>(&mut self, commit_key: &CommitKey, mut rng: &mut R) -> Result<Proof, Error> {
+    pub fn prove<R: RngCore + CryptoRng>(
+        &mut self,
+        commit_key: &CommitKey,
+        mut rng: &mut R,
+    ) -> Result<Proof, Error> {
         let prover_key: &ProverKey;
 
         if self.prover_key.is_none() {
@@ -613,7 +618,8 @@ impl Prover {
 
         prover_key = self.prover_key.as_ref().unwrap();
 
-        let proof = self.prove_with_preprocessed(commit_key, prover_key, &mut rng)?;
+        let proof =
+            self.prove_with_preprocessed(commit_key, prover_key, &mut rng)?;
 
         // Clear witness and reset composer variables
         self.clear_witness();
