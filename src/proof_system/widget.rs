@@ -262,54 +262,59 @@ pub(crate) mod alloc {
     }
 
     impl ProverKey {
-        /// Returns the number of [`Polynomial`]s contained in a ProverKey.
-        const fn num_polys() -> usize {
-            15
-        }
+        /// Returns the size of the ProverKey for serialization.
+        ///
+        /// Note:
+        /// Duplicate polynomials of the ProverKey (e.g. `q_l`, `q_r` and `q_c`)
+        /// are only counted once.
+        fn serialization_size(&self) -> usize {
+            // Fetch size in bytes of each Polynomial
+            let poly_size = self.arithmetic.q_m.0.len() * BlsScalar::SIZE;
+            // Fetch size in bytes of each Evaluations
+            let eval_size = self.arithmetic.q_m.1.evals.len() * BlsScalar::SIZE
+                + EvaluationDomain::SIZE;
+            // Fetch size in bytes of each Multiset
+            let multiset_size =
+                self.lookup.table_1.0 .0.len() * BlsScalar::SIZE;
 
-        /// Returns the number of [`MultiSet`]s contained in a ProverKey.
-        const fn num_multiset() -> usize {
-            // FIXME https://github.com/dusk-network/plonk/issues/581
-            4
-        }
+            // The amount of distinct polynomials in `ProverKey`
+            // 7 (arithmetic) + 1 (logic) + 1 (range) + 1 (fixed_base)
+            // + 1 (variable_base) + 5 (lookup) + 4 (permutation)
+            let poly_num = 20;
 
-        /// Returns the number of [`Evaluations`] contained in a ProverKey.
-        const fn num_evals() -> usize {
-            21
+            // The amount of distinct evaluations in `ProverKey`
+            // 20 (poly_num) + 1 (permutation) + 1 (v_h_coset_4n)
+            let eval_num = 22;
+
+            // The amount of multisets in `ProverKey`
+            // 4 (lookup)
+            let multiset_num = 4;
+
+            // The amount of i64 in `ProverKey`
+            // 1 (self.n) + 1 (eval_size) + 20 (poly_num) + 4 (multiset_num)
+            let i64_num = 26;
+
+            // Calculate the amount of bytes needed to serialize `ProverKey`
+            poly_size * poly_num
+                + eval_size * eval_num
+                + multiset_size * multiset_num
+                + u64::SIZE * i64_num
         }
 
         /// Serializes a [`ProverKey`] struct into a Vec of bytes.
         #[allow(unused_must_use)]
         pub fn to_var_bytes(&self) -> Vec<u8> {
             use dusk_bytes::Write;
-            // Fetch size in bytes of each Polynomial
-            let poly_size = self.arithmetic.q_m.0.len() * BlsScalar::SIZE;
-            // Fetch size in bytes of each Evaluations
-            let evals_size = self.arithmetic.q_m.1.evals.len()
-                * BlsScalar::SIZE
+            let size = self.serialization_size();
+            let eval_size = self.arithmetic.q_m.1.evals.len() * BlsScalar::SIZE
                 + EvaluationDomain::SIZE;
 
-            // Fetch size in bytes of each MultiSet combo: (MultiSet,
-            // Polynomial, Evaluations)
-            let multiset_size = self.lookup.table_1.0 .0.len()
-                * BlsScalar::SIZE
-                + poly_size
-                + evals_size;
-
-            // Create the vec with the capacity counting the 3 u64's plus the 15
-            // Polys and the 17 Evaluations.
-            let mut bytes = vec![
-                0u8;
-                (Self::num_polys() * poly_size
-                    + evals_size * Self::num_evals()
-                    + multiset_size * Self::num_multiset()
-                    + 17 * u64::SIZE) as usize
-            ];
+            let mut bytes = vec![0u8; size];
 
             let mut writer = &mut bytes[..];
             writer.write(&(self.n as u64).to_bytes());
             // Write Evaluation len in bytes.
-            writer.write(&(evals_size as u64).to_bytes());
+            writer.write(&(eval_size as u64).to_bytes());
 
             // Arithmetic
             writer.write(&(self.arithmetic.q_m.0.len() as u64).to_bytes());
