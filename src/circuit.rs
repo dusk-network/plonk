@@ -16,6 +16,7 @@ use canonical_derive::Canon;
 use dusk_bls12_381::BlsScalar;
 use dusk_bytes::{DeserializableSlice, Serializable, Write};
 use dusk_jubjub::{JubJubAffine, JubJubExtended, JubJubScalar};
+use rand_core::{CryptoRng, RngCore};
 
 #[derive(Default, Debug, Clone)]
 #[cfg_attr(feature = "canon", derive(Canon))]
@@ -218,7 +219,7 @@ impl VerifierData {
 ///         ),
 ///     };
 ///
-///     circuit.prove(&pp, &pk, b"Test")
+///     circuit.prove(&pp, &pk, b"Test", &mut OsRng)
 /// }?;
 ///
 /// // Verifier POV
@@ -290,11 +291,12 @@ where
 
     /// Generates a proof using the provided `CircuitInputs` & `ProverKey`
     /// instances.
-    fn prove(
+    fn prove<R: RngCore + CryptoRng>(
         &mut self,
         pub_params: &PublicParameters,
         prover_key: &ProverKey,
         transcript_init: &'static [u8],
+        mut rng: &mut R,
     ) -> Result<Proof, Error> {
         let (ck, _) = pub_params.trim(self.padded_gates() + 6)?;
 
@@ -306,7 +308,7 @@ where
 
         // Add ProverKey to Prover
         prover.prover_key = Some(prover_key.clone());
-        prover.prove(&ck)
+        prover.prove(&ck, &mut rng)
     }
 
     /// Verify the provided proof for the compiled verifier data

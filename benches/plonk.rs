@@ -8,6 +8,7 @@
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use dusk_plonk::prelude::*;
+use rand_core::OsRng;
 
 #[derive(Debug, Clone, Copy)]
 struct BenchCircuit {
@@ -74,7 +75,7 @@ fn constraint_system_prove(
     label: &'static [u8],
 ) -> Proof {
     circuit
-        .prove(pp, pk, label)
+        .prove(pp, pk, label, &mut OsRng)
         .expect("Failed to prove bench circuit!")
 }
 

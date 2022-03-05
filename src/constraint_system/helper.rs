@@ -70,7 +70,7 @@ pub(crate) fn gadget_tester(
         let public_inputs = prover.cs.to_dense_public_inputs();
 
         // Compute Proof
-        (prover.prove(&ck)?, public_inputs)
+        (prover.prove(&ck, &mut OsRng)?, public_inputs)
     };
     // Verifiers view
     //
@@ -130,7 +130,7 @@ pub(crate) fn gadget_plonkup_tester(
         let public_inputs = prover.cs.to_dense_public_inputs();
 
         // Compute Proof
-        (prover.prove(&ck)?, public_inputs)
+        (prover.prove(&ck, &mut OsRng)?, public_inputs)
     };
     // Verifiers view
     //

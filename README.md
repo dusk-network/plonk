@@ -100,7 +100,7 @@ let proof = {
             dusk_jubjub::GENERATOR_EXTENDED * JubJubScalar::from(2u64),
         ),
     };
-    circuit.prove(&pp, &pk, b"Test").unwrap()
+    circuit.prove(&pp, &pk, b"Test", &mut OsRng).unwrap()
 };
 
 // Verifier POV
