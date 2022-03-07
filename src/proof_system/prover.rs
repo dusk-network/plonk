@@ -14,10 +14,12 @@ use crate::{
         linearization_poly, proof::Proof, quotient_poly, ProverKey,
     },
     transcript::TranscriptProtocol,
+    util,
 };
 use alloc::vec::Vec;
 use dusk_bls12_381::BlsScalar;
 use merlin::Transcript;
+use rand_core::{CryptoRng, RngCore};
 
 /// Abstraction structure designed to construct a circuit and generate
 /// [`Proof`]s for it.
@@ -145,6 +147,31 @@ impl Prover {
         self.preprocessed_transcript.append_message(label, message);
     }
 
+    /// Adds the blinding scalars to a given vector. Always the same elements
+    /// of 'w_vec' are modified at the beginning of it, and appended at the end:
+    /// if hiding degree = 1: (b2*X^(n+1) + b1*X^n - b2*X - b1) + w_vec
+    /// if hiding degree = 2: (b3*X^(n+2) + b2*X^(n+1) + b1*X^n - b3*X^2 - b2*X
+    /// - b1) + w_vec
+    pub(crate) fn blind_poly<R: RngCore + CryptoRng>(
+        w_vec: &Vec<BlsScalar>,
+        hiding_degree: usize,
+        domain: &EvaluationDomain,
+        rng: &mut R,
+    ) -> Polynomial {
+        let mut w_vec_inverse = domain.ifft(w_vec);
+
+        for i in 0..hiding_degree + 1 {
+            // we declare and randomly select a blinding scalar
+            let blinding_scalar = util::random_scalar(rng);
+            // modify the first elements of the vector
+            w_vec_inverse[i] = w_vec_inverse[i] - blinding_scalar;
+            // append last elements at the end of the vector
+            w_vec_inverse.push(blinding_scalar);
+        }
+
+        Polynomial::from_coefficients_vec(w_vec_inverse)
+    }
+
     /// Creates a [`Proof]` that demonstrates that a circuit is satisfied.
     ///
     /// # Note
@@ -153,10 +180,11 @@ impl Prover {
     /// after calling this method, the user should then call
     /// [`Prover::clear_witness`].
     /// This is automatically done when [`Prover::prove`] is called.
-    pub fn prove_with_preprocessed(
+    pub fn prove_with_preprocessed<R: RngCore + CryptoRng>(
         &self,
         commit_key: &CommitKey,
         prover_key: &ProverKey,
+        rng: &mut R,
     ) -> Result<Proof, Error> {
         // make sure the domain is big enough to handle the circuit as well as
         // the lookup table
@@ -184,14 +212,10 @@ impl Prover {
 
         // Wires are now in evaluation form, convert them to coefficients so
         // that we may commit to them
-        let a_w_poly =
-            Polynomial::from_coefficients_vec(domain.ifft(a_w_scalar));
-        let b_w_poly =
-            Polynomial::from_coefficients_vec(domain.ifft(b_w_scalar));
-        let c_w_poly =
-            Polynomial::from_coefficients_vec(domain.ifft(c_w_scalar));
-        let d_w_poly =
-            Polynomial::from_coefficients_vec(domain.ifft(d_w_scalar));
+        let a_w_poly = Prover::blind_poly(&a_w_scalar, 1, &domain, rng);
+        let b_w_poly = Prover::blind_poly(&b_w_scalar, 1, &domain, rng);
+        let c_w_poly = Prover::blind_poly(&c_w_scalar, 1, &domain, rng);
+        let d_w_poly = Prover::blind_poly(&d_w_scalar, 1, &domain, rng);
 
         // Commit to wire polynomials
         // ([a(x)]_1, [b(x)]_1, [c(x)]_1, [d(x)]_1)
@@ -265,9 +289,8 @@ impl Prover {
         );
 
         // Compute long query poly
-        let f_poly = Polynomial::from_coefficients_vec(
-            domain.ifft(&compressed_f_multiset.0),
-        );
+        let f_poly =
+            Prover::blind_poly(&compressed_f_multiset.0, 1, &domain, rng);
 
         // Commit to query polynomial
         let f_poly_commit = commit_key.commit(&f_poly)?;
@@ -284,8 +307,8 @@ impl Prover {
         let (h_1, h_2) = s.halve_alternating();
 
         // Compute h polys
-        let h_1_poly = Polynomial::from_coefficients_vec(domain.ifft(&h_1.0));
-        let h_2_poly = Polynomial::from_coefficients_vec(domain.ifft(&h_2.0));
+        let h_1_poly = Prover::blind_poly(&h_1.0, 2, &domain, rng);
+        let h_2_poly = Prover::blind_poly(&h_2.0, 1, &domain, rng);
 
         // Commit to h polys
         let h_1_poly_commit = commit_key.commit(&h_1_poly).unwrap();
@@ -303,8 +326,8 @@ impl Prover {
         let delta = transcript.challenge_scalar(b"delta");
         let epsilon = transcript.challenge_scalar(b"epsilon");
 
-        let z_1_poly = Polynomial::from_coefficients_slice(
-            &self.cs.perm.compute_permutation_poly(
+        let z_1_poly = Prover::blind_poly(
+            &self.cs.perm.compute_permutation_vec(
                 &domain,
                 [a_w_scalar, b_w_scalar, c_w_scalar, d_w_scalar],
                 &beta,
@@ -316,6 +339,9 @@ impl Prover {
                     &prover_key.permutation.s_sigma_4.0,
                 ],
             ),
+            2,
+            &domain,
+            rng,
         );
 
         // Commit to permutation polynomial
@@ -325,8 +351,8 @@ impl Prover {
         transcript.append_commitment(b"z_1", &z_1_poly_commit);
 
         // Compute lookup permutation poly
-        let z_2_poly = Polynomial::from_coefficients_slice(
-            &self.cs.perm.compute_lookup_permutation_poly(
+        let z_2_poly = Prover::blind_poly(
+            &self.cs.perm.compute_lookup_permutation_vec(
                 &domain,
                 &compressed_f_multiset.0,
                 &compressed_t_multiset.0,
@@ -335,6 +361,9 @@ impl Prover {
                 &delta,
                 &epsilon,
             ),
+            2,
+            &domain,
+            rng,
         );
 
         // Commit to permutation polynomial
@@ -571,7 +600,11 @@ impl Prover {
     /// Proves a circuit is satisfied, then clears the witness variables
     /// If the circuit is not pre-processed, then the preprocessed circuit will
     /// also be computed.
-    pub fn prove(&mut self, commit_key: &CommitKey) -> Result<Proof, Error> {
+    pub fn prove<R: RngCore + CryptoRng>(
+        &mut self,
+        commit_key: &CommitKey,
+        rng: &mut R,
+    ) -> Result<Proof, Error> {
         let prover_key: &ProverKey;
 
         if self.prover_key.is_none() {
@@ -586,7 +619,8 @@ impl Prover {
 
         prover_key = self.prover_key.as_ref().unwrap();
 
-        let proof = self.prove_with_preprocessed(commit_key, prover_key)?;
+        let proof =
+            self.prove_with_preprocessed(commit_key, prover_key, rng)?;
 
         // Clear witness and reset composer variables
         self.clear_witness();

@@ -8,6 +8,7 @@
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use dusk_plonk::prelude::*;
+use rand_core::OsRng;
 
 #[derive(Debug, Clone, Copy)]
 struct BenchCircuit {
@@ -74,7 +75,7 @@ fn constraint_system_prove(
     label: &'static [u8],
 ) -> Proof {
     circuit
-        .prove(pp, pk, label)
+        .prove(pp, pk, label, &mut OsRng)
         .expect("Failed to prove bench circuit!")
 }
 
@@ -84,7 +85,7 @@ fn constraint_system_benchmark(c: &mut Criterion) {
 
     let rng = &mut rand_core::OsRng;
     let label = b"dusk-network";
-    let pp = PublicParameters::setup(1 << (final_degree - 1), rng)
+    let pp = PublicParameters::setup(1 << final_degree, rng)
         .expect("Failed to create PP");
 
     let data: Vec<(BenchCircuit, ProverKey, VerifierData, Proof)> =

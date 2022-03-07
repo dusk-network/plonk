@@ -105,7 +105,7 @@ let proof = {
             dusk_jubjub::GENERATOR_EXTENDED * JubJubScalar::from(2u64),
         ),
     };
-    circuit.prove(&pp, &pk, b"Test").unwrap()
+    circuit.prove(&pp, &pk, b"Test", &mut OsRng).unwrap()
 };
 
 // Verifier POV
@@ -160,11 +160,11 @@ There are two main types of documentation in this repository:
 
 ## Performance
 
-Benchmarks taken on `Intel(R) Core(TM) i9-9900X CPU @ 3.50GHz`
+Benchmarks taken on `Apple M1`
 For a circuit-size of `2^16` constraints/gates:
 
-- Proving time: `5.46s`
-- Verification time: `9.34ms`. **(This time will not vary depending on the circuit-size.)**
+- Proving time: `17.392s`
+- Verification time: `10.475ms`. **(This time will not vary depending on the circuit-size.)**
 
 For more results, please run `cargo bench` to get a full report of benchmarks in respect of constraint numbers.
 

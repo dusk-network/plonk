@@ -121,7 +121,7 @@ fn test_full() -> Result<()> {
             ),
         };
 
-        circuit.prove(&pp, &pk, b"Test")
+        circuit.prove(&pp, &pk, b"Test", &mut OsRng)
     }?;
 
     // Verifier POV

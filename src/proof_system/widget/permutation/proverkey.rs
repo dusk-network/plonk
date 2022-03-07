@@ -142,7 +142,8 @@ impl ProverKey {
             &self.s_sigma_4.0,
         );
 
-        let domain = EvaluationDomain::new(z_poly.degree()).unwrap();
+        // the poly is increased by 2 after blinding it
+        let domain = EvaluationDomain::new(z_poly.degree() - 2).unwrap();
         let c = self.compute_linearizer_check_is_one(
             &domain,
             z_challenge,

@@ -950,7 +950,7 @@ mod tests {
 
         // Compute multiple proofs
         for _ in 0..3 {
-            proofs.push(prover.prove(&ck).unwrap());
+            proofs.push(prover.prove(&ck, &mut OsRng).unwrap());
 
             // Add another witness instance
             dummy_gadget(10, prover.composer_mut());
@@ -1017,13 +1017,13 @@ mod tests {
         // So pre-fetch these before calling Prove
         let public_inputs = prover.cs.to_dense_public_inputs();
 
-        prover.prove(&ck).unwrap();
+        prover.prove(&ck, &mut OsRng).unwrap();
         drop(public_inputs);
     }
 
     #[test]
     fn test_plonkup_proof() -> Result<(), Error> {
-        let public_parameters = PublicParameters::setup(1 << 8, &mut OsRng)?;
+        let public_parameters = PublicParameters::setup(1 << 9, &mut OsRng)?;
 
         // Create a prover struct
         let mut prover = Prover::new(b"test");
@@ -1037,7 +1037,7 @@ mod tests {
         verifier.cs.lookup_table.insert_multi_mul(0, 3);
 
         // Commit and verifier key
-        let (ck, vk) = public_parameters.trim(1 << 7)?;
+        let (ck, vk) = public_parameters.trim(1 << 8)?;
 
         // Preprocess circuit
         prover.preprocess(&ck)?;
@@ -1045,7 +1045,7 @@ mod tests {
 
         let public_inputs = prover.cs.to_dense_public_inputs();
 
-        let proof = prover.prove(&ck)?;
+        let proof = prover.prove(&ck, &mut OsRng)?;
 
         assert!(verifier.verify(&proof, &vk, &public_inputs).is_ok());
 

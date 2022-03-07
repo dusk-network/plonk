@@ -212,14 +212,14 @@ impl Permutation {
     // Uses a rayon multizip to allow more code flexibility while remaining
     // parallelizable. This can be adapted into a general product argument
     // for any number of wires.
-    pub(crate) fn compute_permutation_poly(
+    pub(crate) fn compute_permutation_vec(
         &self,
         domain: &EvaluationDomain,
         wires: [&[BlsScalar]; 4],
         beta: &BlsScalar,
         gamma: &BlsScalar,
         sigma_polys: [&Polynomial; 4],
-    ) -> Polynomial {
+    ) -> Vec<BlsScalar> {
         let n = domain.size();
 
         // Constants defining cosets H, k1H, k2H, etc
@@ -296,10 +296,10 @@ impl Permutation {
 
         assert_eq!(n, z.len());
 
-        Polynomial::from_coefficients_vec(domain.ifft(&z))
+        z
     }
 
-    pub(crate) fn compute_lookup_permutation_poly(
+    pub(crate) fn compute_lookup_permutation_vec(
         &self,
         domain: &EvaluationDomain,
         f: &[BlsScalar],
@@ -308,7 +308,7 @@ impl Permutation {
         h_2: &[BlsScalar],
         delta: &BlsScalar,
         epsilon: &BlsScalar,
-    ) -> Polynomial {
+    ) -> Vec<BlsScalar> {
         let n = domain.size();
 
         assert_eq!(f.len(), domain.size());
@@ -375,7 +375,7 @@ impl Permutation {
 
         assert_eq!(n, p.len());
 
-        Polynomial::from_coefficients_vec(domain.ifft(&p))
+        p
     }
 }
 
@@ -419,7 +419,7 @@ mod test {
     use rand_core::OsRng;
 
     #[test]
-    fn test_compute_lookup_permutation_poly() -> Result<(), Error> {
+    fn test_compute_lookup_permutation_vec() -> Result<(), Error> {
         // FIXME: use `usize` everywhere for such things
         const SIZE: u32 = 4;
 
@@ -449,9 +449,11 @@ mod test {
         let domain = EvaluationDomain::new(SIZE as usize)?;
         let perm = Permutation::new();
 
-        let poly = perm.compute_lookup_permutation_poly(
-            &domain, &f.0, &t.0, &h_1.0, &h_2.0, &delta, &epsilon,
-        );
+        let poly = Polynomial::from_coefficients_vec(domain.ifft(
+            &perm.compute_lookup_permutation_vec(
+                &domain, &f.0, &t.0, &h_1.0, &h_2.0, &delta, &epsilon,
+            ),
+        ));
 
         const TEST_VECTORS: [&str; 4] = [
             "0x0eaa2fe1c155cfb88bf91f7800c3b855fc67989c949da6cc87a68c9499680d1c",
@@ -888,18 +890,20 @@ mod test {
             .map(|v| Polynomial::from_coefficients_vec(domain.ifft(v)))
             .collect();
 
-        let mz = cs.perm.compute_permutation_poly(
-            &domain,
-            [&a_w_scalar, &b_w_scalar, &c_w_scalar, &d_w_scalar],
-            &beta,
-            &gamma,
-            [
-                &sigma_polys[0],
-                &sigma_polys[1],
-                &sigma_polys[2],
-                &sigma_polys[3],
-            ],
-        );
+        let mz = Polynomial::from_coefficients_vec(domain.ifft(
+            &cs.perm.compute_permutation_vec(
+                &domain,
+                [&a_w_scalar, &b_w_scalar, &c_w_scalar, &d_w_scalar],
+                &beta,
+                &gamma,
+                [
+                    &sigma_polys[0],
+                    &sigma_polys[1],
+                    &sigma_polys[2],
+                    &sigma_polys[3],
+                ],
+            ),
+        ));
 
         let old_z = Polynomial::from_coefficients_vec(domain.ifft(
             &compute_fast_permutation_poly(

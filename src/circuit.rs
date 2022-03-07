@@ -16,6 +16,7 @@ use canonical_derive::Canon;
 use dusk_bls12_381::BlsScalar;
 use dusk_bytes::{DeserializableSlice, Serializable, Write};
 use dusk_jubjub::{JubJubAffine, JubJubExtended, JubJubScalar};
+use rand_core::{CryptoRng, RngCore};
 
 #[derive(Default, Debug, Clone)]
 #[cfg_attr(feature = "canon", derive(Canon))]
@@ -218,7 +219,7 @@ impl VerifierData {
 ///         ),
 ///     };
 ///
-///     circuit.prove(&pp, &pk, b"Test")
+///     circuit.prove(&pp, &pk, b"Test", &mut OsRng)
 /// }?;
 ///
 /// // Verifier POV
@@ -245,6 +246,9 @@ where
 {
     /// Circuit identifier associated constant.
     const CIRCUIT_ID: [u8; 32];
+    /// Extra size needed for the circuit parameters. + 6 because adding the
+    /// blinding factors requires some extra elements for the SRS
+    const PARAMS_EXTRA_SIZE: usize = 6;
 
     /// Gadget implementation used to fill the composer.
     fn gadget(&mut self, composer: &mut TurboComposer) -> Result<(), Error>;
@@ -256,7 +260,8 @@ where
         pub_params: &PublicParameters,
     ) -> Result<(ProverKey, VerifierData), Error> {
         // Setup PublicParams
-        let (ck, _) = pub_params.trim(self.padded_gates())?;
+        let (ck, _) =
+            pub_params.trim(self.padded_gates() + Self::PARAMS_EXTRA_SIZE)?;
 
         // Generate & save `ProverKey` with some random values.
         let mut prover = Prover::new(b"CircuitCompilation");
@@ -290,13 +295,15 @@ where
 
     /// Generates a proof using the provided `CircuitInputs` & `ProverKey`
     /// instances.
-    fn prove(
+    fn prove<R: RngCore + CryptoRng>(
         &mut self,
         pub_params: &PublicParameters,
         prover_key: &ProverKey,
         transcript_init: &'static [u8],
+        rng: &mut R,
     ) -> Result<Proof, Error> {
-        let (ck, _) = pub_params.trim(self.padded_gates())?;
+        let (ck, _) =
+            pub_params.trim(self.padded_gates() + Self::PARAMS_EXTRA_SIZE)?;
 
         // New Prover instance
         let mut prover = Prover::new(transcript_init);
@@ -306,7 +313,7 @@ where
 
         // Add ProverKey to Prover
         prover.prover_key = Some(prover_key.clone());
-        prover.prove(&ck)
+        prover.prove(&ck, rng)
     }
 
     /// Verify the provided proof for the compiled verifier data
