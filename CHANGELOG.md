@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+- Add the blinding factors to provide Zero-Knowledge [#650](https://github.com/dusk-network/plonk/issues/650)
+
 ### Changed
 
 - Change variable names for more consistency with the paper [#631](https://github.com/dusk-network/plonk/issues/631)
