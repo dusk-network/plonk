@@ -121,6 +121,10 @@ impl TurboComposer {
         let (_, selectors, preprocessed_table, domain) =
             self.preprocess_shared(commit_key, transcript)?;
 
+        // The polynomial needs an evaluation domain of 4n.
+        // Plus, adding the blinding factors translates to
+        // the polynomial not fitting in 4n, so now we need
+        // 8n, the next power of 2
         let domain_8n = EvaluationDomain::new(8 * domain.size())?;
         let q_m_eval_8n = Evaluations::from_vec_and_domain(
             domain_8n.coset_fft(&selectors.q_m),

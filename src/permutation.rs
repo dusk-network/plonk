@@ -219,7 +219,7 @@ impl Permutation {
         beta: &BlsScalar,
         gamma: &BlsScalar,
         sigma_polys: [&Polynomial; 4],
-    ) -> Vec<dusk_bls12_381::BlsScalar> {
+    ) -> Vec<BlsScalar> {
         let n = domain.size();
 
         // Constants defining cosets H, k1H, k2H, etc
@@ -308,7 +308,7 @@ impl Permutation {
         h_2: &[BlsScalar],
         delta: &BlsScalar,
         epsilon: &BlsScalar,
-    ) -> Vec<dusk_bls12_381::BlsScalar> {
+    ) -> Vec<BlsScalar> {
         let n = domain.size();
 
         assert_eq!(f.len(), domain.size());
