@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Change variable names for more consistency with the paper [#631](https://github.com/dusk-network/plonk/issues/631)
+- Change `append_constant` to accept generic input [#672](https://github.com/dusk-network/plonk/issues/672)
 
 ## [0.10.0] - 24-02-22
 
@@ -273,7 +274,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Added `ProverKey` & `Verifierkey` to the public API as exported types.
+- Added `ProverKey` & `VerifierKey` to the public API as exported types.
 
 ### Changed
 
@@ -295,7 +296,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - `Anyhow` & `thiserror` for error handling support.
-- Serialisation methods for the crate public structures &
+- Serialization methods for the crate public structures &
   `serde` support.
 - Add a `variable_base_scalar_mul` method using a variable base curve add gate.
 

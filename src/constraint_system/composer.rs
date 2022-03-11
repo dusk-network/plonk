@@ -179,10 +179,11 @@ impl TurboComposer {
 
     /// Constrain a scalar into the circuit description and return an allocated
     /// [`Witness`] with its value
-    pub fn append_constant(&mut self, value: BlsScalar) -> Witness {
-        let witness = self.append_witness(value);
+    pub fn append_constant<T: Into<BlsScalar>>(&mut self, value: T) -> Witness {
+        let scalar = value.into();
+        let witness = self.append_witness(scalar);
 
-        self.assert_equal_constant(witness, value, None);
+        self.assert_equal_constant(witness, scalar, None);
 
         witness
     }
