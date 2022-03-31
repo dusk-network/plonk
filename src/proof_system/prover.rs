@@ -197,6 +197,18 @@ impl Prover {
         // the Transcript has been seeded with the preprocessed commitments
         let mut transcript = self.preprocessed_transcript.clone();
 
+        // PIs have to be part of the transcript
+        for i in 0..self.cs.to_dense_public_inputs().len() {
+            transcript
+                .append_scalar(b"pi", &self.cs.to_dense_public_inputs()[i]);
+        }
+
+        // We fill with zeros up to the domain size, just like the verifier will
+        // do
+        for _ in 0..(domain.size() - self.cs.to_dense_public_inputs().len()) {
+            transcript.append_scalar(b"pi", &BlsScalar::from(0u64));
+        }
+
         //** ROUND 1 **********************************************************
         // Convert wires to BlsScalars padding them to the correct domain size.
         // Note that `d_w` is added for the additional selector for 3-input
