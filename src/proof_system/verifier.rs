@@ -9,6 +9,7 @@ use crate::constraint_system::TurboComposer;
 use crate::error::Error;
 use crate::proof_system::widget::VerifierKey;
 use crate::proof_system::Proof;
+use crate::transcript::TranscriptProtocol;
 use dusk_bls12_381::BlsScalar;
 use merlin::Transcript;
 
@@ -89,6 +90,12 @@ impl Verifier {
         public_inputs: &[BlsScalar],
     ) -> Result<(), Error> {
         let mut cloned_transcript = self.preprocessed_transcript.clone();
+
+        // PIs have to be part of the transcript
+        for pi in public_inputs.iter() {
+            cloned_transcript.append_scalar(b"pi", pi);
+        }
+
         let verifier_key = self.verifier_key.as_ref().unwrap();
 
         proof.verify(
