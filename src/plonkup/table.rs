@@ -10,6 +10,3 @@ pub mod lookup_table;
 pub mod preprocess;
 /// Module containing witness table
 pub mod witness_table;
-
-/// Module containing fixed lookup tables for hash function
-pub mod hash_tables;

@@ -10,7 +10,7 @@ use dusk_bls12_381::BlsScalar;
 impl TurboComposer {
     /// Evaluate and return `o` by appending a new constraint into the circuit.
     ///
-    /// The output of the constraint will be overwritten with
+    /// Set `q_o = (-1)` and override the output of the constraint with:
     /// `o := q_l · a + q_r · b + q_4 · d + q_c + PI`
     pub fn gate_add(&mut self, s: Constraint) -> Witness {
         let s = Constraint::arithmetic(&s).output(-BlsScalar::one());
@@ -25,7 +25,7 @@ impl TurboComposer {
 
     /// Evaluate and return `o` by appending a new constraint into the circuit.
     ///
-    /// The output of the constraint will be overwritten with
+    /// Set `q_o = (-1)` and override the output of the constraint with:
     /// `o := q_m · a · b + q_4 · d + q_c + PI`
     pub fn gate_mul(&mut self, s: Constraint) -> Witness {
         let s = Constraint::arithmetic(&s).output(-BlsScalar::one());
