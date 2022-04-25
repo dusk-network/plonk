@@ -72,10 +72,10 @@ impl TurboComposer {
         self.q_variable_group_add.push(BlsScalar::one());
         self.q_variable_group_add.push(BlsScalar::zero());
 
-        self.perm.add_variables_to_map(x_1, y_1, x_2, y_2, self.n);
+        self.perm.add_witnesses_to_map(x_1, y_1, x_2, y_2, self.n);
         self.n += 1;
 
-        self.perm.add_variables_to_map(
+        self.perm.add_witnesses_to_map(
             x_3,
             y_3,
             Self::constant_zero(),

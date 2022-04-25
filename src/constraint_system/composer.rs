@@ -100,7 +100,7 @@ pub struct TurboComposer {
     /// Public lookup table
     pub(crate) lookup_table: LookupTable,
 
-    /// These are the actual variable values.
+    /// These are the actual witness values.
     pub(crate) witnesses: HashMap<Witness, BlsScalar>,
 
     /// Permutation argument.
@@ -236,7 +236,7 @@ impl TurboComposer {
         let scalar = scalar.into();
 
         // Get a new Witness from the permutation
-        let var = self.perm.new_variable();
+        let var = self.perm.new_witness();
 
         // The composer now links the BlsScalar to the Witness returned from
         // the Permutation
@@ -311,7 +311,7 @@ impl TurboComposer {
             self.public_inputs_sparse_store.insert(self.n, pi);
         }
 
-        self.perm.add_variables_to_map(a, b, o, d, self.n);
+        self.perm.add_witnesses_to_map(a, b, o, d, self.n);
 
         self.n += 1;
     }
@@ -508,7 +508,7 @@ impl TurboComposer {
         self.b_w.push(var_seven);
         self.c_w.push(var_min_twenty);
         self.d_w.push(var_one);
-        self.perm.add_variables_to_map(
+        self.perm.add_witnesses_to_map(
             var_six,
             var_seven,
             var_min_twenty,
@@ -534,7 +534,7 @@ impl TurboComposer {
         self.b_w.push(var_six);
         self.c_w.push(var_seven);
         self.d_w.push(Self::constant_zero());
-        self.perm.add_variables_to_map(
+        self.perm.add_witnesses_to_map(
             var_min_twenty,
             var_six,
             var_seven,
@@ -786,7 +786,7 @@ impl TurboComposer {
             self.public_inputs_sparse_store.insert(self.n, pi);
         }
 
-        self.perm.add_variables_to_map(a, b, c, d, self.n);
+        self.perm.add_witnesses_to_map(a, b, c, d, self.n);
         self.n += 1;
         c
     }

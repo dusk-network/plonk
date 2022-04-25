@@ -62,7 +62,7 @@ impl TurboComposer {
         self.q_logic.push(BlsScalar::zero());
         self.q_k.push(BlsScalar::zero());
 
-        self.perm.add_variables_to_map(
+        self.perm.add_witnesses_to_map(
             wnaf_round.acc_x,
             wnaf_round.acc_y,
             wnaf_round.xy_alpha,

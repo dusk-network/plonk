@@ -22,8 +22,8 @@ use rayon::iter::{IntoParallelIterator, ParallelIterator};
 /// "accumulator", this is what this codebase calls the permutation polynomial.
 #[derive(Debug)]
 pub(crate) struct Permutation {
-    // Maps a variable to the wires that it is associated to.
-    pub(crate) variable_map: HashMap<Witness, Vec<WireData>>,
+    // Maps a witness to the wires that it is associated to.
+    pub(crate) witness_map: HashMap<Witness, Vec<WireData>>,
 }
 
 impl Permutation {
@@ -35,38 +35,38 @@ impl Permutation {
     /// Creates a Permutation struct with an expected capacity of `n`.
     pub(crate) fn with_capacity(size: usize) -> Permutation {
         Permutation {
-            variable_map: HashMap::with_capacity(size),
+            witness_map: HashMap::with_capacity(size),
         }
     }
 
     /// Creates a new [`Witness`] by incrementing the index of the
-    /// `variable_map`.
+    /// `witness_map`.
     ///
     /// This is correct as whenever we add a new [`Witness`] into the system It
-    /// is always allocated in the `variable_map`.
-    pub(crate) fn new_variable(&mut self) -> Witness {
+    /// is always allocated in the `witness_map`.
+    pub(crate) fn new_witness(&mut self) -> Witness {
         // Generate the Witness
-        let var = Witness::new(self.variable_map.keys().len());
+        let var = Witness::new(self.witness_map.keys().len());
 
-        // Allocate space for the Witness on the variable_map
+        // Allocate space for the Witness on the witness_map
         // Each vector is initialized with a capacity of 16.
         // This number is a best guess estimate.
-        self.variable_map.insert(var, Vec::with_capacity(16usize));
+        self.witness_map.insert(var, Vec::with_capacity(16usize));
 
         var
     }
 
     /// Checks that the [`Witness`]s are valid by determining if they have been
     /// added to the system
-    fn valid_variables(&self, variables: &[Witness]) -> bool {
-        variables
+    fn valid_witnesses(&self, witnesses: &[Witness]) -> bool {
+        witnesses
             .iter()
-            .all(|var| self.variable_map.contains_key(var))
+            .all(|var| self.witness_map.contains_key(var))
     }
 
     /// Maps a set of [`Witness`]s (a,b,c,d) to a set of [`Wire`](WireData)s
     /// (left, right, out, fourth) with the corresponding gate index
-    pub fn add_variables_to_map<T: Into<Witness>>(
+    pub fn add_witnesses_to_map<T: Into<Witness>>(
         &mut self,
         a: T,
         b: T,
@@ -79,29 +79,29 @@ impl Permutation {
         let output: WireData = WireData::Output(gate_index);
         let fourth: WireData = WireData::Fourth(gate_index);
 
-        // Map each variable to the wire it is associated with
+        // Map each witness to the wire it is associated with
         // This essentially tells us that:
-        self.add_variable_to_map(a.into(), left);
-        self.add_variable_to_map(b.into(), right);
-        self.add_variable_to_map(c.into(), output);
-        self.add_variable_to_map(d.into(), fourth);
+        self.add_witness_to_map(a.into(), left);
+        self.add_witness_to_map(b.into(), right);
+        self.add_witness_to_map(c.into(), output);
+        self.add_witness_to_map(d.into(), fourth);
     }
 
-    pub(crate) fn add_variable_to_map<T: Into<Witness> + Copy>(
+    pub(crate) fn add_witness_to_map<T: Into<Witness> + Copy>(
         &mut self,
         var: T,
         wire_data: WireData,
     ) {
-        assert!(self.valid_variables(&[var.into()]));
+        assert!(self.valid_witnesses(&[var.into()]));
 
         // Since we always allocate space for the Vec of WireData when a
-        // Witness is added to the variable_map, this should never fail
-        let vec_wire_data = self.variable_map.get_mut(&var.into()).unwrap();
+        // Witness is added to the witness_map, this should never fail
+        let vec_wire_data = self.witness_map.get_mut(&var.into()).unwrap();
         vec_wire_data.push(wire_data);
     }
 
     // Performs shift by one permutation and computes sigma_1, sigma_2 and
-    // sigma_3, sigma_4 permutations from the variable maps
+    // sigma_3, sigma_4 permutations from the witness maps
     pub(super) fn compute_sigma_permutations(
         &mut self,
         n: usize,
@@ -113,8 +113,8 @@ impl Permutation {
 
         let mut sigmas = [sigma_1, sigma_2, sigma_3, sigma_4];
 
-        for (_, wire_data) in self.variable_map.iter() {
-            // Gets the data for each wire associated with this variable
+        for (_, wire_data) in self.witness_map.iter() {
+            // Gets the data for each wire associated with this witness
             for (wire_index, current_wire) in wire_data.iter().enumerate() {
                 // Fetch index of the next wire, if it is the last element
                 // We loop back around to the beginning
@@ -930,24 +930,24 @@ mod test {
     fn test_permutation_format() {
         let mut perm: Permutation = Permutation::new();
 
-        let num_variables = 10u8;
-        for i in 0..num_variables {
-            let var = perm.new_variable();
+        let num_witnesses = 10u8;
+        for i in 0..num_witnesses {
+            let var = perm.new_witness();
             assert_eq!(var.index(), i as usize);
-            assert_eq!(perm.variable_map.len(), (i as usize) + 1);
+            assert_eq!(perm.witness_map.len(), (i as usize) + 1);
         }
 
-        let var_one = perm.new_variable();
-        let var_two = perm.new_variable();
-        let var_three = perm.new_variable();
+        let var_one = perm.new_witness();
+        let var_two = perm.new_witness();
+        let var_three = perm.new_witness();
 
         let gate_size = 100;
         for i in 0..gate_size {
-            perm.add_variables_to_map(var_one, var_one, var_two, var_three, i);
+            perm.add_witnesses_to_map(var_one, var_one, var_two, var_three, i);
         }
 
         // Check all gate_indices are valid
-        for (_, wire_data) in perm.variable_map.iter() {
+        for (_, wire_data) in perm.witness_map.iter() {
             for wire in wire_data.iter() {
                 match wire {
                     WireData::Left(index)
@@ -963,23 +963,23 @@ mod test {
     fn test_permutation_compute_sigmas_only_left_wires() {
         let mut perm = Permutation::new();
 
-        let var_zero = perm.new_variable();
-        let var_two = perm.new_variable();
-        let var_three = perm.new_variable();
-        let var_four = perm.new_variable();
-        let var_five = perm.new_variable();
-        let var_six = perm.new_variable();
-        let var_seven = perm.new_variable();
-        let var_eight = perm.new_variable();
-        let var_nine = perm.new_variable();
+        let var_zero = perm.new_witness();
+        let var_two = perm.new_witness();
+        let var_three = perm.new_witness();
+        let var_four = perm.new_witness();
+        let var_five = perm.new_witness();
+        let var_six = perm.new_witness();
+        let var_seven = perm.new_witness();
+        let var_eight = perm.new_witness();
+        let var_nine = perm.new_witness();
 
         let num_wire_mappings = 4;
 
         // Add four wire mappings
-        perm.add_variables_to_map(var_zero, var_zero, var_five, var_nine, 0);
-        perm.add_variables_to_map(var_zero, var_two, var_six, var_nine, 1);
-        perm.add_variables_to_map(var_zero, var_three, var_seven, var_nine, 2);
-        perm.add_variables_to_map(var_zero, var_four, var_eight, var_nine, 3);
+        perm.add_witnesses_to_map(var_zero, var_zero, var_five, var_nine, 0);
+        perm.add_witnesses_to_map(var_zero, var_two, var_six, var_nine, 1);
+        perm.add_witnesses_to_map(var_zero, var_three, var_seven, var_nine, 2);
+        perm.add_witnesses_to_map(var_zero, var_four, var_eight, var_nine, 3);
 
         /*
         var_zero = {L0, R0, L1, L2, L3}
@@ -1111,21 +1111,21 @@ mod test {
     fn test_permutation_compute_sigmas() {
         let mut perm: Permutation = Permutation::new();
 
-        let var_one = perm.new_variable();
-        let var_two = perm.new_variable();
-        let var_three = perm.new_variable();
-        let var_four = perm.new_variable();
+        let var_one = perm.new_witness();
+        let var_two = perm.new_witness();
+        let var_three = perm.new_witness();
+        let var_four = perm.new_witness();
 
         let num_wire_mappings = 4;
 
         // Add four wire mappings
-        perm.add_variables_to_map(var_one, var_one, var_two, var_four, 0);
-        perm.add_variables_to_map(var_two, var_one, var_two, var_four, 1);
-        perm.add_variables_to_map(var_three, var_three, var_one, var_four, 2);
-        perm.add_variables_to_map(var_two, var_one, var_three, var_four, 3);
+        perm.add_witnesses_to_map(var_one, var_one, var_two, var_four, 0);
+        perm.add_witnesses_to_map(var_two, var_one, var_two, var_four, 1);
+        perm.add_witnesses_to_map(var_three, var_three, var_one, var_four, 2);
+        perm.add_witnesses_to_map(var_two, var_one, var_three, var_four, 3);
 
         /*
-        Below is a sketch of the map created by adding the specific variables into the map
+        Below is a sketch of the map created by adding the specific witnesses into the map
         var_one : {L0,R0, R1, O2, R3 }
         var_two : {O0, L1, O1, L3}
         var_three : {L2, R2, O3}
@@ -1219,13 +1219,13 @@ mod test {
         let mut perm = Permutation::new();
         let domain = EvaluationDomain::new(num_wire_mappings).unwrap();
 
-        let var_one = perm.new_variable();
-        let var_two = perm.new_variable();
-        let var_three = perm.new_variable();
-        let var_four = perm.new_variable();
+        let var_one = perm.new_witness();
+        let var_two = perm.new_witness();
+        let var_three = perm.new_witness();
+        let var_four = perm.new_witness();
 
-        perm.add_variables_to_map(var_one, var_two, var_three, var_four, 0);
-        perm.add_variables_to_map(var_three, var_two, var_one, var_four, 1);
+        perm.add_witnesses_to_map(var_one, var_two, var_three, var_four, 0);
+        perm.add_witnesses_to_map(var_three, var_two, var_one, var_four, 1);
 
         let a_w: Vec<_> = vec![BlsScalar::one(), BlsScalar::from(3)];
         let b_w: Vec<_> = vec![BlsScalar::from(2), BlsScalar::from(2)];

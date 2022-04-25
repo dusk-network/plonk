@@ -22,7 +22,7 @@ impl TurboComposer {
     /// This function will panic if the num_bits specified is not even, ie.
     /// `num_bits % 2 != 0`.
     pub fn component_range(&mut self, witness: Witness, num_bits: usize) {
-        // Adds `variable` into the appropriate witness position
+        // Adds `Witness` into the appropriate witness position
         // based on the accumulator number a_i
         let add_wire =
             |composer: &mut TurboComposer, i: usize, witness: Witness| {
@@ -50,7 +50,7 @@ impl TurboComposer {
                     _ => unreachable!(),
                 };
 
-                composer.perm.add_variable_to_map(witness, wire_data);
+                composer.perm.add_witness_to_map(witness, wire_data);
             };
 
         // Note: A quad is a quaternary digit

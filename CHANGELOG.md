@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Change variable names for more consistency with the paper [#631](https://github.com/dusk-network/plonk/issues/631)
 - Change `append_constant` to accept generic input [#672](https://github.com/dusk-network/plonk/issues/672)
+- Change `variable` to `witness` in permutation functions [#681](https://github.com/dusk-network/plonk/issues/681)
 
 ### Removed
 
