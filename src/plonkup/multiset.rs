@@ -106,7 +106,12 @@ impl MultiSet {
         //     s.0.insert(index, *element);
         // }
         s.0.extend_from_slice(&f.0);
-        s.0.sort();
+        let mut s_normal = s.0.iter().map(|x| x.reduce()).collect::<Vec<_>>();
+        s_normal.sort();
+        let mut s = MultiSet::new();
+        for element in s_normal.iter() {
+            s.push(BlsScalar::from_raw(element.0));
+        }
 
         Ok(s)
     }
