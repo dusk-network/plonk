@@ -100,11 +100,13 @@ impl MultiSet {
     /// look as follows, s: {1,1,2,2,3,3,4,4}
     pub fn sorted_concat(&self, f: &MultiSet) -> Result<MultiSet, Error> {
         let mut s = self.clone();
-        s.0.reserve(f.0.len());
-        for element in f.0.iter() {
-            let index = s.position(element).ok_or(Error::ElementNotIndexed)?;
-            s.0.insert(index, *element);
-        }
+        // s.0.reserve(f.0.len());
+        // for element in f.0.iter() {
+        //     let index = s.position(element).ok_or(Error::ElementNotIndexed)?;
+        //     s.0.insert(index, *element);
+        // }
+        s.0.extend_from_slice(&f.0);
+        s.0.sort();
 
         Ok(s)
     }
