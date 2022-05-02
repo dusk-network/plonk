@@ -13,7 +13,7 @@ use dusk_bytes::Serializable;
 
 impl TurboComposer {
     /// Performs a logical AND or XOR op between the inputs provided for the
-    /// specified number of bits.
+    /// specified number of bits (counting from the least significant bit).
     ///
     /// Each logic gate adds `(num_bits / 2) + 1` gates to the circuit to
     /// perform the whole operation.
@@ -34,25 +34,33 @@ impl TurboComposer {
         num_bits: usize,
         is_component_xor: bool,
     ) -> Witness {
-        // Since we work on base4, we need to guarantee that we have an even
-        // number of bits representing the greatest input.
+        // We will need to split the input into `num_bits / 2` two-bit chunks.
+        // This is why we can only accept an even number of `num_bits`.
         assert_eq!(num_bits & 1, 0);
+        // If `num_bits` is greater than 256 (which is the amount of bits in a
+        // `BlsScalar`), set `num_bits` to 256
+        let num_bits = {
+            match num_bits < 256 {
+                true => num_bits,
+                false => 256,
+            }
+        };
 
         // We will have exactly `num_bits / 2` quads (quaternary digits)
         // representing both numbers.
         let num_quads = num_bits >> 1;
 
-        // Allocate accumulators for gate construction.
-        let mut left_accumulator = BlsScalar::zero();
-        let mut right_accumulator = BlsScalar::zero();
-        let mut out_accumulator = BlsScalar::zero();
+        // Allocate the bls accumulators for gate construction.
+        let mut left_acc = BlsScalar::zero();
+        let mut right_acc = BlsScalar::zero();
+        let mut out_acc = BlsScalar::zero();
         let mut left_quad: u8;
         let mut right_quad: u8;
 
-        // Get vars as bits and reverse them to get the Little Endian repr.
+        // Get witnesses in bits in big endian and skip the first (256 -
+        // num_bits) bits we are not interested in.
         let a_bit_iter = BitIterator8::new(self.witnesses[&a].to_bytes());
         let a_bits: Vec<_> = a_bit_iter.skip(256 - num_bits).collect();
-
         let b_bit_iter = BitIterator8::new(self.witnesses[&b].to_bytes());
         let b_bits: Vec<_> = b_bit_iter.skip(256 - num_bits).collect();
 
@@ -64,15 +72,21 @@ impl TurboComposer {
         // * |  A  |  B  |  C  |  D  |
         // * +-----+-----+-----+-----+
         // * | 0   | 0   | w1  | 0   |
-        // * | a1  | b1  | w2  | c1  |
-        // * | a2  | b2  | w3  | c2  |
+        // * | a1  | b1  | w2  | d1  |
+        // * | a2  | b2  | w3  | d2  |
         // * |  :  |  :  |  :  |  :  |
-        // * | an  | bn  | --- | cn  |
+        // * | an  | bn  | 0   | dn  |
         // * +-----+-----+-----+-----+
-        // We need to have d_w, a_w and b_w pointing to one gate ahead of c_w.
-        // We increase the gate idx and assign d_w, a_w and b_w to `zero`.
+        // The an, bn and dn are accumulators:
+        //   an [& OR ^] bd = dn
+        // At each step we shift the bits of the last result two positions to
+        // the left and add the current quad.
+        // The wn are product accumulators that are needed to prevent the
+        // degree of the our quotient polynomial from blowing up.
+        // We need to have d_i, a_i and b_i pointing to one gate ahead of c_i.
+        // We increase the gate idx and assign d_i, a_i and b_i to `zero`.
         // Now we can add the first row as: `| 0 | 0 | -- | 0 |`.
-        // Note that `w_1` will be set on the first loop iteration.
+        // Note that c_i will be set on the first loop iteration.
         self.perm
             .add_variable_to_map(Self::constant_zero(), WireData::Left(self.n));
         self.perm.add_variable_to_map(
@@ -95,7 +109,7 @@ impl TurboComposer {
         // that the first step above was done correctly to obtain the
         // right format the the first row. This means that we will need
         // to pad the end of the memory program once we've built it.
-        // As we can see in the last row structure: `| an  | bn  | --- | cn  |`.
+        // As we can see in the last row structure: `| an  | bn  | --- | dn  |`.
         for i in 0..num_quads {
             // On each round, we will commit every accumulator step. To do so,
             // we first need to get the ith quads of `a` and `b` and then
@@ -103,23 +117,23 @@ impl TurboComposer {
             // `prod_quad`(intermediate prod result).
 
             // Here we compute each quad by taking the most significant bit
-            // multiplying it by two and adding to it the less significant
-            // bit to form the quad with a ternary value encapsulated in an `u8`
-            // in Big Endian form.
+            // shifting it one position to the left and adding to it the less
+            // significant bit to form the quad with a ternary value
+            // encapsulated in an `u8` in Big Endian form.
             left_quad = {
-                let idx = i << 1;
+                let idx = i * 2;
                 ((a_bits[idx] as u8) << 1) + (a_bits[idx + 1] as u8)
             };
             right_quad = {
-                let idx = i << 1;
+                let idx = i * 2;
                 ((b_bits[idx] as u8) << 1) + (b_bits[idx + 1] as u8)
             };
-            let left_quad_fr = BlsScalar::from(left_quad as u64);
-            let right_quad_fr = BlsScalar::from(right_quad as u64);
+            let left_quad_bls = BlsScalar::from(left_quad as u64);
+            let right_quad_bls = BlsScalar::from(right_quad as u64);
             // The `out_quad` is the result of the bitwise ops `&` or `^`
             // between the left and right quads. The op is decided
             // with a boolean flag set as input of the function.
-            let out_quad_fr = match is_component_xor {
+            let out_quad_bls = match is_component_xor {
                 true => BlsScalar::from((left_quad ^ right_quad) as u64),
                 false => BlsScalar::from((left_quad & right_quad) as u64),
             };
@@ -128,69 +142,37 @@ impl TurboComposer {
             // This param is identified as `w` in the program memory and
             // is needed to prevent the degree of our quotient polynomial from
             // blowing up
-            let prod_quad_fr = BlsScalar::from((left_quad * right_quad) as u64);
+            let prod_quad_bls =
+                BlsScalar::from((left_quad * right_quad) as u64);
 
             // Now that we've computed this round results, we need to apply the
-            // logic transition constraint that will check the following:
-            // a      - 4 . a  ϵ [0, 1, 2, 3]
-            //   i + 1        i
-            //
-            //
-            //
-            //
-            //  b      - 4 . b  ϵ [0, 1, 2, 3]
-            //   i + 1        i
-            //
-            //
-            //
-            //
-            //                    /                 \          /
-            // \  c      - 4 . c  = | a      - 4 . a  | (& OR ^) | b
-            // - 4 . b  |   i + 1        i   \  i + 1        i /
-            // \  i + 1        i /
-            //
-            let prev_left_accum = left_accumulator;
-            let prev_right_accum = right_accumulator;
-            let prev_out_accum = out_accumulator;
-            // We also need to add the computed quad fr_s to the circuit
-            // representing a logic gate. To do so, we just mul by 4
-            // the previous accomulated result and we add to it
-            // the new computed quad.
-            // With this technique we're basically accumulating the quads and
-            // adding them to get back to the starting value, at the
-            // i-th iteration.          i
-            //         ===
-            //         \                     j
-            //  x   =  /    q            . 4
-            //   i     ===   (bits/2 - j)
-            //        j = 0
-            //
-            left_accumulator *= BlsScalar::from(4u64);
-            left_accumulator += left_quad_fr;
-            right_accumulator *= BlsScalar::from(4u64);
-            right_accumulator += right_quad_fr;
-            out_accumulator *= BlsScalar::from(4u64);
-            out_accumulator += out_quad_fr;
+            // logic transition constraint that will check that
+            //   a_{i+1} - (a_i << 2) < 4
+            //   b_{i+1} - (b_i << 2) < 4
+            //   d_{i+1} - (d_i << 2) < 4   with d_i = a_i [& OR ^] b_i
+            // Note that multiplying by four is the equivalent of shifting the
+            // bits two positions to the left.
+            let bls_four = BlsScalar::from(4u64);
+            let prev_left_acc = left_acc;
+            let prev_right_acc = right_acc;
+            let prev_out_acc = out_acc;
+            left_acc = left_acc * bls_four + left_quad_bls;
+            right_acc = right_acc * bls_four + right_quad_bls;
+            out_acc = out_acc * bls_four + out_quad_bls;
             // Apply logic transition gates.
-            assert!(
-                left_accumulator - (prev_left_accum * BlsScalar::from(4u64))
-                    < BlsScalar::from(4u64)
-            );
-            assert!(
-                right_accumulator - (prev_right_accum * BlsScalar::from(4u64))
-                    < BlsScalar::from(4u64)
-            );
-            assert!(
-                out_accumulator - (prev_out_accum * BlsScalar::from(4u64))
-                    < BlsScalar::from(4u64)
-            );
+            // a_{i+1} - (a_i << 2) < 4
+            assert!(left_acc - (prev_left_acc * bls_four) < bls_four);
+            // b_{i+1} - (b_i << 2) < 4
+            assert!(right_acc - (prev_right_acc * bls_four) < bls_four);
+            // d_{i+1} - (d_i << 2) < 4
+            assert!(out_acc - (prev_out_acc * bls_four) < bls_four);
 
-            // Get variables pointing to the previous accumulated values.
-            let var_a = self.append_witness(left_accumulator);
-            let var_b = self.append_witness(right_accumulator);
-            let var_c = self.append_witness(prod_quad_fr);
-            let var_4 = self.append_witness(out_accumulator);
-            // Add the variables to the variable map linking them to it's
+            // Get witnesses pointing to the accumulated values.
+            let wit_a = self.append_witness(left_acc);
+            let wit_b = self.append_witness(right_acc);
+            let wit_c = self.append_witness(prod_quad_bls);
+            let wit_d = self.append_witness(out_acc);
+            // Add the witnesses to the witness map linking them to it's
             // corresponding gate index.
             //
             // Note that by doing this, we are basically setting the wire_coeffs
@@ -198,21 +180,22 @@ impl TurboComposer {
             // selector_poly coefficients in order to be able to
             // have complete gates.
             //
-            // Also note that here we're setting left, right and fourth
-            // variables to the actual gate, meanwhile we set out to
-            // the previous gate.
-            self.perm.add_variable_to_map(var_a, WireData::Left(self.n));
+            // Also note that here we're setting left (`a_i` in above table),
+            // right (`b_i`) and fourth (`d_i`) witnesses to the
+            // actual gate, meanwhile we set out (`w_i`) to the
+            // previous gate.
+            self.perm.add_variable_to_map(wit_a, WireData::Left(self.n));
             self.perm
-                .add_variable_to_map(var_b, WireData::Right(self.n));
+                .add_variable_to_map(wit_b, WireData::Right(self.n));
             self.perm
-                .add_variable_to_map(var_4, WireData::Fourth(self.n));
+                .add_variable_to_map(wit_d, WireData::Fourth(self.n));
             self.perm
-                .add_variable_to_map(var_c, WireData::Output(self.n - 1));
-            // Push the variables to it's actual wire vector storage
-            self.a_w.push(var_a);
-            self.b_w.push(var_b);
-            self.c_w.push(var_c);
-            self.d_w.push(var_4);
+                .add_variable_to_map(wit_c, WireData::Output(self.n - 1));
+            // Push the witnesses to it's actual wire vector storage
+            self.a_w.push(wit_a);
+            self.b_w.push(wit_b);
+            self.c_w.push(wit_c);
+            self.d_w.push(wit_d);
             // Update the gate index
             self.n += 1;
         }
@@ -221,7 +204,7 @@ impl TurboComposer {
         // which is `c_w` since the rest of wires are pointing one gate
         // ahead. To fix this, we simply pad with a 0 so the last row of
         // the program memory will look like this:
-        // | an  | bn  | --- | cn  |
+        // | an  | bn  | 0   | dn  |
         self.perm.add_variable_to_map(
             Self::constant_zero(),
             WireData::Output(self.n - 1),
@@ -229,7 +212,7 @@ impl TurboComposer {
         self.c_w.push(Self::constant_zero());
 
         // Now the wire values are set for each gate, indexed and mapped in the
-        // `variable_map` inside of the `Permutation` struct.
+        // `witness_map` inside of the `Permutation` struct.
         // Now we just need to extend the selector polynomials with the
         // appropriate coefficients to form complete logic gates.
         for _ in 0..num_quads {
@@ -269,35 +252,42 @@ impl TurboComposer {
         self.q_c.push(BlsScalar::zero());
         self.q_logic.push(BlsScalar::zero());
 
-        // Now we need to assert that the sum of accumulated values
-        // matches the original values provided to the fn.
-        // Note that we're only considering the quads that are included
-        // in the range 0..num_bits. So, when actually executed, we're checking
-        // that x & ((1 << num_bits +1) -1) == [0..num_quads]
-        // accumulated sums of x.
-        //
-        // We could also check that the last gates wire coefficients match the
+        // Now we check that the last gates wire coefficients match the
         // original values introduced in the function taking into account the
-        // bitnum specified on the fn call parameters.
-        // This can be done with an `assert_equal` constraint gate or simply
-        // by taking the values behind the n'th variables of `a_w` & `b_w` and
-        // checking that they're equal to the original ones behind the variables
-        // sent through the function parameters.
-        assert_eq!(
-            self.witnesses[&a]
-                & (BlsScalar::from(2u64).pow(&[(num_bits) as u64, 0, 0, 0])
-                    - BlsScalar::one()),
-            self.witnesses[&self.a_w[self.n - 1]]
-        );
-        assert_eq!(
-            self.witnesses[&b]
-                & (BlsScalar::from(2u64).pow(&[(num_bits) as u64, 0, 0, 0])
-                    - BlsScalar::one()),
-            self.witnesses[&self.b_w[self.n - 1]]
-        );
-
+        // bit_num specified on the fn call parameters.
+        // To make sure we only check the bits that are specified by bit_num, we
+        // apply a bit_mask to the values.
+        // Note that we can not construct a `bit_mask` that represents the
+        // `BlsScalar` made from four `u64::MAX` which would be needed for
+        // `num_bits = 256`. This is because `BlsScalar` created `from_raw` are
+        // invalid if their value exceeds the `MODULO`.
+        match num_bits < 256 {
+            true => {
+                let bit_mask =
+                    BlsScalar::from(2u64).pow(&[num_bits as u64, 0, 0, 0])
+                        - BlsScalar::one();
+                assert_eq!(
+                    self.witnesses[&a] & bit_mask,
+                    self.witnesses[&self.a_w[self.n - 1]],
+                );
+                assert_eq!(
+                    self.witnesses[&b] & bit_mask,
+                    self.witnesses[&self.b_w[self.n - 1]]
+                );
+            }
+            false => {
+                assert_eq!(
+                    self.witnesses[&a],
+                    self.witnesses[&self.a_w[self.n - 1]],
+                );
+                assert_eq!(
+                    self.witnesses[&b],
+                    self.witnesses[&self.b_w[self.n - 1]]
+                );
+            }
+        }
         // Once the inputs are checked against the accumulated additions,
-        // we can safely return the resulting variable of the gate computation
+        // we can safely return the resulting witness of the gate computation
         // which is stored on the last program memory row and in the column that
         // `d_w` is holding.
         self.d_w[self.d_w.len() - 1]
@@ -341,21 +331,87 @@ impl TurboComposer {
 mod tests {
     use super::super::helper::*;
     use dusk_bls12_381::BlsScalar;
+    #[test]
+    fn logic_xor() {
+        let res = gadget_tester(
+            |composer| {
+                let a = BlsScalar::from_raw([
+                    0xffefffff00000001,
+                    0x53bda402fffe5bfe,
+                    0x4982789dacb42eba,
+                    0xbfe253acde2f251b,
+                ]);
+                let b = BlsScalar::from_raw([
+                    0x1fe4fa89f2eebc13,
+                    0x19420effaad6cb43,
+                    0xfe10a3b5d02ccba5,
+                    0x2979075741adef02,
+                ]);
+                let witness_a = composer.append_witness(a);
+                let witness_b = composer.append_witness(b);
+                let bit_num = 32 * 8 - 2;
+                let xor_res =
+                    composer.component_xor(witness_a, witness_b, bit_num);
+                // Check that the XOR result is indeed what we are expecting.
+                let bit_mask =
+                    BlsScalar::from(2).pow(&[bit_num as u64, 0, 0, 0])
+                        - BlsScalar::one();
+                composer.assert_equal_constant(
+                    xor_res,
+                    (a ^ b) & bit_mask,
+                    None,
+                );
+            },
+            900,
+        );
+        assert!(res.is_ok());
+    }
 
     #[test]
-    fn test_logic_xor_and_constraint() {
+    fn logic_and() {
+        let res = gadget_tester(
+            |composer| {
+                let a = BlsScalar::from_raw([
+                    0xcdbbba32b2059321,
+                    0xd23d790abc203def,
+                    0x039290023244ddd2,
+                    0x221045dddbaaa234,
+                ]);
+                let b = BlsScalar::from_raw([
+                    0xffeffa89f2eebc13,
+                    0x19420effaad6cb43,
+                    0x0000138739efccab,
+                    0x2979bc292cccde11,
+                ]);
+                let witness_a = composer.append_witness(a);
+                let witness_b = composer.append_witness(b);
+                let bit_num = 32 * 8;
+                let and_res =
+                    composer.component_and(witness_a, witness_b, bit_num);
+                // Check that the XOR result is indeed what we are expecting.
+                composer.assert_equal_constant(and_res, a & b, None);
+            },
+            500,
+        );
+        assert!(res.is_ok());
+    }
+
+    #[test]
+    fn test_logic_xor_and_constraint_small() {
         // Should pass since the XOR result is correct and the bit-num is even.
         let res = gadget_tester(
             |composer| {
-                let witness_a =
-                    composer.append_witness(BlsScalar::from(500u64));
-                let witness_b =
-                    composer.append_witness(BlsScalar::from(357u64));
-                let xor_res = composer.component_xor(witness_a, witness_b, 10);
+                let a = 500u64;
+                let b = 357u64;
+                let bit_num = 10;
+                let witness_a = composer.append_witness(BlsScalar::from(a));
+                let witness_b = composer.append_witness(BlsScalar::from(b));
+                let xor_res =
+                    composer.component_xor(witness_a, witness_b, bit_num);
                 // Check that the XOR result is indeed what we are expecting.
                 composer.assert_equal_constant(
                     xor_res,
-                    BlsScalar::from(500u64 ^ 357u64),
+                    BlsScalar::from(a ^ b),
                     None,
                 );
             },
@@ -363,22 +419,25 @@ mod tests {
         );
         assert!(res.is_ok());
 
-        // Should pass since the AND result is correct even the bit-num is even.
+        // Should pass since the AND result is correct and the bit-num is even.
         let res = gadget_tester(
             |composer| {
-                let witness_a =
-                    composer.append_witness(BlsScalar::from(469u64));
-                let witness_b =
-                    composer.append_witness(BlsScalar::from(321u64));
-                let xor_res = composer.component_and(witness_a, witness_b, 10);
+                let a = 0x2979bc292cccde11;
+                let b = 0x5792abc4d3002eda;
+                // fails if I want to compare 32 * 8 bits but passes like this
+                let bit_num = 32 * 8 - 2;
+                let witness_a = composer.append_witness(BlsScalar::from(a));
+                let witness_b = composer.append_witness(BlsScalar::from(b));
+                let and_res =
+                    composer.component_and(witness_a, witness_b, bit_num);
                 // Check that the AND result is indeed what we are expecting.
                 composer.assert_equal_constant(
-                    xor_res,
-                    BlsScalar::from(469u64 & 321u64),
+                    and_res,
+                    BlsScalar::from(a & b),
                     None,
                 );
             },
-            200,
+            700,
         );
         assert!(res.is_ok());
 
@@ -386,14 +445,17 @@ mod tests {
         // is even.
         let res = gadget_tester(
             |composer| {
-                let witness_a =
-                    composer.append_witness(BlsScalar::from(139u64));
-                let witness_b = composer.append_witness(BlsScalar::from(33u64));
-                let xor_res = composer.component_xor(witness_a, witness_b, 10);
-                // Check that the XOR result is indeed what we are expecting.
+                let a = 139u64;
+                let b = 33u64;
+                let bit_num = 10;
+                let witness_a = composer.append_witness(BlsScalar::from(a));
+                let witness_b = composer.append_witness(BlsScalar::from(b));
+                let and_res =
+                    composer.component_and(witness_a, witness_b, bit_num);
+                // AND result should not pass
                 composer.assert_equal_constant(
-                    xor_res,
-                    BlsScalar::from(139u64 & 33u64),
+                    and_res,
+                    BlsScalar::from(a ^ b),
                     None,
                 );
             },
@@ -401,24 +463,29 @@ mod tests {
         );
         assert!(res.is_err());
 
-        // Should pass even the bitnum is less than the number bit-size
+        // Should pass even if the bit-num is less than the number bit-size
         let res = gadget_tester(
             |composer| {
-                let witness_a =
-                    composer.append_witness(BlsScalar::from(256u64));
-                let witness_b =
-                    composer.append_witness(BlsScalar::from(235u64));
-                let xor_res = composer.component_xor(witness_a, witness_b, 2);
+                let a = 256u64;
+                let b = 0xd23d790abc203def;
+                let bit_num = 60;
+                let witness_a = composer.append_witness(BlsScalar::from(a));
+                let witness_b = composer.append_witness(BlsScalar::from(b));
+                let xor_res =
+                    composer.component_xor(witness_a, witness_b, bit_num);
                 // Check that the XOR result is indeed what we are expecting.
+                let bit_mask =
+                    BlsScalar::from(2).pow(&[bit_num as u64, 0, 0, 0])
+                        - BlsScalar::one();
                 composer.assert_equal_constant(
                     xor_res,
-                    BlsScalar::from(256 ^ 235),
+                    BlsScalar::from(a ^ b) & BlsScalar::from(bit_mask),
                     None,
                 );
             },
             200,
         );
-        assert!(res.is_err());
+        assert!(res.is_ok());
     }
 
     #[test]
