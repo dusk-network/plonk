@@ -133,8 +133,8 @@ jobs:
         # Find every executable resulting from building the tests and run each
         # one of them with kcov. This ensures all the code we cover is measured.
         run: >
-          find target/release/deps -type f -executable ! -name "*.*" -exec
-          kcov --exclude-pattern=/.cargo,/usr/lib --verify target/cov {} \;
+          find target/release/deps -type f -executable ! -name "*.*" |
+          xargs -n1 kcov --exclude-pattern=/.cargo,/usr/lib --verify target/cov
 
       - name: Upload coverage
         if: ${{ matrix.os == 'ubuntu-latest' && matrix.toolchain == 'nightly' }}
