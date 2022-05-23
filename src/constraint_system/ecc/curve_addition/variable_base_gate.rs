@@ -67,7 +67,6 @@ impl TurboComposer {
         self.q_range.extend(&zeros);
         self.q_logic.extend(&zeros);
         self.q_fixed_group_add.extend(&zeros);
-        self.q_k.extend(&zeros);
 
         self.q_variable_group_add.push(BlsScalar::one());
         self.q_variable_group_add.push(BlsScalar::zero());

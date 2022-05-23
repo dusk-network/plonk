@@ -20,35 +20,22 @@ pub(crate) fn compute(
     domain: &EvaluationDomain,
     prover_key: &ProverKey,
     z_poly: &Polynomial,
-    p_poly: &Polynomial,
     (a_w_poly, b_w_poly, c_w_poly, d_w_poly): (
         &Polynomial,
         &Polynomial,
         &Polynomial,
         &Polynomial,
     ),
-    f_poly: &Polynomial,
-    t_poly: &Polynomial,
-    h_1_poly: &Polynomial,
-    h_2_poly: &Polynomial,
     public_inputs_poly: &Polynomial,
     (
         alpha,
         beta,
         gamma,
-        delta,
-        epsilon,
-        zeta,
         range_challenge,
         logic_challenge,
         fixed_base_challenge,
         var_base_challenge,
-        lookup_challenge,
     ): &(
-        BlsScalar,
-        BlsScalar,
-        BlsScalar,
-        BlsScalar,
         BlsScalar,
         BlsScalar,
         BlsScalar,
@@ -62,13 +49,6 @@ pub(crate) fn compute(
     let domain_8n = EvaluationDomain::new(8 * domain.size())?;
 
     let mut z_eval_8n = domain_8n.coset_fft(z_poly);
-    let mut p_eval_8n = domain_8n.coset_fft(p_poly);
-    let mut t_eval_8n = domain_8n.coset_fft(t_poly);
-
-    let f_eval_8n = domain_8n.coset_fft(f_poly);
-
-    let mut h_1_eval_8n = domain_8n.coset_fft(h_1_poly);
-    let mut h_2_eval_8n = domain_8n.coset_fft(h_2_poly);
 
     let mut a_w_eval_8n = domain_8n.coset_fft(a_w_poly);
     let mut b_w_eval_8n = domain_8n.coset_fft(b_w_poly);
@@ -77,10 +57,6 @@ pub(crate) fn compute(
 
     for i in 0..8 {
         z_eval_8n.push(z_eval_8n[i]);
-        p_eval_8n.push(p_eval_8n[i]);
-        t_eval_8n.push(t_eval_8n[i]);
-        h_1_eval_8n.push(h_1_eval_8n[i]);
-        h_2_eval_8n.push(h_2_eval_8n[i]);
         a_w_eval_8n.push(a_w_eval_8n[i]);
         b_w_eval_8n.push(b_w_eval_8n[i]);
         // c_w_eval_8n push not required
@@ -94,18 +70,10 @@ pub(crate) fn compute(
             logic_challenge,
             fixed_base_challenge,
             var_base_challenge,
-            lookup_challenge,
         ),
         prover_key,
         (&a_w_eval_8n, &b_w_eval_8n, &c_w_eval_8n, &d_w_eval_8n),
         public_inputs_poly,
-        zeta,
-        (delta, epsilon),
-        &f_eval_8n,
-        &p_eval_8n,
-        &t_eval_8n,
-        &h_1_eval_8n,
-        &h_2_eval_8n,
     );
 
     let t_2 = compute_permutation_checks(
@@ -144,8 +112,7 @@ fn compute_circuit_satisfiability_equation(
         logic_challenge,
         fixed_base_challenge,
         var_base_challenge,
-        lookup_challenge,
-    ): (&BlsScalar, &BlsScalar, &BlsScalar, &BlsScalar, &BlsScalar),
+    ): (&BlsScalar, &BlsScalar, &BlsScalar, &BlsScalar),
     prover_key: &ProverKey,
     (a_w_eval_8n, b_w_eval_8n, c_w_eval_8n, d_w_eval_8n): (
         &[BlsScalar],
@@ -154,21 +121,9 @@ fn compute_circuit_satisfiability_equation(
         &[BlsScalar],
     ),
     pi_poly: &Polynomial,
-    zeta: &BlsScalar,
-    (delta, epsilon): (&BlsScalar, &BlsScalar),
-    f_eval_8n: &[BlsScalar],
-    p_eval_8n: &[BlsScalar],
-    t_eval_8n: &[BlsScalar],
-    h_1_eval_8n: &[BlsScalar],
-    h_2_eval_8n: &[BlsScalar],
 ) -> Vec<BlsScalar> {
     let domain_8n = EvaluationDomain::new(8 * domain.size()).unwrap();
     let public_eval_8n = domain_8n.coset_fft(pi_poly);
-
-    let l1_eval_8n = domain_8n.coset_fft(&compute_first_lagrange_poly_scaled(
-        domain,
-        BlsScalar::one(),
-    ));
 
     #[cfg(not(feature = "std"))]
     let range = (0..domain_8n.size()).into_iter();
@@ -186,15 +141,6 @@ fn compute_circuit_satisfiability_equation(
             let b_w_next = &b_w_eval_8n[i + 8];
             let d_w_next = &d_w_eval_8n[i + 8];
             let pi = &public_eval_8n[i];
-            let p = &p_eval_8n[i];
-            let p_next = &p_eval_8n[i + 8];
-            let fi = &f_eval_8n[i];
-            let ti = &t_eval_8n[i];
-            let ti_next = &t_eval_8n[i + 8];
-            let h1 = &h_1_eval_8n[i];
-            let h2 = &h_2_eval_8n[i];
-            let h1_next = &h_1_eval_8n[i + 8];
-            let l1i = &l1_eval_8n[i];
 
             let a = prover_key
                 .arithmetic
@@ -246,27 +192,7 @@ fn compute_circuit_satisfiability_equation(
                 d_w_next,
             );
 
-            let f = prover_key.lookup.compute_quotient_i(
-                i,
-                lookup_challenge,
-                a_w,
-                b_w,
-                c_w,
-                d_w,
-                fi,
-                p,
-                p_next,
-                ti,
-                ti_next,
-                h1,
-                h1_next,
-                h2,
-                l1i,
-                (delta, epsilon),
-                zeta,
-            );
-
-            (a + pi) + b + c + d + e + f
+            (a + pi) + b + c + d + e
         })
         .collect();
     t

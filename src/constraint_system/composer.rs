@@ -20,7 +20,6 @@
 
 use crate::constraint_system::{Constraint, Selector, WiredWitness, Witness};
 use crate::permutation::Permutation;
-use crate::plonkup::LookupTable;
 use alloc::collections::BTreeMap;
 use alloc::vec::Vec;
 use dusk_bls12_381::BlsScalar;
@@ -68,8 +67,6 @@ pub struct TurboComposer {
     pub(crate) q_c: Vec<BlsScalar>,
     /// Fourth wire selector added for efficiency of implementation
     pub(crate) q_4: Vec<BlsScalar>,
-    /// Plonkup gate wire selector
-    pub(crate) q_k: Vec<BlsScalar>,
     /// Arithmetic wire selector added for efficiency of implementation
     pub(crate) q_arith: Vec<BlsScalar>,
     /// Range selector added for efficiency of implementation
@@ -96,9 +93,6 @@ pub struct TurboComposer {
     pub(crate) c_w: Vec<Witness>,
     /// Fourth wire witness vector added for efficiency of implementation.
     pub(crate) d_w: Vec<Witness>,
-
-    /// Public lookup table
-    pub(crate) lookup_table: LookupTable,
 
     /// These are the actual witness values.
     pub(crate) witnesses: HashMap<Witness, BlsScalar>,
@@ -202,7 +196,6 @@ impl TurboComposer {
             q_o: Vec::with_capacity(size),
             q_c: Vec::with_capacity(size),
             q_4: Vec::with_capacity(size),
-            q_k: Vec::with_capacity(size),
             q_arith: Vec::with_capacity(size),
             q_range: Vec::with_capacity(size),
             q_logic: Vec::with_capacity(size),
@@ -214,8 +207,6 @@ impl TurboComposer {
             b_w: Vec::with_capacity(size),
             c_w: Vec::with_capacity(size),
             d_w: Vec::with_capacity(size),
-
-            lookup_table: LookupTable::new(),
 
             witnesses: HashMap::with_capacity(size),
 
@@ -285,7 +276,6 @@ impl TurboComposer {
         let q_logic = *s.coeff(Selector::Logic);
         let q_fixed_group_add = *s.coeff(Selector::GroupAddFixedBase);
         let q_variable_group_add = *s.coeff(Selector::GroupAddVariableBase);
-        let q_k = *s.coeff(Selector::Lookup);
 
         self.a_w.push(a);
         self.b_w.push(b);
@@ -299,7 +289,6 @@ impl TurboComposer {
         self.q_o.push(q_o);
         self.q_4.push(q_4);
         self.q_c.push(q_c);
-        self.q_k.push(q_k);
 
         self.q_arith.push(q_arith);
         self.q_range.push(q_range);
@@ -494,7 +483,6 @@ impl TurboComposer {
         self.q_o.push(BlsScalar::from(4));
         self.q_c.push(BlsScalar::from(4));
         self.q_4.push(BlsScalar::one());
-        self.q_k.push(BlsScalar::one());
         self.q_arith.push(BlsScalar::one());
         self.q_range.push(BlsScalar::zero());
         self.q_logic.push(BlsScalar::zero());
@@ -524,7 +512,6 @@ impl TurboComposer {
         self.q_o.push(BlsScalar::from(1));
         self.q_c.push(BlsScalar::from(127));
         self.q_4.push(BlsScalar::zero());
-        self.q_k.push(BlsScalar::one());
         self.q_arith.push(BlsScalar::one());
         self.q_range.push(BlsScalar::zero());
         self.q_logic.push(BlsScalar::zero());
@@ -540,38 +527,6 @@ impl TurboComposer {
             var_seven,
             Self::constant_zero(),
             self.n,
-        );
-
-        // Add dummy rows to lookup table
-        // Notice two rows here match dummy wire values above
-        self.lookup_table.0.insert(
-            0,
-            [
-                BlsScalar::from(6),
-                BlsScalar::from(7),
-                -BlsScalar::from(20),
-                BlsScalar::from(1),
-            ],
-        );
-
-        self.lookup_table.0.insert(
-            0,
-            [
-                -BlsScalar::from(20),
-                BlsScalar::from(6),
-                BlsScalar::from(7),
-                BlsScalar::from(0),
-            ],
-        );
-
-        self.lookup_table.0.insert(
-            0,
-            [
-                BlsScalar::from(3),
-                BlsScalar::from(1),
-                BlsScalar::from(4),
-                BlsScalar::from(9),
-            ],
         );
 
         self.n += 1;
@@ -742,61 +697,6 @@ impl TurboComposer {
             assert_eq!(k, BlsScalar::zero(), "Check failed at gate {}", i,);
         }
     }
-
-    /// Adds a plonkup gate to the circuit with its corresponding
-    /// gates.
-    ///
-    /// This type of gate is usually used when we need to have
-    /// the largest amount of performance and the minimum circuit-size
-    /// possible. Since it allows the end-user to set every selector coefficient
-    /// as scaling value on the gate eq.
-    pub fn append_plonkup_gate(
-        &mut self,
-        a: Witness,
-        b: Witness,
-        c: Witness,
-        d: Witness,
-        pi: Option<BlsScalar>,
-    ) -> Witness {
-        self.a_w.push(a);
-        self.b_w.push(b);
-        self.c_w.push(c);
-        self.d_w.push(d);
-
-        // Add selector vectors
-        self.q_l.push(BlsScalar::zero());
-        self.q_r.push(BlsScalar::zero());
-        self.q_o.push(BlsScalar::zero());
-        self.q_c.push(BlsScalar::zero());
-        self.q_4.push(BlsScalar::zero());
-        // For a lookup gate, only one selector poly is
-        // turned on as the output is inputted directly
-        self.q_k.push(BlsScalar::one());
-
-        self.q_arith.push(BlsScalar::zero());
-        self.q_m.push(BlsScalar::zero());
-        self.q_range.push(BlsScalar::zero());
-        self.q_logic.push(BlsScalar::zero());
-        self.q_fixed_group_add.push(BlsScalar::zero());
-        self.q_variable_group_add.push(BlsScalar::zero());
-
-        if let Some(pi) = pi {
-            debug_assert!(self.public_inputs_sparse_store.get(&self.n).is_none(), "The invariant of already having a PI inserted for this position should never exist");
-
-            self.public_inputs_sparse_store.insert(self.n, pi);
-        }
-
-        self.perm.add_witnesses_to_map(a, b, c, d, self.n);
-        self.n += 1;
-        c
-    }
-
-    /// When [`TurboComposer`] is initialized, it spawns a dummy table
-    /// with 3 entries that should not be removed. This function appends
-    /// its input table to the composer's dummy table
-    pub fn append_plonkup_table(&mut self, table: &LookupTable) {
-        table.0.iter().for_each(|k| self.lookup_table.0.push(*k))
-    }
 }
 
 #[cfg(feature = "std")]
@@ -805,7 +705,6 @@ mod tests {
     use super::*;
     use crate::commitment_scheme::PublicParameters;
     use crate::constraint_system::helper::*;
-    use crate::error::Error;
     use crate::proof_system::{Prover, Verifier};
     use rand_core::OsRng;
 
@@ -861,73 +760,6 @@ mod tests {
     }
 
     #[test]
-    fn test_gadget() {
-        let mut t = LookupTable::new();
-        t.insert_special_row(
-            BlsScalar::from(12),
-            BlsScalar::from(12),
-            BlsScalar::from(12),
-            BlsScalar::from(12),
-        );
-        t.insert_special_row(
-            BlsScalar::from(3),
-            BlsScalar::from(0),
-            BlsScalar::from(12),
-            BlsScalar::from(341),
-        );
-        t.insert_special_row(
-            BlsScalar::from(341),
-            BlsScalar::from(341),
-            BlsScalar::from(10),
-            BlsScalar::from(10),
-        );
-        let res = gadget_plonkup_tester(
-            |composer| {
-                let bit_1 = composer.append_witness(BlsScalar::one());
-                let bit_0 = TurboComposer::constant_zero();
-
-                let choice_a = composer.append_witness(BlsScalar::from(10u64));
-                let choice_b = composer.append_witness(BlsScalar::from(20u64));
-
-                let choice =
-                    composer.component_select(bit_1, choice_a, choice_b);
-                composer.assert_equal(choice, choice_a);
-
-                let choice =
-                    composer.component_select(bit_0, choice_a, choice_b);
-                composer.assert_equal(choice, choice_b);
-            },
-            65,
-            t,
-        );
-        assert!(res.is_ok());
-    }
-
-    #[test]
-    #[should_panic]
-    fn test_gadget_fail() {
-        let mut t = LookupTable::new();
-        t.insert_special_row(
-            BlsScalar::from(12),
-            BlsScalar::from(12),
-            BlsScalar::from(12),
-            BlsScalar::from(12),
-        );
-        let res = gadget_plonkup_tester(
-            |composer| {
-                let twelve = composer.append_constant(BlsScalar::from(12));
-                let three = composer.append_constant(BlsScalar::from(3));
-
-                composer
-                    .append_plonkup_gate(twelve, twelve, twelve, three, None);
-            },
-            65,
-            t,
-        );
-        assert!(res.is_err());
-    }
-
-    #[test]
     // XXX: Move this to integration tests
     fn test_multiple_proofs() {
         let public_parameters =
@@ -973,83 +805,5 @@ mod tests {
         for proof in proofs {
             assert!(verifier.verify(&proof, &vk, &public_inputs).is_ok());
         }
-    }
-
-    #[test]
-    fn test_plonkup_full() {
-        let public_parameters =
-            PublicParameters::setup(2 * 70, &mut OsRng).unwrap();
-
-        // Create a prover struct
-        let mut prover = Prover::new(b"test");
-
-        prover.cs.lookup_table.insert_multi_mul(0, 3);
-
-        // add to trans
-        prover.key_transcript(b"key", b"additional seed information");
-
-        let output = prover.cs.lookup_table.lookup(
-            BlsScalar::from(2),
-            BlsScalar::from(3),
-            BlsScalar::one(),
-        );
-
-        let two = prover.cs.append_constant(BlsScalar::from(2));
-        let three = prover.cs.append_constant(BlsScalar::from(3));
-        let result = prover.cs.append_constant(output.unwrap());
-        let one = prover.cs.append_constant(BlsScalar::one());
-
-        prover.cs.append_plonkup_gate(two, three, result, one, None);
-        prover.cs.append_plonkup_gate(two, three, result, one, None);
-        prover.cs.append_plonkup_gate(two, three, result, one, None);
-        prover.cs.append_plonkup_gate(two, three, result, one, None);
-        prover.cs.append_plonkup_gate(two, three, result, one, None);
-
-        let constraint = Constraint::new().left(1).right(1).a(two).b(three);
-        prover.cs.gate_add(constraint);
-
-        // Commit Key
-        let (ck, _) = public_parameters.trim(2 * 70).unwrap();
-
-        // Preprocess circuit
-        prover.preprocess(&ck).unwrap();
-
-        // Once the prove method is called, the public inputs are cleared
-        // So pre-fetch these before calling Prove
-        let public_inputs = prover.cs.to_dense_public_inputs();
-
-        prover.prove(&ck, &mut OsRng).unwrap();
-        drop(public_inputs);
-    }
-
-    #[test]
-    fn test_plonkup_proof() -> Result<(), Error> {
-        let public_parameters = PublicParameters::setup(1 << 9, &mut OsRng)?;
-
-        // Create a prover struct
-        let mut prover = Prover::new(b"test");
-        let mut verifier = Verifier::new(b"test");
-
-        // Add gadgets
-        dummy_gadget_plonkup(4, prover.composer_mut());
-        prover.cs.lookup_table.insert_multi_mul(0, 3);
-
-        dummy_gadget_plonkup(4, verifier.composer_mut());
-        verifier.cs.lookup_table.insert_multi_mul(0, 3);
-
-        // Commit and verifier key
-        let (ck, vk) = public_parameters.trim(1 << 8)?;
-
-        // Preprocess circuit
-        prover.preprocess(&ck)?;
-        verifier.preprocess(&ck)?;
-
-        let public_inputs = prover.cs.to_dense_public_inputs();
-
-        let proof = prover.prove(&ck, &mut OsRng)?;
-
-        assert!(verifier.verify(&proof, &vk, &public_inputs).is_ok());
-
-        Ok(())
     }
 }

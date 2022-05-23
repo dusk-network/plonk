@@ -10,16 +10,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add the blinding factors to provide Zero-Knowledge [#650](https://github.com/dusk-network/plonk/issues/650)
+- Add the `public inputs` into the transcript [#676] (https://github.com/dusk-network/plonk/issues/676)
 
 ### Changed
 
 - Change variable names for more consistency with the paper [#631](https://github.com/dusk-network/plonk/issues/631)
 - Change `append_constant` to accept generic input [#672](https://github.com/dusk-network/plonk/issues/672)
 - Change `variable` to `witness` in permutation functions [#681](https://github.com/dusk-network/plonk/issues/681)
+- Change the `prover` and the `verifier` according to the original Plonk implementation [#684] (https://github.com/dusk-network/plonk/issues/684)
 
 ### Removed
 
 - Remove `hash_tables` module [#663](https://github.com/dusk-network/plonk/pull/663)
+- Remove all `plonkup` related code [#684] (https://github.com/dusk-network/plonk/issues/684)
 
 ### Fixed
 
