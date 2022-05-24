@@ -802,8 +802,12 @@ mod tests {
         // Preprocess
         verifier.preprocess(&ck).unwrap();
 
+        let pi_indexes = verifier.composer_mut().public_input_indexes();
+
         for proof in proofs {
-            assert!(verifier.verify(&proof, &vk, &public_inputs).is_ok());
+            assert!(verifier
+                .verify(&proof, &vk, &public_inputs, &pi_indexes)
+                .is_ok());
         }
     }
 }

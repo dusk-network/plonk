@@ -88,12 +88,13 @@ impl Verifier {
         proof: &Proof,
         opening_key: &OpeningKey,
         public_inputs: &[BlsScalar],
+        pi_indexes: &[usize],
     ) -> Result<(), Error> {
         let mut cloned_transcript = self.preprocessed_transcript.clone();
 
         // PIs have to be part of the transcript
-        for pi in public_inputs.iter() {
-            cloned_transcript.append_scalar(b"pi", pi);
+        for pi_index in pi_indexes.iter() {
+            cloned_transcript.append_scalar(b"pi", &public_inputs[*pi_index]);
         }
 
         let verifier_key = self.verifier_key.as_ref().unwrap();
