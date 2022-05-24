@@ -68,7 +68,6 @@ if #[cfg(feature = "alloc")] {
 
     pub mod circuit;
     pub mod constraint_system;
-    pub mod plonkup;
 });
 
 mod fft;

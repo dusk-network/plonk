@@ -14,9 +14,6 @@ use itertools::izip;
 
 pub(crate) mod constants;
 
-#[cfg(feature = "std")]
-use rayon::iter::{IntoParallelIterator, ParallelIterator};
-
 /// Permutation provides the necessary state information and functions
 /// to create the permutation polynomial. In the literature, Z(X) is the
 /// "accumulator", this is what this codebase calls the permutation polynomial.
@@ -298,113 +295,6 @@ impl Permutation {
 
         z
     }
-
-    pub(crate) fn compute_lookup_permutation_vec(
-        &self,
-        domain: &EvaluationDomain,
-        f: &[BlsScalar],
-        t: &[BlsScalar],
-        h_1: &[BlsScalar],
-        h_2: &[BlsScalar],
-        delta: &BlsScalar,
-        epsilon: &BlsScalar,
-    ) -> Vec<BlsScalar> {
-        let n = domain.size();
-
-        assert_eq!(f.len(), domain.size());
-        assert_eq!(t.len(), domain.size());
-        assert_eq!(h_1.len(), domain.size());
-        assert_eq!(h_2.len(), domain.size());
-
-        let t_next: Vec<BlsScalar> = [&t[1..], &[t[0]]].concat();
-        let h_1_next: Vec<BlsScalar> = [&h_1[1..], &[h_1[0]]].concat();
-
-        #[cfg(feature = "std")]
-        let product_arguments: Vec<BlsScalar> =
-            (f, t, t_next, h_1, h_1_next, h_2)
-                .into_par_iter()
-                // Derive the numerator and denominator for each gate plonkup
-                // gate and pair the results
-                .map(|(f, t, t_next, h_1, h_1_next, h_2)| {
-                    (
-                        plonkup_numerator_irreducible(
-                            delta, epsilon, f, t, t_next,
-                        ),
-                        plonkup_denominator_irreducible(
-                            delta, epsilon, h_1, &h_1_next, h_2,
-                        ),
-                    )
-                })
-                .map(|(num, den)| num * den.invert().unwrap())
-                .collect();
-
-        #[cfg(not(feature = "std"))]
-        let product_arguments: Vec<BlsScalar> = f
-            .iter()
-            .zip(t)
-            .zip(t_next)
-            .zip(h_1)
-            .zip(h_1_next)
-            .zip(h_2)
-            // Derive the numerator and denominator for each gate plonkup
-            // gate and pair the results
-            .map(|(((((f, t), t_next), h_1), h_1_next), h_2)| {
-                (
-                    plonkup_numerator_irreducible(
-                        delta, epsilon, &f, &t, t_next,
-                    ),
-                    plonkup_denominator_irreducible(
-                        delta, epsilon, &h_1, &h_1_next, &h_2,
-                    ),
-                )
-            })
-            .map(|(num, den)| num * den.invert().unwrap())
-            .collect();
-
-        let mut state = BlsScalar::one();
-        let mut p = Vec::with_capacity(n);
-        p.push(state);
-
-        for s in product_arguments {
-            state *= s;
-            p.push(state);
-        }
-
-        // remove the last element
-        p.remove(n);
-
-        assert_eq!(n, p.len());
-
-        p
-    }
-}
-
-fn plonkup_numerator_irreducible(
-    delta: &BlsScalar,
-    epsilon: &BlsScalar,
-    f: &BlsScalar,
-    t: &BlsScalar,
-    t_next: BlsScalar,
-) -> BlsScalar {
-    let prod_1 = epsilon + f;
-    let prod_2 = BlsScalar::one() + delta;
-    let prod_3 = (epsilon * prod_2) + t + (delta * t_next);
-
-    prod_1 * prod_2 * prod_3
-}
-
-fn plonkup_denominator_irreducible(
-    delta: &BlsScalar,
-    epsilon: &BlsScalar,
-    h_1: &BlsScalar,
-    h_1_next: &BlsScalar,
-    h_2: &BlsScalar,
-) -> BlsScalar {
-    let epsilon_plus_one_delta = epsilon * (BlsScalar::one() + delta);
-    let prod_1 = epsilon_plus_one_delta + h_1 + (h_2 * delta);
-    let prod_2 = epsilon_plus_one_delta + h_2 + (h_1_next * delta);
-
-    prod_1 * prod_2
 }
 
 #[cfg(feature = "std")]
@@ -412,64 +302,9 @@ fn plonkup_denominator_irreducible(
 mod test {
     use super::*;
     use crate::constraint_system::{Constraint, TurboComposer};
-    use crate::error::Error;
     use crate::fft::Polynomial;
-    use crate::plonkup::MultiSet;
     use dusk_bls12_381::BlsScalar;
     use rand_core::OsRng;
-
-    #[test]
-    fn test_compute_lookup_permutation_vec() -> Result<(), Error> {
-        // FIXME: use `usize` everywhere for such things
-        const SIZE: u32 = 4;
-
-        let delta = BlsScalar::from(10);
-        let epsilon = BlsScalar::from(20);
-
-        let mut t = MultiSet::from(
-            &[BlsScalar::one(), BlsScalar::from(2), BlsScalar::from(3)][..],
-        );
-        t.pad(SIZE);
-
-        let mut f = MultiSet::from(
-            &[BlsScalar::one(), BlsScalar::from(3), BlsScalar::from(3)][..],
-        );
-        f.pad(SIZE);
-
-        let mut h_1 = MultiSet::from(
-            &[BlsScalar::one(), BlsScalar::one(), BlsScalar::one()][..],
-        );
-        h_1.pad(SIZE);
-
-        let mut h_2 = MultiSet::from(
-            &[BlsScalar::from(2), BlsScalar::from(3), BlsScalar::one()][..],
-        );
-        h_2.pad(SIZE);
-
-        let domain = EvaluationDomain::new(SIZE as usize)?;
-        let perm = Permutation::new();
-
-        let poly = Polynomial::from_coefficients_vec(domain.ifft(
-            &perm.compute_lookup_permutation_vec(
-                &domain, &f.0, &t.0, &h_1.0, &h_2.0, &delta, &epsilon,
-            ),
-        ));
-
-        const TEST_VECTORS: [&str; 4] = [
-            "0x0eaa2fe1c155cfb88bf91f7800c3b855fc67989c949da6cc87a68c9499680d1c",
-            "0x077d37bc33db4e8809cc64da6e65d911d3d14ae877e61d9afe13d8229c3c9667",
-            "0x504f5bba23e3439bb5c1ac5968bea1db2491ad7237d03f4cccc5258c605c3e17",
-            "0x9e893da8e4eb9d23b330cb532e61476416e5b21bcc5b6fb33d7ab00f104df94c",
-        ];
-
-        assert_eq!(TEST_VECTORS.len(), poly.coeffs.len());
-
-        for i in 0..TEST_VECTORS.len() {
-            assert_eq!(format!("{:#x}", poly.coeffs[i]), TEST_VECTORS[i]);
-        }
-
-        Ok(())
-    }
 
     #[allow(dead_code)]
     fn compute_fast_permutation_poly(

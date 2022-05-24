@@ -174,7 +174,6 @@ impl TurboComposer {
         self.q_variable_group_add.extend(zeros.iter());
         self.q_range.extend(ones.iter());
         self.q_logic.extend(zeros.iter());
-        self.q_k.extend(zeros.iter());
         self.n += used_gates;
 
         // As mentioned above, we must switch off the range constraint for the

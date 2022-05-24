@@ -35,8 +35,6 @@ pub(crate) enum Selector {
     GroupAddFixedBase = 0x0a,
     /// Curve addition with variable base coefficient (internal use)
     GroupAddVariableBase = 0x0b,
-    /// Lookup coefficient (internal use)
-    Lookup = 0x0c,
 }
 
 /// Wire used to address a witness inside of a [`Constraint`]
@@ -245,12 +243,5 @@ impl Constraint {
     // this struct
     pub(crate) fn group_add_variable_base(s: &Self) -> Self {
         Self::from_external(s).set(Selector::GroupAddVariableBase, 1)
-    }
-
-    #[allow(dead_code)]
-    // TODO to be used when `TurboComposer` replaces internal selectors with
-    // this struct
-    pub(crate) fn lookup(s: &Self) -> Self {
-        Self::from_external(s).set(Selector::Lookup, 1)
     }
 }
