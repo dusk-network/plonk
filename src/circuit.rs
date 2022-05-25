@@ -368,5 +368,5 @@ pub fn verify(
 
     let opening_key = pub_params.opening_key();
 
-    verifier.verify(proof, opening_key, &dense_pi)
+    verifier.verify(proof, opening_key, &dense_pi, &pi_indexes)
 }
