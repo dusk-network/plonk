@@ -136,7 +136,7 @@ This crate includes a variety of features which will briefly be explained below:
   It also uses the `std` versions of the elliptic curve deps, which utilizes the `parallel` feature 
   from `dusk-bls12-381`. By default, this is the feature that comes enabled with the crate.
 - `trace`: Enables the Circuit debugger tooling. This is essentially the capability of using the 
-  `StandardComposer::check_circuit_satisfied` function. The function will output information about each circuit gate until 
+  `TurboComposer::check_circuit_satisfied` function. The function will output information about each circuit gate until 
   one of the gates does not satisfy the equation, or there are no more gates. If there is an unsatisfied gate 
   equation, the function will panic and return the gate number.
 - `trace-print`: Goes a step further than `trace` and prints each `gate` component data, giving a clear overview of all the 
@@ -160,11 +160,10 @@ There are two main types of documentation in this repository:
 
 ## Performance
 
-Benchmarks taken on `Apple M1`
-For a circuit-size of `2^16` constraints/gates:
+Benchmarks taken on `Apple M1`, for a circuit-size of `2^16` constraints:
 
-- Proving time: `17.392s`
-- Verification time: `10.475ms`. **(This time will not vary depending on the circuit-size.)**
+- Proving time: `7.871s`
+- Verification time: `7.643ms` **(This time will not vary depending on the circuit-size.)**
 
 For more results, please run `cargo bench` to get a full report of benchmarks in respect of constraint numbers.
 
