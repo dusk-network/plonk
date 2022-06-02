@@ -246,9 +246,6 @@ where
 {
     /// Circuit identifier associated constant.
     const CIRCUIT_ID: [u8; 32];
-    /// Extra size needed for the circuit parameters. + 6 because adding the
-    /// blinding factors requires some extra elements for the SRS
-    const PARAMS_EXTRA_SIZE: usize = 6;
 
     /// Gadget implementation used to fill the composer.
     fn gadget(&mut self, composer: &mut TurboComposer) -> Result<(), Error>;
@@ -260,8 +257,7 @@ where
         pub_params: &PublicParameters,
     ) -> Result<(ProverKey, VerifierData), Error> {
         // Setup PublicParams
-        let (ck, _) =
-            pub_params.trim(self.padded_gates() + Self::PARAMS_EXTRA_SIZE)?;
+        let (ck, _) = pub_params.trim(self.padded_gates())?;
 
         // Generate & save `ProverKey` with some random values.
         let mut prover = Prover::new(b"CircuitCompilation");
@@ -302,8 +298,7 @@ where
         transcript_init: &'static [u8],
         rng: &mut R,
     ) -> Result<Proof, Error> {
-        let (ck, _) =
-            pub_params.trim(self.padded_gates() + Self::PARAMS_EXTRA_SIZE)?;
+        let (ck, _) = pub_params.trim(self.padded_gates())?;
 
         // New Prover instance
         let mut prover = Prover::new(transcript_init);

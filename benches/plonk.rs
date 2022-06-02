@@ -81,7 +81,7 @@ fn constraint_system_prove(
 
 fn constraint_system_benchmark(c: &mut Criterion) {
     let initial_degree = 5;
-    let final_degree = 18;
+    let final_degree = 17;
 
     let rng = &mut rand_core::OsRng;
     let label = b"dusk-network";
@@ -89,7 +89,7 @@ fn constraint_system_benchmark(c: &mut Criterion) {
         .expect("Failed to create PP");
 
     let data: Vec<(BenchCircuit, ProverKey, VerifierData, Proof)> =
-        (initial_degree..final_degree)
+        (initial_degree..=final_degree)
             .map(|degree| {
                 let mut circuit = BenchCircuit::from(degree as usize);
                 let (pk, vd) =
