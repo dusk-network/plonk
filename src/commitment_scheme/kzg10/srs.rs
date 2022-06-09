@@ -38,19 +38,28 @@ impl PublicParameters {
         &self.opening_key
     }
 
+    /// The maximum degree is the degree of the constraint system + 6,
+    /// because adding the blinding factors requires some extra elements
+    /// for the SRS: +1 per each wire (we have 4 wires), plus +2 for the
+    /// permutation polynomial
+    const ADDED_BLINDING_DEGREE: usize = 6;
+
     /// Setup generates the public parameters using a random number generator.
     /// This method will in most cases be used for testing and exploration.
     /// In reality, a `Trusted party` or a `Multiparty Computation` will be used
     /// to generate the SRS. Returns an error if the configured degree is less
     /// than one.
     pub fn setup<R: RngCore + CryptoRng>(
-        max_degree: usize,
+        mut max_degree: usize,
         mut rng: &mut R,
     ) -> Result<PublicParameters, Error> {
         // Cannot commit to constants
         if max_degree < 1 {
             return Err(Error::DegreeIsZero);
         }
+
+        // we update the degree to match the required one (n + 6)
+        max_degree = max_degree + Self::ADDED_BLINDING_DEGREE;
 
         // Generate the secret scalar x
         let x = util::random_scalar(&mut rng);
@@ -170,8 +179,9 @@ impl PublicParameters {
         &self,
         truncated_degree: usize,
     ) -> Result<(CommitKey, OpeningKey), Error> {
-        let truncated_prover_key =
-            self.commit_key.truncate(truncated_degree)?;
+        let truncated_prover_key = self
+            .commit_key
+            .truncate(truncated_degree + Self::ADDED_BLINDING_DEGREE)?;
         let opening_key = self.opening_key.clone();
         Ok((truncated_prover_key, opening_key))
     }
