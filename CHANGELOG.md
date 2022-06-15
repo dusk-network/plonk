@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## [0.11.0] - 2022-06-15
+
 ### Added
 
 - Add the blinding factors to provide Zero-Knowledge [#650]
