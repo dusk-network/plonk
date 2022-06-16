@@ -9,10 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add makefile rule to render docs locally [#567]
 - `rkyv` implementation behind feature gate [#697]
 
 ### Changed
 
+- Fix math latex rendering on docs.rs [#567]
 - Update `dusk-bls12_381` to version `0.10`
 - Update `dusk-jubjub` to version `0.12`
 
