@@ -21,8 +21,21 @@ cfg_if::cfg_if!(
         pub use prover::Prover;
         pub use verifier::Verifier;
         pub use widget::alloc::ProverKey;
+
+        cfg_if::cfg_if!(
+            if #[cfg(feature = "rkyv-impl")] {
+                pub use widget::alloc::{ArchivedProverKey, ProverKeyResolver};
+            }
+        );
     }
 );
 
 pub use proof::Proof;
 pub use widget::VerifierKey;
+
+cfg_if::cfg_if!(
+    if #[cfg(feature = "rkyv-impl")] {
+        pub use proof::{ArchivedProof, ProofResolver};
+        pub use widget::{ArchivedVerifierKey, VerifierKeyResolver};
+    }
+);

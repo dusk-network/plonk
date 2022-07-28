@@ -18,11 +18,24 @@ use dusk_bytes::{DeserializableSlice, Serializable, Write};
 use dusk_jubjub::{JubJubAffine, JubJubExtended, JubJubScalar};
 use rand_core::{CryptoRng, RngCore};
 
-#[derive(Default, Debug, Clone)]
-#[cfg_attr(feature = "canon", derive(Canon))]
+#[cfg(feature = "rkyv-impl")]
+use rkyv::{
+    ser::{ScratchSpace, Serializer},
+    Archive, Deserialize, Serialize,
+};
+
 /// Structure that represents a PLONK Circuit Public Input converted into it's
 /// &\[[`BlsScalar`]\] repr.
-pub struct PublicInputValue(pub(crate) Vec<BlsScalar>);
+#[derive(Default, Debug, Clone)]
+#[cfg_attr(feature = "canon", derive(Canon))]
+#[cfg_attr(
+    feature = "rkyv-impl",
+    derive(Archive, Deserialize, Serialize),
+    archive(bound(serialize = "__S: Serializer + ScratchSpace"))
+)]
+pub struct PublicInputValue(
+    #[cfg_attr(feature = "rkyv-impl", omit_bounds)] pub(crate) Vec<BlsScalar>,
+);
 
 impl From<BlsScalar> for PublicInputValue {
     fn from(scalar: BlsScalar) -> Self {
@@ -48,13 +61,20 @@ impl From<JubJubExtended> for PublicInputValue {
     }
 }
 
-#[derive(Debug, Clone)]
 /// Collection of structs/objects that the Verifier will use in order to
 /// de/serialize data needed for Circuit proof verification.
 /// This structure can be seen as a link between the [`Circuit`] public input
 /// positions and the [`VerifierKey`] that the Verifier needs to use.
+#[derive(Debug, Clone)]
+#[cfg_attr(
+    feature = "rkyv-impl",
+    derive(Archive, Deserialize, Serialize),
+    archive(bound(serialize = "__S: Serializer + ScratchSpace"))
+)]
 pub struct VerifierData {
+    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     key: VerifierKey,
+    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     public_inputs_indexes: Vec<usize>,
 }
 

@@ -29,6 +29,7 @@ cfg-if = "1.0"
 # Dusk related deps for WASMI serde
 canonical = {version = "0.7", optional = true}
 canonical_derive = {version = "0.7", optional = true}
+rkyv = {version = "0.7", optional = true}
 
 [dev-dependencies]
 criterion = "0.3"
@@ -53,6 +54,7 @@ alloc = ["dusk-bls12_381/alloc"]
 trace = []
 trace-print = ["trace"]
 canon = ["dusk-bls12_381/canon", "dusk-jubjub/canon", "canonical", "canonical_derive"]
+rkyv-impl = ["dusk-bls12_381/rkyv", "dusk-jubjub/rkyv-impl", "rkyv"]
 
 [profile.release]
 panic = "abort"

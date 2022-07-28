@@ -12,8 +12,15 @@ use crate::{
 
 use dusk_bls12_381::BlsScalar;
 use dusk_bytes::{DeserializableSlice, Serializable};
-#[allow(dead_code)]
+
+#[cfg(feature = "rkyv-impl")]
+use rkyv::{
+    ser::{ScratchSpace, Serializer},
+    Archive, Deserialize, Serialize,
+};
+
 /// Evaluations at points `z` or and `z * root of unity`
+#[allow(dead_code)]
 pub(crate) struct Evaluations {
     pub(crate) proof: ProofEvaluations,
     // Evaluation of the linearization sigma polynomial at `z`
@@ -23,43 +30,64 @@ pub(crate) struct Evaluations {
 /// Subset of all of the evaluations. These evaluations
 /// are added to the [`Proof`](super::Proof).
 #[derive(Debug, Eq, PartialEq, Clone, Default)]
+#[cfg_attr(
+    feature = "rkyv-impl",
+    derive(Archive, Deserialize, Serialize),
+    archive(bound(serialize = "__S: Serializer + ScratchSpace"))
+)]
 pub(crate) struct ProofEvaluations {
     // Evaluation of the witness polynomial for the left wire at `z`
+    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) a_eval: BlsScalar,
     // Evaluation of the witness polynomial for the right wire at `z`
+    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) b_eval: BlsScalar,
     // Evaluation of the witness polynomial for the output wire at `z`
+    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) c_eval: BlsScalar,
     // Evaluation of the witness polynomial for the fourth wire at `z`
+    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) d_eval: BlsScalar,
     //
+    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) a_next_eval: BlsScalar,
     //
+    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) b_next_eval: BlsScalar,
     // Evaluation of the witness polynomial for the fourth wire at `z * root of
     // unity`
+    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) d_next_eval: BlsScalar,
     // Evaluation of the arithmetic selector polynomial at `z`
+    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) q_arith_eval: BlsScalar,
     //
+    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) q_c_eval: BlsScalar,
     //
+    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) q_l_eval: BlsScalar,
     //
+    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) q_r_eval: BlsScalar,
     //
     // Evaluation of the left sigma polynomial at `z`
+    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) s_sigma_1_eval: BlsScalar,
     // Evaluation of the right sigma polynomial at `z`
+    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) s_sigma_2_eval: BlsScalar,
     // Evaluation of the out sigma polynomial at `z`
+    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) s_sigma_3_eval: BlsScalar,
 
     // Evaluation of the linearization sigma polynomial at `z`
+    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) r_poly_eval: BlsScalar,
 
     // (Shifted) Evaluation of the permutation polynomial at `z * root of
     // unity`
+    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) perm_eval: BlsScalar,
 }
 

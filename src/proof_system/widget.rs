@@ -13,25 +13,43 @@ pub mod logic;
 pub mod permutation;
 pub mod range;
 
+#[cfg(feature = "rkyv-impl")]
+use rkyv::{
+    ser::{ScratchSpace, Serializer},
+    Archive, Deserialize, Serialize,
+};
+
 /// PLONK circuit Verification Key.
 ///
 /// This structure is used by the Verifier in order to verify a
 /// [`Proof`](super::Proof).
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
+#[cfg_attr(
+    feature = "rkyv-impl",
+    derive(Archive, Deserialize, Serialize),
+    archive(bound(serialize = "__S: Serializer + ScratchSpace"))
+)]
 pub struct VerifierKey {
     /// Circuit size (not padded to a power of two).
+    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) n: usize,
     /// VerifierKey for arithmetic gates
+    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) arithmetic: arithmetic::VerifierKey,
     /// VerifierKey for logic gates
+    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) logic: logic::VerifierKey,
     /// VerifierKey for range gates
+    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) range: range::VerifierKey,
     /// VerifierKey for fixed base curve addition gates
+    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) fixed_base: ecc::scalar_mul::fixed_base::VerifierKey,
     /// VerifierKey for variable base curve addition gates
+    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) variable_base: ecc::curve_addition::VerifierKey,
     /// VerifierKey for permutation checks
+    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) permutation: permutation::VerifierKey,
 }
 
@@ -208,26 +226,39 @@ pub(crate) mod alloc {
     /// This structure is used by the Prover in order to construct a
     /// [`Proof`](crate::proof_system::Proof).
     #[derive(Debug, PartialEq, Eq, Clone)]
+    #[cfg_attr(
+        feature = "rkyv-impl",
+        derive(Archive, Deserialize, Serialize),
+        archive(bound(serialize = "__S: Serializer + ScratchSpace"))
+    )]
     pub struct ProverKey {
         /// Circuit size
+        #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
         pub(crate) n: usize,
         /// ProverKey for arithmetic gate
+        #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
         pub(crate) arithmetic: arithmetic::ProverKey,
         /// ProverKey for logic gate
+        #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
         pub(crate) logic: logic::ProverKey,
         /// ProverKey for range gate
+        #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
         pub(crate) range: range::ProverKey,
         /// ProverKey for fixed base curve addition gates
+        #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
         pub(crate) fixed_base: ecc::scalar_mul::fixed_base::ProverKey,
         /// ProverKey for variable base curve addition gates
+        #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
         pub(crate) variable_base: ecc::curve_addition::ProverKey,
         /// ProverKey for permutation checks
+        #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
         pub(crate) permutation: permutation::ProverKey,
         // Pre-processes the 8n Evaluations for the vanishing polynomial, so
         // they do not need to be computed at the proving stage.
         // Note: With this, we can combine all parts of the quotient polynomial
         // in their evaluation phase and divide by the quotient
         // polynomial without having to perform IFFT
+        #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
         pub(crate) v_h_coset_8n: Evaluations,
     }
 

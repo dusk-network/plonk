@@ -15,10 +15,22 @@ use core::ops::{Add, AddAssign, Deref, DerefMut, Mul, Neg, Sub, SubAssign};
 use dusk_bls12_381::BlsScalar;
 use dusk_bytes::{DeserializableSlice, Serializable};
 
-#[derive(Debug, Eq, PartialEq, Clone)]
+#[cfg(feature = "rkyv-impl")]
+use rkyv::{
+    ser::{ScratchSpace, Serializer},
+    Archive, Deserialize, Serialize,
+};
+
 /// Represents a polynomial in coeffiient form.
+#[derive(Debug, Eq, PartialEq, Clone)]
+#[cfg_attr(
+    feature = "rkyv-impl",
+    derive(Archive, Deserialize, Serialize),
+    archive(bound(serialize = "__S: Serializer + ScratchSpace"))
+)]
 pub(crate) struct Polynomial {
     /// The coefficient of `x^i` is stored at location `i` in `self.coeffs`.
+    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) coeffs: Vec<BlsScalar>,
 }
 
