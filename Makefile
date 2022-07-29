@@ -7,4 +7,7 @@ doc: ## Generate documentation
 doc-internal: ## Generate documentation with private items
 	@cargo rustdoc --lib -- --document-private-items -D warnings
 
-.PHONY: help doc doc-internal 
+doc-local: ## Open local documentation
+	@RUSTDOCFLAGS="--html-in-header docs/katex-header.html" cargo doc --no-deps --open
+
+.PHONY: help doc doc-internal doc-local
