@@ -8,12 +8,28 @@ use crate::fft::{EvaluationDomain, Evaluations, Polynomial};
 use crate::permutation::constants::{K1, K2, K3};
 use dusk_bls12_381::BlsScalar;
 
+#[cfg(feature = "rkyv-impl")]
+use rkyv::{
+    ser::{ScratchSpace, Serializer},
+    Archive, Deserialize, Serialize,
+};
+
 #[derive(Debug, Eq, PartialEq, Clone)]
+#[cfg_attr(
+    feature = "rkyv-impl",
+    derive(Archive, Deserialize, Serialize),
+    archive(bound(serialize = "__S: Serializer + ScratchSpace"))
+)]
 pub(crate) struct ProverKey {
+    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) s_sigma_1: (Polynomial, Evaluations),
+    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) s_sigma_2: (Polynomial, Evaluations),
+    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) s_sigma_3: (Polynomial, Evaluations),
+    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) s_sigma_4: (Polynomial, Evaluations),
+    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) linear_evaluations: Evaluations,
     /* Evaluations of f(x) = X
      * [XXX: Remove this and

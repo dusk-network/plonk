@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+- `rkyv` implementation behind feature gate [#697]
+
+### Changed
+
+- Update `dusk-bls12_381` to version `0.10`
+- Update `dusk-jubjub` to version `0.12`
+
 ## [0.11.0] - 2022-06-15
 
 ### Added
@@ -414,6 +423,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Proof system module.
 
 <!-- ISSUES -->
+[#697]: https://github.com/dusk-network/plonk/issues/697
 [#688]: https://github.com/dusk-network/plonk/issues/688
 [#650]: https://github.com/dusk-network/plonk/issues/650
 [#676]: https://github.com/dusk-network/plonk/issues/676

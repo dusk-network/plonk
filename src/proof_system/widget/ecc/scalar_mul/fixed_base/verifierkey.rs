@@ -6,10 +6,24 @@
 
 use crate::commitment_scheme::Commitment;
 
+#[cfg(feature = "rkyv-impl")]
+use rkyv::{
+    ser::{ScratchSpace, Serializer},
+    Archive, Deserialize, Serialize,
+};
+
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
+#[cfg_attr(
+    feature = "rkyv-impl",
+    derive(Archive, Deserialize, Serialize),
+    archive(bound(serialize = "__S: Serializer + ScratchSpace"))
+)]
 pub(crate) struct VerifierKey {
+    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) q_l: Commitment,
+    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) q_r: Commitment,
+    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) q_fixed_group_add: Commitment,
 }
 

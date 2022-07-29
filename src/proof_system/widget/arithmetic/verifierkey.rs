@@ -7,14 +7,32 @@
 use crate::commitment_scheme::Commitment;
 use dusk_bytes::{DeserializableSlice, Serializable};
 
+#[cfg(feature = "rkyv-impl")]
+use rkyv::{
+    ser::{ScratchSpace, Serializer},
+    Archive, Deserialize, Serialize,
+};
+
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
+#[cfg_attr(
+    feature = "rkyv-impl",
+    derive(Archive, Deserialize, Serialize),
+    archive(bound(serialize = "__S: Serializer + ScratchSpace"))
+)]
 pub(crate) struct VerifierKey {
+    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub q_m: Commitment,
+    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub q_l: Commitment,
+    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub q_r: Commitment,
+    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub q_o: Commitment,
+    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub q_4: Commitment,
+    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub q_c: Commitment,
+    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub q_arith: Commitment,
 }
 

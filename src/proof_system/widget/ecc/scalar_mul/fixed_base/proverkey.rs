@@ -8,11 +8,26 @@ use crate::fft::{Evaluations, Polynomial};
 use dusk_bls12_381::BlsScalar;
 use dusk_jubjub::EDWARDS_D;
 
+#[cfg(feature = "rkyv-impl")]
+use rkyv::{
+    ser::{ScratchSpace, Serializer},
+    Archive, Deserialize, Serialize,
+};
+
 #[derive(Debug, Eq, PartialEq, Clone)]
+#[cfg_attr(
+    feature = "rkyv-impl",
+    derive(Archive, Deserialize, Serialize),
+    archive(bound(serialize = "__S: Serializer + ScratchSpace"))
+)]
 pub(crate) struct ProverKey {
+    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) q_l: (Polynomial, Evaluations),
+    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) q_r: (Polynomial, Evaluations),
+    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) q_c: (Polynomial, Evaluations),
+    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) q_fixed_group_add: (Polynomial, Evaluations),
 }
 

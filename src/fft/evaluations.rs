@@ -16,13 +16,26 @@ use core::ops::{
 use dusk_bls12_381::BlsScalar;
 use dusk_bytes::{DeserializableSlice, Serializable};
 
+#[cfg(feature = "rkyv-impl")]
+use rkyv::{
+    ser::{ScratchSpace, Serializer},
+    Archive, Deserialize, Serialize,
+};
+
 /// Stores a polynomial in evaluation form.
 #[derive(PartialEq, Eq, Debug, Clone)]
+#[cfg_attr(
+    feature = "rkyv-impl",
+    derive(Archive, Deserialize, Serialize),
+    archive(bound(serialize = "__S: Serializer + ScratchSpace"))
+)]
 pub(crate) struct Evaluations {
     /// The evaluations of a polynomial over the domain `D`
+    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) evals: Vec<BlsScalar>,
+    // FIXME: We should probably remove this and make it an external object.
     #[doc(hidden)]
-    // FIXME: We should probably remove that and should be an external object.
+    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     domain: EvaluationDomain,
 }
 

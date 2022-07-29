@@ -15,24 +15,42 @@
 use dusk_bls12_381::BlsScalar;
 use dusk_bytes::{DeserializableSlice, Serializable};
 
+#[cfg(feature = "rkyv-impl")]
+use rkyv::{
+    ser::{ScratchSpace, Serializer},
+    Archive, Deserialize, Serialize,
+};
+
 /// Defines a domain over which finite field (I)FFTs can be performed. Works
 /// only for fields that have a large multiplicative subgroup of size that is
 /// a power-of-2.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[cfg_attr(
+    feature = "rkyv-impl",
+    derive(Archive, Deserialize, Serialize),
+    archive(bound(serialize = "__S: Serializer + ScratchSpace"))
+)]
 pub(crate) struct EvaluationDomain {
     /// The size of the domain.
+    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) size: u64,
     /// `log_2(self.size)`.
+    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) log_size_of_group: u32,
     /// Size of the domain as a field element.
+    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) size_as_field_element: BlsScalar,
     /// Inverse of the size in the field.
+    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) size_inv: BlsScalar,
     /// A generator of the subgroup.
+    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) group_gen: BlsScalar,
     /// Inverse of the generator of the subgroup.
+    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) group_gen_inv: BlsScalar,
     /// Multiplicative generator of the finite field.
+    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) generator_inv: BlsScalar,
 }
 

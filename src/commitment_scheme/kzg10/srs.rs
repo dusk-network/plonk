@@ -13,15 +13,29 @@ use dusk_bls12_381::{G1Affine, G1Projective, G2Affine};
 use dusk_bytes::{DeserializableSlice, Serializable};
 use rand_core::{CryptoRng, RngCore};
 
+#[cfg(feature = "rkyv-impl")]
+use rkyv::{
+    ser::{ScratchSpace, Serializer},
+    Archive, Deserialize, Serialize,
+};
+
 /// The Public Parameters can also be referred to as the Structured Reference
 /// String (SRS). It is available to both the prover and verifier and allows the
 /// verifier to efficiently verify and make claims about polynomials up to and
 /// including a configured degree.
 #[derive(Debug, Clone)]
+#[cfg_attr(
+    feature = "rkyv-impl",
+    derive(Archive, Deserialize, Serialize),
+    archive(bound(serialize = "__S: Sized + Serializer + ScratchSpace"))
+)]
+// TODO remove the `Sized` bound on the serializer
 pub struct PublicParameters {
     /// Key used to generate proofs for composed circuits.
+    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) commit_key: CommitKey,
     /// Key used to verify proofs for composed circuits.
+    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) opening_key: OpeningKey,
 }
 
