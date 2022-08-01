@@ -1,6 +1,6 @@
 [package]
 name = "dusk-plonk"
-version = "0.11.0"
+version = "0.12.0-rc.0"
 categories =["algorithms", "cryptography", "science", "mathematics"]
 edition = "2021"
 keywords = ["cryptography", "plonk", "zk-snarks", "zero-knowledge", "crypto"]
