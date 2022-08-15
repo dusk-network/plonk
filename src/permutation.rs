@@ -17,7 +17,7 @@ pub(crate) mod constants;
 /// Permutation provides the necessary state information and functions
 /// to create the permutation polynomial. In the literature, Z(X) is the
 /// "accumulator", this is what this codebase calls the permutation polynomial.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) struct Permutation {
     // Maps a witness to the wires that it is associated to.
     pub(crate) witness_map: HashMap<Witness, Vec<WireData>>,
@@ -301,7 +301,7 @@ impl Permutation {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::constraint_system::{Constraint, TurboComposer};
+    //use crate::constraint_system::Constraint;
     use crate::fft::Polynomial;
     use dusk_bls12_381::BlsScalar;
     use rand_core::OsRng;
@@ -650,115 +650,6 @@ mod test {
             numerator_partial_components,
             denominator_partial_components,
         )
-    }
-
-    #[test]
-    fn test_multizip_permutation_poly() {
-        let mut cs = TurboComposer::with_size(4);
-
-        let x1 = cs.append_witness(BlsScalar::from_raw([4, 0, 0, 0]));
-        let x2 = cs.append_witness(BlsScalar::from_raw([12, 0, 0, 0]));
-        let x3 = cs.append_witness(BlsScalar::from_raw([8, 0, 0, 0]));
-        let x4 = cs.append_witness(BlsScalar::from_raw([3, 0, 0, 0]));
-
-        let one = BlsScalar::one();
-        let two = BlsScalar::from_raw([2, 0, 0, 0]);
-
-        // x1 * x4 = x2
-        let constraint =
-            Constraint::new().mult(1).output(-one).a(x1).b(x4).o(x2);
-        cs.append_gate(constraint);
-
-        // x1 + x3 = x2
-        let constraint = Constraint::new()
-            .left(1)
-            .right(1)
-            .output(-one)
-            .a(x1)
-            .b(x3)
-            .o(x2);
-        cs.append_gate(constraint);
-
-        // x1 + x2 = 2*x3
-        let constraint = Constraint::new()
-            .left(1)
-            .right(1)
-            .output(-two)
-            .a(x1)
-            .b(x2)
-            .o(x3);
-        cs.append_gate(constraint);
-
-        // x3 * x4 = 2*x2
-        let constraint =
-            Constraint::new().mult(1).output(-two).a(x3).b(x4).o(x2);
-        cs.append_gate(constraint);
-
-        let domain = EvaluationDomain::new(cs.gates()).unwrap();
-        let pad = vec![BlsScalar::zero(); domain.size() - cs.a_w.len()];
-        let mut a_w_scalar: Vec<BlsScalar> =
-            cs.a_w.iter().map(|v| cs.witnesses[v]).collect();
-        let mut b_w_scalar: Vec<BlsScalar> =
-            cs.b_w.iter().map(|v| cs.witnesses[v]).collect();
-        let mut c_w_scalar: Vec<BlsScalar> =
-            cs.c_w.iter().map(|v| cs.witnesses[v]).collect();
-        let mut d_w_scalar: Vec<BlsScalar> =
-            cs.d_w.iter().map(|v| cs.witnesses[v]).collect();
-
-        a_w_scalar.extend(&pad);
-        b_w_scalar.extend(&pad);
-        c_w_scalar.extend(&pad);
-        d_w_scalar.extend(&pad);
-
-        let sigmas: Vec<Vec<BlsScalar>> = cs
-            .perm
-            .compute_sigma_permutations(7)
-            .iter()
-            .map(|wd| cs.perm.compute_permutation_lagrange(wd, &domain))
-            .collect();
-
-        let beta = BlsScalar::random(&mut OsRng);
-        let gamma = BlsScalar::random(&mut OsRng);
-
-        let sigma_polys: Vec<Polynomial> = sigmas
-            .iter()
-            .map(|v| Polynomial::from_coefficients_vec(domain.ifft(v)))
-            .collect();
-
-        let mz = Polynomial::from_coefficients_vec(domain.ifft(
-            &cs.perm.compute_permutation_vec(
-                &domain,
-                [&a_w_scalar, &b_w_scalar, &c_w_scalar, &d_w_scalar],
-                &beta,
-                &gamma,
-                [
-                    &sigma_polys[0],
-                    &sigma_polys[1],
-                    &sigma_polys[2],
-                    &sigma_polys[3],
-                ],
-            ),
-        ));
-
-        let old_z = Polynomial::from_coefficients_vec(domain.ifft(
-            &compute_fast_permutation_poly(
-                &domain,
-                &a_w_scalar,
-                &b_w_scalar,
-                &c_w_scalar,
-                &d_w_scalar,
-                &beta,
-                &gamma,
-                (
-                    &sigma_polys[0],
-                    &sigma_polys[1],
-                    &sigma_polys[2],
-                    &sigma_polys[3],
-                ),
-            ),
-        ));
-
-        assert_eq!(mz, old_z);
     }
 
     #[test]

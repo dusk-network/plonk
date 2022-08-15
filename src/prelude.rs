@@ -11,13 +11,12 @@
 
 #[cfg(feature = "alloc")]
 pub use crate::{
-    circuit::{self, Circuit, PublicInputValue, VerifierData},
-    commitment_scheme::{CommitKey, OpeningKey, PublicParameters},
-    constraint_system::{Constraint, TurboComposer, Witness, WitnessPoint},
-    proof_system::{Prover, ProverKey, Verifier},
+    commitment_scheme::PublicParameters,
+    composer::{Builder, Circuit, Compiler, Composer, Prover, Verifier},
+    constraint_system::{Constraint, Witness, WitnessPoint},
 };
 
 pub use crate::error::Error;
-pub use crate::proof_system::{Proof, VerifierKey};
+pub use crate::proof_system::Proof;
 pub use dusk_bls12_381::BlsScalar;
 pub use dusk_jubjub::{JubJubAffine, JubJubExtended, JubJubScalar};

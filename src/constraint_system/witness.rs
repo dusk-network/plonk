@@ -23,7 +23,7 @@ pub(crate) enum WireData {
     Fourth(usize),
 }
 
-/// Witness data indexed in a [`TurboComposer`](super::TurboComposer) instance
+/// Allocated witness in the constraint system.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Witness {
     index: usize,

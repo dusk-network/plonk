@@ -43,18 +43,6 @@ pub struct PublicParameters {
 }
 
 impl PublicParameters {
-    /// Returns an untrimmed [`CommitKey`] reference contained in the
-    /// `PublicParameters` instance.
-    pub fn commit_key(&self) -> &CommitKey {
-        &self.commit_key
-    }
-
-    /// Returns an [`OpeningKey`] reference contained in the
-    /// `PublicParameters` instance.
-    pub fn opening_key(&self) -> &OpeningKey {
-        &self.opening_key
-    }
-
     /// The maximum degree is the degree of the constraint system + 6,
     /// because adding the blinding factors requires some extra elements
     /// for the SRS: +1 per each wire (we have 4 wires), plus +2 for the
@@ -192,7 +180,7 @@ impl PublicParameters {
     ///
     /// Returns an error if the truncated degree is larger than the public
     /// parameters configured degree.
-    pub fn trim(
+    pub(crate) fn trim(
         &self,
         truncated_degree: usize,
     ) -> Result<(CommitKey, OpeningKey), Error> {

@@ -29,7 +29,7 @@ use rkyv::{
 
 /// CommitKey is used to commit to a polynomial which is bounded by the
 /// max_degree.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(
     feature = "rkyv-impl",
     derive(Archive, Deserialize, Serialize),

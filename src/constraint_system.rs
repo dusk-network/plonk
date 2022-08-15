@@ -9,24 +9,13 @@
 //! tools and abstractions, used by the Composer to generate,
 //! build, preprocess circuits.
 
-pub(crate) mod composer;
 pub(crate) mod constraint;
 pub(crate) mod ecc;
-pub(crate) mod logic;
-pub(crate) mod range;
 pub(crate) mod witness;
 
 pub(crate) use constraint::{Selector, WiredWitness};
 pub(crate) use witness::WireData;
 
-mod arithmetic;
-mod boolean;
-
-#[cfg(feature = "std")]
-#[cfg(test)]
-pub(crate) mod helper;
-
-pub use composer::TurboComposer;
 pub use constraint::Constraint;
 pub use ecc::WitnessPoint;
 pub use witness::Witness;

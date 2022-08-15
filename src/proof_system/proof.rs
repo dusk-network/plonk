@@ -6,9 +6,6 @@
 
 //! A Proof stores the commitments to all of the elements that
 //! are needed to univocally identify a prove of some statement.
-//!
-//! This module contains the implementation of the `TurboComposer`s
-//! `Proof` structure and it's methods.
 
 use super::linearization_poly::ProofEvaluations;
 use crate::commitment_scheme::Commitment;
@@ -31,10 +28,10 @@ use rkyv::{
 ///
 /// It's main goal is to allow the `Verifier` to
 /// formally verify that the secret witnesses used to generate the [`Proof`]
-/// satisfy a circuit that both [`Prover`](super::Prover) and
-/// [`Verifier`](super::Verifier) have in common succinctly and without any
-/// capabilities of acquiring any kind of knowledge about the witness used to
-/// construct the Proof.
+/// satisfy a circuit that both [`Builder`](crate::prelude::Builder) and
+/// [`Verifier`](crate::prelude::Verifier) have in common succintly
+/// and without any capabilities of adquiring any kind of knowledge about the
+/// witness used to construct the Proof.
 #[derive(Debug, Eq, PartialEq, Clone, Default)]
 #[cfg_attr(
     feature = "rkyv-impl",
