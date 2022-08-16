@@ -14,6 +14,10 @@ pub mod permutation;
 pub mod range;
 
 #[cfg(feature = "rkyv-impl")]
+use crate::util::check_field;
+#[cfg(feature = "rkyv-impl")]
+use bytecheck::{CheckBytes, StructCheckError};
+#[cfg(feature = "rkyv-impl")]
 use rkyv::{
     ser::{ScratchSpace, Serializer},
     Archive, Deserialize, Serialize,
@@ -51,6 +55,26 @@ pub struct VerifierKey {
     /// VerifierKey for permutation checks
     #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) permutation: permutation::VerifierKey,
+}
+
+#[cfg(feature = "rkyv-impl")]
+impl<C> CheckBytes<C> for ArchivedVerifierKey {
+    type Error = StructCheckError;
+
+    unsafe fn check_bytes<'a>(
+        value: *const Self,
+        context: &mut C,
+    ) -> Result<&'a Self, Self::Error> {
+        check_field(&(*value).n, context, "n")?;
+        check_field(&(*value).arithmetic, context, "arithmetic")?;
+        check_field(&(*value).logic, context, "logic")?;
+        check_field(&(*value).range, context, "range")?;
+        check_field(&(*value).fixed_base, context, "fixed_base")?;
+        check_field(&(*value).variable_base, context, "variable_base")?;
+        check_field(&(*value).permutation, context, "permutation")?;
+
+        Ok(&*value)
+    }
 }
 
 impl Serializable<{ 20 * Commitment::SIZE + u64::SIZE }> for VerifierKey {
@@ -260,6 +284,31 @@ pub(crate) mod alloc {
         // polynomial without having to perform IFFT
         #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
         pub(crate) v_h_coset_8n: Evaluations,
+    }
+
+    #[cfg(feature = "rkyv-impl")]
+    impl<C> CheckBytes<C> for ArchivedProverKey
+    where
+        C: rkyv::validation::ArchiveContext,
+        C::Error: bytecheck::Error,
+    {
+        type Error = StructCheckError;
+
+        unsafe fn check_bytes<'a>(
+            value: *const Self,
+            context: &mut C,
+        ) -> Result<&'a Self, Self::Error> {
+            check_field(&(*value).n, context, "n")?;
+            check_field(&(*value).arithmetic, context, "arithmetic")?;
+            check_field(&(*value).logic, context, "logic")?;
+            check_field(&(*value).range, context, "range")?;
+            check_field(&(*value).fixed_base, context, "fixed_base")?;
+            check_field(&(*value).variable_base, context, "variable_base")?;
+            check_field(&(*value).permutation, context, "permutation")?;
+            check_field(&(*value).v_h_coset_8n, context, "v_h_coset_8n")?;
+
+            Ok(&*value)
+        }
     }
 
     impl ProverKey {

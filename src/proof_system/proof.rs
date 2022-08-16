@@ -12,8 +12,13 @@
 
 use super::linearization_poly::ProofEvaluations;
 use crate::commitment_scheme::Commitment;
+
 use dusk_bytes::{DeserializableSlice, Serializable};
 
+#[cfg(feature = "rkyv-impl")]
+use crate::util::check_field;
+#[cfg(feature = "rkyv-impl")]
+use bytecheck::{CheckBytes, StructCheckError};
 #[cfg(feature = "rkyv-impl")]
 use rkyv::{
     ser::{ScratchSpace, Serializer},
@@ -27,8 +32,8 @@ use rkyv::{
 /// It's main goal is to allow the `Verifier` to
 /// formally verify that the secret witnesses used to generate the [`Proof`]
 /// satisfy a circuit that both [`Prover`](super::Prover) and
-/// [`Verifier`](super::Verifier) have in common succintly and without any
-/// capabilities of adquiring any kind of knowledge about the witness used to
+/// [`Verifier`](super::Verifier) have in common succinctly and without any
+/// capabilities of acquiring any kind of knowledge about the witness used to
 /// construct the Proof.
 #[derive(Debug, Eq, PartialEq, Clone, Default)]
 #[cfg_attr(
@@ -76,6 +81,34 @@ pub struct Proof {
     /// Subset of all of the evaluations added to the proof.
     #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) evaluations: ProofEvaluations,
+}
+
+#[cfg(feature = "rkyv-impl")]
+impl<C> CheckBytes<C> for ArchivedProof {
+    type Error = StructCheckError;
+
+    unsafe fn check_bytes<'a>(
+        value: *const Self,
+        context: &mut C,
+    ) -> Result<&'a Self, Self::Error> {
+        check_field(&(*value).a_comm, context, "a_comm")?;
+        check_field(&(*value).b_comm, context, "b_comm")?;
+        check_field(&(*value).c_comm, context, "c_comm")?;
+        check_field(&(*value).d_comm, context, "d_comm")?;
+
+        check_field(&(*value).z_comm, context, "z_comm")?;
+
+        check_field(&(*value).t_low_comm, context, "t_low_comm")?;
+        check_field(&(*value).t_mid_comm, context, "t_mid_comm")?;
+        check_field(&(*value).t_high_comm, context, "t_high_comm")?;
+        check_field(&(*value).t_4_comm, context, "t_4_comm")?;
+
+        check_field(&(*value).w_z_chall_comm, context, "w_z_chall_comm")?;
+        check_field(&(*value).w_z_chall_w_comm, context, "w_z_chall_w_comm")?;
+        check_field(&(*value).evaluations, context, "evaluations")?;
+
+        Ok(&*value)
+    }
 }
 
 // The struct Proof has 11 commitments + 1 ProofEvaluations

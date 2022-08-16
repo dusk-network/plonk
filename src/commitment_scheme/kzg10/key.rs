@@ -20,6 +20,8 @@ use dusk_bytes::{DeserializableSlice, Serializable};
 use merlin::Transcript;
 
 #[cfg(feature = "rkyv-impl")]
+use bytecheck::CheckBytes;
+#[cfg(feature = "rkyv-impl")]
 use rkyv::{
     ser::{ScratchSpace, Serializer},
     Archive, Deserialize, Serialize,
@@ -31,7 +33,8 @@ use rkyv::{
 #[cfg_attr(
     feature = "rkyv-impl",
     derive(Archive, Deserialize, Serialize),
-    archive(bound(serialize = "__S: Serializer + ScratchSpace"))
+    archive(bound(serialize = "__S: Serializer + ScratchSpace")),
+    archive_attr(derive(CheckBytes))
 )]
 pub struct CommitKey {
     /// Group elements of the form `{ \beta^i G }`, where `i` ranges from 0 to
@@ -213,7 +216,8 @@ impl CommitKey {
 #[cfg_attr(
     feature = "rkyv-impl",
     derive(Archive, Deserialize, Serialize),
-    archive(bound(serialize = "__S: Sized + Serializer + ScratchSpace"))
+    archive(bound(serialize = "__S: Sized + Serializer + ScratchSpace")),
+    archive_attr(derive(CheckBytes))
 )]
 // TODO remove the `Sized` bound on the serializer
 pub struct OpeningKey {

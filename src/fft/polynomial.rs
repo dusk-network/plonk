@@ -16,6 +16,8 @@ use dusk_bls12_381::BlsScalar;
 use dusk_bytes::{DeserializableSlice, Serializable};
 
 #[cfg(feature = "rkyv-impl")]
+use bytecheck::CheckBytes;
+#[cfg(feature = "rkyv-impl")]
 use rkyv::{
     ser::{ScratchSpace, Serializer},
     Archive, Deserialize, Serialize,
@@ -26,7 +28,8 @@ use rkyv::{
 #[cfg_attr(
     feature = "rkyv-impl",
     derive(Archive, Deserialize, Serialize),
-    archive(bound(serialize = "__S: Serializer + ScratchSpace"))
+    archive(bound(serialize = "__S: Serializer + ScratchSpace")),
+    archive_attr(derive(CheckBytes))
 )]
 pub(crate) struct Polynomial {
     /// The coefficient of `x^i` is stored at location `i` in `self.coeffs`.

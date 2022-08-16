@@ -9,6 +9,8 @@ use dusk_bls12_381::{G1Affine, G1Projective};
 use dusk_bytes::{DeserializableSlice, Serializable};
 
 #[cfg(feature = "rkyv-impl")]
+use bytecheck::CheckBytes;
+#[cfg(feature = "rkyv-impl")]
 use rkyv::{
     ser::{ScratchSpace, Serializer},
     Archive, Deserialize, Serialize,
@@ -20,7 +22,8 @@ use rkyv::{
 #[cfg_attr(
     feature = "rkyv-impl",
     derive(Archive, Deserialize, Serialize),
-    archive(bound(serialize = "__S: Serializer + ScratchSpace"))
+    archive(bound(serialize = "__S: Serializer + ScratchSpace")),
+    archive_attr(derive(CheckBytes))
 )]
 pub(crate) struct Commitment(
     /// The commitment is a group element.

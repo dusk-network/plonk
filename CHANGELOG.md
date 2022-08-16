@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Fix math latex rendering on docs.rs [#567]
-- Update `dusk-bls12_381` to version `0.10`
+- Update `dusk-bls12_381` to version `0.11`
 - Update `dusk-jubjub` to version `0.12`
 
 ## [0.11.0] - 2022-06-15
