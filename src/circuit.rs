@@ -19,6 +19,8 @@ use dusk_jubjub::{JubJubAffine, JubJubExtended, JubJubScalar};
 use rand_core::{CryptoRng, RngCore};
 
 #[cfg(feature = "rkyv-impl")]
+use bytecheck::CheckBytes;
+#[cfg(feature = "rkyv-impl")]
 use rkyv::{
     ser::{ScratchSpace, Serializer},
     Archive, Deserialize, Serialize,
@@ -31,7 +33,8 @@ use rkyv::{
 #[cfg_attr(
     feature = "rkyv-impl",
     derive(Archive, Deserialize, Serialize),
-    archive(bound(serialize = "__S: Serializer + ScratchSpace"))
+    archive(bound(serialize = "__S: Serializer + ScratchSpace")),
+    archive_attr(derive(CheckBytes))
 )]
 pub struct PublicInputValue(
     #[cfg_attr(feature = "rkyv-impl", omit_bounds)] pub(crate) Vec<BlsScalar>,
@@ -69,7 +72,8 @@ impl From<JubJubExtended> for PublicInputValue {
 #[cfg_attr(
     feature = "rkyv-impl",
     derive(Archive, Deserialize, Serialize),
-    archive(bound(serialize = "__S: Serializer + ScratchSpace"))
+    archive(bound(serialize = "__S: Serializer + ScratchSpace")),
+    archive_attr(derive(CheckBytes))
 )]
 pub struct VerifierData {
     #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
