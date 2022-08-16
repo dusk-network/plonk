@@ -12,8 +12,8 @@ use std::path::PathBuf;
 use dusk_bls12_381::BlsScalar;
 use dusk_bytes::Serializable;
 use dusk_cdf::{
-    Config, Constraint as CdfConstraint, Encoder, IndexedWitness, Polynomial,
-    Source, Witness as CdfWitness,
+    BaseConfig, Config, Constraint as CdfConstraint, Encoder, IndexedWitness,
+    Polynomial, Source, Witness as CdfWitness,
 };
 
 use crate::constraint_system::{Constraint, Selector, WiredWitness, Witness};
@@ -186,11 +186,11 @@ impl Debugger {
                     CdfConstraint::new(id, poly, source)
                 });
 
-        let config = Config::new();
-
-        if let Err(e) =
-            Encoder::init_file(config, witnesses, constraints, &path)
-                .and_then(|mut c| c.write_all())
+        if let Err(e) = Config::load()
+            .and_then(|config| {
+                Encoder::init_file(config, witnesses, constraints, &path)
+            })
+            .and_then(|mut c| c.write_all())
         {
             eprintln!(
                 "failed to output CDF file to '{}': {}",

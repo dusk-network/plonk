@@ -32,7 +32,7 @@ canonical_derive = {version = "0.7", optional = true}
 rkyv = {version = "0.7", optional = true}
 bytecheck = {version = "0.6", optional = true}
 backtrace = {version = "0.3", optional = true}
-dusk-cdf = {version = "0.2", optional = true}
+dusk-cdf = {version = "0.3", optional = true}
 
 [dev-dependencies]
 criterion = "0.3"
