@@ -4,7 +4,8 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use crate::constraint_system::{TurboComposer, Witness};
+use crate::composer::{Builder, Composer};
+use crate::constraint_system::Witness;
 use dusk_bls12_381::BlsScalar;
 
 /// Selectors used to address a coefficient inside of a [`Constraint`]
@@ -96,7 +97,7 @@ impl Constraint {
     pub const fn new() -> Self {
         Self {
             coefficients: [BlsScalar::zero(); 13],
-            witnesses: [TurboComposer::constant_zero(); 4],
+            witnesses: [Builder::ZERO; 4],
             has_public_input: false,
         }
     }
@@ -121,6 +122,11 @@ impl Constraint {
         s.witnesses.copy_from_slice(&constraint.witnesses);
 
         s
+    }
+
+    /// Replace the value of an indexed witness
+    pub(crate) fn set_witness(&mut self, index: WiredWitness, w: Witness) {
+        self.witnesses[index as usize] = w;
     }
 
     /// Return a reference to the specified selector of a circuit constraint.
@@ -172,28 +178,28 @@ impl Constraint {
 
     /// Set witness `a` wired to `qM` and `qL`
     pub fn a(mut self, w: Witness) -> Self {
-        self.witnesses[WiredWitness::A as usize] = w;
+        self.set_witness(WiredWitness::A, w);
 
         self
     }
 
     /// Set witness `b` wired to `qM` and `qR`
     pub fn b(mut self, w: Witness) -> Self {
-        self.witnesses[WiredWitness::B as usize] = w;
+        self.set_witness(WiredWitness::B, w);
 
         self
     }
 
     /// Set witness `o` wired to `qO`
     pub fn o(mut self, w: Witness) -> Self {
-        self.witnesses[WiredWitness::O as usize] = w;
+        self.set_witness(WiredWitness::O, w);
 
         self
     }
 
     /// Set witness `d` wired to the fourth/advice `q4` coefficient
     pub fn d(mut self, w: Witness) -> Self {
-        self.witnesses[WiredWitness::D as usize] = w;
+        self.set_witness(WiredWitness::D, w);
 
         self
     }
@@ -207,15 +213,15 @@ impl Constraint {
     }
 
     #[allow(dead_code)]
-    // TODO to be used when `TurboComposer` replaces internal selectors with
-    // this struct
+    // TODO to be used when `ComposerBackend` replaces internal selectors
+    // with this struct
     pub(crate) fn range(s: &Self) -> Self {
         Self::from_external(s).set(Selector::Range, 1)
     }
 
     #[allow(dead_code)]
-    // TODO to be used when `TurboComposer` replaces internal selectors with
-    // this struct
+    // TODO to be used when `ComposerBackend` replaces internal selectors
+    // with this struct
     pub(crate) fn logic(s: &Self) -> Self {
         Self::from_external(s)
             .set(Selector::Constant, 1)
@@ -223,8 +229,8 @@ impl Constraint {
     }
 
     #[allow(dead_code)]
-    // TODO to be used when `TurboComposer` replaces internal selectors with
-    // this struct
+    // TODO to be used when `ComposerBackend` replaces internal selectors
+    // with this struct
     pub(crate) fn logic_xor(s: &Self) -> Self {
         Self::from_external(s)
             .set(Selector::Constant, -BlsScalar::one())
@@ -232,15 +238,15 @@ impl Constraint {
     }
 
     #[allow(dead_code)]
-    // TODO to be used when `TurboComposer` replaces internal selectors with
-    // this struct
+    // TODO to be used when `ComposerBackend` replaces internal selectors
+    // with this struct
     pub(crate) fn group_add_fixed_base(s: &Self) -> Self {
         Self::from_external(s).set(Selector::GroupAddFixedBase, 1)
     }
 
     #[allow(dead_code)]
-    // TODO to be used when `TurboComposer` replaces internal selectors with
-    // this struct
+    // TODO to be used when `ComposerBackend` replaces internal selectors
+    // with this struct
     pub(crate) fn group_add_variable_base(s: &Self) -> Self {
         Self::from_external(s).set(Selector::GroupAddVariableBase, 1)
     }

@@ -131,11 +131,6 @@ impl Serializable<{ 20 * Commitment::SIZE + u64::SIZE }> for VerifierKey {
 }
 
 impl VerifierKey {
-    /// Returns the Circuit size padded to the next power of two.
-    pub const fn padded_gates(&self) -> usize {
-        self.n.next_power_of_two()
-    }
-
     /// Constructs a [`VerifierKey`] from the widget VerifierKey's that are
     /// constructed based on the selector polynomial commitments and the
     /// sigma polynomial commitments.

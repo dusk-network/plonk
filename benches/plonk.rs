@@ -8,127 +8,133 @@
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use dusk_plonk::prelude::*;
-use rand_core::OsRng;
 
 #[derive(Debug, Clone, Copy)]
-struct BenchCircuit {
-    degree: usize,
+struct BenchCircuit<const DEGREE: usize> {
+    a: BlsScalar,
+    b: BlsScalar,
+    x: BlsScalar,
+    y: JubJubScalar,
+    z: JubJubExtended,
 }
 
-impl<T> From<T> for BenchCircuit
-where
-    T: Into<usize>,
-{
-    fn from(degree: T) -> Self {
+impl<const DEGREE: usize> Default for BenchCircuit<DEGREE> {
+    fn default() -> Self {
         Self {
-            degree: 1 << degree.into(),
+            a: BlsScalar::from(2u64),
+            b: BlsScalar::from(3u64),
+            x: BlsScalar::from(6u64),
+            y: JubJubScalar::from(7u64),
+            z: dusk_jubjub::GENERATOR_EXTENDED * &JubJubScalar::from(7u64),
         }
     }
 }
 
-impl Circuit for BenchCircuit {
-    const CIRCUIT_ID: [u8; 32] = [0xff; 32];
+impl<const DEGREE: usize> Circuit for BenchCircuit<DEGREE> {
+    fn circuit<C>(&self, composer: &mut C) -> Result<(), Error>
+    where
+        C: Composer,
+    {
+        let w_a = composer.append_witness(self.a);
+        let w_b = composer.append_witness(self.b);
+        let w_x = composer.append_witness(self.x);
+        let w_y = composer.append_witness(self.y);
+        let w_z = composer.append_point(self.z);
 
-    fn gadget(&mut self, composer: &mut TurboComposer) -> Result<(), Error> {
-        let mut a = BlsScalar::from(2u64);
-        let mut b = BlsScalar::from(3u64);
-        let mut c;
+        let mut diff = 0;
+        let mut prev = composer.constraints();
 
-        while composer.gates() < self.padded_gates() {
-            a += BlsScalar::one();
-            b += BlsScalar::one();
-            c = a * b + a + b + BlsScalar::one();
+        while prev + diff < DEGREE {
+            let r_w =
+                composer.gate_mul(Constraint::new().mult(1).a(w_a).b(w_b));
 
-            let x = composer.append_witness(a);
-            let y = composer.append_witness(b);
-            let z = composer.append_witness(c);
+            composer.append_constant(15);
+            composer.append_constant_point(self.z);
 
-            let constraint = Constraint::new()
-                .mult(1)
-                .left(1)
-                .right(1)
-                .output(-BlsScalar::one())
-                .constant(1)
-                .a(x)
-                .b(y)
-                .o(z);
+            composer.assert_equal(w_x, r_w);
+            composer.assert_equal_point(w_z, w_z);
 
-            composer.append_gate(constraint);
+            composer.gate_add(Constraint::new().left(1).right(1).a(w_a).b(w_b));
+
+            composer.component_add_point(w_z, w_z);
+            composer.append_logic_and(w_a, w_b, 254);
+            composer.append_logic_xor(w_a, w_b, 254);
+            composer.component_boolean(C::ONE);
+            composer.component_decomposition::<254>(w_a);
+            composer.component_mul_generator(
+                w_y,
+                dusk_jubjub::GENERATOR_EXTENDED,
+            )?;
+            composer.component_mul_point(w_y, w_z);
+            composer.component_range(w_a, 254);
+            composer.component_select(C::ONE, w_a, w_b);
+            composer.component_select_identity(C::ONE, w_z);
+            composer.component_select_one(C::ONE, w_a);
+            composer.component_select_point(C::ONE, w_z, w_z);
+            composer.component_select_zero(C::ONE, w_a);
+
+            diff = composer.constraints() - prev;
+            prev = composer.constraints();
         }
 
         Ok(())
     }
-
-    fn public_inputs(&self) -> Vec<PublicInputValue> {
-        vec![]
-    }
-
-    fn padded_gates(&self) -> usize {
-        self.degree
-    }
 }
 
-fn constraint_system_prove(
-    circuit: &mut BenchCircuit,
+fn run<const DEGREE: usize>(
+    c: &mut Criterion,
     pp: &PublicParameters,
-    pk: &ProverKey,
     label: &'static [u8],
-) -> Proof {
-    circuit
-        .prove(pp, pk, label, &mut OsRng)
-        .expect("Failed to prove bench circuit!")
+) {
+    let (prover, verifier) =
+        Compiler::compile::<BenchCircuit<DEGREE>>(&pp, label)
+            .expect("failed to compile circuit");
+
+    // sanity run
+    let (proof, public_inputs) = prover
+        .prove(&mut rand_core::OsRng, &Default::default())
+        .expect("failed to prove");
+
+    verifier
+        .verify(&proof, &public_inputs)
+        .expect("failed to verify proof");
+
+    let power = (DEGREE as f64).log2() as usize;
+    let description = format!("Prove 2^{} = {} gates", power, DEGREE);
+
+    c.bench_function(description.as_str(), |b| {
+        b.iter(|| {
+            black_box(prover.prove(&mut rand_core::OsRng, &Default::default()))
+        })
+    });
+
+    let description = format!("Verify 2^{} = {} gates", power, DEGREE);
+
+    c.bench_function(description.as_str(), |b| {
+        b.iter(|| verifier.verify(black_box(&proof), black_box(&public_inputs)))
+    });
 }
 
 fn constraint_system_benchmark(c: &mut Criterion) {
-    let initial_degree = 5;
-    let final_degree = 17;
+    const MAX_DEGREE: usize = 17;
 
-    let rng = &mut rand_core::OsRng;
     let label = b"dusk-network";
-    let pp = PublicParameters::setup(1 << final_degree, rng)
-        .expect("Failed to create PP");
+    let pp = PublicParameters::setup(1 << MAX_DEGREE, &mut rand_core::OsRng)
+        .expect("failed to generate pp");
 
-    let data: Vec<(BenchCircuit, ProverKey, VerifierData, Proof)> =
-        (initial_degree..=final_degree)
-            .map(|degree| {
-                let mut circuit = BenchCircuit::from(degree as usize);
-                let (pk, vd) =
-                    circuit.compile(&pp).expect("Failed to compile circuit!");
-
-                let proof =
-                    constraint_system_prove(&mut circuit, &pp, &pk, label);
-
-                BenchCircuit::verify(&pp, &vd, &proof, &[], label)
-                    .expect("Failed to verify bench circuit");
-
-                (circuit, pk, vd, proof)
-            })
-            .collect();
-
-    data.iter().for_each(|(mut circuit, pk, _, _)| {
-        let size = circuit.padded_gates();
-        let power = (size as f64).log2() as usize;
-        let description = format!("Prove 2^{} = {} gates", power, size);
-
-        c.bench_function(description.as_str(), |b| {
-            b.iter(|| {
-                constraint_system_prove(black_box(&mut circuit), &pp, pk, label)
-            })
-        });
-    });
-
-    data.iter().for_each(|(circuit, _, vd, proof)| {
-        let size = circuit.padded_gates();
-        let power = (size as f64).log2() as usize;
-        let description = format!("Verify 2^{} = {} gates", power, size);
-
-        c.bench_function(description.as_str(), |b| {
-            b.iter(|| {
-                BenchCircuit::verify(&pp, vd, black_box(proof), &[], label)
-                    .expect("Failed to verify bench circuit!");
-            })
-        });
-    });
+    run::<{ 1 << 5 }>(c, &pp, label);
+    run::<{ 1 << 6 }>(c, &pp, label);
+    run::<{ 1 << 7 }>(c, &pp, label);
+    run::<{ 1 << 8 }>(c, &pp, label);
+    run::<{ 1 << 9 }>(c, &pp, label);
+    run::<{ 1 << 10 }>(c, &pp, label);
+    run::<{ 1 << 11 }>(c, &pp, label);
+    run::<{ 1 << 12 }>(c, &pp, label);
+    run::<{ 1 << 13 }>(c, &pp, label);
+    run::<{ 1 << 14 }>(c, &pp, label);
+    run::<{ 1 << 15 }>(c, &pp, label);
+    run::<{ 1 << 16 }>(c, &pp, label);
+    run::<{ 1 << 17 }>(c, &pp, label);
 }
 
 criterion_group! {

@@ -36,21 +36,16 @@ pub struct TestCircuit {
 }
 
 impl Circuit for TestCircuit {
-    const CIRCUIT_ID: [u8; 32] = [0xff; 32];
-    fn gadget(
-        &mut self,
-        composer: &mut TurboComposer,
-    ) -> Result<(), Error> {
+    fn circuit<C>(&self, composer: &mut C) -> Result<(), Error>
+    where
+        C: Composer,
+    {
         let a = composer.append_witness(self.a);
         let b = composer.append_witness(self.b);
 
         // Make first constraint a + b = c
-        let constraint = Constraint::new()
-            .left(1)
-            .right(1)
-            .public(-self.c)
-            .a(a)
-            .b(b);
+        let constraint =
+            Constraint::new().left(1).right(1).public(-self.c).a(a).b(b);
 
         composer.append_gate(constraint);
 
@@ -59,71 +54,38 @@ impl Circuit for TestCircuit {
         composer.component_range(b, 1 << 5);
 
         // Make second constraint a * b = d
-        let constraint = Constraint::new()
-            .mult(1)
-            .public(-self.d)
-            .a(a)
-            .b(b);
+        let constraint =
+            Constraint::new().mult(1).public(-self.d).a(a).b(b);
 
         composer.append_gate(constraint);
 
         let e = composer.append_witness(self.e);
         let scalar_mul_result = composer
-            .component_mul_generator(e, dusk_jubjub::GENERATOR_EXTENDED);
+            .component_mul_generator(e, dusk_jubjub::GENERATOR_EXTENDED)?;
 
         // Apply the constraint
         composer.assert_equal_public_point(scalar_mul_result, self.f);
+
         Ok(())
-    }
-
-    fn public_inputs(&self) -> Vec<PublicInputValue> {
-        vec![self.c.into(), self.d.into(), self.f.into()]
-    }
-
-    fn padded_gates(&self) -> usize {
-        1 << 11
     }
 }
 
-// Now let's use the Circuit we've just implemented!
+let label = b"transcript-arguments";
+let pp = PublicParameters::setup(1 << 12, &mut OsRng)
+    .expect("failed to setup");
 
-let pp = PublicParameters::setup(1 << 12, &mut OsRng).unwrap();
-// Initialize the circuit
-let mut circuit = TestCircuit::default();
-// Compile/preproces the circuit
-let (pk, vd) = circuit.compile(&pp).unwrap();
+let (prover, verifier) = Compiler::compile::<TestCircuit>(&pp, label)
+    .expect("failed to compile circuit");
 
-// Prover POV
-let proof = {
-    let mut circuit = TestCircuit {
-        a: BlsScalar::from(20u64),
-        b: BlsScalar::from(5u64),
-        c: BlsScalar::from(25u64),
-        d: BlsScalar::from(100u64),
-        e: JubJubScalar::from(2u64),
-        f: JubJubAffine::from(
-            dusk_jubjub::GENERATOR_EXTENDED * JubJubScalar::from(2u64),
-        ),
-    };
-    circuit.prove(&pp, &pk, b"Test", &mut OsRng).unwrap()
-};
+// Generate the proof and its public inputs
+let (proof, public_inputs) = prover
+    .prove(&mut OsRng, &TestCircuit::default())
+    .expect("failed to prove");
 
-// Verifier POV
-let public_inputs: Vec<PublicInputValue> = vec![
-    BlsScalar::from(25u64).into(),
-    BlsScalar::from(100u64).into(),
-    JubJubAffine::from(
-        dusk_jubjub::GENERATOR_EXTENDED * JubJubScalar::from(2u64),
-    )
-    .into(),
-];
-TestCircuit::verify(
-    &pp,
-    &vd,
-    &proof,
-    &public_inputs,
-    b"Test",
-).unwrap();
+// Verify the generated proof
+verifier
+    .verify(&proof, &public_inputs)
+    .expect("failed to verify proof");
 ```
 
 ### Features
@@ -135,12 +97,7 @@ This crate includes a variety of features which will briefly be explained below:
 - `std`: Enables `std` usage as well as `rayon` parallelization in some proving and verifying ops. 
   It also uses the `std` versions of the elliptic curve deps, which utilizes the `parallel` feature 
   from `dusk-bls12-381`. By default, this is the feature that comes enabled with the crate.
-- `trace`: Enables the Circuit debugger tooling. This is essentially the capability of using the 
-  `TurboComposer::check_circuit_satisfied` function. The function will output information about each circuit gate until 
-  one of the gates does not satisfy the equation, or there are no more gates. If there is an unsatisfied gate 
-  equation, the function will panic and return the gate number.
-- `trace-print`: Goes a step further than `trace` and prints each `gate` component data, giving a clear overview of all the 
-  values which make up the circuit that we're constructing. 
+- `debug`: Enables the runtime debugger backend. Will output [CDF](https://crates.io/crates/dusk-cdf) files to the path defined in the `CDF_OUTPUT` environment variable. If used, the binary must be compiled with `debug = true`. For more info, check the [cargo book](https://doc.rust-lang.org/cargo/reference/profiles.html#debug).
   __The recommended method is to derive the std output, and the std error, and then place them in text file 
     which can be used to efficiently analyse the gates.__
 - `canon`: Enables `canonical` serialization for particular data structures, which is very useful in integrating  this library within the rest of the Dusk stack - especially for storage purposes.

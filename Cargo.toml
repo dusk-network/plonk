@@ -31,10 +31,13 @@ canonical = {version = "0.7", optional = true}
 canonical_derive = {version = "0.7", optional = true}
 rkyv = {version = "0.7", optional = true}
 bytecheck = {version = "0.6", optional = true}
+backtrace = {version = "0.3", optional = true}
+dusk-cdf = {version = "0.3", optional = true}
 
 [dev-dependencies]
 criterion = "0.3"
 tempdir = "0.3"
+rand = "0.8"
 
 [[bench]]
 name = "plonk"
@@ -52,8 +55,7 @@ std = [
     "rayon"
 ]
 alloc = ["dusk-bls12_381/alloc"]
-trace = []
-trace-print = ["trace"]
+debug = ["dusk-cdf", "backtrace"]
 canon = ["dusk-bls12_381/canon", "dusk-jubjub/canon", "canonical", "canonical_derive"]
 rkyv-impl = ["dusk-bls12_381/rkyv-impl", "dusk-jubjub/rkyv-impl", "rkyv", "bytecheck"]
 

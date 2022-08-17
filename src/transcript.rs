@@ -6,10 +6,15 @@
 
 //! This is an extension over the [Merlin Transcript](Transcript)
 //! which adds a few extra functionalities.
-use crate::commitment_scheme::Commitment;
+
+use core::mem;
+
 use dusk_bls12_381::BlsScalar;
 use dusk_bytes::Serializable;
 use merlin::Transcript;
+
+use crate::commitment_scheme::Commitment;
+use crate::proof_system::VerifierKey;
 
 /// Transcript adds an abstraction over the Merlin transcript
 /// For convenience
@@ -25,6 +30,13 @@ pub(crate) trait TranscriptProtocol {
 
     /// Append domain separator for the circuit size.
     fn circuit_domain_sep(&mut self, n: u64);
+
+    /// Create a new instance of the base transcript of the protocol
+    fn base(
+        label: &[u8],
+        verifier_key: &VerifierKey,
+        constraints: usize,
+    ) -> Self;
 }
 
 impl TranscriptProtocol for Transcript {
@@ -46,5 +58,29 @@ impl TranscriptProtocol for Transcript {
     fn circuit_domain_sep(&mut self, n: u64) {
         self.append_message(b"dom-sep", b"circuit_size");
         self.append_u64(b"n", n);
+    }
+
+    fn base(
+        label: &[u8],
+        verifier_key: &VerifierKey,
+        constraints: usize,
+    ) -> Self {
+        // Transcript can't be serialized/deserialized. One alternative is to
+        // fork merlin and implement these functionalities, so we can use custom
+        // transcripts for provers and verifiers. However, we don't have a use
+        // case for this feature in Dusk.
+
+        // Safety: static lifetime is a pointless requirement from merlin that
+        // doesn't add any security but instead restricts a lot the
+        // serialization and deserialization of transcripts
+        let label = unsafe { mem::transmute(label) };
+
+        let mut transcript = Transcript::new(label);
+
+        transcript.circuit_domain_sep(constraints as u64);
+
+        verifier_key.seed_transcript(&mut transcript);
+
+        transcript
     }
 }

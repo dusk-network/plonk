@@ -64,11 +64,6 @@ impl Polynomial {
     }
 
     /// Constructs a new polynomial from a list of coefficients.
-    pub(crate) fn from_coefficients_slice(coeffs: &[BlsScalar]) -> Self {
-        Self::from_coefficients_vec(coeffs.to_vec())
-    }
-
-    /// Constructs a new polynomial from a list of coefficients.
     ///
     /// # Panics
     /// When the length of the coeffs is zero.

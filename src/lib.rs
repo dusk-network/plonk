@@ -65,13 +65,17 @@ if #[cfg(feature = "alloc")] {
     mod bit_iterator;
     mod permutation;
     mod util;
+    mod transcript;
 
-    pub mod circuit;
     pub mod constraint_system;
+    pub mod composer;
+    pub mod runtime;
 });
 
 mod fft;
-mod transcript;
+
+#[cfg(feature = "debug")]
+pub(crate) mod debugger;
 
 pub mod commitment_scheme;
 pub mod error;

@@ -12,15 +12,11 @@ pub(crate) mod widget;
 
 cfg_if::cfg_if!(
     if #[cfg(feature = "alloc")] {
-        mod preprocess;
-
         pub(crate) mod quotient_poly;
-        pub(crate) mod prover;
-        pub(crate) mod verifier;
+        pub(crate) mod preprocess;
 
-        pub use prover::Prover;
-        pub use verifier::Verifier;
-        pub use widget::alloc::ProverKey;
+        pub(crate) use widget::alloc::ProverKey;
+        pub(crate) use widget::VerifierKey;
 
         cfg_if::cfg_if!(
             if #[cfg(feature = "rkyv-impl")] {
@@ -31,7 +27,6 @@ cfg_if::cfg_if!(
 );
 
 pub use proof::Proof;
-pub use widget::VerifierKey;
 
 cfg_if::cfg_if!(
     if #[cfg(feature = "rkyv-impl")] {

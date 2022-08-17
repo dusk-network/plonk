@@ -9,7 +9,7 @@
 use dusk_bytes::Error as DuskBytesError;
 
 /// Defines all possible errors that can be encountered in PLONK.
-#[derive(core::fmt::Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum Error {
     // FFT errors
     /// This error occurs when an error triggers on any of the fft module
@@ -72,6 +72,20 @@ pub enum Error {
     /// This error occurs when a malformed BLS scalar is decoded from a byte
     /// array.
     BlsScalarMalformed,
+    /// WNAF2k should be in `[-1, 0, 1]`
+    UnsupportedWNAF2k,
+    /// The provided public inputs doesn't match the circuit definition
+    PublicInputNotFound {
+        /// Expected public input wasn't found
+        index: usize,
+    },
+    /// The provided public inputs length doesn't match the processed verifier
+    InconsistentPublicInputsLen {
+        /// Expected value
+        expected: usize,
+        /// Provided value
+        provided: usize,
+    },
 }
 
 #[cfg(feature = "std")]
@@ -127,6 +141,16 @@ impl std::fmt::Display for Error {
             Self::PointMalformed => write!(f, "BLS point bytes malformed"),
             Self::BlsScalarMalformed => write!(f, "BLS scalar bytes malformed"),
             Self::BytesError(err) => write!(f, "{:?}", err),
+            Self::UnsupportedWNAF2k => write!(
+                f,
+                "WNAF2k cannot hold values not contained in `[-1..1]`"
+            ),
+            Self::PublicInputNotFound {
+                index
+            } => write!(f, "The public input of index {} is defined in the circuit description, but wasn't declared in the prove instance", index),
+            Self::InconsistentPublicInputsLen {
+                expected, provided,
+            } => write!(f, "The provided public inputs set of length {} doesn't match the processed verifier: {}", provided, expected),
         }
     }
 }

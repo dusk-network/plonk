@@ -98,9 +98,9 @@ pub(crate) fn compute(
         })
         .collect();
 
-    Ok(Polynomial::from_coefficients_vec(
-        domain_8n.coset_ifft(&quotient),
-    ))
+    let coset = domain_8n.coset_ifft(&quotient);
+
+    Ok(Polynomial::from_coefficients_vec(coset))
 }
 
 // Ensures that the circuit is satisfied
