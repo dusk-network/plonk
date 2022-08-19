@@ -12,8 +12,8 @@ use std::path::PathBuf;
 use dusk_bls12_381::BlsScalar;
 use dusk_bytes::Serializable;
 use dusk_cdf::{
-    BaseConfig, Config, Constraint as CdfConstraint, Encoder, IndexedWitness,
-    Polynomial, Source, Witness as CdfWitness,
+    BaseConfig, Config, EncodableConstraint, EncodableSource, EncodableWitness,
+    Encoder, Polynomial, Selectors, WiredWitnesses,
 };
 
 use crate::constraint_system::{Constraint, Selector, WiredWitness, Witness};
@@ -22,13 +22,13 @@ use crate::runtime::RuntimeEvent;
 /// PLONK debugger
 #[derive(Debug, Clone)]
 pub(crate) struct Debugger {
-    witnesses: Vec<(Source, Witness, BlsScalar)>,
-    constraints: Vec<(Source, Constraint)>,
+    witnesses: Vec<(EncodableSource, Witness, BlsScalar)>,
+    constraints: Vec<(EncodableSource, Constraint)>,
 }
 
 impl Debugger {
     /// Resolver the caller function
-    fn resolve_caller() -> Source {
+    fn resolve_caller() -> EncodableSource {
         let mut source = None;
 
         backtrace::trace(|frame| {
@@ -47,9 +47,8 @@ impl Debugger {
                         let line = symbol.lineno().unwrap_or_default() as u64;
                         let col = symbol.colno().unwrap_or_default() as u64;
                         let path = path.canonicalize().unwrap_or_default();
-                        let path = format!("{}", path.display()).into();
 
-                        source.replace(Source::new(line, col, path));
+                        source.replace(EncodableSource::new(line, col, path));
                     }
                 }
             });
@@ -75,7 +74,7 @@ impl Debugger {
             let value = value.to_bytes().into();
             let source = source.clone();
 
-            CdfWitness::new(id, value, source)
+            EncodableWitness::new(id, None, value, source)
         });
 
         let constraints =
@@ -93,97 +92,73 @@ impl Debugger {
                     let qo = c.coeff(Selector::Output);
                     let pi = c.coeff(Selector::PublicInput);
                     let qarith = c.coeff(Selector::Arithmetic);
-                    let qrange = c.coeff(Selector::Range);
                     let qlogic = c.coeff(Selector::Logic);
+                    let qrange = c.coeff(Selector::Range);
+                    let qgroup_variable =
+                        c.coeff(Selector::GroupAddVariableBase);
                     let qfixed_add = c.coeff(Selector::GroupAddFixedBase);
-                    let qvariable_add = c.coeff(Selector::GroupAddVariableBase);
 
-                    let wai = c.witness(WiredWitness::A).index();
-                    let wbi = c.witness(WiredWitness::B).index();
-                    let wdi = c.witness(WiredWitness::D).index();
-                    let woi = c.witness(WiredWitness::O).index();
+                    let witnesses = WiredWitnesses {
+                        a: c.witness(WiredWitness::A).index(),
+                        b: c.witness(WiredWitness::B).index(),
+                        d: c.witness(WiredWitness::D).index(),
+                        o: c.witness(WiredWitness::O).index(),
+                    };
 
-                    let wav = self
+                    let wa = self
                         .witnesses
-                        .get(wai)
+                        .get(witnesses.a)
                         .map(|(_, _, v)| *v)
                         .unwrap_or_default();
 
-                    let wbv = self
+                    let wb = self
                         .witnesses
-                        .get(wbi)
+                        .get(witnesses.b)
                         .map(|(_, _, v)| *v)
                         .unwrap_or_default();
 
-                    let wdv = self
+                    let wd = self
                         .witnesses
-                        .get(wdi)
+                        .get(witnesses.d)
                         .map(|(_, _, v)| *v)
                         .unwrap_or_default();
 
-                    let wov = self
+                    let wo = self
                         .witnesses
-                        .get(woi)
+                        .get(witnesses.o)
                         .map(|(_, _, v)| *v)
                         .unwrap_or_default();
 
                     // TODO check arith, range, logic & ecc wires
-                    let eval = qm * wav * wbv
-                        + ql * wav
-                        + qr * wbv
-                        + qd * wdv
-                        + qo * wov
+                    let evaluation = qm * wa * wb
+                        + ql * wa
+                        + qr * wb
+                        + qd * wd
+                        + qo * wo
                         + qc
                         + pi;
 
-                    let re = eval == BlsScalar::zero();
+                    let evaluation = evaluation == BlsScalar::zero();
 
-                    let qm = qm.to_bytes().into();
-                    let ql = ql.to_bytes().into();
-                    let qr = qr.to_bytes().into();
-                    let qd = qd.to_bytes().into();
-                    let qc = qc.to_bytes().into();
-                    let qo = qo.to_bytes().into();
-                    let pi = pi.to_bytes().into();
-                    let qarith = qarith.to_bytes().into();
-                    let qlogic = qlogic.to_bytes().into();
-                    let qvariable_add = qvariable_add.to_bytes().into();
+                    let selectors = Selectors {
+                        qm: qm.to_bytes().into(),
+                        ql: ql.to_bytes().into(),
+                        qr: qr.to_bytes().into(),
+                        qd: qd.to_bytes().into(),
+                        qc: qc.to_bytes().into(),
+                        qo: qo.to_bytes().into(),
+                        pi: pi.to_bytes().into(),
+                        qarith: qarith.to_bytes().into(),
+                        qlogic: qlogic.to_bytes().into(),
+                        qrange: qrange.to_bytes().into(),
+                        qgroup_variable: qgroup_variable.to_bytes().into(),
+                        qfixed_add: qfixed_add.to_bytes().into(),
+                    };
 
-                    // TODO add these to CDF
-                    let _ = (qrange, qfixed_add);
+                    let polynomial =
+                        Polynomial::new(selectors, witnesses, evaluation);
 
-                    // TODO IndexedWitness is to be deprecated in favor of a
-                    // simplified index
-
-                    let wav = wav.to_bytes().into();
-                    let wbv = wbv.to_bytes().into();
-                    let wdv = wdv.to_bytes().into();
-                    let wov = wov.to_bytes().into();
-
-                    let wa = IndexedWitness::new(wai, None, wav);
-                    let wb = IndexedWitness::new(wbi, None, wbv);
-                    let wd = IndexedWitness::new(wdi, None, wdv);
-                    let wo = IndexedWitness::new(woi, None, wov);
-
-                    let poly = Polynomial::new(
-                        qm,
-                        ql,
-                        qr,
-                        qd,
-                        qc,
-                        qo,
-                        pi,
-                        qarith,
-                        qlogic,
-                        qvariable_add,
-                        wa,
-                        wb,
-                        wd,
-                        wo,
-                        re,
-                    );
-
-                    CdfConstraint::new(id, poly, source)
+                    EncodableConstraint::new(id, polynomial, source)
                 });
 
         if let Err(e) = Config::load()
