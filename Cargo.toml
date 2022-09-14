@@ -29,8 +29,8 @@ cfg-if = "1.0"
 # Dusk related deps for WASMI serde
 canonical = {version = "0.7", optional = true}
 canonical_derive = {version = "0.7", optional = true}
-rkyv = {version = "0.7", optional = true}
-bytecheck = {version = "0.6", optional = true}
+rkyv = {version = "0.7", optional = true, default-features = false}
+bytecheck = {version = "0.6", optional = true, default-features = false}
 backtrace = {version = "0.3", optional = true}
 dusk-cdf = {version = "0.4", optional = true}
 
