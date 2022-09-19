@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add support for `rkyv-impl` under `no_std`
 
+### Changed
+
+- Update `dusk-cdf` to 0.5 [#709]
+
 ## [0.12.0] - 2022-08-17
 
 ### Added
@@ -431,6 +435,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Proof system module.
 
 <!-- ISSUES -->
+[#709]: https://github.com/dusk-network/plonk/issues/709
 [#697]: https://github.com/dusk-network/plonk/issues/697
 [#688]: https://github.com/dusk-network/plonk/issues/688
 [#650]: https://github.com/dusk-network/plonk/issues/650
