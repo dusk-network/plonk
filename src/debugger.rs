@@ -13,7 +13,7 @@ use dusk_bls12_381::BlsScalar;
 use dusk_bytes::Serializable;
 use dusk_cdf::{
     BaseConfig, Config, EncodableConstraint, EncodableSource, EncodableWitness,
-    Encoder, Polynomial, Selectors, WiredWitnesses,
+    Encoder, EncoderContextFileProvider, Polynomial, Selectors, WiredWitnesses,
 };
 
 use crate::constraint_system::{Constraint, Selector, WiredWitness, Witness};
@@ -36,7 +36,7 @@ impl Debugger {
             backtrace::resolve_frame(frame, |symbol| {
                 if symbol
                     .name()
-                    .map(|n| format!("{}", n))
+                    .map(|n| n.to_string())
                     .filter(|s| !s.starts_with("backtrace::"))
                     .filter(|s| !s.starts_with("dusk_plonk::"))
                     .filter(|s| !s.starts_with("core::"))
@@ -46,7 +46,11 @@ impl Debugger {
                     if let Some(path) = symbol.filename() {
                         let line = symbol.lineno().unwrap_or_default() as u64;
                         let col = symbol.colno().unwrap_or_default() as u64;
-                        let path = path.canonicalize().unwrap_or_default();
+                        let path = path
+                            .canonicalize()
+                            .unwrap_or_default()
+                            .display()
+                            .to_string();
 
                         source.replace(EncodableSource::new(line, col, path));
                     }
@@ -165,7 +169,9 @@ impl Debugger {
             .and_then(|config| {
                 Encoder::init_file(config, witnesses, constraints, &path)
             })
-            .and_then(|mut c| c.write_all())
+            .and_then(|mut c| {
+                c.write_all(EncoderContextFileProvider::default())
+            })
         {
             eprintln!(
                 "failed to output CDF file to '{}': {}",
