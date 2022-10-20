@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Remove manual implementation of `CheckBytes` for `ArchivedProverKey`. This
+  is necessary since `rkyv/validation` was required as a bound.
+
 ## [0.13.0] - 2022-10-19
 
 ### Added
