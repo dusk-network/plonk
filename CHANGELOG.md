@@ -7,10 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.13.1] - 2022-10-26
+
 ### Fixed
 
 - Remove manual implementation of `CheckBytes` for `ArchivedProverKey`. This
-  is necessary since `rkyv/validation` was required as a bound.
+is necessary since `rkyv/validation` was required as a bound.
 
 ## [0.13.0] - 2022-10-19
 
@@ -530,7 +532,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [#282]: https://github.com/dusk-network/plonk/issues/282
 
 <!-- VERSIONS -->
-[Unreleased]: https://github.com/dusk-network/plonk/compare/v0.13.0...HEAD
+[Unreleased]: https://github.com/dusk-network/plonk/compare/v0.13.1...HEAD
+[0.13.1]: https://github.com/dusk-network/plonk/compare/v0.13.0...v0.13.1
 [0.13.0]: https://github.com/dusk-network/plonk/compare/v0.12.0...v0.13.0
 [0.12.0]: https://github.com/dusk-network/plonk/compare/v0.11.0...v0.12.0
 [0.11.0]: https://github.com/dusk-network/plonk/compare/v0.10.0...v0.11.0
