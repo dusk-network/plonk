@@ -26,7 +26,7 @@ impl Compiler {
         label: &[u8],
     ) -> Result<(Prover<C>, Verifier<C>), Error>
     where
-        C: Circuit,
+        C: Default + Circuit,
     {
         Self::compile_with_circuit(pp, label, &Default::default())
     }
