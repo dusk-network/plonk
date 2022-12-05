@@ -11,7 +11,7 @@ use super::Composer;
 /// Circuit implementation that can be proved by a Composer
 ///
 /// The default implementation will be used to generate the proving arguments.
-pub trait Circuit: Default {
+pub trait Circuit {
     /// Circuit definition
     fn circuit<C>(&self, composer: &mut C) -> Result<(), Error>
     where
