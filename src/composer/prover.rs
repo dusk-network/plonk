@@ -245,8 +245,12 @@ where
     {
         let prover = Builder::prove(self.constraints, circuit)?;
 
+
         let constraints = self.constraints;
         let size = self.size;
+        #[cfg(feature = "debug")]
+        println!("plonk: created prover constraints={} size={}", constraints, size);
+        // println!("plonk prover size={}", size);
 
         let domain = EvaluationDomain::new(constraints)?;
 
@@ -349,6 +353,8 @@ where
             fixed_base_sep_challenge,
             var_base_sep_challenge,
         );
+        // #[cfg(feature = "debug")]
+        // println!("z_poly={:?}", z_poly);
         let t_poly = quotient_poly::compute(
             &domain,
             &self.prover_key,
@@ -377,6 +383,8 @@ where
         let t_low_commit = self.commit_key.commit(&t_low_poly)?;
         let t_mid_commit = self.commit_key.commit(&t_mid_poly)?;
         let t_high_commit = self.commit_key.commit(&t_high_poly)?;
+        #[cfg(feature = "debug")]
+        println!("plonk: ninth commit, t_4_poly={:?} domain_size={} t_poly size={}", t_4_poly.degree(), domain_size, t_poly.len());
         let t_4_commit = self.commit_key.commit(&t_4_poly)?;
 
         // add quotient polynomial commitments to transcript

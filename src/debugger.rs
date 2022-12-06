@@ -66,9 +66,13 @@ impl Debugger {
     fn write_output(&self) {
         let path = match env::var("CDF_OUTPUT") {
             Ok(path) => PathBuf::from(path),
-            Err(env::VarError::NotPresent) => return (),
+            Err(env::VarError::NotPresent) => {
+                println!("ret 1");
+                return ()
+            },
             Err(env::VarError::NotUnicode(_)) => {
                 eprintln!("the provided `CDF_OUTPUT` isn't valid unicode");
+                println!("ret 2");
                 return ();
             }
         };
@@ -95,6 +99,9 @@ impl Debugger {
                     let qc = c.coeff(Selector::Constant);
                     let qo = c.coeff(Selector::Output);
                     let pi = c.coeff(Selector::PublicInput);
+                    if pi.0[0] != 0 {
+                        println!("pi={:?}", pi.to_bytes());
+                    }
                     let qarith = c.coeff(Selector::Arithmetic);
                     let qlogic = c.coeff(Selector::Logic);
                     let qrange = c.coeff(Selector::Range);
@@ -162,6 +169,8 @@ impl Debugger {
                     let polynomial =
                         Polynomial::new(selectors, witnesses, evaluation);
 
+                    // println!("poly={:?}", polynomial);
+
                     EncodableConstraint::new(id, polynomial, source)
                 });
 
@@ -191,14 +200,17 @@ impl Debugger {
     pub(crate) fn event(&mut self, event: RuntimeEvent) {
         match event {
             RuntimeEvent::WitnessAppended { w, v } => {
+                // println!("witness appended: {:?}", w);
                 self.witnesses.push((Self::resolve_caller(), w, v));
             }
 
             RuntimeEvent::ConstraintAppended { c } => {
+                // println!("contraint appended: {:?}", c);
                 self.constraints.push((Self::resolve_caller(), c));
             }
 
             RuntimeEvent::ProofFinished => {
+                println!("proof finished, constraints={}, witnesses={}", self.constraints.len(), self.witnesses.len());
                 self.write_output();
             }
         }

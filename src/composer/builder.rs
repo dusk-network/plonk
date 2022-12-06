@@ -92,6 +92,9 @@ impl Composer for Builder {
     }
 
     fn append_witness_internal(&mut self, witness: BlsScalar) -> Witness {
+        // #[cfg(feature = "debug")]
+        // println!("append_witness_internal={:?}", witness.0[0]);
+
         let n = self.witnesses.len();
 
         // Get a new Witness from the permutation
@@ -104,6 +107,8 @@ impl Composer for Builder {
     }
 
     fn append_custom_gate_internal(&mut self, constraint: Constraint) {
+        // #[cfg(feature = "debug")]
+        // println!("append_custom_gate_internal={:?}", constraint);
         let n = self.constraints.len();
 
         let w_a = constraint.witness(WiredWitness::A);

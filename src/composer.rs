@@ -381,6 +381,8 @@ pub trait Composer: Sized + Index<Witness, Output = BlsScalar> {
 
     /// Initialize the constraint system with dummy gates
     fn initialized(capacity: usize) -> Self {
+        #[cfg(feature = "debug")]
+        println!("initialized with capacity={}", capacity);
         #[allow(deprecated)]
         let mut slf = Self::uninitialized(capacity);
 

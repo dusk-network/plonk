@@ -99,8 +99,18 @@ pub(crate) fn compute(
         .collect();
 
     let coset = domain_8n.coset_ifft(&quotient);
+    let mut num_zeroes_in_coset = 0;
+    for x in coset.iter() {
+        if x.0[0] == 0u64 && x.0[1] == 0u64 && x.0[2] == 0u64 && x.0[3] == 0u64 {
+            num_zeroes_in_coset += 1;
+        }
+    }
 
-    Ok(Polynomial::from_coefficients_vec(coset))
+    let p = Polynomial::from_coefficients_vec(coset.clone());
+
+    #[cfg(feature = "debug")]
+    println!("plonk: coset size={} p degree={} num_zeroes in coset={}", coset.len(), p.degree(), num_zeroes_in_coset);
+    Ok(p)
 }
 
 // Ensures that the circuit is satisfied

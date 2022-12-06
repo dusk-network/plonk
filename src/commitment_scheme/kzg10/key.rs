@@ -161,6 +161,8 @@ impl CommitKey {
         &self,
         poly_degree: usize,
     ) -> Result<(), Error> {
+        #[cfg(feature = "debug")]
+        println!("plonk: poly_degree={} max_degree={}", poly_degree, self.max_degree());
         match (poly_degree == 0, poly_degree > self.max_degree()) {
             (true, _) => Err(Error::PolynomialDegreeIsZero),
             (false, true) => Err(Error::PolynomialDegreeTooLarge),
