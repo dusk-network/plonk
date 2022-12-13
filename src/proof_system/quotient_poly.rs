@@ -99,7 +99,9 @@ pub(crate) fn compute(
         .collect();
 
     let coset = domain_8n.coset_ifft(&quotient);
+    #[cfg(feature = "debug")]
     let mut num_zeroes_in_coset = 0;
+    #[cfg(feature = "debug")]
     for x in coset.iter() {
         if x.0[0] == 0u64 && x.0[1] == 0u64 && x.0[2] == 0u64 && x.0[3] == 0u64 {
             num_zeroes_in_coset += 1;
