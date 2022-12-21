@@ -563,7 +563,11 @@ pub trait Composer: Sized + Index<Witness, Output = BlsScalar> {
         let public = public.into();
         let witness = self.append_witness(public);
 
-        self.assert_equal_constant(witness, 0, Some(-public));
+        let constraint = Constraint::new()
+            .left(-BlsScalar::one())
+            .a(witness)
+            .public(public);
+        self.append_gate(constraint);
 
         witness
     }
