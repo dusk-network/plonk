@@ -7,6 +7,7 @@
 use dusk_plonk::prelude::*;
 use rand::rngs::StdRng;
 use rand::SeedableRng;
+use zero_crypto::behave::Group;
 
 #[test]
 fn mul_generator_works() {
@@ -60,7 +61,7 @@ fn mul_generator_works() {
 
     // default works
     {
-        let a = JubJubScalar::random(rng);
+        let a = JubJubScalar::random(rng.clone());
         let (proof, public_inputs) = prover
             .prove(rng, &DummyCircuit::new(a))
             .expect("failed to prove");
@@ -88,7 +89,7 @@ fn mul_generator_works() {
     // invalid jubjub won't panic
     {
         let a = -BlsScalar::one();
-        let a = JubJubScalar::from_raw(a.0);
+        let a = JubJubScalar::to_mont_form(a.0);
 
         let x = JubJubScalar::from(8u64);
         let y = zero_jubjub::GENERATOR_EXTENDED * &x;
@@ -151,8 +152,8 @@ fn add_point_works() {
 
     // default works
     {
-        let a = JubJubScalar::random(rng);
-        let b = JubJubScalar::random(rng);
+        let a = JubJubScalar::random(rng.clone());
+        let b = JubJubScalar::random(rng.clone());
 
         let (proof, public_inputs) = prover
             .prove(rng, &DummyCircuit::new(&a, &b))
@@ -165,7 +166,7 @@ fn add_point_works() {
 
     // identity works
     {
-        let a = JubJubScalar::random(rng);
+        let a = JubJubScalar::random(rng.clone());
         let a = zero_jubjub::GENERATOR_EXTENDED * &a;
 
         let (proof, public_inputs) = prover
@@ -274,8 +275,8 @@ fn mul_point_works() {
 
     // default works
     {
-        let a = JubJubScalar::random(rng);
-        let b = JubJubScalar::random(rng);
+        let a = JubJubScalar::random(rng.clone());
+        let b = JubJubScalar::random(rng.clone());
         let b = zero_jubjub::GENERATOR_EXTENDED * &b;
 
         let (proof, public_inputs) = prover
@@ -289,12 +290,12 @@ fn mul_point_works() {
 
     // negative works
     {
-        let a = JubJubScalar::random(rng);
-        let b = JubJubScalar::random(rng);
+        let a = JubJubScalar::random(rng.clone());
+        let b = JubJubScalar::random(rng.clone());
         let b = zero_jubjub::GENERATOR_EXTENDED * &b;
         let c = b * &a;
 
-        let x = JubJubScalar::random(rng);
+        let x = JubJubScalar::random(rng.clone());
         let x = zero_jubjub::GENERATOR_EXTENDED * &x;
 
         assert_ne!(c, x);

@@ -7,6 +7,7 @@
 use dusk_plonk::prelude::*;
 use rand::rngs::StdRng;
 use rand::SeedableRng;
+use zero_crypto::behave::Group;
 
 #[test]
 fn logic_and_works() {
@@ -63,8 +64,8 @@ fn logic_and_works() {
 
     // default works
     {
-        let a = BlsScalar::random(rng);
-        let b = BlsScalar::random(rng);
+        let a = BlsScalar::random(rng.clone());
+        let b = BlsScalar::random(rng.clone());
 
         let (proof, public_inputs) = prover
             .prove(rng, &DummyCircuit::new(a, b, 256))
@@ -81,14 +82,14 @@ fn logic_and_works() {
 
         let x = BlsScalar::pow_of_2(bits as u64) - BlsScalar::one();
 
-        let a = BlsScalar::random(rng);
-        let b = BlsScalar::random(rng);
+        let a = BlsScalar::random(rng.clone());
+        let b = BlsScalar::random(rng.clone());
 
         let a = a & x;
         let b = b & x;
         let c = a & b & x;
 
-        let m = BlsScalar::random(rng) & x;
+        let m = BlsScalar::random(rng.clone()) & x;
         let n = a & m & x;
 
         assert_ne!(c, n);
@@ -102,8 +103,8 @@ fn logic_and_works() {
     {
         let bits = 30;
 
-        let a = BlsScalar::random(rng);
-        let b = BlsScalar::random(rng);
+        let a = BlsScalar::random(rng.clone());
+        let b = BlsScalar::random(rng.clone());
 
         let circuit = DummyCircuit::new(a, b, bits);
 
@@ -111,8 +112,8 @@ fn logic_and_works() {
             Compiler::compile_with_circuit(&pp, label, &circuit)
                 .expect("failed to compile circuit");
 
-        let a = BlsScalar::random(rng);
-        let b = BlsScalar::random(rng);
+        let a = BlsScalar::random(rng.clone());
+        let b = BlsScalar::random(rng.clone());
 
         let (proof, public_inputs) = prover
             .prove(rng, &DummyCircuit::new(a, b, bits))
@@ -127,8 +128,8 @@ fn logic_and_works() {
     {
         let bits = 0;
 
-        let a = BlsScalar::random(rng);
-        let b = BlsScalar::random(rng);
+        let a = BlsScalar::random(rng.clone());
+        let b = BlsScalar::random(rng.clone());
 
         let circuit = DummyCircuit::new(a, b, bits);
 
@@ -136,8 +137,8 @@ fn logic_and_works() {
             Compiler::compile_with_circuit(&pp, label, &circuit)
                 .expect("failed to compile circuit");
 
-        let a = BlsScalar::random(rng);
-        let b = BlsScalar::random(rng);
+        let a = BlsScalar::random(rng.clone());
+        let b = BlsScalar::random(rng.clone());
 
         let (proof, public_inputs) = prover
             .prove(rng, &DummyCircuit::new(a, b, bits))
@@ -152,8 +153,8 @@ fn logic_and_works() {
     {
         let bits = 55;
 
-        let a = BlsScalar::random(rng);
-        let b = BlsScalar::random(rng);
+        let a = BlsScalar::random(rng.clone());
+        let b = BlsScalar::random(rng.clone());
 
         let circuit = DummyCircuit::new(a, b, bits);
 
@@ -217,8 +218,8 @@ fn logic_xor_works() {
 
     // default works
     {
-        let a = BlsScalar::random(rng);
-        let b = BlsScalar::random(rng);
+        let a = BlsScalar::random(rng.clone());
+        let b = BlsScalar::random(rng.clone());
 
         let (proof, public_inputs) = prover
             .prove(rng, &DummyCircuit::new(a, b, 256))
@@ -235,14 +236,14 @@ fn logic_xor_works() {
 
         let x = BlsScalar::pow_of_2(bits as u64) - BlsScalar::one();
 
-        let a = BlsScalar::random(rng);
-        let b = BlsScalar::random(rng);
+        let a = BlsScalar::random(rng.clone());
+        let b = BlsScalar::random(rng.clone());
 
         let a = a & x;
         let b = b & x;
         let c = (a ^ b) & x;
 
-        let m = BlsScalar::random(rng) & x;
+        let m = BlsScalar::random(rng.clone()) & x;
         let n = (a ^ m) & x;
 
         assert_ne!(c, n);
@@ -256,8 +257,8 @@ fn logic_xor_works() {
     {
         let bits = 30;
 
-        let a = BlsScalar::random(rng);
-        let b = BlsScalar::random(rng);
+        let a = BlsScalar::random(rng.clone());
+        let b = BlsScalar::random(rng.clone());
 
         let circuit = DummyCircuit::new(a, b, bits);
 
@@ -265,8 +266,8 @@ fn logic_xor_works() {
             Compiler::compile_with_circuit(&pp, label, &circuit)
                 .expect("failed to compile circuit");
 
-        let a = BlsScalar::random(rng);
-        let b = BlsScalar::random(rng);
+        let a = BlsScalar::random(rng.clone());
+        let b = BlsScalar::random(rng.clone());
 
         let (proof, public_inputs) = prover
             .prove(rng, &DummyCircuit::new(a, b, bits))
@@ -281,8 +282,8 @@ fn logic_xor_works() {
     {
         let bits = 0;
 
-        let a = BlsScalar::random(rng);
-        let b = BlsScalar::random(rng);
+        let a = BlsScalar::random(rng.clone());
+        let b = BlsScalar::random(rng.clone());
 
         let circuit = DummyCircuit::new(a, b, bits);
 
@@ -290,8 +291,8 @@ fn logic_xor_works() {
             Compiler::compile_with_circuit(&pp, label, &circuit)
                 .expect("failed to compile circuit");
 
-        let a = BlsScalar::random(rng);
-        let b = BlsScalar::random(rng);
+        let a = BlsScalar::random(rng.clone());
+        let b = BlsScalar::random(rng.clone());
 
         let (proof, public_inputs) = prover
             .prove(rng, &DummyCircuit::new(a, b, bits))
@@ -306,8 +307,8 @@ fn logic_xor_works() {
     {
         let bits = 55;
 
-        let a = BlsScalar::random(rng);
-        let b = BlsScalar::random(rng);
+        let a = BlsScalar::random(rng.clone());
+        let b = BlsScalar::random(rng.clone());
 
         let circuit = DummyCircuit::new(a, b, bits);
 

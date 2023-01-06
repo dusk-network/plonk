@@ -317,12 +317,12 @@ impl OpeningKey {
         let affine_total_c = G1Affine::from(total_c);
 
         let pairing = TatePairing::multi_miller_loop(&[
-            (affine_total_w, self.prepared_beta_h),
-            (affine_total_c, self.prepared_h),
+            (affine_total_w, self.prepared_beta_h.clone()),
+            (affine_total_c, self.prepared_h.clone()),
         ])
         .final_exp();
 
-        if pairing != zero_bls12_381::Gt::identity() {
+        if pairing != zero_bls12_381::Gt::ADDITIVE_IDENTITY {
             return Err(Error::PairingCheckFailure);
         };
         Ok(())
@@ -351,12 +351,12 @@ mod test {
         let prepared_inner_b = G2Prepared::from(-inner_b);
 
         let pairing = TatePairing::multi_miller_loop(&[
-            (inner_a, op_key.prepared_h),
+            (inner_a, op_key.prepared_h.clone()),
             (proof.commitment_to_witness.0, prepared_inner_b),
         ])
         .final_exp();
 
-        pairing == zero_bls12_381::Gt::identity()
+        pairing == zero_bls12_381::Gt::ADDITIVE_IDENTITY
     }
 
     // Creates an opening proof that a polynomial `p` was correctly evaluated at

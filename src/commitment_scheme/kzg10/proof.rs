@@ -93,7 +93,9 @@ pub(crate) mod alloc {
             // Flattened polynomial commitments using challenge `v`
             let flattened_poly_commitments: G1Projective =
                 flattened_poly_commitments_iter
-                    .map(|(poly, v_challenge)| poly.0 * v_challenge)
+                    .map(|(poly, v_challenge)| {
+                        G1Projective::from(poly.0) * v_challenge
+                    })
                     .sum();
             // Flattened evaluation points
             let flattened_poly_evaluations: BlsScalar =

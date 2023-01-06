@@ -7,6 +7,7 @@
 use dusk_plonk::prelude::*;
 use rand::rngs::StdRng;
 use rand::SeedableRng;
+use zero_crypto::common::{Group, PrimeField};
 
 #[test]
 fn decomposition_works() {
@@ -67,7 +68,7 @@ fn decomposition_works() {
 
     // default works
     {
-        let a = BlsScalar::random(rng);
+        let a = BlsScalar::random(rng.clone());
 
         let (proof, public_inputs) = prover
             .prove(rng, &DummyCircuit::<256>::new(a))
@@ -80,7 +81,7 @@ fn decomposition_works() {
 
     // negative works
     {
-        let a = BlsScalar::random(rng);
+        let a = BlsScalar::random(rng.clone());
 
         let mut circuit = DummyCircuit::<256>::new(a);
 

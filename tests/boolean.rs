@@ -7,6 +7,7 @@
 use dusk_plonk::prelude::*;
 use rand::rngs::StdRng;
 use rand::SeedableRng;
+use zero_crypto::common::Group;
 
 #[test]
 fn boolean_works() {
@@ -266,19 +267,19 @@ fn select_works() {
     {
         let bit = BlsScalar::one();
 
-        let a = BlsScalar::random(rng);
-        let b = BlsScalar::random(rng);
+        let a = BlsScalar::random(rng.clone());
+        let b = BlsScalar::random(rng.clone());
         let zero_bit = bit;
-        let zero_a = BlsScalar::random(rng);
+        let zero_a = BlsScalar::random(rng.clone());
         let one_bit = bit;
-        let one_a = BlsScalar::random(rng);
+        let one_a = BlsScalar::random(rng.clone());
         let point_bit = bit;
-        let point_a = JubJubScalar::random(rng);
+        let point_a = JubJubScalar::random(rng.clone());
         let point_a = zero_jubjub::GENERATOR_EXTENDED * &point_a;
-        let point_b = JubJubScalar::random(rng);
+        let point_b = JubJubScalar::random(rng.clone());
         let point_b = zero_jubjub::GENERATOR_EXTENDED * &point_b;
         let identity_bit = bit;
-        let identity_a = JubJubScalar::random(rng);
+        let identity_a = JubJubScalar::random(rng.clone());
         let identity_a = zero_jubjub::GENERATOR_EXTENDED * &identity_a;
 
         let circuit = DummyCircuit::new(
@@ -305,19 +306,19 @@ fn select_works() {
 
         let bit = BlsScalar::zero();
 
-        let a = BlsScalar::random(rng);
-        let b = BlsScalar::random(rng);
+        let a = BlsScalar::random(rng.clone());
+        let b = BlsScalar::random(rng.clone());
         let zero_bit = bit;
-        let zero_a = BlsScalar::random(rng);
+        let zero_a = BlsScalar::random(rng.clone());
         let one_bit = bit;
-        let one_a = BlsScalar::random(rng);
+        let one_a = BlsScalar::random(rng.clone());
         let point_bit = bit;
-        let point_a = JubJubScalar::random(rng);
+        let point_a = JubJubScalar::random(rng.clone());
         let point_a = zero_jubjub::GENERATOR_EXTENDED * &point_a;
-        let point_b = JubJubScalar::random(rng);
+        let point_b = JubJubScalar::random(rng.clone());
         let point_b = zero_jubjub::GENERATOR_EXTENDED * &point_b;
         let identity_bit = bit;
-        let identity_a = JubJubScalar::random(rng);
+        let identity_a = JubJubScalar::random(rng.clone());
         let identity_a = zero_jubjub::GENERATOR_EXTENDED * &identity_a;
 
         let circuit = DummyCircuit::new(
@@ -345,19 +346,19 @@ fn select_works() {
 
     let bit = BlsScalar::one();
 
-    let a = BlsScalar::random(rng);
-    let b = BlsScalar::random(rng);
+    let a = BlsScalar::random(rng.clone());
+    let b = BlsScalar::random(rng.clone());
     let zero_bit = bit;
-    let zero_a = BlsScalar::random(rng);
+    let zero_a = BlsScalar::random(rng.clone());
     let one_bit = bit;
-    let one_a = BlsScalar::random(rng);
+    let one_a = BlsScalar::random(rng.clone());
     let point_bit = bit;
-    let point_a = JubJubScalar::random(rng);
+    let point_a = JubJubScalar::random(rng.clone());
     let point_a = zero_jubjub::GENERATOR_EXTENDED * &point_a;
-    let point_b = JubJubScalar::random(rng);
+    let point_b = JubJubScalar::random(rng.clone());
     let point_b = zero_jubjub::GENERATOR_EXTENDED * &point_b;
     let identity_bit = bit;
-    let identity_a = JubJubScalar::random(rng);
+    let identity_a = JubJubScalar::random(rng.clone());
     let identity_a = zero_jubjub::GENERATOR_EXTENDED * &identity_a;
 
     let base = DummyCircuit::new(
