@@ -13,9 +13,9 @@ use crate::proof_system::{Proof, Prover, ProverKey, Verifier, VerifierKey};
 use alloc::vec::Vec;
 #[cfg(feature = "canon")]
 use canonical_derive::Canon;
-use dusk_bls12_381::BlsScalar;
+use zero_bls12_381::{Fr as BlsScalar};
 use dusk_bytes::{DeserializableSlice, Serializable, Write};
-use dusk_jubjub::{JubJubAffine, JubJubExtended, JubJubScalar};
+use zero_jubjub::{JubJubAffine, JubJubExtended, JubJubScalar};
 use rand_core::{CryptoRng, RngCore};
 
 #[cfg(feature = "rkyv-impl")]
@@ -207,7 +207,7 @@ impl VerifierData {
 ///         let e = composer.append_witness(self.e);
 ///         let scalar_mul_result =
 ///             composer.component_mul_generator(
-///                 e, dusk_jubjub::GENERATOR_EXTENDED,
+///                 e, zero_jubjub::GENERATOR_EXTENDED,
 ///             );
 ///         // Apply the constraint
 ///         composer
@@ -239,7 +239,7 @@ impl VerifierData {
 ///         d: BlsScalar::from(100u64),
 ///         e: JubJubScalar::from(2u64),
 ///         f: JubJubAffine::from(
-///             dusk_jubjub::GENERATOR_EXTENDED * JubJubScalar::from(2u64),
+///             zero_jubjub::GENERATOR_EXTENDED * JubJubScalar::from(2u64),
 ///         ),
 ///     };
 ///
@@ -251,7 +251,7 @@ impl VerifierData {
 ///     BlsScalar::from(25u64).into(),
 ///     BlsScalar::from(100u64).into(),
 ///     JubJubAffine::from(
-///         dusk_jubjub::GENERATOR_EXTENDED * JubJubScalar::from(2u64),
+///         zero_jubjub::GENERATOR_EXTENDED * JubJubScalar::from(2u64),
 ///     )
 ///     .into(),
 /// ];

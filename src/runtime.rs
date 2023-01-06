@@ -6,7 +6,7 @@
 
 //! PLONK runtime controller
 
-use dusk_bls12_381::BlsScalar;
+use zero_bls12_381::Fr as BlsScalar;
 
 use crate::constraint_system::{Constraint, Witness};
 

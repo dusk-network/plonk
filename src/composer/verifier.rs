@@ -7,9 +7,9 @@
 use alloc::vec::Vec;
 use core::marker::PhantomData;
 
-use dusk_bls12_381::BlsScalar;
 use dusk_bytes::{DeserializableSlice, Serializable};
 use merlin::Transcript;
+use zero_bls12_381::Fr as BlsScalar;
 
 use crate::commitment_scheme::OpeningKey;
 use crate::error::Error;

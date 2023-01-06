@@ -61,7 +61,7 @@ impl Circuit for TestCircuit {
 
         let e = composer.append_witness(self.e);
         let scalar_mul_result = composer
-            .component_mul_generator(e, dusk_jubjub::GENERATOR_EXTENDED)?;
+            .component_mul_generator(e, zero_jubjub::GENERATOR_EXTENDED)?;
 
         // Apply the constraint
         composer.assert_equal_public_point(scalar_mul_result, self.f);

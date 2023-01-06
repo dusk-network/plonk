@@ -39,8 +39,9 @@ mod alloc {
     };
     #[rustfmt::skip]
     use ::alloc::vec::Vec;
-    use dusk_bls12_381::{BlsScalar, G1Affine};
-    use dusk_jubjub::EDWARDS_D;
+    use zero_bls12_381::{Fr as BlsScalar, G1Affine};
+    use zero_crypto::behave::PrimeField;
+    use zero_jubjub::EDWARDS_D;
 
     impl VerifierKey {
         pub(crate) fn compute_linearization_commitment(

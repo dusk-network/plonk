@@ -10,8 +10,8 @@ use crate::{
     proof_system::ProverKey,
 };
 
-use dusk_bls12_381::BlsScalar;
 use dusk_bytes::{DeserializableSlice, Serializable};
+use zero_bls12_381::Fr as BlsScalar;
 
 #[cfg(feature = "rkyv-impl")]
 use bytecheck::CheckBytes;

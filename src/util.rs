@@ -5,10 +5,9 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use alloc::vec::Vec;
-use dusk_bls12_381::{
-    BlsScalar, G1Affine, G1Projective, G2Affine, G2Projective,
-};
 use rand_core::{CryptoRng, RngCore};
+use zero_bls12_381::{Fr as BlsScalar, G1Projective, G2Projective};
+use zero_crypto::common::Group;
 
 #[cfg(feature = "rkyv-impl")]
 #[inline(always)]
@@ -51,13 +50,13 @@ pub(crate) fn random_scalar<R: RngCore + CryptoRng>(rng: &mut R) -> BlsScalar {
 pub(crate) fn random_g1_point<R: RngCore + CryptoRng>(
     rng: &mut R,
 ) -> G1Projective {
-    G1Affine::generator() * random_scalar(rng)
+    G1Projective::ADDITIVE_GENERATOR * random_scalar(rng)
 }
 /// Generates a random G2 point using an RNG seed.
 pub(crate) fn random_g2_point<R: RngCore + CryptoRng>(
     rng: &mut R,
 ) -> G2Projective {
-    G2Affine::generator() * random_scalar(rng)
+    G2Projective::ADDITIVE_GENERATOR * random_scalar(rng)
 }
 
 /// This function is only used to generate the SRS.

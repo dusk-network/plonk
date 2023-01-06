@@ -8,9 +8,10 @@ use crate::constraint_system::{WireData, Witness};
 use crate::fft::{EvaluationDomain, Polynomial};
 use alloc::vec::Vec;
 use constants::{K1, K2, K3};
-use dusk_bls12_381::BlsScalar;
 use hashbrown::HashMap;
 use itertools::izip;
+use zero_bls12_381::Fr as BlsScalar;
+use zero_crypto::behave::*;
 
 pub(crate) mod constants;
 
@@ -303,8 +304,8 @@ mod test {
     use super::*;
     //use crate::constraint_system::Constraint;
     use crate::fft::Polynomial;
-    use dusk_bls12_381::BlsScalar;
     use rand_core::OsRng;
+    use zero_bls12_381::Fr as BlsScalar;
 
     #[allow(dead_code)]
     fn compute_fast_permutation_poly(
@@ -754,8 +755,8 @@ mod test {
 
         let domain = EvaluationDomain::new(num_wire_mappings).unwrap();
         let w = domain.group_gen;
-        let w_squared = w.pow(&[2, 0, 0, 0]);
-        let w_cubed = w.pow(&[3, 0, 0, 0]);
+        let w_squared = w.pow(2);
+        let w_cubed = w.pow(3);
 
         // Check the left sigmas have been encoded properly
         // s_sigma_1 = {R0, L2, L3, L0}
@@ -904,8 +905,8 @@ mod test {
         */
         let domain = EvaluationDomain::new(num_wire_mappings).unwrap();
         let w = domain.group_gen;
-        let w_squared = w.pow(&[2, 0, 0, 0]);
-        let w_cubed = w.pow(&[3, 0, 0, 0]);
+        let w_squared = w.pow(2);
+        let w_cubed = w.pow(3);
         // check the left sigmas have been encoded properly
         let encoded_s_sigma_1 =
             perm.compute_permutation_lagrange(s_sigma_1, &domain);

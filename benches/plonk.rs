@@ -25,7 +25,7 @@ impl<const DEGREE: usize> Default for BenchCircuit<DEGREE> {
             b: BlsScalar::from(3u64),
             x: BlsScalar::from(6u64),
             y: JubJubScalar::from(7u64),
-            z: dusk_jubjub::GENERATOR_EXTENDED * &JubJubScalar::from(7u64),
+            z: zero_jubjub::GENERATOR_EXTENDED * &JubJubScalar::from(7u64),
         }
     }
 }
@@ -63,7 +63,7 @@ impl<const DEGREE: usize> Circuit for BenchCircuit<DEGREE> {
             composer.component_decomposition::<254>(w_a);
             composer.component_mul_generator(
                 w_y,
-                dusk_jubjub::GENERATOR_EXTENDED,
+                zero_jubjub::GENERATOR_EXTENDED,
             )?;
             composer.component_mul_point(w_y, w_z);
             composer.component_range(w_a, 254);

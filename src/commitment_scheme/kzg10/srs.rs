@@ -9,9 +9,9 @@
 use super::key::{CommitKey, OpeningKey};
 use crate::{error::Error, util};
 use alloc::vec::Vec;
-use dusk_bls12_381::{G1Affine, G1Projective, G2Affine};
 use dusk_bytes::{DeserializableSlice, Serializable};
 use rand_core::{CryptoRng, RngCore};
+use zero_bls12_381::{G1Affine, G1Projective, G2Affine};
 
 #[cfg(feature = "rkyv-impl")]
 use bytecheck::CheckBytes;
@@ -20,6 +20,7 @@ use rkyv::{
     ser::{ScratchSpace, Serializer},
     Archive, Deserialize, Serialize,
 };
+use zero_crypto::common::Group;
 
 /// The Public Parameters can also be referred to as the Structured Reference
 /// String (SRS). It is available to both the prover and verifier and allows the
@@ -79,7 +80,8 @@ impl PublicParameters {
         assert_eq!(powers_of_g.len(), max_degree + 1);
 
         // Normalize all projective points
-        let mut normalized_g = vec![G1Affine::identity(); max_degree + 1];
+        let mut normalized_g =
+            vec![G1Affine::ADDITIVE_IDENTITY; max_degree + 1];
         G1Projective::batch_normalize(&powers_of_g, &mut normalized_g);
 
         // Compute x_2 = x*h element and stored cached elements for verifying
@@ -202,8 +204,9 @@ impl PublicParameters {
 #[cfg(test)]
 mod test {
     use super::*;
-    use dusk_bls12_381::BlsScalar;
     use rand_core::OsRng;
+    use zero_bls12_381::Fr as BlsScalar;
+    use zero_crypto::behave::FftField;
 
     #[test]
     fn test_powers_of() {
@@ -213,11 +216,11 @@ mod test {
         let powers_of_x = util::powers_of(&x, degree as usize);
 
         for (i, x_i) in powers_of_x.iter().enumerate() {
-            assert_eq!(*x_i, x.pow(&[i as u64, 0, 0, 0]))
+            assert_eq!(*x_i, x.pow(i as u64))
         }
 
         let last_element = powers_of_x.last().unwrap();
-        assert_eq!(*last_element, x.pow(&[degree, 0, 0, 0]))
+        assert_eq!(*last_element, x.pow(degree))
     }
 
     #[test]

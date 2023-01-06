@@ -9,7 +9,6 @@
 
 use super::linearization_poly::ProofEvaluations;
 use crate::commitment_scheme::Commitment;
-
 use dusk_bytes::{DeserializableSlice, Serializable};
 
 #[cfg(feature = "rkyv-impl")]
@@ -182,12 +181,11 @@ pub(crate) mod alloc {
     };
     #[rustfmt::skip]
     use ::alloc::vec::Vec;
-    use dusk_bls12_381::{
-        multiscalar_mul::msm_variable_base, BlsScalar, G1Affine,
-    };
     use merlin::Transcript;
     #[cfg(feature = "std")]
     use rayon::prelude::*;
+    use zero_bls12_381::{msm_variable_base, Fr as BlsScalar, G1Affine};
+    use zero_crypto::behave::{FftField, Group, PrimeField};
 
     impl Proof {
         /// Performs the verification of a [`Proof`] returning a boolean result.
@@ -439,9 +437,9 @@ pub(crate) mod alloc {
             z_challenge: &BlsScalar,
             n: usize,
         ) -> Commitment {
-            let z_n = z_challenge.pow(&[n as u64, 0, 0, 0]);
-            let z_two_n = z_challenge.pow(&[2 * n as u64, 0, 0, 0]);
-            let z_three_n = z_challenge.pow(&[3 * n as u64, 0, 0, 0]);
+            let z_n = z_challenge.pow(n as u64);
+            let z_two_n = z_challenge.pow(2 * n as u64);
+            let z_three_n = z_challenge.pow(3 * n as u64);
             let t_comm = self.t_low_comm.0
                 + self.t_mid_comm.0 * z_n
                 + self.t_high_comm.0 * z_two_n
@@ -532,8 +530,7 @@ pub(crate) mod alloc {
         point: &BlsScalar,
         domain: &EvaluationDomain,
     ) -> BlsScalar {
-        let numerator = (point.pow(&[domain.size() as u64, 0, 0, 0])
-            - BlsScalar::one())
+        let numerator = (point.pow(domain.size() as u64) - BlsScalar::one())
             * domain.size_inv;
 
         // Indices with non-zero evaluations
@@ -563,7 +560,7 @@ pub(crate) mod alloc {
                 // index of non-zero evaluation
                 let index = non_zero_evaluations[i];
 
-                (domain.group_gen_inv.pow(&[index as u64, 0, 0, 0]) * point)
+                (domain.group_gen_inv.pow(index as u64) * point)
                     - BlsScalar::one()
             })
             .collect();
@@ -585,8 +582,9 @@ pub(crate) mod alloc {
 #[cfg(test)]
 mod proof_tests {
     use super::*;
-    use dusk_bls12_381::BlsScalar;
     use rand_core::OsRng;
+    use zero_bls12_381::Fr as BlsScalar;
+    use zero_crypto::behave::Group;
 
     #[test]
     fn test_dusk_bytes_serde_proof() {

@@ -9,9 +9,9 @@
 
 use core::mem;
 
-use dusk_bls12_381::BlsScalar;
 use dusk_bytes::Serializable;
 use merlin::Transcript;
+use zero_bls12_381::Fr as BlsScalar;
 
 use crate::commitment_scheme::Commitment;
 use crate::proof_system::VerifierKey;

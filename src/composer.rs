@@ -8,11 +8,12 @@
 
 use alloc::vec::Vec;
 use core::cmp;
-use core::ops::Index;
+use core::ops::{Index, Neg};
 
-use dusk_bls12_381::BlsScalar;
 use dusk_bytes::Serializable;
-use dusk_jubjub::{JubJubAffine, JubJubExtended, JubJubScalar};
+use zero_bls12_381::Fr as BlsScalar;
+use zero_crypto::behave::{Group, PrimeField};
+use zero_jubjub::{Fp as JubJubScalar, JubJubAffine, JubJubExtended};
 
 use crate::bit_iterator::BitIterator8;
 use crate::constraint_system::ecc::WnafRound;
@@ -251,7 +252,7 @@ pub trait Composer: Sized + Index<Witness, Output = BlsScalar> {
 
         // compute 2^iG
         let mut wnaf_point_multiples: Vec<_> = {
-            let mut multiples = vec![JubJubExtended::default(); bits];
+            let mut multiples = vec![JubJubExtended::identity(); bits];
 
             multiples[0] = generator;
 
@@ -259,7 +260,7 @@ pub trait Composer: Sized + Index<Witness, Output = BlsScalar> {
                 multiples[i] = multiples[i - 1].double();
             }
 
-            dusk_jubjub::batch_normalize(&mut multiples).collect()
+            zero_jubjub::batch_normalize(&mut multiples).collect()
         };
 
         wnaf_point_multiples.reverse();
@@ -267,7 +268,8 @@ pub trait Composer: Sized + Index<Witness, Output = BlsScalar> {
         // we should error instead of producing invalid proofs - otherwise this
         // can easily become an attack vector to either shutdown prover
         // services or create malicious statements
-        let scalar = JubJubScalar::from_bytes(&self[jubjub].to_bytes())?;
+        let scalar =
+            JubJubScalar::from_bytes(&self[jubjub].to_bytes()).unwrap();
 
         let width = 2;
         let wnaf_entries = scalar.compute_windowed_naf(width);

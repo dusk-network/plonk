@@ -6,7 +6,7 @@
 
 use crate::composer::{Builder, Composer};
 use crate::constraint_system::Witness;
-use dusk_bls12_381::BlsScalar;
+use zero_bls12_381::Fr as BlsScalar;
 
 /// Selectors used to address a coefficient inside of a [`Constraint`]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

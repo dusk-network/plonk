@@ -25,7 +25,7 @@ fn mul_generator_works() {
         pub fn new(a: JubJubScalar) -> Self {
             Self {
                 a,
-                b: dusk_jubjub::GENERATOR_EXTENDED * &a,
+                b: zero_jubjub::GENERATOR_EXTENDED * &a,
             }
         }
     }
@@ -46,7 +46,7 @@ fn mul_generator_works() {
 
             let w_x = composer.component_mul_generator(
                 w_a,
-                dusk_jubjub::GENERATOR_EXTENDED,
+                zero_jubjub::GENERATOR_EXTENDED,
             )?;
 
             composer.assert_equal_point(w_b, w_x);
@@ -73,10 +73,10 @@ fn mul_generator_works() {
     // negative check
     {
         let a = JubJubScalar::from(7u64);
-        let b = dusk_jubjub::GENERATOR_EXTENDED * &a;
+        let b = zero_jubjub::GENERATOR_EXTENDED * &a;
 
         let x = JubJubScalar::from(8u64);
-        let y = dusk_jubjub::GENERATOR_EXTENDED * &x;
+        let y = zero_jubjub::GENERATOR_EXTENDED * &x;
 
         assert_ne!(b, y);
 
@@ -91,7 +91,7 @@ fn mul_generator_works() {
         let a = JubJubScalar::from_raw(a.0);
 
         let x = JubJubScalar::from(8u64);
-        let y = dusk_jubjub::GENERATOR_EXTENDED * &x;
+        let y = zero_jubjub::GENERATOR_EXTENDED * &x;
 
         prover
             .prove(rng, &DummyCircuit { a, b: y })
@@ -115,8 +115,8 @@ fn add_point_works() {
 
     impl DummyCircuit {
         pub fn new(a: &JubJubScalar, b: &JubJubScalar) -> Self {
-            let a = dusk_jubjub::GENERATOR_EXTENDED * a;
-            let b = dusk_jubjub::GENERATOR_EXTENDED * b;
+            let a = zero_jubjub::GENERATOR_EXTENDED * a;
+            let b = zero_jubjub::GENERATOR_EXTENDED * b;
             let c = a + b;
 
             Self { a, b, c }
@@ -166,7 +166,7 @@ fn add_point_works() {
     // identity works
     {
         let a = JubJubScalar::random(rng);
-        let a = dusk_jubjub::GENERATOR_EXTENDED * &a;
+        let a = zero_jubjub::GENERATOR_EXTENDED * &a;
 
         let (proof, public_inputs) = prover
             .prove(
@@ -205,13 +205,13 @@ fn add_point_works() {
     // negative check
     {
         let a = JubJubScalar::from(7u64);
-        let a = dusk_jubjub::GENERATOR_EXTENDED * &a;
+        let a = zero_jubjub::GENERATOR_EXTENDED * &a;
 
         let b = JubJubScalar::from(8u64);
-        let b = dusk_jubjub::GENERATOR_EXTENDED * &b;
+        let b = zero_jubjub::GENERATOR_EXTENDED * &b;
 
         let c = JubJubScalar::from(9u64);
-        let c = dusk_jubjub::GENERATOR_EXTENDED * &c;
+        let c = zero_jubjub::GENERATOR_EXTENDED * &c;
 
         assert_ne!(c, a + b);
 
@@ -246,7 +246,7 @@ fn mul_point_works() {
     impl Default for DummyCircuit {
         fn default() -> Self {
             let b = JubJubScalar::from(8u64);
-            let b = dusk_jubjub::GENERATOR_EXTENDED * &b;
+            let b = zero_jubjub::GENERATOR_EXTENDED * &b;
 
             Self::new(JubJubScalar::from(7u64), b)
         }
@@ -276,7 +276,7 @@ fn mul_point_works() {
     {
         let a = JubJubScalar::random(rng);
         let b = JubJubScalar::random(rng);
-        let b = dusk_jubjub::GENERATOR_EXTENDED * &b;
+        let b = zero_jubjub::GENERATOR_EXTENDED * &b;
 
         let (proof, public_inputs) = prover
             .prove(rng, &DummyCircuit::new(a, b))
@@ -291,11 +291,11 @@ fn mul_point_works() {
     {
         let a = JubJubScalar::random(rng);
         let b = JubJubScalar::random(rng);
-        let b = dusk_jubjub::GENERATOR_EXTENDED * &b;
+        let b = zero_jubjub::GENERATOR_EXTENDED * &b;
         let c = b * &a;
 
         let x = JubJubScalar::random(rng);
-        let x = dusk_jubjub::GENERATOR_EXTENDED * &x;
+        let x = zero_jubjub::GENERATOR_EXTENDED * &x;
 
         assert_ne!(c, x);
 

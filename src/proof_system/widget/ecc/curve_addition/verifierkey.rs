@@ -5,6 +5,7 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use crate::commitment_scheme::Commitment;
+use zero_crypto::behave::PrimeField;
 
 #[cfg(feature = "rkyv-impl")]
 use bytecheck::CheckBytes;
@@ -32,8 +33,8 @@ mod alloc {
     use crate::proof_system::linearization_poly::ProofEvaluations;
     #[rustfmt::skip]
     use ::alloc::vec::Vec;
-    use dusk_bls12_381::{BlsScalar, G1Affine};
-    use dusk_jubjub::EDWARDS_D;
+    use zero_bls12_381::{Fr as BlsScalar, G1Affine};
+    use zero_jubjub::EDWARDS_D;
 
     impl VerifierKey {
         pub(crate) fn compute_linearization_commitment(

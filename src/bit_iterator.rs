@@ -62,8 +62,8 @@ bit_iterator!(u8, BitIterator8);
 mod test {
     use super::*;
     use alloc::vec::Vec;
-    use dusk_bls12_381::BlsScalar;
     use dusk_bytes::Serializable;
+    use zero_bls12_381::Fr as BlsScalar;
 
     #[test]
     fn test_bit_iterator8() {

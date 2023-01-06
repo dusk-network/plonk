@@ -39,7 +39,8 @@ mod alloc {
     use crate::proof_system::linearization_poly::ProofEvaluations;
     #[rustfmt::skip]
     use ::alloc::vec::Vec;
-    use dusk_bls12_381::{BlsScalar, G1Affine};
+    use zero_bls12_381::{Fr as BlsScalar, G1Affine};
+    use zero_crypto::behave::PrimeField;
 
     impl VerifierKey {
         pub(crate) fn compute_linearization_commitment(

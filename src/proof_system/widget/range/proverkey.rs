@@ -5,7 +5,8 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use crate::fft::{Evaluations, Polynomial};
-use dusk_bls12_381::BlsScalar;
+use zero_bls12_381::Fr as BlsScalar;
+use zero_crypto::behave::*;
 
 #[cfg(feature = "rkyv-impl")]
 use bytecheck::CheckBytes;

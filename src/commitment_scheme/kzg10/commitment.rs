@@ -5,8 +5,8 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 //! Module containing the representation of a Commitment to a Polynomial.
-use dusk_bls12_381::{G1Affine, G1Projective};
 use dusk_bytes::{DeserializableSlice, Serializable};
+use zero_bls12_381::{G1Affine, G1Projective};
 
 #[cfg(feature = "rkyv-impl")]
 use bytecheck::CheckBytes;
@@ -15,6 +15,7 @@ use rkyv::{
     ser::{ScratchSpace, Serializer},
     Archive, Deserialize, Serialize,
 };
+use zero_crypto::common::Group;
 
 /// Holds a commitment to a polynomial in a form of a [`G1Affine`]-bls12_381
 /// point.
@@ -60,7 +61,7 @@ impl Commitment {
     /// Builds an identity [`Commitment`] which is equivalent to the
     /// [`G1Affine`] identity point in bls12_381.
     fn identity() -> Commitment {
-        Commitment(G1Affine::identity())
+        Commitment(G1Affine::ADDITIVE_IDENTITY)
     }
 }
 
@@ -76,7 +77,8 @@ mod commitment_tests {
 
     #[test]
     fn commitment_dusk_bytes_serde() {
-        let commitment = Commitment(dusk_bls12_381::G1Affine::generator());
+        let commitment =
+            Commitment(zero_bls12_381::G1Affine::ADDITIVE_GENERATOR);
         let bytes = commitment.to_bytes();
         let obtained_comm = Commitment::from_slice(&bytes)
             .expect("Error on the deserialization");

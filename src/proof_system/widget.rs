@@ -202,8 +202,8 @@ pub(crate) mod alloc {
     };
     #[rustfmt::skip]
     use ::alloc::vec::Vec;
-    use dusk_bls12_381::BlsScalar;
     use merlin::Transcript;
+    use zero_bls12_381::Fr as BlsScalar;
 
     impl VerifierKey {
         /// Adds the circuit description to the transcript
@@ -578,8 +578,9 @@ mod test {
     use crate::fft::{EvaluationDomain, Evaluations, Polynomial};
     #[rustfmt::skip]
     use ::alloc::vec::Vec;
-    use dusk_bls12_381::BlsScalar;
     use rand_core::OsRng;
+    use zero_bls12_381::Fr as BlsScalar;
+    use zero_crypto::behave::Group;
 
     fn rand_poly_eval(n: usize) -> (Polynomial, Evaluations) {
         let polynomial = Polynomial::rand(n, &mut OsRng);
@@ -679,29 +680,29 @@ mod test {
     #[test]
     fn test_serialize_deserialize_verifier_key() {
         use crate::commitment_scheme::Commitment;
-        use dusk_bls12_381::G1Affine;
+        use zero_bls12_381::G1Affine;
 
         let n = 2usize.pow(5);
 
-        let q_m = Commitment(G1Affine::generator());
-        let q_l = Commitment(G1Affine::generator());
-        let q_r = Commitment(G1Affine::generator());
-        let q_o = Commitment(G1Affine::generator());
-        let q_c = Commitment(G1Affine::generator());
-        let q_4 = Commitment(G1Affine::generator());
-        let q_arith = Commitment(G1Affine::generator());
+        let q_m = Commitment(G1Affine::ADDITIVE_GENERATOR);
+        let q_l = Commitment(G1Affine::ADDITIVE_GENERATOR);
+        let q_r = Commitment(G1Affine::ADDITIVE_GENERATOR);
+        let q_o = Commitment(G1Affine::ADDITIVE_GENERATOR);
+        let q_c = Commitment(G1Affine::ADDITIVE_GENERATOR);
+        let q_4 = Commitment(G1Affine::ADDITIVE_GENERATOR);
+        let q_arith = Commitment(G1Affine::ADDITIVE_GENERATOR);
 
-        let q_range = Commitment(G1Affine::generator());
+        let q_range = Commitment(G1Affine::ADDITIVE_GENERATOR);
 
-        let q_fixed_group_add = Commitment(G1Affine::generator());
-        let q_variable_group_add = Commitment(G1Affine::generator());
+        let q_fixed_group_add = Commitment(G1Affine::ADDITIVE_GENERATOR);
+        let q_variable_group_add = Commitment(G1Affine::ADDITIVE_GENERATOR);
 
-        let q_logic = Commitment(G1Affine::generator());
+        let q_logic = Commitment(G1Affine::ADDITIVE_GENERATOR);
 
-        let s_sigma_1 = Commitment(G1Affine::generator());
-        let s_sigma_2 = Commitment(G1Affine::generator());
-        let s_sigma_3 = Commitment(G1Affine::generator());
-        let s_sigma_4 = Commitment(G1Affine::generator());
+        let s_sigma_1 = Commitment(G1Affine::ADDITIVE_GENERATOR);
+        let s_sigma_2 = Commitment(G1Affine::ADDITIVE_GENERATOR);
+        let s_sigma_3 = Commitment(G1Affine::ADDITIVE_GENERATOR);
+        let s_sigma_4 = Commitment(G1Affine::ADDITIVE_GENERATOR);
 
         let arithmetic = arithmetic::VerifierKey {
             q_m,

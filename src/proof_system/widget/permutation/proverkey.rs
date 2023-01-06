@@ -6,7 +6,8 @@
 
 use crate::fft::{EvaluationDomain, Evaluations, Polynomial};
 use crate::permutation::constants::{K1, K2, K3};
-use dusk_bls12_381::BlsScalar;
+use zero_bls12_381::Fr as BlsScalar;
+use zero_crypto::behave::*;
 
 #[cfg(feature = "rkyv-impl")]
 use bytecheck::CheckBytes;

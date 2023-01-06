@@ -12,12 +12,14 @@ use crate::{
     error::Error, fft::Polynomial, transcript::TranscriptProtocol, util,
 };
 use alloc::vec::Vec;
-use dusk_bls12_381::{
-    multiscalar_mul::msm_variable_base, BlsScalar, G1Affine, G1Projective,
-    G2Affine, G2Prepared,
-};
 use dusk_bytes::{DeserializableSlice, Serializable};
 use merlin::Transcript;
+use zero_bls12_381::{
+    msm_variable_base, Fr as BlsScalar, G1Affine, G1Projective, G2Affine,
+    G2PairingAffine as G2Prepared,
+};
+use zero_crypto::behave::{Group, Pairing, PairingRange};
+use zero_pairing::TatePairing;
 
 #[cfg(feature = "rkyv-impl")]
 use bytecheck::CheckBytes;
@@ -288,8 +290,8 @@ impl OpeningKey {
         proofs: &[Proof],
         transcript: &mut Transcript,
     ) -> Result<(), Error> {
-        let mut total_c = G1Projective::identity();
-        let mut total_w = G1Projective::identity();
+        let mut total_c = G1Projective::ADDITIVE_IDENTITY;
+        let mut total_w = G1Projective::ADDITIVE_IDENTITY;
 
         let u_challenge = transcript.challenge_scalar(b"batch"); // XXX: Verifier can add their own randomness at this point
         let powers = util::powers_of(&u_challenge, proofs.len() - 1);
@@ -314,13 +316,13 @@ impl OpeningKey {
         let affine_total_w = G1Affine::from(-total_w);
         let affine_total_c = G1Affine::from(total_c);
 
-        let pairing = dusk_bls12_381::multi_miller_loop(&[
-            (&affine_total_w, &self.prepared_beta_h),
-            (&affine_total_c, &self.prepared_h),
+        let pairing = TatePairing::multi_miller_loop(&[
+            (affine_total_w, self.prepared_beta_h),
+            (affine_total_c, self.prepared_h),
         ])
-        .final_exponentiation();
+        .final_exp();
 
-        if pairing != dusk_bls12_381::Gt::identity() {
+        if pairing != zero_bls12_381::Gt::identity() {
             return Err(Error::PairingCheckFailure);
         };
         Ok(())
@@ -333,10 +335,10 @@ mod test {
     use super::*;
     use crate::commitment_scheme::{AggregateProof, PublicParameters};
     use crate::fft::Polynomial;
-    use dusk_bls12_381::BlsScalar;
     use dusk_bytes::Serializable;
     use merlin::Transcript;
     use rand_core::OsRng;
+    use zero_bls12_381::Fr as BlsScalar;
 
     // Checks that a polynomial `p` was evaluated at a point `z` and returned
     // the value specified `v`. ie. v = p(z).
@@ -348,13 +350,13 @@ mod test {
         let inner_b: G2Affine = (op_key.beta_h - (op_key.h * point)).into();
         let prepared_inner_b = G2Prepared::from(-inner_b);
 
-        let pairing = dusk_bls12_381::multi_miller_loop(&[
-            (&inner_a, &op_key.prepared_h),
-            (&proof.commitment_to_witness.0, &prepared_inner_b),
+        let pairing = TatePairing::multi_miller_loop(&[
+            (inner_a, op_key.prepared_h),
+            (proof.commitment_to_witness.0, prepared_inner_b),
         ])
-        .final_exponentiation();
+        .final_exp();
 
-        pairing == dusk_bls12_381::Gt::identity()
+        pairing == zero_bls12_381::Gt::identity()
     }
 
     // Creates an opening proof that a polynomial `p` was correctly evaluated at

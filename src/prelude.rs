@@ -18,5 +18,5 @@ pub use crate::{
 
 pub use crate::error::Error;
 pub use crate::proof_system::Proof;
-pub use dusk_bls12_381::BlsScalar;
-pub use dusk_jubjub::{JubJubAffine, JubJubExtended, JubJubScalar};
+pub use zero_bls12_381::Fr as BlsScalar;
+pub use zero_jubjub::{Fp as JubJubScalar, JubJubAffine, JubJubExtended};

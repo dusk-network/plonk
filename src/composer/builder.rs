@@ -7,8 +7,8 @@
 use alloc::vec::Vec;
 use core::ops;
 
-use dusk_bls12_381::BlsScalar;
 use hashbrown::HashMap;
+use zero_bls12_381::Fr as BlsScalar;
 
 use crate::constraint_system::{Constraint, Selector, WiredWitness, Witness};
 use crate::permutation::Permutation;

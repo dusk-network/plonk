@@ -13,8 +13,9 @@ use alloc::vec::Vec;
 use core::ops::{
     Add, AddAssign, DivAssign, Index, Mul, MulAssign, Sub, SubAssign,
 };
-use dusk_bls12_381::BlsScalar;
 use dusk_bytes::{DeserializableSlice, Serializable};
+use zero_bls12_381::Fr as BlsScalar;
+use zero_crypto::behave::*;
 
 #[cfg(feature = "rkyv-impl")]
 use bytecheck::CheckBytes;

@@ -5,7 +5,7 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use super::Commitment;
-use dusk_bls12_381::BlsScalar;
+use zero_bls12_381::Fr as BlsScalar;
 
 /// Proof that a polynomial `p` was correctly evaluated at a point `z`
 /// producing the evaluated point p(z).
@@ -28,10 +28,10 @@ pub(crate) mod alloc {
     use crate::util::powers_of;
     #[rustfmt::skip]
     use ::alloc::vec::Vec;
-    use dusk_bls12_381::G1Projective;
     use merlin::Transcript;
     #[cfg(feature = "std")]
     use rayon::prelude::*;
+    use zero_bls12_381::G1Projective;
 
     /// Proof that multiple polynomials were correctly evaluated at a point `z`,
     /// each producing their respective evaluated points p_i(z).

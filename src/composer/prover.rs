@@ -8,10 +8,11 @@ use alloc::vec::Vec;
 use core::marker::PhantomData;
 use core::ops;
 
-use dusk_bls12_381::BlsScalar;
 use dusk_bytes::{DeserializableSlice, Serializable};
 use merlin::Transcript;
 use rand_core::{CryptoRng, RngCore};
+use zero_bls12_381::Fr as BlsScalar;
+use zero_crypto::behave::FftField;
 
 use crate::commitment_scheme::CommitKey;
 use crate::error::Error;
@@ -445,9 +446,9 @@ where
         transcript.append_scalar(b"r_eval", &evaluations.proof.r_poly_eval);
 
         // compute Openings using KZG10
-        let z_n = z_challenge.pow(&[domain_size as u64, 0, 0, 0]);
-        let z_two_n = z_challenge.pow(&[2 * domain_size as u64, 0, 0, 0]);
-        let z_three_n = z_challenge.pow(&[3 * domain_size as u64, 0, 0, 0]);
+        let z_n = z_challenge.pow(domain_size as u64);
+        let z_two_n = z_challenge.pow(2 * domain_size as u64);
+        let z_three_n = z_challenge.pow(3 * domain_size as u64);
 
         let a = &t_low_poly;
         let b = &t_mid_poly * &z_n;

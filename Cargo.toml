@@ -34,6 +34,11 @@ bytecheck = {version = "0.6", optional = true, default-features = false}
 backtrace = {version = "0.3", optional = true}
 dusk-cdf = {version = "0.5", optional = true}
 
+zero-bls12-381 = {path="../bls12_381"}
+zero-crypto = {path="../crypto"}
+zero-jubjub = {path="../jubjub"}
+zero-pairing = {path="../pairing"}
+
 [dev-dependencies]
 criterion = "0.3"
 tempdir = "0.3"

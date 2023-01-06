@@ -12,8 +12,8 @@
 //! This allows us to perform polynomial operations in O(n)
 //! by performing an O(n log n) FFT over such a domain.
 
-use dusk_bls12_381::BlsScalar;
 use dusk_bytes::{DeserializableSlice, Serializable};
+use zero_bls12_381::Fr as BlsScalar;
 
 #[cfg(feature = "rkyv-impl")]
 use bytecheck::CheckBytes;
@@ -112,9 +112,12 @@ pub(crate) mod alloc {
     #[rustfmt::skip]
     use ::alloc::vec::Vec;
     use core::ops::MulAssign;
-    use dusk_bls12_381::{GENERATOR, ROOT_OF_UNITY, TWO_ADACITY};
     #[cfg(feature = "std")]
     use rayon::prelude::*;
+    use zero_bls12_381::{
+        MULTIPLICATIVE_GENERATOR, ROOT_OF_UNITY, TWO_ADACITY,
+    };
+    use zero_crypto::behave::*;
 
     impl EvaluationDomain {
         /// Construct a domain that is large enough for evaluations of a
@@ -148,7 +151,7 @@ pub(crate) mod alloc {
                 size_inv,
                 group_gen,
                 group_gen_inv: group_gen.invert().unwrap(),
-                generator_inv: GENERATOR.invert().unwrap(),
+                generator_inv: MULTIPLICATIVE_GENERATOR.invert().unwrap(),
             })
         }
 
@@ -208,7 +211,7 @@ pub(crate) mod alloc {
         /// Compute a FFT over a coset of the domain, modifying the input vector
         /// in place.
         fn coset_fft_in_place(&self, coeffs: &mut Vec<BlsScalar>) {
-            Self::distribute_powers(coeffs, GENERATOR);
+            Self::distribute_powers(coeffs, MULTIPLICATIVE_GENERATOR);
             self.fft_in_place(coeffs);
         }
 
@@ -235,7 +238,7 @@ pub(crate) mod alloc {
         ) -> Vec<BlsScalar> {
             // Evaluate all Lagrange polynomials
             let size = self.size as usize;
-            let t_size = tau.pow(&[self.size, 0, 0, 0]);
+            let t_size = tau.pow(self.size);
             let one = BlsScalar::one();
             if t_size == BlsScalar::one() {
                 let mut u = vec![BlsScalar::zero(); size];
@@ -285,7 +288,7 @@ pub(crate) mod alloc {
             &self,
             tau: &BlsScalar,
         ) -> BlsScalar {
-            tau.pow(&[self.size, 0, 0, 0]) - BlsScalar::one()
+            tau.pow(self.size) - BlsScalar::one()
         }
 
         /// Given that the domain size is `D`  
@@ -296,16 +299,10 @@ pub(crate) mod alloc {
             poly_degree: u64, // degree of the vanishing polynomial
         ) -> Evaluations {
             assert!((self.size() as u64) > poly_degree);
-            let coset_gen = GENERATOR.pow(&[poly_degree, 0, 0, 0]);
+            let coset_gen = MULTIPLICATIVE_GENERATOR.pow(poly_degree);
             let v_h: Vec<_> = (0..self.size())
                 .map(|i| {
-                    (coset_gen
-                        * self.group_gen.pow(&[
-                            poly_degree * i as u64,
-                            0,
-                            0,
-                            0,
-                        ]))
+                    (coset_gen * self.group_gen.pow(poly_degree * i as u64))
                         - BlsScalar::one()
                 })
                 .collect();
@@ -356,7 +353,7 @@ pub(crate) mod alloc {
 
         let mut m = 1;
         for _ in 0..log_n {
-            let w_m = omega.pow(&[(n / (2 * m)) as u64, 0, 0, 0]);
+            let w_m = omega.pow((n / (2 * m)) as u64);
 
             let mut k = 0;
             while k < n {
@@ -401,9 +398,11 @@ pub(crate) mod alloc {
     }
 }
 
+#[cfg(feature = "alloc")]
 #[cfg(test)]
 mod tests {
     use super::*;
+    use zero_crypto::behave::FftField;
 
     #[test]
     fn size_of_elements() {
@@ -421,7 +420,7 @@ mod tests {
             let size = 1 << coeffs;
             let domain = EvaluationDomain::new(size).unwrap();
             for (i, element) in domain.elements().enumerate() {
-                assert_eq!(element, domain.group_gen.pow(&[i as u64, 0, 0, 0]));
+                assert_eq!(element, domain.group_gen.pow(i as u64));
             }
         }
     }

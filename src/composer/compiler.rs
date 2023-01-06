@@ -4,7 +4,7 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use dusk_bls12_381::BlsScalar;
+use zero_bls12_381::Fr as BlsScalar;
 
 use crate::commitment_scheme::{CommitKey, OpeningKey, PublicParameters};
 use crate::error::Error;

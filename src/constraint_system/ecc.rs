@@ -5,7 +5,7 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use crate::constraint_system::Witness;
-use dusk_bls12_381::BlsScalar;
+use zero_bls12_381::Fr as BlsScalar;
 
 /// Represents a JubJub point in the circuit
 #[derive(Debug, Clone, Copy)]
