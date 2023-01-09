@@ -10,7 +10,6 @@ use zero_crypto::common::*;
 use zero_plonk::prelude::*;
 
 #[test]
-#[ignore]
 fn decomposition_works() {
     let mut rng = StdRng::seed_from_u64(8349u64);
 
@@ -28,7 +27,7 @@ fn decomposition_works() {
             let mut bits = [BlsScalar::zero(); N];
 
             bits.iter_mut()
-                .zip(a.to_bits().iter())
+                .zip(a.to_bits().iter().rev())
                 .for_each(|(b, v)| *b = BlsScalar::from(*v as u64));
 
             Self { a, bits }

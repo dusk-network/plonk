@@ -223,7 +223,6 @@ fn add_point_works() {
 }
 
 #[test]
-#[ignore]
 fn mul_point_works() {
     let mut rng = StdRng::seed_from_u64(8349u64);
 

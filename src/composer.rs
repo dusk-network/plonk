@@ -737,6 +737,7 @@ pub trait Composer: Sized + Index<Witness, Output = BlsScalar> {
         let acc = self[scalar]
             .to_bits()
             .iter()
+            .rev()
             .enumerate()
             .zip(decomposition.iter_mut())
             .fold(acc, |acc, ((i, w), d)| {

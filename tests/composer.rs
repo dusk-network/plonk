@@ -9,7 +9,6 @@ use rand::SeedableRng;
 use zero_plonk::prelude::*;
 
 #[test]
-#[ignore]
 fn circuit_with_all_gates() {
     let rng = &mut StdRng::seed_from_u64(8349u64);
 
