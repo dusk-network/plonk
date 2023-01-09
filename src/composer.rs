@@ -128,10 +128,6 @@ pub trait Composer: Sized + Index<Witness, Output = BlsScalar> {
         num_bits: usize,
         is_component_xor: bool,
     ) -> Witness {
-        // the bits are iterated as chunks of two; hence, we require an even
-        // number
-        debug_assert_eq!(num_bits & 1, 0);
-
         let num_bits = cmp::min(num_bits, 256);
         let num_quads = num_bits >> 1;
 
@@ -912,9 +908,6 @@ pub trait Composer: Sized + Index<Witness, Output = BlsScalar> {
     /// This function will panic if the num_bits specified is not even, ie.
     /// `num_bits % 2 != 0`.
     fn component_range(&mut self, witness: Witness, num_bits: usize) {
-        // number of bits must be even
-        debug_assert_eq!(num_bits % 2, 0);
-
         // convert witness to bit representation and reverse
         let bits = self[witness];
         let bit_iter = BitIterator8::new(bits.to_bytes());
