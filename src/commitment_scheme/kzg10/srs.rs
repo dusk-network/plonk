@@ -9,8 +9,9 @@
 use super::key::{CommitKey, OpeningKey};
 use crate::{error::Error, util};
 use alloc::vec::Vec;
+use codec::{Decode, Encode};
 use dusk_bytes::{DeserializableSlice, Serializable};
-use rand_core::{CryptoRng, RngCore};
+use rand_core::RngCore;
 use zero_bls12_381::{G1Affine, G1Projective, G2Affine};
 
 #[cfg(feature = "rkyv-impl")]
@@ -26,7 +27,7 @@ use zero_crypto::common::Group;
 /// String (SRS). It is available to both the prover and verifier and allows the
 /// verifier to efficiently verify and make claims about polynomials up to and
 /// including a configured degree.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Encode, Eq, Decode)]
 #[cfg_attr(
     feature = "rkyv-impl",
     derive(Archive, Deserialize, Serialize),
@@ -55,7 +56,7 @@ impl PublicParameters {
     /// In reality, a `Trusted party` or a `Multiparty Computation` will be used
     /// to generate the SRS. Returns an error if the configured degree is less
     /// than one.
-    pub fn setup<R: RngCore + CryptoRng>(
+    pub fn setup<R: RngCore>(
         mut max_degree: usize,
         mut rng: &mut R,
     ) -> Result<PublicParameters, Error> {
@@ -197,6 +198,13 @@ impl PublicParameters {
     /// that this prover key can commit to.
     pub fn max_degree(&self) -> usize {
         self.commit_key.max_degree()
+    }
+}
+
+impl PartialEq for PublicParameters {
+    fn eq(&self, other: &Self) -> bool {
+        self.commit_key == other.commit_key
+            && self.opening_key == other.opening_key
     }
 }
 

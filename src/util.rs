@@ -5,7 +5,7 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use alloc::vec::Vec;
-use rand_core::{CryptoRng, RngCore};
+use rand_core::RngCore;
 use zero_bls12_381::{Fr as BlsScalar, G1Projective, G2Projective};
 use zero_crypto::common::Group;
 
@@ -42,20 +42,16 @@ pub(crate) fn powers_of(
 }
 
 /// Generates a random BlsScalar using a RNG seed.
-pub(crate) fn random_scalar<R: RngCore + CryptoRng>(rng: &mut R) -> BlsScalar {
+pub(crate) fn random_scalar<R: RngCore>(rng: &mut R) -> BlsScalar {
     BlsScalar::random(rng)
 }
 
 /// Generates a random G1 Point using an RNG seed.
-pub(crate) fn random_g1_point<R: RngCore + CryptoRng>(
-    rng: &mut R,
-) -> G1Projective {
+pub(crate) fn random_g1_point<R: RngCore>(rng: &mut R) -> G1Projective {
     G1Projective::ADDITIVE_GENERATOR * random_scalar(rng)
 }
 /// Generates a random G2 point using an RNG seed.
-pub(crate) fn random_g2_point<R: RngCore + CryptoRng>(
-    rng: &mut R,
-) -> G2Projective {
+pub(crate) fn random_g2_point<R: RngCore>(rng: &mut R) -> G2Projective {
     G2Projective::ADDITIVE_GENERATOR * random_scalar(rng)
 }
 

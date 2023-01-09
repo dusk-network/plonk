@@ -5,11 +5,12 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use super::Commitment;
+use codec::{Decode, Encode};
 use zero_bls12_381::Fr as BlsScalar;
 
 /// Proof that a polynomial `p` was correctly evaluated at a point `z`
 /// producing the evaluated point p(z).
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Decode, Encode)]
 #[allow(dead_code)]
 pub(crate) struct Proof {
     /// This is a commitment to the witness polynomial.

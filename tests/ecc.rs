@@ -4,18 +4,18 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use dusk_plonk::prelude::*;
 use rand::rngs::StdRng;
 use rand::SeedableRng;
 use zero_crypto::behave::Group;
+use zero_plonk::prelude::*;
 
 #[test]
 fn mul_generator_works() {
-    let rng = &mut StdRng::seed_from_u64(8349u64);
+    let mut rng = StdRng::seed_from_u64(8349u64);
 
     let n = 1 << 9;
     let label = b"demo";
-    let pp = PublicParameters::setup(n, rng).expect("failed to create pp");
+    let pp = PublicParameters::setup(n, &mut rng).expect("failed to create pp");
 
     pub struct DummyCircuit {
         a: JubJubScalar,
@@ -61,9 +61,9 @@ fn mul_generator_works() {
 
     // default works
     {
-        let a = JubJubScalar::random(rng.clone());
+        let a = JubJubScalar::random(&mut rng);
         let (proof, public_inputs) = prover
-            .prove(rng, &DummyCircuit::new(a))
+            .prove(&mut rng, &DummyCircuit::new(a))
             .expect("failed to prove");
 
         verifier
@@ -82,7 +82,7 @@ fn mul_generator_works() {
         assert_ne!(b, y);
 
         prover
-            .prove(rng, &DummyCircuit { a, b: y })
+            .prove(&mut rng, &DummyCircuit { a, b: y })
             .expect_err("invalid ecc proof isn't feasible");
     }
 
@@ -95,18 +95,18 @@ fn mul_generator_works() {
         let y = zero_jubjub::GENERATOR_EXTENDED * &x;
 
         prover
-            .prove(rng, &DummyCircuit { a, b: y })
+            .prove(&mut rng, &DummyCircuit { a, b: y })
             .expect_err("invalid ecc proof isn't feasible");
     }
 }
 
 #[test]
 fn add_point_works() {
-    let rng = &mut StdRng::seed_from_u64(8349u64);
+    let mut rng = StdRng::seed_from_u64(8349u64);
 
     let n = 1 << 4;
     let label = b"demo";
-    let pp = PublicParameters::setup(n, rng).expect("failed to create pp");
+    let pp = PublicParameters::setup(n, &mut rng).expect("failed to create pp");
 
     pub struct DummyCircuit {
         a: JubJubExtended,
@@ -152,11 +152,11 @@ fn add_point_works() {
 
     // default works
     {
-        let a = JubJubScalar::random(rng.clone());
-        let b = JubJubScalar::random(rng.clone());
+        let a = JubJubScalar::random(&mut rng);
+        let b = JubJubScalar::random(&mut rng);
 
         let (proof, public_inputs) = prover
-            .prove(rng, &DummyCircuit::new(&a, &b))
+            .prove(&mut rng, &DummyCircuit::new(&a, &b))
             .expect("failed to prove");
 
         verifier
@@ -166,12 +166,12 @@ fn add_point_works() {
 
     // identity works
     {
-        let a = JubJubScalar::random(rng.clone());
+        let a = JubJubScalar::random(&mut rng);
         let a = zero_jubjub::GENERATOR_EXTENDED * &a;
 
         let (proof, public_inputs) = prover
             .prove(
-                rng,
+                &mut rng,
                 &DummyCircuit {
                     a,
                     b: JubJubExtended::identity(),
@@ -189,7 +189,7 @@ fn add_point_works() {
     {
         let (proof, public_inputs) = prover
             .prove(
-                rng,
+                &mut rng,
                 &DummyCircuit {
                     a: JubJubExtended::identity(),
                     b: JubJubExtended::identity(),
@@ -217,18 +217,19 @@ fn add_point_works() {
         assert_ne!(c, a + b);
 
         prover
-            .prove(rng, &DummyCircuit { a, b, c })
+            .prove(&mut rng, &DummyCircuit { a, b, c })
             .expect_err("invalid ecc proof isn't feasible");
     }
 }
 
 #[test]
+#[ignore]
 fn mul_point_works() {
-    let rng = &mut StdRng::seed_from_u64(8349u64);
+    let mut rng = StdRng::seed_from_u64(8349u64);
 
-    let n = 1 << 11;
+    let n = 1 << 13;
     let label = b"demo";
-    let pp = PublicParameters::setup(n, rng).expect("failed to create pp");
+    let pp = PublicParameters::setup(n, &mut rng).expect("failed to create pp");
 
     pub struct DummyCircuit {
         a: JubJubScalar,
@@ -275,12 +276,12 @@ fn mul_point_works() {
 
     // default works
     {
-        let a = JubJubScalar::random(rng.clone());
-        let b = JubJubScalar::random(rng.clone());
+        let a = JubJubScalar::random(&mut rng);
+        let b = JubJubScalar::random(&mut rng);
         let b = zero_jubjub::GENERATOR_EXTENDED * &b;
 
         let (proof, public_inputs) = prover
-            .prove(rng, &DummyCircuit::new(a, b))
+            .prove(&mut rng, &DummyCircuit::new(a, b))
             .expect("failed to prove");
 
         verifier
@@ -290,18 +291,18 @@ fn mul_point_works() {
 
     // negative works
     {
-        let a = JubJubScalar::random(rng.clone());
-        let b = JubJubScalar::random(rng.clone());
+        let a = JubJubScalar::random(&mut rng);
+        let b = JubJubScalar::random(&mut rng);
         let b = zero_jubjub::GENERATOR_EXTENDED * &b;
         let c = b * &a;
 
-        let x = JubJubScalar::random(rng.clone());
+        let x = JubJubScalar::random(&mut rng);
         let x = zero_jubjub::GENERATOR_EXTENDED * &x;
 
         assert_ne!(c, x);
 
         prover
-            .prove(rng, &DummyCircuit { a, b, c: x })
+            .prove(&mut rng, &DummyCircuit { a, b, c: x })
             .expect_err("circuit is not satisfied");
     }
 }

@@ -12,6 +12,7 @@ use crate::{
     error::Error, fft::Polynomial, transcript::TranscriptProtocol, util,
 };
 use alloc::vec::Vec;
+use codec::{Decode, Encode};
 use dusk_bytes::{DeserializableSlice, Serializable};
 use merlin::Transcript;
 use zero_bls12_381::{
@@ -31,7 +32,7 @@ use rkyv::{
 
 /// CommitKey is used to commit to a polynomial which is bounded by the
 /// max_degree.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Decode, Encode)]
 #[cfg_attr(
     feature = "rkyv-impl",
     derive(Archive, Deserialize, Serialize),
@@ -214,7 +215,7 @@ impl CommitKey {
 
 /// Opening Key is used to verify opening proofs made about a committed
 /// polynomial.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, Decode, Encode)]
 #[cfg_attr(
     feature = "rkyv-impl",
     derive(Archive, Deserialize, Serialize),
@@ -326,6 +327,16 @@ impl OpeningKey {
             return Err(Error::PairingCheckFailure);
         };
         Ok(())
+    }
+}
+
+impl PartialEq for OpeningKey {
+    fn eq(&self, other: &Self) -> bool {
+        self.g == other.g
+            && self.h == other.h
+            && self.beta_h == other.beta_h
+            && self.prepared_h == other.prepared_h
+            && self.prepared_beta_h == other.prepared_beta_h
     }
 }
 

@@ -16,7 +16,7 @@ an exhaustive security analysis. Use at your own risk.
 ## Usage
 
 ```rust
-use dusk_plonk::prelude::*;
+use zero_plonk::prelude::*;
 use rand_core::OsRng;
 
 // Implement a circuit that checks:

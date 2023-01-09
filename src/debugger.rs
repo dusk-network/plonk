@@ -38,7 +38,7 @@ impl Debugger {
                     .name()
                     .map(|n| n.to_string())
                     .filter(|s| !s.starts_with("backtrace::"))
-                    .filter(|s| !s.starts_with("dusk_plonk::"))
+                    .filter(|s| !s.starts_with("zero_plonk::"))
                     .filter(|s| !s.starts_with("core::"))
                     .filter(|s| !s.starts_with("std::"))
                     .is_some()

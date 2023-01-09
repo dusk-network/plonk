@@ -10,7 +10,7 @@ use core::ops;
 
 use dusk_bytes::{DeserializableSlice, Serializable};
 use merlin::Transcript;
-use rand_core::{CryptoRng, RngCore};
+use rand_core::RngCore;
 use zero_bls12_381::Fr as BlsScalar;
 use zero_crypto::behave::FftField;
 
@@ -93,7 +93,7 @@ where
         domain: &EvaluationDomain,
     ) -> FftPolynomial
     where
-        R: RngCore + CryptoRng,
+        R: RngCore,
     {
         let mut w_vec_inverse = domain.ifft(witnesses);
 
@@ -242,7 +242,7 @@ where
     ) -> Result<(Proof, Vec<BlsScalar>), Error>
     where
         C: Circuit,
-        R: RngCore + CryptoRng,
+        R: RngCore,
     {
         let prover = Builder::prove(self.constraints, circuit)?;
 

@@ -4,18 +4,18 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use dusk_plonk::prelude::*;
 use rand::rngs::StdRng;
 use rand::SeedableRng;
 use zero_crypto::behave::Group;
+use zero_plonk::prelude::*;
 
 #[test]
 fn logic_and_works() {
-    let rng = &mut StdRng::seed_from_u64(8349u64);
+    let mut rng = StdRng::seed_from_u64(8349u64);
 
     let n = 1 << 8;
     let label = b"demo";
-    let pp = PublicParameters::setup(n, rng).expect("failed to create pp");
+    let pp = PublicParameters::setup(n, &mut rng).expect("failed to create pp");
 
     pub struct DummyCircuit {
         a: BlsScalar,
@@ -64,11 +64,11 @@ fn logic_and_works() {
 
     // default works
     {
-        let a = BlsScalar::random(rng.clone());
-        let b = BlsScalar::random(rng.clone());
+        let a = BlsScalar::random(&mut rng);
+        let b = BlsScalar::random(&mut rng);
 
         let (proof, public_inputs) = prover
-            .prove(rng, &DummyCircuit::new(a, b, 256))
+            .prove(&mut rng, &DummyCircuit::new(a, b, 256))
             .expect("failed to prove");
 
         verifier
@@ -82,20 +82,20 @@ fn logic_and_works() {
 
         let x = BlsScalar::pow_of_2(bits as u64) - BlsScalar::one();
 
-        let a = BlsScalar::random(rng.clone());
-        let b = BlsScalar::random(rng.clone());
+        let a = BlsScalar::random(&mut rng);
+        let b = BlsScalar::random(&mut rng);
 
         let a = a & x;
         let b = b & x;
         let c = a & b & x;
 
-        let m = BlsScalar::random(rng.clone()) & x;
+        let m = BlsScalar::random(&mut rng) & x;
         let n = a & m & x;
 
         assert_ne!(c, n);
 
         prover
-            .prove(rng, &DummyCircuit { a, b, c: n, bits })
+            .prove(&mut rng, &DummyCircuit { a, b, c: n, bits })
             .expect_err("the provided proof isn't valid");
     }
 
@@ -103,8 +103,8 @@ fn logic_and_works() {
     {
         let bits = 30;
 
-        let a = BlsScalar::random(rng.clone());
-        let b = BlsScalar::random(rng.clone());
+        let a = BlsScalar::random(&mut rng);
+        let b = BlsScalar::random(&mut rng);
 
         let circuit = DummyCircuit::new(a, b, bits);
 
@@ -112,11 +112,11 @@ fn logic_and_works() {
             Compiler::compile_with_circuit(&pp, label, &circuit)
                 .expect("failed to compile circuit");
 
-        let a = BlsScalar::random(rng.clone());
-        let b = BlsScalar::random(rng.clone());
+        let a = BlsScalar::random(&mut rng);
+        let b = BlsScalar::random(&mut rng);
 
         let (proof, public_inputs) = prover
-            .prove(rng, &DummyCircuit::new(a, b, bits))
+            .prove(&mut rng, &DummyCircuit::new(a, b, bits))
             .expect("failed to prove");
 
         verifier
@@ -128,8 +128,8 @@ fn logic_and_works() {
     {
         let bits = 0;
 
-        let a = BlsScalar::random(rng.clone());
-        let b = BlsScalar::random(rng.clone());
+        let a = BlsScalar::random(&mut rng);
+        let b = BlsScalar::random(&mut rng);
 
         let circuit = DummyCircuit::new(a, b, bits);
 
@@ -137,11 +137,11 @@ fn logic_and_works() {
             Compiler::compile_with_circuit(&pp, label, &circuit)
                 .expect("failed to compile circuit");
 
-        let a = BlsScalar::random(rng.clone());
-        let b = BlsScalar::random(rng.clone());
+        let a = BlsScalar::random(&mut rng);
+        let b = BlsScalar::random(&mut rng);
 
         let (proof, public_inputs) = prover
-            .prove(rng, &DummyCircuit::new(a, b, bits))
+            .prove(&mut rng, &DummyCircuit::new(a, b, bits))
             .expect("failed to prove");
 
         verifier
@@ -153,8 +153,8 @@ fn logic_and_works() {
     {
         let bits = 55;
 
-        let a = BlsScalar::random(rng.clone());
-        let b = BlsScalar::random(rng.clone());
+        let a = BlsScalar::random(&mut rng);
+        let b = BlsScalar::random(&mut rng);
 
         let circuit = DummyCircuit::new(a, b, bits);
 
@@ -165,11 +165,11 @@ fn logic_and_works() {
 
 #[test]
 fn logic_xor_works() {
-    let rng = &mut StdRng::seed_from_u64(8349u64);
+    let mut rng = StdRng::seed_from_u64(8349u64);
 
     let n = 1 << 8;
     let label = b"demo";
-    let pp = PublicParameters::setup(n, rng).expect("failed to create pp");
+    let pp = PublicParameters::setup(n, &mut rng).expect("failed to create pp");
 
     pub struct DummyCircuit {
         a: BlsScalar,
@@ -218,11 +218,11 @@ fn logic_xor_works() {
 
     // default works
     {
-        let a = BlsScalar::random(rng.clone());
-        let b = BlsScalar::random(rng.clone());
+        let a = BlsScalar::random(&mut rng);
+        let b = BlsScalar::random(&mut rng);
 
         let (proof, public_inputs) = prover
-            .prove(rng, &DummyCircuit::new(a, b, 256))
+            .prove(&mut rng, &DummyCircuit::new(a, b, 256))
             .expect("failed to prove");
 
         verifier
@@ -236,20 +236,20 @@ fn logic_xor_works() {
 
         let x = BlsScalar::pow_of_2(bits as u64) - BlsScalar::one();
 
-        let a = BlsScalar::random(rng.clone());
-        let b = BlsScalar::random(rng.clone());
+        let a = BlsScalar::random(&mut rng);
+        let b = BlsScalar::random(&mut rng);
 
         let a = a & x;
         let b = b & x;
         let c = (a ^ b) & x;
 
-        let m = BlsScalar::random(rng.clone()) & x;
+        let m = BlsScalar::random(&mut rng) & x;
         let n = (a ^ m) & x;
 
         assert_ne!(c, n);
 
         prover
-            .prove(rng, &DummyCircuit { a, b, c: n, bits })
+            .prove(&mut rng, &DummyCircuit { a, b, c: n, bits })
             .expect_err("the provided proof isn't valid");
     }
 
@@ -257,8 +257,8 @@ fn logic_xor_works() {
     {
         let bits = 30;
 
-        let a = BlsScalar::random(rng.clone());
-        let b = BlsScalar::random(rng.clone());
+        let a = BlsScalar::random(&mut rng);
+        let b = BlsScalar::random(&mut rng);
 
         let circuit = DummyCircuit::new(a, b, bits);
 
@@ -266,11 +266,11 @@ fn logic_xor_works() {
             Compiler::compile_with_circuit(&pp, label, &circuit)
                 .expect("failed to compile circuit");
 
-        let a = BlsScalar::random(rng.clone());
-        let b = BlsScalar::random(rng.clone());
+        let a = BlsScalar::random(&mut rng);
+        let b = BlsScalar::random(&mut rng);
 
         let (proof, public_inputs) = prover
-            .prove(rng, &DummyCircuit::new(a, b, bits))
+            .prove(&mut rng, &DummyCircuit::new(a, b, bits))
             .expect("failed to prove");
 
         verifier
@@ -282,8 +282,8 @@ fn logic_xor_works() {
     {
         let bits = 0;
 
-        let a = BlsScalar::random(rng.clone());
-        let b = BlsScalar::random(rng.clone());
+        let a = BlsScalar::random(&mut rng);
+        let b = BlsScalar::random(&mut rng);
 
         let circuit = DummyCircuit::new(a, b, bits);
 
@@ -291,11 +291,11 @@ fn logic_xor_works() {
             Compiler::compile_with_circuit(&pp, label, &circuit)
                 .expect("failed to compile circuit");
 
-        let a = BlsScalar::random(rng.clone());
-        let b = BlsScalar::random(rng.clone());
+        let a = BlsScalar::random(&mut rng);
+        let b = BlsScalar::random(&mut rng);
 
         let (proof, public_inputs) = prover
-            .prove(rng, &DummyCircuit::new(a, b, bits))
+            .prove(&mut rng, &DummyCircuit::new(a, b, bits))
             .expect("failed to prove");
 
         verifier
@@ -307,8 +307,8 @@ fn logic_xor_works() {
     {
         let bits = 55;
 
-        let a = BlsScalar::random(rng.clone());
-        let b = BlsScalar::random(rng.clone());
+        let a = BlsScalar::random(&mut rng);
+        let b = BlsScalar::random(&mut rng);
 
         let circuit = DummyCircuit::new(a, b, bits);
 

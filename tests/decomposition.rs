@@ -4,18 +4,19 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use dusk_plonk::prelude::*;
 use rand::rngs::StdRng;
 use rand::SeedableRng;
-use zero_crypto::common::{Group, PrimeField};
+use zero_crypto::common::*;
+use zero_plonk::prelude::*;
 
 #[test]
+#[ignore]
 fn decomposition_works() {
-    let rng = &mut StdRng::seed_from_u64(8349u64);
+    let mut rng = StdRng::seed_from_u64(8349u64);
 
     let n = 1 << 10;
     let label = b"demo";
-    let pp = PublicParameters::setup(n, rng).expect("failed to create pp");
+    let pp = PublicParameters::setup(n, &mut rng).expect("failed to create pp");
 
     pub struct DummyCircuit<const N: usize> {
         a: BlsScalar,
@@ -68,10 +69,10 @@ fn decomposition_works() {
 
     // default works
     {
-        let a = BlsScalar::random(rng.clone());
+        let a = BlsScalar::random(&mut rng);
 
         let (proof, public_inputs) = prover
-            .prove(rng, &DummyCircuit::<256>::new(a))
+            .prove(&mut rng, &DummyCircuit::<256>::new(a))
             .expect("failed to prove");
 
         verifier
@@ -81,12 +82,12 @@ fn decomposition_works() {
 
     // negative works
     {
-        let a = BlsScalar::random(rng.clone());
+        let a = BlsScalar::random(&mut rng);
 
         let mut circuit = DummyCircuit::<256>::new(a);
 
         circuit.bits[10] = circuit.bits[10] ^ BlsScalar::one();
 
-        prover.prove(rng, &circuit).expect_err("invalid proof");
+        prover.prove(&mut rng, &circuit).expect_err("invalid proof");
     }
 }

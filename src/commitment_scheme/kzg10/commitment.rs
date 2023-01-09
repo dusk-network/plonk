@@ -5,6 +5,7 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 //! Module containing the representation of a Commitment to a Polynomial.
+use codec::{Decode, Encode};
 use dusk_bytes::{DeserializableSlice, Serializable};
 use zero_bls12_381::{G1Affine, G1Projective};
 
@@ -19,7 +20,7 @@ use zero_crypto::common::Group;
 
 /// Holds a commitment to a polynomial in a form of a [`G1Affine`]-bls12_381
 /// point.
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Decode, Encode)]
 #[cfg_attr(
     feature = "rkyv-impl",
     derive(Archive, Deserialize, Serialize),

@@ -7,7 +7,7 @@
 #![allow(clippy::many_single_char_names)]
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use dusk_plonk::prelude::*;
+use zero_plonk::prelude::*;
 
 #[derive(Debug, Clone, Copy)]
 struct BenchCircuit<const DEGREE: usize> {

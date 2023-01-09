@@ -10,6 +10,7 @@ use crate::{
     proof_system::ProverKey,
 };
 
+use codec::{Decode, Encode};
 use dusk_bytes::{DeserializableSlice, Serializable};
 use zero_bls12_381::Fr as BlsScalar;
 
@@ -31,7 +32,7 @@ pub(crate) struct Evaluations {
 
 /// Subset of all of the evaluations. These evaluations
 /// are added to the [`Proof`](super::Proof).
-#[derive(Debug, Eq, PartialEq, Clone, Default)]
+#[derive(Debug, Eq, PartialEq, Clone, Default, Decode, Encode)]
 #[cfg_attr(
     feature = "rkyv-impl",
     derive(Archive, Deserialize, Serialize),

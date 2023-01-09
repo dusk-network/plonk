@@ -16,7 +16,7 @@ use canonical_derive::Canon;
 use zero_bls12_381::{Fr as BlsScalar};
 use dusk_bytes::{DeserializableSlice, Serializable, Write};
 use zero_jubjub::{JubJubAffine, JubJubExtended, JubJubScalar};
-use rand_core::{CryptoRng, RngCore};
+use rand_core::RngCore;
 
 #[cfg(feature = "rkyv-impl")]
 use bytecheck::CheckBytes;
@@ -150,7 +150,7 @@ impl VerifierData {
 /// # Example
 ///
 /// ```
-/// use dusk_plonk::prelude::*;
+/// use zero_plonk::prelude::*;
 /// use rand_core::OsRng;
 ///
 /// fn main() -> Result<(), Error> {
@@ -315,7 +315,7 @@ where
 
     /// Generates a proof using the provided `CircuitInputs` & `ProverKey`
     /// instances.
-    fn prove<R: RngCore + CryptoRng>(
+    fn prove<R: RngCore>(
         &mut self,
         pub_params: &PublicParameters,
         prover_key: &ProverKey,

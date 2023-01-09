@@ -4,18 +4,18 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use dusk_plonk::prelude::*;
 use rand::rngs::StdRng;
 use rand::SeedableRng;
 use zero_crypto::common::Group;
+use zero_plonk::prelude::*;
 
 #[test]
 fn boolean_works() {
-    let rng = &mut StdRng::seed_from_u64(8349u64);
+    let mut rng = StdRng::seed_from_u64(8349u64);
 
     let n = 1 << 4;
     let label = b"demo";
-    let pp = PublicParameters::setup(n, rng).expect("failed to create pp");
+    let pp = PublicParameters::setup(n, &mut rng).expect("failed to create pp");
 
     pub struct DummyCircuit {
         a: BlsScalar,
@@ -54,7 +54,7 @@ fn boolean_works() {
         let a = BlsScalar::one();
 
         let (proof, public_inputs) = prover
-            .prove(rng, &DummyCircuit::new(a))
+            .prove(&mut rng, &DummyCircuit::new(a))
             .expect("failed to prove");
 
         verifier
@@ -64,7 +64,7 @@ fn boolean_works() {
         let a = BlsScalar::zero();
 
         let (proof, public_inputs) = prover
-            .prove(rng, &DummyCircuit::new(a))
+            .prove(&mut rng, &DummyCircuit::new(a))
             .expect("failed to prove");
 
         verifier
@@ -77,18 +77,18 @@ fn boolean_works() {
         let a = BlsScalar::from(2u64);
 
         prover
-            .prove(rng, &DummyCircuit::new(a))
+            .prove(&mut rng, &DummyCircuit::new(a))
             .expect_err("invalid circuit");
     }
 }
 
 #[test]
 fn select_works() {
-    let rng = &mut StdRng::seed_from_u64(8349u64);
+    let mut rng = StdRng::seed_from_u64(8349u64);
 
     let n = 1 << 6;
     let label = b"demo";
-    let pp = PublicParameters::setup(n, rng).expect("failed to create pp");
+    let pp = PublicParameters::setup(n, &mut rng).expect("failed to create pp");
 
     #[derive(Clone)]
     pub struct DummyCircuit {
@@ -267,19 +267,19 @@ fn select_works() {
     {
         let bit = BlsScalar::one();
 
-        let a = BlsScalar::random(rng.clone());
-        let b = BlsScalar::random(rng.clone());
+        let a = BlsScalar::random(&mut rng);
+        let b = BlsScalar::random(&mut rng);
         let zero_bit = bit;
-        let zero_a = BlsScalar::random(rng.clone());
+        let zero_a = BlsScalar::random(&mut rng);
         let one_bit = bit;
-        let one_a = BlsScalar::random(rng.clone());
+        let one_a = BlsScalar::random(&mut rng);
         let point_bit = bit;
-        let point_a = JubJubScalar::random(rng.clone());
+        let point_a = JubJubScalar::random(&mut rng);
         let point_a = zero_jubjub::GENERATOR_EXTENDED * &point_a;
-        let point_b = JubJubScalar::random(rng.clone());
+        let point_b = JubJubScalar::random(&mut rng);
         let point_b = zero_jubjub::GENERATOR_EXTENDED * &point_b;
         let identity_bit = bit;
-        let identity_a = JubJubScalar::random(rng.clone());
+        let identity_a = JubJubScalar::random(&mut rng);
         let identity_a = zero_jubjub::GENERATOR_EXTENDED * &identity_a;
 
         let circuit = DummyCircuit::new(
@@ -298,7 +298,7 @@ fn select_works() {
         );
 
         let (proof, public_inputs) =
-            prover.prove(rng, &circuit).expect("failed to prove");
+            prover.prove(&mut rng, &circuit).expect("failed to prove");
 
         verifier
             .verify(&proof, &public_inputs)
@@ -306,19 +306,19 @@ fn select_works() {
 
         let bit = BlsScalar::zero();
 
-        let a = BlsScalar::random(rng.clone());
-        let b = BlsScalar::random(rng.clone());
+        let a = BlsScalar::random(&mut rng);
+        let b = BlsScalar::random(&mut rng);
         let zero_bit = bit;
-        let zero_a = BlsScalar::random(rng.clone());
+        let zero_a = BlsScalar::random(&mut rng);
         let one_bit = bit;
-        let one_a = BlsScalar::random(rng.clone());
+        let one_a = BlsScalar::random(&mut rng);
         let point_bit = bit;
-        let point_a = JubJubScalar::random(rng.clone());
+        let point_a = JubJubScalar::random(&mut rng);
         let point_a = zero_jubjub::GENERATOR_EXTENDED * &point_a;
-        let point_b = JubJubScalar::random(rng.clone());
+        let point_b = JubJubScalar::random(&mut rng);
         let point_b = zero_jubjub::GENERATOR_EXTENDED * &point_b;
         let identity_bit = bit;
-        let identity_a = JubJubScalar::random(rng.clone());
+        let identity_a = JubJubScalar::random(&mut rng);
         let identity_a = zero_jubjub::GENERATOR_EXTENDED * &identity_a;
 
         let circuit = DummyCircuit::new(
@@ -337,7 +337,7 @@ fn select_works() {
         );
 
         let (proof, public_inputs) =
-            prover.prove(rng, &circuit).expect("failed to prove");
+            prover.prove(&mut rng, &circuit).expect("failed to prove");
 
         verifier
             .verify(&proof, &public_inputs)
@@ -346,19 +346,19 @@ fn select_works() {
 
     let bit = BlsScalar::one();
 
-    let a = BlsScalar::random(rng.clone());
-    let b = BlsScalar::random(rng.clone());
+    let a = BlsScalar::random(&mut rng);
+    let b = BlsScalar::random(&mut rng);
     let zero_bit = bit;
-    let zero_a = BlsScalar::random(rng.clone());
+    let zero_a = BlsScalar::random(&mut rng);
     let one_bit = bit;
-    let one_a = BlsScalar::random(rng.clone());
+    let one_a = BlsScalar::random(&mut rng);
     let point_bit = bit;
-    let point_a = JubJubScalar::random(rng.clone());
+    let point_a = JubJubScalar::random(&mut rng);
     let point_a = zero_jubjub::GENERATOR_EXTENDED * &point_a;
-    let point_b = JubJubScalar::random(rng.clone());
+    let point_b = JubJubScalar::random(&mut rng);
     let point_b = zero_jubjub::GENERATOR_EXTENDED * &point_b;
     let identity_bit = bit;
-    let identity_a = JubJubScalar::random(rng.clone());
+    let identity_a = JubJubScalar::random(&mut rng);
     let identity_a = zero_jubjub::GENERATOR_EXTENDED * &identity_a;
 
     let base = DummyCircuit::new(
@@ -382,7 +382,7 @@ fn select_works() {
 
         circuit.res = -circuit.res;
 
-        prover.prove(rng, &circuit).expect_err("invalid proof");
+        prover.prove(&mut rng, &circuit).expect_err("invalid proof");
     }
 
     // negative select zero works
@@ -391,7 +391,7 @@ fn select_works() {
 
         circuit.zero_res = -circuit.zero_res;
 
-        prover.prove(rng, &circuit).expect_err("invalid proof");
+        prover.prove(&mut rng, &circuit).expect_err("invalid proof");
     }
 
     // negative select one works
@@ -400,7 +400,7 @@ fn select_works() {
 
         circuit.one_res = -circuit.one_res;
 
-        prover.prove(rng, &circuit).expect_err("invalid proof");
+        prover.prove(&mut rng, &circuit).expect_err("invalid proof");
     }
 
     // negative select point works
@@ -411,7 +411,7 @@ fn select_works() {
 
         circuit.point_res = circuit.point_res + x;
 
-        prover.prove(rng, &circuit).expect_err("invalid proof");
+        prover.prove(&mut rng, &circuit).expect_err("invalid proof");
     }
 
     // negative select identity works
@@ -422,6 +422,6 @@ fn select_works() {
 
         circuit.identity_res = circuit.identity_res + x;
 
-        prover.prove(rng, &circuit).expect_err("invalid proof");
+        prover.prove(&mut rng, &circuit).expect_err("invalid proof");
     }
 }

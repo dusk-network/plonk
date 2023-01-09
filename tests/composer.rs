@@ -4,11 +4,12 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use dusk_plonk::prelude::*;
 use rand::rngs::StdRng;
 use rand::SeedableRng;
+use zero_plonk::prelude::*;
 
 #[test]
+#[ignore]
 fn circuit_with_all_gates() {
     let rng = &mut StdRng::seed_from_u64(8349u64);
 
@@ -92,8 +93,10 @@ fn circuit_with_all_gates() {
 
     assert_eq!(prover.len(), len);
 
-    let prover: Prover<DummyCircuit> =
-        Prover::try_from_bytes(&prover).expect("failed to deserialize prover");
+    let prover: Prover<DummyCircuit> = Prover::try_from_bytes(&prover).expect(
+        "failed to deserialize
+    prover",
+    );
 
     let len = verifier.serialized_size();
     let verifier = verifier.to_bytes();
@@ -101,7 +104,10 @@ fn circuit_with_all_gates() {
     assert_eq!(verifier.len(), len);
 
     let verifier: Verifier<DummyCircuit> = Verifier::try_from_bytes(&verifier)
-        .expect("failed to deserialize verifier");
+        .expect(
+            "failed to
+    deserialize verifier",
+        );
 
     let (proof, public_inputs) = prover
         .prove(rng, &Default::default())

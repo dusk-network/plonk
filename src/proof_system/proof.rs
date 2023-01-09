@@ -9,6 +9,7 @@
 
 use super::linearization_poly::ProofEvaluations;
 use crate::commitment_scheme::Commitment;
+use codec::{Decode, Encode};
 use dusk_bytes::{DeserializableSlice, Serializable};
 
 #[cfg(feature = "rkyv-impl")]
@@ -31,7 +32,7 @@ use rkyv::{
 /// [`Verifier`](crate::prelude::Verifier) have in common succintly
 /// and without any capabilities of adquiring any kind of knowledge about the
 /// witness used to construct the Proof.
-#[derive(Debug, Eq, PartialEq, Clone, Default)]
+#[derive(Debug, Eq, PartialEq, Clone, Default, Decode, Encode)]
 #[cfg_attr(
     feature = "rkyv-impl",
     derive(Archive, Deserialize, Serialize),

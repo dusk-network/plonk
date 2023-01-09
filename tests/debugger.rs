@@ -7,7 +7,7 @@
 use std::{env, io};
 
 use dusk_cdf::CircuitDescription;
-use dusk_plonk::prelude::*;
+use zero_plonk::prelude::*;
 
 #[derive(Debug, Default)]
 struct EmptyCircuit;
