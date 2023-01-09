@@ -10,9 +10,10 @@
 use super::{EvaluationDomain, Evaluations};
 use crate::error::Error;
 use crate::util;
-use alloc::vec::Vec;
 use core::ops::{Add, AddAssign, Deref, DerefMut, Mul, Neg, Sub, SubAssign};
 use dusk_bytes::{DeserializableSlice, Serializable};
+use sp_std::vec;
+use sp_std::vec::Vec;
 use zero_bls12_381::Fr as BlsScalar;
 
 #[cfg(feature = "rkyv-impl")]

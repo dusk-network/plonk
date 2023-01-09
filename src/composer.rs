@@ -11,6 +11,7 @@ use core::cmp;
 use core::ops::{Index, Neg};
 
 use dusk_bytes::Serializable;
+use sp_std::vec;
 use zero_bls12_381::Fr as BlsScalar;
 use zero_crypto::behave::{Group, PrimeField};
 use zero_jubjub::{Fp as JubJubScalar, JubJubAffine, JubJubExtended};

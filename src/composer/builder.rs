@@ -8,6 +8,7 @@ use alloc::vec::Vec;
 use core::ops;
 
 use hashbrown::HashMap;
+use sp_std::vec;
 use zero_bls12_381::Fr as BlsScalar;
 
 use crate::constraint_system::{Constraint, Selector, WiredWitness, Witness};

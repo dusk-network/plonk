@@ -13,6 +13,8 @@ pub mod logic;
 pub mod permutation;
 pub mod range;
 
+use sp_std::vec;
+
 #[cfg(feature = "rkyv-impl")]
 use crate::util::check_field;
 #[cfg(feature = "rkyv-impl")]
@@ -570,7 +572,7 @@ pub(crate) mod alloc {
     }
 }
 
-#[cfg(feature = "alloc")]
+#[cfg(feature = "std")]
 #[cfg(test)]
 mod test {
     use super::alloc::ProverKey;

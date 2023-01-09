@@ -11,6 +11,7 @@ use core::ops;
 use dusk_bytes::{DeserializableSlice, Serializable};
 use merlin::Transcript;
 use rand_core::RngCore;
+use sp_std::vec;
 use zero_bls12_381::Fr as BlsScalar;
 use zero_crypto::behave::FftField;
 

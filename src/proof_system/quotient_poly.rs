@@ -9,9 +9,10 @@ use crate::{
     fft::{EvaluationDomain, Polynomial},
     proof_system::ProverKey,
 };
-use alloc::vec::Vec;
 #[cfg(feature = "std")]
 use rayon::prelude::*;
+use sp_std::vec;
+use sp_std::vec::Vec;
 use zero_bls12_381::Fr as BlsScalar;
 use zero_crypto::behave::*;
 

@@ -6,13 +6,13 @@
 
 use zero_bls12_381::Fr as BlsScalar;
 
+use super::{Builder, Circuit, Composer, Prover, Verifier};
 use crate::commitment_scheme::{CommitKey, OpeningKey, PublicParameters};
 use crate::error::Error;
 use crate::fft::{EvaluationDomain, Evaluations, Polynomial as FftPolynomial};
 use crate::proof_system::preprocess::Polynomials;
 use crate::proof_system::{widget, ProverKey};
-
-use super::{Builder, Circuit, Composer, Prover, Verifier};
+use sp_std::vec;
 
 /// Generate the arguments to prove and verify a circuit
 pub struct Compiler;

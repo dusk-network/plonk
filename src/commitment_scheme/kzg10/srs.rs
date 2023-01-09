@@ -12,6 +12,7 @@ use alloc::vec::Vec;
 use codec::{Decode, Encode};
 use dusk_bytes::{DeserializableSlice, Serializable};
 use rand_core::RngCore;
+use sp_std::vec;
 use zero_bls12_381::{G1Affine, G1Projective, G2Affine};
 
 #[cfg(feature = "rkyv-impl")]

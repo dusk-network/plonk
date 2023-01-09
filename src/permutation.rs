@@ -10,6 +10,7 @@ use alloc::vec::Vec;
 use constants::{K1, K2, K3};
 use hashbrown::HashMap;
 use itertools::izip;
+use sp_std::vec;
 use zero_bls12_381::Fr as BlsScalar;
 use zero_crypto::behave::*;
 
