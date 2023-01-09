@@ -9,11 +9,11 @@
 use super::domain::EvaluationDomain;
 use super::polynomial::Polynomial;
 use crate::error::Error;
-use alloc::vec::Vec;
 use core::ops::{
     Add, AddAssign, DivAssign, Index, Mul, MulAssign, Sub, SubAssign,
 };
 use dusk_bytes::{DeserializableSlice, Serializable};
+use sp_std::vec::Vec;
 use zero_bls12_381::Fr as BlsScalar;
 use zero_crypto::behave::*;
 

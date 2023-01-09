@@ -11,10 +11,10 @@ use super::{proof::Proof, Commitment};
 use crate::{
     error::Error, fft::Polynomial, transcript::TranscriptProtocol, util,
 };
-use alloc::vec::Vec;
 use codec::{Decode, Encode};
 use dusk_bytes::{DeserializableSlice, Serializable};
 use merlin::Transcript;
+use sp_std::vec::Vec;
 use zero_bls12_381::{
     msm_variable_base, Fr as BlsScalar, G1Affine, G1Projective, G2Affine,
     G2PairingAffine as G2Prepared,

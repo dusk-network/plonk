@@ -52,25 +52,21 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![feature(error_in_core)]
 
-cfg_if::cfg_if!(
-if #[cfg(feature = "alloc")] {
-    /// `macro_use` will declare `vec!`. However, if `libstd` is present, then this
-    /// is declared in the prelude and there will be a conflicting implementation.
-    ///
-    /// We might have `no_std + alloc` or `std + alloc`, but `macro_use` should be
-    /// used only for `no_std`
-    #[cfg_attr(not(feature = "std"), macro_use)]
-    extern crate alloc;
+/// `macro_use` will declare `vec!`. However, if `libstd` is present, then this
+/// is declared in the prelude and there will be a conflicting implementation.
+///
+/// We might have `no_std + alloc` or `std + alloc`, but `macro_use` should be
+/// used only for `no_std`
+extern crate alloc;
 
-    mod bit_iterator;
-    mod permutation;
-    mod util;
-    mod transcript;
+mod bit_iterator;
+mod permutation;
+mod transcript;
+mod util;
 
-    pub mod constraint_system;
-    pub mod composer;
-    pub mod runtime;
-});
+pub mod composer;
+pub mod constraint_system;
+pub mod runtime;
 
 mod fft;
 

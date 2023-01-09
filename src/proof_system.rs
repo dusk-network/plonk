@@ -10,19 +10,15 @@ pub(crate) mod linearization_poly;
 pub(crate) mod proof;
 pub(crate) mod widget;
 
+pub(crate) mod preprocess;
+pub(crate) mod quotient_poly;
+
+pub(crate) use widget::ProverKey;
+pub(crate) use widget::VerifierKey;
+
 cfg_if::cfg_if!(
-    if #[cfg(feature = "alloc")] {
-        pub(crate) mod quotient_poly;
-        pub(crate) mod preprocess;
-
-        pub(crate) use widget::alloc::ProverKey;
-        pub(crate) use widget::VerifierKey;
-
-        cfg_if::cfg_if!(
-            if #[cfg(feature = "rkyv-impl")] {
-                pub use widget::alloc::{ArchivedProverKey, ProverKeyResolver};
-            }
-        );
+    if #[cfg(feature = "rkyv-impl")] {
+        pub use widget::alloc::{ArchivedProverKey, ProverKeyResolver};
     }
 );
 

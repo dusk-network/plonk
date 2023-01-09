@@ -80,7 +80,6 @@ impl Serializable<{ 7 * Commitment::SIZE }> for VerifierKey {
     }
 }
 
-#[cfg(feature = "alloc")]
 mod alloc {
     use super::*;
     use crate::proof_system::linearization_poly::ProofEvaluations;

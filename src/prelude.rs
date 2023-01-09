@@ -9,7 +9,6 @@
 //! Use this as the only import that you need to interact
 //! with the principal data structures of the plonk library.
 
-#[cfg(feature = "alloc")]
 pub use crate::{
     commitment_scheme::PublicParameters,
     composer::{Builder, Circuit, Compiler, Composer, Prover, Verifier},

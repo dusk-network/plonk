@@ -8,15 +8,11 @@
 //! to know and use the logic behind Polynomials. As well as
 //! the operations that the `Composer` needs to peform with them.
 
-cfg_if::cfg_if!(
-if #[cfg(feature = "alloc")]
-{
-    pub(crate) mod evaluations;
-    pub(crate) mod polynomial;
+pub(crate) mod evaluations;
+pub(crate) mod polynomial;
 
-    pub(crate) use evaluations::Evaluations;
-    pub(crate) use polynomial::Polynomial;
-});
+pub(crate) use evaluations::Evaluations;
+pub(crate) use polynomial::Polynomial;
 
 pub(crate) mod domain;
 
