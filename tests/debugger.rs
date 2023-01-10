@@ -22,6 +22,7 @@ impl Circuit for EmptyCircuit {
 }
 
 #[test]
+#[cfg(debug_assertions)]
 fn generate_cdf_works() -> io::Result<()> {
     let rng = &mut rand::thread_rng();
 
