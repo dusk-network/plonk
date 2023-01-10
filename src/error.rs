@@ -162,4 +162,4 @@ impl From<DuskBytesError> for Error {
 }
 
 #[cfg(feature = "std")]
-impl core::error::Error for Error {}
+impl std::error::Error for Error {}

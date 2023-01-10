@@ -50,7 +50,6 @@
 #![deny(rustdoc::broken_intra_doc_links)]
 #![deny(missing_docs)]
 #![cfg_attr(not(feature = "std"), no_std)]
-#![feature(error_in_core)]
 
 /// `macro_use` will declare `vec!`. However, if `libstd` is present, then this
 /// is declared in the prelude and there will be a conflicting implementation.
