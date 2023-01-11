@@ -16,7 +16,6 @@ use rkyv::{
     ser::{ScratchSpace, Serializer},
     Archive, Deserialize, Serialize,
 };
-use zero_crypto::common::Group;
 
 /// Holds a commitment to a polynomial in a form of a [`G1Affine`]-bls12_381
 /// point.
