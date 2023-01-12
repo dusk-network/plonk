@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fixed negation of public input values when using `composer.append_public` [#717]
+
 ## [0.13.1] - 2022-10-26
 
 ### Fixed
@@ -444,6 +448,7 @@ is necessary since `rkyv/validation` was required as a bound.
 - Proof system module.
 
 <!-- ISSUES -->
+[#717]: https://github.com/dusk-network/plonk/issues/717
 [#709]: https://github.com/dusk-network/plonk/issues/709
 [#697]: https://github.com/dusk-network/plonk/issues/697
 [#688]: https://github.com/dusk-network/plonk/issues/688
