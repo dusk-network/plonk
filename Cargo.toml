@@ -1,6 +1,6 @@
 [package]
 name = "zero-plonk"
-version = "0.13.1"
+version = "0.1.10"
 categories =["algorithms", "cryptography", "science", "mathematics"]
 edition = "2021"
 keywords = ["cryptography", "plonk", "zk-snarks", "zero-knowledge", "crypto"]
@@ -33,10 +33,10 @@ dusk-bytes = { version = "0.1", default-features=false }
 codec = { default-features = false, features = ['derive'], package = 'parity-scale-codec', version = '2.0.0' }
 sp-std = { version = '3.0.0', default-features = false }
 
-zero-bls12-381 = {path="../bls12_381"}
-zero-crypto = {path="../crypto"}
-zero-jubjub = {path="../jubjub"}
-zero-pairing = {path="../pairing"}
+zero-bls12-381 = {version = "0.1.10", default-features = false}
+zero-crypto = {version = "0.1.10", default-features = false}
+zero-jubjub = {version = "0.1.10", default-features = false}
+zero-pairing = {version = "0.1.10", default-features = false}
 
 [dev-dependencies]
 criterion = "0.3"
