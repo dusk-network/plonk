@@ -44,7 +44,7 @@ tempdir = "0.3"
 rand = "0.8"
 
 [[bench]]
-name = "plonk"
+name = "polynomial"
 harness = false
 
 [features]
