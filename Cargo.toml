@@ -33,10 +33,10 @@ dusk-bytes = { version = "0.1", default-features=false }
 codec = { default-features = false, features = ['derive'], package = 'parity-scale-codec', version = '2.0.0' }
 sp-std = { version = '3.0.0', default-features = false }
 
-zero-bls12-381 = {version = "0.1.10", default-features = false}
-zero-crypto = {version = "0.1.10", default-features = false}
-zero-jubjub = {version = "0.1.10", default-features = false}
-zero-pairing = {version = "0.1.10", default-features = false}
+zero-bls12-381 = {path = "../bls12_381", default-features = false}
+zero-crypto = {path = "../crypto", default-features = false}
+zero-jubjub = {path = "../jubjub", default-features = false}
+zero-pairing = {path = "../pairing", default-features = false}
 
 [dev-dependencies]
 criterion = "0.3"
