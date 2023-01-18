@@ -37,6 +37,7 @@ zero-bls12-381 = {path = "../bls12_381", default-features = false}
 zero-crypto = {path = "../crypto", default-features = false}
 zero-jubjub = {path = "../jubjub", default-features = false}
 zero-pairing = {path = "../pairing", default-features = false}
+zero-kzg = {path = "../kzg", default-features = false}
 
 [dev-dependencies]
 criterion = "0.3"

@@ -5,6 +5,7 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use zero_bls12_381::Fr as BlsScalar;
+use zero_kzg::{Fft, Polynomial};
 
 use super::{Builder, Circuit, Composer, Prover, Verifier};
 use crate::commitment_scheme::{CommitKey, OpeningKey, PublicParameters};
@@ -70,68 +71,72 @@ impl Compiler {
 
         let constraints = prover.constraints();
         let size = constraints.next_power_of_two();
+        let k = size.trailing_zeros();
 
         let domain = EvaluationDomain::new(size - 1)?;
+        let fft = Fft::<BlsScalar>::new(k as usize);
 
         // 1. pad circuit to a power of two
         //
         // we use allocated vectors because the current ifft api only accepts
         // slices
-        let mut q_m = vec![BlsScalar::zero(); size];
-        let mut q_l = vec![BlsScalar::zero(); size];
-        let mut q_r = vec![BlsScalar::zero(); size];
-        let mut q_o = vec![BlsScalar::zero(); size];
-        let mut q_c = vec![BlsScalar::zero(); size];
-        let mut q_d = vec![BlsScalar::zero(); size];
-        let mut q_arith = vec![BlsScalar::zero(); size];
-        let mut q_range = vec![BlsScalar::zero(); size];
-        let mut q_logic = vec![BlsScalar::zero(); size];
-        let mut q_fixed_group_add = vec![BlsScalar::zero(); size];
-        let mut q_variable_group_add = vec![BlsScalar::zero(); size];
+        let mut q_m = Polynomial::new(vec![BlsScalar::zero(); size]);
+        let mut q_l = Polynomial::new(vec![BlsScalar::zero(); size]);
+        let mut q_r = Polynomial::new(vec![BlsScalar::zero(); size]);
+        let mut q_o = Polynomial::new(vec![BlsScalar::zero(); size]);
+        let mut q_c = Polynomial::new(vec![BlsScalar::zero(); size]);
+        let mut q_d = Polynomial::new(vec![BlsScalar::zero(); size]);
+        let mut q_arith = Polynomial::new(vec![BlsScalar::zero(); size]);
+        let mut q_range = Polynomial::new(vec![BlsScalar::zero(); size]);
+        let mut q_logic = Polynomial::new(vec![BlsScalar::zero(); size]);
+        let mut q_fixed_group_add =
+            Polynomial::new(vec![BlsScalar::zero(); size]);
+        let mut q_variable_group_add =
+            Polynomial::new(vec![BlsScalar::zero(); size]);
 
         prover.constraints.iter().enumerate().for_each(|(i, c)| {
-            q_m[i] = c.q_m;
-            q_l[i] = c.q_l;
-            q_r[i] = c.q_r;
-            q_o[i] = c.q_o;
-            q_c[i] = c.q_c;
-            q_d[i] = c.q_d;
-            q_arith[i] = c.q_arith;
-            q_range[i] = c.q_range;
-            q_logic[i] = c.q_logic;
-            q_fixed_group_add[i] = c.q_fixed_group_add;
-            q_variable_group_add[i] = c.q_variable_group_add;
+            q_m.0[i] = c.q_m;
+            q_l.0[i] = c.q_l;
+            q_r.0[i] = c.q_r;
+            q_o.0[i] = c.q_o;
+            q_c.0[i] = c.q_c;
+            q_d.0[i] = c.q_d;
+            q_arith.0[i] = c.q_arith;
+            q_range.0[i] = c.q_range;
+            q_logic.0[i] = c.q_logic;
+            q_fixed_group_add.0[i] = c.q_fixed_group_add;
+            q_variable_group_add.0[i] = c.q_variable_group_add;
         });
 
-        let q_m_poly = domain.ifft(&q_m);
-        let q_l_poly = domain.ifft(&q_l);
-        let q_r_poly = domain.ifft(&q_r);
-        let q_o_poly = domain.ifft(&q_o);
-        let q_c_poly = domain.ifft(&q_c);
-        let q_d_poly = domain.ifft(&q_d);
-        let q_arith_poly = domain.ifft(&q_arith);
-        let q_range_poly = domain.ifft(&q_range);
-        let q_logic_poly = domain.ifft(&q_logic);
-        let q_fixed_group_add_poly = domain.ifft(&q_fixed_group_add);
-        let q_variable_group_add_poly = domain.ifft(&q_variable_group_add);
+        fft.idft(&mut q_m);
+        fft.idft(&mut q_l);
+        fft.idft(&mut q_r);
+        fft.idft(&mut q_o);
+        fft.idft(&mut q_c);
+        fft.idft(&mut q_d);
+        fft.idft(&mut q_arith);
+        fft.idft(&mut q_range);
+        fft.idft(&mut q_logic);
+        fft.idft(&mut q_fixed_group_add);
+        fft.idft(&mut q_variable_group_add);
 
-        let q_m_poly = FftPolynomial::from_coefficients_vec(q_m_poly);
-        let q_l_poly = FftPolynomial::from_coefficients_vec(q_l_poly);
-        let q_r_poly = FftPolynomial::from_coefficients_vec(q_r_poly);
-        let q_o_poly = FftPolynomial::from_coefficients_vec(q_o_poly);
-        let q_c_poly = FftPolynomial::from_coefficients_vec(q_c_poly);
-        let q_d_poly = FftPolynomial::from_coefficients_vec(q_d_poly);
-        let q_arith_poly = FftPolynomial::from_coefficients_vec(q_arith_poly);
-        let q_range_poly = FftPolynomial::from_coefficients_vec(q_range_poly);
-        let q_logic_poly = FftPolynomial::from_coefficients_vec(q_logic_poly);
+        let q_m_poly = FftPolynomial::from_coefficients_vec(q_m.0);
+        let q_l_poly = FftPolynomial::from_coefficients_vec(q_l.0);
+        let q_r_poly = FftPolynomial::from_coefficients_vec(q_r.0);
+        let q_o_poly = FftPolynomial::from_coefficients_vec(q_o.0);
+        let q_c_poly = FftPolynomial::from_coefficients_vec(q_c.0);
+        let q_d_poly = FftPolynomial::from_coefficients_vec(q_d.0);
+        let q_arith_poly = FftPolynomial::from_coefficients_vec(q_arith.0);
+        let q_range_poly = FftPolynomial::from_coefficients_vec(q_range.0);
+        let q_logic_poly = FftPolynomial::from_coefficients_vec(q_logic.0);
         let q_fixed_group_add_poly =
-            FftPolynomial::from_coefficients_vec(q_fixed_group_add_poly);
+            FftPolynomial::from_coefficients_vec(q_fixed_group_add.0);
         let q_variable_group_add_poly =
-            FftPolynomial::from_coefficients_vec(q_variable_group_add_poly);
+            FftPolynomial::from_coefficients_vec(q_variable_group_add.0);
 
         // 2. compute the sigma polynomials
         let [s_sigma_1_poly, s_sigma_2_poly, s_sigma_3_poly, s_sigma_4_poly] =
-            perm.compute_sigma_polynomials(size, &domain);
+            perm.compute_sigma_polynomials(size, &domain, &fft);
 
         let q_m_poly_commit = commit_key.commit(&q_m_poly).unwrap_or_default();
         let q_l_poly_commit = commit_key.commit(&q_l_poly).unwrap_or_default();

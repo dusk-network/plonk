@@ -13,6 +13,7 @@ use itertools::izip;
 use sp_std::vec;
 use zero_bls12_381::Fr as BlsScalar;
 use zero_crypto::behave::*;
+use zero_kzg::{Fft, Polynomial as ZeroPoly};
 
 pub(crate) mod constants;
 
@@ -176,6 +177,7 @@ impl Permutation {
         &mut self,
         n: usize,
         domain: &EvaluationDomain,
+        fft: &Fft<BlsScalar>,
     ) -> [Polynomial; 4] {
         // Compute sigma mappings
         let sigmas = self.compute_sigma_permutations(n);
@@ -186,19 +188,28 @@ impl Permutation {
         assert_eq!(sigmas[3].len(), n);
 
         // define the sigma permutations using two non quadratic residues
-        let s_sigma_1 = self.compute_permutation_lagrange(&sigmas[0], domain);
-        let s_sigma_2 = self.compute_permutation_lagrange(&sigmas[1], domain);
-        let s_sigma_3 = self.compute_permutation_lagrange(&sigmas[2], domain);
-        let s_sigma_4 = self.compute_permutation_lagrange(&sigmas[3], domain);
+        let mut s_sigma_1 = ZeroPoly::new(
+            self.compute_permutation_lagrange(&sigmas[0], domain),
+        );
+        let mut s_sigma_2 = ZeroPoly::new(
+            self.compute_permutation_lagrange(&sigmas[1], domain),
+        );
+        let mut s_sigma_3 = ZeroPoly::new(
+            self.compute_permutation_lagrange(&sigmas[2], domain),
+        );
+        let mut s_sigma_4 = ZeroPoly::new(
+            self.compute_permutation_lagrange(&sigmas[3], domain),
+        );
 
-        let s_sigma_1_poly =
-            Polynomial::from_coefficients_vec(domain.ifft(&s_sigma_1));
-        let s_sigma_2_poly =
-            Polynomial::from_coefficients_vec(domain.ifft(&s_sigma_2));
-        let s_sigma_3_poly =
-            Polynomial::from_coefficients_vec(domain.ifft(&s_sigma_3));
-        let s_sigma_4_poly =
-            Polynomial::from_coefficients_vec(domain.ifft(&s_sigma_4));
+        fft.idft(&mut s_sigma_1);
+        fft.idft(&mut s_sigma_2);
+        fft.idft(&mut s_sigma_3);
+        fft.idft(&mut s_sigma_4);
+
+        let s_sigma_1_poly = Polynomial::from_coefficients_vec(s_sigma_1.0);
+        let s_sigma_2_poly = Polynomial::from_coefficients_vec(s_sigma_2.0);
+        let s_sigma_3_poly = Polynomial::from_coefficients_vec(s_sigma_3.0);
+        let s_sigma_4_poly = Polynomial::from_coefficients_vec(s_sigma_4.0);
 
         [
             s_sigma_1_poly,
@@ -303,10 +314,10 @@ impl Permutation {
 #[cfg(test)]
 mod test {
     use super::*;
-    //use crate::constraint_system::Constraint;
     use crate::fft::Polynomial;
     use rand_core::OsRng;
     use zero_bls12_381::Fr as BlsScalar;
+    use zero_kzg::Polynomial as ZeroPoly;
 
     #[allow(dead_code)]
     fn compute_fast_permutation_poly(
@@ -701,6 +712,7 @@ mod test {
         let var_eight = perm.new_witness();
         let var_nine = perm.new_witness();
 
+        let k = 2;
         let num_wire_mappings = 4;
 
         // Add four wire mappings
@@ -755,6 +767,7 @@ mod test {
         assert_eq!(s_sigma_4[3], WireData::Fourth(0));
 
         let domain = EvaluationDomain::new(num_wire_mappings).unwrap();
+        let fft = Fft::<BlsScalar>::new(k);
         let w = domain.group_gen;
         let w_squared = w.pow(2);
         let w_cubed = w.pow(3);
@@ -828,6 +841,7 @@ mod test {
             num_wire_mappings,
             perm,
             &domain,
+            &fft,
             a_w,
             b_w,
             c_w,
@@ -943,9 +957,11 @@ mod test {
 
     #[test]
     fn test_basic_slow_permutation_poly() {
+        let k = 1;
         let num_wire_mappings = 2;
         let mut perm = Permutation::new();
         let domain = EvaluationDomain::new(num_wire_mappings).unwrap();
+        let fft = Fft::<BlsScalar>::new(k);
 
         let var_one = perm.new_witness();
         let var_two = perm.new_witness();
@@ -964,6 +980,7 @@ mod test {
             num_wire_mappings,
             perm,
             &domain,
+            &fft,
             a_w,
             b_w,
             c_w,
@@ -983,6 +1000,7 @@ mod test {
         n: usize,
         mut perm: Permutation,
         domain: &EvaluationDomain,
+        fft: &Fft<BlsScalar>,
         a_w: Vec<BlsScalar>,
         b_w: Vec<BlsScalar>,
         c_w: Vec<BlsScalar>,
@@ -996,7 +1014,7 @@ mod test {
 
         //1. Compute the permutation polynomial using both methods
         let [s_sigma_1_poly, s_sigma_2_poly, s_sigma_3_poly, s_sigma_4_poly] =
-            perm.compute_sigma_polynomials(n, domain);
+            perm.compute_sigma_polynomials(n, domain, fft);
         let (z_vec, numerator_components, denominator_components) =
             compute_slow_permutation_poly(
                 domain,
@@ -1052,7 +1070,9 @@ mod test {
 
         //3. Now we perform the two checks that need to be done on the
         // permutation polynomial (z)
-        let z_poly = Polynomial::from_coefficients_vec(domain.ifft(&z_vec));
+        let mut z_vec = ZeroPoly::new(z_vec);
+        fft.idft(&mut z_vec);
+        let z_poly = Polynomial::from_coefficients_vec(z_vec.0);
         //
         // Check that z(w^{n+1}) == z(1) == 1
         // This is the first check in the protocol
@@ -1100,9 +1120,9 @@ mod test {
         }
 
         // Test that the shifted polynomial is correct
-        let shifted_z = shift_poly_by_one(fast_z_vec);
-        let shifted_z_poly =
-            Polynomial::from_coefficients_vec(domain.ifft(&shifted_z));
+        let mut shifted_z = ZeroPoly::new(shift_poly_by_one(fast_z_vec));
+        fft.idft(&mut shifted_z);
+        let shifted_z_poly = Polynomial::from_coefficients_vec(shifted_z.0);
         for element in domain.elements() {
             let z_eval = z_poly.evaluate(&(element * domain.group_gen));
             let shifted_z_eval = shifted_z_poly.evaluate(&element);

@@ -14,6 +14,7 @@ use rand_core::RngCore;
 use sp_std::vec;
 use zero_bls12_381::Fr as BlsScalar;
 use zero_crypto::behave::FftField;
+use zero_kzg::{Fft, Polynomial};
 
 use crate::commitment_scheme::CommitKey;
 use crate::error::Error;
@@ -91,21 +92,22 @@ where
         rng: &mut R,
         witnesses: &[BlsScalar],
         hiding_degree: usize,
-        domain: &EvaluationDomain,
+        domain: &Fft<BlsScalar>,
     ) -> FftPolynomial
     where
         R: RngCore,
     {
-        let mut w_vec_inverse = domain.ifft(witnesses);
+        let mut w_vec_inverse = Polynomial::new(witnesses.to_vec());
+        domain.idft(&mut w_vec_inverse);
 
         for i in 0..hiding_degree + 1 {
             let blinding_scalar = util::random_scalar(rng);
 
-            w_vec_inverse[i] = w_vec_inverse[i] - blinding_scalar;
-            w_vec_inverse.push(blinding_scalar);
+            w_vec_inverse.0[i] = w_vec_inverse.0[i] - blinding_scalar;
+            w_vec_inverse.0.push(blinding_scalar);
         }
 
-        FftPolynomial::from_coefficients_vec(w_vec_inverse)
+        FftPolynomial::from_coefficients_vec(w_vec_inverse.0)
     }
 
     fn prepare_serialize(
@@ -249,18 +251,21 @@ where
 
         let constraints = self.constraints;
         let size = self.size;
+        let k = size.trailing_zeros();
 
         let domain = EvaluationDomain::new(constraints)?;
+        let fft = Fft::<BlsScalar>::new(k as usize);
 
         let mut transcript = self.transcript.clone();
 
         let public_inputs = prover.public_inputs();
         let public_input_indexes = prover.public_input_indexes();
-        let dense_public_inputs = Builder::dense_public_inputs(
-            &public_input_indexes,
-            &public_inputs,
-            self.size,
-        );
+        let mut dense_public_inputs =
+            Polynomial::new(Builder::dense_public_inputs(
+                &public_input_indexes,
+                &public_inputs,
+                self.size,
+            ));
 
         public_inputs
             .iter()
@@ -280,10 +285,10 @@ where
             d_w_scalar[i] = prover[c.w_d];
         });
 
-        let a_w_poly = Self::blind_poly(rng, &a_w_scalar, 1, &domain);
-        let b_w_poly = Self::blind_poly(rng, &b_w_scalar, 1, &domain);
-        let o_w_poly = Self::blind_poly(rng, &o_w_scalar, 1, &domain);
-        let d_w_poly = Self::blind_poly(rng, &d_w_scalar, 1, &domain);
+        let a_w_poly = Self::blind_poly(rng, &a_w_scalar, 1, &fft);
+        let b_w_poly = Self::blind_poly(rng, &b_w_scalar, 1, &fft);
+        let o_w_poly = Self::blind_poly(rng, &o_w_scalar, 1, &fft);
+        let d_w_poly = Self::blind_poly(rng, &d_w_scalar, 1, &fft);
 
         // commit to wire polynomials
         // ([a(x)]_1, [b(x)]_1, [c(x)]_1, [d(x)]_1)
@@ -320,7 +325,7 @@ where
             .perm
             .compute_permutation_vec(&domain, wires, &beta, &gamma, sigma);
 
-        let z_poly = Self::blind_poly(rng, &permutation, 2, &domain);
+        let z_poly = Self::blind_poly(rng, &permutation, 2, &fft);
         let z_poly_commit = self.commit_key.commit(&z_poly)?;
         transcript.append_commitment(b"z", &z_poly_commit);
 
@@ -337,8 +342,9 @@ where
             transcript.challenge_scalar(b"variable base separation challenge");
 
         // compute public inputs polynomial
-        let pi_poly = domain.ifft(&dense_public_inputs);
-        let pi_poly = FftPolynomial::from_coefficients_vec(pi_poly);
+        fft.idft(&mut dense_public_inputs);
+        let pi_poly =
+            FftPolynomial::from_coefficients_vec(dense_public_inputs.0);
 
         // compute quotient polynomial
         let wires = (&a_w_poly, &b_w_poly, &o_w_poly, &d_w_poly);
