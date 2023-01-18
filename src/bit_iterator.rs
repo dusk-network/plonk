@@ -8,54 +8,48 @@
 //! limbs
 use core::mem;
 
-macro_rules! bit_iterator {
-    ($sty : ty, $name : ident) => {
-        #[derive(Debug, Clone, Copy)]
-        pub struct $name<E> {
-            // scalar is the slice of integers that wish to iterate over
-            scalar: E,
-            // num_of_total_bits represents the sum of all of the bits of each
-            // integer If we have 2 u32s then the total number of bits will
-            // be 32 * 2 = 64 bits
-            num_of_total_bits: usize,
-            // bit_len represents the bit length of each integer.
-            // If we have a slice of u32s, then bit_len will be 32
-            bit_len: usize,
-        }
-
-        impl<E: AsRef<[$sty]>> $name<E> {
-            pub fn new(t: E) -> Self {
-                let num_of_integers = t.as_ref().len();
-                let num_of_total_bits = mem::size_of::<E>() * 8;
-                let bit_len_of_each_integer =
-                    num_of_total_bits / num_of_integers;
-                $name {
-                    scalar: t,
-                    num_of_total_bits,
-                    bit_len: bit_len_of_each_integer,
-                }
-            }
-        }
-        impl<E: AsRef<[$sty]>> Iterator for $name<E> {
-            type Item = bool;
-
-            fn next(&mut self) -> Option<bool> {
-                if self.num_of_total_bits == 0 {
-                    None
-                } else {
-                    self.num_of_total_bits -= 1;
-                    let element_index = self.num_of_total_bits / self.bit_len;
-                    let elements_bit = (self.num_of_total_bits % self.bit_len);
-                    let number = self.scalar.as_ref()[element_index];
-
-                    let bit = (number >> elements_bit) & 1;
-                    Some(bit > 0)
-                }
-            }
-        }
-    };
+#[derive(Debug, Clone, Copy)]
+pub struct BitIterator8<E> {
+    // scalar is the slice of integers that wish to iterate over
+    scalar: E,
+    // num_of_total_bits represents the sum of all of the bits of each
+    // integer If we have 2 u32s then the total number of bits will
+    // be 32 * 2 = 64 bits
+    num_of_total_bits: usize,
+    // bit_len represents the bit length of each integer.
+    // If we have a slice of u32s, then bit_len will be 32
+    bit_len: usize,
 }
-bit_iterator!(u8, BitIterator8);
+
+impl<E: AsRef<[u8]>> BitIterator8<E> {
+    pub fn new(t: E) -> Self {
+        let num_of_integers = t.as_ref().len();
+        let num_of_total_bits = mem::size_of::<E>() * 8;
+        let bit_len_of_each_integer = num_of_total_bits / num_of_integers;
+        BitIterator8 {
+            scalar: t,
+            num_of_total_bits,
+            bit_len: bit_len_of_each_integer,
+        }
+    }
+}
+impl<E: AsRef<[u8]>> Iterator for BitIterator8<E> {
+    type Item = bool;
+
+    fn next(&mut self) -> Option<bool> {
+        if self.num_of_total_bits == 0 {
+            None
+        } else {
+            self.num_of_total_bits -= 1;
+            let element_index = self.num_of_total_bits / self.bit_len;
+            let elements_bit = self.num_of_total_bits % self.bit_len;
+            let number = self.scalar.as_ref()[element_index];
+
+            let bit = (number >> elements_bit) & 1;
+            Some(bit > 0)
+        }
+    }
+}
 
 #[cfg(feature = "std")]
 #[cfg(test)]
