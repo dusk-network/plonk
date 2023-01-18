@@ -135,13 +135,6 @@ impl EvaluationDomain {
         self.size as usize
     }
 
-    /// Compute a FFT.
-    pub(crate) fn fft(&self, coeffs: &[BlsScalar]) -> Vec<BlsScalar> {
-        let mut coeffs = coeffs.to_vec();
-        self.fft_in_place(&mut coeffs);
-        coeffs
-    }
-
     /// Compute a FFT, modifying the vector in place.
     fn fft_in_place(&self, coeffs: &mut Vec<BlsScalar>) {
         coeffs.resize(self.size(), BlsScalar::zero());

@@ -342,15 +342,27 @@ mod test {
         ),
     ) -> Vec<BlsScalar> {
         let n = domain.size();
+        let k = n.trailing_zeros();
+        let fft = Fft::new(k as usize);
 
         // Compute beta * roots
         let common_roots: Vec<BlsScalar> =
             domain.elements().map(|root| root * beta).collect();
 
-        let s_sigma_1_mapping = domain.fft(s_sigma_1_poly);
-        let s_sigma_2_mapping = domain.fft(s_sigma_2_poly);
-        let s_sigma_3_mapping = domain.fft(s_sigma_3_poly);
-        let s_sigma_4_mapping = domain.fft(s_sigma_4_poly);
+        let mut s_sigma_1_poly = ZeroPoly::new(s_sigma_1_poly.coeffs.clone());
+        let mut s_sigma_2_poly = ZeroPoly::new(s_sigma_2_poly.coeffs.clone());
+        let mut s_sigma_3_poly = ZeroPoly::new(s_sigma_3_poly.coeffs.clone());
+        let mut s_sigma_4_poly = ZeroPoly::new(s_sigma_4_poly.coeffs.clone());
+
+        fft.dft(&mut s_sigma_1_poly);
+        fft.dft(&mut s_sigma_2_poly);
+        fft.dft(&mut s_sigma_3_poly);
+        fft.dft(&mut s_sigma_4_poly);
+
+        let s_sigma_1_mapping = s_sigma_1_poly.0;
+        let s_sigma_2_mapping = s_sigma_2_poly.0;
+        let s_sigma_3_mapping = s_sigma_3_poly.0;
+        let s_sigma_4_mapping = s_sigma_4_poly.0;
 
         // Compute beta * sigma polynomials
         let beta_s_sigma_1: Vec<_> =
@@ -506,11 +518,23 @@ mod test {
         I: Iterator<Item = BlsScalar>,
     {
         let n = domain.size();
+        let k = n.trailing_zeros();
+        let fft = Fft::new(k as usize);
 
-        let s_sigma_1_mapping = domain.fft(s_sigma_1_poly);
-        let s_sigma_2_mapping = domain.fft(s_sigma_2_poly);
-        let s_sigma_3_mapping = domain.fft(s_sigma_3_poly);
-        let s_sigma_4_mapping = domain.fft(s_sigma_4_poly);
+        let mut s_sigma_1_poly = ZeroPoly::new(s_sigma_1_poly.coeffs.clone());
+        let mut s_sigma_2_poly = ZeroPoly::new(s_sigma_2_poly.coeffs.clone());
+        let mut s_sigma_3_poly = ZeroPoly::new(s_sigma_3_poly.coeffs.clone());
+        let mut s_sigma_4_poly = ZeroPoly::new(s_sigma_4_poly.coeffs.clone());
+
+        fft.dft(&mut s_sigma_1_poly);
+        fft.dft(&mut s_sigma_2_poly);
+        fft.dft(&mut s_sigma_3_poly);
+        fft.dft(&mut s_sigma_4_poly);
+
+        let s_sigma_1_mapping = s_sigma_1_poly.0;
+        let s_sigma_2_mapping = s_sigma_2_poly.0;
+        let s_sigma_3_mapping = s_sigma_3_poly.0;
+        let s_sigma_4_mapping = s_sigma_4_poly.0;
 
         // Compute beta * sigma polynomials
         let beta_s_sigma_1_iter =
