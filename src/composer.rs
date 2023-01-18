@@ -632,7 +632,7 @@ pub trait Composer: Sized + Index<Witness, Output = BlsScalar> {
     /// Asserts `a == b` by appending two gates
     fn assert_equal_point(&mut self, a: WitnessPoint, b: WitnessPoint) {
         self.assert_equal(*a.x(), *b.x());
-        self.assert_equal(*b.y(), *b.y());
+        self.assert_equal(*a.y(), *b.y());
     }
 
     /// Asserts `point == public`.
