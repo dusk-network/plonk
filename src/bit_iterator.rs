@@ -8,6 +8,7 @@
 //! limbs
 use core::mem;
 
+#[derive(Debug, Clone, Copy)]
 pub struct BitIterator8<E> {
     // scalar is the slice of integers that wish to iterate over
     scalar: E,
