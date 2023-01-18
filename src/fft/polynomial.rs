@@ -7,7 +7,6 @@
 //! This module contains an implementation of a polynomial in coefficient form
 //! Where each coefficient is represented using a position in the underlying
 //! vector.
-use super::{EvaluationDomain, Evaluations};
 use crate::error::Error;
 use crate::util;
 use core::ops::{Add, AddAssign, Deref, DerefMut, Mul, Neg, Sub, SubAssign};
@@ -15,6 +14,7 @@ use dusk_bytes::{DeserializableSlice, Serializable};
 use sp_std::vec;
 use sp_std::vec::Vec;
 use zero_bls12_381::Fr as BlsScalar;
+use zero_kzg::{Fft, Polynomial as ZeroPoly};
 
 /// Represents a polynomial in coeffiient form.
 #[derive(Debug, Eq, PartialEq, Clone)]
@@ -330,19 +330,14 @@ impl<'a, 'b> Mul<&'a Polynomial> for &'b Polynomial {
         if self.is_zero() || other.is_zero() {
             Polynomial::zero()
         } else {
-            let domain =
-                EvaluationDomain::new(self.coeffs.len() + other.coeffs.len())
-                    .expect("field is not smooth enough to construct domain");
-            let mut self_evals = Evaluations::from_vec_and_domain(
-                domain.fft(&self.coeffs),
-                domain,
+            let degree_sum = self.coeffs.len() + other.coeffs.len();
+            let k = degree_sum.trailing_zeros();
+            let fft = Fft::new(k as usize);
+            let mul_poly = fft.poly_mul(
+                ZeroPoly::new(self.coeffs.clone()),
+                ZeroPoly::new(other.coeffs.clone()),
             );
-            let other_evals = Evaluations::from_vec_and_domain(
-                domain.fft(&other.coeffs),
-                domain,
-            );
-            self_evals *= &other_evals;
-            self_evals.interpolate()
+            Polynomial::from_coefficients_vec(mul_poly.0)
         }
     }
 }

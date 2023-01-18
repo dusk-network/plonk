@@ -7,7 +7,6 @@
 //! A polynomial represented in evaluations form over a domain of size 2^n.
 
 use super::domain::EvaluationDomain;
-use super::polynomial::Polynomial;
 use crate::error::Error;
 use core::ops::{
     Add, AddAssign, DivAssign, Index, Mul, MulAssign, Sub, SubAssign,
@@ -74,13 +73,6 @@ impl Evaluations {
         domain: EvaluationDomain,
     ) -> Self {
         Self { evals, domain }
-    }
-
-    /// Interpolate a polynomial from a list of evaluations
-    pub(crate) fn interpolate(self) -> Polynomial {
-        let Self { mut evals, domain } = self;
-        domain.ifft_in_place(&mut evals);
-        Polynomial::from_coefficients_vec(evals)
     }
 }
 

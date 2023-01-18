@@ -242,12 +242,13 @@ impl Permutation {
         let gatewise_wires = izip!(wires[0], wires[1], wires[2], wires[3])
             .map(|(w0, w1, w2, w3)| vec![w0, w1, w2, w3]);
 
-        let gatewise_sigmas: Vec<Vec<BlsScalar>> =
-            sigma_polys.iter_mut().map(|sigma| {
+        let gatewise_sigmas: Vec<Vec<BlsScalar>> = sigma_polys
+            .iter_mut()
+            .map(|sigma| {
                 fft.dft(sigma);
                 sigma.0.clone()
-            }
-            ).collect();
+            })
+            .collect();
         let gatewise_sigmas = izip!(
             &gatewise_sigmas[0],
             &gatewise_sigmas[1],
