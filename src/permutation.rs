@@ -225,10 +225,11 @@ impl Permutation {
     pub(crate) fn compute_permutation_vec(
         &self,
         domain: &EvaluationDomain,
+        fft: &Fft<BlsScalar>,
         wires: [&[BlsScalar]; 4],
         beta: &BlsScalar,
         gamma: &BlsScalar,
-        sigma_polys: [&Polynomial; 4],
+        mut sigma_polys: [ZeroPoly<BlsScalar>; 4],
     ) -> Vec<BlsScalar> {
         let n = domain.size();
 
@@ -242,7 +243,11 @@ impl Permutation {
             .map(|(w0, w1, w2, w3)| vec![w0, w1, w2, w3]);
 
         let gatewise_sigmas: Vec<Vec<BlsScalar>> =
-            sigma_polys.iter().map(|sigma| domain.fft(sigma)).collect();
+            sigma_polys.iter_mut().map(|sigma| {
+                fft.dft(sigma);
+                sigma.0.clone()
+            }
+            ).collect();
         let gatewise_sigmas = izip!(
             &gatewise_sigmas[0],
             &gatewise_sigmas[1],

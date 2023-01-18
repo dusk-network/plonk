@@ -310,10 +310,10 @@ where
 
         let gamma = transcript.challenge_scalar(b"gamma");
         let sigma = [
-            &self.prover_key.permutation.s_sigma_1.0,
-            &self.prover_key.permutation.s_sigma_2.0,
-            &self.prover_key.permutation.s_sigma_3.0,
-            &self.prover_key.permutation.s_sigma_4.0,
+            Polynomial::new(self.prover_key.permutation.s_sigma_1.0.coeffs.clone()),
+            Polynomial::new(self.prover_key.permutation.s_sigma_2.0.coeffs.clone()),
+            Polynomial::new(self.prover_key.permutation.s_sigma_3.0.coeffs.clone()),
+            Polynomial::new(self.prover_key.permutation.s_sigma_4.0.coeffs.clone()),
         ];
         let wires = [
             a_w_scalar.as_slice(),
@@ -323,7 +323,7 @@ where
         ];
         let permutation = prover
             .perm
-            .compute_permutation_vec(&domain, wires, &beta, &gamma, sigma);
+            .compute_permutation_vec(&domain, &fft, wires, &beta, &gamma, sigma);
 
         let z_poly = Self::blind_poly(rng, &permutation, 2, &fft);
         let z_poly_commit = self.commit_key.commit(&z_poly)?;

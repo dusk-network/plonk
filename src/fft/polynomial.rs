@@ -16,25 +16,10 @@ use sp_std::vec;
 use sp_std::vec::Vec;
 use zero_bls12_381::Fr as BlsScalar;
 
-#[cfg(feature = "rkyv-impl")]
-use bytecheck::CheckBytes;
-#[cfg(feature = "rkyv-impl")]
-use rkyv::{
-    ser::{ScratchSpace, Serializer},
-    Archive, Deserialize, Serialize,
-};
-
 /// Represents a polynomial in coeffiient form.
 #[derive(Debug, Eq, PartialEq, Clone)]
-#[cfg_attr(
-    feature = "rkyv-impl",
-    derive(Archive, Deserialize, Serialize),
-    archive(bound(serialize = "__S: Serializer + ScratchSpace")),
-    archive_attr(derive(CheckBytes))
-)]
 pub struct Polynomial {
     /// The coefficient of `x^i` is stored at location `i` in `self.coeffs`.
-    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) coeffs: Vec<BlsScalar>,
 }
 
