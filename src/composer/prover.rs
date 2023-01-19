@@ -366,7 +366,7 @@ where
             var_base_sep_challenge,
         );
         let t_poly = quotient_poly::compute(
-            &domain,
+            &fft,
             &self.prover_key,
             &z_poly,
             wires,

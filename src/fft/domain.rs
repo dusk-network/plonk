@@ -88,9 +88,6 @@ use crate::error::Error;
 use crate::fft::Evaluations;
 #[rustfmt::skip]
     use ::alloc::vec::Vec;
-use core::ops::MulAssign;
-#[cfg(feature = "std")]
-use rayon::prelude::*;
 use zero_bls12_381::{MULTIPLICATIVE_GENERATOR, ROOT_OF_UNITY, TWO_ADACITY};
 use zero_crypto::behave::*;
 
@@ -133,15 +130,6 @@ impl EvaluationDomain {
     /// Return the size of `self`.
     pub(crate) fn size(&self) -> usize {
         self.size as usize
-    }
-
-    /// Compute an IFFT, modifying the vector in place.
-    #[inline]
-    pub(crate) fn ifft_in_place(&self, evals: &mut Vec<BlsScalar>) {
-        evals.resize(self.size(), BlsScalar::zero());
-        best_fft(evals, self.group_gen_inv, self.log_size_of_group);
-
-        evals.iter_mut().for_each(|val| *val *= &self.size_inv);
     }
 
     #[allow(clippy::needless_range_loop)]
@@ -225,55 +213,6 @@ impl EvaluationDomain {
             cur_pow: 0,
             domain: *self,
         }
-    }
-}
-
-fn best_fft(a: &mut [BlsScalar], omega: BlsScalar, log_n: u32) {
-    serial_fft(a, omega, log_n)
-}
-
-#[inline]
-fn bitreverse(mut n: u32, l: u32) -> u32 {
-    let mut r = 0;
-    for _ in 0..l {
-        r = (r << 1) | (n & 1);
-        n >>= 1;
-    }
-    r
-}
-
-pub(crate) fn serial_fft(a: &mut [BlsScalar], omega: BlsScalar, log_n: u32) {
-    let n = a.len() as u32;
-    assert_eq!(n, 1 << log_n);
-
-    for k in 0..n {
-        let rk = bitreverse(k, log_n);
-        if k < rk {
-            a.swap(rk as usize, k as usize);
-        }
-    }
-
-    let mut m = 1;
-    for _ in 0..log_n {
-        let w_m = omega.pow((n / (2 * m)) as u64);
-
-        let mut k = 0;
-        while k < n {
-            let mut w = BlsScalar::one();
-            for j in 0..m {
-                let mut t = a[(k + j + m) as usize];
-                t *= &w;
-                let mut tmp = a[(k + j) as usize];
-                tmp -= &t;
-                a[(k + j + m) as usize] = tmp;
-                a[(k + j) as usize] += &t;
-                w.mul_assign(&w_m);
-            }
-
-            k += 2 * m;
-        }
-
-        m *= 2;
     }
 }
 
