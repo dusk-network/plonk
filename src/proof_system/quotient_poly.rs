@@ -15,6 +15,7 @@ use sp_std::vec;
 use sp_std::vec::Vec;
 use zero_bls12_381::Fr as BlsScalar;
 use zero_crypto::behave::*;
+use zero_kzg::{Fft, Polynomial as ZeroPoly};
 
 /// Computes the Quotient [`Polynomial`] given the [`EvaluationDomain`], a
 /// [`ProverKey`] and some other info.
@@ -48,22 +49,37 @@ pub(crate) fn compute(
     ),
 ) -> Result<Polynomial, Error> {
     // Compute 8n evals
+    let n = (8 * domain.size()).next_power_of_two();
+    let k = n.trailing_zeros();
+    let fft = Fft::<BlsScalar>::new(k as usize);
     let domain_8n = EvaluationDomain::new(8 * domain.size())?;
 
-    let mut z_eval_8n = domain_8n.coset_fft(z_poly);
+    let mut z_poly = ZeroPoly::new(z_poly.coeffs.clone());
+    let mut a_w_poly = ZeroPoly::new(a_w_poly.coeffs.clone());
+    let mut b_w_poly = ZeroPoly::new(b_w_poly.coeffs.clone());
+    let mut c_w_poly = ZeroPoly::new(c_w_poly.coeffs.clone());
+    let mut d_w_poly = ZeroPoly::new(d_w_poly.coeffs.clone());
 
-    let mut a_w_eval_8n = domain_8n.coset_fft(a_w_poly);
-    let mut b_w_eval_8n = domain_8n.coset_fft(b_w_poly);
-    let c_w_eval_8n = domain_8n.coset_fft(c_w_poly);
-    let mut d_w_eval_8n = domain_8n.coset_fft(d_w_poly);
+    fft.coset_dft(&mut z_poly);
+
+    fft.coset_dft(&mut a_w_poly);
+    fft.coset_dft(&mut b_w_poly);
+    fft.coset_dft(&mut c_w_poly);
+    fft.coset_dft(&mut d_w_poly);
 
     for i in 0..8 {
-        z_eval_8n.push(z_eval_8n[i]);
-        a_w_eval_8n.push(a_w_eval_8n[i]);
-        b_w_eval_8n.push(b_w_eval_8n[i]);
+        z_poly.0.push(z_poly.0[i]);
+        a_w_poly.0.push(a_w_poly.0[i]);
+        b_w_poly.0.push(b_w_poly.0[i]);
         // c_w_eval_8n push not required
-        d_w_eval_8n.push(d_w_eval_8n[i]);
+        d_w_poly.0.push(d_w_poly.0[i]);
     }
+
+    let z_eval_8n = Polynomial::from_coefficients_vec(z_poly.0);
+    let a_w_eval_8n = Polynomial::from_coefficients_vec(a_w_poly.0);
+    let b_w_eval_8n = Polynomial::from_coefficients_vec(b_w_poly.0);
+    let c_w_eval_8n = Polynomial::from_coefficients_vec(c_w_poly.0);
+    let d_w_eval_8n = Polynomial::from_coefficients_vec(d_w_poly.0);
 
     let t_1 = compute_circuit_satisfiability_equation(
         domain,
@@ -86,11 +102,7 @@ pub(crate) fn compute(
         (alpha, beta, gamma),
     );
 
-    #[cfg(not(feature = "std"))]
     let range = (0..domain_8n.size()).into_iter();
-
-    #[cfg(feature = "std")]
-    let range = (0..domain_8n.size()).into_par_iter();
 
     let quotient: Vec<_> = range
         .map(|i| {
