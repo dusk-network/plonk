@@ -111,10 +111,10 @@ pub(crate) fn compute(
             numerator * denominator.invert().unwrap()
         })
         .collect();
+    let mut quotient = ZeroPoly::new(quotient);
+    fft.coset_idft(&mut quotient);
 
-    let coset = domain_8n.coset_ifft(&quotient);
-
-    Ok(Polynomial::from_coefficients_vec(coset))
+    Ok(Polynomial::from_coefficients_vec(quotient.0))
 }
 
 // Ensures that the circuit is satisfied

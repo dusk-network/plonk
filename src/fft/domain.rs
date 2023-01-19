@@ -144,28 +144,6 @@ impl EvaluationDomain {
         evals.iter_mut().for_each(|val| *val *= &self.size_inv);
     }
 
-    fn distribute_powers(coeffs: &mut [BlsScalar], g: BlsScalar) {
-        let mut pow = BlsScalar::one();
-        coeffs.iter_mut().for_each(|c| {
-            *c *= &pow;
-            pow *= &g
-        })
-    }
-
-    /// Compute an IFFT over a coset of the domain.
-    pub(crate) fn coset_ifft(&self, evals: &[BlsScalar]) -> Vec<BlsScalar> {
-        let mut evals = evals.to_vec();
-        self.coset_ifft_in_place(&mut evals);
-        evals
-    }
-
-    /// Compute an IFFT over a coset of the domain, modifying the input
-    /// vector in place.
-    fn coset_ifft_in_place(&self, evals: &mut Vec<BlsScalar>) {
-        self.ifft_in_place(evals);
-        Self::distribute_powers(evals, self.generator_inv);
-    }
-
     #[allow(clippy::needless_range_loop)]
     /// Evaluate all the lagrange polynomials defined by this domain at the
     /// point `tau`.
@@ -204,13 +182,7 @@ impl EvaluationDomain {
 
             batch_inversion(u.as_mut_slice());
 
-            #[cfg(not(feature = "std"))]
             u.iter_mut().zip(ls).for_each(|(tau_minus_r, l)| {
-                *tau_minus_r = l * *tau_minus_r;
-            });
-
-            #[cfg(feature = "std")]
-            u.par_iter_mut().zip(ls).for_each(|(tau_minus_r, l)| {
                 *tau_minus_r = l * *tau_minus_r;
             });
 
