@@ -33,50 +33,34 @@ use rkyv::{
 /// and without any capabilities of adquiring any kind of knowledge about the
 /// witness used to construct the Proof.
 #[derive(Debug, Eq, PartialEq, Clone, Default, Decode, Encode)]
-#[cfg_attr(
-    feature = "rkyv-impl",
-    derive(Archive, Deserialize, Serialize),
-    archive(bound(serialize = "__S: Serializer + ScratchSpace"))
-)]
+
 pub struct Proof {
     /// Commitment to the witness polynomial for the left wires.
-    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) a_comm: Commitment,
     /// Commitment to the witness polynomial for the right wires.
-    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) b_comm: Commitment,
     /// Commitment to the witness polynomial for the output wires.
-    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) c_comm: Commitment,
     /// Commitment to the witness polynomial for the fourth wires.
-    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) d_comm: Commitment,
 
     /// Commitment to the permutation polynomial.
-    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) z_comm: Commitment,
 
     /// Commitment to the quotient polynomial.
-    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) t_low_comm: Commitment,
     /// Commitment to the quotient polynomial.
-    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) t_mid_comm: Commitment,
     /// Commitment to the quotient polynomial.
-    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) t_high_comm: Commitment,
     /// Commitment to the quotient polynomial.
-    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) t_4_comm: Commitment,
 
     /// Commitment to the opening polynomial.
-    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) w_z_chall_comm: Commitment,
     /// Commitment to the shifted opening polynomial.
-    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) w_z_chall_w_comm: Commitment,
     /// Subset of all of the evaluations added to the proof.
-    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) evaluations: ProofEvaluations,
 }
 

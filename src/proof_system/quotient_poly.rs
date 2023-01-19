@@ -4,11 +4,7 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use crate::{
-    error::Error,
-    fft::Polynomial,
-    proof_system::ProverKey,
-};
+use crate::{error::Error, fft::Polynomial, proof_system::ProverKey};
 #[cfg(feature = "std")]
 use rayon::prelude::*;
 use sp_std::vec;

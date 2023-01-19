@@ -9,31 +9,12 @@ use crate::permutation::constants::{K1, K2, K3};
 use zero_bls12_381::Fr as BlsScalar;
 use zero_crypto::behave::*;
 
-#[cfg(feature = "rkyv-impl")]
-use bytecheck::CheckBytes;
-#[cfg(feature = "rkyv-impl")]
-use rkyv::{
-    ser::{ScratchSpace, Serializer},
-    Archive, Deserialize, Serialize,
-};
-
 #[derive(Debug, Eq, PartialEq, Clone)]
-#[cfg_attr(
-    feature = "rkyv-impl",
-    derive(Archive, Deserialize, Serialize),
-    archive(bound(serialize = "__S: Serializer + ScratchSpace")),
-    archive_attr(derive(CheckBytes))
-)]
 pub(crate) struct ProverKey {
-    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) s_sigma_1: (Polynomial, Evaluations),
-    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) s_sigma_2: (Polynomial, Evaluations),
-    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) s_sigma_3: (Polynomial, Evaluations),
-    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) s_sigma_4: (Polynomial, Evaluations),
-    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) linear_evaluations: Evaluations,
     /* Evaluations of f(x) = X
      * [XXX: Remove this and

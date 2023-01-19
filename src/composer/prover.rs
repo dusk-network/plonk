@@ -8,7 +8,6 @@ use alloc::vec::Vec;
 use core::marker::PhantomData;
 use core::ops;
 
-use dusk_bytes::{DeserializableSlice, Serializable};
 use merlin::Transcript;
 use rand_core::RngCore;
 use sp_std::vec;
@@ -34,10 +33,8 @@ pub struct Prover<C>
 where
     C: Circuit,
 {
-    label: Vec<u8>,
     pub(crate) prover_key: ProverKey,
     pub(crate) commit_key: CommitKey,
-    pub(crate) verifier_key: VerifierKey,
     pub(crate) transcript: Transcript,
     pub(crate) size: usize,
     pub(crate) constraints: usize,
@@ -71,10 +68,8 @@ where
             Transcript::base(label.as_slice(), &verifier_key, constraints);
 
         Self {
-            label,
             prover_key,
             commit_key,
-            verifier_key,
             transcript,
             size,
             constraints,
@@ -108,133 +103,6 @@ where
         }
 
         FftPolynomial::from_coefficients_vec(w_vec_inverse.0)
-    }
-
-    fn prepare_serialize(
-        &self,
-    ) -> (usize, Vec<u8>, Vec<u8>, [u8; VerifierKey::SIZE]) {
-        let prover_key = self.prover_key.to_var_bytes();
-        let commit_key = self.commit_key.to_raw_var_bytes();
-        let verifier_key = self.verifier_key.to_bytes();
-
-        let label_len = self.label.len();
-        let prover_key_len = prover_key.len();
-        let commit_key_len = commit_key.len();
-        let verifier_key_len = verifier_key.len();
-
-        let size =
-            48 + label_len + prover_key_len + commit_key_len + verifier_key_len;
-
-        (size, prover_key, commit_key, verifier_key)
-    }
-
-    /// Serialized size in bytes
-    pub fn serialized_size(&self) -> usize {
-        self.prepare_serialize().0
-    }
-
-    /// Serialize the prover into bytes
-    pub fn to_bytes(&self) -> Vec<u8> {
-        let (size, prover_key, commit_key, verifier_key) =
-            self.prepare_serialize();
-        let mut bytes = Vec::with_capacity(size);
-
-        let label_len = self.label.len() as u64;
-        let prover_key_len = prover_key.len() as u64;
-        let commit_key_len = commit_key.len() as u64;
-        let verifier_key_len = verifier_key.len() as u64;
-        let size = self.size as u64;
-        let constraints = self.constraints as u64;
-
-        bytes.extend(label_len.to_be_bytes());
-        bytes.extend(prover_key_len.to_be_bytes());
-        bytes.extend(commit_key_len.to_be_bytes());
-        bytes.extend(verifier_key_len.to_be_bytes());
-        bytes.extend(size.to_be_bytes());
-        bytes.extend(constraints.to_be_bytes());
-
-        bytes.extend(self.label.as_slice());
-        bytes.extend(prover_key);
-        bytes.extend(commit_key);
-        bytes.extend(verifier_key);
-
-        bytes
-    }
-
-    /// Attempt to deserialize the prover from bytes generated via
-    /// [`Self::to_bytes`]
-    pub fn try_from_bytes<B>(bytes: B) -> Result<Self, Error>
-    where
-        B: AsRef<[u8]>,
-    {
-        let mut bytes = bytes.as_ref();
-
-        if bytes.len() < 48 {
-            return Err(Error::NotEnoughBytes);
-        }
-
-        let label_len = <[u8; 8]>::try_from(&bytes[..8]).expect("checked len");
-        let label_len = u64::from_be_bytes(label_len) as usize;
-        bytes = &bytes[8..];
-
-        let prover_key_len =
-            <[u8; 8]>::try_from(&bytes[..8]).expect("checked len");
-        let prover_key_len = u64::from_be_bytes(prover_key_len) as usize;
-        bytes = &bytes[8..];
-
-        let commit_key_len =
-            <[u8; 8]>::try_from(&bytes[..8]).expect("checked len");
-        let commit_key_len = u64::from_be_bytes(commit_key_len) as usize;
-        bytes = &bytes[8..];
-
-        let verifier_key_len =
-            <[u8; 8]>::try_from(&bytes[..8]).expect("checked len");
-        let verifier_key_len = u64::from_be_bytes(verifier_key_len) as usize;
-        bytes = &bytes[8..];
-
-        let size = <[u8; 8]>::try_from(&bytes[..8]).expect("checked len");
-        let size = u64::from_be_bytes(size) as usize;
-        bytes = &bytes[8..];
-
-        let constraints =
-            <[u8; 8]>::try_from(&bytes[..8]).expect("checked len");
-        let constraints = u64::from_be_bytes(constraints) as usize;
-        bytes = &bytes[8..];
-
-        if bytes.len()
-            < label_len + prover_key_len + commit_key_len + verifier_key_len
-        {
-            return Err(Error::NotEnoughBytes);
-        }
-
-        let label = &bytes[..label_len];
-        bytes = &bytes[label_len..];
-
-        let prover_key = &bytes[..prover_key_len];
-        bytes = &bytes[prover_key_len..];
-
-        let commit_key = &bytes[..commit_key_len];
-        bytes = &bytes[commit_key_len..];
-
-        let verifier_key = &bytes[..verifier_key_len];
-
-        let label = label.to_vec();
-        let prover_key = ProverKey::from_slice(prover_key)?;
-
-        // Safety: checked len
-        let commit_key =
-            unsafe { CommitKey::from_slice_unchecked(&commit_key) };
-
-        let verifier_key = VerifierKey::from_slice(verifier_key)?;
-
-        Ok(Self::new(
-            label,
-            prover_key,
-            commit_key,
-            verifier_key,
-            size,
-            constraints,
-        ))
     }
 
     /// Prove the circuit

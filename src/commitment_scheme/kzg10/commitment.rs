@@ -9,26 +9,11 @@ use codec::{Decode, Encode};
 use dusk_bytes::{DeserializableSlice, Serializable};
 use zero_bls12_381::{G1Affine, G1Projective};
 
-#[cfg(feature = "rkyv-impl")]
-use bytecheck::CheckBytes;
-#[cfg(feature = "rkyv-impl")]
-use rkyv::{
-    ser::{ScratchSpace, Serializer},
-    Archive, Deserialize, Serialize,
-};
-
 /// Holds a commitment to a polynomial in a form of a [`G1Affine`]-bls12_381
 /// point.
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Decode, Encode)]
-#[cfg_attr(
-    feature = "rkyv-impl",
-    derive(Archive, Deserialize, Serialize),
-    archive(bound(serialize = "__S: Serializer + ScratchSpace")),
-    archive_attr(derive(CheckBytes))
-)]
 pub(crate) struct Commitment(
     /// The commitment is a group element.
-    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) G1Affine,
 );
 
