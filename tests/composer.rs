@@ -161,8 +161,10 @@ fn proving_fails_when_different_points_are_asserted_to_be_equal() {
     let (prover, _verifier) = Compiler::compile::<DummyCircuit>(&pp, label)
         .expect("failed to compile circuit");
 
-    let proving_result = prover
-        .prove(rng, &Default::default());
+    let proving_result = prover.prove(rng, &Default::default());
 
-    assert!(proving_result.is_err(), "proving should fail because the points are not equal");
+    assert!(
+        proving_result.is_err(),
+        "proving should fail because the points are not equal"
+    );
 }
