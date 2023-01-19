@@ -136,14 +136,19 @@ fn compute_circuit_satisfiability_equation(
     ),
     pi_poly: &Polynomial,
 ) -> Vec<BlsScalar> {
-    let domain_8n = EvaluationDomain::new(8 * domain.size()).unwrap();
-    let public_eval_8n = domain_8n.coset_fft(pi_poly);
+    let n = (8 * domain.size()).next_power_of_two();
+    let k = n.trailing_zeros();
+
+    let fft = Fft::new(k as usize);
+    let mut pi_poly = ZeroPoly::new(pi_poly.coeffs.clone());
+    fft.coset_dft(&mut pi_poly);
+    let public_eval_8n = pi_poly.0;
 
     #[cfg(not(feature = "std"))]
-    let range = (0..domain_8n.size()).into_iter();
+    let range = (0..fft.size()).into_iter();
 
     #[cfg(feature = "std")]
-    let range = (0..domain_8n.size()).into_par_iter();
+    let range = (0..fft.size()).into_par_iter();
 
     let t: Vec<_> = range
         .map(|i| {
@@ -224,16 +229,21 @@ fn compute_permutation_checks(
     z_eval_8n: &[BlsScalar],
     (alpha, beta, gamma): (&BlsScalar, &BlsScalar, &BlsScalar),
 ) -> Vec<BlsScalar> {
-    let domain_8n = EvaluationDomain::new(8 * domain.size()).unwrap();
+    let n = 8 * domain.size();
+    let k = n.trailing_zeros();
+    let fft = Fft::new(k as usize);
+
     let l1_poly_alpha =
         compute_first_lagrange_poly_scaled(domain, alpha.square());
-    let l1_alpha_sq_evals = domain_8n.coset_fft(&l1_poly_alpha.coeffs);
+    let mut l1_poly_alpha = ZeroPoly::new(l1_poly_alpha.coeffs);
+    fft.coset_dft(&mut l1_poly_alpha);
+    let l1_alpha_sq_evals = l1_poly_alpha.0;
 
     #[cfg(not(feature = "std"))]
-    let range = (0..domain_8n.size()).into_iter();
+    let range = (0..fft.size()).into_iter();
 
     #[cfg(feature = "std")]
-    let range = (0..domain_8n.size()).into_par_iter();
+    let range = (0..fft.size()).into_par_iter();
 
     let t: Vec<_> = range
         .map(|i| {

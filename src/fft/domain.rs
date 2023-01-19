@@ -135,23 +135,13 @@ impl EvaluationDomain {
         self.size as usize
     }
 
-    /// Compute a FFT, modifying the vector in place.
-    fn fft_in_place(&self, coeffs: &mut Vec<BlsScalar>) {
-        coeffs.resize(self.size(), BlsScalar::zero());
-        best_fft(coeffs, self.group_gen, self.log_size_of_group)
-    }
-
     /// Compute an IFFT, modifying the vector in place.
     #[inline]
     pub(crate) fn ifft_in_place(&self, evals: &mut Vec<BlsScalar>) {
         evals.resize(self.size(), BlsScalar::zero());
         best_fft(evals, self.group_gen_inv, self.log_size_of_group);
 
-        #[cfg(not(feature = "std"))]
         evals.iter_mut().for_each(|val| *val *= &self.size_inv);
-
-        #[cfg(feature = "std")]
-        evals.par_iter_mut().for_each(|val| *val *= &self.size_inv);
     }
 
     fn distribute_powers(coeffs: &mut [BlsScalar], g: BlsScalar) {
@@ -160,20 +150,6 @@ impl EvaluationDomain {
             *c *= &pow;
             pow *= &g
         })
-    }
-
-    /// Compute a FFT over a coset of the domain.
-    pub(crate) fn coset_fft(&self, coeffs: &[BlsScalar]) -> Vec<BlsScalar> {
-        let mut coeffs = coeffs.to_vec();
-        self.coset_fft_in_place(&mut coeffs);
-        coeffs
-    }
-
-    /// Compute a FFT over a coset of the domain, modifying the input vector
-    /// in place.
-    fn coset_fft_in_place(&self, coeffs: &mut Vec<BlsScalar>) {
-        Self::distribute_powers(coeffs, MULTIPLICATIVE_GENERATOR);
-        self.fft_in_place(coeffs);
     }
 
     /// Compute an IFFT over a coset of the domain.
