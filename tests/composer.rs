@@ -111,3 +111,60 @@ fn circuit_with_all_gates() {
         .verify(&proof, &public_inputs)
         .expect("failed to verify proof");
 }
+
+#[test]
+fn proving_fails_when_different_points_are_asserted_to_be_equal() {
+    let rng = &mut StdRng::seed_from_u64(8349u64);
+
+    let n = 1 << 12;
+    let label = b"demo";
+    let pp = PublicParameters::setup(n, rng).expect("failed to create pp");
+
+    pub struct DummyCircuit {
+        p1: JubJubExtended,
+        p2: JubJubExtended,
+    }
+
+    impl Default for DummyCircuit {
+        fn default() -> Self {
+            Self {
+                p1: JubJubExtended::from_raw_unchecked(
+                    BlsScalar::zero(),
+                    BlsScalar::one(),
+                    BlsScalar::one(),
+                    BlsScalar::zero(),
+                    BlsScalar::zero(),
+                ),
+                p2: JubJubExtended::from_raw_unchecked(
+                    BlsScalar::zero(),
+                    BlsScalar::zero(),
+                    BlsScalar::one(),
+                    BlsScalar::zero(),
+                    BlsScalar::zero(),
+                ),
+            }
+        }
+    }
+
+    impl Circuit for DummyCircuit {
+        fn circuit<C>(&self, composer: &mut C) -> Result<(), Error>
+        where
+            C: Composer,
+        {
+            let w_x = composer.append_point(self.p1);
+            let w_y = composer.append_point(self.p2);
+            composer.assert_equal_point(w_x, w_y);
+            Ok(())
+        }
+    }
+
+    let (prover, _verifier) = Compiler::compile::<DummyCircuit>(&pp, label)
+        .expect("failed to compile circuit");
+
+    let proving_result = prover.prove(rng, &Default::default());
+
+    assert!(
+        proving_result.is_err(),
+        "proving should fail because the points are not equal"
+    );
+}
