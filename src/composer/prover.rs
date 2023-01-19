@@ -197,9 +197,9 @@ where
             o_w_scalar.as_slice(),
             d_w_scalar.as_slice(),
         ];
-        let permutation = prover.perm.compute_permutation_vec(
-            &domain, &fft, wires, &beta, &gamma, sigma,
-        );
+        let permutation = prover
+            .perm
+            .compute_permutation_vec(&fft, wires, &beta, &gamma, sigma);
 
         let z_poly = Self::blind_poly(rng, &permutation, 2, &fft);
         let z_poly_commit = self.commit_key.commit(&z_poly)?;

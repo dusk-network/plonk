@@ -12,7 +12,6 @@
 //! This allows us to perform polynomial operations in O(n)
 //! by performing an O(n log n) FFT over such a domain.
 
-use dusk_bytes::{DeserializableSlice, Serializable};
 use zero_bls12_381::Fr as BlsScalar;
 
 use sp_std::vec;
@@ -36,52 +35,6 @@ pub(crate) struct EvaluationDomain {
     pub(crate) group_gen_inv: BlsScalar,
     /// Multiplicative generator of the finite field.
     pub(crate) generator_inv: BlsScalar,
-}
-
-impl Serializable<{ u64::SIZE + u32::SIZE + 5 * BlsScalar::SIZE }>
-    for EvaluationDomain
-{
-    type Error = dusk_bytes::Error;
-
-    #[allow(unused_must_use)]
-    fn to_bytes(&self) -> [u8; Self::SIZE] {
-        use dusk_bytes::Write;
-
-        let mut buf = [0u8; Self::SIZE];
-        let mut writer = &mut buf[..];
-        writer.write(&self.size.to_bytes());
-        writer.write(&self.log_size_of_group.to_bytes());
-        writer.write(&self.size_as_field_element.to_bytes());
-        writer.write(&self.size_inv.to_bytes());
-        writer.write(&self.group_gen.to_bytes());
-        writer.write(&self.group_gen_inv.to_bytes());
-        writer.write(&self.generator_inv.to_bytes());
-
-        buf
-    }
-
-    fn from_bytes(
-        buf: &[u8; Self::SIZE],
-    ) -> Result<EvaluationDomain, Self::Error> {
-        let mut buffer = &buf[..];
-        let size = u64::from_reader(&mut buffer)?;
-        let log_size_of_group = u32::from_reader(&mut buffer)?;
-        let size_as_field_element = BlsScalar::from_reader(&mut buffer)?;
-        let size_inv = BlsScalar::from_reader(&mut buffer)?;
-        let group_gen = BlsScalar::from_reader(&mut buffer)?;
-        let group_gen_inv = BlsScalar::from_reader(&mut buffer)?;
-        let generator_inv = BlsScalar::from_reader(&mut buffer)?;
-
-        Ok(EvaluationDomain {
-            size,
-            log_size_of_group,
-            size_as_field_element,
-            size_inv,
-            group_gen,
-            group_gen_inv,
-            generator_inv,
-        })
-    }
 }
 
 use crate::error::Error;
@@ -204,74 +157,5 @@ impl EvaluationDomain {
             })
             .collect();
         Evaluations::from_vec_and_domain(v_h, *self)
-    }
-
-    /// Return an iterator over the elements of the domain.
-    pub(crate) fn elements(&self) -> Elements {
-        Elements {
-            cur_elem: BlsScalar::one(),
-            cur_pow: 0,
-            domain: *self,
-        }
-    }
-}
-
-/// An iterator over the elements of the domain.
-#[derive(Debug)]
-pub(crate) struct Elements {
-    cur_elem: BlsScalar,
-    cur_pow: u64,
-    domain: EvaluationDomain,
-}
-
-impl Iterator for Elements {
-    type Item = BlsScalar;
-    fn next(&mut self) -> Option<BlsScalar> {
-        if self.cur_pow == self.domain.size {
-            None
-        } else {
-            let cur_elem = self.cur_elem;
-            self.cur_elem *= &self.domain.group_gen;
-            self.cur_pow += 1;
-            Some(cur_elem)
-        }
-    }
-}
-
-#[cfg(feature = "alloc")]
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use zero_crypto::behave::FftField;
-
-    #[test]
-    fn size_of_elements() {
-        for coeffs in 1..10 {
-            let size = 1 << coeffs;
-            let domain = EvaluationDomain::new(size).unwrap();
-            let domain_size = domain.size();
-            assert_eq!(domain_size, domain.elements().count());
-        }
-    }
-
-    #[test]
-    fn elements_contents() {
-        for coeffs in 1..10 {
-            let size = 1 << coeffs;
-            let domain = EvaluationDomain::new(size).unwrap();
-            for (i, element) in domain.elements().enumerate() {
-                assert_eq!(element, domain.group_gen.pow(i as u64));
-            }
-        }
-    }
-
-    #[test]
-    fn dusk_bytes_evaluation_domain_serde() {
-        let eval_domain = EvaluationDomain::new(1 << (13 - 1))
-            .expect("Error in eval_domain generation");
-        let bytes = eval_domain.to_bytes();
-        let obtained_eval_domain = EvaluationDomain::from_slice(&bytes)
-            .expect("Deserialization error");
-        assert_eq!(eval_domain, obtained_eval_domain);
     }
 }

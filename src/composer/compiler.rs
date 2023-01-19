@@ -72,8 +72,6 @@ impl Compiler {
         let constraints = prover.constraints();
         let size = constraints.next_power_of_two();
         let k = size.trailing_zeros();
-
-        let domain = EvaluationDomain::new(size - 1)?;
         let fft = Fft::<BlsScalar>::new(k as usize);
 
         // 1. pad circuit to a power of two
@@ -140,7 +138,7 @@ impl Compiler {
 
         // 2. compute the sigma polynomials
         let [s_sigma_1_poly, s_sigma_2_poly, s_sigma_3_poly, s_sigma_4_poly] =
-            perm.compute_sigma_polynomials(size, &domain, &fft);
+            perm.compute_sigma_polynomials(size, &fft);
 
         let q_m_poly_commit = commit_key.commit(&q_m_poly).unwrap_or_default();
         let q_l_poly_commit = commit_key.commit(&q_l_poly).unwrap_or_default();
@@ -224,10 +222,10 @@ impl Compiler {
         // Plus, adding the blinding factors translates to
         // the polynomial not fitting in 4n, so now we need
         // 8n, the next power of 2
-        let n = (8 * domain.size()).next_power_of_two();
+        let n = (8 * fft.size()).next_power_of_two();
         let k = n.trailing_zeros();
-        let fft = Fft::new(k as usize);
-        let domain_8n = EvaluationDomain::new(8 * domain.size())?;
+        let fft_8n = Fft::new(k as usize);
+        let domain_8n = EvaluationDomain::new(8 * fft.size())?;
         let mut s_sigma_1 = Polynomial::new(s_sigma_1_poly.coeffs.clone());
         let mut s_sigma_2 = Polynomial::new(s_sigma_2_poly.coeffs.clone());
         let mut s_sigma_3 = Polynomial::new(s_sigma_3_poly.coeffs.clone());
@@ -235,22 +233,22 @@ impl Compiler {
         let mut min_p =
             Polynomial::new(vec![BlsScalar::zero(), BlsScalar::one()]);
 
-        fft.coset_dft(&mut q_m);
-        fft.coset_dft(&mut q_l);
-        fft.coset_dft(&mut q_r);
-        fft.coset_dft(&mut q_o);
-        fft.coset_dft(&mut q_c);
-        fft.coset_dft(&mut q_d);
-        fft.coset_dft(&mut q_arith);
-        fft.coset_dft(&mut q_range);
-        fft.coset_dft(&mut q_logic);
-        fft.coset_dft(&mut q_fixed_group_add);
-        fft.coset_dft(&mut q_variable_group_add);
-        fft.coset_dft(&mut s_sigma_1);
-        fft.coset_dft(&mut s_sigma_2);
-        fft.coset_dft(&mut s_sigma_3);
-        fft.coset_dft(&mut s_sigma_4);
-        fft.coset_dft(&mut min_p);
+        fft_8n.coset_dft(&mut q_m);
+        fft_8n.coset_dft(&mut q_l);
+        fft_8n.coset_dft(&mut q_r);
+        fft_8n.coset_dft(&mut q_o);
+        fft_8n.coset_dft(&mut q_c);
+        fft_8n.coset_dft(&mut q_d);
+        fft_8n.coset_dft(&mut q_arith);
+        fft_8n.coset_dft(&mut q_range);
+        fft_8n.coset_dft(&mut q_logic);
+        fft_8n.coset_dft(&mut q_fixed_group_add);
+        fft_8n.coset_dft(&mut q_variable_group_add);
+        fft_8n.coset_dft(&mut s_sigma_1);
+        fft_8n.coset_dft(&mut s_sigma_2);
+        fft_8n.coset_dft(&mut s_sigma_3);
+        fft_8n.coset_dft(&mut s_sigma_4);
+        fft_8n.coset_dft(&mut min_p);
 
         let q_m_eval_8n =
             Evaluations::from_vec_and_domain(q_m.0.clone(), domain_8n);
@@ -355,10 +353,10 @@ impl Compiler {
             };
 
         let v_h_coset_8n =
-            domain_8n.compute_vanishing_poly_over_coset(domain.size() as u64);
+            domain_8n.compute_vanishing_poly_over_coset(fft.size() as u64);
 
         let prover_key = ProverKey {
-            n: domain.size(),
+            n: fft.size(),
             arithmetic: arithmetic_prover_key,
             logic: logic_prover_key,
             range: range_prover_key,
