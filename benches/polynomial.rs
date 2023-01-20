@@ -40,10 +40,6 @@ fn polynomial_bench(c: &mut Criterion) {
         group.bench_function(BenchmarkId::new("sub", i), |b| {
             b.iter(|| black_box(black_box(&p1) - black_box(&p2)))
         });
-
-        group.bench_function(BenchmarkId::new("mul", i), |b| {
-            b.iter(|| black_box(black_box(&p1) * black_box(&p2)))
-        });
     }
 }
 

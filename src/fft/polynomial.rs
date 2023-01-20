@@ -14,7 +14,6 @@ use dusk_bytes::{DeserializableSlice, Serializable};
 use sp_std::vec;
 use sp_std::vec::Vec;
 use zero_bls12_381::Fr as BlsScalar;
-use zero_kzg::{Fft, Polynomial as ZeroPoly};
 
 /// Represents a polynomial in coeffiient form.
 #[derive(Debug, Eq, PartialEq, Clone)]
@@ -318,27 +317,6 @@ impl Polynomial {
         // Reverse the results for storage in the Polynomial struct
         quotient.reverse();
         Polynomial::from_coefficients_vec(quotient)
-    }
-}
-
-/// Performs O(nlogn) multiplication of polynomials if F is smooth.
-impl<'a, 'b> Mul<&'a Polynomial> for &'b Polynomial {
-    type Output = Polynomial;
-
-    #[inline]
-    fn mul(self, other: &'a Polynomial) -> Polynomial {
-        if self.is_zero() || other.is_zero() {
-            Polynomial::zero()
-        } else {
-            let degree_sum = self.coeffs.len() + other.coeffs.len();
-            let k = degree_sum.trailing_zeros();
-            let fft = Fft::new(k as usize);
-            let mul_poly = fft.poly_mul(
-                ZeroPoly::new(self.coeffs.clone()),
-                ZeroPoly::new(other.coeffs.clone()),
-            );
-            Polynomial::from_coefficients_vec(mul_poly.0)
-        }
     }
 }
 
