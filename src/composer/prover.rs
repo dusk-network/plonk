@@ -279,6 +279,12 @@ where
 
         // round 5
         // compute linearization polynomial
+        let a_w_poly = Polynomial::new(a_w_poly.coeffs);
+        let b_w_poly = Polynomial::new(b_w_poly.coeffs);
+        let o_w_poly = Polynomial::new(o_w_poly.coeffs);
+        let d_w_poly = Polynomial::new(d_w_poly.coeffs);
+        let t_poly = Polynomial::new(t_poly.coeffs);
+
         let (r_poly, evaluations) = linearization_poly::compute(
             fft.generator(),
             &self.prover_key,
@@ -347,6 +353,10 @@ where
 
         // compute aggregate witness to polynomials evaluated at the evaluation
         // challenge z. The challenge v is selected inside
+        let a_w_poly = FftPolynomial::from_coefficients_vec(a_w_poly.0);
+        let b_w_poly = FftPolynomial::from_coefficients_vec(b_w_poly.0);
+        let o_w_poly = FftPolynomial::from_coefficients_vec(o_w_poly.0);
+        let d_w_poly = FftPolynomial::from_coefficients_vec(d_w_poly.0);
         let aggregate_witness = self.commit_key.compute_aggregate_witness(
             &[
                 quot,

@@ -7,8 +7,8 @@
 use crate::{fft::Polynomial, proof_system::ProverKey};
 
 use codec::{Decode, Encode};
-use dusk_bytes::{DeserializableSlice, Serializable};
 use zero_bls12_381::Fr as BlsScalar;
+use zero_kzg::Polynomial as ZeroPoly;
 
 /// Evaluations at points `z` or and `z * root of unity`
 #[allow(dead_code)]
@@ -61,78 +61,6 @@ pub(crate) struct ProofEvaluations {
     pub(crate) perm_eval: BlsScalar,
 }
 
-// The struct ProofEvaluations has 16 BlsScalars
-impl Serializable<{ 16 * BlsScalar::SIZE }> for ProofEvaluations {
-    type Error = dusk_bytes::Error;
-
-    #[allow(unused_must_use)]
-    fn to_bytes(&self) -> [u8; Self::SIZE] {
-        use dusk_bytes::Write;
-
-        let mut buf = [0u8; Self::SIZE];
-        let mut writer = &mut buf[..];
-        writer.write(&self.a_eval.to_bytes());
-        writer.write(&self.b_eval.to_bytes());
-        writer.write(&self.c_eval.to_bytes());
-        writer.write(&self.d_eval.to_bytes());
-        writer.write(&self.a_next_eval.to_bytes());
-        writer.write(&self.b_next_eval.to_bytes());
-        writer.write(&self.d_next_eval.to_bytes());
-        writer.write(&self.q_arith_eval.to_bytes());
-        writer.write(&self.q_c_eval.to_bytes());
-        writer.write(&self.q_l_eval.to_bytes());
-        writer.write(&self.q_r_eval.to_bytes());
-        writer.write(&self.s_sigma_1_eval.to_bytes());
-        writer.write(&self.s_sigma_2_eval.to_bytes());
-        writer.write(&self.s_sigma_3_eval.to_bytes());
-        writer.write(&self.r_poly_eval.to_bytes());
-        writer.write(&self.perm_eval.to_bytes());
-
-        buf
-    }
-
-    fn from_bytes(
-        buf: &[u8; Self::SIZE],
-    ) -> Result<ProofEvaluations, Self::Error> {
-        let mut buffer = &buf[..];
-        let a_eval = BlsScalar::from_reader(&mut buffer)?;
-        let b_eval = BlsScalar::from_reader(&mut buffer)?;
-        let c_eval = BlsScalar::from_reader(&mut buffer)?;
-        let d_eval = BlsScalar::from_reader(&mut buffer)?;
-        let a_next_eval = BlsScalar::from_reader(&mut buffer)?;
-        let b_next_eval = BlsScalar::from_reader(&mut buffer)?;
-        let d_next_eval = BlsScalar::from_reader(&mut buffer)?;
-        let q_arith_eval = BlsScalar::from_reader(&mut buffer)?;
-        let q_c_eval = BlsScalar::from_reader(&mut buffer)?;
-        let q_l_eval = BlsScalar::from_reader(&mut buffer)?;
-        let q_r_eval = BlsScalar::from_reader(&mut buffer)?;
-        let s_sigma_1_eval = BlsScalar::from_reader(&mut buffer)?;
-        let s_sigma_2_eval = BlsScalar::from_reader(&mut buffer)?;
-        let s_sigma_3_eval = BlsScalar::from_reader(&mut buffer)?;
-        let r_poly_eval = BlsScalar::from_reader(&mut buffer)?;
-        let perm_eval = BlsScalar::from_reader(&mut buffer)?;
-
-        Ok(ProofEvaluations {
-            a_eval,
-            b_eval,
-            c_eval,
-            d_eval,
-            a_next_eval,
-            b_next_eval,
-            d_next_eval,
-            q_arith_eval,
-            q_c_eval,
-            q_l_eval,
-            q_r_eval,
-            s_sigma_1_eval,
-            s_sigma_2_eval,
-            s_sigma_3_eval,
-            r_poly_eval,
-            perm_eval,
-        })
-    }
-}
-
 /// Compute the linearization polynomial.
 // TODO: Improve the method signature
 #[allow(clippy::type_complexity)]
@@ -158,11 +86,11 @@ pub(crate) fn compute(
         BlsScalar,
         BlsScalar,
     ),
-    a_w_poly: &Polynomial,
-    b_w_poly: &Polynomial,
-    c_w_poly: &Polynomial,
-    d_w_poly: &Polynomial,
-    t_x_poly: &Polynomial,
+    a_w_poly: &ZeroPoly<BlsScalar>,
+    b_w_poly: &ZeroPoly<BlsScalar>,
+    c_w_poly: &ZeroPoly<BlsScalar>,
+    d_w_poly: &ZeroPoly<BlsScalar>,
+    t_x_poly: &ZeroPoly<BlsScalar>,
     z_poly: &Polynomial,
 ) -> (Polynomial, Evaluations) {
     // Compute evaluations
@@ -330,18 +258,4 @@ fn compute_circuit_satisfiability(
     linearization_poly += &e;
 
     linearization_poly
-}
-
-#[cfg(test)]
-mod evaluations_tests {
-    use super::*;
-
-    #[test]
-    fn proof_evaluations_dusk_bytes_serde() {
-        let proof_evals = ProofEvaluations::default();
-        let bytes = proof_evals.to_bytes();
-        let obtained_evals = ProofEvaluations::from_slice(&bytes)
-            .expect("Deserialization error");
-        assert_eq!(proof_evals.to_bytes(), obtained_evals.to_bytes())
-    }
 }
