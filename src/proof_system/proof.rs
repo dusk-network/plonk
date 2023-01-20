@@ -10,6 +10,7 @@
 use super::linearization_poly::ProofEvaluations;
 use crate::commitment_scheme::Commitment;
 use codec::{Decode, Encode};
+use zero_kzg::Polynomial;
 
 /// A Proof is a composition of `Commitment`s to the Witness, Permutation,
 /// Quotient, Shifted and Opening polynomials as well as the
@@ -78,6 +79,7 @@ impl Proof {
         opening_key: &OpeningKey,
         pub_inputs: &[BlsScalar],
     ) -> Result<(), Error> {
+        let n = verifier_key.n.next_power_of_two();
         let domain = EvaluationDomain::new(verifier_key.n)?;
 
         // Subgroup checks are done when the proof is deserialized.
@@ -124,7 +126,7 @@ impl Proof {
         let z_challenge = transcript.challenge_scalar(b"z_challenge");
 
         // Compute zero polynomial evaluated at challenge `z`
-        let z_h_eval = domain.evaluate_vanishing_polynomial(&z_challenge);
+        let z_h_eval = Polynomial::t(n as u64, z_challenge);
 
         // Compute first lagrange polynomial evaluated at challenge `z`
         let l1_eval =
@@ -146,8 +148,7 @@ impl Proof {
         // Compute commitment to quotient polynomial
         // This method is necessary as we pass the `un-splitted` variation
         // to our commitment scheme
-        let t_comm =
-            self.compute_quotient_commitment(&z_challenge, domain.size());
+        let t_comm = self.compute_quotient_commitment(&z_challenge, n);
 
         // Add evaluations to transcript
         transcript.append_scalar(b"a_eval", &self.evaluations.a_eval);

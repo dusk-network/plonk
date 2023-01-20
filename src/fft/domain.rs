@@ -131,16 +131,6 @@ impl EvaluationDomain {
         }
     }
 
-    /// This evaluates the vanishing polynomial for this domain at tau.
-    /// For multiplicative subgroups, this polynomial is `z(X) = X^self.size
-    /// - 1`.
-    pub(crate) fn evaluate_vanishing_polynomial(
-        &self,
-        tau: &BlsScalar,
-    ) -> BlsScalar {
-        tau.pow(self.size) - BlsScalar::one()
-    }
-
     /// Given that the domain size is `D`  
     /// This function computes the `D` evaluation points for
     /// the vanishing polynomial of degree `n` over a coset
