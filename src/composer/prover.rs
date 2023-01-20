@@ -156,17 +156,21 @@ where
         let o_w_poly = Self::blind_poly(rng, &o_w_scalar, 1, &fft);
         let d_w_poly = Self::blind_poly(rng, &d_w_scalar, 1, &fft);
 
-        let a_w_poly = FftPolynomial::from_coefficients_vec(a_w_poly.0);
-        let b_w_poly = FftPolynomial::from_coefficients_vec(b_w_poly.0);
-        let o_w_poly = FftPolynomial::from_coefficients_vec(o_w_poly.0);
-        let d_w_poly = FftPolynomial::from_coefficients_vec(d_w_poly.0);
+        let a_w_poly_commit =
+            FftPolynomial::from_coefficients_vec(a_w_poly.0.clone());
+        let b_w_poly_commit =
+            FftPolynomial::from_coefficients_vec(b_w_poly.0.clone());
+        let o_w_poly_commit =
+            FftPolynomial::from_coefficients_vec(o_w_poly.0.clone());
+        let d_w_poly_commit =
+            FftPolynomial::from_coefficients_vec(d_w_poly.0.clone());
 
         // commit to wire polynomials
         // ([a(x)]_1, [b(x)]_1, [c(x)]_1, [d(x)]_1)
-        let a_w_poly_commit = self.commit_key.commit(&a_w_poly)?;
-        let b_w_poly_commit = self.commit_key.commit(&b_w_poly)?;
-        let o_w_poly_commit = self.commit_key.commit(&o_w_poly)?;
-        let d_w_poly_commit = self.commit_key.commit(&d_w_poly)?;
+        let a_w_poly_commit = self.commit_key.commit(&a_w_poly_commit)?;
+        let b_w_poly_commit = self.commit_key.commit(&b_w_poly_commit)?;
+        let o_w_poly_commit = self.commit_key.commit(&o_w_poly_commit)?;
+        let d_w_poly_commit = self.commit_key.commit(&d_w_poly_commit)?;
 
         // Add wire polynomial commitments to transcript
         transcript.append_commitment(b"a_w", &a_w_poly_commit);
@@ -279,10 +283,6 @@ where
 
         // round 5
         // compute linearization polynomial
-        let a_w_poly = Polynomial::new(a_w_poly.coeffs);
-        let b_w_poly = Polynomial::new(b_w_poly.coeffs);
-        let o_w_poly = Polynomial::new(o_w_poly.coeffs);
-        let d_w_poly = Polynomial::new(d_w_poly.coeffs);
         let t_poly = Polynomial::new(t_poly.coeffs);
 
         let (r_poly, evaluations) = linearization_poly::compute(

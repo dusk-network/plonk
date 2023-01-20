@@ -20,10 +20,10 @@ pub(crate) fn compute(
     prover_key: &ProverKey,
     z_poly: &Polynomial,
     (a_w_poly, b_w_poly, c_w_poly, d_w_poly): (
-        &Polynomial,
-        &Polynomial,
-        &Polynomial,
-        &Polynomial,
+        &ZeroPoly<BlsScalar>,
+        &ZeroPoly<BlsScalar>,
+        &ZeroPoly<BlsScalar>,
+        &ZeroPoly<BlsScalar>,
     ),
     public_inputs_poly: &Polynomial,
     (
@@ -50,10 +50,10 @@ pub(crate) fn compute(
     let fft_8n = Fft::<BlsScalar>::new(k as usize);
 
     let mut z_poly = ZeroPoly::new(z_poly.coeffs.clone());
-    let mut a_w_poly = ZeroPoly::new(a_w_poly.coeffs.clone());
-    let mut b_w_poly = ZeroPoly::new(b_w_poly.coeffs.clone());
-    let mut c_w_poly = ZeroPoly::new(c_w_poly.coeffs.clone());
-    let mut d_w_poly = ZeroPoly::new(d_w_poly.coeffs.clone());
+    let mut a_w_poly = a_w_poly.clone();
+    let mut b_w_poly = b_w_poly.clone();
+    let mut c_w_poly = c_w_poly.clone();
+    let mut d_w_poly = d_w_poly.clone();
 
     fft_8n.coset_dft(&mut z_poly);
 

@@ -159,10 +159,23 @@ impl Compiler {
             .commit(&q_variable_group_add_poly)
             .unwrap_or_default();
 
-        let s_sigma_1_poly_commit = commit_key.commit(&s_sigma_1_poly)?;
-        let s_sigma_2_poly_commit = commit_key.commit(&s_sigma_2_poly)?;
-        let s_sigma_3_poly_commit = commit_key.commit(&s_sigma_3_poly)?;
-        let s_sigma_4_poly_commit = commit_key.commit(&s_sigma_4_poly)?;
+        let s_sigma_1_poly_commit =
+            FftPolynomial::from_coefficients_vec(s_sigma_1_poly.0.clone());
+        let s_sigma_2_poly_commit =
+            FftPolynomial::from_coefficients_vec(s_sigma_2_poly.0.clone());
+        let s_sigma_3_poly_commit =
+            FftPolynomial::from_coefficients_vec(s_sigma_3_poly.0.clone());
+        let s_sigma_4_poly_commit =
+            FftPolynomial::from_coefficients_vec(s_sigma_4_poly.0.clone());
+
+        let s_sigma_1_poly_commit =
+            commit_key.commit(&s_sigma_1_poly_commit)?;
+        let s_sigma_2_poly_commit =
+            commit_key.commit(&s_sigma_2_poly_commit)?;
+        let s_sigma_3_poly_commit =
+            commit_key.commit(&s_sigma_3_poly_commit)?;
+        let s_sigma_4_poly_commit =
+            commit_key.commit(&s_sigma_4_poly_commit)?;
 
         // verifier Key for arithmetic circuits
         let arithmetic_verifier_key = widget::arithmetic::VerifierKey {
@@ -226,10 +239,10 @@ impl Compiler {
         let k = n.trailing_zeros();
         let fft_8n = Fft::new(k as usize);
         let domain_8n = EvaluationDomain::new(8 * fft.size())?;
-        let mut s_sigma_1 = Polynomial::new(s_sigma_1_poly.coeffs.clone());
-        let mut s_sigma_2 = Polynomial::new(s_sigma_2_poly.coeffs.clone());
-        let mut s_sigma_3 = Polynomial::new(s_sigma_3_poly.coeffs.clone());
-        let mut s_sigma_4 = Polynomial::new(s_sigma_4_poly.coeffs.clone());
+        let mut s_sigma_1 = s_sigma_1_poly.clone();
+        let mut s_sigma_2 = s_sigma_2_poly.clone();
+        let mut s_sigma_3 = s_sigma_3_poly.clone();
+        let mut s_sigma_4 = s_sigma_4_poly.clone();
         let mut min_p =
             Polynomial::new(vec![BlsScalar::zero(), BlsScalar::one()]);
 
@@ -288,6 +301,15 @@ impl Compiler {
 
         let linear_eval_8n =
             Evaluations::from_vec_and_domain(min_p.0, domain_8n);
+
+        let s_sigma_1_poly =
+            FftPolynomial::from_coefficients_vec(s_sigma_1_poly.0);
+        let s_sigma_2_poly =
+            FftPolynomial::from_coefficients_vec(s_sigma_2_poly.0);
+        let s_sigma_3_poly =
+            FftPolynomial::from_coefficients_vec(s_sigma_3_poly.0);
+        let s_sigma_4_poly =
+            FftPolynomial::from_coefficients_vec(s_sigma_4_poly.0);
 
         let selectors = Polynomials {
             q_m: q_m_poly,

@@ -5,7 +5,6 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use crate::constraint_system::{WireData, Witness};
-use crate::fft::Polynomial;
 use alloc::vec::Vec;
 use constants::{K1, K2, K3};
 use hashbrown::HashMap;
@@ -13,7 +12,7 @@ use itertools::izip;
 use sp_std::vec;
 use zero_bls12_381::Fr as BlsScalar;
 use zero_crypto::behave::*;
-use zero_kzg::{Fft, Polynomial as ZeroPoly};
+use zero_kzg::{Fft, Polynomial};
 
 pub(crate) mod constants;
 
@@ -177,7 +176,7 @@ impl Permutation {
         &mut self,
         n: usize,
         fft: &Fft<BlsScalar>,
-    ) -> [Polynomial; 4] {
+    ) -> [Polynomial<BlsScalar>; 4] {
         // Compute sigma mappings
         let sigmas = self.compute_sigma_permutations(n);
 
@@ -188,30 +187,20 @@ impl Permutation {
 
         // define the sigma permutations using two non quadratic residues
         let mut s_sigma_1 =
-            ZeroPoly::new(self.compute_permutation_lagrange(&sigmas[0], fft));
+            Polynomial::new(self.compute_permutation_lagrange(&sigmas[0], fft));
         let mut s_sigma_2 =
-            ZeroPoly::new(self.compute_permutation_lagrange(&sigmas[1], fft));
+            Polynomial::new(self.compute_permutation_lagrange(&sigmas[1], fft));
         let mut s_sigma_3 =
-            ZeroPoly::new(self.compute_permutation_lagrange(&sigmas[2], fft));
+            Polynomial::new(self.compute_permutation_lagrange(&sigmas[2], fft));
         let mut s_sigma_4 =
-            ZeroPoly::new(self.compute_permutation_lagrange(&sigmas[3], fft));
+            Polynomial::new(self.compute_permutation_lagrange(&sigmas[3], fft));
 
         fft.idft(&mut s_sigma_1);
         fft.idft(&mut s_sigma_2);
         fft.idft(&mut s_sigma_3);
         fft.idft(&mut s_sigma_4);
 
-        let s_sigma_1_poly = Polynomial::from_coefficients_vec(s_sigma_1.0);
-        let s_sigma_2_poly = Polynomial::from_coefficients_vec(s_sigma_2.0);
-        let s_sigma_3_poly = Polynomial::from_coefficients_vec(s_sigma_3.0);
-        let s_sigma_4_poly = Polynomial::from_coefficients_vec(s_sigma_4.0);
-
-        [
-            s_sigma_1_poly,
-            s_sigma_2_poly,
-            s_sigma_3_poly,
-            s_sigma_4_poly,
-        ]
+        [s_sigma_1, s_sigma_2, s_sigma_3, s_sigma_4]
     }
 
     // Uses a rayon multizip to allow more code flexibility while remaining
@@ -223,7 +212,7 @@ impl Permutation {
         wires: [&[BlsScalar]; 4],
         beta: &BlsScalar,
         gamma: &BlsScalar,
-        mut sigma_polys: [ZeroPoly<BlsScalar>; 4],
+        mut sigma_polys: [Polynomial<BlsScalar>; 4],
     ) -> Vec<BlsScalar> {
         let n = fft.size();
 
@@ -329,10 +318,10 @@ mod test {
         beta: &BlsScalar,
         gamma: &BlsScalar,
         (s_sigma_1_poly, s_sigma_2_poly, s_sigma_3_poly, s_sigma_4_poly): (
-            &Polynomial,
-            &Polynomial,
-            &Polynomial,
-            &Polynomial,
+            &ZeroPoly<BlsScalar>,
+            &ZeroPoly<BlsScalar>,
+            &ZeroPoly<BlsScalar>,
+            &ZeroPoly<BlsScalar>,
         ),
     ) -> Vec<BlsScalar> {
         let n = domain.size();
@@ -343,10 +332,10 @@ mod test {
         let common_roots: Vec<BlsScalar> =
             fft.elements.iter().map(|root| root * beta).collect();
 
-        let mut s_sigma_1_poly = ZeroPoly::new(s_sigma_1_poly.coeffs.clone());
-        let mut s_sigma_2_poly = ZeroPoly::new(s_sigma_2_poly.coeffs.clone());
-        let mut s_sigma_3_poly = ZeroPoly::new(s_sigma_3_poly.coeffs.clone());
-        let mut s_sigma_4_poly = ZeroPoly::new(s_sigma_4_poly.coeffs.clone());
+        let mut s_sigma_1_poly = s_sigma_1_poly.clone();
+        let mut s_sigma_2_poly = s_sigma_2_poly.clone();
+        let mut s_sigma_3_poly = s_sigma_3_poly.clone();
+        let mut s_sigma_4_poly = s_sigma_4_poly.clone();
 
         fft.dft(&mut s_sigma_1_poly);
         fft.dft(&mut s_sigma_2_poly);
@@ -502,10 +491,10 @@ mod test {
         beta: &BlsScalar,
         gamma: &BlsScalar,
         (s_sigma_1_poly, s_sigma_2_poly, s_sigma_3_poly, s_sigma_4_poly): (
-            &Polynomial,
-            &Polynomial,
-            &Polynomial,
-            &Polynomial,
+            &ZeroPoly<BlsScalar>,
+            &ZeroPoly<BlsScalar>,
+            &ZeroPoly<BlsScalar>,
+            &ZeroPoly<BlsScalar>,
         ),
     ) -> (Vec<BlsScalar>, Vec<BlsScalar>, Vec<BlsScalar>)
     where
@@ -515,10 +504,10 @@ mod test {
         let k = n.trailing_zeros();
         let fft = Fft::new(k as usize);
 
-        let mut s_sigma_1_poly = ZeroPoly::new(s_sigma_1_poly.coeffs.clone());
-        let mut s_sigma_2_poly = ZeroPoly::new(s_sigma_2_poly.coeffs.clone());
-        let mut s_sigma_3_poly = ZeroPoly::new(s_sigma_3_poly.coeffs.clone());
-        let mut s_sigma_4_poly = ZeroPoly::new(s_sigma_4_poly.coeffs.clone());
+        let mut s_sigma_1_poly = s_sigma_1_poly.clone();
+        let mut s_sigma_2_poly = s_sigma_2_poly.clone();
+        let mut s_sigma_3_poly = s_sigma_3_poly.clone();
+        let mut s_sigma_4_poly = s_sigma_4_poly.clone();
 
         fft.dft(&mut s_sigma_1_poly);
         fft.dft(&mut s_sigma_2_poly);
