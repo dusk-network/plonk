@@ -7,35 +7,14 @@
 use crate::fft::{Evaluations, Polynomial};
 use zero_bls12_381::Fr as BlsScalar;
 
-#[cfg(feature = "rkyv-impl")]
-use bytecheck::CheckBytes;
-#[cfg(feature = "rkyv-impl")]
-use rkyv::{
-    ser::{ScratchSpace, Serializer},
-    Archive, Deserialize, Serialize,
-};
-
 #[derive(Debug, Eq, PartialEq, Clone)]
-#[cfg_attr(
-    feature = "rkyv-impl",
-    derive(Archive, Deserialize, Serialize),
-    archive(bound(serialize = "__S: Serializer + ScratchSpace")),
-    archive_attr(derive(CheckBytes))
-)]
 pub(crate) struct ProverKey {
-    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub q_m: (Polynomial, Evaluations),
-    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub q_l: (Polynomial, Evaluations),
-    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub q_r: (Polynomial, Evaluations),
-    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub q_o: (Polynomial, Evaluations),
-    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub q_c: (Polynomial, Evaluations),
-    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub q_4: (Polynomial, Evaluations),
-    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub q_arith: (Polynomial, Evaluations),
 }
 

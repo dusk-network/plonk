@@ -7,7 +7,6 @@
 //! This module contains an implementation of a polynomial in coefficient form
 //! Where each coefficient is represented using a position in the underlying
 //! vector.
-use super::{EvaluationDomain, Evaluations};
 use crate::error::Error;
 use crate::util;
 use core::ops::{Add, AddAssign, Deref, DerefMut, Mul, Neg, Sub, SubAssign};
@@ -16,25 +15,10 @@ use sp_std::vec;
 use sp_std::vec::Vec;
 use zero_bls12_381::Fr as BlsScalar;
 
-#[cfg(feature = "rkyv-impl")]
-use bytecheck::CheckBytes;
-#[cfg(feature = "rkyv-impl")]
-use rkyv::{
-    ser::{ScratchSpace, Serializer},
-    Archive, Deserialize, Serialize,
-};
-
 /// Represents a polynomial in coeffiient form.
 #[derive(Debug, Eq, PartialEq, Clone)]
-#[cfg_attr(
-    feature = "rkyv-impl",
-    derive(Archive, Deserialize, Serialize),
-    archive(bound(serialize = "__S: Serializer + ScratchSpace")),
-    archive_attr(derive(CheckBytes))
-)]
 pub struct Polynomial {
     /// The coefficient of `x^i` is stored at location `i` in `self.coeffs`.
-    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) coeffs: Vec<BlsScalar>,
 }
 
@@ -333,32 +317,6 @@ impl Polynomial {
         // Reverse the results for storage in the Polynomial struct
         quotient.reverse();
         Polynomial::from_coefficients_vec(quotient)
-    }
-}
-
-/// Performs O(nlogn) multiplication of polynomials if F is smooth.
-impl<'a, 'b> Mul<&'a Polynomial> for &'b Polynomial {
-    type Output = Polynomial;
-
-    #[inline]
-    fn mul(self, other: &'a Polynomial) -> Polynomial {
-        if self.is_zero() || other.is_zero() {
-            Polynomial::zero()
-        } else {
-            let domain =
-                EvaluationDomain::new(self.coeffs.len() + other.coeffs.len())
-                    .expect("field is not smooth enough to construct domain");
-            let mut self_evals = Evaluations::from_vec_and_domain(
-                domain.fft(&self.coeffs),
-                domain,
-            );
-            let other_evals = Evaluations::from_vec_and_domain(
-                domain.fft(&other.coeffs),
-                domain,
-            );
-            self_evals *= &other_evals;
-            self_evals.interpolate()
-        }
     }
 }
 

@@ -22,27 +22,12 @@ use zero_bls12_381::{
 use zero_crypto::behave::{Group, Pairing, PairingRange};
 use zero_pairing::TatePairing;
 
-#[cfg(feature = "rkyv-impl")]
-use bytecheck::CheckBytes;
-#[cfg(feature = "rkyv-impl")]
-use rkyv::{
-    ser::{ScratchSpace, Serializer},
-    Archive, Deserialize, Serialize,
-};
-
 /// CommitKey is used to commit to a polynomial which is bounded by the
 /// max_degree.
 #[derive(Debug, Clone, PartialEq, Eq, Decode, Encode)]
-#[cfg_attr(
-    feature = "rkyv-impl",
-    derive(Archive, Deserialize, Serialize),
-    archive(bound(serialize = "__S: Serializer + ScratchSpace")),
-    archive_attr(derive(CheckBytes))
-)]
 pub struct CommitKey {
     /// Group elements of the form `{ \beta^i G }`, where `i` ranges from 0 to
     /// `degree`.
-    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) powers_of_g: Vec<G1Affine>,
 }
 
@@ -225,19 +210,14 @@ impl CommitKey {
 // TODO remove the `Sized` bound on the serializer
 pub struct OpeningKey {
     /// The generator of G1.
-    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) g: G1Affine,
     /// The generator of G2.
-    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) h: G2Affine,
     /// \beta times the above generator of G2.
-    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) beta_h: G2Affine,
     /// The generator of G2, prepared for use in pairings.
-    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) prepared_h: G2Prepared,
     /// \beta times the above generator of G2, prepared for use in pairings.
-    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) prepared_beta_h: G2Prepared,
 }
 

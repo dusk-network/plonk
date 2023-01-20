@@ -8,16 +8,16 @@ use alloc::vec::Vec;
 use core::marker::PhantomData;
 use core::ops;
 
-use dusk_bytes::{DeserializableSlice, Serializable};
 use merlin::Transcript;
 use rand_core::RngCore;
 use sp_std::vec;
 use zero_bls12_381::Fr as BlsScalar;
 use zero_crypto::behave::FftField;
+use zero_kzg::{Fft, Polynomial};
 
 use crate::commitment_scheme::CommitKey;
 use crate::error::Error;
-use crate::fft::{EvaluationDomain, Polynomial as FftPolynomial};
+use crate::fft::Polynomial as FftPolynomial;
 use crate::proof_system::proof::Proof;
 use crate::proof_system::{
     linearization_poly, quotient_poly, ProverKey, VerifierKey,
@@ -33,10 +33,8 @@ pub struct Prover<C>
 where
     C: Circuit,
 {
-    label: Vec<u8>,
     pub(crate) prover_key: ProverKey,
     pub(crate) commit_key: CommitKey,
-    pub(crate) verifier_key: VerifierKey,
     pub(crate) transcript: Transcript,
     pub(crate) size: usize,
     pub(crate) constraints: usize,
@@ -70,10 +68,8 @@ where
             Transcript::base(label.as_slice(), &verifier_key, constraints);
 
         Self {
-            label,
             prover_key,
             commit_key,
-            verifier_key,
             transcript,
             size,
             constraints,
@@ -91,148 +87,22 @@ where
         rng: &mut R,
         witnesses: &[BlsScalar],
         hiding_degree: usize,
-        domain: &EvaluationDomain,
+        fft: &Fft<BlsScalar>,
     ) -> FftPolynomial
     where
         R: RngCore,
     {
-        let mut w_vec_inverse = domain.ifft(witnesses);
+        let mut w_vec_inverse = Polynomial::new(witnesses.to_vec());
+        fft.idft(&mut w_vec_inverse);
 
         for i in 0..hiding_degree + 1 {
             let blinding_scalar = util::random_scalar(rng);
 
-            w_vec_inverse[i] = w_vec_inverse[i] - blinding_scalar;
-            w_vec_inverse.push(blinding_scalar);
+            w_vec_inverse.0[i] = w_vec_inverse.0[i] - blinding_scalar;
+            w_vec_inverse.0.push(blinding_scalar);
         }
 
-        FftPolynomial::from_coefficients_vec(w_vec_inverse)
-    }
-
-    fn prepare_serialize(
-        &self,
-    ) -> (usize, Vec<u8>, Vec<u8>, [u8; VerifierKey::SIZE]) {
-        let prover_key = self.prover_key.to_var_bytes();
-        let commit_key = self.commit_key.to_raw_var_bytes();
-        let verifier_key = self.verifier_key.to_bytes();
-
-        let label_len = self.label.len();
-        let prover_key_len = prover_key.len();
-        let commit_key_len = commit_key.len();
-        let verifier_key_len = verifier_key.len();
-
-        let size =
-            48 + label_len + prover_key_len + commit_key_len + verifier_key_len;
-
-        (size, prover_key, commit_key, verifier_key)
-    }
-
-    /// Serialized size in bytes
-    pub fn serialized_size(&self) -> usize {
-        self.prepare_serialize().0
-    }
-
-    /// Serialize the prover into bytes
-    pub fn to_bytes(&self) -> Vec<u8> {
-        let (size, prover_key, commit_key, verifier_key) =
-            self.prepare_serialize();
-        let mut bytes = Vec::with_capacity(size);
-
-        let label_len = self.label.len() as u64;
-        let prover_key_len = prover_key.len() as u64;
-        let commit_key_len = commit_key.len() as u64;
-        let verifier_key_len = verifier_key.len() as u64;
-        let size = self.size as u64;
-        let constraints = self.constraints as u64;
-
-        bytes.extend(label_len.to_be_bytes());
-        bytes.extend(prover_key_len.to_be_bytes());
-        bytes.extend(commit_key_len.to_be_bytes());
-        bytes.extend(verifier_key_len.to_be_bytes());
-        bytes.extend(size.to_be_bytes());
-        bytes.extend(constraints.to_be_bytes());
-
-        bytes.extend(self.label.as_slice());
-        bytes.extend(prover_key);
-        bytes.extend(commit_key);
-        bytes.extend(verifier_key);
-
-        bytes
-    }
-
-    /// Attempt to deserialize the prover from bytes generated via
-    /// [`Self::to_bytes`]
-    pub fn try_from_bytes<B>(bytes: B) -> Result<Self, Error>
-    where
-        B: AsRef<[u8]>,
-    {
-        let mut bytes = bytes.as_ref();
-
-        if bytes.len() < 48 {
-            return Err(Error::NotEnoughBytes);
-        }
-
-        let label_len = <[u8; 8]>::try_from(&bytes[..8]).expect("checked len");
-        let label_len = u64::from_be_bytes(label_len) as usize;
-        bytes = &bytes[8..];
-
-        let prover_key_len =
-            <[u8; 8]>::try_from(&bytes[..8]).expect("checked len");
-        let prover_key_len = u64::from_be_bytes(prover_key_len) as usize;
-        bytes = &bytes[8..];
-
-        let commit_key_len =
-            <[u8; 8]>::try_from(&bytes[..8]).expect("checked len");
-        let commit_key_len = u64::from_be_bytes(commit_key_len) as usize;
-        bytes = &bytes[8..];
-
-        let verifier_key_len =
-            <[u8; 8]>::try_from(&bytes[..8]).expect("checked len");
-        let verifier_key_len = u64::from_be_bytes(verifier_key_len) as usize;
-        bytes = &bytes[8..];
-
-        let size = <[u8; 8]>::try_from(&bytes[..8]).expect("checked len");
-        let size = u64::from_be_bytes(size) as usize;
-        bytes = &bytes[8..];
-
-        let constraints =
-            <[u8; 8]>::try_from(&bytes[..8]).expect("checked len");
-        let constraints = u64::from_be_bytes(constraints) as usize;
-        bytes = &bytes[8..];
-
-        if bytes.len()
-            < label_len + prover_key_len + commit_key_len + verifier_key_len
-        {
-            return Err(Error::NotEnoughBytes);
-        }
-
-        let label = &bytes[..label_len];
-        bytes = &bytes[label_len..];
-
-        let prover_key = &bytes[..prover_key_len];
-        bytes = &bytes[prover_key_len..];
-
-        let commit_key = &bytes[..commit_key_len];
-        bytes = &bytes[commit_key_len..];
-
-        let verifier_key = &bytes[..verifier_key_len];
-
-        let label = label.to_vec();
-        let prover_key = ProverKey::from_slice(prover_key)?;
-
-        // Safety: checked len
-        let commit_key =
-            unsafe { CommitKey::from_slice_unchecked(&commit_key) };
-
-        let verifier_key = VerifierKey::from_slice(verifier_key)?;
-
-        Ok(Self::new(
-            label,
-            prover_key,
-            commit_key,
-            verifier_key,
-            size,
-            constraints,
-        ))
+        FftPolynomial::from_coefficients_vec(w_vec_inverse.0)
     }
 
     /// Prove the circuit
@@ -247,20 +117,21 @@ where
     {
         let prover = Builder::prove(self.constraints, circuit)?;
 
-        let constraints = self.constraints;
         let size = self.size;
+        let k = size.trailing_zeros();
 
-        let domain = EvaluationDomain::new(constraints)?;
+        let fft = Fft::<BlsScalar>::new(k as usize);
 
         let mut transcript = self.transcript.clone();
 
         let public_inputs = prover.public_inputs();
         let public_input_indexes = prover.public_input_indexes();
-        let dense_public_inputs = Builder::dense_public_inputs(
-            &public_input_indexes,
-            &public_inputs,
-            self.size,
-        );
+        let mut dense_public_inputs =
+            Polynomial::new(Builder::dense_public_inputs(
+                &public_input_indexes,
+                &public_inputs,
+                self.size,
+            ));
 
         public_inputs
             .iter()
@@ -280,10 +151,10 @@ where
             d_w_scalar[i] = prover[c.w_d];
         });
 
-        let a_w_poly = Self::blind_poly(rng, &a_w_scalar, 1, &domain);
-        let b_w_poly = Self::blind_poly(rng, &b_w_scalar, 1, &domain);
-        let o_w_poly = Self::blind_poly(rng, &o_w_scalar, 1, &domain);
-        let d_w_poly = Self::blind_poly(rng, &d_w_scalar, 1, &domain);
+        let a_w_poly = Self::blind_poly(rng, &a_w_scalar, 1, &fft);
+        let b_w_poly = Self::blind_poly(rng, &b_w_scalar, 1, &fft);
+        let o_w_poly = Self::blind_poly(rng, &o_w_scalar, 1, &fft);
+        let d_w_poly = Self::blind_poly(rng, &d_w_scalar, 1, &fft);
 
         // commit to wire polynomials
         // ([a(x)]_1, [b(x)]_1, [c(x)]_1, [d(x)]_1)
@@ -305,10 +176,18 @@ where
 
         let gamma = transcript.challenge_scalar(b"gamma");
         let sigma = [
-            &self.prover_key.permutation.s_sigma_1.0,
-            &self.prover_key.permutation.s_sigma_2.0,
-            &self.prover_key.permutation.s_sigma_3.0,
-            &self.prover_key.permutation.s_sigma_4.0,
+            Polynomial::new(
+                self.prover_key.permutation.s_sigma_1.0.coeffs.clone(),
+            ),
+            Polynomial::new(
+                self.prover_key.permutation.s_sigma_2.0.coeffs.clone(),
+            ),
+            Polynomial::new(
+                self.prover_key.permutation.s_sigma_3.0.coeffs.clone(),
+            ),
+            Polynomial::new(
+                self.prover_key.permutation.s_sigma_4.0.coeffs.clone(),
+            ),
         ];
         let wires = [
             a_w_scalar.as_slice(),
@@ -318,9 +197,9 @@ where
         ];
         let permutation = prover
             .perm
-            .compute_permutation_vec(&domain, wires, &beta, &gamma, sigma);
+            .compute_permutation_vec(&fft, wires, &beta, &gamma, sigma);
 
-        let z_poly = Self::blind_poly(rng, &permutation, 2, &domain);
+        let z_poly = Self::blind_poly(rng, &permutation, 2, &fft);
         let z_poly_commit = self.commit_key.commit(&z_poly)?;
         transcript.append_commitment(b"z", &z_poly_commit);
 
@@ -337,8 +216,9 @@ where
             transcript.challenge_scalar(b"variable base separation challenge");
 
         // compute public inputs polynomial
-        let pi_poly = domain.ifft(&dense_public_inputs);
-        let pi_poly = FftPolynomial::from_coefficients_vec(pi_poly);
+        fft.idft(&mut dense_public_inputs);
+        let pi_poly =
+            FftPolynomial::from_coefficients_vec(dense_public_inputs.0);
 
         // compute quotient polynomial
         let wires = (&a_w_poly, &b_w_poly, &o_w_poly, &d_w_poly);
@@ -352,7 +232,7 @@ where
             var_base_sep_challenge,
         );
         let t_poly = quotient_poly::compute(
-            &domain,
+            &fft,
             &self.prover_key,
             &z_poly,
             wires,
@@ -361,7 +241,7 @@ where
         )?;
 
         // split quotient polynomial into 4 degree `n` polynomials
-        let domain_size = domain.size();
+        let domain_size = fft.size();
         let t_low_poly = FftPolynomial::from_coefficients_vec(
             t_poly[0..domain_size].to_vec(),
         );
@@ -394,7 +274,7 @@ where
         // round 5
         // compute linearization polynomial
         let (r_poly, evaluations) = linearization_poly::compute(
-            &domain,
+            fft.generator(),
             &self.prover_key,
             &(
                 alpha,
@@ -483,7 +363,7 @@ where
         let shifted_aggregate_witness =
             self.commit_key.compute_aggregate_witness(
                 &[z_poly, a_w_poly, b_w_poly, d_w_poly],
-                &(z_challenge * domain.group_gen),
+                &(z_challenge * fft.generator()),
                 &mut transcript,
             );
         let w_z_chall_w_comm =

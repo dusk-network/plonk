@@ -5,6 +5,7 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use zero_bls12_381::Fr as BlsScalar;
+use zero_kzg::{Fft, Polynomial};
 
 use super::{Builder, Circuit, Composer, Prover, Verifier};
 use crate::commitment_scheme::{CommitKey, OpeningKey, PublicParameters};
@@ -70,68 +71,74 @@ impl Compiler {
 
         let constraints = prover.constraints();
         let size = constraints.next_power_of_two();
-
-        let domain = EvaluationDomain::new(size - 1)?;
+        let k = size.trailing_zeros();
+        let fft = Fft::<BlsScalar>::new(k as usize);
 
         // 1. pad circuit to a power of two
         //
         // we use allocated vectors because the current ifft api only accepts
         // slices
-        let mut q_m = vec![BlsScalar::zero(); size];
-        let mut q_l = vec![BlsScalar::zero(); size];
-        let mut q_r = vec![BlsScalar::zero(); size];
-        let mut q_o = vec![BlsScalar::zero(); size];
-        let mut q_c = vec![BlsScalar::zero(); size];
-        let mut q_d = vec![BlsScalar::zero(); size];
-        let mut q_arith = vec![BlsScalar::zero(); size];
-        let mut q_range = vec![BlsScalar::zero(); size];
-        let mut q_logic = vec![BlsScalar::zero(); size];
-        let mut q_fixed_group_add = vec![BlsScalar::zero(); size];
-        let mut q_variable_group_add = vec![BlsScalar::zero(); size];
+        let mut q_m = Polynomial::new(vec![BlsScalar::zero(); size]);
+        let mut q_l = Polynomial::new(vec![BlsScalar::zero(); size]);
+        let mut q_r = Polynomial::new(vec![BlsScalar::zero(); size]);
+        let mut q_o = Polynomial::new(vec![BlsScalar::zero(); size]);
+        let mut q_c = Polynomial::new(vec![BlsScalar::zero(); size]);
+        let mut q_d = Polynomial::new(vec![BlsScalar::zero(); size]);
+        let mut q_arith = Polynomial::new(vec![BlsScalar::zero(); size]);
+        let mut q_range = Polynomial::new(vec![BlsScalar::zero(); size]);
+        let mut q_logic = Polynomial::new(vec![BlsScalar::zero(); size]);
+        let mut q_fixed_group_add =
+            Polynomial::new(vec![BlsScalar::zero(); size]);
+        let mut q_variable_group_add =
+            Polynomial::new(vec![BlsScalar::zero(); size]);
 
         prover.constraints.iter().enumerate().for_each(|(i, c)| {
-            q_m[i] = c.q_m;
-            q_l[i] = c.q_l;
-            q_r[i] = c.q_r;
-            q_o[i] = c.q_o;
-            q_c[i] = c.q_c;
-            q_d[i] = c.q_d;
-            q_arith[i] = c.q_arith;
-            q_range[i] = c.q_range;
-            q_logic[i] = c.q_logic;
-            q_fixed_group_add[i] = c.q_fixed_group_add;
-            q_variable_group_add[i] = c.q_variable_group_add;
+            q_m.0[i] = c.q_m;
+            q_l.0[i] = c.q_l;
+            q_r.0[i] = c.q_r;
+            q_o.0[i] = c.q_o;
+            q_c.0[i] = c.q_c;
+            q_d.0[i] = c.q_d;
+            q_arith.0[i] = c.q_arith;
+            q_range.0[i] = c.q_range;
+            q_logic.0[i] = c.q_logic;
+            q_fixed_group_add.0[i] = c.q_fixed_group_add;
+            q_variable_group_add.0[i] = c.q_variable_group_add;
         });
 
-        let q_m_poly = domain.ifft(&q_m);
-        let q_l_poly = domain.ifft(&q_l);
-        let q_r_poly = domain.ifft(&q_r);
-        let q_o_poly = domain.ifft(&q_o);
-        let q_c_poly = domain.ifft(&q_c);
-        let q_d_poly = domain.ifft(&q_d);
-        let q_arith_poly = domain.ifft(&q_arith);
-        let q_range_poly = domain.ifft(&q_range);
-        let q_logic_poly = domain.ifft(&q_logic);
-        let q_fixed_group_add_poly = domain.ifft(&q_fixed_group_add);
-        let q_variable_group_add_poly = domain.ifft(&q_variable_group_add);
+        fft.idft(&mut q_m);
+        fft.idft(&mut q_l);
+        fft.idft(&mut q_r);
+        fft.idft(&mut q_o);
+        fft.idft(&mut q_c);
+        fft.idft(&mut q_d);
+        fft.idft(&mut q_arith);
+        fft.idft(&mut q_range);
+        fft.idft(&mut q_logic);
+        fft.idft(&mut q_fixed_group_add);
+        fft.idft(&mut q_variable_group_add);
 
-        let q_m_poly = FftPolynomial::from_coefficients_vec(q_m_poly);
-        let q_l_poly = FftPolynomial::from_coefficients_vec(q_l_poly);
-        let q_r_poly = FftPolynomial::from_coefficients_vec(q_r_poly);
-        let q_o_poly = FftPolynomial::from_coefficients_vec(q_o_poly);
-        let q_c_poly = FftPolynomial::from_coefficients_vec(q_c_poly);
-        let q_d_poly = FftPolynomial::from_coefficients_vec(q_d_poly);
-        let q_arith_poly = FftPolynomial::from_coefficients_vec(q_arith_poly);
-        let q_range_poly = FftPolynomial::from_coefficients_vec(q_range_poly);
-        let q_logic_poly = FftPolynomial::from_coefficients_vec(q_logic_poly);
+        let q_m_poly = FftPolynomial::from_coefficients_vec(q_m.0.clone());
+        let q_l_poly = FftPolynomial::from_coefficients_vec(q_l.0.clone());
+        let q_r_poly = FftPolynomial::from_coefficients_vec(q_r.0.clone());
+        let q_o_poly = FftPolynomial::from_coefficients_vec(q_o.0.clone());
+        let q_c_poly = FftPolynomial::from_coefficients_vec(q_c.0.clone());
+        let q_d_poly = FftPolynomial::from_coefficients_vec(q_d.0.clone());
+        let q_arith_poly =
+            FftPolynomial::from_coefficients_vec(q_arith.0.clone());
+        let q_range_poly =
+            FftPolynomial::from_coefficients_vec(q_range.0.clone());
+        let q_logic_poly =
+            FftPolynomial::from_coefficients_vec(q_logic.0.clone());
         let q_fixed_group_add_poly =
-            FftPolynomial::from_coefficients_vec(q_fixed_group_add_poly);
-        let q_variable_group_add_poly =
-            FftPolynomial::from_coefficients_vec(q_variable_group_add_poly);
+            FftPolynomial::from_coefficients_vec(q_fixed_group_add.0.clone());
+        let q_variable_group_add_poly = FftPolynomial::from_coefficients_vec(
+            q_variable_group_add.0.clone(),
+        );
 
         // 2. compute the sigma polynomials
         let [s_sigma_1_poly, s_sigma_2_poly, s_sigma_3_poly, s_sigma_4_poly] =
-            perm.compute_sigma_polynomials(size, &domain);
+            perm.compute_sigma_polynomials(size, &fft);
 
         let q_m_poly_commit = commit_key.commit(&q_m_poly).unwrap_or_default();
         let q_l_poly_commit = commit_key.commit(&q_l_poly).unwrap_or_default();
@@ -211,6 +218,77 @@ impl Compiler {
             permutation: permutation_verifier_key,
         };
 
+        // The polynomial needs an evaluation domain of 4n.
+        // Plus, adding the blinding factors translates to
+        // the polynomial not fitting in 4n, so now we need
+        // 8n, the next power of 2
+        let n = (8 * fft.size()).next_power_of_two();
+        let k = n.trailing_zeros();
+        let fft_8n = Fft::new(k as usize);
+        let domain_8n = EvaluationDomain::new(8 * fft.size())?;
+        let mut s_sigma_1 = Polynomial::new(s_sigma_1_poly.coeffs.clone());
+        let mut s_sigma_2 = Polynomial::new(s_sigma_2_poly.coeffs.clone());
+        let mut s_sigma_3 = Polynomial::new(s_sigma_3_poly.coeffs.clone());
+        let mut s_sigma_4 = Polynomial::new(s_sigma_4_poly.coeffs.clone());
+        let mut min_p =
+            Polynomial::new(vec![BlsScalar::zero(), BlsScalar::one()]);
+
+        fft_8n.coset_dft(&mut q_m);
+        fft_8n.coset_dft(&mut q_l);
+        fft_8n.coset_dft(&mut q_r);
+        fft_8n.coset_dft(&mut q_o);
+        fft_8n.coset_dft(&mut q_c);
+        fft_8n.coset_dft(&mut q_d);
+        fft_8n.coset_dft(&mut q_arith);
+        fft_8n.coset_dft(&mut q_range);
+        fft_8n.coset_dft(&mut q_logic);
+        fft_8n.coset_dft(&mut q_fixed_group_add);
+        fft_8n.coset_dft(&mut q_variable_group_add);
+        fft_8n.coset_dft(&mut s_sigma_1);
+        fft_8n.coset_dft(&mut s_sigma_2);
+        fft_8n.coset_dft(&mut s_sigma_3);
+        fft_8n.coset_dft(&mut s_sigma_4);
+        fft_8n.coset_dft(&mut min_p);
+
+        let q_m_eval_8n =
+            Evaluations::from_vec_and_domain(q_m.0.clone(), domain_8n);
+        let q_l_eval_8n =
+            Evaluations::from_vec_and_domain(q_l.0.clone(), domain_8n);
+        let q_r_eval_8n =
+            Evaluations::from_vec_and_domain(q_r.0.clone(), domain_8n);
+        let q_o_eval_8n =
+            Evaluations::from_vec_and_domain(q_o.0.clone(), domain_8n);
+        let q_c_eval_8n =
+            Evaluations::from_vec_and_domain(q_c.0.clone(), domain_8n);
+        let q_4_eval_8n =
+            Evaluations::from_vec_and_domain(q_d.0.clone(), domain_8n);
+        let q_arith_eval_8n =
+            Evaluations::from_vec_and_domain(q_arith.0.clone(), domain_8n);
+        let q_range_eval_8n =
+            Evaluations::from_vec_and_domain(q_range.0.clone(), domain_8n);
+        let q_logic_eval_8n =
+            Evaluations::from_vec_and_domain(q_logic.0.clone(), domain_8n);
+        let q_fixed_group_add_eval_8n = Evaluations::from_vec_and_domain(
+            q_fixed_group_add.0.clone(),
+            domain_8n,
+        );
+        let q_variable_group_add_eval_8n = Evaluations::from_vec_and_domain(
+            q_variable_group_add.0.clone(),
+            domain_8n,
+        );
+
+        let s_sigma_1_eval_8n =
+            Evaluations::from_vec_and_domain(s_sigma_1.0, domain_8n);
+        let s_sigma_2_eval_8n =
+            Evaluations::from_vec_and_domain(s_sigma_2.0, domain_8n);
+        let s_sigma_3_eval_8n =
+            Evaluations::from_vec_and_domain(s_sigma_3.0, domain_8n);
+        let s_sigma_4_eval_8n =
+            Evaluations::from_vec_and_domain(s_sigma_4.0, domain_8n);
+
+        let linear_eval_8n =
+            Evaluations::from_vec_and_domain(min_p.0, domain_8n);
+
         let selectors = Polynomials {
             q_m: q_m_poly,
             q_l: q_l_poly,
@@ -228,79 +306,6 @@ impl Compiler {
             s_sigma_3: s_sigma_3_poly,
             s_sigma_4: s_sigma_4_poly,
         };
-
-        // The polynomial needs an evaluation domain of 4n.
-        // Plus, adding the blinding factors translates to
-        // the polynomial not fitting in 4n, so now we need
-        // 8n, the next power of 2
-        let domain_8n = EvaluationDomain::new(8 * domain.size())?;
-
-        let q_m_eval_8n = Evaluations::from_vec_and_domain(
-            domain_8n.coset_fft(&selectors.q_m),
-            domain_8n,
-        );
-        let q_l_eval_8n = Evaluations::from_vec_and_domain(
-            domain_8n.coset_fft(&selectors.q_l),
-            domain_8n,
-        );
-        let q_r_eval_8n = Evaluations::from_vec_and_domain(
-            domain_8n.coset_fft(&selectors.q_r),
-            domain_8n,
-        );
-        let q_o_eval_8n = Evaluations::from_vec_and_domain(
-            domain_8n.coset_fft(&selectors.q_o),
-            domain_8n,
-        );
-        let q_c_eval_8n = Evaluations::from_vec_and_domain(
-            domain_8n.coset_fft(&selectors.q_c),
-            domain_8n,
-        );
-        let q_4_eval_8n = Evaluations::from_vec_and_domain(
-            domain_8n.coset_fft(&selectors.q_4),
-            domain_8n,
-        );
-        let q_arith_eval_8n = Evaluations::from_vec_and_domain(
-            domain_8n.coset_fft(&selectors.q_arith),
-            domain_8n,
-        );
-        let q_range_eval_8n = Evaluations::from_vec_and_domain(
-            domain_8n.coset_fft(&selectors.q_range),
-            domain_8n,
-        );
-        let q_logic_eval_8n = Evaluations::from_vec_and_domain(
-            domain_8n.coset_fft(&selectors.q_logic),
-            domain_8n,
-        );
-        let q_fixed_group_add_eval_8n = Evaluations::from_vec_and_domain(
-            domain_8n.coset_fft(&selectors.q_fixed_group_add),
-            domain_8n,
-        );
-        let q_variable_group_add_eval_8n = Evaluations::from_vec_and_domain(
-            domain_8n.coset_fft(&selectors.q_variable_group_add),
-            domain_8n,
-        );
-
-        let s_sigma_1_eval_8n = Evaluations::from_vec_and_domain(
-            domain_8n.coset_fft(&selectors.s_sigma_1),
-            domain_8n,
-        );
-        let s_sigma_2_eval_8n = Evaluations::from_vec_and_domain(
-            domain_8n.coset_fft(&selectors.s_sigma_2),
-            domain_8n,
-        );
-        let s_sigma_3_eval_8n = Evaluations::from_vec_and_domain(
-            domain_8n.coset_fft(&selectors.s_sigma_3),
-            domain_8n,
-        );
-        let s_sigma_4_eval_8n = Evaluations::from_vec_and_domain(
-            domain_8n.coset_fft(&selectors.s_sigma_4),
-            domain_8n,
-        );
-
-        let linear_eval_8n = Evaluations::from_vec_and_domain(
-            domain_8n.coset_fft(&[BlsScalar::zero(), BlsScalar::one()]),
-            domain_8n,
-        );
 
         let arithmetic_prover_key = widget::arithmetic::ProverKey {
             q_m: (selectors.q_m, q_m_eval_8n),
@@ -348,10 +353,10 @@ impl Compiler {
             };
 
         let v_h_coset_8n =
-            domain_8n.compute_vanishing_poly_over_coset(domain.size() as u64);
+            domain_8n.compute_vanishing_poly_over_coset(fft.size() as u64);
 
         let prover_key = ProverKey {
-            n: domain.size(),
+            n: fft.size(),
             arithmetic: arithmetic_prover_key,
             logic: logic_prover_key,
             range: range_prover_key,

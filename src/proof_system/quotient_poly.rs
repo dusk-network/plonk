@@ -4,22 +4,19 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use crate::{
-    error::Error,
-    fft::{EvaluationDomain, Polynomial},
-    proof_system::ProverKey,
-};
+use crate::{error::Error, fft::Polynomial, proof_system::ProverKey};
 #[cfg(feature = "std")]
 use rayon::prelude::*;
 use sp_std::vec;
 use sp_std::vec::Vec;
 use zero_bls12_381::Fr as BlsScalar;
 use zero_crypto::behave::*;
+use zero_kzg::{Fft, Polynomial as ZeroPoly};
 
 /// Computes the Quotient [`Polynomial`] given the [`EvaluationDomain`], a
 /// [`ProverKey`] and some other info.
 pub(crate) fn compute(
-    domain: &EvaluationDomain,
+    fft: &Fft<BlsScalar>,
     prover_key: &ProverKey,
     z_poly: &Polynomial,
     (a_w_poly, b_w_poly, c_w_poly, d_w_poly): (
@@ -48,25 +45,39 @@ pub(crate) fn compute(
     ),
 ) -> Result<Polynomial, Error> {
     // Compute 8n evals
-    let domain_8n = EvaluationDomain::new(8 * domain.size())?;
+    let n = (8 * fft.size()).next_power_of_two();
+    let k = n.trailing_zeros();
+    let fft_8n = Fft::<BlsScalar>::new(k as usize);
 
-    let mut z_eval_8n = domain_8n.coset_fft(z_poly);
+    let mut z_poly = ZeroPoly::new(z_poly.coeffs.clone());
+    let mut a_w_poly = ZeroPoly::new(a_w_poly.coeffs.clone());
+    let mut b_w_poly = ZeroPoly::new(b_w_poly.coeffs.clone());
+    let mut c_w_poly = ZeroPoly::new(c_w_poly.coeffs.clone());
+    let mut d_w_poly = ZeroPoly::new(d_w_poly.coeffs.clone());
 
-    let mut a_w_eval_8n = domain_8n.coset_fft(a_w_poly);
-    let mut b_w_eval_8n = domain_8n.coset_fft(b_w_poly);
-    let c_w_eval_8n = domain_8n.coset_fft(c_w_poly);
-    let mut d_w_eval_8n = domain_8n.coset_fft(d_w_poly);
+    fft_8n.coset_dft(&mut z_poly);
+
+    fft_8n.coset_dft(&mut a_w_poly);
+    fft_8n.coset_dft(&mut b_w_poly);
+    fft_8n.coset_dft(&mut c_w_poly);
+    fft_8n.coset_dft(&mut d_w_poly);
 
     for i in 0..8 {
-        z_eval_8n.push(z_eval_8n[i]);
-        a_w_eval_8n.push(a_w_eval_8n[i]);
-        b_w_eval_8n.push(b_w_eval_8n[i]);
+        z_poly.0.push(z_poly.0[i]);
+        a_w_poly.0.push(a_w_poly.0[i]);
+        b_w_poly.0.push(b_w_poly.0[i]);
         // c_w_eval_8n push not required
-        d_w_eval_8n.push(d_w_eval_8n[i]);
+        d_w_poly.0.push(d_w_poly.0[i]);
     }
 
+    let z_eval_8n = Polynomial::from_coefficients_vec(z_poly.0);
+    let a_w_eval_8n = Polynomial::from_coefficients_vec(a_w_poly.0);
+    let b_w_eval_8n = Polynomial::from_coefficients_vec(b_w_poly.0);
+    let c_w_eval_8n = Polynomial::from_coefficients_vec(c_w_poly.0);
+    let d_w_eval_8n = Polynomial::from_coefficients_vec(d_w_poly.0);
+
     let t_1 = compute_circuit_satisfiability_equation(
-        domain,
+        &fft_8n,
         (
             range_challenge,
             logic_challenge,
@@ -79,18 +90,15 @@ pub(crate) fn compute(
     );
 
     let t_2 = compute_permutation_checks(
-        domain,
+        fft,
+        &fft_8n,
         prover_key,
         (&a_w_eval_8n, &b_w_eval_8n, &c_w_eval_8n, &d_w_eval_8n),
         &z_eval_8n,
         (alpha, beta, gamma),
     );
 
-    #[cfg(not(feature = "std"))]
-    let range = (0..domain_8n.size()).into_iter();
-
-    #[cfg(feature = "std")]
-    let range = (0..domain_8n.size()).into_par_iter();
+    let range = (0..fft_8n.size()).into_iter();
 
     let quotient: Vec<_> = range
         .map(|i| {
@@ -99,16 +107,16 @@ pub(crate) fn compute(
             numerator * denominator.invert().unwrap()
         })
         .collect();
+    let mut quotient = ZeroPoly::new(quotient);
+    fft_8n.coset_idft(&mut quotient);
 
-    let coset = domain_8n.coset_ifft(&quotient);
-
-    Ok(Polynomial::from_coefficients_vec(coset))
+    Ok(Polynomial::from_coefficients_vec(quotient.0))
 }
 
 // Ensures that the circuit is satisfied
 // Ensures that the circuit is satisfied
 fn compute_circuit_satisfiability_equation(
-    domain: &EvaluationDomain,
+    fft: &Fft<BlsScalar>,
     (
         range_challenge,
         logic_challenge,
@@ -124,14 +132,15 @@ fn compute_circuit_satisfiability_equation(
     ),
     pi_poly: &Polynomial,
 ) -> Vec<BlsScalar> {
-    let domain_8n = EvaluationDomain::new(8 * domain.size()).unwrap();
-    let public_eval_8n = domain_8n.coset_fft(pi_poly);
+    let mut pi_poly = ZeroPoly::new(pi_poly.coeffs.clone());
+    fft.coset_dft(&mut pi_poly);
+    let public_eval_8n = pi_poly.0;
 
     #[cfg(not(feature = "std"))]
-    let range = (0..domain_8n.size()).into_iter();
+    let range = (0..fft.size()).into_iter();
 
     #[cfg(feature = "std")]
-    let range = (0..domain_8n.size()).into_par_iter();
+    let range = (0..fft.size()).into_par_iter();
 
     let t: Vec<_> = range
         .map(|i| {
@@ -201,7 +210,8 @@ fn compute_circuit_satisfiability_equation(
 }
 
 fn compute_permutation_checks(
-    domain: &EvaluationDomain,
+    fft: &Fft<BlsScalar>,
+    fft_n8: &Fft<BlsScalar>,
     prover_key: &ProverKey,
     (a_w_eval_8n, b_w_eval_8n, c_w_eval_8n, d_w_eval_8n): (
         &[BlsScalar],
@@ -212,16 +222,16 @@ fn compute_permutation_checks(
     z_eval_8n: &[BlsScalar],
     (alpha, beta, gamma): (&BlsScalar, &BlsScalar, &BlsScalar),
 ) -> Vec<BlsScalar> {
-    let domain_8n = EvaluationDomain::new(8 * domain.size()).unwrap();
-    let l1_poly_alpha =
-        compute_first_lagrange_poly_scaled(domain, alpha.square());
-    let l1_alpha_sq_evals = domain_8n.coset_fft(&l1_poly_alpha.coeffs);
+    let l1_poly_alpha = compute_first_lagrange_poly_scaled(fft, alpha.square());
+    let mut l1_poly_alpha = ZeroPoly::new(l1_poly_alpha.coeffs);
+    fft_n8.coset_dft(&mut l1_poly_alpha);
+    let l1_alpha_sq_evals = l1_poly_alpha.0;
 
     #[cfg(not(feature = "std"))]
-    let range = (0..domain_8n.size()).into_iter();
+    let range = (0..fft_n8.size()).into_iter();
 
     #[cfg(feature = "std")]
-    let range = (0..domain_8n.size()).into_par_iter();
+    let range = (0..fft_n8.size()).into_par_iter();
 
     let t: Vec<_> = range
         .map(|i| {
@@ -242,12 +252,13 @@ fn compute_permutation_checks(
         .collect();
     t
 }
+
 fn compute_first_lagrange_poly_scaled(
-    domain: &EvaluationDomain,
+    fft: &Fft<BlsScalar>,
     scale: BlsScalar,
 ) -> Polynomial {
-    let mut x_evals = vec![BlsScalar::zero(); domain.size()];
-    x_evals[0] = scale;
-    domain.ifft_in_place(&mut x_evals);
-    Polynomial::from_coefficients_vec(x_evals)
+    let mut x_evals = ZeroPoly::new(vec![BlsScalar::zero(); fft.size()]);
+    x_evals.0[0] = scale;
+    fft.idft(&mut x_evals);
+    Polynomial::from_coefficients_vec(x_evals.0)
 }

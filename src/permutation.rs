@@ -5,7 +5,7 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use crate::constraint_system::{WireData, Witness};
-use crate::fft::{EvaluationDomain, Polynomial};
+use crate::fft::Polynomial;
 use alloc::vec::Vec;
 use constants::{K1, K2, K3};
 use hashbrown::HashMap;
@@ -13,6 +13,7 @@ use itertools::izip;
 use sp_std::vec;
 use zero_bls12_381::Fr as BlsScalar;
 use zero_crypto::behave::*;
+use zero_kzg::{Fft, Polynomial as ZeroPoly};
 
 pub(crate) mod constants;
 
@@ -141,9 +142,9 @@ impl Permutation {
     fn compute_permutation_lagrange(
         &self,
         sigma_mapping: &[WireData],
-        domain: &EvaluationDomain,
+        fft: &Fft<BlsScalar>,
     ) -> Vec<BlsScalar> {
-        let roots: Vec<_> = domain.elements().collect();
+        let roots: Vec<_> = fft.elements.clone();
 
         let lagrange_poly: Vec<BlsScalar> = sigma_mapping
             .iter()
@@ -175,7 +176,7 @@ impl Permutation {
     pub(crate) fn compute_sigma_polynomials(
         &mut self,
         n: usize,
-        domain: &EvaluationDomain,
+        fft: &Fft<BlsScalar>,
     ) -> [Polynomial; 4] {
         // Compute sigma mappings
         let sigmas = self.compute_sigma_permutations(n);
@@ -186,19 +187,24 @@ impl Permutation {
         assert_eq!(sigmas[3].len(), n);
 
         // define the sigma permutations using two non quadratic residues
-        let s_sigma_1 = self.compute_permutation_lagrange(&sigmas[0], domain);
-        let s_sigma_2 = self.compute_permutation_lagrange(&sigmas[1], domain);
-        let s_sigma_3 = self.compute_permutation_lagrange(&sigmas[2], domain);
-        let s_sigma_4 = self.compute_permutation_lagrange(&sigmas[3], domain);
+        let mut s_sigma_1 =
+            ZeroPoly::new(self.compute_permutation_lagrange(&sigmas[0], fft));
+        let mut s_sigma_2 =
+            ZeroPoly::new(self.compute_permutation_lagrange(&sigmas[1], fft));
+        let mut s_sigma_3 =
+            ZeroPoly::new(self.compute_permutation_lagrange(&sigmas[2], fft));
+        let mut s_sigma_4 =
+            ZeroPoly::new(self.compute_permutation_lagrange(&sigmas[3], fft));
 
-        let s_sigma_1_poly =
-            Polynomial::from_coefficients_vec(domain.ifft(&s_sigma_1));
-        let s_sigma_2_poly =
-            Polynomial::from_coefficients_vec(domain.ifft(&s_sigma_2));
-        let s_sigma_3_poly =
-            Polynomial::from_coefficients_vec(domain.ifft(&s_sigma_3));
-        let s_sigma_4_poly =
-            Polynomial::from_coefficients_vec(domain.ifft(&s_sigma_4));
+        fft.idft(&mut s_sigma_1);
+        fft.idft(&mut s_sigma_2);
+        fft.idft(&mut s_sigma_3);
+        fft.idft(&mut s_sigma_4);
+
+        let s_sigma_1_poly = Polynomial::from_coefficients_vec(s_sigma_1.0);
+        let s_sigma_2_poly = Polynomial::from_coefficients_vec(s_sigma_2.0);
+        let s_sigma_3_poly = Polynomial::from_coefficients_vec(s_sigma_3.0);
+        let s_sigma_4_poly = Polynomial::from_coefficients_vec(s_sigma_4.0);
 
         [
             s_sigma_1_poly,
@@ -213,13 +219,13 @@ impl Permutation {
     // for any number of wires.
     pub(crate) fn compute_permutation_vec(
         &self,
-        domain: &EvaluationDomain,
+        fft: &Fft<BlsScalar>,
         wires: [&[BlsScalar]; 4],
         beta: &BlsScalar,
         gamma: &BlsScalar,
-        sigma_polys: [&Polynomial; 4],
+        mut sigma_polys: [ZeroPoly<BlsScalar>; 4],
     ) -> Vec<BlsScalar> {
-        let n = domain.size();
+        let n = fft.size();
 
         // Constants defining cosets H, k1H, k2H, etc
         let ks = vec![BlsScalar::one(), K1, K2, K3];
@@ -230,8 +236,13 @@ impl Permutation {
         let gatewise_wires = izip!(wires[0], wires[1], wires[2], wires[3])
             .map(|(w0, w1, w2, w3)| vec![w0, w1, w2, w3]);
 
-        let gatewise_sigmas: Vec<Vec<BlsScalar>> =
-            sigma_polys.iter().map(|sigma| domain.fft(sigma)).collect();
+        let gatewise_sigmas: Vec<Vec<BlsScalar>> = sigma_polys
+            .iter_mut()
+            .map(|sigma| {
+                fft.dft(sigma);
+                sigma.0.clone()
+            })
+            .collect();
         let gatewise_sigmas = izip!(
             &gatewise_sigmas[0],
             &gatewise_sigmas[1],
@@ -242,7 +253,7 @@ impl Permutation {
 
         // Compute all roots
         // Non-parallelizable?
-        let roots: Vec<BlsScalar> = domain.elements().collect();
+        let roots: Vec<BlsScalar> = fft.elements.clone();
 
         let product_argument = izip!(roots, gatewise_sigmas, gatewise_wires)
             // Associate each wire value in a gate with the k defining its coset
@@ -303,10 +314,10 @@ impl Permutation {
 #[cfg(test)]
 mod test {
     use super::*;
-    //use crate::constraint_system::Constraint;
-    use crate::fft::Polynomial;
+    use crate::fft::{EvaluationDomain, Polynomial};
     use rand_core::OsRng;
     use zero_bls12_381::Fr as BlsScalar;
+    use zero_kzg::Polynomial as ZeroPoly;
 
     #[allow(dead_code)]
     fn compute_fast_permutation_poly(
@@ -325,15 +336,27 @@ mod test {
         ),
     ) -> Vec<BlsScalar> {
         let n = domain.size();
+        let k = n.trailing_zeros();
+        let fft = Fft::new(k as usize);
 
         // Compute beta * roots
         let common_roots: Vec<BlsScalar> =
-            domain.elements().map(|root| root * beta).collect();
+            fft.elements.iter().map(|root| root * beta).collect();
 
-        let s_sigma_1_mapping = domain.fft(s_sigma_1_poly);
-        let s_sigma_2_mapping = domain.fft(s_sigma_2_poly);
-        let s_sigma_3_mapping = domain.fft(s_sigma_3_poly);
-        let s_sigma_4_mapping = domain.fft(s_sigma_4_poly);
+        let mut s_sigma_1_poly = ZeroPoly::new(s_sigma_1_poly.coeffs.clone());
+        let mut s_sigma_2_poly = ZeroPoly::new(s_sigma_2_poly.coeffs.clone());
+        let mut s_sigma_3_poly = ZeroPoly::new(s_sigma_3_poly.coeffs.clone());
+        let mut s_sigma_4_poly = ZeroPoly::new(s_sigma_4_poly.coeffs.clone());
+
+        fft.dft(&mut s_sigma_1_poly);
+        fft.dft(&mut s_sigma_2_poly);
+        fft.dft(&mut s_sigma_3_poly);
+        fft.dft(&mut s_sigma_4_poly);
+
+        let s_sigma_1_mapping = s_sigma_1_poly.0;
+        let s_sigma_2_mapping = s_sigma_2_poly.0;
+        let s_sigma_3_mapping = s_sigma_3_poly.0;
+        let s_sigma_4_mapping = s_sigma_4_poly.0;
 
         // Compute beta * sigma polynomials
         let beta_s_sigma_1: Vec<_> =
@@ -489,11 +512,23 @@ mod test {
         I: Iterator<Item = BlsScalar>,
     {
         let n = domain.size();
+        let k = n.trailing_zeros();
+        let fft = Fft::new(k as usize);
 
-        let s_sigma_1_mapping = domain.fft(s_sigma_1_poly);
-        let s_sigma_2_mapping = domain.fft(s_sigma_2_poly);
-        let s_sigma_3_mapping = domain.fft(s_sigma_3_poly);
-        let s_sigma_4_mapping = domain.fft(s_sigma_4_poly);
+        let mut s_sigma_1_poly = ZeroPoly::new(s_sigma_1_poly.coeffs.clone());
+        let mut s_sigma_2_poly = ZeroPoly::new(s_sigma_2_poly.coeffs.clone());
+        let mut s_sigma_3_poly = ZeroPoly::new(s_sigma_3_poly.coeffs.clone());
+        let mut s_sigma_4_poly = ZeroPoly::new(s_sigma_4_poly.coeffs.clone());
+
+        fft.dft(&mut s_sigma_1_poly);
+        fft.dft(&mut s_sigma_2_poly);
+        fft.dft(&mut s_sigma_3_poly);
+        fft.dft(&mut s_sigma_4_poly);
+
+        let s_sigma_1_mapping = s_sigma_1_poly.0;
+        let s_sigma_2_mapping = s_sigma_2_poly.0;
+        let s_sigma_3_mapping = s_sigma_3_poly.0;
+        let s_sigma_4_mapping = s_sigma_4_poly.0;
 
         // Compute beta * sigma polynomials
         let beta_s_sigma_1_iter =
@@ -506,16 +541,19 @@ mod test {
             s_sigma_4_mapping.iter().map(|sigma| *sigma * beta);
 
         // Compute beta * roots
-        let beta_roots_iter = domain.elements().map(|root| root * beta);
+        let beta_roots_iter = fft.elements.iter().map(|root| root * beta);
 
         // Compute beta * roots * K1
-        let beta_roots_k1_iter = domain.elements().map(|root| K1 * beta * root);
+        let beta_roots_k1_iter =
+            fft.elements.iter().map(|root| K1 * beta * root);
 
         // Compute beta * roots * K2
-        let beta_roots_k2_iter = domain.elements().map(|root| K2 * beta * root);
+        let beta_roots_k2_iter =
+            fft.elements.iter().map(|root| K2 * beta * root);
 
         // Compute beta * roots * K3
-        let beta_roots_k3_iter = domain.elements().map(|root| K3 * beta * root);
+        let beta_roots_k3_iter =
+            fft.elements.iter().map(|root| K3 * beta * root);
 
         // Compute left_wire + gamma
         let a_w_gamma: Vec<_> = a_w.map(|w| w + gamma).collect();
@@ -701,6 +739,7 @@ mod test {
         let var_eight = perm.new_witness();
         let var_nine = perm.new_witness();
 
+        let k = 2;
         let num_wire_mappings = 4;
 
         // Add four wire mappings
@@ -755,6 +794,7 @@ mod test {
         assert_eq!(s_sigma_4[3], WireData::Fourth(0));
 
         let domain = EvaluationDomain::new(num_wire_mappings).unwrap();
+        let fft = Fft::<BlsScalar>::new(k);
         let w = domain.group_gen;
         let w_squared = w.pow(2);
         let w_cubed = w.pow(3);
@@ -763,7 +803,7 @@ mod test {
         // s_sigma_1 = {R0, L2, L3, L0}
         // Should turn into {1 * K1, w^2, w^3, 1}
         let encoded_s_sigma_1 =
-            perm.compute_permutation_lagrange(s_sigma_1, &domain);
+            perm.compute_permutation_lagrange(s_sigma_1, &fft);
         assert_eq!(encoded_s_sigma_1[0], BlsScalar::one() * K1);
         assert_eq!(encoded_s_sigma_1[1], w_squared);
         assert_eq!(encoded_s_sigma_1[2], w_cubed);
@@ -773,7 +813,7 @@ mod test {
         // s_sigma_2 = {L1, R1, R2, R3}
         // Should turn into {w, w * K1, w^2 * K1, w^3 * K1}
         let encoded_s_sigma_2 =
-            perm.compute_permutation_lagrange(s_sigma_2, &domain);
+            perm.compute_permutation_lagrange(s_sigma_2, &fft);
         assert_eq!(encoded_s_sigma_2[0], w);
         assert_eq!(encoded_s_sigma_2[1], w * K1);
         assert_eq!(encoded_s_sigma_2[2], w_squared * K1);
@@ -783,7 +823,7 @@ mod test {
         // s_sigma_3 = {O0, O1, O2, O3}
         // Should turn into {1 * K2, w * K2, w^2 * K2, w^3 * K2}
         let encoded_s_sigma_3 =
-            perm.compute_permutation_lagrange(s_sigma_3, &domain);
+            perm.compute_permutation_lagrange(s_sigma_3, &fft);
         assert_eq!(encoded_s_sigma_3[0], BlsScalar::one() * K2);
         assert_eq!(encoded_s_sigma_3[1], w * K2);
         assert_eq!(encoded_s_sigma_3[2], w_squared * K2);
@@ -793,7 +833,7 @@ mod test {
         // s_sigma_4 = {F1, F2, F3, F0}
         // Should turn into {w * K3, w^2 * K3, w^3 * K3, 1 * K3}
         let encoded_s_sigma_4 =
-            perm.compute_permutation_lagrange(s_sigma_4, &domain);
+            perm.compute_permutation_lagrange(s_sigma_4, &fft);
         assert_eq!(encoded_s_sigma_4[0], w * K3);
         assert_eq!(encoded_s_sigma_4[1], w_squared * K3);
         assert_eq!(encoded_s_sigma_4[2], w_cubed * K3);
@@ -828,6 +868,7 @@ mod test {
             num_wire_mappings,
             perm,
             &domain,
+            &fft,
             a_w,
             b_w,
             c_w,
@@ -904,13 +945,15 @@ mod test {
         s_sigma_4 : {0,1,2,3} -> {F1, F2, F3, F0}
             When encoded using w, K1, K2,K3 we have {w * K3, w^2 * K3, w^3 * K3, 1 * K3}
         */
-        let domain = EvaluationDomain::new(num_wire_mappings).unwrap();
-        let w = domain.group_gen;
+        let n = num_wire_mappings.next_power_of_two();
+        let k = n.trailing_zeros();
+        let fft = Fft::new(k as usize);
+        let w: BlsScalar = fft.generator();
         let w_squared = w.pow(2);
         let w_cubed = w.pow(3);
         // check the left sigmas have been encoded properly
         let encoded_s_sigma_1 =
-            perm.compute_permutation_lagrange(s_sigma_1, &domain);
+            perm.compute_permutation_lagrange(s_sigma_1, &fft);
         assert_eq!(encoded_s_sigma_1[0], K1);
         assert_eq!(encoded_s_sigma_1[1], w * K2);
         assert_eq!(encoded_s_sigma_1[2], w_squared * K1);
@@ -918,7 +961,7 @@ mod test {
 
         // check the right sigmas have been encoded properly
         let encoded_s_sigma_2 =
-            perm.compute_permutation_lagrange(s_sigma_2, &domain);
+            perm.compute_permutation_lagrange(s_sigma_2, &fft);
         assert_eq!(encoded_s_sigma_2[0], w * K1);
         assert_eq!(encoded_s_sigma_2[1], w_squared * K2);
         assert_eq!(encoded_s_sigma_2[2], w_cubed * K2);
@@ -926,7 +969,7 @@ mod test {
 
         // check the output sigmas have been encoded properly
         let encoded_s_sigma_3 =
-            perm.compute_permutation_lagrange(s_sigma_3, &domain);
+            perm.compute_permutation_lagrange(s_sigma_3, &fft);
         assert_eq!(encoded_s_sigma_3[0], w);
         assert_eq!(encoded_s_sigma_3[1], w_cubed);
         assert_eq!(encoded_s_sigma_3[2], w_cubed * K1);
@@ -934,7 +977,7 @@ mod test {
 
         // check the fourth sigmas have been encoded properly
         let encoded_s_sigma_4 =
-            perm.compute_permutation_lagrange(s_sigma_4, &domain);
+            perm.compute_permutation_lagrange(s_sigma_4, &fft);
         assert_eq!(encoded_s_sigma_4[0], w * K3);
         assert_eq!(encoded_s_sigma_4[1], w_squared * K3);
         assert_eq!(encoded_s_sigma_4[2], w_cubed * K3);
@@ -943,9 +986,11 @@ mod test {
 
     #[test]
     fn test_basic_slow_permutation_poly() {
+        let k = 1;
         let num_wire_mappings = 2;
         let mut perm = Permutation::new();
         let domain = EvaluationDomain::new(num_wire_mappings).unwrap();
+        let fft = Fft::<BlsScalar>::new(k);
 
         let var_one = perm.new_witness();
         let var_two = perm.new_witness();
@@ -964,6 +1009,7 @@ mod test {
             num_wire_mappings,
             perm,
             &domain,
+            &fft,
             a_w,
             b_w,
             c_w,
@@ -983,6 +1029,7 @@ mod test {
         n: usize,
         mut perm: Permutation,
         domain: &EvaluationDomain,
+        fft: &Fft<BlsScalar>,
         a_w: Vec<BlsScalar>,
         b_w: Vec<BlsScalar>,
         c_w: Vec<BlsScalar>,
@@ -996,7 +1043,7 @@ mod test {
 
         //1. Compute the permutation polynomial using both methods
         let [s_sigma_1_poly, s_sigma_2_poly, s_sigma_3_poly, s_sigma_4_poly] =
-            perm.compute_sigma_polynomials(n, domain);
+            perm.compute_sigma_polynomials(n, fft);
         let (z_vec, numerator_components, denominator_components) =
             compute_slow_permutation_poly(
                 domain,
@@ -1052,12 +1099,14 @@ mod test {
 
         //3. Now we perform the two checks that need to be done on the
         // permutation polynomial (z)
-        let z_poly = Polynomial::from_coefficients_vec(domain.ifft(&z_vec));
+        let mut z_vec = ZeroPoly::new(z_vec);
+        fft.idft(&mut z_vec);
+        let z_poly = Polynomial::from_coefficients_vec(z_vec.0);
         //
         // Check that z(w^{n+1}) == z(1) == 1
         // This is the first check in the protocol
         assert_eq!(z_poly.evaluate(&BlsScalar::one()), BlsScalar::one());
-        let n_plus_one = domain.elements().last().unwrap() * domain.group_gen;
+        let n_plus_one = fft.elements.last().unwrap() * domain.group_gen;
         assert_eq!(z_poly.evaluate(&n_plus_one), BlsScalar::one());
         //
         // Check that when z is unblinded, it has the correct degree
@@ -1065,7 +1114,7 @@ mod test {
         //
         // Check relationship between z(X) and z(Xw)
         // This is the second check in the protocol
-        let roots: Vec<_> = domain.elements().collect();
+        let roots: Vec<_> = fft.elements.clone();
 
         for i in 1..roots.len() {
             let current_root = roots[i];
@@ -1100,10 +1149,10 @@ mod test {
         }
 
         // Test that the shifted polynomial is correct
-        let shifted_z = shift_poly_by_one(fast_z_vec);
-        let shifted_z_poly =
-            Polynomial::from_coefficients_vec(domain.ifft(&shifted_z));
-        for element in domain.elements() {
+        let mut shifted_z = ZeroPoly::new(shift_poly_by_one(fast_z_vec));
+        fft.idft(&mut shifted_z);
+        let shifted_z_poly = Polynomial::from_coefficients_vec(shifted_z.0);
+        for element in fft.elements.iter() {
             let z_eval = z_poly.evaluate(&(element * domain.group_gen));
             let shifted_z_eval = shifted_z_poly.evaluate(&element);
 

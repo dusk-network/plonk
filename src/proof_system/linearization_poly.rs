@@ -4,22 +4,11 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use crate::{
-    fft::{EvaluationDomain, Polynomial},
-    proof_system::ProverKey,
-};
+use crate::{fft::Polynomial, proof_system::ProverKey};
 
 use codec::{Decode, Encode};
 use dusk_bytes::{DeserializableSlice, Serializable};
 use zero_bls12_381::Fr as BlsScalar;
-
-#[cfg(feature = "rkyv-impl")]
-use bytecheck::CheckBytes;
-#[cfg(feature = "rkyv-impl")]
-use rkyv::{
-    ser::{ScratchSpace, Serializer},
-    Archive, Deserialize, Serialize,
-};
 
 /// Evaluations at points `z` or and `z * root of unity`
 #[allow(dead_code)]
@@ -32,65 +21,43 @@ pub(crate) struct Evaluations {
 /// Subset of all of the evaluations. These evaluations
 /// are added to the [`Proof`](super::Proof).
 #[derive(Debug, Eq, PartialEq, Clone, Default, Decode, Encode)]
-#[cfg_attr(
-    feature = "rkyv-impl",
-    derive(Archive, Deserialize, Serialize),
-    archive(bound(serialize = "__S: Serializer + ScratchSpace")),
-    archive_attr(derive(CheckBytes))
-)]
 pub(crate) struct ProofEvaluations {
     // Evaluation of the witness polynomial for the left wire at `z`
-    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) a_eval: BlsScalar,
     // Evaluation of the witness polynomial for the right wire at `z`
-    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) b_eval: BlsScalar,
     // Evaluation of the witness polynomial for the output wire at `z`
-    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) c_eval: BlsScalar,
     // Evaluation of the witness polynomial for the fourth wire at `z`
-    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) d_eval: BlsScalar,
     //
-    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) a_next_eval: BlsScalar,
     //
-    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) b_next_eval: BlsScalar,
     // Evaluation of the witness polynomial for the fourth wire at `z * root of
     // unity`
-    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) d_next_eval: BlsScalar,
     // Evaluation of the arithmetic selector polynomial at `z`
-    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) q_arith_eval: BlsScalar,
     //
-    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) q_c_eval: BlsScalar,
     //
-    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) q_l_eval: BlsScalar,
     //
-    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) q_r_eval: BlsScalar,
     //
     // Evaluation of the left sigma polynomial at `z`
-    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) s_sigma_1_eval: BlsScalar,
     // Evaluation of the right sigma polynomial at `z`
-    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) s_sigma_2_eval: BlsScalar,
     // Evaluation of the out sigma polynomial at `z`
-    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) s_sigma_3_eval: BlsScalar,
 
     // Evaluation of the linearization sigma polynomial at `z`
-    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) r_poly_eval: BlsScalar,
 
     // (Shifted) Evaluation of the permutation polynomial at `z * root of
     // unity`
-    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) perm_eval: BlsScalar,
 }
 
@@ -170,7 +137,7 @@ impl Serializable<{ 16 * BlsScalar::SIZE }> for ProofEvaluations {
 // TODO: Improve the method signature
 #[allow(clippy::type_complexity)]
 pub(crate) fn compute(
-    domain: &EvaluationDomain,
+    group_generator: BlsScalar,
     prover_key: &ProverKey,
     (
         alpha,
@@ -217,10 +184,10 @@ pub(crate) fn compute(
     let q_l_eval = prover_key.fixed_base.q_l.0.evaluate(z_challenge);
     let q_r_eval = prover_key.fixed_base.q_r.0.evaluate(z_challenge);
 
-    let a_next_eval = a_w_poly.evaluate(&(z_challenge * domain.group_gen));
-    let b_next_eval = b_w_poly.evaluate(&(z_challenge * domain.group_gen));
-    let d_next_eval = d_w_poly.evaluate(&(z_challenge * domain.group_gen));
-    let perm_eval = z_poly.evaluate(&(z_challenge * domain.group_gen));
+    let a_next_eval = a_w_poly.evaluate(&(z_challenge * group_generator));
+    let b_next_eval = b_w_poly.evaluate(&(z_challenge * group_generator));
+    let d_next_eval = d_w_poly.evaluate(&(z_challenge * group_generator));
+    let perm_eval = z_poly.evaluate(&(z_challenge * group_generator));
 
     let f_1 = compute_circuit_satisfiability(
         (

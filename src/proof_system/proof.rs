@@ -10,17 +10,7 @@
 use super::linearization_poly::ProofEvaluations;
 use crate::commitment_scheme::Commitment;
 use codec::{Decode, Encode};
-use dusk_bytes::{DeserializableSlice, Serializable};
-
-#[cfg(feature = "rkyv-impl")]
-use crate::util::check_field;
-#[cfg(feature = "rkyv-impl")]
-use bytecheck::{CheckBytes, StructCheckError};
-#[cfg(feature = "rkyv-impl")]
-use rkyv::{
-    ser::{ScratchSpace, Serializer},
-    Archive, Deserialize, Serialize,
-};
+use zero_kzg::Polynomial;
 
 /// A Proof is a composition of `Commitment`s to the Witness, Permutation,
 /// Quotient, Shifted and Opening polynomials as well as the
@@ -33,140 +23,35 @@ use rkyv::{
 /// and without any capabilities of adquiring any kind of knowledge about the
 /// witness used to construct the Proof.
 #[derive(Debug, Eq, PartialEq, Clone, Default, Decode, Encode)]
-#[cfg_attr(
-    feature = "rkyv-impl",
-    derive(Archive, Deserialize, Serialize),
-    archive(bound(serialize = "__S: Serializer + ScratchSpace"))
-)]
+
 pub struct Proof {
     /// Commitment to the witness polynomial for the left wires.
-    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) a_comm: Commitment,
     /// Commitment to the witness polynomial for the right wires.
-    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) b_comm: Commitment,
     /// Commitment to the witness polynomial for the output wires.
-    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) c_comm: Commitment,
     /// Commitment to the witness polynomial for the fourth wires.
-    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) d_comm: Commitment,
 
     /// Commitment to the permutation polynomial.
-    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) z_comm: Commitment,
 
     /// Commitment to the quotient polynomial.
-    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) t_low_comm: Commitment,
     /// Commitment to the quotient polynomial.
-    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) t_mid_comm: Commitment,
     /// Commitment to the quotient polynomial.
-    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) t_high_comm: Commitment,
     /// Commitment to the quotient polynomial.
-    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) t_4_comm: Commitment,
 
     /// Commitment to the opening polynomial.
-    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) w_z_chall_comm: Commitment,
     /// Commitment to the shifted opening polynomial.
-    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) w_z_chall_w_comm: Commitment,
     /// Subset of all of the evaluations added to the proof.
-    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) evaluations: ProofEvaluations,
-}
-
-#[cfg(feature = "rkyv-impl")]
-impl<C> CheckBytes<C> for ArchivedProof {
-    type Error = StructCheckError;
-
-    unsafe fn check_bytes<'a>(
-        value: *const Self,
-        context: &mut C,
-    ) -> Result<&'a Self, Self::Error> {
-        check_field(&(*value).a_comm, context, "a_comm")?;
-        check_field(&(*value).b_comm, context, "b_comm")?;
-        check_field(&(*value).c_comm, context, "c_comm")?;
-        check_field(&(*value).d_comm, context, "d_comm")?;
-
-        check_field(&(*value).z_comm, context, "z_comm")?;
-
-        check_field(&(*value).t_low_comm, context, "t_low_comm")?;
-        check_field(&(*value).t_mid_comm, context, "t_mid_comm")?;
-        check_field(&(*value).t_high_comm, context, "t_high_comm")?;
-        check_field(&(*value).t_4_comm, context, "t_4_comm")?;
-
-        check_field(&(*value).w_z_chall_comm, context, "w_z_chall_comm")?;
-        check_field(&(*value).w_z_chall_w_comm, context, "w_z_chall_w_comm")?;
-        check_field(&(*value).evaluations, context, "evaluations")?;
-
-        Ok(&*value)
-    }
-}
-
-// The struct Proof has 11 commitments + 1 ProofEvaluations
-impl Serializable<{ 11 * Commitment::SIZE + ProofEvaluations::SIZE }>
-    for Proof
-{
-    type Error = dusk_bytes::Error;
-
-    #[allow(unused_must_use)]
-    fn to_bytes(&self) -> [u8; Self::SIZE] {
-        use dusk_bytes::Write;
-
-        let mut buf = [0u8; Self::SIZE];
-        let mut writer = &mut buf[..];
-        writer.write(&self.a_comm.to_bytes());
-        writer.write(&self.b_comm.to_bytes());
-        writer.write(&self.c_comm.to_bytes());
-        writer.write(&self.d_comm.to_bytes());
-        writer.write(&self.z_comm.to_bytes());
-        writer.write(&self.t_low_comm.to_bytes());
-        writer.write(&self.t_mid_comm.to_bytes());
-        writer.write(&self.t_high_comm.to_bytes());
-        writer.write(&self.t_4_comm.to_bytes());
-        writer.write(&self.w_z_chall_comm.to_bytes());
-        writer.write(&self.w_z_chall_w_comm.to_bytes());
-        writer.write(&self.evaluations.to_bytes());
-
-        buf
-    }
-
-    fn from_bytes(buf: &[u8; Self::SIZE]) -> Result<Self, Self::Error> {
-        let mut buffer = &buf[..];
-
-        let a_comm = Commitment::from_reader(&mut buffer)?;
-        let b_comm = Commitment::from_reader(&mut buffer)?;
-        let c_comm = Commitment::from_reader(&mut buffer)?;
-        let d_comm = Commitment::from_reader(&mut buffer)?;
-        let z_comm = Commitment::from_reader(&mut buffer)?;
-        let t_low_comm = Commitment::from_reader(&mut buffer)?;
-        let t_mid_comm = Commitment::from_reader(&mut buffer)?;
-        let t_high_comm = Commitment::from_reader(&mut buffer)?;
-        let t_4_comm = Commitment::from_reader(&mut buffer)?;
-        let w_z_chall_comm = Commitment::from_reader(&mut buffer)?;
-        let w_z_chall_w_comm = Commitment::from_reader(&mut buffer)?;
-        let evaluations = ProofEvaluations::from_reader(&mut buffer)?;
-
-        Ok(Proof {
-            a_comm,
-            b_comm,
-            c_comm,
-            d_comm,
-            z_comm,
-            t_low_comm,
-            t_mid_comm,
-            t_high_comm,
-            t_4_comm,
-            w_z_chall_comm,
-            w_z_chall_w_comm,
-            evaluations,
-        })
-    }
 }
 
 use crate::{
@@ -194,6 +79,7 @@ impl Proof {
         opening_key: &OpeningKey,
         pub_inputs: &[BlsScalar],
     ) -> Result<(), Error> {
+        let n = verifier_key.n.next_power_of_two();
         let domain = EvaluationDomain::new(verifier_key.n)?;
 
         // Subgroup checks are done when the proof is deserialized.
@@ -240,7 +126,7 @@ impl Proof {
         let z_challenge = transcript.challenge_scalar(b"z_challenge");
 
         // Compute zero polynomial evaluated at challenge `z`
-        let z_h_eval = domain.evaluate_vanishing_polynomial(&z_challenge);
+        let z_h_eval = Polynomial::t(n as u64, z_challenge);
 
         // Compute first lagrange polynomial evaluated at challenge `z`
         let l1_eval =
@@ -262,8 +148,7 @@ impl Proof {
         // Compute commitment to quotient polynomial
         // This method is necessary as we pass the `un-splitted` variation
         // to our commitment scheme
-        let t_comm =
-            self.compute_quotient_commitment(&z_challenge, domain.size());
+        let t_comm = self.compute_quotient_commitment(&z_challenge, n);
 
         // Add evaluations to transcript
         transcript.append_scalar(b"a_eval", &self.evaluations.a_eval);
@@ -560,51 +445,4 @@ fn compute_barycentric_eval(
         .sum();
 
     result * numerator
-}
-
-#[cfg(test)]
-mod proof_tests {
-    use super::*;
-    use rand_core::OsRng;
-    use zero_bls12_381::Fr as BlsScalar;
-    use zero_crypto::behave::Group;
-
-    #[test]
-    fn test_dusk_bytes_serde_proof() {
-        let proof = Proof {
-            a_comm: Commitment::default(),
-            b_comm: Commitment::default(),
-            c_comm: Commitment::default(),
-            d_comm: Commitment::default(),
-            z_comm: Commitment::default(),
-            t_low_comm: Commitment::default(),
-            t_mid_comm: Commitment::default(),
-            t_high_comm: Commitment::default(),
-            t_4_comm: Commitment::default(),
-            w_z_chall_comm: Commitment::default(),
-            w_z_chall_w_comm: Commitment::default(),
-            evaluations: ProofEvaluations {
-                a_eval: BlsScalar::random(&mut OsRng),
-                b_eval: BlsScalar::random(&mut OsRng),
-                c_eval: BlsScalar::random(&mut OsRng),
-                d_eval: BlsScalar::random(&mut OsRng),
-                a_next_eval: BlsScalar::random(&mut OsRng),
-                b_next_eval: BlsScalar::random(&mut OsRng),
-                d_next_eval: BlsScalar::random(&mut OsRng),
-                q_arith_eval: BlsScalar::random(&mut OsRng),
-                q_c_eval: BlsScalar::random(&mut OsRng),
-                q_l_eval: BlsScalar::random(&mut OsRng),
-                q_r_eval: BlsScalar::random(&mut OsRng),
-                s_sigma_1_eval: BlsScalar::random(&mut OsRng),
-                s_sigma_2_eval: BlsScalar::random(&mut OsRng),
-                s_sigma_3_eval: BlsScalar::random(&mut OsRng),
-                r_poly_eval: BlsScalar::random(&mut OsRng),
-                perm_eval: BlsScalar::random(&mut OsRng),
-            },
-        };
-
-        let proof_bytes = proof.to_bytes();
-        let got_proof = Proof::from_bytes(&proof_bytes).unwrap();
-        assert_eq!(got_proof, proof);
-    }
 }
