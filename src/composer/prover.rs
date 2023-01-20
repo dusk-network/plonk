@@ -17,7 +17,7 @@ use zero_kzg::{Fft, Polynomial};
 
 use crate::commitment_scheme::CommitKey;
 use crate::error::Error;
-use crate::fft::{EvaluationDomain, Polynomial as FftPolynomial};
+use crate::fft::Polynomial as FftPolynomial;
 use crate::proof_system::proof::Proof;
 use crate::proof_system::{
     linearization_poly, quotient_poly, ProverKey, VerifierKey,
@@ -87,13 +87,13 @@ where
         rng: &mut R,
         witnesses: &[BlsScalar],
         hiding_degree: usize,
-        domain: &Fft<BlsScalar>,
+        fft: &Fft<BlsScalar>,
     ) -> FftPolynomial
     where
         R: RngCore,
     {
         let mut w_vec_inverse = Polynomial::new(witnesses.to_vec());
-        domain.idft(&mut w_vec_inverse);
+        fft.idft(&mut w_vec_inverse);
 
         for i in 0..hiding_degree + 1 {
             let blinding_scalar = util::random_scalar(rng);
@@ -117,11 +117,9 @@ where
     {
         let prover = Builder::prove(self.constraints, circuit)?;
 
-        let constraints = self.constraints;
         let size = self.size;
         let k = size.trailing_zeros();
 
-        let domain = EvaluationDomain::new(constraints)?;
         let fft = Fft::<BlsScalar>::new(k as usize);
 
         let mut transcript = self.transcript.clone();
@@ -243,7 +241,7 @@ where
         )?;
 
         // split quotient polynomial into 4 degree `n` polynomials
-        let domain_size = domain.size();
+        let domain_size = fft.size();
         let t_low_poly = FftPolynomial::from_coefficients_vec(
             t_poly[0..domain_size].to_vec(),
         );
@@ -276,7 +274,7 @@ where
         // round 5
         // compute linearization polynomial
         let (r_poly, evaluations) = linearization_poly::compute(
-            &domain,
+            fft.generator(),
             &self.prover_key,
             &(
                 alpha,
@@ -365,7 +363,7 @@ where
         let shifted_aggregate_witness =
             self.commit_key.compute_aggregate_witness(
                 &[z_poly, a_w_poly, b_w_poly, d_w_poly],
-                &(z_challenge * domain.group_gen),
+                &(z_challenge * fft.generator()),
                 &mut transcript,
             );
         let w_z_chall_w_comm =
