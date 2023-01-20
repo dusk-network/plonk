@@ -6,7 +6,6 @@
 
 //! Module containing the representation of a Commitment to a Polynomial.
 use codec::{Decode, Encode};
-use dusk_bytes::{DeserializableSlice, Serializable};
 use zero_bls12_381::{G1Affine, G1Projective};
 
 /// Holds a commitment to a polynomial in a form of a [`G1Affine`]-bls12_381
@@ -29,19 +28,6 @@ impl From<G1Projective> for Commitment {
     }
 }
 
-impl Serializable<{ G1Affine::SIZE }> for Commitment {
-    type Error = dusk_bytes::Error;
-
-    fn to_bytes(&self) -> [u8; Self::SIZE] {
-        self.0.to_bytes()
-    }
-
-    fn from_bytes(buf: &[u8; Self::SIZE]) -> Result<Self, Self::Error> {
-        let g1 = G1Affine::from_slice(buf)?;
-        Ok(Self(g1))
-    }
-}
-
 impl Commitment {
     /// Builds an identity [`Commitment`] which is equivalent to the
     /// [`G1Affine`] identity point in bls12_381.
@@ -53,20 +39,5 @@ impl Commitment {
 impl Default for Commitment {
     fn default() -> Commitment {
         Commitment::identity()
-    }
-}
-
-#[cfg(test)]
-mod commitment_tests {
-    use super::*;
-
-    #[test]
-    fn commitment_dusk_bytes_serde() {
-        let commitment =
-            Commitment(zero_bls12_381::G1Affine::ADDITIVE_GENERATOR);
-        let bytes = commitment.to_bytes();
-        let obtained_comm = Commitment::from_slice(&bytes)
-            .expect("Error on the deserialization");
-        assert_eq!(commitment, obtained_comm);
     }
 }
