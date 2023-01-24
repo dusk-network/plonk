@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add tests for `assert_equal_point` [#725]
+
 ### Removed
 
 - Remove `bit_iterator` macro [#632]
@@ -453,6 +457,7 @@ is necessary since `rkyv/validation` was required as a bound.
 - Proof system module.
 
 <!-- ISSUES -->
+[#725]: https://github.com/dusk-network/plonk/issues/725
 [#721]: https://github.com/dusk-network/plonk/issues/721
 [#717]: https://github.com/dusk-network/plonk/issues/717
 [#709]: https://github.com/dusk-network/plonk/issues/709
