@@ -304,3 +304,55 @@ fn mul_point_works() {
             .expect_err("circuit is not satisfied");
     }
 }
+
+#[test]
+fn assert_equal_point_different_y_fails() {
+    let rng = &mut StdRng::seed_from_u64(8349u64);
+
+    let n = 1 << 4;
+    let label = b"demo";
+    let pp = PublicParameters::setup(n, rng).expect("failed to create pp");
+
+    pub struct DummyCircuit {
+        p1: JubJubAffine,
+        p2: JubJubAffine,
+    }
+
+    impl Default for DummyCircuit {
+        fn default() -> Self {
+            Self {
+                p1: JubJubAffine::from_raw_unchecked(
+                    BlsScalar::one(),
+                    BlsScalar::one(),
+                ),
+                p2: JubJubAffine::from_raw_unchecked(
+                    BlsScalar::one(),
+                    BlsScalar::zero(),
+                ),
+            }
+        }
+    }
+
+    impl Circuit for DummyCircuit {
+        fn circuit<C>(&self, composer: &mut C) -> Result<(), Error>
+        where
+            C: Composer,
+        {
+            // test: p1 != p2
+            let w_p1 = composer.append_point(self.p1);
+            let w_p2 = composer.append_point(self.p2);
+            composer.assert_equal_point(w_p1, w_p2);
+            Ok(())
+        }
+    }
+
+    let (prover, _verifier) = Compiler::compile::<DummyCircuit>(&pp, label)
+        .expect("failed to compile circuit");
+
+    let proving_result = prover.prove(rng, &Default::default());
+
+    assert!(
+        proving_result.is_err(),
+        "proving should fail because the y coordinates don't match"
+    );
+}

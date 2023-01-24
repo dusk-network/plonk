@@ -629,7 +629,8 @@ pub trait Composer: Sized + Index<Witness, Output = BlsScalar> {
         self.append_gate(constraint);
     }
 
-    /// Asserts `a == b` by appending two gates
+    /// Asserts that the coordinates of the two points `a` and `b` are the same
+    /// by appending two gates
     fn assert_equal_point(&mut self, a: WitnessPoint, b: WitnessPoint) {
         self.assert_equal(*a.x(), *b.x());
         self.assert_equal(*a.y(), *b.y());
