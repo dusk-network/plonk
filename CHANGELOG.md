@@ -7,13 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add tests for `assert_equal_point` [#725]
+
 ### Removed
 
 - Remove `bit_iterator` macro [#632]
 
 ### Fixed
 
-- Fixed negation of public input values when using `composer.append_public` [#717]
+- Fix negation of public input values when using `composer.append_public` [#717]
+- Fix `assert_equal_point` method [#721]
 
 ## [0.13.1] - 2022-10-26
 
@@ -452,6 +457,8 @@ is necessary since `rkyv/validation` was required as a bound.
 - Proof system module.
 
 <!-- ISSUES -->
+[#725]: https://github.com/dusk-network/plonk/issues/725
+[#721]: https://github.com/dusk-network/plonk/issues/721
 [#717]: https://github.com/dusk-network/plonk/issues/717
 [#709]: https://github.com/dusk-network/plonk/issues/709
 [#697]: https://github.com/dusk-network/plonk/issues/697

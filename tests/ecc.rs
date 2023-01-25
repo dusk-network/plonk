@@ -304,3 +304,129 @@ fn mul_point_works() {
             .expect_err("circuit is not satisfied");
     }
 }
+
+#[test]
+fn assert_equal_point_works() {
+    let rng = &mut StdRng::seed_from_u64(8349u64);
+
+    let n = 1 << 4;
+    let label = b"demo";
+    let pp = PublicParameters::setup(n, rng).expect("failed to create pp");
+
+    pub struct DummyCircuit {
+        p1: JubJubAffine,
+        p2: JubJubAffine,
+    }
+
+    impl DummyCircuit {
+        pub fn new(p1: JubJubAffine, p2: JubJubAffine) -> Self {
+            Self { p1, p2 }
+        }
+    }
+
+    impl Default for DummyCircuit {
+        fn default() -> Self {
+            Self {
+                p1: dusk_jubjub::GENERATOR,
+                p2: dusk_jubjub::GENERATOR,
+            }
+        }
+    }
+
+    impl Circuit for DummyCircuit {
+        fn circuit<C>(&self, composer: &mut C) -> Result<(), Error>
+        where
+            C: Composer,
+        {
+            let w_p1 = composer.append_point(self.p1);
+            let w_p2 = composer.append_point(self.p2);
+            composer.assert_equal_point(w_p1, w_p2);
+
+            Ok(())
+        }
+    }
+
+    let (prover, verifier) = Compiler::compile::<DummyCircuit>(&pp, label)
+        .expect("failed to compile circuit");
+
+    // Test default works:
+    // GENERATOR = GENERATOR
+    {
+        let (proof, public_inputs) = prover
+            .prove(rng, &Default::default())
+            .expect("prover shouldn't fail");
+
+        assert_eq!(public_inputs.len(), 0);
+
+        verifier
+            .verify(&proof, &public_inputs)
+            .expect("Default circuit verification should pass");
+    }
+
+    // Test sanity:
+    // 42 * GENERATOR = 42 * GENERATOR
+    {
+        let scalar = JubJubScalar::from(42u64);
+        let p1 = dusk_jubjub::GENERATOR_EXTENDED * &scalar;
+        let p2 = dusk_jubjub::GENERATOR_EXTENDED * &scalar;
+        let circuit = DummyCircuit::new(p1.into(), p2.into());
+
+        let (proof, public_inputs) =
+            prover.prove(rng, &circuit).expect("prover shouldn't fail");
+
+        assert_eq!(public_inputs.len(), 0);
+
+        verifier
+            .verify(&proof, &public_inputs)
+            .expect("Circuit verification with equal points should pass");
+    }
+
+    // Test:
+    // GENERATOR != 42 * GENERATOR
+    {
+        let scalar = JubJubScalar::from(42u64);
+        let p1 = dusk_jubjub::GENERATOR;
+        let p2 = dusk_jubjub::GENERATOR_EXTENDED * &scalar;
+        let circuit = DummyCircuit::new(p1, p2.into());
+
+        prover
+            .prove(rng, &circuit)
+            .expect_err("prover should fail because the points are not equal");
+    }
+
+    // Test:
+    // assertion of points with different x-coordinates fails
+    {
+        let p1 = JubJubAffine::from_raw_unchecked(
+            BlsScalar::one(),
+            BlsScalar::one(),
+        );
+        let p2 = JubJubAffine::from_raw_unchecked(
+            BlsScalar::zero(),
+            BlsScalar::one(),
+        );
+        let circuit = DummyCircuit::new(p1, p2);
+
+        prover
+            .prove(rng, &circuit)
+            .expect_err("prover should fail because the x-coordinates of the points are not equal");
+    }
+
+    // Test:
+    // assertion of points with different y-coordinates fails
+    {
+        let p1 = JubJubAffine::from_raw_unchecked(
+            BlsScalar::one(),
+            BlsScalar::one(),
+        );
+        let p2 = JubJubAffine::from_raw_unchecked(
+            BlsScalar::one(),
+            BlsScalar::zero(),
+        );
+        let circuit = DummyCircuit::new(p1, p2);
+
+        prover
+            .prove(rng, &circuit)
+            .expect_err("prover should fail because the y-coordinates of the points are not equal");
+    }
+}
