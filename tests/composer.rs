@@ -57,7 +57,7 @@ fn circuit_with_all_gates() {
             composer.append_public(self.y);
 
             composer.assert_equal(w_x, r_w);
-            composer.assert_equal_constant(w_x, 0, Some(-self.x));
+            composer.assert_equal_constant(w_x, 0, Some(self.x));
             composer.assert_equal_point(w_z, w_z);
             composer.assert_equal_public_point(w_z, self.z);
 
