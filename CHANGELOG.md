@@ -19,6 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Fix negation of public input values when using `composer.append_public` [#717]
 - Fix `assert_equal_point` method [#721]
+- Fix negation of constant in `append_equal_constant` [#728]
+- Fix negation of public point coordinates in `assert_equal_public_point` [#728]
 
 ## [0.13.1] - 2022-10-26
 
@@ -457,6 +459,7 @@ is necessary since `rkyv/validation` was required as a bound.
 - Proof system module.
 
 <!-- ISSUES -->
+[#728]: https://github.com/dusk-network/plonk/issues/728
 [#725]: https://github.com/dusk-network/plonk/issues/725
 [#721]: https://github.com/dusk-network/plonk/issues/721
 [#717]: https://github.com/dusk-network/plonk/issues/717

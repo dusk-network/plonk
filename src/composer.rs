@@ -544,13 +544,13 @@ pub trait Composer: Sized + Index<Witness, Output = BlsScalar> {
         self.assert_equal_constant(
             *point.x(),
             BlsScalar::zero(),
-            Some(-affine.get_x()),
+            Some(affine.get_x()),
         );
 
         self.assert_equal_constant(
             *point.y(),
             BlsScalar::zero(),
-            Some(-affine.get_y()),
+            Some(affine.get_y()),
         );
 
         point
@@ -622,7 +622,10 @@ pub trait Composer: Sized + Index<Witness, Output = BlsScalar> {
         public: Option<BlsScalar>,
     ) {
         let constant = constant.into();
-        let constraint = Constraint::new().left(1).constant(-constant).a(a);
+        let constraint = Constraint::new()
+            .left(-BlsScalar::one())
+            .a(a)
+            .constant(constant);
         let constraint =
             public.map(|p| constraint.public(p)).unwrap_or(constraint);
 
@@ -649,13 +652,13 @@ pub trait Composer: Sized + Index<Witness, Output = BlsScalar> {
         self.assert_equal_constant(
             *point.x(),
             BlsScalar::zero(),
-            Some(-public.get_x()),
+            Some(public.get_x()),
         );
 
         self.assert_equal_constant(
             *point.y(),
             BlsScalar::zero(),
-            Some(-public.get_y()),
+            Some(public.get_y()),
         );
     }
 
