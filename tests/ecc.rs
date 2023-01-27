@@ -16,12 +16,12 @@ fn mul_generator_works() {
     let label = b"demo";
     let pp = PublicParameters::setup(n, rng).expect("failed to create pp");
 
-    pub struct DummyCircuit {
+    pub struct TestCircuit {
         a: JubJubScalar,
         b: JubJubExtended,
     }
 
-    impl DummyCircuit {
+    impl TestCircuit {
         pub fn new(a: JubJubScalar) -> Self {
             Self {
                 a,
@@ -30,13 +30,13 @@ fn mul_generator_works() {
         }
     }
 
-    impl Default for DummyCircuit {
+    impl Default for TestCircuit {
         fn default() -> Self {
             Self::new(JubJubScalar::from(7u64))
         }
     }
 
-    impl Circuit for DummyCircuit {
+    impl Circuit for TestCircuit {
         fn circuit<C>(&self, composer: &mut C) -> Result<(), Error>
         where
             C: Composer,
@@ -55,14 +55,14 @@ fn mul_generator_works() {
         }
     }
 
-    let (prover, verifier) = Compiler::compile::<DummyCircuit>(&pp, label)
+    let (prover, verifier) = Compiler::compile::<TestCircuit>(&pp, label)
         .expect("failed to compile circuit");
 
     // default works
     {
         let a = JubJubScalar::random(rng);
         let (proof, public_inputs) = prover
-            .prove(rng, &DummyCircuit::new(a))
+            .prove(rng, &TestCircuit::new(a))
             .expect("failed to prove");
 
         verifier
@@ -81,7 +81,7 @@ fn mul_generator_works() {
         assert_ne!(b, y);
 
         prover
-            .prove(rng, &DummyCircuit { a, b: y })
+            .prove(rng, &TestCircuit { a, b: y })
             .expect_err("invalid ecc proof isn't feasible");
     }
 
@@ -94,7 +94,7 @@ fn mul_generator_works() {
         let y = dusk_jubjub::GENERATOR_EXTENDED * &x;
 
         prover
-            .prove(rng, &DummyCircuit { a, b: y })
+            .prove(rng, &TestCircuit { a, b: y })
             .expect_err("invalid ecc proof isn't feasible");
     }
 }
@@ -107,13 +107,13 @@ fn add_point_works() {
     let label = b"demo";
     let pp = PublicParameters::setup(n, rng).expect("failed to create pp");
 
-    pub struct DummyCircuit {
+    pub struct TestCircuit {
         a: JubJubExtended,
         b: JubJubExtended,
         c: JubJubExtended,
     }
 
-    impl DummyCircuit {
+    impl TestCircuit {
         pub fn new(a: &JubJubScalar, b: &JubJubScalar) -> Self {
             let a = dusk_jubjub::GENERATOR_EXTENDED * a;
             let b = dusk_jubjub::GENERATOR_EXTENDED * b;
@@ -123,13 +123,13 @@ fn add_point_works() {
         }
     }
 
-    impl Default for DummyCircuit {
+    impl Default for TestCircuit {
         fn default() -> Self {
             Self::new(&JubJubScalar::from(7u64), &JubJubScalar::from(8u64))
         }
     }
 
-    impl Circuit for DummyCircuit {
+    impl Circuit for TestCircuit {
         fn circuit<C>(&self, composer: &mut C) -> Result<(), Error>
         where
             C: Composer,
@@ -146,7 +146,7 @@ fn add_point_works() {
         }
     }
 
-    let (prover, verifier) = Compiler::compile::<DummyCircuit>(&pp, label)
+    let (prover, verifier) = Compiler::compile::<TestCircuit>(&pp, label)
         .expect("failed to compile circuit");
 
     // default works
@@ -155,7 +155,7 @@ fn add_point_works() {
         let b = JubJubScalar::random(rng);
 
         let (proof, public_inputs) = prover
-            .prove(rng, &DummyCircuit::new(&a, &b))
+            .prove(rng, &TestCircuit::new(&a, &b))
             .expect("failed to prove");
 
         verifier
@@ -171,7 +171,7 @@ fn add_point_works() {
         let (proof, public_inputs) = prover
             .prove(
                 rng,
-                &DummyCircuit {
+                &TestCircuit {
                     a,
                     b: JubJubExtended::identity(),
                     c: a,
@@ -189,7 +189,7 @@ fn add_point_works() {
         let (proof, public_inputs) = prover
             .prove(
                 rng,
-                &DummyCircuit {
+                &TestCircuit {
                     a: JubJubExtended::identity(),
                     b: JubJubExtended::identity(),
                     c: JubJubExtended::identity(),
@@ -216,7 +216,7 @@ fn add_point_works() {
         assert_ne!(c, a + b);
 
         prover
-            .prove(rng, &DummyCircuit { a, b, c })
+            .prove(rng, &TestCircuit { a, b, c })
             .expect_err("invalid ecc proof isn't feasible");
     }
 }
@@ -229,13 +229,13 @@ fn mul_point_works() {
     let label = b"demo";
     let pp = PublicParameters::setup(n, rng).expect("failed to create pp");
 
-    pub struct DummyCircuit {
+    pub struct TestCircuit {
         a: JubJubScalar,
         b: JubJubExtended,
         c: JubJubExtended,
     }
 
-    impl DummyCircuit {
+    impl TestCircuit {
         pub fn new(a: JubJubScalar, b: JubJubExtended) -> Self {
             let c = b * &a;
 
@@ -243,7 +243,7 @@ fn mul_point_works() {
         }
     }
 
-    impl Default for DummyCircuit {
+    impl Default for TestCircuit {
         fn default() -> Self {
             let b = JubJubScalar::from(8u64);
             let b = dusk_jubjub::GENERATOR_EXTENDED * &b;
@@ -252,7 +252,7 @@ fn mul_point_works() {
         }
     }
 
-    impl Circuit for DummyCircuit {
+    impl Circuit for TestCircuit {
         fn circuit<C>(&self, composer: &mut C) -> Result<(), Error>
         where
             C: Composer,
@@ -269,7 +269,7 @@ fn mul_point_works() {
         }
     }
 
-    let (prover, verifier) = Compiler::compile::<DummyCircuit>(&pp, label)
+    let (prover, verifier) = Compiler::compile::<TestCircuit>(&pp, label)
         .expect("failed to compile circuit");
 
     // default works
@@ -279,7 +279,7 @@ fn mul_point_works() {
         let b = dusk_jubjub::GENERATOR_EXTENDED * &b;
 
         let (proof, public_inputs) = prover
-            .prove(rng, &DummyCircuit::new(a, b))
+            .prove(rng, &TestCircuit::new(a, b))
             .expect("failed to prove");
 
         verifier
@@ -300,7 +300,7 @@ fn mul_point_works() {
         assert_ne!(c, x);
 
         prover
-            .prove(rng, &DummyCircuit { a, b, c: x })
+            .prove(rng, &TestCircuit { a, b, c: x })
             .expect_err("circuit is not satisfied");
     }
 }
@@ -313,18 +313,18 @@ fn assert_equal_point_works() {
     let label = b"demo";
     let pp = PublicParameters::setup(n, rng).expect("failed to create pp");
 
-    pub struct DummyCircuit {
+    pub struct TestCircuit {
         p1: JubJubAffine,
         p2: JubJubAffine,
     }
 
-    impl DummyCircuit {
+    impl TestCircuit {
         pub fn new(p1: JubJubAffine, p2: JubJubAffine) -> Self {
             Self { p1, p2 }
         }
     }
 
-    impl Default for DummyCircuit {
+    impl Default for TestCircuit {
         fn default() -> Self {
             Self {
                 p1: dusk_jubjub::GENERATOR,
@@ -333,7 +333,7 @@ fn assert_equal_point_works() {
         }
     }
 
-    impl Circuit for DummyCircuit {
+    impl Circuit for TestCircuit {
         fn circuit<C>(&self, composer: &mut C) -> Result<(), Error>
         where
             C: Composer,
@@ -346,7 +346,7 @@ fn assert_equal_point_works() {
         }
     }
 
-    let (prover, verifier) = Compiler::compile::<DummyCircuit>(&pp, label)
+    let (prover, verifier) = Compiler::compile::<TestCircuit>(&pp, label)
         .expect("failed to compile circuit");
 
     // Test default works:
@@ -369,7 +369,7 @@ fn assert_equal_point_works() {
         let scalar = JubJubScalar::from(42u64);
         let p1 = dusk_jubjub::GENERATOR_EXTENDED * &scalar;
         let p2 = dusk_jubjub::GENERATOR_EXTENDED * &scalar;
-        let circuit = DummyCircuit::new(p1.into(), p2.into());
+        let circuit = TestCircuit::new(p1.into(), p2.into());
 
         let (proof, public_inputs) =
             prover.prove(rng, &circuit).expect("prover shouldn't fail");
@@ -387,7 +387,7 @@ fn assert_equal_point_works() {
         let scalar = JubJubScalar::from(42u64);
         let p1 = dusk_jubjub::GENERATOR;
         let p2 = dusk_jubjub::GENERATOR_EXTENDED * &scalar;
-        let circuit = DummyCircuit::new(p1, p2.into());
+        let circuit = TestCircuit::new(p1, p2.into());
 
         prover
             .prove(rng, &circuit)
@@ -405,7 +405,7 @@ fn assert_equal_point_works() {
             BlsScalar::zero(),
             BlsScalar::one(),
         );
-        let circuit = DummyCircuit::new(p1, p2);
+        let circuit = TestCircuit::new(p1, p2);
 
         prover
             .prove(rng, &circuit)
@@ -423,7 +423,7 @@ fn assert_equal_point_works() {
             BlsScalar::one(),
             BlsScalar::zero(),
         );
-        let circuit = DummyCircuit::new(p1, p2);
+        let circuit = TestCircuit::new(p1, p2);
 
         prover
             .prove(rng, &circuit)
@@ -439,18 +439,18 @@ fn assert_equal_public_point_works() {
     let label = b"demo";
     let pp = PublicParameters::setup(n, rng).expect("failed to create pp");
 
-    pub struct DummyCircuit {
+    pub struct TestCircuit {
         point: JubJubAffine,
         public: JubJubAffine,
     }
 
-    impl DummyCircuit {
+    impl TestCircuit {
         pub fn new(point: JubJubAffine, public: JubJubAffine) -> Self {
             Self { point, public }
         }
     }
 
-    impl Default for DummyCircuit {
+    impl Default for TestCircuit {
         fn default() -> Self {
             Self {
                 point: dusk_jubjub::GENERATOR,
@@ -459,7 +459,7 @@ fn assert_equal_public_point_works() {
         }
     }
 
-    impl Circuit for DummyCircuit {
+    impl Circuit for TestCircuit {
         fn circuit<C>(&self, composer: &mut C) -> Result<(), Error>
         where
             C: Composer,
@@ -471,14 +471,14 @@ fn assert_equal_public_point_works() {
         }
     }
 
-    let (prover, verifier) = Compiler::compile::<DummyCircuit>(&pp, label)
+    let (prover, verifier) = Compiler::compile::<TestCircuit>(&pp, label)
         .expect("failed to compile circuit");
 
     // Test default works:
     // GENERATOR = GENERATOR
     {
         let (proof, public_inputs) = prover
-            .prove(rng, &Default::default())
+            .prove(rng, &TestCircuit::default())
             .expect("prover shouldn't fail");
 
         assert_eq!(
@@ -501,7 +501,7 @@ fn assert_equal_public_point_works() {
         let scalar = JubJubScalar::from(42u64);
         let point = dusk_jubjub::GENERATOR_EXTENDED * &scalar;
         let public = dusk_jubjub::GENERATOR_EXTENDED * &scalar;
-        let circuit = DummyCircuit::new(point.into(), public.into());
+        let circuit = TestCircuit::new(point.into(), public.into());
 
         let (proof, public_inputs) =
             prover.prove(rng, &circuit).expect("prover shouldn't fail");
@@ -525,7 +525,7 @@ fn assert_equal_public_point_works() {
         let scalar = JubJubScalar::from(42u64);
         let point = dusk_jubjub::GENERATOR;
         let public = dusk_jubjub::GENERATOR_EXTENDED * &scalar;
-        let circuit = DummyCircuit::new(point, public.into());
+        let circuit = TestCircuit::new(point, public.into());
 
         prover
             .prove(rng, &circuit)
@@ -543,7 +543,7 @@ fn assert_equal_public_point_works() {
             BlsScalar::zero(),
             BlsScalar::one(),
         );
-        let circuit = DummyCircuit::new(point, public);
+        let circuit = TestCircuit::new(point, public);
 
         prover
             .prove(rng, &circuit)
@@ -561,7 +561,7 @@ fn assert_equal_public_point_works() {
             BlsScalar::one(),
             BlsScalar::zero(),
         );
-        let circuit = DummyCircuit::new(point, public);
+        let circuit = TestCircuit::new(point, public);
 
         prover
             .prove(rng, &circuit)
