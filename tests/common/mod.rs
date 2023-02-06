@@ -1,0 +1,59 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright (c) DUSK NETWORK. All rights reserved.
+
+use dusk_plonk::prelude::*;
+use rand::{CryptoRng, RngCore};
+
+// Create the circuit description for both the prover and the verifier,
+// the `capacity` is a power of two and larger than the amount of gates in `C`
+pub(crate) fn setup<C, R>(
+    capacity: usize,
+    rng: &mut R,
+    label: &[u8],
+) -> (Prover<C>, Verifier<C>)
+where
+    C: Circuit,
+    R: RngCore + CryptoRng,
+{
+    let pp = PublicParameters::setup(capacity, rng)
+        .expect("Creation of public parameter shouldn't fail");
+    Compiler::compile::<C>(&pp, label).expect("It should be possible to create the prover and verifier circuit descriptions")
+}
+
+// Check that proof creation and verification of a satisfied circuit passes
+// and that the public inputs are as expected
+pub(crate) fn check_satisfied_circuit<C, R>(
+    prover: &Prover<C>,
+    verifier: &Verifier<C>,
+    pi_expected: &Vec<BlsScalar>,
+    circuit: &C,
+    rng: &mut R,
+    msg: &str,
+) where
+    C: Circuit,
+    R: RngCore + CryptoRng,
+{
+    let (proof, pi_circuit) = prover
+        .prove(rng, circuit)
+        .expect("Prover for valid circuit shouldn't fail");
+
+    assert_eq!(*pi_expected, pi_circuit);
+
+    verifier.verify(&proof, &pi_circuit).expect(msg);
+}
+
+// Check that proof creation of an unsatisfied circuit fails
+pub(crate) fn check_unsatisfied_circuit<C, R>(
+    prover: &Prover<C>,
+    circuit: &C,
+    rng: &mut R,
+    msg: &str,
+) where
+    C: Circuit,
+    R: RngCore + CryptoRng,
+{
+    prover.prove(rng, circuit).expect_err(msg);
+}
