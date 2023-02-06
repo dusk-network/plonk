@@ -8,328 +8,33 @@ use dusk_plonk::prelude::*;
 use rand::rngs::StdRng;
 use rand::SeedableRng;
 
+mod common;
+use common::{check_satisfied_circuit, check_unsatisfied_circuit, setup};
+
 #[test]
-fn mul_generator_works() {
-    let rng = &mut StdRng::seed_from_u64(8349u64);
-
-    let n = 1 << 9;
-    let label = b"demo";
-    let pp = PublicParameters::setup(n, rng).expect("failed to create pp");
-
+fn component_add_point() {
     pub struct TestCircuit {
-        a: JubJubScalar,
-        b: JubJubExtended,
+        p1: JubJubExtended,
+        p2: JubJubExtended,
+        sum: JubJubExtended,
     }
 
     impl TestCircuit {
-        pub fn new(a: JubJubScalar) -> Self {
-            Self {
-                a,
-                b: dusk_jubjub::GENERATOR_EXTENDED * &a,
-            }
+        pub fn new(
+            p1: JubJubExtended,
+            p2: JubJubExtended,
+            sum: JubJubExtended,
+        ) -> Self {
+            Self { p1, p2, sum }
         }
     }
 
     impl Default for TestCircuit {
         fn default() -> Self {
-            Self::new(JubJubScalar::from(7u64))
-        }
-    }
-
-    impl Circuit for TestCircuit {
-        fn circuit<C>(&self, composer: &mut C) -> Result<(), Error>
-        where
-            C: Composer,
-        {
-            let w_a = composer.append_witness(self.a);
-            let w_b = composer.append_point(self.b);
-
-            let w_x = composer.component_mul_generator(
-                w_a,
-                dusk_jubjub::GENERATOR_EXTENDED,
-            )?;
-
-            composer.assert_equal_point(w_b, w_x);
-
-            Ok(())
-        }
-    }
-
-    let (prover, verifier) = Compiler::compile::<TestCircuit>(&pp, label)
-        .expect("failed to compile circuit");
-
-    // default works
-    {
-        let a = JubJubScalar::random(rng);
-        let (proof, public_inputs) = prover
-            .prove(rng, &TestCircuit::new(a))
-            .expect("failed to prove");
-
-        verifier
-            .verify(&proof, &public_inputs)
-            .expect("failed to verify proof");
-    }
-
-    // negative check
-    {
-        let a = JubJubScalar::from(7u64);
-        let b = dusk_jubjub::GENERATOR_EXTENDED * &a;
-
-        let x = JubJubScalar::from(8u64);
-        let y = dusk_jubjub::GENERATOR_EXTENDED * &x;
-
-        assert_ne!(b, y);
-
-        prover
-            .prove(rng, &TestCircuit { a, b: y })
-            .expect_err("invalid ecc proof isn't feasible");
-    }
-
-    // invalid jubjub won't panic
-    {
-        let a = -BlsScalar::one();
-        let a = JubJubScalar::from_raw(a.0);
-
-        let x = JubJubScalar::from(8u64);
-        let y = dusk_jubjub::GENERATOR_EXTENDED * &x;
-
-        prover
-            .prove(rng, &TestCircuit { a, b: y })
-            .expect_err("invalid ecc proof isn't feasible");
-    }
-}
-
-#[test]
-fn add_point_works() {
-    let rng = &mut StdRng::seed_from_u64(8349u64);
-
-    let n = 1 << 4;
-    let label = b"demo";
-    let pp = PublicParameters::setup(n, rng).expect("failed to create pp");
-
-    pub struct TestCircuit {
-        a: JubJubExtended,
-        b: JubJubExtended,
-        c: JubJubExtended,
-    }
-
-    impl TestCircuit {
-        pub fn new(a: &JubJubScalar, b: &JubJubScalar) -> Self {
-            let a = dusk_jubjub::GENERATOR_EXTENDED * a;
-            let b = dusk_jubjub::GENERATOR_EXTENDED * b;
-            let c = a + b;
-
-            Self { a, b, c }
-        }
-    }
-
-    impl Default for TestCircuit {
-        fn default() -> Self {
-            Self::new(&JubJubScalar::from(7u64), &JubJubScalar::from(8u64))
-        }
-    }
-
-    impl Circuit for TestCircuit {
-        fn circuit<C>(&self, composer: &mut C) -> Result<(), Error>
-        where
-            C: Composer,
-        {
-            let w_a = composer.append_point(self.a);
-            let w_b = composer.append_point(self.b);
-            let w_c = composer.append_point(self.c);
-
-            let w_x = composer.component_add_point(w_a, w_b);
-
-            composer.assert_equal_point(w_c, w_x);
-
-            Ok(())
-        }
-    }
-
-    let (prover, verifier) = Compiler::compile::<TestCircuit>(&pp, label)
-        .expect("failed to compile circuit");
-
-    // default works
-    {
-        let a = JubJubScalar::random(rng);
-        let b = JubJubScalar::random(rng);
-
-        let (proof, public_inputs) = prover
-            .prove(rng, &TestCircuit::new(&a, &b))
-            .expect("failed to prove");
-
-        verifier
-            .verify(&proof, &public_inputs)
-            .expect("failed to verify proof");
-    }
-
-    // identity works
-    {
-        let a = JubJubScalar::random(rng);
-        let a = dusk_jubjub::GENERATOR_EXTENDED * &a;
-
-        let (proof, public_inputs) = prover
-            .prove(
-                rng,
-                &TestCircuit {
-                    a,
-                    b: JubJubExtended::identity(),
-                    c: a,
-                },
-            )
-            .expect("failed to prove");
-
-        verifier
-            .verify(&proof, &public_inputs)
-            .expect("failed to verify proof");
-    }
-
-    // zero works
-    {
-        let (proof, public_inputs) = prover
-            .prove(
-                rng,
-                &TestCircuit {
-                    a: JubJubExtended::identity(),
-                    b: JubJubExtended::identity(),
-                    c: JubJubExtended::identity(),
-                },
-            )
-            .expect("failed to prove");
-
-        verifier
-            .verify(&proof, &public_inputs)
-            .expect("failed to verify proof");
-    }
-
-    // negative check
-    {
-        let a = JubJubScalar::from(7u64);
-        let a = dusk_jubjub::GENERATOR_EXTENDED * &a;
-
-        let b = JubJubScalar::from(8u64);
-        let b = dusk_jubjub::GENERATOR_EXTENDED * &b;
-
-        let c = JubJubScalar::from(9u64);
-        let c = dusk_jubjub::GENERATOR_EXTENDED * &c;
-
-        assert_ne!(c, a + b);
-
-        prover
-            .prove(rng, &TestCircuit { a, b, c })
-            .expect_err("invalid ecc proof isn't feasible");
-    }
-}
-
-#[test]
-fn mul_point_works() {
-    let rng = &mut StdRng::seed_from_u64(8349u64);
-
-    let n = 1 << 11;
-    let label = b"demo";
-    let pp = PublicParameters::setup(n, rng).expect("failed to create pp");
-
-    pub struct TestCircuit {
-        a: JubJubScalar,
-        b: JubJubExtended,
-        c: JubJubExtended,
-    }
-
-    impl TestCircuit {
-        pub fn new(a: JubJubScalar, b: JubJubExtended) -> Self {
-            let c = b * &a;
-
-            Self { a, b, c }
-        }
-    }
-
-    impl Default for TestCircuit {
-        fn default() -> Self {
-            let b = JubJubScalar::from(8u64);
-            let b = dusk_jubjub::GENERATOR_EXTENDED * &b;
-
-            Self::new(JubJubScalar::from(7u64), b)
-        }
-    }
-
-    impl Circuit for TestCircuit {
-        fn circuit<C>(&self, composer: &mut C) -> Result<(), Error>
-        where
-            C: Composer,
-        {
-            let w_a = composer.append_witness(self.a);
-            let w_b = composer.append_point(self.b);
-            let w_c = composer.append_point(self.c);
-
-            let w_x = composer.component_mul_point(w_a, w_b);
-
-            composer.assert_equal_point(w_c, w_x);
-
-            Ok(())
-        }
-    }
-
-    let (prover, verifier) = Compiler::compile::<TestCircuit>(&pp, label)
-        .expect("failed to compile circuit");
-
-    // default works
-    {
-        let a = JubJubScalar::random(rng);
-        let b = JubJubScalar::random(rng);
-        let b = dusk_jubjub::GENERATOR_EXTENDED * &b;
-
-        let (proof, public_inputs) = prover
-            .prove(rng, &TestCircuit::new(a, b))
-            .expect("failed to prove");
-
-        verifier
-            .verify(&proof, &public_inputs)
-            .expect("failed to verify proof");
-    }
-
-    // negative works
-    {
-        let a = JubJubScalar::random(rng);
-        let b = JubJubScalar::random(rng);
-        let b = dusk_jubjub::GENERATOR_EXTENDED * &b;
-        let c = b * &a;
-
-        let x = JubJubScalar::random(rng);
-        let x = dusk_jubjub::GENERATOR_EXTENDED * &x;
-
-        assert_ne!(c, x);
-
-        prover
-            .prove(rng, &TestCircuit { a, b, c: x })
-            .expect_err("circuit is not satisfied");
-    }
-}
-
-#[test]
-fn assert_equal_point_works() {
-    let rng = &mut StdRng::seed_from_u64(8349u64);
-
-    let n = 1 << 4;
-    let label = b"demo";
-    let pp = PublicParameters::setup(n, rng).expect("failed to create pp");
-
-    pub struct TestCircuit {
-        p1: JubJubAffine,
-        p2: JubJubAffine,
-    }
-
-    impl TestCircuit {
-        pub fn new(p1: JubJubAffine, p2: JubJubAffine) -> Self {
-            Self { p1, p2 }
-        }
-    }
-
-    impl Default for TestCircuit {
-        fn default() -> Self {
-            Self {
-                p1: dusk_jubjub::GENERATOR,
-                p2: dusk_jubjub::GENERATOR,
-            }
+            let p1 = JubJubExtended::identity();
+            let p2 = JubJubExtended::identity();
+            let sum = JubJubExtended::identity();
+            Self::new(p1.into(), p2.into(), sum.into())
         }
     }
 
@@ -340,122 +45,196 @@ fn assert_equal_point_works() {
         {
             let w_p1 = composer.append_point(self.p1);
             let w_p2 = composer.append_point(self.p2);
-            composer.assert_equal_point(w_p1, w_p2);
+            let w_sum = composer.append_point(self.sum);
+
+            let sum_circuit = composer.component_add_point(w_p1, w_p2);
+
+            composer.assert_equal_point(w_sum, sum_circuit);
 
             Ok(())
         }
     }
 
-    let (prover, verifier) = Compiler::compile::<TestCircuit>(&pp, label)
-        .expect("failed to compile circuit");
+    // Compile common circuit descriptions for the prover and verifier to be
+    // used by all tests
+    let label = b"component_add_point";
+    let rng = &mut StdRng::seed_from_u64(0xcafe);
+    let capacity = 1 << 4;
+    let (prover, verifier) = setup(capacity, rng, label);
 
     // Test default works:
-    // GENERATOR = GENERATOR
-    {
-        let (proof, public_inputs) = prover
-            .prove(rng, &Default::default())
-            .expect("prover shouldn't fail");
+    let msg = "Default circuit verification should pass";
+    let circuit = TestCircuit::default();
+    let pi = vec![];
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, rng, &msg);
 
-        assert_eq!(public_inputs.len(), 0);
+    // Test identity works:
+    let msg = "Random point addition should satisfy the circuit";
+    let p1 = dusk_jubjub::GENERATOR_EXTENDED * &JubJubScalar::random(rng);
+    let p2 = JubJubExtended::identity();
+    let sum = p1.clone();
+    let circuit = TestCircuit::new(p1, p2, sum);
+    let pi = vec![];
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, rng, &msg);
 
-        verifier
-            .verify(&proof, &public_inputs)
-            .expect("Default circuit verification should pass");
-    }
+    // Test distributivity:
+    // a * GENERATOR + b * GENERATOR = (a + b) * GENERATOR
+    let msg = "Random point addition should satisfy the circuit";
+    let a = JubJubScalar::random(rng);
+    let b = JubJubScalar::random(rng);
+    let p1 = dusk_jubjub::GENERATOR_EXTENDED * &a;
+    let p2 = dusk_jubjub::GENERATOR_EXTENDED * &b;
+    let sum = dusk_jubjub::GENERATOR_EXTENDED * &(a + b);
+    let circuit = TestCircuit::new(p1, p2, sum);
+    let pi = vec![];
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, rng, &msg);
 
-    // Test sanity:
-    // 42 * GENERATOR = 42 * GENERATOR
-    {
-        let scalar = JubJubScalar::from(42u64);
-        let p1 = dusk_jubjub::GENERATOR_EXTENDED * &scalar;
-        let p2 = dusk_jubjub::GENERATOR_EXTENDED * &scalar;
-        let circuit = TestCircuit::new(p1.into(), p2.into());
+    // Test random works:
+    let msg = "Random point addition should satisfy the circuit";
+    let p1 = dusk_jubjub::GENERATOR_EXTENDED * &JubJubScalar::random(rng);
+    let p2 = dusk_jubjub::GENERATOR_EXTENDED * &JubJubScalar::random(rng);
+    let sum = p1 + p2;
+    let circuit = TestCircuit::new(p1, p2, sum);
+    let pi = vec![];
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, rng, &msg);
 
-        let (proof, public_inputs) =
-            prover.prove(rng, &circuit).expect("prover shouldn't fail");
-
-        assert_eq!(public_inputs.len(), 0);
-
-        verifier
-            .verify(&proof, &public_inputs)
-            .expect("Circuit verification with equal points should pass");
-    }
-
-    // Test:
-    // GENERATOR != 42 * GENERATOR
-    {
-        let scalar = JubJubScalar::from(42u64);
-        let p1 = dusk_jubjub::GENERATOR;
-        let p2 = dusk_jubjub::GENERATOR_EXTENDED * &scalar;
-        let circuit = TestCircuit::new(p1, p2.into());
-
-        prover
-            .prove(rng, &circuit)
-            .expect_err("prover should fail because the points are not equal");
-    }
-
-    // Test:
-    // assertion of points with different x-coordinates fails
-    {
-        let p1 = JubJubAffine::from_raw_unchecked(
-            BlsScalar::one(),
-            BlsScalar::one(),
-        );
-        let p2 = JubJubAffine::from_raw_unchecked(
-            BlsScalar::zero(),
-            BlsScalar::one(),
-        );
-        let circuit = TestCircuit::new(p1, p2);
-
-        prover
-            .prove(rng, &circuit)
-            .expect_err("prover should fail because the x-coordinates of the points are not equal");
-    }
-
-    // Test:
-    // assertion of points with different y-coordinates fails
-    {
-        let p1 = JubJubAffine::from_raw_unchecked(
-            BlsScalar::one(),
-            BlsScalar::one(),
-        );
-        let p2 = JubJubAffine::from_raw_unchecked(
-            BlsScalar::one(),
-            BlsScalar::zero(),
-        );
-        let circuit = TestCircuit::new(p1, p2);
-
-        prover
-            .prove(rng, &circuit)
-            .expect_err("prover should fail because the y-coordinates of the points are not equal");
-    }
+    // Unsatisfied circuit
+    let msg = "Unsatisfied circuit should not pass";
+    let p1 = dusk_jubjub::GENERATOR_EXTENDED * &JubJubScalar::from(0xdecafu64);
+    let p2 = dusk_jubjub::GENERATOR_EXTENDED * &JubJubScalar::from(0xcafeu64);
+    let sum = dusk_jubjub::GENERATOR_EXTENDED * &JubJubScalar::from(0xcabu64);
+    let circuit = TestCircuit::new(p1, p2, sum);
+    check_unsatisfied_circuit(&prover, &circuit, rng, msg);
 }
 
 #[test]
-fn assert_equal_public_point_works() {
-    let rng = &mut StdRng::seed_from_u64(8349u64);
-
-    let n = 1 << 4;
-    let label = b"demo";
-    let pp = PublicParameters::setup(n, rng).expect("failed to create pp");
-
+fn component_mul_generator() {
     pub struct TestCircuit {
-        point: JubJubAffine,
-        public: JubJubAffine,
+        scalar: JubJubScalar,
+        generator: JubJubExtended,
+        result: JubJubExtended,
     }
 
     impl TestCircuit {
-        pub fn new(point: JubJubAffine, public: JubJubAffine) -> Self {
-            Self { point, public }
+        pub fn new(
+            scalar: JubJubScalar,
+            generator: JubJubExtended,
+            result: JubJubExtended,
+        ) -> Self {
+            Self {
+                scalar,
+                generator,
+                result,
+            }
         }
     }
 
     impl Default for TestCircuit {
         fn default() -> Self {
+            Self::new(
+                JubJubScalar::zero(),
+                dusk_jubjub::GENERATOR_EXTENDED,
+                JubJubExtended::identity(),
+            )
+        }
+    }
+
+    impl Circuit for TestCircuit {
+        fn circuit<C: Composer>(&self, composer: &mut C) -> Result<(), Error> {
+            let w_scalar = composer.append_witness(self.scalar);
+            let w_result = composer.append_point(self.result);
+
+            let circuit_result =
+                composer.component_mul_generator(w_scalar, self.generator)?;
+
+            composer.assert_equal_point(w_result, circuit_result);
+
+            Ok(())
+        }
+    }
+
+    // Compile common circuit descriptions for the prover and verifier to be
+    // used by all tests
+    let label = b"component_mul_generator";
+    let rng = &mut StdRng::seed_from_u64(0xbead);
+    let capacity = 1 << 9;
+    let (prover, verifier) = setup(capacity, rng, label);
+
+    // generator point and pi are the same for all tests
+    let generator = dusk_jubjub::GENERATOR_EXTENDED;
+    let pi = vec![];
+
+    // Test default works:
+    let msg = "Default circuit verification should pass";
+    let circuit = TestCircuit::default();
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, rng, msg);
+
+    // Test:
+    // GENERATOR * 1 = GENERATOR
+    let msg = "Circuit with generator multiplied by one should pass";
+    let scalar = JubJubScalar::one();
+    let result = dusk_jubjub::GENERATOR_EXTENDED;
+    let circuit = TestCircuit::new(scalar, generator, result);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, rng, msg);
+
+    // Test sanity:
+    // GENERATOR * random
+    let msg = "Circuit with random scalar should pass";
+    let scalar = JubJubScalar::random(rng);
+    let result = generator * &scalar;
+    let circuit = TestCircuit::new(scalar, generator, result);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, rng, msg);
+
+    // Test unsatisfied:
+    // GENERATOR * 7 != GENERATOR * 8
+    let msg = "Unsatisfied circuit should not pass";
+    let scalar = JubJubScalar::from(7u64);
+    let result = dusk_jubjub::GENERATOR_EXTENDED * &JubJubScalar::from(8u64);
+    let circuit = TestCircuit::new(scalar, generator, result);
+    check_unsatisfied_circuit(&prover, &circuit, rng, msg);
+
+    // Test unsatisfied:
+    // invalid jubjub scalar panics
+    let msg = "Unsatisfied circuit with invalid scalar should panic";
+    let scalar = JubJubScalar::from_raw((-BlsScalar::one()).0);
+    let result = dusk_jubjub::GENERATOR_EXTENDED;
+    let circuit = TestCircuit::new(scalar, generator, result);
+    check_unsatisfied_circuit(&prover, &circuit, rng, msg);
+}
+
+#[test]
+fn component_mul_point() {
+    pub struct TestCircuit {
+        scalar: JubJubScalar,
+        point: JubJubExtended,
+        result: JubJubExtended,
+    }
+
+    impl TestCircuit {
+        pub fn new(
+            scalar: JubJubScalar,
+            point: JubJubExtended,
+            result: JubJubExtended,
+        ) -> Self {
             Self {
-                point: dusk_jubjub::GENERATOR,
-                public: dusk_jubjub::GENERATOR,
+                scalar,
+                point,
+                result,
             }
+        }
+    }
+
+    impl Default for TestCircuit {
+        fn default() -> Self {
+            let scalar = JubJubScalar::from(0u64);
+            let point = dusk_jubjub::GENERATOR_EXTENDED;
+            let result = JubJubAffine::from_raw_unchecked(
+                BlsScalar::zero(),
+                BlsScalar::one(),
+            )
+            .into();
+
+            Self::new(scalar, point, result)
         }
     }
 
@@ -464,107 +243,69 @@ fn assert_equal_public_point_works() {
         where
             C: Composer,
         {
+            let w_scalar = composer.append_witness(self.scalar);
             let w_point = composer.append_point(self.point);
-            composer.assert_equal_public_point(w_point, self.public);
+            let w_result = composer.append_point(self.result);
+
+            let result_circuit =
+                composer.component_mul_point(w_scalar, w_point);
+
+            composer.assert_equal_point(w_result, result_circuit);
 
             Ok(())
         }
     }
 
-    let (prover, verifier) = Compiler::compile::<TestCircuit>(&pp, label)
-        .expect("failed to compile circuit");
+    // Compile common circuit descriptions for the prover and verifier to be
+    // used by all tests
+    let label = b"component_mul_point";
+    let rng = &mut StdRng::seed_from_u64(0xdeed);
+    let capacity = 1 << 11;
+    let (prover, verifier) = setup(capacity, rng, label);
 
     // Test default works:
-    // GENERATOR = GENERATOR
-    {
-        let (proof, public_inputs) = prover
-            .prove(rng, &TestCircuit::default())
-            .expect("prover shouldn't fail");
-
-        assert_eq!(
-            public_inputs,
-            vec![
-                dusk_jubjub::GENERATOR.get_x(),
-                dusk_jubjub::GENERATOR.get_y()
-            ],
-            "Public input should be the coordinates of the jubjub generator point"
-        );
-
-        verifier
-            .verify(&proof, &public_inputs)
-            .expect("Default circuit verification should pass");
-    }
-
-    // Test sanity:
-    // 42 * GENERATOR = 42 * GENERATOR
-    {
-        let scalar = JubJubScalar::from(42u64);
-        let point = dusk_jubjub::GENERATOR_EXTENDED * &scalar;
-        let public = dusk_jubjub::GENERATOR_EXTENDED * &scalar;
-        let circuit = TestCircuit::new(point.into(), public.into());
-
-        let (proof, public_inputs) =
-            prover.prove(rng, &circuit).expect("prover shouldn't fail");
-
-        let public_affine: JubJubAffine = public.into();
-        assert_eq!(
-            vec![public_affine.get_x(), public_affine.get_y()],
-            public_inputs,
-            "Public input should be the coordinates of the jubjub generator
-        point multiplied by 42"
-        );
-
-        verifier
-            .verify(&proof, &public_inputs)
-            .expect("Circuit verification with equal points should pass");
-    }
+    let msg = "Default circuit verification should pass";
+    let circuit = TestCircuit::default();
+    let pi = vec![];
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, rng, &msg);
 
     // Test:
-    // GENERATOR != 42 * GENERATOR
-    {
-        let scalar = JubJubScalar::from(42u64);
-        let point = dusk_jubjub::GENERATOR;
-        let public = dusk_jubjub::GENERATOR_EXTENDED * &scalar;
-        let circuit = TestCircuit::new(point, public.into());
-
-        prover
-            .prove(rng, &circuit)
-            .expect_err("prover should fail because the points are not equal");
-    }
+    // GENERATOR * 1 = GENERATOR
+    let msg = "Circuit with generator multiplied by one should pass";
+    let scalar = JubJubScalar::one();
+    let point = dusk_jubjub::GENERATOR_EXTENDED;
+    let result = dusk_jubjub::GENERATOR_EXTENDED;
+    let circuit = TestCircuit::new(scalar, point, result);
+    let pi = vec![];
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, rng, &msg);
 
     // Test:
-    // assertion of points with different x-coordinates fails
-    {
-        let point = JubJubAffine::from_raw_unchecked(
-            BlsScalar::one(),
-            BlsScalar::one(),
-        );
-        let public = JubJubAffine::from_raw_unchecked(
-            BlsScalar::zero(),
-            BlsScalar::one(),
-        );
-        let circuit = TestCircuit::new(point, public);
+    // random * 0 = (0, 1)
+    let msg =
+        "Circuit with random point multiplied by zero should be the o = (0,1)";
+    let scalar = JubJubScalar::zero();
+    let point = dusk_jubjub::GENERATOR_EXTENDED * &JubJubScalar::random(rng);
+    let result: JubJubExtended =
+        JubJubAffine::from_raw_unchecked(BlsScalar::zero(), BlsScalar::one())
+            .into();
+    let circuit = TestCircuit::new(scalar, point, result);
+    let pi = vec![];
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, rng, &msg);
 
-        prover
-            .prove(rng, &circuit)
-            .expect_err("prover should fail because the x-coordinates of the points are not equal");
-    }
+    // Test: random works
+    let msg = "Circuit with random point multiplication should pass";
+    let scalar = JubJubScalar::random(rng);
+    let point = dusk_jubjub::GENERATOR_EXTENDED * &JubJubScalar::random(rng);
+    let result = point * &scalar;
+    let circuit = TestCircuit::new(scalar, point, result);
+    let pi = vec![];
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, rng, &msg);
 
-    // Test:
-    // assertion of points with different y-coordinates fails
-    {
-        let point = JubJubAffine::from_raw_unchecked(
-            BlsScalar::one(),
-            BlsScalar::one(),
-        );
-        let public = JubJubAffine::from_raw_unchecked(
-            BlsScalar::one(),
-            BlsScalar::zero(),
-        );
-        let circuit = TestCircuit::new(point, public);
-
-        prover
-            .prove(rng, &circuit)
-            .expect_err("prover should fail because the y-coordinates of the points are not equal");
-    }
+    // Unsatisfied circuit
+    let msg = "Unsatisfied circuit should not pass";
+    let scalar = JubJubScalar::random(rng);
+    let point = dusk_jubjub::GENERATOR_EXTENDED * &JubJubScalar::random(rng);
+    let result = dusk_jubjub::GENERATOR_EXTENDED * &JubJubScalar::random(rng);
+    let circuit = TestCircuit::new(scalar, point, result);
+    check_unsatisfied_circuit(&prover, &circuit, rng, msg);
 }
