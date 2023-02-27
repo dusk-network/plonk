@@ -9,7 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add tests for `assert_equal_point` [#725]
+- Add and restructure tests for `assert_equal_point` [#725]
+- Add and restructure tests for `assert_equal_public_point` [#727]
+- Add and restructure tests for `append_gate` [#741]
+- Add and restructure tests for `assert_equal` and `assert_equal_constant` [#733]
+- Add and restructure integration tests [#731]
 
 ### Removed
 
@@ -459,7 +463,11 @@ is necessary since `rkyv/validation` was required as a bound.
 - Proof system module.
 
 <!-- ISSUES -->
+[#741]: https://github.com/dusk-network/plonk/issues/741
+[#733]: https://github.com/dusk-network/plonk/issues/733
+[#731]: https://github.com/dusk-network/plonk/issues/731
 [#728]: https://github.com/dusk-network/plonk/issues/728
+[#727]: https://github.com/dusk-network/plonk/issues/727
 [#725]: https://github.com/dusk-network/plonk/issues/725
 [#721]: https://github.com/dusk-network/plonk/issues/721
 [#717]: https://github.com/dusk-network/plonk/issues/717
