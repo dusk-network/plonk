@@ -301,12 +301,12 @@ pub(crate) mod alloc {
             let poly_num = 15;
 
             // The amount of distinct evaluations in `ProverKey`
-            // 20 (poly_num) + 1 (permutation) + 1 (v_h_coset_4n)
-            let eval_num = 22;
+            // poly_num + 1 (permutation) + 1 (v_h_coset_4n)
+            let eval_num = poly_num + 2;
 
             // The amount of i64 in `ProverKey`
-            // 1 (self.n) + 1 (eval_size) + 20 (poly_num)
-            let i64_num = 22;
+            //  poly_num + 1 (self.n) + 1 (eval_size)
+            let i64_num = poly_num + 2;
 
             // Calculate the amount of bytes needed to serialize `ProverKey`
             poly_size * poly_num + eval_size * eval_num + u64::SIZE * i64_num
