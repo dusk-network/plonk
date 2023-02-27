@@ -55,7 +55,7 @@ pub(crate) enum WiredWitness {
 /// evaluation
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Constraint {
-    coefficients: [BlsScalar; 13],
+    coefficients: [BlsScalar; 12],
     witnesses: [Witness; 4],
 
     // TODO Workaround solution to keep the sparse public input indexes in the
@@ -96,7 +96,7 @@ impl Constraint {
     /// Initiate the composition of a new selector description of a circuit.
     pub const fn new() -> Self {
         Self {
-            coefficients: [BlsScalar::zero(); 13],
+            coefficients: [BlsScalar::zero(); 12],
             witnesses: [Builder::ZERO; 4],
             has_public_input: false,
         }
