@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix `assert_equal_point` method [#721]
 - Fix negation of constant in `append_equal_constant` [#728]
 - Fix negation of public point coordinates in `assert_equal_public_point` [#728]
+- Fix `ProverKey::serialization_size` and number of coefficients in a constraint [#743]
 
 ## [0.13.1] - 2022-10-26
 
@@ -463,6 +464,7 @@ is necessary since `rkyv/validation` was required as a bound.
 - Proof system module.
 
 <!-- ISSUES -->
+[#743]: https://github.com/dusk-network/plonk/issues/743
 [#741]: https://github.com/dusk-network/plonk/issues/741
 [#733]: https://github.com/dusk-network/plonk/issues/733
 [#731]: https://github.com/dusk-network/plonk/issues/731
