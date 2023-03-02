@@ -47,7 +47,8 @@ fn component_boolean() {
     let label = b"component_boolean";
     let rng = &mut StdRng::seed_from_u64(0xfade);
     let capacity = 1 << 4;
-    let (prover, verifier) = setup(capacity, rng, label);
+    let (prover, verifier) =
+        setup(capacity, rng, label, &TestCircuit::default());
 
     // public inputs to be used by all tests
     let pi = vec![];

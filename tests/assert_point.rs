@@ -51,7 +51,8 @@ fn assert_equal_point() {
     let label = b"assert_equal_point";
     let rng = &mut StdRng::seed_from_u64(0xdecaf);
     let capacity = 1 << 4;
-    let (prover, verifier) = setup(capacity, rng, label);
+    let (prover, verifier) =
+        setup(capacity, rng, label, &TestCircuit::default());
 
     // Test default works:
     // GENERATOR = GENERATOR
@@ -139,7 +140,8 @@ fn assert_equal_public_point() {
     let label = b"assert_equal_public_point";
     let rng = &mut StdRng::seed_from_u64(0xfeed);
     let capacity = 1 << 4;
-    let (prover, verifier) = setup(capacity, rng, label);
+    let (prover, verifier) =
+        setup(capacity, rng, label, &TestCircuit::default());
 
     // Test default works:
     // GENERATOR = GENERATOR

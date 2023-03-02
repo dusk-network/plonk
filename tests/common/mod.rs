@@ -13,6 +13,7 @@ pub(crate) fn setup<C, R>(
     capacity: usize,
     rng: &mut R,
     label: &[u8],
+    circuit: &C,
 ) -> (Prover<C>, Verifier<C>)
 where
     C: Circuit,
@@ -20,7 +21,7 @@ where
 {
     let pp = PublicParameters::setup(capacity, rng)
         .expect("Creation of public parameter shouldn't fail");
-    Compiler::compile::<C>(&pp, label).expect("It should be possible to create the prover and verifier circuit descriptions")
+    Compiler::compile_with_circuit(&pp, label, circuit).expect("It should be possible to create the prover and verifier circuit descriptions")
 }
 
 // Check that proof creation and verification of a satisfied circuit passes

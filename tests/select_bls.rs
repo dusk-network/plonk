@@ -71,7 +71,8 @@ fn component_select() {
     let label = b"component_select";
     let rng = &mut StdRng::seed_from_u64(0xbeef);
     let capacity = 1 << 5;
-    let (prover, verifier) = setup(capacity, rng, label);
+    let (prover, verifier) =
+        setup(capacity, rng, label, &TestCircuit::default());
 
     // public inputs to be used by all tests
     let pi = vec![];
@@ -229,7 +230,8 @@ fn component_select_one() {
     let label = b"component_select_one";
     let rng = &mut StdRng::seed_from_u64(0xfee);
     let capacity = 1 << 5;
-    let (prover, verifier) = setup(capacity, rng, label);
+    let (prover, verifier) =
+        setup(capacity, rng, label, &TestCircuit::default());
 
     // public inputs to be used by all tests
     let pi = vec![];
@@ -376,7 +378,8 @@ fn component_select_zero() {
     let label = b"component_select_zero";
     let rng = &mut StdRng::seed_from_u64(0xca11);
     let capacity = 1 << 5;
-    let (prover, verifier) = setup(capacity, rng, label);
+    let (prover, verifier) =
+        setup(capacity, rng, label, &TestCircuit::default());
 
     // public inputs to be used by all tests
     let pi = vec![];
