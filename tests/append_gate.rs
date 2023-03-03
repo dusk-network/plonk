@@ -333,6 +333,19 @@ fn append_gate_with_public_and_constant() {
 
     // Test satisfied circuit:
     // q_m·a·b + q_l·a + q_r·b + q_o·o + q_4·d + q_c + PI = 0
+    let msg = "Satisfied circuit should pass";
+    let a = -BlsScalar::one();
+    let b = BlsScalar::one();
+    let d = -BlsScalar::from(2);
+    let o = BlsScalar::one();
+    let public = BlsScalar::from(3);
+    let pi = vec![public.clone()];
+    let circuit =
+        TestCircuit::new(q_l, q_r, q_m, q_k, q_o, a, b, d, o, public, constant);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, rng, &msg);
+
+    // Test satisfied circuit:
+    // q_m·a·b + q_l·a + q_r·b + q_o·o + q_4·d + q_c + PI = 0
     let msg = "Satisfied circuit with different public input and constant value from circuit description should pass";
     let a = BlsScalar::zero();
     let b = BlsScalar::zero();
