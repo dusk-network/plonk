@@ -55,7 +55,8 @@ fn assert_equal() {
     let label = b"assert_equal_constant_without_pi";
     let rng = &mut StdRng::seed_from_u64(0xc1adde);
     let capacity = 1 << 4;
-    let (prover, verifier) = setup(capacity, rng, label);
+    let (prover, verifier) =
+        setup(capacity, rng, label, &TestCircuit::default());
 
     // public input to be used by all tests
     let pi = vec![];
@@ -100,7 +101,8 @@ fn assert_equal() {
 }
 
 #[test]
-fn assert_equal_constant_without_pi() {
+fn assert_equal_constant() {
+    #[derive(Default)]
     pub struct TestCircuit {
         scalar: BlsScalar,
         constant: BlsScalar,
@@ -117,16 +119,6 @@ fn assert_equal_constant_without_pi() {
                 scalar,
                 constant,
                 public,
-            }
-        }
-    }
-
-    impl Default for TestCircuit {
-        fn default() -> Self {
-            Self {
-                scalar: BlsScalar::zero(),
-                constant: BlsScalar::zero(),
-                public: None,
             }
         }
     }
@@ -148,12 +140,14 @@ fn assert_equal_constant_without_pi() {
         }
     }
 
-    // Compile common circuit descriptions for the prover and verifier to be
-    // used by all tests
-    let label = b"assert_equal_constant_without_pi";
+    // Test: public = None, constant = zero
+    //
+    // Compile common circuit descriptions for the prover and verifier
+    let label = b"assert_equal_constant";
     let rng = &mut StdRng::seed_from_u64(0xfa11);
     let capacity = 1 << 4;
-    let (prover, verifier) = setup(capacity, rng, label);
+    let (prover, verifier) =
+        setup(capacity, rng, label, &TestCircuit::default());
 
     // Test default works:
     // 0 = 0 + None
@@ -179,68 +173,19 @@ fn assert_equal_constant_without_pi() {
     let public = None;
     let circuit = TestCircuit::new(scalar, constant, public);
     check_unsatisfied_circuit(&prover, &circuit, rng, &msg);
-}
 
-#[test]
-fn assert_equal_constant_with_pi() {
-    pub struct TestCircuit {
-        scalar: BlsScalar,
-        constant: BlsScalar,
-        public: Option<BlsScalar>,
-    }
-
-    impl TestCircuit {
-        pub fn new(
-            scalar: BlsScalar,
-            constant: BlsScalar,
-            public: Option<BlsScalar>,
-        ) -> Self {
-            Self {
-                scalar,
-                constant,
-                public,
-            }
-        }
-    }
-
-    impl Default for TestCircuit {
-        fn default() -> Self {
-            Self {
-                scalar: BlsScalar::zero(),
-                constant: BlsScalar::zero(),
-                public: Some(BlsScalar::zero()),
-            }
-        }
-    }
-
-    impl Circuit for TestCircuit {
-        fn circuit<C>(&self, composer: &mut C) -> Result<(), Error>
-        where
-            C: Composer,
-        {
-            let w_scalar = composer.append_witness(self.scalar);
-
-            composer.assert_equal_constant(
-                w_scalar,
-                self.constant,
-                self.public,
-            );
-
-            Ok(())
-        }
-    }
-
-    // Compile common circuit descriptions for the prover and verifier to be
-    // used by all tests
-    let label = b"assert_equal_constant_with_pi";
-    let rng = &mut StdRng::seed_from_u64(0xfa11);
-    let capacity = 1 << 4;
-    let (prover, verifier) = setup(capacity, rng, label);
+    // Test: public = Some(_), constant = zero
+    //
+    // Compile new circuit descriptions for the prover and verifier
+    let scalar = BlsScalar::zero();
+    let constant = BlsScalar::zero();
+    let public = Some(BlsScalar::zero());
+    let circuit = TestCircuit::new(scalar, constant, public);
+    let (prover, verifier) = setup(capacity, rng, label, &circuit);
 
     // Test default works:
     // 0 = 0 + 0
     let msg = "Default circuit verification should pass";
-    let circuit = TestCircuit::default();
     let pi = vec![BlsScalar::zero()];
     check_satisfied_circuit(&prover, &verifier, &pi, &circuit, rng, &msg);
 
@@ -271,77 +216,24 @@ fn assert_equal_constant_with_pi() {
     let public = Some(BlsScalar::zero());
     let circuit = TestCircuit::new(scalar, constant, public);
     check_unsatisfied_circuit(&prover, &circuit, rng, &msg);
-}
 
-#[test]
-fn assert_equal_random_constant_without_pi() {
-    const CONSTANT: BlsScalar = BlsScalar::from_raw([0x42, 0x42, 0x42, 0x42]);
-
-    pub struct TestCircuit {
-        scalar: BlsScalar,
-        constant: BlsScalar,
-        public: Option<BlsScalar>,
-    }
-
-    impl TestCircuit {
-        pub fn new(
-            scalar: BlsScalar,
-            constant: BlsScalar,
-            public: Option<BlsScalar>,
-        ) -> Self {
-            Self {
-                scalar,
-                constant,
-                public,
-            }
-        }
-    }
-
-    impl Default for TestCircuit {
-        fn default() -> Self {
-            Self {
-                scalar: CONSTANT,
-                constant: CONSTANT,
-                public: None,
-            }
-        }
-    }
-
-    impl Circuit for TestCircuit {
-        fn circuit<C>(&self, composer: &mut C) -> Result<(), Error>
-        where
-            C: Composer,
-        {
-            let w_scalar = composer.append_witness(self.scalar);
-
-            composer.assert_equal_constant(
-                w_scalar,
-                self.constant,
-                self.public,
-            );
-
-            Ok(())
-        }
-    }
-
-    // Compile common circuit descriptions for the prover and verifier to be
-    // used by all tests
-    let label = b"assert_equal_random_constant_without_pi";
-    let rng = &mut StdRng::seed_from_u64(0xfa11);
-    let capacity = 1 << 4;
-    let (prover, verifier) = setup(capacity, rng, label);
+    // Test: public = None, constant = random
+    //
+    // Compile new circuit descriptions for the prover and verifier
+    let constant = BlsScalar::random(rng);
+    let scalar = constant.clone();
+    let public = None;
+    let circuit = TestCircuit::new(scalar, constant, public);
+    let (prover, verifier) = setup(capacity, rng, label, &circuit);
 
     // Test default works:
     // x = x + None
     let msg = "Default circuit verification should pass";
-    let circuit = TestCircuit::default();
     let pi = vec![];
     check_satisfied_circuit(&prover, &verifier, &pi, &circuit, rng, &msg);
 
     // Test public input doesn't match
     let msg = "Satisfied circuit should not verify because pi length is not the same as in circuit description";
-    let scalar = CONSTANT;
-    let constant = CONSTANT;
     let public_value = BlsScalar::zero();
     let public = Some(public_value);
     let pi = vec![public_value];
@@ -355,70 +247,19 @@ fn assert_equal_random_constant_without_pi() {
     let public = None;
     let circuit = TestCircuit::new(scalar, constant, public);
     check_unsatisfied_circuit(&prover, &circuit, rng, &msg);
-}
 
-#[test]
-fn assert_equal_random_constant_with_pi() {
-    const CONSTANT: BlsScalar = BlsScalar::from_raw([0x42, 0x42, 0x42, 0x42]);
-
-    pub struct TestCircuit {
-        scalar: BlsScalar,
-        constant: BlsScalar,
-        public: Option<BlsScalar>,
-    }
-
-    impl TestCircuit {
-        pub fn new(
-            scalar: BlsScalar,
-            constant: BlsScalar,
-            public: Option<BlsScalar>,
-        ) -> Self {
-            Self {
-                scalar,
-                constant,
-                public,
-            }
-        }
-    }
-
-    impl Default for TestCircuit {
-        fn default() -> Self {
-            Self {
-                scalar: CONSTANT,
-                constant: CONSTANT,
-                public: Some(BlsScalar::zero()),
-            }
-        }
-    }
-
-    impl Circuit for TestCircuit {
-        fn circuit<C>(&self, composer: &mut C) -> Result<(), Error>
-        where
-            C: Composer,
-        {
-            let w_scalar = composer.append_witness(self.scalar);
-
-            composer.assert_equal_constant(
-                w_scalar,
-                self.constant,
-                self.public,
-            );
-
-            Ok(())
-        }
-    }
-
-    // Compile common circuit descriptions for the prover and verifier to be
-    // used by all tests
-    let label = b"assert_equal_random_constant_with_pi";
-    let rng = &mut StdRng::seed_from_u64(0xfa11);
-    let capacity = 1 << 4;
-    let (prover, verifier) = setup(capacity, rng, label);
+    // Test: public = Some(_), constant = random
+    //
+    // Compile new circuit descriptions for the prover and verifier
+    let constant = BlsScalar::random(rng);
+    let scalar = constant.clone();
+    let public = Some(BlsScalar::zero());
+    let circuit = TestCircuit::new(scalar, constant, public);
+    let (prover, verifier) = setup(capacity, rng, label, &circuit);
 
     // Test default works:
     // 0 = 0 + 0
     let msg = "Default circuit verification should pass";
-    let circuit = TestCircuit::default();
     let pi = vec![BlsScalar::zero()];
     check_satisfied_circuit(&prover, &verifier, &pi, &circuit, rng, &msg);
 
@@ -426,7 +267,6 @@ fn assert_equal_random_constant_with_pi() {
     // witness = constant + pi
     let msg = "Satisfied circuit should verify";
     let scalar = BlsScalar::random(rng);
-    let constant = CONSTANT;
     let public_value = scalar - constant;
     let public = Some(public_value);
     let pi = vec![public_value];
@@ -435,8 +275,7 @@ fn assert_equal_random_constant_with_pi() {
 
     // Test public input doesn't match
     let msg = "Satisfied circuit should not verify because pi length is not the same as in circuit description";
-    let scalar = CONSTANT;
-    let constant = CONSTANT;
+    let scalar = constant.clone();
     let public = None;
     let pi = vec![];
     let circuit = TestCircuit::new(scalar, constant, public);

@@ -60,7 +60,8 @@ fn component_add_point() {
     let label = b"component_add_point";
     let rng = &mut StdRng::seed_from_u64(0xcafe);
     let capacity = 1 << 4;
-    let (prover, verifier) = setup(capacity, rng, label);
+    let (prover, verifier) =
+        setup(capacity, rng, label, &TestCircuit::default());
 
     // Test default works:
     let msg = "Default circuit verification should pass";
@@ -158,7 +159,8 @@ fn component_mul_generator() {
     let label = b"component_mul_generator";
     let rng = &mut StdRng::seed_from_u64(0xbead);
     let capacity = 1 << 9;
-    let (prover, verifier) = setup(capacity, rng, label);
+    let (prover, verifier) =
+        setup(capacity, rng, label, &TestCircuit::default());
 
     // generator point and pi are the same for all tests
     let generator = dusk_jubjub::GENERATOR_EXTENDED;
@@ -261,7 +263,8 @@ fn component_mul_point() {
     let label = b"component_mul_point";
     let rng = &mut StdRng::seed_from_u64(0xdeed);
     let capacity = 1 << 11;
-    let (prover, verifier) = setup(capacity, rng, label);
+    let (prover, verifier) =
+        setup(capacity, rng, label, &TestCircuit::default());
 
     // Test default works:
     let msg = "Default circuit verification should pass";
