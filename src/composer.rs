@@ -910,8 +910,8 @@ pub trait Composer: Sized + Index<Witness, Output = BlsScalar> {
     /// Adds a range-constraint gate that checks and constrains a [`Witness`]
     /// to be encoded in at most `num_bits`.
     ///
-    /// This function adds `num_bits/4` gates to the circuit description in
-    /// order to add the range constraint.
+    /// This function adds min(1, `num_bits/4`) gates to the circuit description
+    /// in order to add the range constraint.
     ///
     ///# Panics
     /// This function will panic if the num_bits specified is not even, ie.
@@ -919,6 +919,13 @@ pub trait Composer: Sized + Index<Witness, Output = BlsScalar> {
     fn component_range(&mut self, witness: Witness, num_bits: usize) {
         // number of bits must be even
         debug_assert_eq!(num_bits % 2, 0);
+
+        // if num_bits = 0 constrain witness to 0
+        if num_bits == 0 {
+            let constraint = Constraint::new().left(1).a(witness);
+            self.append_gate(constraint);
+            return;
+        }
 
         // convert witness to bit representation and reverse
         let bits = self[witness];

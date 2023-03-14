@@ -57,9 +57,6 @@ fn range() {
     let circuit = TestCircuit::default();
     check_satisfied_circuit(&prover, &verifier, &pi, &circuit, rng, &msg);
 
-    /* FIXME #746:
-    * nothing can be encoded in zero bits so when bits = 0, all witnesses
-    * (except zero itself maybe) should fail
     // Test:
     // 1 < 2^0
     let msg = "Verification of satisfied circuit should pass";
@@ -75,7 +72,6 @@ fn range() {
     assert!(a != BlsScalar::zero());
     let circuit = TestCircuit::new(a, bits);
     check_unsatisfied_circuit(&prover, &circuit, rng, &msg);
-    */
 
     // Test bits = 2
     //
