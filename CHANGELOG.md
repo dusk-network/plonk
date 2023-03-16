@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add and restructure tests for range component [#735]
 - Add and restructure tests for boolean and select components [#731]
 - Add tests for `gate_add` and `gate_mul` [#736]
+- Add and restructure tests for `component_decomposition` [#738]
 
 ### Removed
 
@@ -468,6 +469,7 @@ is necessary since `rkyv/validation` was required as a bound.
 - Proof system module.
 
 <!-- ISSUES -->
+[#738]: https://github.com/dusk-network/plonk/issues/738
 [#746]: https://github.com/dusk-network/plonk/issues/746
 [#736]: https://github.com/dusk-network/plonk/issues/736
 [#735]: https://github.com/dusk-network/plonk/issues/735
