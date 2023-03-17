@@ -13,7 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add and restructure tests for `assert_equal_public_point` [#727]
 - Add and restructure tests for `append_gate` [#741]
 - Add and restructure tests for `assert_equal` and `assert_equal_constant` [#733]
-- Add and restructure integration tests [#731]
+- Add and restructure tests for logic component [#734]
+- Add and restructure tests for range component [#735]
+- Add and restructure integration tests for component boolean and component select [#731]
 
 ### Removed
 
@@ -26,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix negation of constant in `append_equal_constant` [#728]
 - Fix negation of public point coordinates in `assert_equal_public_point` [#728]
 - Fix `ProverKey::serialization_size` and number of coefficients in a constraint [#743]
+- Fix range gate for `bit_num = 0` [#746]
 
 ## [0.13.1] - 2022-10-26
 
@@ -464,6 +467,9 @@ is necessary since `rkyv/validation` was required as a bound.
 - Proof system module.
 
 <!-- ISSUES -->
+[#746]: https://github.com/dusk-network/plonk/issues/746
+[#735]: https://github.com/dusk-network/plonk/issues/735
+[#734]: https://github.com/dusk-network/plonk/issues/734
 [#743]: https://github.com/dusk-network/plonk/issues/743
 [#741]: https://github.com/dusk-network/plonk/issues/741
 [#733]: https://github.com/dusk-network/plonk/issues/733
