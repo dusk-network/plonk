@@ -907,8 +907,8 @@ pub trait Composer: Sized + Index<Witness, Output = BlsScalar> {
         self.gate_mul(constraint)
     }
 
-    /// Adds a range-constraint gate that checks and constrains a
-    /// [`Witness`] to be inside of the range \[0,num_bits\].
+    /// Adds a range-constraint gate that checks and constrains a [`Witness`]
+    /// to be encoded in at most `num_bits`.
     ///
     /// This function adds `num_bits/4` gates to the circuit description in
     /// order to add the range constraint.

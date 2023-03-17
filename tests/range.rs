@@ -8,34 +8,24 @@ use dusk_plonk::prelude::*;
 use rand::rngs::StdRng;
 use rand::SeedableRng;
 
+mod common;
+use common::{check_satisfied_circuit, check_unsatisfied_circuit, setup};
+
 #[test]
-fn range_works() {
-    let rng = &mut StdRng::seed_from_u64(8349u64);
-
-    let n = 1 << 5;
-    let label = b"demo";
-    let pp = PublicParameters::setup(n, rng).expect("failed to create pp");
-
-    const DEFAULT_BITS: usize = 76;
-
-    pub struct DummyCircuit {
+fn range() {
+    #[derive(Default)]
+    pub struct TestCircuit {
         a: BlsScalar,
         bits: usize,
     }
 
-    impl DummyCircuit {
+    impl TestCircuit {
         pub fn new(a: BlsScalar, bits: usize) -> Self {
             Self { a, bits }
         }
     }
 
-    impl Default for DummyCircuit {
-        fn default() -> Self {
-            Self::new(7u64.into(), DEFAULT_BITS)
-        }
-    }
-
-    impl Circuit for DummyCircuit {
+    impl Circuit for TestCircuit {
         fn circuit<C>(&self, composer: &mut C) -> Result<(), Error>
         where
             C: Composer,
@@ -48,40 +38,133 @@ fn range_works() {
         }
     }
 
-    let (prover, verifier) = Compiler::compile::<DummyCircuit>(&pp, label)
-        .expect("failed to compile circuit");
+    // Compile common circuit descriptions for the prover and verifier to be
+    // used by all tests
+    let label = b"component_range";
+    let rng = &mut StdRng::seed_from_u64(0xb1eeb);
+    let capacity = 1 << 6;
+    let (prover, verifier) =
+        setup(capacity, rng, label, &TestCircuit::default());
 
-    // default works
-    {
-        let a = BlsScalar::from(u64::MAX);
+    // public input to be used by all tests
+    let pi = vec![];
 
-        let (proof, public_inputs) = prover
-            .prove(rng, &DummyCircuit::new(a, DEFAULT_BITS))
-            .expect("failed to prove");
+    // Test bits = 0
+    //
+    // Test default works:
+    // 0 < 2^0
+    let msg = "Default circuit verification should pass";
+    let circuit = TestCircuit::default();
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, rng, &msg);
 
-        verifier
-            .verify(&proof, &public_inputs)
-            .expect("failed to verify proof");
-    }
+    /* FIXME #746:
+    * nothing can be encoded in zero bits so when bits = 0, all witnesses
+    * (except zero itself maybe) should fail
+    // Test:
+    // 1 < 2^0
+    let msg = "Verification of satisfied circuit should pass";
+    let bits = 0;
+    let a = BlsScalar::one();
+    let circuit = TestCircuit::new(a, bits);
+    check_unsatisfied_circuit(&prover, &circuit, rng, &msg);
 
-    // negative works
-    {
-        let a = -BlsScalar::pow_of_2(DEFAULT_BITS as u64 + 1);
+    // Test:
+    // random !< 2^0
+    let msg = "Unsatisfied circuit should fail";
+    let a = BlsScalar::random(rng);
+    assert!(a != BlsScalar::zero());
+    let circuit = TestCircuit::new(a, bits);
+    check_unsatisfied_circuit(&prover, &circuit, rng, &msg);
+    */
 
-        prover
-            .prove(rng, &DummyCircuit::new(a, DEFAULT_BITS))
-            .expect_err("bits aren't in range");
-    }
+    // Test bits = 2
+    //
+    // Compile new circuit descriptions for the prover and verifier
+    let bits = 2;
+    let a = BlsScalar::one();
+    let circuit = TestCircuit::new(a, bits);
+    let (prover, verifier) = setup(capacity, rng, label, &circuit);
 
-    // odd bits won't panic
-    {
-        let a = BlsScalar::one();
+    // Test:
+    // 1 < 2^2
+    let msg = "Verification of a satisfied circuit should pass";
+    let circuit = TestCircuit::new(a, bits);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, rng, &msg);
 
-        Compiler::compile_with_circuit::<DummyCircuit>(
-            &pp,
-            label,
-            &DummyCircuit::new(a, DEFAULT_BITS + 1),
-        )
-        .expect("failed to compile circuit");
-    }
+    // Test fails:
+    // 4 !< 2^2
+    let msg = "Proof creation of an unsatisfied circuit should fail";
+    let a = BlsScalar::from(4);
+    let circuit = TestCircuit::new(a, bits);
+    check_unsatisfied_circuit(&prover, &circuit, rng, &msg);
+
+    // Test bits = 4
+    //
+    // Compile new circuit descriptions for the prover and verifier
+    let bits = 4;
+    let a = BlsScalar::from(15);
+    let circuit = TestCircuit::new(a, bits);
+    let (prover, verifier) = setup(capacity, rng, label, &circuit);
+
+    // Test:
+    // 15 < 2^4
+    let msg = "Verification of a satisfied circuit should pass";
+    let circuit = TestCircuit::new(a, bits);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, rng, &msg);
+
+    // Test fails:
+    // 16 !< 2^4
+    let msg = "Proof creation of an unsatisfied circuit should fail";
+    let a = BlsScalar::from(16);
+    let circuit = TestCircuit::new(a, bits);
+    check_unsatisfied_circuit(&prover, &circuit, rng, &msg);
+
+    // Test bits = 74
+    //
+    // Compile new circuit descriptions for the prover and verifier
+    let bits = 74;
+    let a = BlsScalar::pow_of_2(73);
+    let circuit = TestCircuit::new(a, bits);
+    let (prover, verifier) = setup(capacity, rng, label, &circuit);
+
+    // Test:
+    // 2^73 < 2^74
+    let msg = "Verification of a satisfied circuit should pass";
+    let circuit = TestCircuit::new(a, bits);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, rng, &msg);
+
+    // Test:
+    // 2^74 - 1 < 2^74
+    let msg = "Verification of a satisfied circuit should pass";
+    let a = BlsScalar::pow_of_2(74) - BlsScalar::one();
+    let circuit = TestCircuit::new(a, bits);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, rng, &msg);
+
+    // Test fails:
+    // 2^74 !< 2^74
+    let msg = "Proof creation of an unsatisfied circuit should fail";
+    let a = BlsScalar::pow_of_2(74);
+    let circuit = TestCircuit::new(a, bits);
+    check_unsatisfied_circuit(&prover, &circuit, rng, &msg);
+
+    // Test bits = 256
+    //
+    // Compile new circuit descriptions for the prover and verifier
+    let bits = 256;
+    let a = BlsScalar::pow_of_2(255);
+    let circuit = TestCircuit::new(a, bits);
+    let (prover, verifier) = setup(capacity, rng, label, &circuit);
+
+    // Test:
+    // 2^255 < 2^256
+    let msg = "Verification of a satisfied circuit should pass";
+    let circuit = TestCircuit::new(a, bits);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, rng, &msg);
+
+    // Test:
+    // -bls(1) < 2^256
+    let msg = "Verification of a satisfied circuit should pass";
+    let a = -BlsScalar::one();
+    let circuit = TestCircuit::new(a, bits);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, rng, &msg);
 }
