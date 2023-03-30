@@ -725,11 +725,16 @@ pub trait Composer: Sized + Index<Witness, Output = BlsScalar> {
         self.append_gate(constraint);
     }
 
-    /// Decomposes `scalar` into an array truncated to `N` bits (max 256).
+    /// Decomposes `scalar` into an array truncated to `N` bits (max 256) in
+    /// little endian.
+    /// The `scalar` for 4, for example, would be deconstructed into the array
+    /// `[0, 0, 1]` for `N = 3` and `[0, 0, 1, 0, 0]` for `N = 5`.
     ///
-    /// Asserts the reconstruction of the bits to be equal to `scalar`.
+    /// Asserts the reconstruction of the bits to be equal to `scalar`. So with
+    /// the above example, the deconstruction of 4 for `N < 3` would result in
+    /// an unsatisfied circuit.
     ///
-    /// Consume `2 · N + 1` gates
+    /// Consumes `2 · N + 1` gates
     fn component_decomposition<const N: usize>(
         &mut self,
         scalar: Witness,
@@ -745,15 +750,15 @@ pub trait Composer: Sized + Index<Witness, Output = BlsScalar> {
             .iter()
             .enumerate()
             .zip(decomposition.iter_mut())
-            .fold(acc, |acc, ((i, w), d)| {
-                *d = self.append_witness(BlsScalar::from(*w as u64));
+            .fold(acc, |acc, ((i, bit), w_bit)| {
+                *w_bit = self.append_witness(BlsScalar::from(*bit as u64));
 
-                self.component_boolean(*d);
+                self.component_boolean(*w_bit);
 
                 let constraint = Constraint::new()
                     .left(BlsScalar::pow_of_2(i as u64))
                     .right(1)
-                    .a(*d)
+                    .a(*w_bit)
                     .b(acc);
 
                 self.gate_add(constraint)

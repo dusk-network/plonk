@@ -8,84 +8,148 @@ use dusk_plonk::prelude::*;
 use rand::rngs::StdRng;
 use rand::SeedableRng;
 
+mod common;
+use common::{check_satisfied_circuit, check_unsatisfied_circuit, setup};
+
 #[test]
-fn decomposition_works() {
-    let rng = &mut StdRng::seed_from_u64(8349u64);
-
-    let n = 1 << 10;
-    let label = b"demo";
-    let pp = PublicParameters::setup(n, rng).expect("failed to create pp");
-
-    pub struct DummyCircuit<const N: usize> {
+fn component_decomposition() {
+    pub struct TestCircuit<const N: usize> {
         a: BlsScalar,
-        bits: [BlsScalar; N],
+        decomp_expected: [BlsScalar; N],
     }
 
-    impl<const N: usize> DummyCircuit<N> {
-        pub fn new(a: BlsScalar) -> Self {
-            let mut bits = [BlsScalar::zero(); N];
-
-            bits.iter_mut()
-                .zip(a.to_bits().iter())
-                .for_each(|(b, v)| *b = BlsScalar::from(*v as u64));
-
-            Self { a, bits }
+    impl<const N: usize> TestCircuit<N> {
+        pub fn new(a: BlsScalar, decomp_expected: [BlsScalar; N]) -> Self {
+            Self { a, decomp_expected }
         }
     }
 
-    impl<const N: usize> Default for DummyCircuit<N> {
+    impl<const N: usize> Default for TestCircuit<N> {
         fn default() -> Self {
-            Self::new(BlsScalar::from(23u64))
+            Self::new(BlsScalar::zero(), [BlsScalar::zero(); N])
         }
     }
 
-    impl<const N: usize> Circuit for DummyCircuit<N> {
+    impl<const N: usize> Circuit for TestCircuit<N> {
         fn circuit<C>(&self, composer: &mut C) -> Result<(), Error>
         where
             C: Composer,
         {
             let w_a = composer.append_witness(self.a);
-            let mut w_bits: [Witness; N] = [C::ZERO; N];
+            let decomp_circuit: [Witness; N] =
+                composer.component_decomposition(w_a);
 
-            w_bits
-                .iter_mut()
-                .zip(self.bits.iter())
-                .for_each(|(w, b)| *w = composer.append_witness(*b));
-
-            let w_x: [Witness; N] = composer.component_decomposition(w_a);
-
-            w_bits.iter().zip(w_x.iter()).for_each(|(w, b)| {
-                composer.assert_equal(*w, *b);
-            });
+            decomp_circuit.iter().zip(self.decomp_expected).for_each(
+                |(bit_circuit, bit_expected)| {
+                    let w_bit_expected = composer.append_witness(bit_expected);
+                    composer.assert_equal(*bit_circuit, w_bit_expected);
+                },
+            );
 
             Ok(())
         }
     }
 
-    let (prover, verifier) = Compiler::compile::<DummyCircuit<256>>(&pp, label)
-        .expect("failed to compile circuit");
+    let label = b"component_decomposition";
+    let rng = &mut StdRng::seed_from_u64(0x1ea);
+    let capacity = 1 << 10;
+    let pi = vec![];
 
-    // default works
-    {
-        let a = BlsScalar::random(rng);
+    // Test N = 1
+    //
+    // Compile new circuit descriptions for the prover and verifier
+    const N1: usize = 1;
+    let circuit = TestCircuit::<N1>::default();
+    let (prover, verifier) = setup(capacity, rng, label, &circuit);
 
-        let (proof, public_inputs) = prover
-            .prove(rng, &DummyCircuit::<256>::new(a))
-            .expect("failed to prove");
+    // Test default works:
+    let msg = "Default circuit verification should pass";
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, rng, &msg);
 
-        verifier
-            .verify(&proof, &public_inputs)
-            .expect("failed to verify proof");
-    }
+    // Test bls one
+    let msg = "Verification of satisfied circuit should pass";
+    let a = BlsScalar::one();
+    let mut decomp_expected = [BlsScalar::zero(); N1];
+    decomp_expected[0] = BlsScalar::one();
+    let circuit = TestCircuit::new(a, decomp_expected);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, rng, &msg);
 
-    // negative works
-    {
-        let a = BlsScalar::random(rng);
+    // Test bls two fails
+    let msg = "Proof creation of unsatisfied circuit should fail";
+    let a = BlsScalar::from(2);
+    let decomp_expected = [BlsScalar::zero(); N1];
+    let circuit = TestCircuit::new(a, decomp_expected);
+    check_unsatisfied_circuit(&prover, &circuit, rng, &msg);
 
-        let mut circuit = DummyCircuit::<256>::new(a);
+    // Test N = 64
+    //
+    // Compile new circuit descriptions for the prover and verifier
+    const N64: usize = 64;
+    let circuit = TestCircuit::<N64>::default();
+    let (prover, verifier) = setup(capacity, rng, label, &circuit);
 
-        circuit.bits[10] = circuit.bits[10] ^ BlsScalar::one();
+    // Test default works:
+    let msg = "Default circuit verification should pass";
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, rng, &msg);
 
-        prover.prove(rng, &circuit).expect_err("invalid proof");
-    }
+    // Test bls two
+    let msg = "Verification of satisfied circuit should pass";
+    let a = BlsScalar::from(2);
+    let mut decomp_expected = [BlsScalar::zero(); N64];
+    decomp_expected[1] = BlsScalar::one();
+    let circuit = TestCircuit::new(a, decomp_expected);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, rng, &msg);
+
+    // Test bls forty two
+    let msg = "Verification of satisfied circuit should pass";
+    let a = BlsScalar::from(42);
+    let mut decomp_expected = [BlsScalar::zero(); N64];
+    decomp_expected[5] = BlsScalar::one();
+    decomp_expected[3] = BlsScalar::one();
+    decomp_expected[1] = BlsScalar::one();
+    let circuit = TestCircuit::new(a, decomp_expected);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, rng, &msg);
+
+    // Test u64::MAX
+    let msg = "Verification of satisfied circuit should pass";
+    let a = BlsScalar::from(u64::MAX);
+    let decomp_expected = [BlsScalar::one(); N64];
+    let circuit = TestCircuit::new(a, decomp_expected);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, rng, &msg);
+
+    // Test 2 * u64::MAX + 1 fails
+    let msg = "Proof creation of unsatisfied circuit should fail";
+    let a = BlsScalar::from(u64::MAX) * BlsScalar::from(2) + BlsScalar::one();
+    let decomp_expected = [BlsScalar::one(); N64];
+    let circuit = TestCircuit::new(a, decomp_expected);
+    check_unsatisfied_circuit(&prover, &circuit, rng, &msg);
+
+    // Test N = 64
+    //
+    // Compile new circuit descriptions for the prover and verifier
+    const N256: usize = 256;
+    let circuit = TestCircuit::<N256>::default();
+    let (prover, verifier) = setup(capacity, rng, label, &circuit);
+
+    // Test random works:
+    let msg = "Verification of satisfied circuit should pass";
+    let a = BlsScalar::random(rng);
+    let mut decomp_expected = [BlsScalar::zero(); N256];
+    a.to_bits().iter().enumerate().for_each(|(i, bit)| {
+        decomp_expected[i] = BlsScalar::from(*bit as u64);
+    });
+    let circuit = TestCircuit::new(a, decomp_expected);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, rng, &msg);
+
+    // Test flipping one bit fails
+    let msg = "Proof creation of unsatisfied circuit should fail";
+    let a = BlsScalar::random(rng);
+    let mut decomp_expected = [BlsScalar::zero(); N256];
+    a.to_bits().iter().enumerate().for_each(|(i, bit)| {
+        decomp_expected[i] = BlsScalar::from(*bit as u64);
+    });
+    decomp_expected[123] *= -BlsScalar::one();
+    decomp_expected[123] += BlsScalar::one();
+    let circuit = TestCircuit::new(a, decomp_expected);
+    check_unsatisfied_circuit(&prover, &circuit, rng, &msg);
 }
