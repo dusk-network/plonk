@@ -42,13 +42,13 @@ pub trait Composer: Sized + Index<Witness, Output = BlsScalar> {
     ///
     /// A turbo composer expects the first witness to be always present and to
     /// be zero.
-    const ZERO: Witness = Witness::new(0);
+    const ZERO: Witness = Witness::ZERO;
 
     /// `One` representation inside the constraint system.
     ///
     /// A turbo composer expects the 2nd witness to be always present and to
     /// be one.
-    const ONE: Witness = Witness::new(1);
+    const ONE: Witness = Witness::ONE;
 
     /// Identity point representation inside the constraint system
     const IDENTITY: WitnessPoint = WitnessPoint::new(Self::ZERO, Self::ONE);

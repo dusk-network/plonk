@@ -5,7 +5,6 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use alloc::vec::Vec;
-use core::marker::PhantomData;
 use core::ops;
 
 use dusk_bls12_381::BlsScalar;
@@ -27,10 +26,7 @@ use super::{Builder, Circuit, Composer};
 
 /// Turbo Prover with processed keys
 #[derive(Clone)]
-pub struct Prover<C>
-where
-    C: Circuit,
-{
+pub struct Prover {
     label: Vec<u8>,
     pub(crate) prover_key: ProverKey,
     pub(crate) commit_key: CommitKey,
@@ -38,13 +34,9 @@ where
     pub(crate) transcript: Transcript,
     pub(crate) size: usize,
     pub(crate) constraints: usize,
-    circuit: PhantomData<C>,
 }
 
-impl<C> ops::Deref for Prover<C>
-where
-    C: Circuit,
-{
+impl ops::Deref for Prover {
     type Target = ProverKey;
 
     fn deref(&self) -> &Self::Target {
@@ -52,10 +44,7 @@ where
     }
 }
 
-impl<C> Prover<C>
-where
-    C: Circuit,
-{
+impl Prover {
     pub(crate) fn new(
         label: Vec<u8>,
         prover_key: ProverKey,
@@ -75,7 +64,6 @@ where
             transcript,
             size,
             constraints,
-            circuit: PhantomData,
         }
     }
 
@@ -234,7 +222,7 @@ where
     }
 
     /// Prove the circuit
-    pub fn prove<R>(
+    pub fn prove<C, R>(
         &self,
         rng: &mut R,
         circuit: &C,

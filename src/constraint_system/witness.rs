@@ -30,6 +30,12 @@ pub struct Witness {
 }
 
 impl Witness {
+    /// A `0` witness representation.
+    pub const ZERO: Witness = Witness::new(0);
+
+    /// A `1` witness representation.
+    pub const ONE: Witness = Witness::new(1);
+
     /// Generate a new [`Witness`]
     pub(crate) const fn new(index: usize) -> Self {
         Self { index }

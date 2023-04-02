@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add and restructure tests for boolean and select components [#731]
 - Add tests for `gate_add` and `gate_mul` [#736]
 - Add and restructure tests for `component_decomposition` [#738]
+- Add `Compile::compress` and `Compile::decompress` [#752]
 
 ### Removed
 

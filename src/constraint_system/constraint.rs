@@ -55,8 +55,8 @@ pub(crate) enum WiredWitness {
 /// evaluation
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Constraint {
-    coefficients: [BlsScalar; 12],
-    witnesses: [Witness; 4],
+    coefficients: [BlsScalar; Self::COEFFICIENTS],
+    witnesses: [Witness; Self::WITNESSES],
 
     // TODO Workaround solution to keep the sparse public input indexes in the
     // composer
@@ -93,19 +93,19 @@ impl AsRef<[BlsScalar]> for Constraint {
 }
 
 impl Constraint {
+    /// Internal coefficients count.
+    pub const COEFFICIENTS: usize = 12;
+
+    /// Internal witnesses count.
+    pub const WITNESSES: usize = 4;
+
     /// Initiate the composition of a new selector description of a circuit.
     pub const fn new() -> Self {
         Self {
-            coefficients: [BlsScalar::zero(); 12],
-            witnesses: [Builder::ZERO; 4],
+            coefficients: [BlsScalar::zero(); Self::COEFFICIENTS],
+            witnesses: [Builder::ZERO; Self::WITNESSES],
             has_public_input: false,
         }
-    }
-
-    fn set<T: Into<BlsScalar>>(mut self, r: Selector, s: T) -> Self {
-        self.coefficients[r as usize] = s.into();
-
-        self
     }
 
     fn from_external(constraint: &Self) -> Self {
@@ -122,6 +122,13 @@ impl Constraint {
         s.witnesses.copy_from_slice(&constraint.witnesses);
 
         s
+    }
+
+    /// Replace the value of a polynomial selector
+    pub(crate) fn set<T: Into<BlsScalar>>(mut self, r: Selector, s: T) -> Self {
+        self.coefficients[r as usize] = s.into();
+
+        self
     }
 
     /// Replace the value of an indexed witness

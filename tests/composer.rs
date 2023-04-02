@@ -87,12 +87,28 @@ fn circuit_with_all_gates() {
     let (prover, verifier) = Compiler::compile::<DummyCircuit>(&pp, label)
         .expect("failed to compile circuit");
 
+    let compressed = Compiler::compress::<DummyCircuit>(&pp)
+        .expect("failed to compress circuit");
+
+    let (decompressed_prover, decompressed_verifier) =
+        Compiler::decompress(&pp, label, &compressed).unwrap();
+
+    let decoded_prover_bytes = decompressed_prover.to_bytes();
     let len = prover.serialized_size();
     let prover = prover.to_bytes();
 
     assert_eq!(prover.len(), len);
+    assert_eq!(decoded_prover_bytes, prover);
 
-    let prover: Prover<DummyCircuit> =
+    let (proof, public_inputs) = decompressed_prover
+        .prove(rng, &DummyCircuit::default())
+        .expect("failed to prove");
+
+    decompressed_verifier
+        .verify(&proof, &public_inputs)
+        .expect("failed to verify proof");
+
+    let prover =
         Prover::try_from_bytes(&prover).expect("failed to deserialize prover");
 
     let len = verifier.serialized_size();
@@ -100,11 +116,11 @@ fn circuit_with_all_gates() {
 
     assert_eq!(verifier.len(), len);
 
-    let verifier: Verifier<DummyCircuit> = Verifier::try_from_bytes(&verifier)
+    let verifier = Verifier::try_from_bytes(&verifier)
         .expect("failed to deserialize verifier");
 
     let (proof, public_inputs) = prover
-        .prove(rng, &Default::default())
+        .prove(rng, &DummyCircuit::default())
         .expect("failed to prove");
 
     verifier

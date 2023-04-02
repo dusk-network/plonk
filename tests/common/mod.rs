@@ -14,7 +14,7 @@ pub(crate) fn setup<C, R>(
     rng: &mut R,
     label: &[u8],
     circuit: &C,
-) -> (Prover<C>, Verifier<C>)
+) -> (Prover, Verifier)
 where
     C: Circuit,
     R: RngCore + CryptoRng,
@@ -27,8 +27,8 @@ where
 // Check that proof creation and verification of a satisfied circuit passes
 // and that the public inputs are as expected
 pub(crate) fn check_satisfied_circuit<C, R>(
-    prover: &Prover<C>,
-    verifier: &Verifier<C>,
+    prover: &Prover,
+    verifier: &Verifier,
     pi_expected: &Vec<BlsScalar>,
     circuit: &C,
     rng: &mut R,
@@ -53,8 +53,8 @@ pub(crate) fn check_satisfied_circuit<C, R>(
 // tests.
 #[allow(dead_code)]
 pub(crate) fn check_satisfied_circuit_fails<C, R>(
-    prover: &Prover<C>,
-    verifier: &Verifier<C>,
+    prover: &Prover,
+    verifier: &Verifier,
     pi_expected: &Vec<BlsScalar>,
     circuit: &C,
     rng: &mut R,
@@ -76,7 +76,7 @@ pub(crate) fn check_satisfied_circuit_fails<C, R>(
 // This is also the case when the constants appended to the circuit does not
 // match the ones from the circuit description
 pub(crate) fn check_unsatisfied_circuit<C, R>(
-    prover: &Prover<C>,
+    prover: &Prover,
     circuit: &C,
     rng: &mut R,
     msg: &str,
