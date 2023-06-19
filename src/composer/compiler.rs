@@ -4,15 +4,22 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
+#[cfg(feature = "alloc")]
+use alloc::vec::Vec;
+
 use dusk_bls12_381::BlsScalar;
 
 use crate::commitment_scheme::{CommitKey, OpeningKey, PublicParameters};
+use crate::constraint_system::{Constraint, Selector, Witness};
 use crate::error::Error;
 use crate::fft::{EvaluationDomain, Evaluations, Polynomial as FftPolynomial};
 use crate::proof_system::preprocess::Polynomials;
 use crate::proof_system::{widget, ProverKey};
 
-use super::{Builder, Circuit, Composer, Prover, Verifier};
+use super::{Builder, Circuit, Composer, Polynomial, Prover, Verifier};
+
+#[cfg(feature = "alloc")]
+mod compress;
 
 /// Generate the arguments to prove and verify a circuit
 pub struct Compiler;
@@ -24,11 +31,16 @@ impl Compiler {
     pub fn compile<C>(
         pp: &PublicParameters,
         label: &[u8],
-    ) -> Result<(Prover<C>, Verifier<C>), Error>
+    ) -> Result<(Prover, Verifier), Error>
     where
         C: Circuit,
     {
-        Self::compile_with_circuit(pp, label, &Default::default())
+        let max_size = Self::max_size(pp);
+        let mut builder = Builder::initialized(max_size);
+
+        C::default().circuit(&mut builder)?;
+
+        Self::compile_with_builder(pp, label, &builder)
     }
 
     /// Create a new arguments set from a given circuit instance
@@ -38,34 +50,70 @@ impl Compiler {
         pp: &PublicParameters,
         label: &[u8],
         circuit: &C,
-    ) -> Result<(Prover<C>, Verifier<C>), Error>
+    ) -> Result<(Prover, Verifier), Error>
     where
         C: Circuit,
     {
-        let max_size = (pp.commit_key.powers_of_g.len() - 1) >> 1;
-        let mut prover = Builder::initialized(max_size);
+        let max_size = Self::max_size(pp);
+        let mut builder = Builder::initialized(max_size);
 
-        circuit.circuit(&mut prover)?;
+        circuit.circuit(&mut builder)?;
 
-        let n = (prover.constraints() + 6).next_power_of_two();
+        Self::compile_with_builder(pp, label, &builder)
+    }
+
+    /// Return a bytes representation of a compressed circuit, capable of
+    /// generating its prover and verifier instances.
+    #[cfg(feature = "alloc")]
+    pub fn compress<C>(pp: &PublicParameters) -> Result<Vec<u8>, Error>
+    where
+        C: Circuit,
+    {
+        compress::CompressedCircuit::from_circuit::<C>(
+            pp,
+            compress::Version::V2,
+        )
+    }
+
+    /// Generates a [Prover] and [Verifier] from a buffer created by
+    /// [Self::compress].
+    pub fn decompress(
+        pp: &PublicParameters,
+        label: &[u8],
+        compressed: &[u8],
+    ) -> Result<(Prover, Verifier), Error> {
+        compress::CompressedCircuit::from_bytes(pp, label, compressed)
+    }
+
+    /// Returns the maximum constraints length for the parameters.
+    fn max_size(pp: &PublicParameters) -> usize {
+        (pp.commit_key.powers_of_g.len() - 1) >> 1
+    }
+
+    /// Create a new arguments set from a given circuit instance
+    ///
+    /// Use the default implementation of the circuit
+    fn compile_with_builder(
+        pp: &PublicParameters,
+        label: &[u8],
+        builder: &Builder,
+    ) -> Result<(Prover, Verifier), Error> {
+        let n = (builder.constraints() + 6).next_power_of_two();
 
         let (commit, opening) = pp.trim(n)?;
 
         let (prover, verifier) =
-            Self::preprocess(label, commit, opening, &prover)?;
+            Self::preprocess(label, commit, opening, &builder)?;
 
         Ok((prover, verifier))
     }
 
-    fn preprocess<C>(
+    fn preprocess(
         label: &[u8],
         commit_key: CommitKey,
         opening_key: OpeningKey,
         prover: &Builder,
-    ) -> Result<(Prover<C>, Verifier<C>), Error>
-    where
-        C: Circuit,
-    {
+    ) -> Result<(Prover, Verifier), Error> {
         let mut perm = prover.perm.clone();
 
         let constraints = prover.constraints();

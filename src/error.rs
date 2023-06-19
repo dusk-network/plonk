@@ -86,6 +86,8 @@ pub enum Error {
         /// Provided value
         provided: usize,
     },
+    /// The provided compressed circuit bytes representation is invalid.
+    InvalidCompressedCircuit,
 }
 
 #[cfg(feature = "std")]
@@ -151,6 +153,7 @@ impl std::fmt::Display for Error {
             Self::InconsistentPublicInputsLen {
                 expected, provided,
             } => write!(f, "The provided public inputs set of length {} doesn't match the processed verifier: {}", provided, expected),
+            Self::InvalidCompressedCircuit => write!(f, "invalid compressed circuit"),
         }
     }
 }

@@ -90,9 +90,11 @@ fn run<const DEGREE: usize>(
         Compiler::compile::<BenchCircuit<DEGREE>>(&pp, label)
             .expect("failed to compile circuit");
 
+    let circuit: BenchCircuit<DEGREE> = BenchCircuit::default();
+
     // sanity run
     let (proof, public_inputs) = prover
-        .prove(&mut rand_core::OsRng, &Default::default())
+        .prove(&mut rand_core::OsRng, &circuit)
         .expect("failed to prove");
 
     verifier
@@ -103,9 +105,7 @@ fn run<const DEGREE: usize>(
     let description = format!("Prove 2^{} = {} gates", power, DEGREE);
 
     c.bench_function(description.as_str(), |b| {
-        b.iter(|| {
-            black_box(prover.prove(&mut rand_core::OsRng, &Default::default()))
-        })
+        b.iter(|| black_box(prover.prove(&mut rand_core::OsRng, &circuit)))
     });
 
     let description = format!("Verify 2^{} = {} gates", power, DEGREE);

@@ -5,7 +5,6 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use alloc::vec::Vec;
-use core::marker::PhantomData;
 
 use dusk_bls12_381::BlsScalar;
 use dusk_bytes::{DeserializableSlice, Serializable};
@@ -19,7 +18,7 @@ use crate::transcript::TranscriptProtocol;
 use super::Builder;
 
 /// Verify proofs of a given circuit
-pub struct Verifier<C> {
+pub struct Verifier {
     label: Vec<u8>,
     verifier_key: VerifierKey,
     opening_key: OpeningKey,
@@ -27,10 +26,9 @@ pub struct Verifier<C> {
     transcript: Transcript,
     size: usize,
     constraints: usize,
-    circuit: PhantomData<C>,
 }
 
-impl<C> Verifier<C> {
+impl Verifier {
     pub(crate) fn new(
         label: Vec<u8>,
         verifier_key: VerifierKey,
@@ -50,7 +48,6 @@ impl<C> Verifier<C> {
             transcript,
             size,
             constraints,
-            circuit: PhantomData,
         }
     }
 
