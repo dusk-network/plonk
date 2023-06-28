@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.14.1] - 2022-06-28
+
+### Added
+
+- Add `compress` to compiler [#752]
+
 ## [0.14.0] - 2022-04-06
 
 ### Added
@@ -472,6 +478,7 @@ is necessary since `rkyv/validation` was required as a bound.
 - Proof system module.
 
 <!-- ISSUES -->
+[#752]: https://github.com/dusk-network/plonk/pull/752
 [#738]: https://github.com/dusk-network/plonk/issues/738
 [#746]: https://github.com/dusk-network/plonk/issues/746
 [#736]: https://github.com/dusk-network/plonk/issues/736
@@ -575,7 +582,8 @@ is necessary since `rkyv/validation` was required as a bound.
 [#282]: https://github.com/dusk-network/plonk/issues/282
 
 <!-- VERSIONS -->
-[Unreleased]: https://github.com/dusk-network/plonk/compare/v0.14.0...HEAD
+[Unreleased]: https://github.com/dusk-network/plonk/compare/v0.14.1...HEAD
+[0.14.1]: https://github.com/dusk-network/plonk/compare/v0.14.0...v0.14.1
 [0.14.0]: https://github.com/dusk-network/plonk/compare/v0.13.1...v0.14.0
 [0.13.1]: https://github.com/dusk-network/plonk/compare/v0.13.0...v0.13.1
 [0.13.0]: https://github.com/dusk-network/plonk/compare/v0.12.0...v0.13.0
