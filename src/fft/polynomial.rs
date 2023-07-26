@@ -51,6 +51,15 @@ impl DerefMut for Polynomial {
     }
 }
 
+impl IntoIterator for Polynomial {
+    type Item = BlsScalar;
+    type IntoIter = <Vec<BlsScalar> as IntoIterator>::IntoIter;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.coeffs.into_iter()
+    }
+}
+
 impl Polynomial {
     /// Returns the zero polynomial.
     pub(crate) const fn zero() -> Self {
