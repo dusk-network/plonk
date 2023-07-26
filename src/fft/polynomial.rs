@@ -34,7 +34,7 @@ use rkyv::{
 pub(crate) struct Polynomial {
     /// The coefficient of `x^i` is stored at location `i` in `self.coeffs`.
     #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
-    pub(crate) coeffs: Vec<BlsScalar>,
+    coeffs: Vec<BlsScalar>,
 }
 
 impl Deref for Polynomial {
@@ -140,6 +140,11 @@ impl Polynomial {
             .collect::<Result<Vec<BlsScalar>, dusk_bytes::Error>>()?;
 
         Ok(Polynomial { coeffs })
+    }
+
+    /// Returns an iterator over the polynomial coefficients.
+    fn iter(&self) -> impl Iterator<Item = &BlsScalar> {
+        self.coeffs.iter()
     }
 }
 

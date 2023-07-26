@@ -182,7 +182,7 @@ impl CommitKey {
         // Compute commitment
         Ok(Commitment::from(msm_variable_base(
             &self.powers_of_g,
-            &polynomial.coeffs,
+            polynomial,
         )))
     }
 

@@ -430,7 +430,7 @@ pub(crate) mod alloc {
                     // If the announced len is zero, simply return an empty poly
                     // and leave the buffer intact.
                     if serialized_poly_len == 0 {
-                        return Ok(Polynomial { coeffs: vec![] });
+                        return Ok(Polynomial::zero());
                     }
                     let (a, b) = buf.split_at(serialized_poly_len);
                     let poly = Polynomial::from_slice(a);
