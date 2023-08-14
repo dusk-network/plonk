@@ -9,7 +9,7 @@
 use dusk_bytes::Error as DuskBytesError;
 
 /// Defines all possible errors that can be encountered in PLONK.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Error {
     // FFT errors
     /// This error occurs when an error triggers on any of the fft module
@@ -35,6 +35,9 @@ pub enum Error {
     /// This error occurs when the Prover structure already contains a
     /// preprocessed circuit inside, but you call preprocess again.
     CircuitAlreadyPreprocessed,
+    /// This error occurs when the circuit for the proof has a different size
+    /// than the prover circuit description
+    InvalidCircuitSize,
 
     // Preprocessing errors
     /// This error occurs when an error triggers during the preprocessing
@@ -120,6 +123,9 @@ impl std::fmt::Display for Error {
             }
             Self::CircuitAlreadyPreprocessed => {
                 write!(f, "circuit has already been preprocessed")
+            }
+            Self::InvalidCircuitSize => {
+                write!(f, "circuit size doesn't match with circuit description")
             }
             Self::DegreeIsZero => {
                 write!(f, "cannot create PublicParameters with max degree 0")
