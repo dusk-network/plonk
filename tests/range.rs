@@ -9,7 +9,7 @@ use rand::rngs::StdRng;
 use rand::SeedableRng;
 
 mod common;
-use common::{check_satisfied_circuit, check_unsatisfied_circuit, setup};
+use common::{check_satisfied_circuit, check_unsatisfied_circuit};
 
 #[test]
 fn range() {
@@ -43,8 +43,10 @@ fn range() {
     let label = b"component_range";
     let rng = &mut StdRng::seed_from_u64(0xb1eeb);
     let capacity = 1 << 6;
-    let (prover, verifier) =
-        setup(capacity, rng, label, &TestCircuit::default());
+    let pp = PublicParameters::setup(capacity, rng)
+        .expect("Creation of public parameter shouldn't fail");
+    let (prover, verifier) = Compiler::compile::<TestCircuit>(&pp, label)
+        .expect("Circuit should compile");
 
     // public input to be used by all tests
     let pi = vec![];
@@ -79,7 +81,9 @@ fn range() {
     let bits = 2;
     let a = BlsScalar::one();
     let circuit = TestCircuit::new(a, bits);
-    let (prover, verifier) = setup(capacity, rng, label, &circuit);
+    let (prover, verifier) =
+        Compiler::compile_with_circuit(&pp, label, &circuit)
+            .expect("Circuit should compile");
 
     // Test:
     // 1 < 2^2
@@ -100,7 +104,9 @@ fn range() {
     let bits = 4;
     let a = BlsScalar::from(15);
     let circuit = TestCircuit::new(a, bits);
-    let (prover, verifier) = setup(capacity, rng, label, &circuit);
+    let (prover, verifier) =
+        Compiler::compile_with_circuit(&pp, label, &circuit)
+            .expect("Circuit should compile");
 
     // Test:
     // 15 < 2^4
@@ -121,7 +127,9 @@ fn range() {
     let bits = 74;
     let a = BlsScalar::pow_of_2(73);
     let circuit = TestCircuit::new(a, bits);
-    let (prover, verifier) = setup(capacity, rng, label, &circuit);
+    let (prover, verifier) =
+        Compiler::compile_with_circuit(&pp, label, &circuit)
+            .expect("Circuit should compile");
 
     // Test:
     // 2^73 < 2^74
@@ -149,7 +157,9 @@ fn range() {
     let bits = 256;
     let a = BlsScalar::pow_of_2(255);
     let circuit = TestCircuit::new(a, bits);
-    let (prover, verifier) = setup(capacity, rng, label, &circuit);
+    let (prover, verifier) =
+        Compiler::compile_with_circuit(&pp, label, &circuit)
+            .expect("Circuit should compile");
 
     // Test:
     // 2^255 < 2^256

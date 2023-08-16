@@ -9,7 +9,7 @@ use rand::rngs::StdRng;
 use rand::SeedableRng;
 
 mod common;
-use common::{check_satisfied_circuit, check_unsatisfied_circuit, setup};
+use common::{check_satisfied_circuit, check_unsatisfied_circuit};
 
 #[test]
 fn append_logic_and() {
@@ -58,8 +58,10 @@ fn append_logic_and() {
     let label = b"append_logic_and";
     let rng = &mut StdRng::seed_from_u64(0x1ead);
     let capacity = 1 << 8;
-    let (prover, verifier) =
-        setup(capacity, rng, label, &TestCircuit::default());
+    let pp = PublicParameters::setup(capacity, rng)
+        .expect("Creation of public parameter shouldn't fail");
+    let (prover, verifier) = Compiler::compile::<TestCircuit>(&pp, label)
+        .expect("Circuit should compile");
 
     // Common public input vector to be used by all tests
     let pi = vec![];
@@ -90,7 +92,9 @@ fn append_logic_and() {
     let a = BlsScalar::zero();
     let b = BlsScalar::zero();
     let circuit = TestCircuit::new(a, b, bits);
-    let (prover, verifier) = setup(capacity, rng, label, &circuit);
+    let (prover, verifier) =
+        Compiler::compile_with_circuit(&pp, label, &circuit)
+            .expect("Circuit should compile");
 
     // Test sanity:
     let a = BlsScalar::from(0x0f0f_0ff0_0f0f_0ff0);
@@ -144,7 +148,9 @@ fn append_logic_and() {
     let a = BlsScalar::zero();
     let b = BlsScalar::zero();
     let circuit = TestCircuit::new(a, b, bits);
-    let (prover, verifier) = setup(capacity, rng, label, &circuit);
+    let (prover, verifier) =
+        Compiler::compile_with_circuit(&pp, label, &circuit)
+            .expect("Circuit should compile");
 
     // Test sanity:
     let a = -BlsScalar::one();
@@ -193,19 +199,15 @@ fn append_logic_and() {
 
     // Test with odd bits = 55
     //
-    // Create new prover and verifier circuit descriptions
+    // compilation should panic
     let bits = 55;
     let a = BlsScalar::zero();
     let b = BlsScalar::zero();
     let circuit = TestCircuit::new(a, b, bits);
-    let (prover, _) = setup(capacity, rng, label, &circuit);
-
-    // Test random fails:
-    let msg = "Circuit verification with odd bits should fail";
-    let a = BlsScalar::random(rng);
-    let b = BlsScalar::random(rng);
-    let circuit = TestCircuit::new(a, b, bits);
-    check_unsatisfied_circuit(&prover, &circuit, rng, &msg);
+    let result = std::panic::catch_unwind(|| {
+        Compiler::compile_with_circuit::<TestCircuit>(&pp, label, &circuit)
+    });
+    assert!(result.is_err());
 }
 
 #[test]
@@ -255,8 +257,10 @@ fn append_logic_xor() {
     let label = b"append_logic_xor";
     let rng = &mut StdRng::seed_from_u64(0xdea1);
     let capacity = 1 << 8;
-    let (prover, verifier) =
-        setup(capacity, rng, label, &TestCircuit::default());
+    let pp = PublicParameters::setup(capacity, rng)
+        .expect("Creation of public parameter shouldn't fail");
+    let (prover, verifier) = Compiler::compile::<TestCircuit>(&pp, label)
+        .expect("Circuit should compile");
 
     // Common values to be used by all tests
     let pi = vec![];
@@ -287,7 +291,9 @@ fn append_logic_xor() {
     let a = BlsScalar::zero();
     let b = BlsScalar::zero();
     let circuit = TestCircuit::new(a, b, bits);
-    let (prover, verifier) = setup(capacity, rng, label, &circuit);
+    let (prover, verifier) =
+        Compiler::compile_with_circuit(&pp, label, &circuit)
+            .expect("Circuit should compile");
 
     // Test sanity:
     let a = BlsScalar::from(0x0f0f_0ff0_0f0f_0ff0);
@@ -341,7 +347,9 @@ fn append_logic_xor() {
     let a = BlsScalar::zero();
     let b = BlsScalar::zero();
     let circuit = TestCircuit::new(a, b, bits);
-    let (prover, verifier) = setup(capacity, rng, label, &circuit);
+    let (prover, verifier) =
+        Compiler::compile_with_circuit(&pp, label, &circuit)
+            .expect("Circuit should compile");
 
     // Test sanity:
     let a = -BlsScalar::one();
@@ -390,17 +398,13 @@ fn append_logic_xor() {
 
     // Test with odd bits = 55
     //
-    // Create new prover and verifier circuit descriptions
+    // Compilation is expected to panic
     let bits = 55;
     let a = BlsScalar::zero();
     let b = BlsScalar::zero();
     let circuit = TestCircuit::new(a, b, bits);
-    let (prover, _) = setup(capacity, rng, label, &circuit);
-
-    // Test random fails:
-    let msg = "Circuit verification with odd bits should fail";
-    let a = BlsScalar::random(rng);
-    let b = BlsScalar::random(rng);
-    let circuit = TestCircuit::new(a, b, bits);
-    check_unsatisfied_circuit(&prover, &circuit, rng, &msg);
+    let result = std::panic::catch_unwind(|| {
+        Compiler::compile_with_circuit::<TestCircuit>(&pp, label, &circuit)
+    });
+    assert!(result.is_err());
 }

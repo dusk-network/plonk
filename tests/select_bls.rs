@@ -9,7 +9,7 @@ use rand::rngs::StdRng;
 use rand::SeedableRng;
 
 mod common;
-use common::{check_satisfied_circuit, check_unsatisfied_circuit, setup};
+use common::{check_satisfied_circuit, check_unsatisfied_circuit};
 
 #[test]
 fn component_select() {
@@ -71,8 +71,10 @@ fn component_select() {
     let label = b"component_select";
     let rng = &mut StdRng::seed_from_u64(0xbeef);
     let capacity = 1 << 5;
-    let (prover, verifier) =
-        setup(capacity, rng, label, &TestCircuit::default());
+    let pp = PublicParameters::setup(capacity, rng)
+        .expect("Creation of public parameter shouldn't fail");
+    let (prover, verifier) = Compiler::compile::<TestCircuit>(&pp, label)
+        .expect("Circuit should compile");
 
     // public inputs to be used by all tests
     let pi = vec![];
@@ -230,8 +232,10 @@ fn component_select_one() {
     let label = b"component_select_one";
     let rng = &mut StdRng::seed_from_u64(0xfee);
     let capacity = 1 << 5;
-    let (prover, verifier) =
-        setup(capacity, rng, label, &TestCircuit::default());
+    let pp = PublicParameters::setup(capacity, rng)
+        .expect("Creation of public parameter shouldn't fail");
+    let (prover, verifier) = Compiler::compile::<TestCircuit>(&pp, label)
+        .expect("Circuit should compile");
 
     // public inputs to be used by all tests
     let pi = vec![];
@@ -378,8 +382,10 @@ fn component_select_zero() {
     let label = b"component_select_zero";
     let rng = &mut StdRng::seed_from_u64(0xca11);
     let capacity = 1 << 5;
-    let (prover, verifier) =
-        setup(capacity, rng, label, &TestCircuit::default());
+    let pp = PublicParameters::setup(capacity, rng)
+        .expect("Creation of public parameter shouldn't fail");
+    let (prover, verifier) = Compiler::compile::<TestCircuit>(&pp, label)
+        .expect("Circuit should compile");
 
     // public inputs to be used by all tests
     let pi = vec![];

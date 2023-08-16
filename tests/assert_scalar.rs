@@ -11,7 +11,7 @@ use rand::SeedableRng;
 mod common;
 use common::{
     check_satisfied_circuit, check_satisfied_circuit_fails,
-    check_unsatisfied_circuit, setup,
+    check_unsatisfied_circuit,
 };
 
 #[test]
@@ -55,8 +55,10 @@ fn assert_equal() {
     let label = b"assert_equal_constant_without_pi";
     let rng = &mut StdRng::seed_from_u64(0xc1adde);
     let capacity = 1 << 4;
-    let (prover, verifier) =
-        setup(capacity, rng, label, &TestCircuit::default());
+    let pp = PublicParameters::setup(capacity, rng)
+        .expect("Creation of public parameter shouldn't fail");
+    let (prover, verifier) = Compiler::compile::<TestCircuit>(&pp, label)
+        .expect("Circuit should compile");
 
     // public input to be used by all tests
     let pi = vec![];
@@ -146,8 +148,10 @@ fn assert_equal_constant() {
     let label = b"assert_equal_constant";
     let rng = &mut StdRng::seed_from_u64(0xfa11);
     let capacity = 1 << 4;
-    let (prover, verifier) =
-        setup(capacity, rng, label, &TestCircuit::default());
+    let pp = PublicParameters::setup(capacity, rng)
+        .expect("Creation of public parameter shouldn't fail");
+    let (prover, verifier) = Compiler::compile::<TestCircuit>(&pp, label)
+        .expect("Circuit should compile");
 
     // Test default works:
     // 0 = 0 + None
@@ -181,7 +185,9 @@ fn assert_equal_constant() {
     let constant = BlsScalar::zero();
     let public = Some(BlsScalar::zero());
     let circuit = TestCircuit::new(scalar, constant, public);
-    let (prover, verifier) = setup(capacity, rng, label, &circuit);
+    let (prover, verifier) =
+        Compiler::compile_with_circuit(&pp, label, &circuit)
+            .expect("Circuit should compile");
 
     // Test default works:
     // 0 = 0 + 0
@@ -224,7 +230,9 @@ fn assert_equal_constant() {
     let scalar = constant.clone();
     let public = None;
     let circuit = TestCircuit::new(scalar, constant, public);
-    let (prover, verifier) = setup(capacity, rng, label, &circuit);
+    let (prover, verifier) =
+        Compiler::compile_with_circuit(&pp, label, &circuit)
+            .expect("Circuit should compile");
 
     // Test default works:
     // x = x + None
@@ -255,7 +263,9 @@ fn assert_equal_constant() {
     let scalar = constant.clone();
     let public = Some(BlsScalar::zero());
     let circuit = TestCircuit::new(scalar, constant, public);
-    let (prover, verifier) = setup(capacity, rng, label, &circuit);
+    let (prover, verifier) =
+        Compiler::compile_with_circuit(&pp, label, &circuit)
+            .expect("Circuit should compile");
 
     // Test default works:
     // 0 = 0 + 0

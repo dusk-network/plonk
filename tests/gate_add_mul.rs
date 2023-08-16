@@ -9,47 +9,32 @@ use rand::rngs::StdRng;
 use rand::SeedableRng;
 
 mod common;
-use common::{check_satisfied_circuit, check_unsatisfied_circuit, setup};
+use common::{check_satisfied_circuit, check_unsatisfied_circuit};
 
 #[test]
 fn gate_add_mul() {
     #[derive(Default)]
     pub struct TestCircuit {
-        q_l: BlsScalar,
-        q_r: BlsScalar,
-        q_m: BlsScalar,
-        q_k: BlsScalar,
         a: BlsScalar,
         b: BlsScalar,
         d: BlsScalar,
         public: BlsScalar,
-        constant: BlsScalar,
         result: BlsScalar,
     }
 
     impl TestCircuit {
         pub fn new(
-            q_l: BlsScalar,
-            q_r: BlsScalar,
-            q_m: BlsScalar,
-            q_k: BlsScalar,
             a: BlsScalar,
             b: BlsScalar,
             d: BlsScalar,
             public: BlsScalar,
-            constant: BlsScalar,
             result: BlsScalar,
         ) -> Self {
             Self {
-                q_l,
-                q_r,
-                q_m,
-                q_k,
                 a,
                 b,
                 d,
                 public,
-                constant,
                 result,
             }
         }
@@ -67,15 +52,15 @@ fn gate_add_mul() {
             let result_expected = composer.append_witness(self.result);
 
             let constraint = Constraint::new()
-                .left(self.q_l)
-                .right(self.q_r)
-                .mult(self.q_m)
-                .fourth(self.q_k)
+                .left(1)
+                .right(1)
+                .mult(1)
+                .fourth(1)
                 .a(w_a)
                 .b(w_b)
                 .d(w_d)
                 .public(self.public)
-                .constant(self.constant);
+                .constant(BlsScalar::one());
 
             let result_add = composer.gate_add(constraint);
             let result_mul = composer.gate_mul(constraint);
@@ -96,47 +81,43 @@ fn gate_add_mul() {
     // Test: public = zero, constant = zero, selectors = one
     //
     // Compile common circuit descriptions for the prover and verifier
-    let q_l = BlsScalar::one();
-    let q_r = BlsScalar::one();
-    let q_m = BlsScalar::one();
-    let q_k = BlsScalar::one();
     let public = BlsScalar::zero();
-    let constant = BlsScalar::zero();
+    const CONST: BlsScalar = BlsScalar::one();
     let a = BlsScalar::zero();
     let b = BlsScalar::zero();
     let d = BlsScalar::zero();
-    let result = q_l * a + q_r * b + q_m * a * b + q_k * d + public + constant;
+    let result = a + b + a * b + d + public + CONST;
     let pi = vec![public, public];
-    let circuit =
-        TestCircuit::new(q_l, q_r, q_m, q_k, a, b, d, public, constant, result);
-    let (prover, verifier) = setup(capacity, rng, label, &circuit);
+    let circuit = TestCircuit::new(a, b, d, public, result);
+    let pp = PublicParameters::setup(capacity, rng)
+        .expect("Creation of public parameter shouldn't fail");
+    let (prover, verifier) = Compiler::compile::<TestCircuit>(&pp, label)
+        .expect("Circuit should compile");
 
     // Test default works:
     let msg = "Default circuit verification should pass";
     check_satisfied_circuit(&prover, &verifier, &pi, &circuit, rng, &msg);
 
     // Test satisfied circuit:
-    // q_l·a + q_r·b + q_m·a·b + q_o·o + q_4·d + public + constant = 0
+    // a + b + a·b + d + public + 1 = result
     let msg = "Verification of satisfied circuit should pass";
     let a = BlsScalar::one();
     let b = BlsScalar::one();
     let d = BlsScalar::one();
-    let result = q_l * a + q_r * b + q_m * a * b + q_k * d + public + constant;
-    let circuit =
-        TestCircuit::new(q_l, q_r, q_m, q_k, a, b, d, public, constant, result);
+    let result = a + b + a * b + d + public + CONST;
+    let circuit = TestCircuit::new(a, b, d, public, result);
     check_satisfied_circuit(&prover, &verifier, &pi, &circuit, rng, &msg);
 
     // Test satisfied circuit:
-    // q_l·a + q_r·b + q_m·a·b + q_o·o + q_4·d + public + constant = 0
+    // a + b + a·b + d + public + 1 = result
     let msg = "Verification of satisfied circuit should pass";
     let a = BlsScalar::random(rng);
     let b = BlsScalar::random(rng);
     let d = BlsScalar::random(rng);
     let public = BlsScalar::random(rng);
     let pi = vec![public, public];
-    let result = q_l * a + q_r * b + q_m * a * b + q_k * d + public + constant;
-    let circuit =
-        TestCircuit::new(q_l, q_r, q_m, q_k, a, b, d, public, constant, result);
+    let result = a + b + a * b + d + public + CONST;
+    let circuit = TestCircuit::new(a, b, d, public, result);
     check_satisfied_circuit(&prover, &verifier, &pi, &circuit, rng, &msg);
 
     // Test unsatisfied circuit:
@@ -145,39 +126,29 @@ fn gate_add_mul() {
     let b = BlsScalar::random(rng);
     let d = BlsScalar::random(rng);
     let public = BlsScalar::random(rng);
-    let result = q_l * a
-        + q_r * b
-        + q_m * a * b
-        + q_k * d
-        + public
-        + constant
-        + BlsScalar::one();
-    let circuit =
-        TestCircuit::new(q_l, q_r, q_m, q_k, a, b, d, public, constant, result);
+    let result = a + b + a * b + d + public + CONST + BlsScalar::one();
+    let circuit = TestCircuit::new(a, b, d, public, result);
     check_unsatisfied_circuit(&prover, &circuit, rng, &msg);
 
     // Test unsatisfied circuit:
-    // q_l·a + q_r·b + q_m·a·b + q_o·o + q_4·d + public + constant = 0
+    // a + b + a·b + d + public + 1 = result
     let msg = "Proof creation of unsatisfied circuit should fail";
     let a = BlsScalar::one();
     let b = BlsScalar::one();
     let d = BlsScalar::one();
     let public = BlsScalar::one();
-    let result = BlsScalar::from(6);
-    let circuit =
-        TestCircuit::new(q_l, q_r, q_m, q_k, a, b, d, public, constant, result);
+    let result = BlsScalar::from(42);
+    let circuit = TestCircuit::new(a, b, d, public, result);
     check_unsatisfied_circuit(&prover, &circuit, rng, &msg);
 
     // Test circuit where circuit description doesn't match
-    // q_l·a + q_r·b + q_m·a·b + q_o·o + q_4·d + public + constant = 0
     let msg = "Proof creation of circuit that has different constant than in description should fail";
     let a = BlsScalar::zero();
     let b = BlsScalar::zero();
     let d = BlsScalar::zero();
     let public = BlsScalar::from(2u64);
-    let constant = -BlsScalar::from(2u64);
-    let result = q_l * a + q_r * b + q_m * a * b + q_k * d + public + constant;
-    let circuit =
-        TestCircuit::new(q_l, q_r, q_m, q_k, a, b, d, public, constant, result);
+    let incorrect_constant = -BlsScalar::from(2u64);
+    let result = a + b + a * b + d + public + incorrect_constant;
+    let circuit = TestCircuit::new(a, b, d, public, result);
     check_unsatisfied_circuit(&prover, &circuit, rng, &msg);
 }

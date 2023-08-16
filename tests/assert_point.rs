@@ -9,7 +9,7 @@ use rand::rngs::StdRng;
 use rand::SeedableRng;
 
 mod common;
-use common::{check_satisfied_circuit, check_unsatisfied_circuit, setup};
+use common::{check_satisfied_circuit, check_unsatisfied_circuit};
 
 #[test]
 fn assert_equal_point() {
@@ -51,8 +51,10 @@ fn assert_equal_point() {
     let label = b"assert_equal_point";
     let rng = &mut StdRng::seed_from_u64(0xdecaf);
     let capacity = 1 << 4;
-    let (prover, verifier) =
-        setup(capacity, rng, label, &TestCircuit::default());
+    let pp = PublicParameters::setup(capacity, rng)
+        .expect("Creation of public parameter shouldn't fail");
+    let (prover, verifier) = Compiler::compile::<TestCircuit>(&pp, label)
+        .expect("Circuit should compile");
 
     // Test default works:
     // GENERATOR = GENERATOR
@@ -140,8 +142,10 @@ fn assert_equal_public_point() {
     let label = b"assert_equal_public_point";
     let rng = &mut StdRng::seed_from_u64(0xfeed);
     let capacity = 1 << 4;
-    let (prover, verifier) =
-        setup(capacity, rng, label, &TestCircuit::default());
+    let pp = PublicParameters::setup(capacity, rng)
+        .expect("Creation of public parameter shouldn't fail");
+    let (prover, verifier) = Compiler::compile::<TestCircuit>(&pp, label)
+        .expect("Circuit should compile");
 
     // Test default works:
     // GENERATOR = GENERATOR
