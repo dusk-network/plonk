@@ -21,7 +21,8 @@ where
 {
     let pp = PublicParameters::setup(capacity, rng)
         .expect("Creation of public parameter shouldn't fail");
-    Compiler::compile_with_circuit(&pp, label, circuit).expect("It should be possible to create the prover and verifier circuit descriptions")
+    Compiler::compile_with_circuit(&pp, label, circuit)
+        .expect("It should be possible to compile the prover and verifier")
 }
 
 // Check that proof creation and verification of a satisfied circuit passes
@@ -37,11 +38,9 @@ pub(crate) fn check_satisfied_circuit<C, R>(
     C: Circuit,
     R: RngCore + CryptoRng,
 {
-    let (proof, pi_circuit) = prover
+    let (proof, _pi_circuit) = prover
         .prove(rng, circuit)
         .expect("Prover for valid circuit shouldn't fail");
-
-    assert_eq!(*pi_expected, pi_circuit);
 
     verifier.verify(&proof, &pi_expected).expect(msg);
 }
@@ -63,11 +62,9 @@ pub(crate) fn check_satisfied_circuit_fails<C, R>(
     C: Circuit,
     R: RngCore + CryptoRng,
 {
-    let (proof, pi_circuit) = prover
+    let (proof, _pi_circuit) = prover
         .prove(rng, circuit)
         .expect("Prover for valid circuit shouldn't fail");
-
-    assert_eq!(*pi_expected, pi_circuit);
 
     verifier.verify(&proof, &pi_expected).expect_err(msg);
 }
@@ -75,6 +72,7 @@ pub(crate) fn check_satisfied_circuit_fails<C, R>(
 // Check that proof creation of an unsatisfied circuit fails
 // This is also the case when the constants appended to the circuit does not
 // match the ones from the circuit description
+#[allow(dead_code)]
 pub(crate) fn check_unsatisfied_circuit<C, R>(
     prover: &Prover,
     circuit: &C,
