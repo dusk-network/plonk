@@ -22,7 +22,7 @@ use rand_core::OsRng;
 // Implement a circuit that checks:
 // 1) a + b = c where C is a PI
 // 2) a < 2^6
-// 3) b < 2^5
+// 3) b < 2^4
 // 4) a * b = d where D is a PI
 // 5) JubJub::GENERATOR * e(JubJubScalar) = f where F is a Public Input
 #[derive(Debug, Default)]
@@ -50,8 +50,10 @@ impl Circuit for TestCircuit {
         composer.append_gate(constraint);
 
         // Check that a and b are in range
-        composer.component_range(a, 6);
-        composer.component_range(b, 5);
+        const HALF_SIX: usize = 3;
+        composer.component_range::<HALF_SIX>(a);
+        const HALF_FOUR: usize = 2;
+        composer.component_range::<HALF_FOUR>(b);
 
         // Make second constraint a * b = d
         let constraint =
