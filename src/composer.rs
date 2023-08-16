@@ -1066,6 +1066,11 @@ pub trait Composer: Sized + Index<Witness, Output = BlsScalar> {
 
         circuit.circuit(&mut builder)?;
 
+        // assert that the circuit has the expected amount of constraints
+        if builder.constraints() != constraints {
+            return Err(Error::InvalidCircuitSize);
+        }
+
         builder.runtime().event(RuntimeEvent::ProofFinished);
 
         Ok(builder)

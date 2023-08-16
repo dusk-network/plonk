@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix panic when creating proof for circuit with different circuit size [#760]
+
 ## [0.14.1] - 2022-06-28
 
 ### Added
@@ -478,6 +482,7 @@ is necessary since `rkyv/validation` was required as a bound.
 - Proof system module.
 
 <!-- ISSUES -->
+[#760]: https://github.com/dusk-network/plonk/issues/760
 [#752]: https://github.com/dusk-network/plonk/pull/752
 [#738]: https://github.com/dusk-network/plonk/issues/738
 [#746]: https://github.com/dusk-network/plonk/issues/746
