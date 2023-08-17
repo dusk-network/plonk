@@ -213,7 +213,7 @@ fn compute_permutation_checks(
     let domain_8n = EvaluationDomain::new(8 * domain.size()).unwrap();
     let l1_poly_alpha =
         compute_first_lagrange_poly_scaled(domain, alpha.square());
-    let l1_alpha_sq_evals = domain_8n.coset_fft(&l1_poly_alpha.coeffs);
+    let l1_alpha_sq_evals = domain_8n.coset_fft(&l1_poly_alpha);
 
     #[cfg(not(feature = "std"))]
     let range = (0..domain_8n.size()).into_iter();
