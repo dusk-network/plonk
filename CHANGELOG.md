@@ -10,6 +10,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Fix panic when creating proof for circuit with different circuit size [#760]
+- Fix panic when testing in debug mode [#763]
+
+### Removed
+
+- Remove 'setup' funcion from common test module [#763]
+
+### Changed
+
+- Change range and logic component to be generic over the const `BIT_PAIRS` [#763]
 
 ## [0.14.1] - 2022-06-28
 
@@ -482,6 +491,7 @@ is necessary since `rkyv/validation` was required as a bound.
 - Proof system module.
 
 <!-- ISSUES -->
+[#763]: https://github.com/dusk-network/plonk/issues/763
 [#760]: https://github.com/dusk-network/plonk/issues/760
 [#752]: https://github.com/dusk-network/plonk/pull/752
 [#738]: https://github.com/dusk-network/plonk/issues/738

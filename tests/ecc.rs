@@ -9,7 +9,7 @@ use rand::rngs::StdRng;
 use rand::SeedableRng;
 
 mod common;
-use common::{check_satisfied_circuit, check_unsatisfied_circuit, setup};
+use common::{check_satisfied_circuit, check_unsatisfied_circuit};
 
 #[test]
 fn component_add_point() {
@@ -60,8 +60,10 @@ fn component_add_point() {
     let label = b"component_add_point";
     let rng = &mut StdRng::seed_from_u64(0xcafe);
     let capacity = 1 << 4;
-    let (prover, verifier) =
-        setup(capacity, rng, label, &TestCircuit::default());
+    let pp = PublicParameters::setup(capacity, rng)
+        .expect("Creation of public parameter shouldn't fail");
+    let (prover, verifier) = Compiler::compile::<TestCircuit>(&pp, label)
+        .expect("Circuit should compile");
 
     // Test default works:
     let msg = "Default circuit verification should pass";
@@ -159,8 +161,10 @@ fn component_mul_generator() {
     let label = b"component_mul_generator";
     let rng = &mut StdRng::seed_from_u64(0xbead);
     let capacity = 1 << 9;
-    let (prover, verifier) =
-        setup(capacity, rng, label, &TestCircuit::default());
+    let pp = PublicParameters::setup(capacity, rng)
+        .expect("Creation of public parameter shouldn't fail");
+    let (prover, verifier) = Compiler::compile::<TestCircuit>(&pp, label)
+        .expect("Circuit should compile");
 
     // generator point and pi are the same for all tests
     let generator = dusk_jubjub::GENERATOR_EXTENDED;
@@ -263,8 +267,10 @@ fn component_mul_point() {
     let label = b"component_mul_point";
     let rng = &mut StdRng::seed_from_u64(0xdeed);
     let capacity = 1 << 11;
-    let (prover, verifier) =
-        setup(capacity, rng, label, &TestCircuit::default());
+    let pp = PublicParameters::setup(capacity, rng)
+        .expect("Creation of public parameter shouldn't fail");
+    let (prover, verifier) = Compiler::compile::<TestCircuit>(&pp, label)
+        .expect("Circuit should compile");
 
     // Test default works:
     let msg = "Default circuit verification should pass";

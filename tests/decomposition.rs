@@ -9,7 +9,7 @@ use rand::rngs::StdRng;
 use rand::SeedableRng;
 
 mod common;
-use common::{check_satisfied_circuit, check_unsatisfied_circuit, setup};
+use common::{check_satisfied_circuit, check_unsatisfied_circuit};
 
 #[test]
 fn component_decomposition() {
@@ -60,7 +60,10 @@ fn component_decomposition() {
     // Compile new circuit descriptions for the prover and verifier
     const N1: usize = 1;
     let circuit = TestCircuit::<N1>::default();
-    let (prover, verifier) = setup(capacity, rng, label, &circuit);
+    let pp = PublicParameters::setup(capacity, rng)
+        .expect("Creation of public parameter shouldn't fail");
+    let (prover, verifier) = Compiler::compile::<TestCircuit<N1>>(&pp, label)
+        .expect("Circuit should compile");
 
     // Test default works:
     let msg = "Default circuit verification should pass";
@@ -86,7 +89,9 @@ fn component_decomposition() {
     // Compile new circuit descriptions for the prover and verifier
     const N64: usize = 64;
     let circuit = TestCircuit::<N64>::default();
-    let (prover, verifier) = setup(capacity, rng, label, &circuit);
+    let (prover, verifier) =
+        Compiler::compile_with_circuit(&pp, label, &circuit)
+            .expect("Circuit should compile");
 
     // Test default works:
     let msg = "Default circuit verification should pass";
@@ -129,7 +134,9 @@ fn component_decomposition() {
     // Compile new circuit descriptions for the prover and verifier
     const N256: usize = 256;
     let circuit = TestCircuit::<N256>::default();
-    let (prover, verifier) = setup(capacity, rng, label, &circuit);
+    let (prover, verifier) =
+        Compiler::compile_with_circuit(&pp, label, &circuit)
+            .expect("Circuit should compile");
 
     // Test random works:
     let msg = "Verification of satisfied circuit should pass";

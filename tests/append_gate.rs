@@ -9,52 +9,28 @@ use rand::rngs::StdRng;
 use rand::SeedableRng;
 
 mod common;
-use common::{check_satisfied_circuit, check_unsatisfied_circuit, setup};
+use common::{check_satisfied_circuit, check_unsatisfied_circuit};
 
 #[test]
 fn append_gate() {
     #[derive(Default)]
     pub struct TestCircuit {
-        q_l: BlsScalar,
-        q_r: BlsScalar,
-        q_m: BlsScalar,
-        q_k: BlsScalar,
-        q_o: BlsScalar,
         a: BlsScalar,
         b: BlsScalar,
         d: BlsScalar,
         o: BlsScalar,
         public: BlsScalar,
-        constant: BlsScalar,
     }
 
     impl TestCircuit {
         pub fn new(
-            q_l: BlsScalar,
-            q_r: BlsScalar,
-            q_m: BlsScalar,
-            q_k: BlsScalar,
-            q_o: BlsScalar,
             a: BlsScalar,
             b: BlsScalar,
             d: BlsScalar,
             o: BlsScalar,
             public: BlsScalar,
-            constant: BlsScalar,
         ) -> Self {
-            Self {
-                q_l,
-                q_r,
-                q_m,
-                q_k,
-                q_o,
-                a,
-                b,
-                d,
-                o,
-                public,
-                constant,
-            }
+            Self { a, b, d, o, public }
         }
     }
 
@@ -69,17 +45,17 @@ fn append_gate() {
             let w_o = composer.append_witness(self.o);
 
             let constraint = Constraint::new()
-                .left(self.q_l)
-                .right(self.q_r)
-                .mult(self.q_m)
-                .fourth(self.q_k)
-                .output(self.q_o)
+                .left(1)
+                .right(1)
+                .mult(1)
+                .fourth(1)
+                .output(1)
                 .a(w_a)
                 .b(w_b)
                 .d(w_d)
                 .o(w_o)
                 .public(self.public)
-                .constant(self.constant);
+                .constant(BlsScalar::zero());
 
             composer.append_gate(constraint);
 
@@ -91,24 +67,20 @@ fn append_gate() {
     let rng = &mut StdRng::seed_from_u64(0x1ab);
     let capacity = 1 << 4;
 
-    // Test: public = zero, constant = zero, selectors = one
+    // Test: constant = zero, selectors = one
     //
     // Compile common circuit descriptions for the prover and verifier
-    let q_l = BlsScalar::one();
-    let q_r = BlsScalar::one();
-    let q_m = BlsScalar::one();
-    let q_k = BlsScalar::one();
-    let q_o = BlsScalar::one();
     let public = BlsScalar::zero();
-    let constant = BlsScalar::zero();
     let a = BlsScalar::zero();
     let b = BlsScalar::zero();
     let d = BlsScalar::zero();
     let o = BlsScalar::zero();
     let pi = vec![public];
-    let circuit =
-        TestCircuit::new(q_l, q_r, q_m, q_k, q_o, a, b, d, o, public, constant);
-    let (prover, verifier) = setup(capacity, rng, label, &circuit);
+    let circuit = TestCircuit::new(a, b, d, o, public);
+    let pp = PublicParameters::setup(capacity, rng)
+        .expect("Creation of public parameter shouldn't fail");
+    let (prover, verifier) = Compiler::compile::<TestCircuit>(&pp, label)
+        .expect("Circuit should compile");
 
     // Test default works:
     let msg = "Default circuit verification should pass";
@@ -121,8 +93,7 @@ fn append_gate() {
     let b = BlsScalar::one();
     let d = BlsScalar::one();
     let o = -BlsScalar::from(4);
-    let circuit =
-        TestCircuit::new(q_l, q_r, q_m, q_k, q_o, a, b, d, o, public, constant);
+    let circuit = TestCircuit::new(a, b, d, o, public);
     check_satisfied_circuit(&prover, &verifier, &pi, &circuit, rng, &msg);
 
     // Test satisfied circuit:
@@ -132,8 +103,7 @@ fn append_gate() {
     let b = BlsScalar::zero();
     let d = BlsScalar::zero();
     let o = -BlsScalar::one();
-    let circuit =
-        TestCircuit::new(q_l, q_r, q_m, q_k, q_o, a, b, d, o, public, constant);
+    let circuit = TestCircuit::new(a, b, d, o, public);
     check_satisfied_circuit(&prover, &verifier, &pi, &circuit, rng, &msg);
 
     // Test satisfied circuit:
@@ -143,8 +113,7 @@ fn append_gate() {
     let b = BlsScalar::one();
     let d = BlsScalar::zero();
     let o = -BlsScalar::one();
-    let circuit =
-        TestCircuit::new(q_l, q_r, q_m, q_k, q_o, a, b, d, o, public, constant);
+    let circuit = TestCircuit::new(a, b, d, o, public);
     check_satisfied_circuit(&prover, &verifier, &pi, &circuit, rng, &msg);
 
     // Test satisfied circuit:
@@ -154,8 +123,7 @@ fn append_gate() {
     let b = BlsScalar::one();
     let d = BlsScalar::zero();
     let o = -BlsScalar::from(3u64);
-    let circuit =
-        TestCircuit::new(q_l, q_r, q_m, q_k, q_o, a, b, d, o, public, constant);
+    let circuit = TestCircuit::new(a, b, d, o, public);
     check_satisfied_circuit(&prover, &verifier, &pi, &circuit, rng, &msg);
 
     // Test satisfied circuit:
@@ -165,8 +133,7 @@ fn append_gate() {
     let b = BlsScalar::zero();
     let d = BlsScalar::one();
     let o = BlsScalar::zero();
-    let circuit =
-        TestCircuit::new(q_l, q_r, q_m, q_k, q_o, a, b, d, o, public, constant);
+    let circuit = TestCircuit::new(a, b, d, o, public);
     check_satisfied_circuit(&prover, &verifier, &pi, &circuit, rng, &msg);
 
     // Test satisfied circuit:
@@ -178,8 +145,7 @@ fn append_gate() {
     let public = BlsScalar::from(42);
     let o = -(a + b + a * b + d + public);
     let pi = vec![public];
-    let circuit =
-        TestCircuit::new(q_l, q_r, q_m, q_k, q_o, a, b, d, o, public, constant);
+    let circuit = TestCircuit::new(a, b, d, o, public);
     check_satisfied_circuit(&prover, &verifier, &pi, &circuit, rng, &msg);
 
     // Test unsatisfied circuit:
@@ -189,8 +155,7 @@ fn append_gate() {
     let d = BlsScalar::random(rng);
     let o = BlsScalar::random(rng);
     let public = BlsScalar::random(rng);
-    let circuit =
-        TestCircuit::new(q_l, q_r, q_m, q_k, q_o, a, b, d, o, public, constant);
+    let circuit = TestCircuit::new(a, b, d, o, public);
     check_unsatisfied_circuit(&prover, &circuit, rng, &msg);
 
     // Test unsatisfied circuit:
@@ -201,21 +166,7 @@ fn append_gate() {
     let d = BlsScalar::one();
     let o = BlsScalar::one();
     let public = BlsScalar::one();
-    let circuit =
-        TestCircuit::new(q_l, q_r, q_m, q_k, q_o, a, b, d, o, public, constant);
-    check_unsatisfied_circuit(&prover, &circuit, rng, &msg);
-
-    // Test circuit where circuit description doesn't match
-    // q_l·a + q_r·b + q_m·a·b + q_o·o + q_4·d + public + constant = 0
-    let msg = "Proof creation of circuit that has different constant than in description should fail";
-    let a = BlsScalar::zero();
-    let b = BlsScalar::zero();
-    let d = BlsScalar::zero();
-    let o = BlsScalar::zero();
-    let public = BlsScalar::from(2u64);
-    let constant = -BlsScalar::from(2u64);
-    let circuit =
-        TestCircuit::new(q_l, q_r, q_m, q_k, q_o, a, b, d, o, public, constant);
+    let circuit = TestCircuit::new(a, b, d, o, public);
     check_unsatisfied_circuit(&prover, &circuit, rng, &msg);
 
     // Test unsatisfied circuit
@@ -225,7 +176,6 @@ fn append_gate() {
     let d = BlsScalar::one();
     let o = BlsScalar::one();
     let public = BlsScalar::one();
-    let circuit =
-        TestCircuit::new(q_l, q_r, q_m, q_k, q_o, a, b, d, o, public, constant);
+    let circuit = TestCircuit::new(a, b, d, o, public);
     check_unsatisfied_circuit(&prover, &circuit, rng, &msg);
 }

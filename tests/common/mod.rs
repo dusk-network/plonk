@@ -7,23 +7,6 @@
 use dusk_plonk::prelude::*;
 use rand::{CryptoRng, RngCore};
 
-// Create the circuit description for both the prover and the verifier,
-// the `capacity` is a power of two and larger than the amount of gates in `C`
-pub(crate) fn setup<C, R>(
-    capacity: usize,
-    rng: &mut R,
-    label: &[u8],
-    circuit: &C,
-) -> (Prover, Verifier)
-where
-    C: Circuit,
-    R: RngCore + CryptoRng,
-{
-    let pp = PublicParameters::setup(capacity, rng)
-        .expect("Creation of public parameter shouldn't fail");
-    Compiler::compile_with_circuit(&pp, label, circuit).expect("It should be possible to create the prover and verifier circuit descriptions")
-}
-
 // Check that proof creation and verification of a satisfied circuit passes
 // and that the public inputs are as expected
 pub(crate) fn check_satisfied_circuit<C, R>(
