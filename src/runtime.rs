@@ -42,6 +42,15 @@ pub struct Runtime {
 }
 
 impl Runtime {
+    /// Create a new PLONK runtime
+    #[allow(unused_variables)]
+    pub fn new() -> Self {
+        Self {
+            #[cfg(feature = "debug")]
+            debugger: Debugger::new(),
+        }
+    }
+
     /// Create a new PLONK runtime with the provided capacity
     #[allow(unused_variables)]
     pub fn with_capacity(capacity: usize) -> Self {

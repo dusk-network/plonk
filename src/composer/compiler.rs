@@ -35,9 +35,7 @@ impl Compiler {
     where
         C: Circuit,
     {
-        let max_size = Self::max_size(pp);
-        let mut builder = Builder::initialized(max_size);
-
+        let mut builder = Builder::initialized();
         C::default().circuit(&mut builder)?;
 
         Self::compile_with_builder(pp, label, &builder)
@@ -54,9 +52,7 @@ impl Compiler {
     where
         C: Circuit,
     {
-        let max_size = Self::max_size(pp);
-        let mut builder = Builder::initialized(max_size);
-
+        let mut builder = Builder::initialized();
         circuit.circuit(&mut builder)?;
 
         Self::compile_with_builder(pp, label, &builder)
@@ -65,14 +61,11 @@ impl Compiler {
     /// Return a bytes representation of a compressed circuit, capable of
     /// generating its prover and verifier instances.
     #[cfg(feature = "alloc")]
-    pub fn compress<C>(pp: &PublicParameters) -> Result<Vec<u8>, Error>
+    pub fn compress<C>() -> Result<Vec<u8>, Error>
     where
         C: Circuit,
     {
-        compress::CompressedCircuit::from_circuit::<C>(
-            pp,
-            compress::Version::V2,
-        )
+        compress::CompressedCircuit::from_circuit::<C>(compress::Version::V2)
     }
 
     /// Generates a [Prover] and [Verifier] from a buffer created by
@@ -83,11 +76,6 @@ impl Compiler {
         compressed: &[u8],
     ) -> Result<(Prover, Verifier), Error> {
         compress::CompressedCircuit::from_bytes(pp, label, compressed)
-    }
-
-    /// Returns the maximum constraints length for the parameters.
-    fn max_size(pp: &PublicParameters) -> usize {
-        (pp.commit_key.powers_of_g.len() - 1) >> 1
     }
 
     /// Create a new arguments set from a given circuit instance

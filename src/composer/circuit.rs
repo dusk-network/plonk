@@ -16,4 +16,16 @@ pub trait Circuit: Default {
     fn circuit<C>(&self, composer: &mut C) -> Result<(), Error>
     where
         C: Composer;
+
+    /// Returns the size of the circuit.
+    fn size<C>(&self) -> usize
+    where
+        C: Composer,
+    {
+        let mut composer = C::initialized();
+        match self.circuit(&mut composer) {
+            Ok(_) => composer.constraints(),
+            Err(_) => 0,
+        }
+    }
 }

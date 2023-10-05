@@ -87,7 +87,7 @@ fn circuit_with_all_gates() {
     let (prover, verifier) = Compiler::compile::<DummyCircuit>(&pp, label)
         .expect("failed to compile circuit");
 
-    let compressed = Compiler::compress::<DummyCircuit>(&pp)
+    let compressed = Compiler::compress::<DummyCircuit>()
         .expect("failed to compress circuit");
 
     let (decompressed_prover, decompressed_verifier) =
