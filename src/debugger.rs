@@ -181,6 +181,13 @@ impl Debugger {
         }
     }
 
+    pub(crate) fn new() -> Self {
+        Self {
+            witnesses: Vec::new(),
+            constraints: Vec::new(),
+        }
+    }
+
     pub(crate) fn with_capacity(capacity: usize) -> Self {
         Self {
             witnesses: Vec::with_capacity(capacity),

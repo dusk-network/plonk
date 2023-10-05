@@ -89,19 +89,15 @@ pub struct CompressedCircuit {
     witnesses: usize,
     scalars: Vec<[u8; BlsScalar::SIZE]>,
     polynomials: Vec<CompressedPolynomial>,
-    circuit: Vec<CompressedConstraint>,
+    constraints: Vec<CompressedConstraint>,
 }
 
 impl CompressedCircuit {
-    pub fn from_circuit<C>(
-        pp: &PublicParameters,
-        version: Version,
-    ) -> Result<Vec<u8>, Error>
+    pub fn from_circuit<C>(version: Version) -> Result<Vec<u8>, Error>
     where
         C: Circuit,
     {
-        let max_size = Compiler::max_size(pp);
-        let mut builder = Builder::initialized(max_size);
+        let mut builder = Builder::initialized();
         C::default().circuit(&mut builder)?;
         Ok(Self::from_builder(version, builder))
     }
@@ -114,11 +110,11 @@ impl CompressedCircuit {
         let witnesses = builder.witnesses.len();
         let polynomials = builder.constraints;
 
-        let circuit = polynomials.into_iter();
+        let constraints = polynomials.into_iter();
         let mut scalars = version.into_scalars();
         let base_scalars_len = scalars.len();
         let mut polynomials = HashMap::new();
-        let circuit = circuit
+        let constraints = constraints
             .map(
                 |Polynomial {
                      q_m,
@@ -213,12 +209,12 @@ impl CompressedCircuit {
             witnesses,
             scalars,
             polynomials,
-            circuit,
+            constraints,
         };
         let mut buf = Vec::with_capacity(
             1 + compressed.scalars.len() * BlsScalar::SIZE
                 + compressed.polynomials.len() * 88
-                + compressed.circuit.len() * 40,
+                + compressed.constraints.len() * 40,
         );
         compressed.pack(&mut buf);
         miniz_oxide::deflate::compress_to_vec(&buf, 10)
@@ -239,7 +235,7 @@ impl CompressedCircuit {
                 witnesses,
                 scalars,
                 polynomials,
-                circuit,
+                constraints,
             },
         ) = Self::unpack(&compressed)
             .map_err(|_| Error::InvalidCompressedCircuit)?;
@@ -258,7 +254,7 @@ impl CompressedCircuit {
         #[allow(deprecated)]
         // we use `uninitialized` because the decompressor will also contain the
         // dummy constraints, if they were part of the prover when encoding.
-        let mut builder = Builder::uninitialized(circuit.len());
+        let mut builder = Builder::uninitialized();
 
         let mut pi = 0;
         (0..witnesses).for_each(|_| {
@@ -274,7 +270,7 @@ impl CompressedCircuit {
                 w_d,
                 w_o,
             },
-        ) in circuit.into_iter().enumerate()
+        ) in constraints.into_iter().enumerate()
         {
             let CompressedPolynomial {
                 q_m,

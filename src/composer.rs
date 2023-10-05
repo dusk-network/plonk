@@ -60,7 +60,7 @@ pub trait Composer: Sized + Index<Witness, Output = BlsScalar> {
         since = "13.0",
         note = "this function is meant for internal use. call `initialized` instead"
     )]
-    fn uninitialized(capacity: usize) -> Self;
+    fn uninitialized() -> Self;
 
     /// Constraints count
     fn constraints(&self) -> usize;
@@ -81,6 +81,22 @@ pub trait Composer: Sized + Index<Witness, Output = BlsScalar> {
 
     /// PLONK runtime controller
     fn runtime(&mut self) -> &mut Runtime;
+
+    /// Initialize the constraint system with dummy gates
+    fn initialized() -> Self {
+        #[allow(deprecated)]
+        let mut slf = Self::uninitialized();
+
+        let zero = slf.append_witness(0);
+        let one = slf.append_witness(1);
+
+        slf.assert_equal_constant(zero, 0, None);
+        slf.assert_equal_constant(one, 1, None);
+
+        slf.append_dummy_gates();
+
+        slf
+    }
 
     /// Allocate a witness value into the composer and return its index.
     fn append_witness<W: Into<BlsScalar>>(&mut self, witness: W) -> Witness {
@@ -376,23 +392,6 @@ pub trait Composer: Sized + Index<Witness, Output = BlsScalar> {
         self.assert_equal(last_accumulated_bit, jubjub);
 
         Ok(WitnessPoint::new(acc_x, acc_y))
-    }
-
-    /// Initialize the constraint system with dummy gates
-    fn initialized(capacity: usize) -> Self {
-        #[allow(deprecated)]
-        let mut slf = Self::uninitialized(capacity);
-
-        let zero = slf.append_witness(0);
-        let one = slf.append_witness(1);
-
-        slf.assert_equal_constant(zero, 0, None);
-        slf.assert_equal_constant(one, 1, None);
-
-        slf.append_dummy_gates();
-        slf.append_dummy_gates();
-
-        slf
     }
 
     /// Append a new width-4 poly gate/constraint.
@@ -1051,7 +1050,7 @@ pub trait Composer: Sized + Index<Witness, Output = BlsScalar> {
     where
         C: Circuit,
     {
-        let mut builder = Self::initialized(constraints);
+        let mut builder = Self::initialized();
 
         circuit.circuit(&mut builder)?;
 

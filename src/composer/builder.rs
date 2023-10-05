@@ -77,13 +77,13 @@ impl ops::Index<Witness> for Builder {
 }
 
 impl Composer for Builder {
-    fn uninitialized(capacity: usize) -> Self {
+    fn uninitialized() -> Self {
         Self {
-            constraints: Vec::with_capacity(capacity),
+            constraints: Vec::new(),
             public_inputs: HashMap::new(),
-            witnesses: Vec::with_capacity(capacity),
+            witnesses: Vec::new(),
             perm: Permutation::new(),
-            runtime: Runtime::with_capacity(capacity),
+            runtime: Runtime::new(),
         }
     }
 
