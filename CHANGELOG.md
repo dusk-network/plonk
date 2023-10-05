@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `size` method to the `Circuit` trait [#767]
+
+### Removed
+
+- Remove public parametes as parameters for circuit compression [#767]
+
 ## [0.15.0] - 2023-08-30
 
 ### Fixed
