@@ -247,7 +247,11 @@ impl CompressedCircuit {
             .into_iter()
             .for_each(|(s, i)| version_scalars[i] = s);
         for s in scalars {
-            version_scalars.push(BlsScalar::from_bytes(&s)?);
+            let scalar: BlsScalar = match BlsScalar::from_bytes(&s).into() {
+                Some(scalar) => scalar,
+                None => return Err(Error::BlsScalarMalformed),
+            };
+            version_scalars.push(scalar);
         }
         let scalars = version_scalars;
 

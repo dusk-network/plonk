@@ -301,9 +301,9 @@ impl Permutation {
 #[cfg(test)]
 mod test {
     use super::*;
-    //use crate::constraint_system::Constraint;
     use crate::fft::Polynomial;
     use dusk_bls12_381::BlsScalar;
+    use ff::Field;
     use rand_core::OsRng;
 
     #[allow(dead_code)]

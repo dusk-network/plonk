@@ -9,8 +9,9 @@
 use super::key::{CommitKey, OpeningKey};
 use crate::{error::Error, util};
 use alloc::vec::Vec;
-use dusk_bls12_381::{G1Affine, G1Projective, G2Affine};
+use dusk_bls12_381::{BlsScalar, G1Affine, G1Projective, G2Affine};
 use dusk_bytes::{DeserializableSlice, Serializable};
+use ff::Field;
 use rand_core::{CryptoRng, RngCore};
 
 #[cfg(feature = "rkyv-impl")]
@@ -67,7 +68,7 @@ impl PublicParameters {
         max_degree = max_degree + Self::ADDED_BLINDING_DEGREE;
 
         // Generate the secret scalar x
-        let x = util::random_scalar(&mut rng);
+        let x = BlsScalar::random(&mut rng);
 
         // Compute powers of x up to and including x^max_degree
         let powers_of_x = util::powers_of(&x, max_degree);

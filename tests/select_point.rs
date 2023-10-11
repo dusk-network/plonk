@@ -5,6 +5,7 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use dusk_plonk::prelude::*;
+use ff::Field;
 use rand::rngs::StdRng;
 use rand::SeedableRng;
 
@@ -69,9 +70,9 @@ fn component_select_point() {
     // Compile common circuit descriptions for the prover and verifier to be
     // used by all tests
     let label = b"component_select_point";
-    let rng = &mut StdRng::seed_from_u64(0xce11);
+    let mut rng = StdRng::seed_from_u64(0xce11);
     let capacity = 1 << 5;
-    let pp = PublicParameters::setup(capacity, rng)
+    let pp = PublicParameters::setup(capacity, &mut rng)
         .expect("Creation of public parameter shouldn't fail");
     let (prover, verifier) = Compiler::compile::<TestCircuit>(&pp, label)
         .expect("Circuit should compile");
@@ -82,7 +83,7 @@ fn component_select_point() {
     // Test default works:
     let msg = "Default circuit verification should pass";
     let circuit = TestCircuit::default();
-    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, rng, &msg);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
 
     // Test one works
     let msg = "Circuit with bit = 1 that selects point_a should pass";
@@ -91,18 +92,20 @@ fn component_select_point() {
     let point_b = JubJubAffine::identity();
     let result = point_a.clone();
     let circuit = TestCircuit::new(bit, point_a, point_b, result);
-    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, rng, &msg);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
 
     // Test one works with random
     let msg = "Circuit with bit = 1 that selects point_a should pass";
     let bit = BlsScalar::one();
-    let point_a: JubJubAffine =
-        (dusk_jubjub::GENERATOR_EXTENDED * &JubJubScalar::random(rng)).into();
-    let point_b: JubJubAffine =
-        (dusk_jubjub::GENERATOR_EXTENDED * &JubJubScalar::random(rng)).into();
+    let point_a: JubJubAffine = (dusk_jubjub::GENERATOR_EXTENDED
+        * &JubJubScalar::random(&mut rng))
+        .into();
+    let point_b: JubJubAffine = (dusk_jubjub::GENERATOR_EXTENDED
+        * &JubJubScalar::random(&mut rng))
+        .into();
     let result = point_a.clone();
     let circuit = TestCircuit::new(bit, point_a, point_b, result);
-    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, rng, &msg);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
 
     // Test zero works
     let msg = "Circuit with bit = 0 that selects point_b should pass";
@@ -111,28 +114,30 @@ fn component_select_point() {
     let point_b = JubJubAffine::identity();
     let result = point_b.clone();
     let circuit = TestCircuit::new(bit, point_a, point_b, result);
-    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, rng, &msg);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
 
     // Test zero works with random
     let msg = "Circuit with bit = 0 that selects point_b should pass";
     let bit = BlsScalar::zero();
-    let point_a: JubJubAffine =
-        (dusk_jubjub::GENERATOR_EXTENDED * &JubJubScalar::random(rng)).into();
-    let point_b: JubJubAffine =
-        (dusk_jubjub::GENERATOR_EXTENDED * &JubJubScalar::random(rng)).into();
+    let point_a: JubJubAffine = (dusk_jubjub::GENERATOR_EXTENDED
+        * &JubJubScalar::random(&mut rng))
+        .into();
+    let point_b: JubJubAffine = (dusk_jubjub::GENERATOR_EXTENDED
+        * &JubJubScalar::random(&mut rng))
+        .into();
     let result = point_b.clone();
     let circuit = TestCircuit::new(bit, point_a, point_b, result);
-    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, rng, &msg);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
 
     // Test invalid bit passes (bit should be constrained outside of the
     // `select` component)
     let msg = "Circuit with invalid bit shouldn't pass";
-    let bit = BlsScalar::random(rng);
+    let bit = BlsScalar::random(&mut rng);
     let point_a = JubJubAffine::identity();
     let point_b = JubJubAffine::identity();
     let result = JubJubAffine::identity();
     let circuit = TestCircuit::new(bit, point_a, point_b, result);
-    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, rng, &msg);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
 
     // Test one fails
     let msg = "Circuit with bit = 1 that selects point_b shouldn't pass";
@@ -141,18 +146,20 @@ fn component_select_point() {
     let point_b = JubJubAffine::identity();
     let result = point_b.clone();
     let circuit = TestCircuit::new(bit, point_a, point_b, result);
-    check_unsatisfied_circuit(&prover, &circuit, rng, msg);
+    check_unsatisfied_circuit(&prover, &circuit, &mut rng, msg);
 
     // Test one fails with random
     let msg = "Circuit with bit = 1 that selects point_b shouldn't pass";
     let bit = BlsScalar::one();
-    let point_a: JubJubAffine =
-        (dusk_jubjub::GENERATOR_EXTENDED * &JubJubScalar::random(rng)).into();
-    let point_b: JubJubAffine =
-        (dusk_jubjub::GENERATOR_EXTENDED * &JubJubScalar::random(rng)).into();
+    let point_a: JubJubAffine = (dusk_jubjub::GENERATOR_EXTENDED
+        * &JubJubScalar::random(&mut rng))
+        .into();
+    let point_b: JubJubAffine = (dusk_jubjub::GENERATOR_EXTENDED
+        * &JubJubScalar::random(&mut rng))
+        .into();
     let result = point_b.clone();
     let circuit = TestCircuit::new(bit, point_a, point_b, result);
-    check_unsatisfied_circuit(&prover, &circuit, rng, msg);
+    check_unsatisfied_circuit(&prover, &circuit, &mut rng, msg);
 
     // Test zero fails
     let msg = "Circuit with bit = 0 that selects point_a shouldn't pass";
@@ -161,44 +168,52 @@ fn component_select_point() {
     let point_b = JubJubAffine::identity();
     let result = point_a.clone();
     let circuit = TestCircuit::new(bit, point_a, point_b, result);
-    check_unsatisfied_circuit(&prover, &circuit, rng, msg);
+    check_unsatisfied_circuit(&prover, &circuit, &mut rng, msg);
 
     // Test zero fails with random
     let msg = "Circuit with bit = 0 that selects point_a shouldn't pass";
     let bit = BlsScalar::zero();
-    let point_a: JubJubAffine =
-        (dusk_jubjub::GENERATOR_EXTENDED * &JubJubScalar::random(rng)).into();
-    let point_b: JubJubAffine =
-        (dusk_jubjub::GENERATOR_EXTENDED * &JubJubScalar::random(rng)).into();
+    let point_a: JubJubAffine = (dusk_jubjub::GENERATOR_EXTENDED
+        * &JubJubScalar::random(&mut rng))
+        .into();
+    let point_b: JubJubAffine = (dusk_jubjub::GENERATOR_EXTENDED
+        * &JubJubScalar::random(&mut rng))
+        .into();
     let result = point_a.clone();
     let circuit = TestCircuit::new(bit, point_a, point_b, result);
-    check_unsatisfied_circuit(&prover, &circuit, rng, msg);
+    check_unsatisfied_circuit(&prover, &circuit, &mut rng, msg);
 
     // Test random fails
     let msg =
         "Circuit with random result shouldn't pass no matter the selector bit";
     let bit = BlsScalar::one();
-    let point_a: JubJubAffine =
-        (dusk_jubjub::GENERATOR_EXTENDED * &JubJubScalar::random(rng)).into();
-    let point_b: JubJubAffine =
-        (dusk_jubjub::GENERATOR_EXTENDED * &JubJubScalar::random(rng)).into();
-    let result: JubJubAffine =
-        (dusk_jubjub::GENERATOR_EXTENDED * &JubJubScalar::random(rng)).into();
+    let point_a: JubJubAffine = (dusk_jubjub::GENERATOR_EXTENDED
+        * &JubJubScalar::random(&mut rng))
+        .into();
+    let point_b: JubJubAffine = (dusk_jubjub::GENERATOR_EXTENDED
+        * &JubJubScalar::random(&mut rng))
+        .into();
+    let result: JubJubAffine = (dusk_jubjub::GENERATOR_EXTENDED
+        * &JubJubScalar::random(&mut rng))
+        .into();
     let circuit = TestCircuit::new(bit, point_a, point_b, result);
-    check_unsatisfied_circuit(&prover, &circuit, rng, msg);
+    check_unsatisfied_circuit(&prover, &circuit, &mut rng, msg);
 
     // Test random fails
     let msg =
         "Circuit with random result shouldn't pass no matter the selector bit";
     let bit = BlsScalar::zero();
-    let point_a: JubJubAffine =
-        (dusk_jubjub::GENERATOR_EXTENDED * &JubJubScalar::random(rng)).into();
-    let point_b: JubJubAffine =
-        (dusk_jubjub::GENERATOR_EXTENDED * &JubJubScalar::random(rng)).into();
-    let result: JubJubAffine =
-        (dusk_jubjub::GENERATOR_EXTENDED * &JubJubScalar::random(rng)).into();
+    let point_a: JubJubAffine = (dusk_jubjub::GENERATOR_EXTENDED
+        * &JubJubScalar::random(&mut rng))
+        .into();
+    let point_b: JubJubAffine = (dusk_jubjub::GENERATOR_EXTENDED
+        * &JubJubScalar::random(&mut rng))
+        .into();
+    let result: JubJubAffine = (dusk_jubjub::GENERATOR_EXTENDED
+        * &JubJubScalar::random(&mut rng))
+        .into();
     let circuit = TestCircuit::new(bit, point_a, point_b, result);
-    check_unsatisfied_circuit(&prover, &circuit, rng, msg);
+    check_unsatisfied_circuit(&prover, &circuit, &mut rng, msg);
 }
 
 #[test]
@@ -249,9 +264,9 @@ fn component_select_identity() {
     // Compile common circuit descriptions for the prover and verifier to be
     // used by all tests
     let label = b"component_select_one";
-    let rng = &mut StdRng::seed_from_u64(0xfee);
+    let mut rng = StdRng::seed_from_u64(0xfee);
     let capacity = 1 << 5;
-    let pp = PublicParameters::setup(capacity, rng)
+    let pp = PublicParameters::setup(capacity, &mut rng)
         .expect("Creation of public parameter shouldn't fail");
     let (prover, verifier) = Compiler::compile::<TestCircuit>(&pp, label)
         .expect("Circuit should compile");
@@ -262,7 +277,7 @@ fn component_select_identity() {
     // Test default works:
     let msg = "Default circuit verification should pass";
     let circuit = TestCircuit::default();
-    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, rng, &msg);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
 
     // Test one works
     let msg = "Circuit with bit = 1 that selects point should pass";
@@ -270,16 +285,17 @@ fn component_select_identity() {
     let point = dusk_jubjub::GENERATOR;
     let result = point.clone();
     let circuit = TestCircuit::new(bit, point, result);
-    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, rng, &msg);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
 
     // Test one works with random
     let msg = "Circuit with bit = 1 that selects point should pass";
     let bit = BlsScalar::one();
-    let point: JubJubAffine =
-        (dusk_jubjub::GENERATOR_EXTENDED * &JubJubScalar::random(rng)).into();
+    let point: JubJubAffine = (dusk_jubjub::GENERATOR_EXTENDED
+        * &JubJubScalar::random(&mut rng))
+        .into();
     let result = point.clone();
     let circuit = TestCircuit::new(bit, point, result);
-    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, rng, &msg);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
 
     // Test zero works
     let msg = "Circuit with bit = 0 that selects identity should pass";
@@ -287,25 +303,26 @@ fn component_select_identity() {
     let point = dusk_jubjub::GENERATOR;
     let result = JubJubAffine::identity();
     let circuit = TestCircuit::new(bit, point, result);
-    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, rng, &msg);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
 
     // Test zero works with random
     let msg = "Circuit with bit = 0 that selects identity should pass";
     let bit = BlsScalar::zero();
-    let point: JubJubAffine =
-        (dusk_jubjub::GENERATOR_EXTENDED * &JubJubScalar::random(rng)).into();
+    let point: JubJubAffine = (dusk_jubjub::GENERATOR_EXTENDED
+        * &JubJubScalar::random(&mut rng))
+        .into();
     let result = JubJubAffine::identity();
     let circuit = TestCircuit::new(bit, point, result);
-    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, rng, &msg);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
 
     // Test invalid bit passes (bit should be constrained outside of the
     // `select` component)
     let msg = "Circuit with invalid bit can pass";
-    let bit = BlsScalar::random(rng);
+    let bit = BlsScalar::random(&mut rng);
     let point = JubJubAffine::identity();
     let result = JubJubAffine::identity();
     let circuit = TestCircuit::new(bit, point, result);
-    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, rng, &msg);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
 
     // Test one fails
     let msg = "Circuit with bit = 1 that selects identity shouldn't pass";
@@ -313,16 +330,17 @@ fn component_select_identity() {
     let point = dusk_jubjub::GENERATOR;
     let result = JubJubAffine::identity();
     let circuit = TestCircuit::new(bit, point, result);
-    check_unsatisfied_circuit(&prover, &circuit, rng, msg);
+    check_unsatisfied_circuit(&prover, &circuit, &mut rng, msg);
 
     // Test one fails with random
     let msg = "Circuit with bit = 1 that selects identity shouldn't pass";
     let bit = BlsScalar::one();
-    let point: JubJubAffine =
-        (dusk_jubjub::GENERATOR_EXTENDED * &JubJubScalar::random(rng)).into();
+    let point: JubJubAffine = (dusk_jubjub::GENERATOR_EXTENDED
+        * &JubJubScalar::random(&mut rng))
+        .into();
     let result = JubJubAffine::identity();
     let circuit = TestCircuit::new(bit, point, result);
-    check_unsatisfied_circuit(&prover, &circuit, rng, msg);
+    check_unsatisfied_circuit(&prover, &circuit, &mut rng, msg);
 
     // Test zero fails
     let msg = "Circuit with bit = 0 that selects point shouldn't pass";
@@ -330,36 +348,41 @@ fn component_select_identity() {
     let point = dusk_jubjub::GENERATOR;
     let result = point.clone();
     let circuit = TestCircuit::new(bit, point, result);
-    check_unsatisfied_circuit(&prover, &circuit, rng, msg);
+    check_unsatisfied_circuit(&prover, &circuit, &mut rng, msg);
 
     // Test zero fails with random
     let msg = "Circuit with bit = 0 that selects point shouldn't pass";
     let bit = BlsScalar::zero();
-    let point: JubJubAffine =
-        (dusk_jubjub::GENERATOR_EXTENDED * &JubJubScalar::random(rng)).into();
+    let point: JubJubAffine = (dusk_jubjub::GENERATOR_EXTENDED
+        * &JubJubScalar::random(&mut rng))
+        .into();
     let result = point.clone();
     let circuit = TestCircuit::new(bit, point, result);
-    check_unsatisfied_circuit(&prover, &circuit, rng, msg);
+    check_unsatisfied_circuit(&prover, &circuit, &mut rng, msg);
 
     // Test random fails
     let msg =
         "Circuit with random result shouldn't pass no matter the selector bit";
     let bit = BlsScalar::one();
-    let point: JubJubAffine =
-        (dusk_jubjub::GENERATOR_EXTENDED * &JubJubScalar::random(rng)).into();
-    let result: JubJubAffine =
-        (dusk_jubjub::GENERATOR_EXTENDED * &JubJubScalar::random(rng)).into();
+    let point: JubJubAffine = (dusk_jubjub::GENERATOR_EXTENDED
+        * &JubJubScalar::random(&mut rng))
+        .into();
+    let result: JubJubAffine = (dusk_jubjub::GENERATOR_EXTENDED
+        * &JubJubScalar::random(&mut rng))
+        .into();
     let circuit = TestCircuit::new(bit, point, result);
-    check_unsatisfied_circuit(&prover, &circuit, rng, msg);
+    check_unsatisfied_circuit(&prover, &circuit, &mut rng, msg);
 
     // Test random fails
     let msg =
         "Circuit with random result shouldn't pass no matter the selector bit";
     let bit = BlsScalar::zero();
-    let point: JubJubAffine =
-        (dusk_jubjub::GENERATOR_EXTENDED * &JubJubScalar::random(rng)).into();
-    let result: JubJubAffine =
-        (dusk_jubjub::GENERATOR_EXTENDED * &JubJubScalar::random(rng)).into();
+    let point: JubJubAffine = (dusk_jubjub::GENERATOR_EXTENDED
+        * &JubJubScalar::random(&mut rng))
+        .into();
+    let result: JubJubAffine = (dusk_jubjub::GENERATOR_EXTENDED
+        * &JubJubScalar::random(&mut rng))
+        .into();
     let circuit = TestCircuit::new(bit, point, result);
-    check_unsatisfied_circuit(&prover, &circuit, rng, msg);
+    check_unsatisfied_circuit(&prover, &circuit, &mut rng, msg);
 }

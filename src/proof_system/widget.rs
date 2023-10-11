@@ -576,6 +576,7 @@ mod test {
     use super::alloc::ProverKey;
     use super::*;
     use crate::fft::{EvaluationDomain, Evaluations, Polynomial};
+    use ff::Field;
     #[rustfmt::skip]
     use ::alloc::vec::Vec;
     use dusk_bls12_381::BlsScalar;

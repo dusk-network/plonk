@@ -5,6 +5,7 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use dusk_plonk::prelude::*;
+use ff::Field;
 use rand::rngs::StdRng;
 use rand::SeedableRng;
 
@@ -51,7 +52,7 @@ fn component_decomposition() {
     }
 
     let label = b"component_decomposition";
-    let rng = &mut StdRng::seed_from_u64(0x1ea);
+    let mut rng = StdRng::seed_from_u64(0x1ea);
     let capacity = 1 << 10;
     let pi = vec![];
 
@@ -60,14 +61,14 @@ fn component_decomposition() {
     // Compile new circuit descriptions for the prover and verifier
     const N1: usize = 1;
     let circuit = TestCircuit::<N1>::default();
-    let pp = PublicParameters::setup(capacity, rng)
+    let pp = PublicParameters::setup(capacity, &mut rng)
         .expect("Creation of public parameter shouldn't fail");
     let (prover, verifier) = Compiler::compile::<TestCircuit<N1>>(&pp, label)
         .expect("Circuit should compile");
 
     // Test default works:
     let msg = "Default circuit verification should pass";
-    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, rng, &msg);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
 
     // Test bls one
     let msg = "Verification of satisfied circuit should pass";
@@ -75,14 +76,14 @@ fn component_decomposition() {
     let mut decomp_expected = [BlsScalar::zero(); N1];
     decomp_expected[0] = BlsScalar::one();
     let circuit = TestCircuit::new(a, decomp_expected);
-    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, rng, &msg);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
 
     // Test bls two fails
     let msg = "Proof creation of unsatisfied circuit should fail";
     let a = BlsScalar::from(2);
     let decomp_expected = [BlsScalar::zero(); N1];
     let circuit = TestCircuit::new(a, decomp_expected);
-    check_unsatisfied_circuit(&prover, &circuit, rng, &msg);
+    check_unsatisfied_circuit(&prover, &circuit, &mut rng, &msg);
 
     // Test N = 64
     //
@@ -95,7 +96,7 @@ fn component_decomposition() {
 
     // Test default works:
     let msg = "Default circuit verification should pass";
-    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, rng, &msg);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
 
     // Test bls two
     let msg = "Verification of satisfied circuit should pass";
@@ -103,7 +104,7 @@ fn component_decomposition() {
     let mut decomp_expected = [BlsScalar::zero(); N64];
     decomp_expected[1] = BlsScalar::one();
     let circuit = TestCircuit::new(a, decomp_expected);
-    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, rng, &msg);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
 
     // Test bls forty two
     let msg = "Verification of satisfied circuit should pass";
@@ -113,21 +114,21 @@ fn component_decomposition() {
     decomp_expected[3] = BlsScalar::one();
     decomp_expected[1] = BlsScalar::one();
     let circuit = TestCircuit::new(a, decomp_expected);
-    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, rng, &msg);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
 
     // Test u64::MAX
     let msg = "Verification of satisfied circuit should pass";
     let a = BlsScalar::from(u64::MAX);
     let decomp_expected = [BlsScalar::one(); N64];
     let circuit = TestCircuit::new(a, decomp_expected);
-    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, rng, &msg);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
 
     // Test 2 * u64::MAX + 1 fails
     let msg = "Proof creation of unsatisfied circuit should fail";
     let a = BlsScalar::from(u64::MAX) * BlsScalar::from(2) + BlsScalar::one();
     let decomp_expected = [BlsScalar::one(); N64];
     let circuit = TestCircuit::new(a, decomp_expected);
-    check_unsatisfied_circuit(&prover, &circuit, rng, &msg);
+    check_unsatisfied_circuit(&prover, &circuit, &mut rng, &msg);
 
     // Test N = 64
     //
@@ -140,17 +141,17 @@ fn component_decomposition() {
 
     // Test random works:
     let msg = "Verification of satisfied circuit should pass";
-    let a = BlsScalar::random(rng);
+    let a = BlsScalar::random(&mut rng);
     let mut decomp_expected = [BlsScalar::zero(); N256];
     a.to_bits().iter().enumerate().for_each(|(i, bit)| {
         decomp_expected[i] = BlsScalar::from(*bit as u64);
     });
     let circuit = TestCircuit::new(a, decomp_expected);
-    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, rng, &msg);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
 
     // Test flipping one bit fails
     let msg = "Proof creation of unsatisfied circuit should fail";
-    let a = BlsScalar::random(rng);
+    let a = BlsScalar::random(&mut rng);
     let mut decomp_expected = [BlsScalar::zero(); N256];
     a.to_bits().iter().enumerate().for_each(|(i, bit)| {
         decomp_expected[i] = BlsScalar::from(*bit as u64);
@@ -158,5 +159,5 @@ fn component_decomposition() {
     decomp_expected[123] *= -BlsScalar::one();
     decomp_expected[123] += BlsScalar::one();
     let circuit = TestCircuit::new(a, decomp_expected);
-    check_unsatisfied_circuit(&prover, &circuit, rng, &msg);
+    check_unsatisfied_circuit(&prover, &circuit, &mut rng, &msg);
 }

@@ -5,6 +5,7 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use dusk_plonk::prelude::*;
+use ff::Field;
 use rand::rngs::StdRng;
 use rand::SeedableRng;
 
@@ -69,9 +70,9 @@ fn component_select() {
     // Compile common circuit descriptions for the prover and verifier to be
     // used by all tests
     let label = b"component_select";
-    let rng = &mut StdRng::seed_from_u64(0xbeef);
+    let mut rng = StdRng::seed_from_u64(0xbeef);
     let capacity = 1 << 5;
-    let pp = PublicParameters::setup(capacity, rng)
+    let pp = PublicParameters::setup(capacity, &mut rng)
         .expect("Creation of public parameter shouldn't fail");
     let (prover, verifier) = Compiler::compile::<TestCircuit>(&pp, label)
         .expect("Circuit should compile");
@@ -82,7 +83,7 @@ fn component_select() {
     // Test default works:
     let msg = "Default circuit verification should pass";
     let circuit = TestCircuit::default();
-    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, rng, &msg);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
 
     // Test one works
     let msg = "Circuit with bit = 1 that selects value_a should pass";
@@ -91,16 +92,16 @@ fn component_select() {
     let value_b = BlsScalar::zero();
     let result = value_a.clone();
     let circuit = TestCircuit::new(bit, value_a, value_b, result);
-    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, rng, &msg);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
 
     // Test one works with random
     let msg = "Circuit with bit = 1 that selects value_a should pass";
     let bit = BlsScalar::one();
-    let value_a = BlsScalar::random(rng);
-    let value_b = BlsScalar::random(rng);
+    let value_a = BlsScalar::random(&mut rng);
+    let value_b = BlsScalar::random(&mut rng);
     let result = value_a.clone();
     let circuit = TestCircuit::new(bit, value_a, value_b, result);
-    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, rng, &msg);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
 
     // Test zero works
     let msg = "Circuit with bit = 0 that selects value_b should pass";
@@ -109,26 +110,26 @@ fn component_select() {
     let value_b = BlsScalar::zero();
     let result = value_b.clone();
     let circuit = TestCircuit::new(bit, value_a, value_b, result);
-    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, rng, &msg);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
 
     // Test zero works with random
     let msg = "Circuit with bit = 0 that selects value_b should pass";
     let bit = BlsScalar::zero();
-    let value_a = BlsScalar::random(rng);
-    let value_b = BlsScalar::random(rng);
+    let value_a = BlsScalar::random(&mut rng);
+    let value_b = BlsScalar::random(&mut rng);
     let result = value_b.clone();
     let circuit = TestCircuit::new(bit, value_a, value_b, result);
-    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, rng, &msg);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
 
     // Test invalid bit passes (bit should be constrained outside of the
     // `select` component)
     let msg = "Circuit with invalid bit shouldn't pass";
-    let bit = BlsScalar::random(rng);
+    let bit = BlsScalar::random(&mut rng);
     let value_a = BlsScalar::zero();
     let value_b = BlsScalar::zero();
     let result = BlsScalar::zero();
     let circuit = TestCircuit::new(bit, value_a, value_b, result);
-    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, rng, &msg);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
 
     // Test one fails
     let msg = "Circuit with bit = 1 that selects value_b shouldn't pass";
@@ -137,16 +138,16 @@ fn component_select() {
     let value_b = BlsScalar::zero();
     let result = value_b.clone();
     let circuit = TestCircuit::new(bit, value_a, value_b, result);
-    check_unsatisfied_circuit(&prover, &circuit, rng, msg);
+    check_unsatisfied_circuit(&prover, &circuit, &mut rng, msg);
 
     // Test one fails with random
     let msg = "Circuit with bit = 1 that selects value_b shouldn't pass";
     let bit = BlsScalar::one();
-    let value_a = BlsScalar::random(rng);
-    let value_b = BlsScalar::random(rng);
+    let value_a = BlsScalar::random(&mut rng);
+    let value_b = BlsScalar::random(&mut rng);
     let result = value_b.clone();
     let circuit = TestCircuit::new(bit, value_a, value_b, result);
-    check_unsatisfied_circuit(&prover, &circuit, rng, msg);
+    check_unsatisfied_circuit(&prover, &circuit, &mut rng, msg);
 
     // Test zero fails
     let msg = "Circuit with bit = 0 that selects value_a shouldn't pass";
@@ -155,36 +156,36 @@ fn component_select() {
     let value_b = BlsScalar::zero();
     let result = value_a.clone();
     let circuit = TestCircuit::new(bit, value_a, value_b, result);
-    check_unsatisfied_circuit(&prover, &circuit, rng, msg);
+    check_unsatisfied_circuit(&prover, &circuit, &mut rng, msg);
 
     // Test zero fails with random
     let msg = "Circuit with bit = 0 that selects value_a shouldn't pass";
     let bit = BlsScalar::zero();
-    let value_a = BlsScalar::random(rng);
-    let value_b = BlsScalar::random(rng);
+    let value_a = BlsScalar::random(&mut rng);
+    let value_b = BlsScalar::random(&mut rng);
     let result = value_a.clone();
     let circuit = TestCircuit::new(bit, value_a, value_b, result);
-    check_unsatisfied_circuit(&prover, &circuit, rng, msg);
+    check_unsatisfied_circuit(&prover, &circuit, &mut rng, msg);
 
     // Test random fails
     let msg =
         "Circuit with random result shouldn't pass no matter the selector bit";
     let bit = BlsScalar::one();
-    let value_a = BlsScalar::random(rng);
-    let value_b = BlsScalar::random(rng);
-    let result = BlsScalar::random(rng);
+    let value_a = BlsScalar::random(&mut rng);
+    let value_b = BlsScalar::random(&mut rng);
+    let result = BlsScalar::random(&mut rng);
     let circuit = TestCircuit::new(bit, value_a, value_b, result);
-    check_unsatisfied_circuit(&prover, &circuit, rng, msg);
+    check_unsatisfied_circuit(&prover, &circuit, &mut rng, msg);
 
     // Test random fails
     let msg =
         "Circuit with random result shouldn't pass no matter the selector bit";
     let bit = BlsScalar::zero();
-    let value_a = BlsScalar::random(rng);
-    let value_b = BlsScalar::random(rng);
-    let result = BlsScalar::random(rng);
+    let value_a = BlsScalar::random(&mut rng);
+    let value_b = BlsScalar::random(&mut rng);
+    let result = BlsScalar::random(&mut rng);
     let circuit = TestCircuit::new(bit, value_a, value_b, result);
-    check_unsatisfied_circuit(&prover, &circuit, rng, msg);
+    check_unsatisfied_circuit(&prover, &circuit, &mut rng, msg);
 }
 
 #[test]
@@ -230,9 +231,9 @@ fn component_select_one() {
     // Compile common circuit descriptions for the prover and verifier to be
     // used by all tests
     let label = b"component_select_one";
-    let rng = &mut StdRng::seed_from_u64(0xfee);
+    let mut rng = StdRng::seed_from_u64(0xfee);
     let capacity = 1 << 5;
-    let pp = PublicParameters::setup(capacity, rng)
+    let pp = PublicParameters::setup(capacity, &mut rng)
         .expect("Creation of public parameter shouldn't fail");
     let (prover, verifier) = Compiler::compile::<TestCircuit>(&pp, label)
         .expect("Circuit should compile");
@@ -243,7 +244,7 @@ fn component_select_one() {
     // Test default works:
     let msg = "Default circuit verification should pass";
     let circuit = TestCircuit::default();
-    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, rng, &msg);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
 
     // Test one works
     let msg = "Circuit with bit = 1 that selects value should pass";
@@ -251,15 +252,15 @@ fn component_select_one() {
     let value = BlsScalar::one();
     let result = value.clone();
     let circuit = TestCircuit::new(bit, value, result);
-    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, rng, &msg);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
 
     // Test one works with random
     let msg = "Circuit with bit = 1 that selects value should pass";
     let bit = BlsScalar::one();
-    let value = BlsScalar::random(rng);
+    let value = BlsScalar::random(&mut rng);
     let result = value.clone();
     let circuit = TestCircuit::new(bit, value, result);
-    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, rng, &msg);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
 
     // Test zero works
     let msg = "Circuit with bit = 0 that selects 1 should pass";
@@ -267,24 +268,24 @@ fn component_select_one() {
     let value = BlsScalar::zero();
     let result = BlsScalar::one();
     let circuit = TestCircuit::new(bit, value, result);
-    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, rng, &msg);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
 
     // Test zero works with random
     let msg = "Circuit with bit = 0 that selects 1 should pass";
     let bit = BlsScalar::zero();
-    let value = BlsScalar::random(rng);
+    let value = BlsScalar::random(&mut rng);
     let result = BlsScalar::one();
     let circuit = TestCircuit::new(bit, value, result);
-    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, rng, &msg);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
 
     // Test invalid bit passes (bit should be constrained outside of the
     // `select` component)
     let msg = "Circuit with invalid bit can pass";
-    let bit = BlsScalar::random(rng);
+    let bit = BlsScalar::random(&mut rng);
     let value = BlsScalar::one();
     let result = BlsScalar::one();
     let circuit = TestCircuit::new(bit, value, result);
-    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, rng, &msg);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
 
     // Test one fails
     let msg = "Circuit with bit = 1 that selects 1 shouldn't pass";
@@ -292,15 +293,15 @@ fn component_select_one() {
     let value = BlsScalar::zero();
     let result = BlsScalar::one();
     let circuit = TestCircuit::new(bit, value, result);
-    check_unsatisfied_circuit(&prover, &circuit, rng, msg);
+    check_unsatisfied_circuit(&prover, &circuit, &mut rng, msg);
 
     // Test one fails with random
     let msg = "Circuit with bit = 1 that selects 1 shouldn't pass";
     let bit = BlsScalar::one();
-    let value = BlsScalar::random(rng);
+    let value = BlsScalar::random(&mut rng);
     let result = BlsScalar::one();
     let circuit = TestCircuit::new(bit, value, result);
-    check_unsatisfied_circuit(&prover, &circuit, rng, msg);
+    check_unsatisfied_circuit(&prover, &circuit, &mut rng, msg);
 
     // Test zero fails
     let msg = "Circuit with bit = 0 that selects value shouldn't pass";
@@ -308,33 +309,33 @@ fn component_select_one() {
     let value = BlsScalar::zero();
     let result = BlsScalar::zero();
     let circuit = TestCircuit::new(bit, value, result);
-    check_unsatisfied_circuit(&prover, &circuit, rng, msg);
+    check_unsatisfied_circuit(&prover, &circuit, &mut rng, msg);
 
     // Test zero fails with random
     let msg = "Circuit with bit = 0 that selects value shouldn't pass";
     let bit = BlsScalar::zero();
-    let value = BlsScalar::random(rng);
+    let value = BlsScalar::random(&mut rng);
     let result = value.clone();
     let circuit = TestCircuit::new(bit, value, result);
-    check_unsatisfied_circuit(&prover, &circuit, rng, msg);
+    check_unsatisfied_circuit(&prover, &circuit, &mut rng, msg);
 
     // Test random fails
     let msg =
         "Circuit with random result shouldn't pass no matter the selector bit";
     let bit = BlsScalar::one();
-    let value = BlsScalar::random(rng);
-    let result = BlsScalar::random(rng);
+    let value = BlsScalar::random(&mut rng);
+    let result = BlsScalar::random(&mut rng);
     let circuit = TestCircuit::new(bit, value, result);
-    check_unsatisfied_circuit(&prover, &circuit, rng, msg);
+    check_unsatisfied_circuit(&prover, &circuit, &mut rng, msg);
 
     // Test random fails
     let msg =
         "Circuit with random result shouldn't pass no matter the selector bit";
     let bit = BlsScalar::zero();
-    let value = BlsScalar::random(rng);
-    let result = BlsScalar::random(rng);
+    let value = BlsScalar::random(&mut rng);
+    let result = BlsScalar::random(&mut rng);
     let circuit = TestCircuit::new(bit, value, result);
-    check_unsatisfied_circuit(&prover, &circuit, rng, msg);
+    check_unsatisfied_circuit(&prover, &circuit, &mut rng, msg);
 }
 
 #[test]
@@ -380,9 +381,9 @@ fn component_select_zero() {
     // Compile common circuit descriptions for the prover and verifier to be
     // used by all tests
     let label = b"component_select_zero";
-    let rng = &mut StdRng::seed_from_u64(0xca11);
+    let mut rng = StdRng::seed_from_u64(0xca11);
     let capacity = 1 << 5;
-    let pp = PublicParameters::setup(capacity, rng)
+    let pp = PublicParameters::setup(capacity, &mut rng)
         .expect("Creation of public parameter shouldn't fail");
     let (prover, verifier) = Compiler::compile::<TestCircuit>(&pp, label)
         .expect("Circuit should compile");
@@ -393,7 +394,7 @@ fn component_select_zero() {
     // Test default works:
     let msg = "Default circuit verification should pass";
     let circuit = TestCircuit::default();
-    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, rng, &msg);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
 
     // Test one works
     let msg = "Circuit with bit = 1 that selects value should pass";
@@ -401,15 +402,15 @@ fn component_select_zero() {
     let value = BlsScalar::one();
     let result = value.clone();
     let circuit = TestCircuit::new(bit, value, result);
-    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, rng, &msg);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
 
     // Test one works with random
     let msg = "Circuit with bit = 1 that selects value should pass";
     let bit = BlsScalar::one();
-    let value = BlsScalar::random(rng);
+    let value = BlsScalar::random(&mut rng);
     let result = value.clone();
     let circuit = TestCircuit::new(bit, value, result);
-    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, rng, &msg);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
 
     // Test zero works
     let msg = "Circuit with bit = 0 that selects 0 should pass";
@@ -417,24 +418,24 @@ fn component_select_zero() {
     let value = BlsScalar::one();
     let result = BlsScalar::zero();
     let circuit = TestCircuit::new(bit, value, result);
-    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, rng, &msg);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
 
     // Test zero works with random
     let msg = "Circuit with bit = 0 that selects 0 should pass";
     let bit = BlsScalar::zero();
-    let value = BlsScalar::random(rng);
+    let value = BlsScalar::random(&mut rng);
     let result = BlsScalar::zero();
     let circuit = TestCircuit::new(bit, value, result);
-    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, rng, &msg);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
 
     // Test invalid bit passes (bit should be constrained outside of the
     // `select` component)
     let msg = "Circuit with invalid bit can pass";
-    let bit = BlsScalar::random(rng);
+    let bit = BlsScalar::random(&mut rng);
     let value = BlsScalar::zero();
     let result = BlsScalar::zero();
     let circuit = TestCircuit::new(bit, value, result);
-    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, rng, &msg);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
 
     // Test one fails
     let msg = "Circuit with bit = 1 that selects 1 shouldn't pass";
@@ -442,15 +443,15 @@ fn component_select_zero() {
     let value = BlsScalar::zero();
     let result = BlsScalar::one();
     let circuit = TestCircuit::new(bit, value, result);
-    check_unsatisfied_circuit(&prover, &circuit, rng, msg);
+    check_unsatisfied_circuit(&prover, &circuit, &mut rng, msg);
 
     // Test one fails with random
     let msg = "Circuit with bit = 1 that selects 0 shouldn't pass";
     let bit = BlsScalar::one();
-    let value = BlsScalar::random(rng);
+    let value = BlsScalar::random(&mut rng);
     let result = BlsScalar::zero();
     let circuit = TestCircuit::new(bit, value, result);
-    check_unsatisfied_circuit(&prover, &circuit, rng, msg);
+    check_unsatisfied_circuit(&prover, &circuit, &mut rng, msg);
 
     // Test zero fails
     let msg = "Circuit with bit = 0 that selects value shouldn't pass";
@@ -458,31 +459,31 @@ fn component_select_zero() {
     let value = BlsScalar::one();
     let result = BlsScalar::one();
     let circuit = TestCircuit::new(bit, value, result);
-    check_unsatisfied_circuit(&prover, &circuit, rng, msg);
+    check_unsatisfied_circuit(&prover, &circuit, &mut rng, msg);
 
     // Test zero fails with random
     let msg = "Circuit with bit = 0 that selects value shouldn't pass";
     let bit = BlsScalar::zero();
-    let value = BlsScalar::random(rng);
+    let value = BlsScalar::random(&mut rng);
     let result = value.clone();
     let circuit = TestCircuit::new(bit, value, result);
-    check_unsatisfied_circuit(&prover, &circuit, rng, msg);
+    check_unsatisfied_circuit(&prover, &circuit, &mut rng, msg);
 
     // Test random fails
     let msg =
         "Circuit with random result shouldn't pass no matter the selector bit";
     let bit = BlsScalar::one();
-    let value = BlsScalar::random(rng);
-    let result = BlsScalar::random(rng);
+    let value = BlsScalar::random(&mut rng);
+    let result = BlsScalar::random(&mut rng);
     let circuit = TestCircuit::new(bit, value, result);
-    check_unsatisfied_circuit(&prover, &circuit, rng, msg);
+    check_unsatisfied_circuit(&prover, &circuit, &mut rng, msg);
 
     // Test random fails
     let msg =
         "Circuit with random result shouldn't pass no matter the selector bit";
     let bit = BlsScalar::zero();
-    let value = BlsScalar::random(rng);
-    let result = BlsScalar::random(rng);
+    let value = BlsScalar::random(&mut rng);
+    let result = BlsScalar::random(&mut rng);
     let circuit = TestCircuit::new(bit, value, result);
-    check_unsatisfied_circuit(&prover, &circuit, rng, msg);
+    check_unsatisfied_circuit(&prover, &circuit, &mut rng, msg);
 }
