@@ -152,8 +152,8 @@ fn assert_equal_public_point() {
     let msg = "Default circuit verification should pass";
     let circuit = TestCircuit::default();
     let pi = vec![
-        dusk_jubjub::GENERATOR.get_x(),
-        dusk_jubjub::GENERATOR.get_y(),
+        dusk_jubjub::GENERATOR.get_u(),
+        dusk_jubjub::GENERATOR.get_v(),
     ];
     check_satisfied_circuit(&prover, &verifier, &pi, &circuit, rng, &msg);
 
@@ -165,7 +165,7 @@ fn assert_equal_public_point() {
     let public = dusk_jubjub::GENERATOR_EXTENDED * &scalar;
     let circuit = TestCircuit::new(point.into(), public.into());
     let public_affine: JubJubAffine = public.into();
-    let pi = vec![public_affine.get_x(), public_affine.get_y()];
+    let pi = vec![public_affine.get_u(), public_affine.get_v()];
     check_satisfied_circuit(&prover, &verifier, &pi, &circuit, rng, &msg);
 
     // Test:

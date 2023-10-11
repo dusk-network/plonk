@@ -10,10 +10,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add `size` method to the `Circuit` trait [#767]
+- Add `ff` dependency
 
 ### Removed
 
-- Remove public parametes as parameters for circuit compression [#767]
+- Remove `PublicParameters` from parameters for circuit compression [#767]
+- Remove `canonical` and `canonical_derive` dependency
+- Remove `canon` feature
+
+### Changed
+
+- update `dusk-bls12_381` dependency to "0.12"
+- update `dusk-jubjub` dependency to "0.13"
 
 ## [0.15.0] - 2023-08-30
 

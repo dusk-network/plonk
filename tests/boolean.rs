@@ -5,6 +5,7 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use dusk_plonk::prelude::*;
+use ff::Field;
 use rand::rngs::StdRng;
 use rand::SeedableRng;
 
@@ -45,9 +46,9 @@ fn component_boolean() {
     // Compile common circuit descriptions for the prover and verifier to be
     // used by all tests
     let label = b"component_boolean";
-    let rng = &mut StdRng::seed_from_u64(0xfade);
+    let mut rng = StdRng::seed_from_u64(0xfade);
     let capacity = 1 << 4;
-    let pp = PublicParameters::setup(capacity, rng)
+    let pp = PublicParameters::setup(capacity, &mut rng)
         .expect("Creation of public parameter shouldn't fail");
     let (prover, verifier) = Compiler::compile::<TestCircuit>(&pp, label)
         .expect("Circuit should compile");
@@ -58,35 +59,35 @@ fn component_boolean() {
     // Test default works:
     let msg = "Default circuit verification should pass";
     let circuit = TestCircuit::default();
-    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, rng, &msg);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
 
     // Test one works
     let msg = "Circuit with bit = 1 should pass";
     let bit = BlsScalar::one();
     let circuit = TestCircuit::new(bit);
-    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, rng, &msg);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
 
     // Test zero works
     let msg = "Circuit with bit = 0 should pass";
     let bit = BlsScalar::zero();
     let circuit = TestCircuit::new(bit);
-    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, rng, &msg);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
 
     // Test -zero works
     let msg = "Circuit with bit = -0 should pass";
     let bit = -BlsScalar::zero();
     let circuit = TestCircuit::new(bit);
-    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, rng, &msg);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
 
     // Test -one fails
     let msg = "Circuit with bit = -1 shouldn't pass";
     let bit = -BlsScalar::one();
     let circuit = TestCircuit::new(bit);
-    check_unsatisfied_circuit(&prover, &circuit, rng, msg);
+    check_unsatisfied_circuit(&prover, &circuit, &mut rng, msg);
 
     // Test random fails
     let msg = "Circuit with bit = -1 shouldn't pass";
-    let bit = BlsScalar::random(rng);
+    let bit = BlsScalar::random(&mut rng);
     let circuit = TestCircuit::new(bit);
-    check_unsatisfied_circuit(&prover, &circuit, rng, msg);
+    check_unsatisfied_circuit(&prover, &circuit, &mut rng, msg);
 }

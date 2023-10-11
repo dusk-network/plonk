@@ -586,6 +586,7 @@ pub(crate) mod alloc {
 mod proof_tests {
     use super::*;
     use dusk_bls12_381::BlsScalar;
+    use ff::Field;
     use rand_core::OsRng;
 
     #[test]

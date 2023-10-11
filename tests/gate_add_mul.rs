@@ -5,6 +5,7 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use dusk_plonk::prelude::*;
+use ff::Field;
 use rand::rngs::StdRng;
 use rand::SeedableRng;
 
@@ -75,7 +76,7 @@ fn gate_add_mul() {
     }
 
     let label = b"gate_add_mul";
-    let rng = &mut StdRng::seed_from_u64(0xbe11);
+    let mut rng = StdRng::seed_from_u64(0xbe11);
     let capacity = 1 << 4;
 
     // Test: public = zero, constant = zero, selectors = one
@@ -89,14 +90,14 @@ fn gate_add_mul() {
     let result = a + b + a * b + d + public + CONST;
     let pi = vec![public, public];
     let circuit = TestCircuit::new(a, b, d, public, result);
-    let pp = PublicParameters::setup(capacity, rng)
+    let pp = PublicParameters::setup(capacity, &mut rng)
         .expect("Creation of public parameter shouldn't fail");
     let (prover, verifier) = Compiler::compile::<TestCircuit>(&pp, label)
         .expect("Circuit should compile");
 
     // Test default works:
     let msg = "Default circuit verification should pass";
-    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, rng, &msg);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
 
     // Test satisfied circuit:
     // a + b + a·b + d + public + 1 = result
@@ -106,29 +107,29 @@ fn gate_add_mul() {
     let d = BlsScalar::one();
     let result = a + b + a * b + d + public + CONST;
     let circuit = TestCircuit::new(a, b, d, public, result);
-    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, rng, &msg);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
 
     // Test satisfied circuit:
     // a + b + a·b + d + public + 1 = result
     let msg = "Verification of satisfied circuit should pass";
-    let a = BlsScalar::random(rng);
-    let b = BlsScalar::random(rng);
-    let d = BlsScalar::random(rng);
-    let public = BlsScalar::random(rng);
+    let a = BlsScalar::random(&mut rng);
+    let b = BlsScalar::random(&mut rng);
+    let d = BlsScalar::random(&mut rng);
+    let public = BlsScalar::random(&mut rng);
     let pi = vec![public, public];
     let result = a + b + a * b + d + public + CONST;
     let circuit = TestCircuit::new(a, b, d, public, result);
-    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, rng, &msg);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
 
     // Test unsatisfied circuit:
     let msg = "Proof creation of unsatisfied circuit should fail";
-    let a = BlsScalar::random(rng);
-    let b = BlsScalar::random(rng);
-    let d = BlsScalar::random(rng);
-    let public = BlsScalar::random(rng);
+    let a = BlsScalar::random(&mut rng);
+    let b = BlsScalar::random(&mut rng);
+    let d = BlsScalar::random(&mut rng);
+    let public = BlsScalar::random(&mut rng);
     let result = a + b + a * b + d + public + CONST + BlsScalar::one();
     let circuit = TestCircuit::new(a, b, d, public, result);
-    check_unsatisfied_circuit(&prover, &circuit, rng, &msg);
+    check_unsatisfied_circuit(&prover, &circuit, &mut rng, &msg);
 
     // Test unsatisfied circuit:
     // a + b + a·b + d + public + 1 = result
@@ -139,7 +140,7 @@ fn gate_add_mul() {
     let public = BlsScalar::one();
     let result = BlsScalar::from(42);
     let circuit = TestCircuit::new(a, b, d, public, result);
-    check_unsatisfied_circuit(&prover, &circuit, rng, &msg);
+    check_unsatisfied_circuit(&prover, &circuit, &mut rng, &msg);
 
     // Test circuit where circuit description doesn't match
     let msg = "Proof creation of circuit that has different constant than in description should fail";
@@ -150,5 +151,5 @@ fn gate_add_mul() {
     let incorrect_constant = -BlsScalar::from(2u64);
     let result = a + b + a * b + d + public + incorrect_constant;
     let circuit = TestCircuit::new(a, b, d, public, result);
-    check_unsatisfied_circuit(&prover, &circuit, rng, &msg);
+    check_unsatisfied_circuit(&prover, &circuit, &mut rng, &msg);
 }

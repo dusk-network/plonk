@@ -421,6 +421,7 @@ impl<'a, 'b> Sub<&'a BlsScalar> for &'b Polynomial {
 #[cfg(test)]
 mod test {
     use super::*;
+    use ff::Field;
     use rand_core::{CryptoRng, RngCore};
 
     impl Polynomial {
@@ -435,7 +436,7 @@ mod test {
         ) -> Self {
             let mut random_coeffs = Vec::with_capacity(d + 1);
             for _ in 0..=d {
-                random_coeffs.push(util::random_scalar(&mut rng));
+                random_coeffs.push(BlsScalar::random(&mut rng));
             }
             Self::from_coefficients_vec(random_coeffs)
         }

@@ -9,6 +9,7 @@ use core::ops;
 
 use dusk_bls12_381::BlsScalar;
 use dusk_bytes::{DeserializableSlice, Serializable};
+use ff::Field;
 use merlin::Transcript;
 use rand_core::{CryptoRng, RngCore};
 
@@ -20,7 +21,6 @@ use crate::proof_system::{
     linearization_poly, quotient_poly, ProverKey, VerifierKey,
 };
 use crate::transcript::TranscriptProtocol;
-use crate::util;
 
 use super::{Builder, Circuit, Composer};
 
@@ -85,7 +85,7 @@ impl Prover {
         let mut w_vec_inverse = domain.ifft(witnesses);
 
         for i in 0..hiding_degree + 1 {
-            let blinding_scalar = util::random_scalar(rng);
+            let blinding_scalar = BlsScalar::random(&mut *rng);
 
             w_vec_inverse[i] = w_vec_inverse[i] - blinding_scalar;
             w_vec_inverse.push(blinding_scalar);

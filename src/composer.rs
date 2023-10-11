@@ -11,7 +11,6 @@ use core::cmp;
 use core::ops::Index;
 
 use dusk_bls12_381::BlsScalar;
-use dusk_bytes::Serializable;
 use dusk_jubjub::{JubJubAffine, JubJubExtended, JubJubScalar};
 
 use crate::bit_iterator::BitIterator8;
@@ -276,7 +275,11 @@ pub trait Composer: Sized + Index<Witness, Output = BlsScalar> {
         // we should error instead of producing invalid proofs - otherwise this
         // can easily become an attack vector to either shutdown prover
         // services or create malicious statements
-        let scalar = JubJubScalar::from_bytes(&self[jubjub].to_bytes())?;
+        let scalar: JubJubScalar =
+            match JubJubScalar::from_bytes(&self[jubjub].to_bytes()).into() {
+                Some(s) => s,
+                None => return Err(Error::BlsScalarMalformed),
+            };
 
         let width = 2;
         let wnaf_entries = scalar.compute_windowed_naf(width);
@@ -316,16 +319,16 @@ pub trait Composer: Sized + Index<Witness, Output = BlsScalar> {
                 let point = a + b;
                 point_acc.push(point.into());
 
-                let x_alpha = point_to_add.get_x();
-                let y_alpha = point_to_add.get_y();
+                let x_alpha = point_to_add.get_u();
+                let y_alpha = point_to_add.get_v();
 
                 Ok(x_alpha * y_alpha)
             })
             .collect::<Result<_, Error>>()?;
 
         for i in 0..bits {
-            let acc_x = self.append_witness(point_acc[i].get_x());
-            let acc_y = self.append_witness(point_acc[i].get_y());
+            let acc_x = self.append_witness(point_acc[i].get_u());
+            let acc_y = self.append_witness(point_acc[i].get_v());
             let accumulated_bit = self.append_witness(scalar_acc[i]);
 
             // the point accumulator must start from identity and its scalar
@@ -340,8 +343,8 @@ pub trait Composer: Sized + Index<Witness, Output = BlsScalar> {
                 );
             }
 
-            let x_beta = wnaf_point_multiples[i].get_x();
-            let y_beta = wnaf_point_multiples[i].get_y();
+            let x_beta = wnaf_point_multiples[i].get_u();
+            let y_beta = wnaf_point_multiples[i].get_v();
 
             let xy_alpha = self.append_witness(xy_alphas[i]);
             let xy_beta = x_beta * y_beta;
@@ -370,8 +373,8 @@ pub trait Composer: Sized + Index<Witness, Output = BlsScalar> {
         }
 
         // last gate isn't activated for ecc
-        let acc_x = self.append_witness(point_acc[bits].get_x());
-        let acc_y = self.append_witness(point_acc[bits].get_y());
+        let acc_x = self.append_witness(point_acc[bits].get_u());
+        let acc_y = self.append_witness(point_acc[bits].get_v());
 
         // FIXME this implementation presents a plethora of vulnerabilities and
         // requires reworking
@@ -509,8 +512,8 @@ pub trait Composer: Sized + Index<Witness, Output = BlsScalar> {
     ) -> WitnessPoint {
         let affine = affine.into();
 
-        let x = self.append_witness(affine.get_x());
-        let y = self.append_witness(affine.get_y());
+        let x = self.append_witness(affine.get_u());
+        let y = self.append_witness(affine.get_v());
 
         WitnessPoint::new(x, y)
     }
@@ -523,8 +526,8 @@ pub trait Composer: Sized + Index<Witness, Output = BlsScalar> {
     ) -> WitnessPoint {
         let affine = affine.into();
 
-        let x = self.append_constant(affine.get_x());
-        let y = self.append_constant(affine.get_y());
+        let x = self.append_constant(affine.get_u());
+        let y = self.append_constant(affine.get_v());
 
         WitnessPoint::new(x, y)
     }
@@ -542,13 +545,13 @@ pub trait Composer: Sized + Index<Witness, Output = BlsScalar> {
         self.assert_equal_constant(
             *point.x(),
             BlsScalar::zero(),
-            Some(affine.get_x()),
+            Some(affine.get_u()),
         );
 
         self.assert_equal_constant(
             *point.y(),
             BlsScalar::zero(),
-            Some(affine.get_y()),
+            Some(affine.get_v()),
         );
 
         point
@@ -640,13 +643,13 @@ pub trait Composer: Sized + Index<Witness, Output = BlsScalar> {
         self.assert_equal_constant(
             *point.x(),
             BlsScalar::zero(),
-            Some(public.get_x()),
+            Some(public.get_u()),
         );
 
         self.assert_equal_constant(
             *point.y(),
             BlsScalar::zero(),
-            Some(public.get_y()),
+            Some(public.get_v()),
         );
     }
 
@@ -671,8 +674,8 @@ pub trait Composer: Sized + Index<Witness, Output = BlsScalar> {
 
         let point: JubJubAffine = (JubJubExtended::from(p1) + p2).into();
 
-        let x_3 = point.get_x();
-        let y_3 = point.get_y();
+        let x_3 = point.get_u();
+        let y_3 = point.get_v();
 
         let x1_y2 = self[x_1] * self[y_2];
 
