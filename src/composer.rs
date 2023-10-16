@@ -56,7 +56,7 @@ pub trait Composer: Sized + Index<Witness, Output = BlsScalar> {
     ///
     /// This shouldn't be used directly; instead, use [`Self::initialized`]
     #[deprecated(
-        since = "13.0",
+        since = "0.13.0",
         note = "this function is meant for internal use. call `initialized` instead"
     )]
     fn uninitialized() -> Self;
@@ -66,14 +66,14 @@ pub trait Composer: Sized + Index<Witness, Output = BlsScalar> {
 
     /// Allocate a witness value into the composer and return its index.
     #[deprecated(
-        since = "13.0",
+        since = "0.13.0",
         note = "this function is meant for internal use. call `append_witness` instead"
     )]
     fn append_witness_internal(&mut self, witness: BlsScalar) -> Witness;
 
     /// Append a new width-4 poly gate/constraint.
     #[deprecated(
-        since = "13.0",
+        since = "0.13.0",
         note = "this function is meant for internal use. call `append_custom_gate` instead"
     )]
     fn append_custom_gate_internal(&mut self, constraint: Constraint);
@@ -364,10 +364,10 @@ pub trait Composer: Sized + Index<Witness, Output = BlsScalar> {
                     .left(wnaf_round.x_beta)
                     .right(wnaf_round.y_beta)
                     .constant(wnaf_round.xy_beta)
-                    .a(wnaf_round.acc_x.into())
-                    .b(wnaf_round.acc_y.into())
-                    .o(wnaf_round.xy_alpha.into())
-                    .d(wnaf_round.accumulated_bit.into());
+                    .a(wnaf_round.acc_x)
+                    .b(wnaf_round.acc_y)
+                    .o(wnaf_round.xy_alpha)
+                    .d(wnaf_round.accumulated_bit);
 
             self.append_custom_gate(constraint)
         }
@@ -989,16 +989,18 @@ pub trait Composer: Sized + Index<Witness, Output = BlsScalar> {
 
         // last constraint is zeroed as it is reserved for the genesis quad or
         // padding
-        constraints.last_mut().map(|c| *c = Constraint::new());
+        if let Some(c) = constraints.last_mut() {
+            *c = Constraint::new();
+        }
 
         // the accumulators count is a function to the number of quads. hence,
         // this optional gate will not cause different circuits depending on the
         // witness because this computation is bound to the constant bits count
         // alone.
         if let Some(accumulator) = accumulators.last() {
-            constraints
-                .last_mut()
-                .map(|c| c.set_witness(WiredWitness::D, *accumulator));
+            if let Some(c) = constraints.last_mut() {
+                c.set_witness(WiredWitness::D, *accumulator);
+            }
         }
 
         constraints

@@ -117,7 +117,7 @@ impl CommitKey {
     pub fn from_slice(bytes: &[u8]) -> Result<CommitKey, Error> {
         let powers_of_g = bytes
             .chunks(G1Affine::SIZE)
-            .map(|chunk| G1Affine::from_slice(chunk))
+            .map(G1Affine::from_slice)
             .collect::<Result<Vec<G1Affine>, dusk_bytes::Error>>()?;
 
         Ok(CommitKey { powers_of_g })

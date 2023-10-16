@@ -136,8 +136,7 @@ impl Polynomial {
     pub fn to_var_bytes(&self) -> Vec<u8> {
         self.coeffs
             .iter()
-            .map(|item| item.to_bytes().to_vec())
-            .flatten()
+            .flat_map(|item| item.to_bytes().to_vec())
             .collect()
     }
 
@@ -145,7 +144,7 @@ impl Polynomial {
     pub fn from_slice(bytes: &[u8]) -> Result<Polynomial, Error> {
         let coeffs = bytes
             .chunks(BlsScalar::SIZE)
-            .map(|chunk| BlsScalar::from_slice(chunk))
+            .map(BlsScalar::from_slice)
             .collect::<Result<Vec<BlsScalar>, dusk_bytes::Error>>()?;
 
         Ok(Polynomial { coeffs })
@@ -198,7 +197,7 @@ impl<'a, 'b> Add<&'a Polynomial> for &'b Polynomial {
     }
 }
 
-impl<'a, 'b> AddAssign<&'a Polynomial> for Polynomial {
+impl<'a> AddAssign<&'a Polynomial> for Polynomial {
     fn add_assign(&mut self, other: &'a Polynomial) {
         if self.is_zero() {
             self.coeffs.truncate(0);
@@ -219,7 +218,7 @@ impl<'a, 'b> AddAssign<&'a Polynomial> for Polynomial {
     }
 }
 
-impl<'a, 'b> AddAssign<(BlsScalar, &'a Polynomial)> for Polynomial {
+impl<'a> AddAssign<(BlsScalar, &'a Polynomial)> for Polynomial {
     fn add_assign(&mut self, (f, other): (BlsScalar, &'a Polynomial)) {
         if self.is_zero() {
             self.coeffs.truncate(0);
@@ -285,7 +284,7 @@ impl<'a, 'b> Sub<&'a Polynomial> for &'b Polynomial {
     }
 }
 
-impl<'a, 'b> SubAssign<&'a Polynomial> for Polynomial {
+impl<'a> SubAssign<&'a Polynomial> for Polynomial {
     #[inline]
     fn sub_assign(&mut self, other: &'a Polynomial) {
         if self.is_zero() {
