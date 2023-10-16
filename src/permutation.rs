@@ -992,7 +992,7 @@ mod test {
         let gamma = BlsScalar::random(&mut OsRng);
         assert_ne!(gamma, beta);
 
-        //1. Compute the permutation polynomial using both methods
+        // 1. Compute the permutation polynomial using both methods
         let [s_sigma_1_poly, s_sigma_2_poly, s_sigma_3_poly, s_sigma_4_poly] =
             perm.compute_sigma_polynomials(n, domain);
         let (z_vec, numerator_components, denominator_components) =
@@ -1048,7 +1048,7 @@ mod test {
         }
         assert_eq!(a_0 * b_0.invert().unwrap(), BlsScalar::one());
 
-        //3. Now we perform the two checks that need to be done on the
+        // 3. Now we perform the two checks that need to be done on the
         // permutation polynomial (z)
         let z_poly = Polynomial::from_coefficients_vec(domain.ifft(&z_vec));
         //
