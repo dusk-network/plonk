@@ -87,7 +87,7 @@ impl Prover {
         for i in 0..hiding_degree + 1 {
             let blinding_scalar = BlsScalar::random(&mut *rng);
 
-            w_vec_inverse[i] = w_vec_inverse[i] - blinding_scalar;
+            w_vec_inverse[i] -= blinding_scalar;
             w_vec_inverse.push(blinding_scalar);
         }
 
@@ -206,8 +206,7 @@ impl Prover {
         let prover_key = ProverKey::from_slice(prover_key)?;
 
         // Safety: checked len
-        let commit_key =
-            unsafe { CommitKey::from_slice_unchecked(&commit_key) };
+        let commit_key = unsafe { CommitKey::from_slice_unchecked(commit_key) };
 
         let verifier_key = VerifierKey::from_slice(verifier_key)?;
 

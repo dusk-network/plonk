@@ -65,7 +65,7 @@ impl PublicParameters {
         }
 
         // we update the degree to match the required one (n + 6)
-        max_degree = max_degree + Self::ADDED_BLINDING_DEGREE;
+        max_degree += Self::ADDED_BLINDING_DEGREE;
 
         // Generate the secret scalar x
         let x = BlsScalar::random(&mut rng);

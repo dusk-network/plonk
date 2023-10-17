@@ -65,7 +65,7 @@ impl Compiler {
     where
         C: Circuit,
     {
-        compress::CompressedCircuit::from_circuit::<C>(compress::Version::V2)
+        compress::CompressedCircuit::from_circuit::<C>(true)
     }
 
     /// Generates a [Prover] and [Verifier] from a buffer created by
@@ -91,7 +91,7 @@ impl Compiler {
         let (commit, opening) = pp.trim(n)?;
 
         let (prover, verifier) =
-            Self::preprocess(label, commit, opening, &builder)?;
+            Self::preprocess(label, commit, opening, builder)?;
 
         Ok((prover, verifier))
     }
@@ -405,7 +405,7 @@ impl Compiler {
             label.clone(),
             prover_key,
             commit_key,
-            verifier_key.clone(),
+            verifier_key,
             size,
             constraints,
         );

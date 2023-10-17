@@ -45,46 +45,33 @@ pub struct CompressedPolynomial {
     pub q_variable_group_add: usize,
 }
 
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, MsgPacker,
-)]
-pub enum Version {
-    V1,
-    V2,
-}
-
-impl Version {
-    pub fn into_scalars(self) -> HashMap<BlsScalar, usize> {
-        match self {
-            Version::V1 => {
-                [BlsScalar::zero(), BlsScalar::one(), -BlsScalar::one()]
-                    .into_iter()
-                    .enumerate()
-                    .map(|(i, s)| (s, i))
-                    .collect()
-            }
-            Version::V2 => {
-                let mut scalars = Self::V1.into_scalars();
-                // assert we don't override a previously inserted constant
-                for s in hades::constants() {
-                    let len = scalars.len();
-                    scalars.entry(s).or_insert(len);
-                }
-                for r in hades::mds() {
-                    for s in r {
-                        let len = scalars.len();
-                        scalars.entry(s).or_insert(len);
-                    }
-                }
-                scalars
+fn scalar_map(hades_optimization: bool) -> HashMap<BlsScalar, usize> {
+    let mut scalars: HashMap<BlsScalar, usize> = {
+        [BlsScalar::zero(), BlsScalar::one(), -BlsScalar::one()]
+            .into_iter()
+            .enumerate()
+            .map(|(i, s)| (s, i))
+            .collect()
+    };
+    if hades_optimization {
+        // assert we don't override a previously inserted constant
+        for s in hades::constants() {
+            let len = scalars.len();
+            scalars.entry(s).or_insert(len);
+        }
+        for r in hades::mds() {
+            for s in r {
+                let len = scalars.len();
+                scalars.entry(s).or_insert(len);
             }
         }
     }
+    scalars
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, MsgPacker)]
 pub struct CompressedCircuit {
-    version: Version,
+    hades_optimization: bool,
     public_inputs: Vec<usize>,
     witnesses: usize,
     scalars: Vec<[u8; BlsScalar::SIZE]>,
@@ -93,16 +80,16 @@ pub struct CompressedCircuit {
 }
 
 impl CompressedCircuit {
-    pub fn from_circuit<C>(version: Version) -> Result<Vec<u8>, Error>
+    pub fn from_circuit<C>(hades_optimization: bool) -> Result<Vec<u8>, Error>
     where
         C: Circuit,
     {
         let mut builder = Builder::initialized();
         C::default().circuit(&mut builder)?;
-        Ok(Self::from_builder(version, builder))
+        Ok(Self::from_builder(hades_optimization, builder))
     }
 
-    pub fn from_builder(version: Version, builder: Builder) -> Vec<u8> {
+    pub fn from_builder(hades_optimization: bool, builder: Builder) -> Vec<u8> {
         let mut public_inputs: Vec<_> =
             builder.public_inputs.keys().copied().collect();
         public_inputs.sort();
@@ -111,7 +98,7 @@ impl CompressedCircuit {
         let polynomials = builder.constraints;
 
         let constraints = polynomials.into_iter();
-        let mut scalars = version.into_scalars();
+        let mut scalars = scalar_map(hades_optimization);
         let base_scalars_len = scalars.len();
         let mut polynomials = HashMap::new();
         let constraints = constraints
@@ -193,7 +180,7 @@ impl CompressedCircuit {
             .for_each(|(s, i)| scalars[i] = s.to_bytes());
 
         // clear the scalars that can be determiniscally reconstructed from the
-        // version
+        // scalar_map
         let scalars = scalars.split_off(base_scalars_len);
 
         let polynomials_map = polynomials;
@@ -204,7 +191,7 @@ impl CompressedCircuit {
             .for_each(|(p, i)| polynomials[i] = p);
 
         let compressed = Self {
-            version,
+            hades_optimization,
             public_inputs,
             witnesses,
             scalars,
@@ -230,7 +217,7 @@ impl CompressedCircuit {
         let (
             _,
             Self {
-                version,
+                hades_optimization,
                 public_inputs,
                 witnesses,
                 scalars,
@@ -240,10 +227,9 @@ impl CompressedCircuit {
         ) = Self::unpack(&compressed)
             .map_err(|_| Error::InvalidCompressedCircuit)?;
 
-        let version_scalars_map = version.into_scalars();
-        let mut version_scalars =
-            vec![BlsScalar::zero(); version_scalars_map.len()];
-        version_scalars_map
+        let scalar_map = scalar_map(hades_optimization);
+        let mut version_scalars = vec![BlsScalar::zero(); scalar_map.len()];
+        scalar_map
             .into_iter()
             .for_each(|(s, i)| version_scalars[i] = s);
         for s in scalars {
