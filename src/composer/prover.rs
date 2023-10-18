@@ -73,6 +73,7 @@ impl Prover {
     ///
     /// if hiding degree = 1: (b2*X^(n+1) + b1*X^n - b2*X - b1) + witnesses
     /// if hiding degree = 2: (b3*X^(n+2) + b2*X^(n+1) + b1*X^n - b3*X^2 - b2*X
+    /// - b1) + witnesses
     fn blind_poly<R>(
         rng: &mut R,
         witnesses: &[BlsScalar],
@@ -347,18 +348,35 @@ impl Prover {
 
         // split quotient polynomial into 4 degree `n` polynomials
         let domain_size = domain.size();
-        let t_low_poly = FftPolynomial::from_coefficients_vec(
-            t_poly[0..domain_size].to_vec(),
-        );
-        let t_mid_poly = FftPolynomial::from_coefficients_vec(
-            t_poly[domain_size..2 * domain_size].to_vec(),
-        );
-        let t_high_poly = FftPolynomial::from_coefficients_vec(
-            t_poly[2 * domain_size..3 * domain_size].to_vec(),
-        );
-        let t_4_poly = FftPolynomial::from_coefficients_vec(
-            t_poly[3 * domain_size..].to_vec(),
-        );
+
+        let mut t_low_vec = t_poly[0..domain_size].to_vec();
+        let mut t_mid_vec = t_poly[domain_size..2 * domain_size].to_vec();
+        let mut t_high_vec = t_poly[2 * domain_size..3 * domain_size].to_vec();
+        let mut t_4_vec = t_poly[3 * domain_size..].to_vec();
+
+        // select 3 blinding factors for the quotient splitted polynomials
+        let b_10 = BlsScalar::random(&mut *rng);
+        let b_11 = BlsScalar::random(&mut *rng);
+        let b_12 = BlsScalar::random(&mut *rng);
+
+        // t_low'(X) + b_10*X^n
+        t_low_vec.push(b_10);
+
+        // t_mid'(X) - b_10 + b_11*X^n
+        t_mid_vec[0] -= b_10;
+        t_mid_vec.push(b_11);
+
+        // t_high'(X) - b_11 + b_12*X^n
+        t_high_vec[0] -= b_11;
+        t_high_vec.push(b_12);
+
+        // t_4'(X) - b_12
+        t_4_vec[0] -= b_12;
+
+        let t_low_poly = FftPolynomial::from_coefficients_vec(t_low_vec);
+        let t_mid_poly = FftPolynomial::from_coefficients_vec(t_mid_vec);
+        let t_high_poly = FftPolynomial::from_coefficients_vec(t_high_vec);
+        let t_4_poly = FftPolynomial::from_coefficients_vec(t_4_vec);
 
         // commit to split quotient polynomial
         let t_low_commit = self.commit_key.commit(&t_low_poly)?;

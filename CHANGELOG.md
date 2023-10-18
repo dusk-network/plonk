@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add blinding factors to the quotient polynomial [#773]
+
 ### Changed
 
 - Update `criterion` dev-dependency to 0.5
@@ -516,6 +520,7 @@ is necessary since `rkyv/validation` was required as a bound.
 - Proof system module.
 
 <!-- ISSUES -->
+[#773]: https://github.com/dusk-network/plonk/issues/773
 [#774]: https://github.com/dusk-network/plonk/issues/774
 [#763]: https://github.com/dusk-network/plonk/issues/763
 [#760]: https://github.com/dusk-network/plonk/issues/760
