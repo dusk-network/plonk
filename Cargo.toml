@@ -37,7 +37,7 @@ backtrace = {version = "0.3", optional = true}
 dusk-cdf = {version = "0.5", optional = true}
 
 [dev-dependencies]
-criterion = "0.3"
+criterion = "0.5"
 tempdir = "0.3"
 rand = "0.8"
 rkyv = {version = "0.7", default-features = false, features = ["size_32"]}

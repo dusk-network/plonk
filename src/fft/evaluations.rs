@@ -49,8 +49,7 @@ impl Evaluations {
         bytes.extend(
             self.evals
                 .iter()
-                .map(|scalar| scalar.to_bytes().to_vec())
-                .flatten(),
+                .flat_map(|scalar| scalar.to_bytes().to_vec()),
         );
 
         bytes
@@ -62,7 +61,7 @@ impl Evaluations {
         let domain = EvaluationDomain::from_reader(&mut buffer)?;
         let evals = buffer
             .chunks(BlsScalar::SIZE)
-            .map(|chunk| BlsScalar::from_slice(chunk))
+            .map(BlsScalar::from_slice)
             .collect::<Result<Vec<BlsScalar>, dusk_bytes::Error>>()?;
         Ok(Evaluations::from_vec_and_domain(evals, domain))
     }

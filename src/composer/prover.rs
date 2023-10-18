@@ -207,8 +207,7 @@ impl Prover {
         let prover_key = ProverKey::from_slice(prover_key)?;
 
         // Safety: checked len
-        let commit_key =
-            unsafe { CommitKey::from_slice_unchecked(&commit_key) };
+        let commit_key = unsafe { CommitKey::from_slice_unchecked(commit_key) };
 
         let verifier_key = VerifierKey::from_slice(verifier_key)?;
 

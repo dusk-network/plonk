@@ -10,7 +10,6 @@ use std::env;
 use std::path::PathBuf;
 
 use dusk_bls12_381::BlsScalar;
-use dusk_bytes::Serializable;
 use dusk_cdf::{
     BaseConfig, Config, EncodableConstraint, EncodableSource, EncodableWitness,
     Encoder, EncoderContextFileProvider, Polynomial, Selectors, WiredWitnesses,

@@ -15,6 +15,7 @@ use crate::debugger::Debugger;
 
 /// Runtime events
 #[derive(Debug, Clone, Copy)]
+#[allow(clippy::large_enum_variant)]
 pub enum RuntimeEvent {
     /// A witness was appended to the constraint system
     WitnessAppended {
@@ -39,6 +40,12 @@ pub enum RuntimeEvent {
 pub struct Runtime {
     #[cfg(feature = "debug")]
     debugger: Debugger,
+}
+
+impl Default for Runtime {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl Runtime {
