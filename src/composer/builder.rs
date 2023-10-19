@@ -14,13 +14,13 @@ use crate::constraint_system::{Constraint, Selector, WiredWitness, Witness};
 use crate::permutation::Permutation;
 use crate::runtime::Runtime;
 
-use super::{Composer, Polynomial};
+use super::{Arithmetization, Composer};
 
 /// Construct and prove circuits
 #[derive(Debug, Clone)]
 pub struct Builder {
     /// Constraint system gates
-    pub(crate) constraints: Vec<Polynomial>,
+    pub(crate) constraints: Vec<Arithmetization>,
 
     /// Sparse representation of the public inputs
     pub(crate) public_inputs: HashMap<usize, BlsScalar>,
@@ -125,7 +125,7 @@ impl Composer for Builder {
         let q_variable_group_add =
             *constraint.coeff(Selector::GroupAddVariableBase);
 
-        let poly = Polynomial {
+        let poly = Arithmetization {
             q_m,
             q_l,
             q_r,

@@ -11,8 +11,8 @@ use msgpacker::{MsgPacker, Packable, Unpackable};
 use alloc::vec::Vec;
 
 use super::{
-    BlsScalar, Builder, Circuit, Compiler, Composer, Constraint, Error,
-    Polynomial, Prover, PublicParameters, Selector, Verifier, Witness,
+    Arithmetization, BlsScalar, Builder, Circuit, Compiler, Composer,
+    Constraint, Error, Prover, PublicParameters, Selector, Verifier, Witness,
 };
 
 mod hades;
@@ -103,7 +103,7 @@ impl CompressedCircuit {
         let mut polynomials = HashMap::new();
         let constraints = constraints
             .map(
-                |Polynomial {
+                |Arithmetization {
                      q_m,
                      q_l,
                      q_r,
