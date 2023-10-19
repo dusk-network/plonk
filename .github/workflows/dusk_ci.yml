@@ -7,38 +7,26 @@ name: Continuous integration
 
 jobs:
   analyze:
-    name: Dusk Analyzer
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-      - uses: actions-rs/cargo@v1
-        with:
-          command: install
-          args: --git https://github.com/dusk-network/cargo-dusk-analyzer
-      - uses: actions-rs/cargo@v1
-        with:
-          command: dusk-analyzer
+    name: Code Analysis
+    uses: dusk-network/.github/.github/workflows/code-analysis.yml@main
+    with:
+      clippy_default: false
+      clippy_args: --features=rkyv/size_32
 
-  fmt:
-    name: Check code formatting
+  dusk_analyzer:
+    name: Dusk Analyzer
+    uses: dusk-network/.github/.github/workflows/dusk-analysis.yml@main
+
+  build_benches:
+    name: Build Benchmarks
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: nightly
-      - run: rustup component add rustfmt
-      - uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-          args: --all -- --check
+      - uses: actions/checkout@v3
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo bench --no-run
 
   build_docs:
-    name: Build documentation
+    name: Build Documentation
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -47,101 +35,35 @@ jobs:
 
   build_no_std:
     name: Build no_std
-    strategy:
-      fail-fast: false
-      matrix:
-        toolchain:
-          - nightly
-        target: [ thumbv6m-none-eabi ]
     runs-on: ubuntu-latest
     steps:
-      - name: Check out repository
-        uses: actions/checkout@v2
-
-      - name: Install Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: ${{ matrix.toolchain }}
-
-      - name: Add target
-        run: rustup target add ${{ matrix.target }}
-
-      - name: Run cargo check
-        uses: actions-rs/cargo@v1
-        with:
-          command: check
-          args: --all-targets
+      - uses: actions/checkout@v3
+      - run: rustup target add thumbv6m-none-eabi
+      - uses: Swatinem/rust-cache@v2
 
       - name: Build project with alloc
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --release --no-default-features --features alloc --target ${{ matrix.target }}
+        run: cargo build --release --no-default-features --features alloc --target thumbv6m-none-eabi
 
       - name: Build project without alloc
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --release --no-default-features --target ${{ matrix.target }}
+        run: cargo build --release --no-default-features --target thumbv6m-none-eabi
 
   ci:
     name: Test with all features
-    strategy:
-      fail-fast: false
-      matrix:
-        toolchain:
-          - nightly
-        os:
-          - ubuntu-latest
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     steps:
-      - name: Check out repository
-        uses: actions/checkout@v2
-
-      - name: Install Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: ${{ matrix.toolchain }}
-
-      - name: Run cargo check
-        uses: actions-rs/cargo@v1
-        with:
-          command: check
-          args: --all-targets
-
-      - name: Test project
-        if: ${{ matrix.os != 'ubuntu-latest' || matrix.toolchain != 'nightly' }}
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --release --all-features
-
-      - name: Install kcov
-        if: ${{ matrix.os == 'ubuntu-latest' && matrix.toolchain == 'nightly' }}
-        run: sudo apt install -y kcov
-
-      - name: Build test executable
-        if: ${{ matrix.os == 'ubuntu-latest' && matrix.toolchain == 'nightly' }}
-        uses: actions-rs/cargo@v1
-        env:
-          RUSTFLAGS: '-Cdebuginfo=2 -Cinline-threshold=0 -Clink-dead-code'
-          RUSTDOCFLAGS: '-Cdebuginfo=2 -Cinline-threshold=0 -Clink-dead-code'
-        with:
-          command: test
-          args: --release --all-features --no-run
-
-      - name: Test with kcov
-        if: ${{ matrix.os == 'ubuntu-latest' && matrix.toolchain == 'nightly' }}
-        # Find every executable resulting from building the tests and run each
-        # one of them with kcov. This ensures all the code we cover is measured.
+      - uses: actions/checkout@v3     
+      - uses: Swatinem/rust-cache@v2
+      - run: sudo apt install -y kcov
+      - run: RUSTFLAGS='-Cdebuginfo=2 -Cinline-threshold=0 -Clink-dead-code' cargo test --release --no-run --all-features
+      - name: Collect coverage
         run: >
           find target/release/deps -type f -executable ! -name "*.*" |
           xargs -n1 kcov --exclude-pattern=/.cargo,/usr/lib --verify target/cov
-
       - name: Upload coverage
-        if: ${{ matrix.os == 'ubuntu-latest' && matrix.toolchain == 'nightly' }}
-        uses: codecov/codecov-action@v1.0.2
+        uses: codecov/codecov-action@v3
         with:
           token: ${{secrets.CODECOV_TOKEN}}
+
+  test_nightly_std:
+    name: Nightly tests std
+    uses: dusk-network/.github/.github/workflows/run-tests.yml@main
