@@ -21,17 +21,17 @@ use crate::constraint_system::{
 use crate::error::Error;
 use crate::runtime::{Runtime, RuntimeEvent};
 
+mod arithmetization;
 mod builder;
 mod circuit;
 mod compiler;
-mod polynomial;
 mod prover;
 mod verifier;
 
+pub use arithmetization::Arithmetization;
 pub use builder::Builder;
 pub use circuit::Circuit;
 pub use compiler::Compiler;
-pub use polynomial::Polynomial;
 pub use prover::Prover;
 pub use verifier::Verifier;
 

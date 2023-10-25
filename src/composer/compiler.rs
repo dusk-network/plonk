@@ -12,11 +12,11 @@ use dusk_bls12_381::BlsScalar;
 use crate::commitment_scheme::{CommitKey, OpeningKey, PublicParameters};
 use crate::constraint_system::{Constraint, Selector, Witness};
 use crate::error::Error;
-use crate::fft::{EvaluationDomain, Evaluations, Polynomial as FftPolynomial};
+use crate::fft::{EvaluationDomain, Evaluations, Polynomial};
 use crate::proof_system::preprocess::Polynomials;
 use crate::proof_system::{widget, ProverKey};
 
-use super::{Builder, Circuit, Composer, Polynomial, Prover, Verifier};
+use super::{Arithmetization, Builder, Circuit, Composer, Prover, Verifier};
 
 #[cfg(feature = "alloc")]
 mod compress;
@@ -151,19 +151,19 @@ impl Compiler {
         let q_fixed_group_add_poly = domain.ifft(&q_fixed_group_add);
         let q_variable_group_add_poly = domain.ifft(&q_variable_group_add);
 
-        let q_m_poly = FftPolynomial::from_coefficients_vec(q_m_poly);
-        let q_l_poly = FftPolynomial::from_coefficients_vec(q_l_poly);
-        let q_r_poly = FftPolynomial::from_coefficients_vec(q_r_poly);
-        let q_o_poly = FftPolynomial::from_coefficients_vec(q_o_poly);
-        let q_c_poly = FftPolynomial::from_coefficients_vec(q_c_poly);
-        let q_d_poly = FftPolynomial::from_coefficients_vec(q_d_poly);
-        let q_arith_poly = FftPolynomial::from_coefficients_vec(q_arith_poly);
-        let q_range_poly = FftPolynomial::from_coefficients_vec(q_range_poly);
-        let q_logic_poly = FftPolynomial::from_coefficients_vec(q_logic_poly);
+        let q_m_poly = Polynomial::from_coefficients_vec(q_m_poly);
+        let q_l_poly = Polynomial::from_coefficients_vec(q_l_poly);
+        let q_r_poly = Polynomial::from_coefficients_vec(q_r_poly);
+        let q_o_poly = Polynomial::from_coefficients_vec(q_o_poly);
+        let q_c_poly = Polynomial::from_coefficients_vec(q_c_poly);
+        let q_d_poly = Polynomial::from_coefficients_vec(q_d_poly);
+        let q_arith_poly = Polynomial::from_coefficients_vec(q_arith_poly);
+        let q_range_poly = Polynomial::from_coefficients_vec(q_range_poly);
+        let q_logic_poly = Polynomial::from_coefficients_vec(q_logic_poly);
         let q_fixed_group_add_poly =
-            FftPolynomial::from_coefficients_vec(q_fixed_group_add_poly);
+            Polynomial::from_coefficients_vec(q_fixed_group_add_poly);
         let q_variable_group_add_poly =
-            FftPolynomial::from_coefficients_vec(q_variable_group_add_poly);
+            Polynomial::from_coefficients_vec(q_variable_group_add_poly);
 
         // 2. compute the sigma polynomials
         let [s_sigma_1_poly, s_sigma_2_poly, s_sigma_3_poly, s_sigma_4_poly] =

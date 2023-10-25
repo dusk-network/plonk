@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Update `criterion` dev-dependency to 0.5
 - Fix clippy warnings [#774]
+- Rename `composer::Polynomial` to `composer::Arithmetization`
+- Rename `fft::{Polynomial as FftPolynomial}` to `fft::Polynomial`
 
 ## [0.16.0] - 2023-10-11
 

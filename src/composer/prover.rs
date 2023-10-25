@@ -15,7 +15,7 @@ use rand_core::{CryptoRng, RngCore};
 
 use crate::commitment_scheme::CommitKey;
 use crate::error::Error;
-use crate::fft::{EvaluationDomain, Polynomial as FftPolynomial};
+use crate::fft::{EvaluationDomain, Polynomial};
 use crate::proof_system::proof::Proof;
 use crate::proof_system::{
     linearization_poly, quotient_poly, ProverKey, VerifierKey,
@@ -79,7 +79,7 @@ impl Prover {
         witnesses: &[BlsScalar],
         hiding_degree: usize,
         domain: &EvaluationDomain,
-    ) -> FftPolynomial
+    ) -> Polynomial
     where
         R: RngCore + CryptoRng,
     {
@@ -92,7 +92,7 @@ impl Prover {
             w_vec_inverse.push(blinding_scalar);
         }
 
-        FftPolynomial::from_coefficients_vec(w_vec_inverse)
+        Polynomial::from_coefficients_vec(w_vec_inverse)
     }
 
     fn prepare_serialize(
@@ -324,7 +324,7 @@ impl Prover {
 
         // compute public inputs polynomial
         let pi_poly = domain.ifft(&dense_public_inputs);
-        let pi_poly = FftPolynomial::from_coefficients_vec(pi_poly);
+        let pi_poly = Polynomial::from_coefficients_vec(pi_poly);
 
         // compute quotient polynomial
         let wires = (&a_w_poly, &b_w_poly, &o_w_poly, &d_w_poly);
@@ -373,10 +373,10 @@ impl Prover {
         // t_4'(X) - b_12
         t_4_vec[0] -= b_12;
 
-        let t_low_poly = FftPolynomial::from_coefficients_vec(t_low_vec);
-        let t_mid_poly = FftPolynomial::from_coefficients_vec(t_mid_vec);
-        let t_high_poly = FftPolynomial::from_coefficients_vec(t_high_vec);
-        let t_4_poly = FftPolynomial::from_coefficients_vec(t_4_vec);
+        let t_low_poly = Polynomial::from_coefficients_vec(t_low_vec);
+        let t_mid_poly = Polynomial::from_coefficients_vec(t_mid_vec);
+        let t_high_poly = Polynomial::from_coefficients_vec(t_high_vec);
+        let t_4_poly = Polynomial::from_coefficients_vec(t_4_vec);
 
         // commit to split quotient polynomial
         let t_low_commit = self.commit_key.commit(&t_low_poly)?;

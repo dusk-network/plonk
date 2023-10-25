@@ -10,7 +10,7 @@ use crate::constraint_system::Witness;
 
 /// Represents a polynomial in coefficient form with its associated wire data
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct Polynomial {
+pub struct Arithmetization {
     // Selectors
     /// Multiplier selector
     pub(crate) q_m: BlsScalar,
