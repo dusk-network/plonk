@@ -75,6 +75,9 @@ pub enum Error {
     /// This error occurs when a malformed BLS scalar is decoded from a byte
     /// array.
     BlsScalarMalformed,
+    /// This error occurs when a malformed JubJub scalar is decoded from a byte
+    /// array.
+    JubJubScalarMalformed,
     /// WNAF2k should be in `[-1, 0, 1]`
     UnsupportedWNAF2k,
     /// The provided public inputs doesn't match the circuit definition
@@ -148,6 +151,7 @@ impl std::fmt::Display for Error {
             Self::NotEnoughBytes => write!(f, "not enough bytes left to read"),
             Self::PointMalformed => write!(f, "BLS point bytes malformed"),
             Self::BlsScalarMalformed => write!(f, "BLS scalar bytes malformed"),
+            Self::JubJubScalarMalformed => write!(f, "JubJub scalar bytes malformed"),
             Self::BytesError(err) => write!(f, "{:?}", err),
             Self::UnsupportedWNAF2k => write!(
                 f,
