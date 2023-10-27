@@ -242,7 +242,8 @@ pub trait Composer: Sized + Index<Witness, Output = BlsScalar> {
     ///
     /// `generator` will be appended to the circuit description as constant
     ///
-    /// Will error if `jubjub` doesn't fit `Fr`
+    /// Will error with a `JubJubScalarMalformed` error if `jubjub` doesn't fit
+    /// `Fr`
     fn component_mul_generator<P: Into<JubJubExtended>>(
         &mut self,
         jubjub: Witness,
@@ -278,7 +279,7 @@ pub trait Composer: Sized + Index<Witness, Output = BlsScalar> {
         let scalar: JubJubScalar =
             match JubJubScalar::from_bytes(&self[jubjub].to_bytes()).into() {
                 Some(s) => s,
-                None => return Err(Error::BlsScalarMalformed),
+                None => return Err(Error::JubJubScalarMalformed),
             };
 
         let width = 2;
