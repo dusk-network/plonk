@@ -35,9 +35,10 @@ pub enum Error {
     /// This error occurs when the Prover structure already contains a
     /// preprocessed circuit inside, but you call preprocess again.
     CircuitAlreadyPreprocessed,
-    /// This error occurs when the circuit for the proof has a different size
-    /// than the prover circuit description
-    InvalidCircuitSize,
+    /// This error occurs when the circuit description has a different amount
+    /// of gates than the circuit for the proof creation.
+    /// The order: (description_size, circuit_size)
+    InvalidCircuitSize(usize, usize),
 
     // Preprocessing errors
     /// This error occurs when an error triggers during the preprocessing
@@ -127,8 +128,8 @@ impl std::fmt::Display for Error {
             Self::CircuitAlreadyPreprocessed => {
                 write!(f, "circuit has already been preprocessed")
             }
-            Self::InvalidCircuitSize => {
-                write!(f, "circuit size doesn't match with circuit description")
+            Self::InvalidCircuitSize(description_size, circuit_size) => {
+                write!(f, "circuit description has a different amount of gates than the circuit for the proof creation: description size = {description_size}, circuit size = {circuit_size}")
             }
             Self::DegreeIsZero => {
                 write!(f, "cannot create PublicParameters with max degree 0")

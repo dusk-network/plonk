@@ -47,18 +47,20 @@ fn size() {
     let pp = PublicParameters::setup(CAPACITY, rng)
         .expect("Creation of public parameter shouldn't fail");
 
-    // compiling the default version of TestSize, which only one gate: sum = 0
+    // compiling the default version of TestSize circuit, with only one gate in
+    // addition to the 4 dummy gates
     let (prover, _verifier) = Compiler::compile::<TestSize>(&pp, LABEL)
         .expect("It should be possible to compile the prover and verifier");
 
     // Create circuit with more gates
-    let pi: Vec<BlsScalar> = [BlsScalar::one(); 5].into();
-    let sum = pi.iter().sum();
-    let circuit = TestSize::new(pi, sum);
+    let witnesses: Vec<BlsScalar> = [BlsScalar::one(); 4].into();
+    let sum = witnesses.iter().sum();
+    let circuit = TestSize::new(witnesses, sum);
     let result = prover.prove(rng, &circuit);
-    assert_eq!(
-        result,
-        Err(Error::InvalidCircuitSize),
-        "proof creation for different sized circuit shouldn't be possible"
-    );
+    let empty_circuit_size = Builder::initialized().constraints();
+    assert!(result.is_err_and(|e| e
+        == Error::InvalidCircuitSize(
+            empty_circuit_size + 5,
+            empty_circuit_size + 1
+        )));
 }
