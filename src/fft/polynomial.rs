@@ -78,8 +78,7 @@ impl Polynomial {
     /// When the length of the coeffs is zero.
     pub(crate) fn from_coefficients_vec(coeffs: Vec<BlsScalar>) -> Self {
         let mut result = Self { coeffs };
-        // While there are zeros at the end of the coefficient vector, pop them
-        // off.
+        // If the leading coefficients end up being zero, pop them off.
         result.truncate_leading_zeros();
         // Check that either the coefficients vec is empty or that the last
         // coeff is non-zero.
@@ -91,16 +90,22 @@ impl Polynomial {
         result
     }
 
-    /// Returns the degree of the [`Polynomial`].
+    /// Returns the degree, i.e. the highest index of all non-zero coefficients,
+    /// of the [`Polynomial`].
     pub(crate) fn degree(&self) -> usize {
-        if self.is_zero() {
-            return 0;
+        match self.is_zero() {
+            true => 0,
+            false => {
+                let len = self.len();
+                for i in 0..len {
+                    let index = len - 1 - i;
+                    if self[index] != BlsScalar::zero() {
+                        return index;
+                    }
+                }
+                0
+            }
         }
-        assert!(self
-            .coeffs
-            .last()
-            .map_or(false, |coeff| coeff != &BlsScalar::zero()));
-        self.coeffs.len() - 1
     }
 
     fn truncate_leading_zeros(&mut self) {
@@ -113,20 +118,22 @@ impl Polynomial {
         }
     }
 
-    /// Evaluates a [`Polynomial`] at a given point in the field.
-    pub(crate) fn evaluate(&self, point: &BlsScalar) -> BlsScalar {
+    /// Evaluates a [`Polynomial`] at a given value in the field.
+    pub(crate) fn evaluate(&self, value: &BlsScalar) -> BlsScalar {
         if self.is_zero() {
             return BlsScalar::zero();
         }
 
-        // Compute powers of points
-        let powers = util::powers_of(point, self.len());
+        // Compute powers of the value
+        let powers = util::powers_of(value, self.len());
 
-        let p_evals = self.iter().zip(powers.into_iter()).map(|(c, p)| p * c);
+        // Multiply the powers of the value by the coefficients
+        let mul_coeff = self.iter().zip(powers.into_iter()).map(|(c, p)| p * c);
 
+        // Sum it all up
         let mut sum = BlsScalar::zero();
-        for eval in p_evals {
-            sum += &eval;
+        for value in mul_coeff {
+            sum += &value;
         }
         sum
     }
@@ -134,9 +141,12 @@ impl Polynomial {
     /// Given a [`Polynomial`], return it in it's bytes representation
     /// coefficient by coefficient.
     pub fn to_var_bytes(&self) -> Vec<u8> {
+        let degree = self.degree();
         self.coeffs
             .iter()
-            .flat_map(|item| item.to_bytes().to_vec())
+            .enumerate()
+            .filter(|(i, _)| *i <= degree)
+            .flat_map(|(_, item)| item.to_bytes().to_vec())
             .collect()
     }
 
@@ -147,7 +157,11 @@ impl Polynomial {
             .map(BlsScalar::from_slice)
             .collect::<Result<Vec<BlsScalar>, dusk_bytes::Error>>()?;
 
-        Ok(Polynomial { coeffs })
+        let mut p = Polynomial { coeffs };
+        // If the leading coefficients end up being zero, pop them off.
+        p.truncate_leading_zeros();
+
+        Ok(p)
     }
 
     /// Returns an iterator over the polynomial coefficients.
@@ -192,6 +206,7 @@ impl<'a, 'b> Add<&'a Polynomial> for &'b Polynomial {
             }
             result
         };
+        // If the leading coefficients end up being zero, pop them off.
         result.truncate_leading_zeros();
         result
     }
@@ -213,8 +228,9 @@ impl<'a> AddAssign<&'a Polynomial> for Polynomial {
             for (a, b) in self.coeffs.iter_mut().zip(&other.coeffs) {
                 *a += b
             }
-            self.truncate_leading_zeros();
         }
+        // If the leading coefficients end up being zero, pop them off.
+        self.truncate_leading_zeros();
     }
 }
 
@@ -235,8 +251,9 @@ impl<'a> AddAssign<(BlsScalar, &'a Polynomial)> for Polynomial {
             for (a, b) in self.coeffs.iter_mut().zip(&other.coeffs) {
                 *a += &(f * b);
             }
-            self.truncate_leading_zeros();
         }
+        // If the leading coefficients end up being zero, pop them off.
+        self.truncate_leading_zeros();
     }
 }
 
@@ -279,6 +296,7 @@ impl<'a, 'b> Sub<&'a Polynomial> for &'b Polynomial {
             }
             result
         };
+        // If the leading coefficients end up being zero, pop them off.
         result.truncate_leading_zeros();
         result
     }
@@ -303,9 +321,9 @@ impl<'a> SubAssign<&'a Polynomial> for Polynomial {
             for (a, b) in self.coeffs.iter_mut().zip(&other.coeffs) {
                 *a -= b
             }
-            // If the leading coefficient ends up being zero, pop it off.
-            self.truncate_leading_zeros();
         }
+        // If the leading coefficients end up being zero, pop them off.
+        self.truncate_leading_zeros();
     }
 }
 
@@ -313,7 +331,10 @@ impl Polynomial {
     #[allow(dead_code)]
     #[inline]
     fn leading_coefficient(&self) -> Option<&BlsScalar> {
-        self.last()
+        match self.is_zero() {
+            true => None,
+            false => Some(&self[self.degree()]),
+        }
     }
 
     #[allow(dead_code)]
@@ -421,7 +442,8 @@ impl<'a, 'b> Sub<&'a BlsScalar> for &'b Polynomial {
 mod test {
     use super::*;
     use ff::Field;
-    use rand_core::{CryptoRng, RngCore};
+    use rand::rngs::StdRng;
+    use rand_core::{CryptoRng, RngCore, SeedableRng};
 
     impl Polynomial {
         /// Outputs a polynomial of degree `d` where each coefficient is sampled
@@ -438,6 +460,10 @@ mod test {
                 random_coeffs.push(BlsScalar::random(&mut rng));
             }
             Self::from_coefficients_vec(random_coeffs)
+        }
+
+        fn add_zero_coefficient(&mut self) {
+            self.coeffs.push(BlsScalar::zero())
         }
     }
 
@@ -458,6 +484,7 @@ mod test {
         ]);
         assert_eq!(quotient, expected_quotient);
     }
+
     #[test]
     fn test_ruffini_zero() {
         // Tests the two situations where zero can be added to Ruffini:
@@ -465,15 +492,15 @@ mod test {
         // (2) Zero as the constant term for the polynomial you are dividing by
         // In the first case, we should get zero as the quotient
         // In the second case, this is the same as dividing by X
+
         // (1)
-        //
         // Zero polynomial
         let zero = Polynomial::zero();
         // Quotient is invariant under any argument we pass
         let quotient = zero.ruffini(-BlsScalar::from(2));
         assert_eq!(quotient, Polynomial::zero());
+
         // (2)
-        //
         // X^2 + X
         let p = Polynomial::from_coefficients_vec(vec![
             BlsScalar::zero(),
@@ -488,5 +515,141 @@ mod test {
             BlsScalar::one(),
         ]);
         assert_eq!(quotient, expected_quotient);
+    }
+
+    #[test]
+    fn test_degree() {
+        let mut p = Polynomial::from_coefficients_vec(vec![
+            BlsScalar::one(),
+            BlsScalar::from(2),
+        ]);
+        p.add_zero_coefficient();
+        p.add_zero_coefficient();
+        p.add_zero_coefficient();
+
+        assert_eq!(p.degree(), 1);
+    }
+
+    #[test]
+    fn test_leading_coeff() {
+        let mut p = Polynomial::from_coefficients_vec(vec![
+            BlsScalar::from(0),
+            BlsScalar::from(1),
+            BlsScalar::from(2),
+        ]);
+        p.add_zero_coefficient();
+        p.add_zero_coefficient();
+        assert_eq!(*p.leading_coefficient().unwrap(), BlsScalar::from(2));
+    }
+
+    #[test]
+    fn test_serialization() {
+        let mut rng = StdRng::seed_from_u64(0xfeed);
+        let degree = 5;
+        let mut p = Polynomial::rand(degree, &mut rng);
+
+        // test serialization and deserialization works
+        assert_eq!(
+            p,
+            Polynomial::from_slice(&p.to_var_bytes()[..])
+                .expect("(De-)Serialization should succeed")
+        );
+
+        // test leading zero coefficients are not serialized
+        p.add_zero_coefficient();
+        assert_eq!(p.coeffs[degree + 1], BlsScalar::zero());
+        p.add_zero_coefficient();
+        assert_eq!(p.coeffs[degree + 2], BlsScalar::zero());
+        let mut p_bytes = p.to_var_bytes();
+        assert_eq!(p_bytes.len(), (degree + 1) * BlsScalar::SIZE,);
+
+        // test leading coefficients are truncated at deserialization
+        for _ in 0..BlsScalar::SIZE {
+            p_bytes.push(0);
+        }
+        let p_deserialized = Polynomial::from_slice(&p_bytes[..])
+            .expect("Deserialization should succeed");
+        p.truncate_leading_zeros();
+        assert_eq!(p, p_deserialized);
+    }
+
+    #[test]
+    fn test_add_assign() {
+        let mut p1 = Polynomial::from_coefficients_vec(vec![
+            BlsScalar::from(21),
+            BlsScalar::from(4),
+            BlsScalar::zero(),
+            BlsScalar::from(1),
+        ]);
+        let p2 = Polynomial::from_coefficients_vec(vec![
+            BlsScalar::from(21),
+            -BlsScalar::from(4),
+            BlsScalar::zero(),
+            -BlsScalar::from(1),
+        ]);
+
+        p1 += &p2;
+
+        assert_eq!(p1.leading_coefficient(), Some(&BlsScalar::from(42)));
+        assert_eq!(
+            p1,
+            Polynomial::from_coefficients_vec(vec![BlsScalar::from(42)])
+        );
+    }
+
+    #[test]
+    fn test_sub_assign() {
+        let mut p1 = Polynomial::from_coefficients_vec(vec![
+            BlsScalar::from(21),
+            BlsScalar::from(4),
+            BlsScalar::zero(),
+            BlsScalar::from(1),
+        ]);
+        let p2 = Polynomial::from_coefficients_vec(vec![
+            -BlsScalar::from(21),
+            BlsScalar::from(4),
+            BlsScalar::zero(),
+            BlsScalar::from(1),
+        ]);
+
+        p1 -= &p2;
+
+        assert_eq!(p1.leading_coefficient(), Some(&BlsScalar::from(42)));
+        assert_eq!(
+            p1,
+            Polynomial::from_coefficients_vec(vec![BlsScalar::from(42)])
+        );
+    }
+
+    #[test]
+    fn test_mul_poly() {
+        let p = Polynomial::from_coefficients_vec(vec![
+            BlsScalar::one(),
+            -BlsScalar::one(),
+        ]);
+        let result = &p * &p;
+
+        let expected = Polynomial::from_coefficients_vec(vec![
+            BlsScalar::one(),
+            -BlsScalar::from(2),
+            BlsScalar::one(),
+        ]);
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_mul_scalar() {
+        let p = Polynomial::from_coefficients_vec(vec![
+            BlsScalar::one(),
+            -BlsScalar::one(),
+        ]);
+        let scalar = BlsScalar::from(2);
+        let result = &p * &scalar;
+
+        let expected = Polynomial::from_coefficients_vec(vec![
+            BlsScalar::from(2),
+            -BlsScalar::from(2),
+        ]);
+        assert_eq!(result, expected);
     }
 }
