@@ -20,10 +20,10 @@ pub struct Arithmetization {
     pub(crate) q_r: BlsScalar,
     /// Output wire selector
     pub(crate) q_o: BlsScalar,
+    /// Fourth wire selector
+    pub(crate) q_4: BlsScalar,
     /// Constant wire selector
     pub(crate) q_c: BlsScalar,
-    /// Fourth wire selector
-    pub(crate) q_d: BlsScalar,
     /// Arithmetic wire selector
     pub(crate) q_arith: BlsScalar,
     /// Range selector
@@ -39,8 +39,8 @@ pub struct Arithmetization {
     pub(crate) w_a: Witness,
     /// Right wire witness.
     pub(crate) w_b: Witness,
-    /// Fourth wire witness.
-    pub(crate) w_d: Witness,
     /// Output wire witness.
     pub(crate) w_o: Witness,
+    /// Fourth wire witness.
+    pub(crate) w_d: Witness,
 }

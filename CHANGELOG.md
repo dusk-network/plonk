@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix inconsistency in gate ordering of arithmetic verifier key [#797]
+
 ## [0.18.0] - 2023-12-13
 
 ### Changed
@@ -532,6 +536,7 @@ is necessary since `rkyv/validation` was required as a bound.
 - Proof system module.
 
 <!-- ISSUES -->
+[#797]: https://github.com/dusk-network/plonk/issues/797
 [#784]: https://github.com/dusk-network/plonk/issues/784
 [#773]: https://github.com/dusk-network/plonk/issues/773
 [#774]: https://github.com/dusk-network/plonk/issues/774

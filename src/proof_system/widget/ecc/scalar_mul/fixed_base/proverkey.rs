@@ -43,7 +43,7 @@ impl ProverKey {
         a_w_i_next: &BlsScalar, //  // next_x
         b_w_i: &BlsScalar,      // acc_y or curr_y
         b_w_i_next: &BlsScalar, // next_y
-        c_w_i: &BlsScalar,      // xy_alpha
+        o_w_i: &BlsScalar,      // xy_alpha
         d_w_i: &BlsScalar,      // accumulated_bit
         d_w_i_next: &BlsScalar, // accumulated_bit_next
     ) -> BlsScalar {
@@ -62,7 +62,7 @@ impl ProverKey {
         let acc_y = b_w_i;
         let acc_y_next = b_w_i_next;
 
-        let xy_alpha = c_w_i;
+        let xy_alpha = o_w_i;
 
         let accumulated_bit = d_w_i;
         let accumulated_bit_next = d_w_i_next;
@@ -108,7 +108,7 @@ impl ProverKey {
         a_next_eval: &BlsScalar,
         b_eval: &BlsScalar,
         b_next_eval: &BlsScalar,
-        c_eval: &BlsScalar,
+        o_eval: &BlsScalar,
         d_eval: &BlsScalar,
         d_next_eval: &BlsScalar,
         q_l_eval: &BlsScalar,
@@ -129,7 +129,7 @@ impl ProverKey {
         let acc_y = b_eval;
         let acc_y_next = b_next_eval;
 
-        let xy_alpha = c_eval;
+        let xy_alpha = o_eval;
 
         let accumulated_bit = d_eval;
         let accumulated_bit_next = d_next_eval;

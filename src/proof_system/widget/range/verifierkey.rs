@@ -49,9 +49,9 @@ mod alloc {
             let kappa_sq = kappa.square();
             let kappa_cu = kappa_sq * kappa;
 
-            let b_1 = delta(evaluations.c_eval - (four * evaluations.d_eval));
+            let b_1 = delta(evaluations.o_eval - (four * evaluations.d_eval));
             let b_2 =
-                delta(evaluations.b_eval - four * evaluations.c_eval) * kappa;
+                delta(evaluations.b_eval - four * evaluations.o_eval) * kappa;
             let b_3 = delta(evaluations.a_eval - four * evaluations.b_eval)
                 * kappa_sq;
             let b_4 =

@@ -223,7 +223,7 @@ impl Permutation {
         let ks = vec![BlsScalar::one(), K1, K2, K3];
 
         // Transpose wires and sigma values to get "rows" in the form [a_w_i,
-        // b_w_i, c_w_i, ... ] where each row contains the wire and sigma
+        // b_w_i, o_w_i, d_w_i] where each row contains the wire and sigma
         // values for a single gate
         let gatewise_wires = izip!(wires[0], wires[1], wires[2], wires[3])
             .map(|(w0, w1, w2, w3)| vec![w0, w1, w2, w3]);
@@ -311,7 +311,7 @@ mod test {
         domain: &EvaluationDomain,
         a_w: &[BlsScalar],
         b_w: &[BlsScalar],
-        c_w: &[BlsScalar],
+        o_w: &[BlsScalar],
         d_w: &[BlsScalar],
         beta: &BlsScalar,
         gamma: &BlsScalar,
@@ -362,7 +362,7 @@ mod test {
         let b_w_gamma: Vec<_> = b_w.iter().map(|b_w| b_w + gamma).collect();
 
         // Compute out_wire + gamma
-        let c_w_gamma: Vec<_> = c_w.iter().map(|c_w| c_w + gamma).collect();
+        let o_w_gamma: Vec<_> = o_w.iter().map(|o_w| o_w + gamma).collect();
 
         // Compute fourth_wire + gamma
         let d_w_gamma: Vec<_> = d_w.iter().map(|d_w| d_w + gamma).collect();
@@ -372,7 +372,7 @@ mod test {
         let accumulator_components_without_l1: Vec<_> = izip!(
             a_w_gamma,
             b_w_gamma,
-            c_w_gamma,
+            o_w_gamma,
             d_w_gamma,
             common_roots,
             beta_roots_k1,
@@ -387,7 +387,7 @@ mod test {
             |(
                 a_w_gamma,
                 b_w_gamma,
-                c_w_gamma,
+                o_w_gamma,
                 d_w_gamma,
                 beta_root,
                 beta_root_k1,
@@ -405,7 +405,7 @@ mod test {
                 let ac2 = b_w_gamma + beta_root_k1;
 
                 // w_{2n+j} + beta * K2 * root^j-1 + gamma
-                let ac3 = c_w_gamma + beta_root_k2;
+                let ac3 = o_w_gamma + beta_root_k2;
 
                 // w_{3n+j} + beta * K3 * root^j-1 + gamma
                 let ac4 = d_w_gamma + beta_root_k3;
@@ -417,7 +417,7 @@ mod test {
                 let ac6 = (b_w_gamma + beta_s_sigma_2).invert().unwrap();
 
                 // 1 / w_{2n+j} + beta * sigma(2n+j) + gamma
-                let ac7 = (c_w_gamma + beta_s_sigma_3).invert().unwrap();
+                let ac7 = (o_w_gamma + beta_s_sigma_3).invert().unwrap();
 
                 // 1 / w_{3n+j} + beta * sigma(3n+j) + gamma
                 let ac8 = (d_w_gamma + beta_s_sigma_4).invert().unwrap();
@@ -472,7 +472,7 @@ mod test {
         domain: &EvaluationDomain,
         a_w: I,
         b_w: I,
-        c_w: I,
+        o_w: I,
         d_w: I,
         beta: &BlsScalar,
         gamma: &BlsScalar,
@@ -522,7 +522,7 @@ mod test {
         let b_w_gamma: Vec<_> = b_w.map(|w| w + gamma).collect();
 
         // Compute out_wire + gamma
-        let c_w_gamma: Vec<_> = c_w.map(|w| w + gamma).collect();
+        let o_w_gamma: Vec<_> = o_w.map(|w| w + gamma).collect();
 
         // Compute fourth_wire + gamma
         let d_w_gamma: Vec<_> = d_w.map(|w| w + gamma).collect();
@@ -544,7 +544,7 @@ mod test {
         for (
             a_w_gamma,
             b_w_gamma,
-            c_w_gamma,
+            o_w_gamma,
             d_w_gamma,
             beta_root,
             beta_root_k1,
@@ -553,7 +553,7 @@ mod test {
         ) in izip!(
             a_w_gamma.iter(),
             b_w_gamma.iter(),
-            c_w_gamma.iter(),
+            o_w_gamma.iter(),
             d_w_gamma.iter(),
             beta_roots_iter,
             beta_roots_k1_iter,
@@ -566,8 +566,8 @@ mod test {
             // (b_w + beta * root * k_1 + gamma)
             let prod_b = beta_root_k1 + b_w_gamma;
 
-            // (c_w + beta * root * k_2 + gamma)
-            let prod_c = beta_root_k2 + c_w_gamma;
+            // (o_w + beta * root * k_2 + gamma)
+            let prod_c = beta_root_k2 + o_w_gamma;
 
             // (d_w + beta * root * k_3 + gamma)
             let prod_d = beta_root_k3 + d_w_gamma;
@@ -585,7 +585,7 @@ mod test {
         for (
             a_w_gamma,
             b_w_gamma,
-            c_w_gamma,
+            o_w_gamma,
             d_w_gamma,
             beta_s_sigma_1,
             beta_s_sigma_2,
@@ -594,7 +594,7 @@ mod test {
         ) in izip!(
             a_w_gamma,
             b_w_gamma,
-            c_w_gamma,
+            o_w_gamma,
             d_w_gamma,
             beta_s_sigma_1_iter,
             beta_s_sigma_2_iter,
@@ -607,8 +607,8 @@ mod test {
             // (b_w + beta * s_sigma_2 + gamma)
             let prod_b = beta_s_sigma_2 + b_w_gamma;
 
-            // (c_w + beta * s_sigma_3 + gamma)
-            let prod_c = beta_s_sigma_3 + c_w_gamma;
+            // (o_w + beta * s_sigma_3 + gamma)
+            let prod_c = beta_s_sigma_3 + o_w_gamma;
 
             // (d_w + beta * s_sigma_4 + gamma)
             let prod_d = beta_s_sigma_4 + d_w_gamma;
@@ -809,7 +809,7 @@ mod test {
             BlsScalar::one(),
             BlsScalar::one(),
         ];
-        let c_w = vec![
+        let o_w = vec![
             BlsScalar::one(),
             BlsScalar::one(),
             BlsScalar::one(),
@@ -828,7 +828,7 @@ mod test {
             &domain,
             a_w,
             b_w,
-            c_w,
+            o_w,
             d_w,
         );
     }
@@ -955,7 +955,7 @@ mod test {
 
         let a_w: Vec<_> = vec![BlsScalar::one(), BlsScalar::from(3)];
         let b_w: Vec<_> = vec![BlsScalar::from(2), BlsScalar::from(2)];
-        let c_w: Vec<_> = vec![BlsScalar::from(3), BlsScalar::one()];
+        let o_w: Vec<_> = vec![BlsScalar::from(3), BlsScalar::one()];
         let d_w: Vec<_> = vec![BlsScalar::one(), BlsScalar::one()];
 
         test_correct_permutation_poly(
@@ -964,7 +964,7 @@ mod test {
             &domain,
             a_w,
             b_w,
-            c_w,
+            o_w,
             d_w,
         );
     }
@@ -983,7 +983,7 @@ mod test {
         domain: &EvaluationDomain,
         a_w: Vec<BlsScalar>,
         b_w: Vec<BlsScalar>,
-        c_w: Vec<BlsScalar>,
+        o_w: Vec<BlsScalar>,
         d_w: Vec<BlsScalar>,
     ) {
         // 0. Generate beta and gamma challenges
@@ -1000,7 +1000,7 @@ mod test {
                 domain,
                 a_w.clone().into_iter(),
                 b_w.clone().into_iter(),
-                c_w.clone().into_iter(),
+                o_w.clone().into_iter(),
                 d_w.clone().into_iter(),
                 &beta,
                 &gamma,
@@ -1016,7 +1016,7 @@ mod test {
             domain,
             &a_w,
             &b_w,
-            &c_w,
+            &o_w,
             &d_w,
             &beta,
             &gamma,

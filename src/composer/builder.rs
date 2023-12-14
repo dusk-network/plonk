@@ -115,8 +115,8 @@ impl Composer for Builder {
         let q_l = *constraint.coeff(Selector::Left);
         let q_r = *constraint.coeff(Selector::Right);
         let q_o = *constraint.coeff(Selector::Output);
+        let q_4 = *constraint.coeff(Selector::Fourth);
         let q_c = *constraint.coeff(Selector::Constant);
-        let q_d = *constraint.coeff(Selector::Fourth);
 
         let q_arith = *constraint.coeff(Selector::Arithmetic);
         let q_range = *constraint.coeff(Selector::Range);
@@ -130,8 +130,8 @@ impl Composer for Builder {
             q_l,
             q_r,
             q_o,
+            q_4,
             q_c,
-            q_d,
             q_arith,
             q_range,
             q_logic,

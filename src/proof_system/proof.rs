@@ -47,7 +47,7 @@ pub struct Proof {
     pub(crate) b_comm: Commitment,
     /// Commitment to the witness polynomial for the output wires.
     #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
-    pub(crate) c_comm: Commitment,
+    pub(crate) o_comm: Commitment,
     /// Commitment to the witness polynomial for the fourth wires.
     #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) d_comm: Commitment,
@@ -90,7 +90,7 @@ impl<C> CheckBytes<C> for ArchivedProof {
     ) -> Result<&'a Self, Self::Error> {
         check_field(&(*value).a_comm, context, "a_comm")?;
         check_field(&(*value).b_comm, context, "b_comm")?;
-        check_field(&(*value).c_comm, context, "c_comm")?;
+        check_field(&(*value).o_comm, context, "o_comm")?;
         check_field(&(*value).d_comm, context, "d_comm")?;
 
         check_field(&(*value).z_comm, context, "z_comm")?;
@@ -122,7 +122,7 @@ impl Serializable<{ 11 * Commitment::SIZE + ProofEvaluations::SIZE }>
         let mut writer = &mut buf[..];
         writer.write(&self.a_comm.to_bytes());
         writer.write(&self.b_comm.to_bytes());
-        writer.write(&self.c_comm.to_bytes());
+        writer.write(&self.o_comm.to_bytes());
         writer.write(&self.d_comm.to_bytes());
         writer.write(&self.z_comm.to_bytes());
         writer.write(&self.t_low_comm.to_bytes());
@@ -141,7 +141,7 @@ impl Serializable<{ 11 * Commitment::SIZE + ProofEvaluations::SIZE }>
 
         let a_comm = Commitment::from_reader(&mut buffer)?;
         let b_comm = Commitment::from_reader(&mut buffer)?;
-        let c_comm = Commitment::from_reader(&mut buffer)?;
+        let o_comm = Commitment::from_reader(&mut buffer)?;
         let d_comm = Commitment::from_reader(&mut buffer)?;
         let z_comm = Commitment::from_reader(&mut buffer)?;
         let t_low_comm = Commitment::from_reader(&mut buffer)?;
@@ -155,7 +155,7 @@ impl Serializable<{ 11 * Commitment::SIZE + ProofEvaluations::SIZE }>
         Ok(Proof {
             a_comm,
             b_comm,
-            c_comm,
+            o_comm,
             d_comm,
             z_comm,
             t_low_comm,
@@ -212,7 +212,7 @@ pub(crate) mod alloc {
             // Add commitment to witness polynomials to transcript
             transcript.append_commitment(b"a_w", &self.a_comm);
             transcript.append_commitment(b"b_w", &self.b_comm);
-            transcript.append_commitment(b"c_w", &self.c_comm);
+            transcript.append_commitment(b"o_w", &self.o_comm);
             transcript.append_commitment(b"d_w", &self.d_comm);
 
             // Compute beta and gamma challenges
@@ -275,7 +275,7 @@ pub(crate) mod alloc {
             // Add evaluations to transcript
             transcript.append_scalar(b"a_eval", &self.evaluations.a_eval);
             transcript.append_scalar(b"b_eval", &self.evaluations.b_eval);
-            transcript.append_scalar(b"c_eval", &self.evaluations.c_eval);
+            transcript.append_scalar(b"o_eval", &self.evaluations.o_eval);
             transcript.append_scalar(b"d_eval", &self.evaluations.d_eval);
             transcript
                 .append_scalar(b"a_next_eval", &self.evaluations.a_next_eval);
@@ -336,7 +336,7 @@ pub(crate) mod alloc {
             aggregate_proof.add_part((self.evaluations.r_poly_eval, r_comm));
             aggregate_proof.add_part((self.evaluations.a_eval, self.a_comm));
             aggregate_proof.add_part((self.evaluations.b_eval, self.b_comm));
-            aggregate_proof.add_part((self.evaluations.c_eval, self.c_comm));
+            aggregate_proof.add_part((self.evaluations.o_eval, self.o_comm));
             aggregate_proof.add_part((self.evaluations.d_eval, self.d_comm));
             aggregate_proof.add_part((
                 self.evaluations.s_sigma_1_eval,
@@ -415,9 +415,9 @@ pub(crate) mod alloc {
             let beta_sig2 = beta * self.evaluations.s_sigma_2_eval;
             let b_1 = self.evaluations.b_eval + beta_sig2 + gamma;
 
-            // c + beta * sigma_3 + gamma
+            // o + beta * sigma_3 + gamma
             let beta_sig3 = beta * self.evaluations.s_sigma_3_eval;
-            let b_2 = self.evaluations.c_eval + beta_sig3 + gamma;
+            let b_2 = self.evaluations.o_eval + beta_sig3 + gamma;
 
             // ((d + gamma) * z_hat) * alpha_0
             let b_3 = (self.evaluations.d_eval + gamma) * z_hat_eval * alpha;
@@ -594,7 +594,7 @@ mod proof_tests {
         let proof = Proof {
             a_comm: Commitment::default(),
             b_comm: Commitment::default(),
-            c_comm: Commitment::default(),
+            o_comm: Commitment::default(),
             d_comm: Commitment::default(),
             z_comm: Commitment::default(),
             t_low_comm: Commitment::default(),
@@ -606,7 +606,7 @@ mod proof_tests {
             evaluations: ProofEvaluations {
                 a_eval: BlsScalar::random(&mut OsRng),
                 b_eval: BlsScalar::random(&mut OsRng),
-                c_eval: BlsScalar::random(&mut OsRng),
+                o_eval: BlsScalar::random(&mut OsRng),
                 d_eval: BlsScalar::random(&mut OsRng),
                 a_next_eval: BlsScalar::random(&mut OsRng),
                 b_next_eval: BlsScalar::random(&mut OsRng),

@@ -51,8 +51,8 @@ impl Serializable<{ 7 * Commitment::SIZE }> for VerifierKey {
         writer.write(&self.q_l.to_bytes());
         writer.write(&self.q_r.to_bytes());
         writer.write(&self.q_o.to_bytes());
-        writer.write(&self.q_c.to_bytes());
         writer.write(&self.q_4.to_bytes());
+        writer.write(&self.q_c.to_bytes());
         writer.write(&self.q_arith.to_bytes());
 
         buff
@@ -64,8 +64,8 @@ impl Serializable<{ 7 * Commitment::SIZE }> for VerifierKey {
         let q_l = Commitment::from_reader(&mut buffer)?;
         let q_r = Commitment::from_reader(&mut buffer)?;
         let q_o = Commitment::from_reader(&mut buffer)?;
-        let q_c = Commitment::from_reader(&mut buffer)?;
         let q_4 = Commitment::from_reader(&mut buffer)?;
+        let q_c = Commitment::from_reader(&mut buffer)?;
         let q_arith = Commitment::from_reader(&mut buffer)?;
 
         Ok(VerifierKey {
@@ -107,7 +107,7 @@ mod alloc {
             scalars.push(evaluations.b_eval * q_arith_eval);
             points.push(self.q_r.0);
 
-            scalars.push(evaluations.c_eval * q_arith_eval);
+            scalars.push(evaluations.o_eval * q_arith_eval);
             points.push(self.q_o.0);
 
             scalars.push(evaluations.d_eval * q_arith_eval);
