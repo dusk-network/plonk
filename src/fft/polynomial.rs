@@ -9,7 +9,6 @@
 //! vector.
 use super::{EvaluationDomain, Evaluations};
 use crate::error::Error;
-use crate::util;
 use alloc::vec::Vec;
 use core::ops::{Add, AddAssign, Deref, DerefMut, Mul, Neg, Sub, SubAssign};
 use dusk_bls12_381::BlsScalar;
@@ -115,20 +114,10 @@ impl Polynomial {
 
     /// Evaluates a [`Polynomial`] at a given point in the field.
     pub(crate) fn evaluate(&self, point: &BlsScalar) -> BlsScalar {
-        if self.is_zero() {
-            return BlsScalar::zero();
-        }
-
-        // Compute powers of points
-        let powers = util::powers_of(point, self.len());
-
-        let p_evals = self.iter().zip(powers.into_iter()).map(|(c, p)| p * c);
-
-        let mut sum = BlsScalar::zero();
-        for eval in p_evals {
-            sum += &eval;
-        }
-        sum
+        self.coeffs
+            .iter()
+            .rev()
+            .fold(BlsScalar::zero(), |sum, coeff| sum * point + coeff)
     }
 
     /// Given a [`Polynomial`], return it in it's bytes representation
@@ -156,6 +145,7 @@ impl Polynomial {
     }
 }
 
+use core::iter;
 use core::iter::Sum;
 
 impl Sum for Polynomial {
@@ -163,11 +153,7 @@ impl Sum for Polynomial {
     where
         I: Iterator<Item = Self>,
     {
-        let sum: Polynomial = iter.fold(Polynomial::zero(), |mut res, val| {
-            res = &res + &val;
-            res
-        });
-        sum
+        iter.fold(Polynomial::zero(), |res, val| &res + &val)
     }
 }
 
@@ -175,68 +161,57 @@ impl<'a, 'b> Add<&'a Polynomial> for &'b Polynomial {
     type Output = Polynomial;
 
     fn add(self, other: &'a Polynomial) -> Polynomial {
-        let mut result = if self.is_zero() {
-            other.clone()
-        } else if other.is_zero() {
-            self.clone()
-        } else if self.degree() >= other.degree() {
-            let mut result = self.clone();
-            for (a, b) in result.coeffs.iter_mut().zip(&other.coeffs) {
-                *a += b
-            }
-            result
+        let zero = BlsScalar::zero();
+        let (left, right) = if self.degree() >= other.degree() {
+            (
+                self.coeffs.iter(),
+                other.coeffs.iter().chain(iter::repeat(&zero)),
+            )
         } else {
-            let mut result = other.clone();
-            for (a, b) in result.coeffs.iter_mut().zip(&self.coeffs) {
-                *a += b
-            }
-            result
+            (
+                other.coeffs.iter(),
+                self.coeffs.iter().chain(iter::repeat(&zero)),
+            )
         };
-        result.truncate_leading_zeros();
-        result
+        Polynomial::from_coefficients_vec(
+            left.zip(right).map(|(a, b)| *a + *b).collect::<Vec<_>>(),
+        )
     }
 }
 
 impl<'a> AddAssign<&'a Polynomial> for Polynomial {
     fn add_assign(&mut self, other: &'a Polynomial) {
-        if self.is_zero() {
-            self.coeffs.truncate(0);
-            self.coeffs.extend_from_slice(&other.coeffs);
-        } else if other.is_zero() {
-        } else if self.degree() >= other.degree() {
-            for (a, b) in self.coeffs.iter_mut().zip(&other.coeffs) {
-                *a += b
-            }
+        if self.degree() >= other.degree() {
+            self.coeffs
+                .iter_mut()
+                .zip(other.coeffs.iter())
+                .for_each(|(a, b)| *a += b);
         } else {
-            // Add the necessary number of zero coefficients.
             self.coeffs.resize(other.coeffs.len(), BlsScalar::zero());
-            for (a, b) in self.coeffs.iter_mut().zip(&other.coeffs) {
-                *a += b
-            }
-            self.truncate_leading_zeros();
-        }
+            self.coeffs
+                .iter_mut()
+                .zip(other.coeffs.iter())
+                .for_each(|(a, b)| *a += b);
+        };
+        self.truncate_leading_zeros()
     }
 }
 
 impl<'a> AddAssign<(BlsScalar, &'a Polynomial)> for Polynomial {
     fn add_assign(&mut self, (f, other): (BlsScalar, &'a Polynomial)) {
-        if self.is_zero() {
-            self.coeffs.truncate(0);
-            self.coeffs.extend_from_slice(&other.coeffs);
-            self.coeffs.iter_mut().for_each(|c| *c *= &f);
-        } else if other.is_zero() {
-        } else if self.degree() >= other.degree() {
-            for (a, b) in self.coeffs.iter_mut().zip(&other.coeffs) {
-                *a += &(f * b);
-            }
+        if self.degree() > other.degree() {
+            self.coeffs
+                .iter_mut()
+                .zip(other.coeffs.iter())
+                .for_each(|(a, b)| *a += b * f);
         } else {
-            // Add the necessary number of zero coefficients.
             self.coeffs.resize(other.coeffs.len(), BlsScalar::zero());
-            for (a, b) in self.coeffs.iter_mut().zip(&other.coeffs) {
-                *a += &(f * b);
-            }
-            self.truncate_leading_zeros();
-        }
+            self.coeffs
+                .iter_mut()
+                .zip(other.coeffs.iter())
+                .for_each(|(a, b)| *a += b * f);
+        };
+        self.truncate_leading_zeros()
     }
 }
 
@@ -257,55 +232,40 @@ impl<'a, 'b> Sub<&'a Polynomial> for &'b Polynomial {
 
     #[inline]
     fn sub(self, other: &'a Polynomial) -> Polynomial {
-        let mut result = if self.is_zero() {
-            let mut result = other.clone();
-            for coeff in &mut result.coeffs {
-                *coeff = -(*coeff);
-            }
-            result
-        } else if other.is_zero() {
-            self.clone()
-        } else if self.degree() >= other.degree() {
-            let mut result = self.clone();
-            for (a, b) in result.coeffs.iter_mut().zip(&other.coeffs) {
-                *a -= b
-            }
-            result
+        let zero = BlsScalar::zero();
+        let (left, right) = if self.degree() >= other.degree() {
+            (
+                self.coeffs.iter(),
+                other.coeffs.iter().chain(iter::repeat(&zero)),
+            )
         } else {
-            let mut result = self.clone();
-            result.coeffs.resize(other.coeffs.len(), BlsScalar::zero());
-            for (a, b) in result.coeffs.iter_mut().zip(&other.coeffs) {
-                *a -= b;
-            }
-            result
+            (
+                other.coeffs.iter(),
+                self.coeffs.iter().chain(iter::repeat(&zero)),
+            )
         };
-        result.truncate_leading_zeros();
-        result
+        Polynomial::from_coefficients_vec(
+            left.zip(right).map(|(a, b)| *a - *b).collect::<Vec<_>>(),
+        )
     }
 }
 
 impl<'a> SubAssign<&'a Polynomial> for Polynomial {
     #[inline]
     fn sub_assign(&mut self, other: &'a Polynomial) {
-        if self.is_zero() {
-            self.coeffs.resize(other.coeffs.len(), BlsScalar::zero());
-            for (i, coeff) in other.coeffs.iter().enumerate() {
-                self.coeffs[i] -= coeff;
-            }
-        } else if other.is_zero() {
-        } else if self.degree() >= other.degree() {
-            for (a, b) in self.coeffs.iter_mut().zip(&other.coeffs) {
-                *a -= b
-            }
+        if self.degree() >= other.degree() {
+            self.coeffs
+                .iter_mut()
+                .zip(other.coeffs.iter())
+                .for_each(|(a, b)| *a -= b);
         } else {
-            // Add the necessary number of zero coefficients.
             self.coeffs.resize(other.coeffs.len(), BlsScalar::zero());
-            for (a, b) in self.coeffs.iter_mut().zip(&other.coeffs) {
-                *a -= b
-            }
-            // If the leading coefficient ends up being zero, pop it off.
-            self.truncate_leading_zeros();
-        }
+            self.coeffs
+                .iter_mut()
+                .zip(other.coeffs.iter())
+                .for_each(|(a, b)| *a -= b);
+        };
+        self.truncate_leading_zeros()
     }
 }
 
@@ -324,27 +284,24 @@ impl Polynomial {
 
     /// Divides a [`Polynomial`] by x-z using Ruffinis method.
     pub fn ruffini(&self, z: BlsScalar) -> Polynomial {
-        let mut quotient: Vec<BlsScalar> = Vec::with_capacity(self.degree());
-        let mut k = BlsScalar::zero();
-
-        // Reverse the results and use Ruffini's method to compute the quotient
-        // The coefficients must be reversed as Ruffini's method
-        // starts with the leading coefficient, while Polynomials
-        // are stored in increasing order i.e. the leading coefficient is the
-        // last element
-        for coeff in self.coeffs.iter().rev() {
-            let t = coeff + k;
-            quotient.push(t);
-            k = z * t;
-        }
+        let mut coeffs = self
+            .coeffs
+            .iter()
+            .rev()
+            .scan(BlsScalar::zero(), |w, coeff| {
+                let tmp = *w + coeff;
+                *w = tmp * z;
+                Some(tmp)
+            })
+            .collect::<Vec<_>>();
 
         // Pop off the last element, it is the remainder term
         // For PLONK, we only care about perfect factors
-        quotient.pop();
+        coeffs.pop();
 
         // Reverse the results for storage in the Polynomial struct
-        quotient.reverse();
-        Polynomial::from_coefficients_vec(quotient)
+        coeffs.reverse();
+        Polynomial::from_coefficients_vec(coeffs)
     }
 }
 
@@ -369,7 +326,9 @@ impl<'a, 'b> Mul<&'a Polynomial> for &'b Polynomial {
                 domain,
             );
             self_evals *= &other_evals;
-            self_evals.interpolate()
+            let Evaluations { mut evals, .. } = self_evals;
+            domain.ifft_in_place(&mut evals);
+            Polynomial::from_coefficients_vec(evals)
         }
     }
 }
@@ -396,13 +355,7 @@ impl<'a, 'b> Add<&'a BlsScalar> for &'b Polynomial {
         if self.is_zero() {
             return Polynomial::from_coefficients_vec(vec![*constant]);
         }
-        let mut result = self.clone();
-        if constant == &BlsScalar::zero() {
-            return result;
-        }
-
-        result[0] += constant;
-        result
+        self + constant
     }
 }
 
@@ -433,11 +386,9 @@ mod test {
             d: usize,
             mut rng: &mut R,
         ) -> Self {
-            let mut random_coeffs = Vec::with_capacity(d + 1);
-            for _ in 0..=d {
-                random_coeffs.push(BlsScalar::random(&mut rng));
-            }
-            Self::from_coefficients_vec(random_coeffs)
+            Self::from_coefficients_vec(
+                (0..=d).map(|_| BlsScalar::random(&mut rng)).collect(),
+            )
         }
     }
 
@@ -458,6 +409,7 @@ mod test {
         ]);
         assert_eq!(quotient, expected_quotient);
     }
+
     #[test]
     fn test_ruffini_zero() {
         // Tests the two situations where zero can be added to Ruffini:
