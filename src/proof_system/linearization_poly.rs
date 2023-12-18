@@ -47,7 +47,7 @@ pub(crate) struct ProofEvaluations {
     pub(crate) b_eval: BlsScalar,
     // Evaluation of the witness polynomial for the output wire at `z`
     #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
-    pub(crate) c_eval: BlsScalar,
+    pub(crate) o_eval: BlsScalar,
     // Evaluation of the witness polynomial for the fourth wire at `z`
     #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) d_eval: BlsScalar,
@@ -106,7 +106,7 @@ impl Serializable<{ 16 * BlsScalar::SIZE }> for ProofEvaluations {
         let mut writer = &mut buf[..];
         writer.write(&self.a_eval.to_bytes());
         writer.write(&self.b_eval.to_bytes());
-        writer.write(&self.c_eval.to_bytes());
+        writer.write(&self.o_eval.to_bytes());
         writer.write(&self.d_eval.to_bytes());
         writer.write(&self.a_next_eval.to_bytes());
         writer.write(&self.b_next_eval.to_bytes());
@@ -130,7 +130,7 @@ impl Serializable<{ 16 * BlsScalar::SIZE }> for ProofEvaluations {
         let mut buffer = &buf[..];
         let a_eval = BlsScalar::from_reader(&mut buffer)?;
         let b_eval = BlsScalar::from_reader(&mut buffer)?;
-        let c_eval = BlsScalar::from_reader(&mut buffer)?;
+        let o_eval = BlsScalar::from_reader(&mut buffer)?;
         let d_eval = BlsScalar::from_reader(&mut buffer)?;
         let a_next_eval = BlsScalar::from_reader(&mut buffer)?;
         let b_next_eval = BlsScalar::from_reader(&mut buffer)?;
@@ -148,7 +148,7 @@ impl Serializable<{ 16 * BlsScalar::SIZE }> for ProofEvaluations {
         Ok(ProofEvaluations {
             a_eval,
             b_eval,
-            c_eval,
+            o_eval,
             d_eval,
             a_next_eval,
             b_next_eval,
@@ -195,7 +195,7 @@ pub(crate) fn compute(
     ),
     a_w_poly: &Polynomial,
     b_w_poly: &Polynomial,
-    c_w_poly: &Polynomial,
+    o_w_poly: &Polynomial,
     d_w_poly: &Polynomial,
     t_x_poly: &Polynomial,
     z_poly: &Polynomial,
@@ -204,7 +204,7 @@ pub(crate) fn compute(
     let t_eval = t_x_poly.evaluate(z_challenge);
     let a_eval = a_w_poly.evaluate(z_challenge);
     let b_eval = b_w_poly.evaluate(z_challenge);
-    let c_eval = c_w_poly.evaluate(z_challenge);
+    let o_eval = o_w_poly.evaluate(z_challenge);
     let d_eval = d_w_poly.evaluate(z_challenge);
 
     let s_sigma_1_eval =
@@ -233,7 +233,7 @@ pub(crate) fn compute(
         ),
         &a_eval,
         &b_eval,
-        &c_eval,
+        &o_eval,
         &d_eval,
         &a_next_eval,
         &b_next_eval,
@@ -248,7 +248,7 @@ pub(crate) fn compute(
     let f_2 = prover_key.permutation.compute_linearization(
         z_challenge,
         (alpha, beta, gamma),
-        (&a_eval, &b_eval, &c_eval, &d_eval),
+        (&a_eval, &b_eval, &o_eval, &d_eval),
         (&s_sigma_1_eval, &s_sigma_2_eval, &s_sigma_3_eval),
         &perm_eval,
         z_poly,
@@ -265,7 +265,7 @@ pub(crate) fn compute(
             proof: ProofEvaluations {
                 a_eval,
                 b_eval,
-                c_eval,
+                o_eval,
                 d_eval,
                 a_next_eval,
                 b_next_eval,
@@ -295,7 +295,7 @@ fn compute_circuit_satisfiability(
     ): (&BlsScalar, &BlsScalar, &BlsScalar, &BlsScalar),
     a_eval: &BlsScalar,
     b_eval: &BlsScalar,
-    c_eval: &BlsScalar,
+    o_eval: &BlsScalar,
     d_eval: &BlsScalar,
     a_next_eval: &BlsScalar,
     b_next_eval: &BlsScalar,
@@ -309,7 +309,7 @@ fn compute_circuit_satisfiability(
     let a = prover_key.arithmetic.compute_linearization(
         a_eval,
         b_eval,
-        c_eval,
+        o_eval,
         d_eval,
         q_arith_eval,
     );
@@ -318,7 +318,7 @@ fn compute_circuit_satisfiability(
         range_separation_challenge,
         a_eval,
         b_eval,
-        c_eval,
+        o_eval,
         d_eval,
         d_next_eval,
     );
@@ -329,7 +329,7 @@ fn compute_circuit_satisfiability(
         a_next_eval,
         b_eval,
         b_next_eval,
-        c_eval,
+        o_eval,
         d_eval,
         d_next_eval,
         q_c_eval,
@@ -341,7 +341,7 @@ fn compute_circuit_satisfiability(
         a_next_eval,
         b_eval,
         b_next_eval,
-        c_eval,
+        o_eval,
         d_eval,
         d_next_eval,
         q_l_eval,
@@ -355,7 +355,7 @@ fn compute_circuit_satisfiability(
         a_next_eval,
         b_eval,
         b_next_eval,
-        c_eval,
+        o_eval,
         d_eval,
         d_next_eval,
     );

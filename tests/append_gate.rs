@@ -18,8 +18,8 @@ fn append_gate() {
     pub struct TestCircuit {
         a: BlsScalar,
         b: BlsScalar,
-        d: BlsScalar,
         o: BlsScalar,
+        d: BlsScalar,
         public: BlsScalar,
     }
 
@@ -27,11 +27,11 @@ fn append_gate() {
         pub fn new(
             a: BlsScalar,
             b: BlsScalar,
-            d: BlsScalar,
             o: BlsScalar,
+            d: BlsScalar,
             public: BlsScalar,
         ) -> Self {
-            Self { a, b, d, o, public }
+            Self { a, b, o, d, public }
         }
     }
 
@@ -42,8 +42,8 @@ fn append_gate() {
         {
             let w_a = composer.append_witness(self.a);
             let w_b = composer.append_witness(self.b);
-            let w_d = composer.append_witness(self.d);
             let w_o = composer.append_witness(self.o);
+            let w_d = composer.append_witness(self.d);
 
             let constraint = Constraint::new()
                 .left(1)
@@ -53,8 +53,8 @@ fn append_gate() {
                 .output(1)
                 .a(w_a)
                 .b(w_b)
-                .d(w_d)
                 .o(w_o)
+                .d(w_d)
                 .public(self.public)
                 .constant(BlsScalar::zero());
 
@@ -74,10 +74,10 @@ fn append_gate() {
     let public = BlsScalar::zero();
     let a = BlsScalar::zero();
     let b = BlsScalar::zero();
-    let d = BlsScalar::zero();
     let o = BlsScalar::zero();
+    let d = BlsScalar::zero();
     let pi = vec![public];
-    let circuit = TestCircuit::new(a, b, d, o, public);
+    let circuit = TestCircuit::new(a, b, o, d, public);
     let pp = PublicParameters::setup(capacity, &mut rng)
         .expect("Creation of public parameter shouldn't fail");
     let (prover, verifier) = Compiler::compile::<TestCircuit>(&pp, label)
@@ -92,9 +92,9 @@ fn append_gate() {
     let msg = "Verification of satisfied circuit should pass";
     let a = BlsScalar::one();
     let b = BlsScalar::one();
-    let d = BlsScalar::one();
     let o = -BlsScalar::from(4);
-    let circuit = TestCircuit::new(a, b, d, o, public);
+    let d = BlsScalar::one();
+    let circuit = TestCircuit::new(a, b, o, d, public);
     check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
 
     // Test satisfied circuit:
@@ -102,9 +102,9 @@ fn append_gate() {
     let msg = "Verification of satisfied circuit should pass";
     let a = BlsScalar::one();
     let b = BlsScalar::zero();
-    let d = BlsScalar::zero();
     let o = -BlsScalar::one();
-    let circuit = TestCircuit::new(a, b, d, o, public);
+    let d = BlsScalar::zero();
+    let circuit = TestCircuit::new(a, b, o, d, public);
     check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
 
     // Test satisfied circuit:
@@ -112,9 +112,9 @@ fn append_gate() {
     let msg = "Verification of satisfied circuit should pass";
     let a = BlsScalar::zero();
     let b = BlsScalar::one();
-    let d = BlsScalar::zero();
     let o = -BlsScalar::one();
-    let circuit = TestCircuit::new(a, b, d, o, public);
+    let d = BlsScalar::zero();
+    let circuit = TestCircuit::new(a, b, o, d, public);
     check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
 
     // Test satisfied circuit:
@@ -122,9 +122,9 @@ fn append_gate() {
     let msg = "Verification of satisfied circuit should pass";
     let a = BlsScalar::one();
     let b = BlsScalar::one();
-    let d = BlsScalar::zero();
     let o = -BlsScalar::from(3u64);
-    let circuit = TestCircuit::new(a, b, d, o, public);
+    let d = BlsScalar::zero();
+    let circuit = TestCircuit::new(a, b, o, d, public);
     check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
 
     // Test satisfied circuit:
@@ -132,9 +132,9 @@ fn append_gate() {
     let msg = "Verification of satisfied circuit should pass";
     let a = -BlsScalar::one();
     let b = BlsScalar::zero();
-    let d = BlsScalar::one();
     let o = BlsScalar::zero();
-    let circuit = TestCircuit::new(a, b, d, o, public);
+    let d = BlsScalar::one();
+    let circuit = TestCircuit::new(a, b, o, d, public);
     check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
 
     // Test satisfied circuit:
@@ -146,17 +146,17 @@ fn append_gate() {
     let public = BlsScalar::from(42);
     let o = -(a + b + a * b + d + public);
     let pi = vec![public];
-    let circuit = TestCircuit::new(a, b, d, o, public);
+    let circuit = TestCircuit::new(a, b, o, d, public);
     check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
 
     // Test unsatisfied circuit:
     let msg = "Proof creation of unsatisfied circuit should fail";
     let a = BlsScalar::random(&mut rng);
     let b = BlsScalar::random(&mut rng);
-    let d = BlsScalar::random(&mut rng);
     let o = BlsScalar::random(&mut rng);
+    let d = BlsScalar::random(&mut rng);
     let public = BlsScalar::random(&mut rng);
-    let circuit = TestCircuit::new(a, b, d, o, public);
+    let circuit = TestCircuit::new(a, b, o, d, public);
     check_unsatisfied_circuit(&prover, &circuit, &mut rng, &msg);
 
     // Test unsatisfied circuit:
@@ -164,19 +164,19 @@ fn append_gate() {
     let msg = "Proof creation of unsatisfied circuit should fail";
     let a = BlsScalar::one();
     let b = BlsScalar::one();
-    let d = BlsScalar::one();
     let o = BlsScalar::one();
+    let d = BlsScalar::one();
     let public = BlsScalar::one();
-    let circuit = TestCircuit::new(a, b, d, o, public);
+    let circuit = TestCircuit::new(a, b, o, d, public);
     check_unsatisfied_circuit(&prover, &circuit, &mut rng, &msg);
 
     // Test unsatisfied circuit
     let msg = "Verification of unsatisfied circuit should pass";
     let a = BlsScalar::one();
     let b = BlsScalar::one();
-    let d = BlsScalar::one();
     let o = BlsScalar::one();
+    let d = BlsScalar::one();
     let public = BlsScalar::one();
-    let circuit = TestCircuit::new(a, b, d, o, public);
+    let circuit = TestCircuit::new(a, b, o, d, public);
     check_unsatisfied_circuit(&prover, &circuit, &mut rng, &msg);
 }

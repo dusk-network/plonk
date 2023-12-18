@@ -62,7 +62,7 @@ mod alloc {
             let acc_y = evaluations.b_eval;
             let acc_y_next = evaluations.b_next_eval;
 
-            let xy_alpha = evaluations.c_eval;
+            let xy_alpha = evaluations.o_eval;
 
             let accumulated_bit = evaluations.d_eval;
             let accumulated_bit_next = evaluations.d_next_eval;

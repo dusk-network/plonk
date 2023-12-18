@@ -281,7 +281,7 @@ impl Prover {
         // Add wire polynomial commitments to transcript
         transcript.append_commitment(b"a_w", &a_w_poly_commit);
         transcript.append_commitment(b"b_w", &b_w_poly_commit);
-        transcript.append_commitment(b"c_w", &o_w_poly_commit);
+        transcript.append_commitment(b"o_w", &o_w_poly_commit);
         transcript.append_commitment(b"d_w", &d_w_poly_commit);
 
         // round 2
@@ -420,7 +420,7 @@ impl Prover {
         // add evaluations to transcript.
         transcript.append_scalar(b"a_eval", &evaluations.proof.a_eval);
         transcript.append_scalar(b"b_eval", &evaluations.proof.b_eval);
-        transcript.append_scalar(b"c_eval", &evaluations.proof.c_eval);
+        transcript.append_scalar(b"o_eval", &evaluations.proof.o_eval);
         transcript.append_scalar(b"d_eval", &evaluations.proof.d_eval);
         transcript
             .append_scalar(b"a_next_eval", &evaluations.proof.a_next_eval);
@@ -495,7 +495,7 @@ impl Prover {
         let proof = Proof {
             a_comm: a_w_poly_commit,
             b_comm: b_w_poly_commit,
-            c_comm: o_w_poly_commit,
+            o_comm: o_w_poly_commit,
             d_comm: d_w_poly_commit,
 
             z_comm: z_poly_commit,

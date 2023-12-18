@@ -37,7 +37,7 @@ impl ProverKey {
         a_w_i_next: &BlsScalar, // x_3
         b_w_i: &BlsScalar,      // y_1
         b_w_i_next: &BlsScalar, // y_3
-        c_w_i: &BlsScalar,      // x_2
+        o_w_i: &BlsScalar,      // x_2
         d_w_i: &BlsScalar,      // y_2
         d_w_i_next: &BlsScalar, // x_1 * y_2
     ) -> BlsScalar {
@@ -49,7 +49,7 @@ impl ProverKey {
         let x_3 = a_w_i_next;
         let y_1 = b_w_i;
         let y_3 = b_w_i_next;
-        let x_2 = c_w_i;
+        let x_2 = o_w_i;
         let y_2 = d_w_i;
         let x1_y2 = d_w_i_next;
 
@@ -84,7 +84,7 @@ impl ProverKey {
         a_next_eval: &BlsScalar,
         b_eval: &BlsScalar,
         b_next_eval: &BlsScalar,
-        c_eval: &BlsScalar,
+        o_eval: &BlsScalar,
         d_eval: &BlsScalar,
         d_next_eval: &BlsScalar,
     ) -> Polynomial {
@@ -96,7 +96,7 @@ impl ProverKey {
         let x_3 = a_next_eval;
         let y_1 = b_eval;
         let y_3 = b_next_eval;
-        let x_2 = c_eval;
+        let x_2 = o_eval;
         let y_2 = d_eval;
         let x1_y2 = d_next_eval;
 

@@ -39,7 +39,7 @@ impl ProverKey {
         a_w_i_next: &BlsScalar,
         b_w_i: &BlsScalar,
         b_w_i_next: &BlsScalar,
-        c_w_i: &BlsScalar,
+        o_w_i: &BlsScalar,
         d_w_i: &BlsScalar,
         d_w_i_next: &BlsScalar,
     ) -> BlsScalar {
@@ -54,20 +54,20 @@ impl ProverKey {
         let kappa_qu = kappa_cu * kappa;
 
         let a = a_w_i_next - four * a_w_i;
-        let c_0 = delta(a);
+        let o_0 = delta(a);
 
         let b = b_w_i_next - four * b_w_i;
-        let c_1 = delta(b) * kappa;
+        let o_1 = delta(b) * kappa;
 
         let d = d_w_i_next - four * d_w_i;
-        let c_2 = delta(d) * kappa_sq;
+        let o_2 = delta(d) * kappa_sq;
 
-        let w = c_w_i;
-        let c_3 = (w - a * b) * kappa_cu;
+        let w = o_w_i;
+        let o_3 = (w - a * b) * kappa_cu;
 
-        let c_4 = delta_xor_and(&a, &b, w, &d, q_c_i) * kappa_qu;
+        let o_4 = delta_xor_and(&a, &b, w, &d, q_c_i) * kappa_qu;
 
-        q_logic_i * (c_3 + c_0 + c_1 + c_2 + c_4) * logic_separation_challenge
+        q_logic_i * (o_3 + o_0 + o_1 + o_2 + o_4) * logic_separation_challenge
     }
 
     pub(crate) fn compute_linearization(
@@ -77,7 +77,7 @@ impl ProverKey {
         a_next_eval: &BlsScalar,
         b_eval: &BlsScalar,
         b_next_eval: &BlsScalar,
-        c_eval: &BlsScalar,
+        o_eval: &BlsScalar,
         d_eval: &BlsScalar,
         d_next_eval: &BlsScalar,
         q_c_eval: &BlsScalar,
@@ -91,20 +91,20 @@ impl ProverKey {
         let kappa_qu = kappa_cu * kappa;
 
         let a = a_next_eval - four * a_eval;
-        let c_0 = delta(a);
+        let o_0 = delta(a);
 
         let b = b_next_eval - four * b_eval;
-        let c_1 = delta(b) * kappa;
+        let o_1 = delta(b) * kappa;
 
         let d = d_next_eval - four * d_eval;
-        let c_2 = delta(d) * kappa_sq;
+        let o_2 = delta(d) * kappa_sq;
 
-        let w = c_eval;
-        let c_3 = (w - a * b) * kappa_cu;
+        let w = o_eval;
+        let o_3 = (w - a * b) * kappa_cu;
 
-        let c_4 = delta_xor_and(&a, &b, w, &d, q_c_eval) * kappa_qu;
+        let o_4 = delta_xor_and(&a, &b, w, &d, q_c_eval) * kappa_qu;
 
-        let t = (c_0 + c_1 + c_2 + c_3 + c_4) * logic_separation_challenge;
+        let t = (o_0 + o_1 + o_2 + o_3 + o_4) * logic_separation_challenge;
 
         q_logic_poly * &t
     }
