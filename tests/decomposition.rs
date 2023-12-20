@@ -32,10 +32,7 @@ fn component_decomposition() {
     }
 
     impl<const N: usize> Circuit for TestCircuit<N> {
-        fn circuit<C>(&self, composer: &mut C) -> Result<(), Error>
-        where
-            C: Composer,
-        {
+        fn circuit(&self, composer: &mut Composer) -> Result<(), Error> {
             let w_a = composer.append_witness(self.a);
             let decomp_circuit: [Witness; N] =
                 composer.component_decomposition(w_a);

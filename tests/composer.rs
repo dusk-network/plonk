@@ -37,10 +37,7 @@ fn circuit_with_all_gates() {
     }
 
     impl Circuit for DummyCircuit {
-        fn circuit<C>(&self, composer: &mut C) -> Result<(), Error>
-        where
-            C: Composer,
-        {
+        fn circuit(&self, composer: &mut Composer) -> Result<(), Error> {
             let w_a = composer.append_witness(self.a);
             let w_b = composer.append_witness(self.b);
             let w_x = composer.append_witness(self.x);
@@ -65,7 +62,7 @@ fn circuit_with_all_gates() {
 
             composer.component_add_point(w_z, w_z);
             composer.append_logic_and::<128>(w_a, w_b);
-            composer.component_boolean(Builder::ONE);
+            composer.component_boolean(Composer::ONE);
             composer.component_decomposition::<254>(w_a);
             composer.component_mul_generator(
                 w_y,
@@ -73,11 +70,11 @@ fn circuit_with_all_gates() {
             )?;
             composer.component_mul_point(w_y, w_z);
             composer.component_range::<128>(w_a);
-            composer.component_select(Builder::ONE, w_a, w_b);
-            composer.component_select_identity(Builder::ONE, w_z);
-            composer.component_select_one(Builder::ONE, w_a);
-            composer.component_select_point(Builder::ONE, w_z, w_z);
-            composer.component_select_zero(Builder::ONE, w_a);
+            composer.component_select(Composer::ONE, w_a, w_b);
+            composer.component_select_identity(Composer::ONE, w_z);
+            composer.component_select_one(Composer::ONE, w_a);
+            composer.component_select_point(Composer::ONE, w_z, w_z);
+            composer.component_select_zero(Composer::ONE, w_a);
             composer.append_logic_xor::<128>(w_a, w_b);
 
             Ok(())

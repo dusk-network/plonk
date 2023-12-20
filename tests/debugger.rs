@@ -13,10 +13,7 @@ use dusk_plonk::prelude::*;
 struct EmptyCircuit;
 
 impl Circuit for EmptyCircuit {
-    fn circuit<C>(&self, _composer: &mut C) -> Result<(), Error>
-    where
-        C: Composer,
-    {
+    fn circuit(&self, _composer: &mut Composer) -> Result<(), Error> {
         Ok(())
     }
 }

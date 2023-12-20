@@ -12,7 +12,7 @@
 #[cfg(feature = "alloc")]
 pub use crate::{
     commitment_scheme::PublicParameters,
-    composer::{Builder, Circuit, Compiler, Composer, Prover, Verifier},
+    composer::{Circuit, Compiler, Composer, Prover, Verifier},
     constraint_system::{Constraint, Witness, WitnessPoint},
 };
 

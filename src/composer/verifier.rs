@@ -15,7 +15,7 @@ use crate::error::Error;
 use crate::proof_system::{Proof, VerifierKey};
 use crate::transcript::TranscriptProtocol;
 
-use super::Builder;
+use super::Composer;
 
 /// Verify proofs of a given circuit
 pub struct Verifier {
@@ -208,7 +208,7 @@ impl Verifier {
             .iter()
             .for_each(|pi| transcript.append_scalar(b"pi", pi));
 
-        let dense_public_inputs = Builder::dense_public_inputs(
+        let dense_public_inputs = Composer::dense_public_inputs(
             &self.public_input_indexes,
             public_inputs,
             self.size,

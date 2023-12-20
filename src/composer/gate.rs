@@ -8,9 +8,9 @@ use dusk_bls12_381::BlsScalar;
 
 use crate::constraint_system::Witness;
 
-/// Represents a polynomial in coefficient form with its associated wire data
+/// Represents a gate with its associated wire data
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct Arithmetization {
+pub struct Gate {
     // Selectors
     /// Multiplier selector
     pub(crate) q_m: BlsScalar,

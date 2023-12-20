@@ -49,10 +49,7 @@ fn component_select_point() {
     }
 
     impl Circuit for TestCircuit {
-        fn circuit<C>(&self, composer: &mut C) -> Result<(), Error>
-        where
-            C: Composer,
-        {
+        fn circuit(&self, composer: &mut Composer) -> Result<(), Error> {
             let w_bit = composer.append_witness(self.bit);
             let w_point_a = composer.append_point(self.point_a);
             let w_point_b = composer.append_point(self.point_b);
@@ -244,10 +241,7 @@ fn component_select_identity() {
         }
     }
     impl Circuit for TestCircuit {
-        fn circuit<C>(&self, composer: &mut C) -> Result<(), Error>
-        where
-            C: Composer,
-        {
+        fn circuit(&self, composer: &mut Composer) -> Result<(), Error> {
             let w_bit = composer.append_witness(self.bit);
             let w_point = composer.append_point(self.point);
             let w_result = composer.append_point(self.result);

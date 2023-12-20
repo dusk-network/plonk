@@ -13,16 +13,11 @@ use super::Composer;
 /// The default implementation will be used to generate the proving arguments.
 pub trait Circuit: Default {
     /// Circuit definition
-    fn circuit<C>(&self, composer: &mut C) -> Result<(), Error>
-    where
-        C: Composer;
+    fn circuit(&self, composer: &mut Composer) -> Result<(), Error>;
 
     /// Returns the size of the circuit.
-    fn size<C>(&self) -> usize
-    where
-        C: Composer,
-    {
-        let mut composer = C::initialized();
+    fn size(&self) -> usize {
+        let mut composer = Composer::initialized();
         match self.circuit(&mut composer) {
             Ok(_) => composer.constraints(),
             Err(_) => 0,

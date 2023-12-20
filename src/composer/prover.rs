@@ -22,7 +22,7 @@ use crate::proof_system::{
 };
 use crate::transcript::TranscriptProtocol;
 
-use super::{Builder, Circuit, Composer};
+use super::{Circuit, Composer};
 
 /// Turbo Prover with processed keys
 #[derive(Clone)]
@@ -231,7 +231,7 @@ impl Prover {
         C: Circuit,
         R: RngCore + CryptoRng,
     {
-        let prover = Builder::prove(self.constraints, circuit)?;
+        let prover = Composer::prove(self.constraints, circuit)?;
 
         let constraints = self.constraints;
         let size = self.size;
@@ -242,7 +242,7 @@ impl Prover {
 
         let public_inputs = prover.public_inputs();
         let public_input_indexes = prover.public_input_indexes();
-        let dense_public_inputs = Builder::dense_public_inputs(
+        let dense_public_inputs = Composer::dense_public_inputs(
             &public_input_indexes,
             &public_inputs,
             self.size,

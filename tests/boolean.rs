@@ -31,10 +31,7 @@ fn component_boolean() {
     }
 
     impl Circuit for TestCircuit {
-        fn circuit<C>(&self, composer: &mut C) -> Result<(), Error>
-        where
-            C: Composer,
-        {
+        fn circuit(&self, composer: &mut Composer) -> Result<(), Error> {
             let w_bit = composer.append_witness(self.bit);
 
             composer.component_boolean(w_bit);

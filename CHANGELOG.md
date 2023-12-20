@@ -16,6 +16,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Improve InvalidCircuitSize error [#792]
 - Hide all modules except 'prelude' [#782]
+- Turn `Composer` trait into a struct [#802]
+- Rename `Arithmetization` to `Gate` [#802]
+
+### Removed
+
+- Remove `Builder` struct with introduction of `Composer` struct [#802]
 
 ## [0.18.0] - 2023-12-13
 
@@ -542,6 +548,7 @@ is necessary since `rkyv/validation` was required as a bound.
 - Proof system module.
 
 <!-- ISSUES -->
+[#802]: https://github.com/dusk-network/plonk/issues/802
 [#797]: https://github.com/dusk-network/plonk/issues/797
 [#796]: https://github.com/dusk-network/plonk/issues/796
 [#792]: https://github.com/dusk-network/plonk/issues/792
