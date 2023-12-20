@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Improve InvalidCircuitSize error [#792]
+- Hide all modules except 'prelude' [#782]
 
 ## [0.18.0] - 2023-12-13
 
@@ -545,6 +546,7 @@ is necessary since `rkyv/validation` was required as a bound.
 [#796]: https://github.com/dusk-network/plonk/issues/796
 [#792]: https://github.com/dusk-network/plonk/issues/792
 [#784]: https://github.com/dusk-network/plonk/issues/784
+[#782]: https://github.com/dusk-network/plonk/issues/782
 [#773]: https://github.com/dusk-network/plonk/issues/773
 [#774]: https://github.com/dusk-network/plonk/issues/774
 [#763]: https://github.com/dusk-network/plonk/issues/763

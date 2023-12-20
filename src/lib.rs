@@ -63,24 +63,22 @@ if #[cfg(feature = "alloc")] {
     extern crate alloc;
 
     mod bit_iterator;
+    mod constraint_system;
+    mod composer;
     mod permutation;
+    mod runtime;
     mod util;
     mod transcript;
 
-    pub mod constraint_system;
-    pub mod composer;
-    pub mod runtime;
 });
-
-mod fft;
 
 #[cfg(feature = "debug")]
 pub(crate) mod debugger;
 
-pub mod commitment_scheme;
-pub mod error;
-pub mod prelude;
-pub mod proof_system;
+mod commitment_scheme;
+mod error;
+mod fft;
+mod proof_system;
 
 #[doc = include_str!("../docs/notes-intro.md")]
 pub mod notes {
@@ -93,3 +91,5 @@ pub mod notes {
     #[doc = include_str!("../docs/notes-KZG10.md")]
     pub mod kzg10_docs {}
 }
+
+pub mod prelude;
