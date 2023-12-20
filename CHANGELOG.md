@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix inconsistency in gate ordering of arithmetic verifier key [#797]
 - Fix leading coefficients might be zero [#796]
 
+### Changed
+
+- Improve InvalidCircuitSize error [#792]
+
 ## [0.18.0] - 2023-12-13
 
 ### Changed
@@ -539,6 +543,7 @@ is necessary since `rkyv/validation` was required as a bound.
 <!-- ISSUES -->
 [#797]: https://github.com/dusk-network/plonk/issues/797
 [#796]: https://github.com/dusk-network/plonk/issues/796
+[#792]: https://github.com/dusk-network/plonk/issues/792
 [#784]: https://github.com/dusk-network/plonk/issues/784
 [#773]: https://github.com/dusk-network/plonk/issues/773
 [#774]: https://github.com/dusk-network/plonk/issues/774

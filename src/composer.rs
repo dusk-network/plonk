@@ -81,7 +81,8 @@ pub trait Composer: Sized + Index<Witness, Output = BlsScalar> {
     /// PLONK runtime controller
     fn runtime(&mut self) -> &mut Runtime;
 
-    /// Initialize the constraint system with dummy gates
+    /// Initialize the constraint system with the constants for 0 and 1 and
+    /// append two dummy gates
     fn initialized() -> Self {
         #[allow(deprecated)]
         let mut slf = Self::uninitialized();
@@ -1051,7 +1052,7 @@ pub trait Composer: Sized + Index<Witness, Output = BlsScalar> {
         o
     }
 
-    /// Prove a circuit with a builder initialized with `constraints` capacity.
+    /// Prove a circuit with a builder initialized with dummy gates
     fn prove<C>(constraints: usize, circuit: &C) -> Result<Self, Error>
     where
         C: Circuit,
@@ -1060,9 +1061,14 @@ pub trait Composer: Sized + Index<Witness, Output = BlsScalar> {
 
         circuit.circuit(&mut builder)?;
 
-        // assert that the circuit has the expected amount of constraints
-        if builder.constraints() != constraints {
-            return Err(Error::InvalidCircuitSize);
+        // assert that the circuit has the same amount of constraints as the
+        // circuit description
+        let description_size = builder.constraints();
+        if description_size != constraints {
+            return Err(Error::InvalidCircuitSize(
+                description_size,
+                constraints,
+            ));
         }
 
         builder.runtime().event(RuntimeEvent::ProofFinished);
