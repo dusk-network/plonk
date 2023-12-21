@@ -11,9 +11,9 @@ use msgpacker::{MsgPacker, Packable, Unpackable};
 use alloc::vec::Vec;
 
 use super::{
-    BlsScalar, Circuit, Compiler, Composer, Constraint, Error, Gate, Prover,
-    PublicParameters, Selector, Verifier, Witness,
+    BlsScalar, Circuit, Composer, Constraint, Error, Gate, Selector, Witness,
 };
+use crate::prelude::{Compiler, Prover, PublicParameters, Verifier};
 
 mod hades;
 

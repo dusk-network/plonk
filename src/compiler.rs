@@ -10,16 +10,19 @@ use alloc::vec::Vec;
 use dusk_bls12_381::BlsScalar;
 
 use crate::commitment_scheme::{CommitKey, OpeningKey, PublicParameters};
-use crate::constraint_system::{Constraint, Selector, Witness};
+use crate::composer::CompressedCircuit;
 use crate::error::Error;
 use crate::fft::{EvaluationDomain, Evaluations, Polynomial};
 use crate::proof_system::preprocess::Polynomials;
 use crate::proof_system::{widget, ProverKey};
 
-use super::{Circuit, Composer, Gate, Prover, Verifier};
+use crate::prelude::{Circuit, Composer};
 
-#[cfg(feature = "alloc")]
-mod compress;
+mod prover;
+mod verifier;
+
+pub use prover::Prover;
+pub use verifier::Verifier;
 
 /// Generate the arguments to prove and verify a circuit
 pub struct Compiler;
@@ -65,7 +68,8 @@ impl Compiler {
     where
         C: Circuit,
     {
-        compress::CompressedCircuit::from_circuit::<C>(true)
+        let hades_optimization = true;
+        CompressedCircuit::from_circuit::<C>(hades_optimization)
     }
 
     /// Generates a [Prover] and [Verifier] from a buffer created by
@@ -75,13 +79,13 @@ impl Compiler {
         label: &[u8],
         compressed: &[u8],
     ) -> Result<(Prover, Verifier), Error> {
-        compress::CompressedCircuit::from_bytes(pp, label, compressed)
+        CompressedCircuit::from_bytes(pp, label, compressed)
     }
 
     /// Create a new arguments set from a given circuit instance
     ///
     /// Use the default implementation of the circuit
-    fn compile_with_composer(
+    pub(crate) fn compile_with_composer(
         pp: &PublicParameters,
         label: &[u8],
         composer: &Composer,

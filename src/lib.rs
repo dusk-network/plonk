@@ -63,9 +63,8 @@ if #[cfg(feature = "alloc")] {
     extern crate alloc;
 
     mod bit_iterator;
-    mod constraint_system;
+    mod compiler;
     mod composer;
-    mod permutation;
     mod runtime;
     mod util;
     mod transcript;

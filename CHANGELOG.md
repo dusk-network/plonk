@@ -18,6 +18,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Hide all modules except 'prelude' [#782]
 - Turn `Composer` trait into a struct [#802]
 - Rename `Arithmetization` to `Gate` [#802]
+- Change internal module structure [#805]:
+  - Move compiler module to root
+  - Move prover and verifier modules under compiler
+  - Move compress module under composer
+  - Move constraint_system module under composer
+  - Move permutation module under composer
 
 ### Removed
 
@@ -548,6 +554,7 @@ is necessary since `rkyv/validation` was required as a bound.
 - Proof system module.
 
 <!-- ISSUES -->
+[#805]: https://github.com/dusk-network/plonk/issues/805
 [#802]: https://github.com/dusk-network/plonk/issues/802
 [#797]: https://github.com/dusk-network/plonk/issues/797
 [#796]: https://github.com/dusk-network/plonk/issues/796

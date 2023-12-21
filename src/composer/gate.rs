@@ -6,7 +6,7 @@
 
 use dusk_bls12_381::BlsScalar;
 
-use crate::constraint_system::Witness;
+use crate::prelude::Witness;
 
 /// Represents a gate with its associated wire data
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

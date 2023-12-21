@@ -35,7 +35,7 @@ pub(crate) struct VerifierKey {
 #[cfg(feature = "alloc")]
 mod alloc {
     use super::*;
-    use crate::permutation::constants::{K1, K2, K3};
+    use crate::composer::permutation::constants::{K1, K2, K3};
     use crate::proof_system::linearization_poly::ProofEvaluations;
     #[rustfmt::skip]
     use ::alloc::vec::Vec;

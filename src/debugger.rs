@@ -15,7 +15,7 @@ use dusk_cdf::{
     Encoder, EncoderContextFileProvider, Polynomial, Selectors, WiredWitnesses,
 };
 
-use crate::constraint_system::{Constraint, Selector, WiredWitness, Witness};
+use crate::composer::{Constraint, Selector, WiredWitness, Witness};
 use crate::runtime::RuntimeEvent;
 
 /// PLONK debugger
@@ -184,13 +184,6 @@ impl Debugger {
         Self {
             witnesses: Vec::new(),
             constraints: Vec::new(),
-        }
-    }
-
-    pub(crate) fn with_capacity(capacity: usize) -> Self {
-        Self {
-            witnesses: Vec::with_capacity(capacity),
-            constraints: Vec::with_capacity(capacity),
         }
     }
 
