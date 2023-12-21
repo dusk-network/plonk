@@ -10,10 +10,7 @@ use msgpacker::{MsgPacker, Packable, Unpackable};
 
 use alloc::vec::Vec;
 
-use super::{
-    BlsScalar, Circuit, Composer, Constraint, Error, Gate, Selector, Witness,
-};
-use crate::prelude::{Compiler, Prover, PublicParameters, Verifier};
+use super::{BlsScalar, Composer, Constraint, Error, Gate, Selector, Witness};
 
 mod hades;
 
@@ -80,15 +77,6 @@ pub struct CompressedCircuit {
 }
 
 impl CompressedCircuit {
-    pub fn from_circuit<C>(hades_optimization: bool) -> Result<Vec<u8>, Error>
-    where
-        C: Circuit,
-    {
-        let mut composer = Composer::initialized();
-        C::default().circuit(&mut composer)?;
-        Ok(Self::from_composer(hades_optimization, composer))
-    }
-
     pub fn from_composer(
         hades_optimization: bool,
         composer: Composer,
@@ -210,11 +198,7 @@ impl CompressedCircuit {
         miniz_oxide::deflate::compress_to_vec(&buf, 10)
     }
 
-    pub fn from_bytes(
-        pp: &PublicParameters,
-        label: &[u8],
-        compressed: &[u8],
-    ) -> Result<(Prover, Verifier), Error> {
+    pub fn from_bytes(compressed: &[u8]) -> Result<Composer, Error> {
         let compressed = miniz_oxide::inflate::decompress_to_vec(compressed)
             .map_err(|_| Error::InvalidCompressedCircuit)?;
         let (
@@ -358,6 +342,6 @@ impl CompressedCircuit {
             composer.append_custom_gate(constraint);
         }
 
-        Compiler::compile_with_composer(pp, label, &composer)
+        Ok(composer)
     }
 }

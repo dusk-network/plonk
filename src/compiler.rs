@@ -4,13 +4,9 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-#[cfg(feature = "alloc")]
-use alloc::vec::Vec;
-
 use dusk_bls12_381::BlsScalar;
 
 use crate::commitment_scheme::{CommitKey, OpeningKey, PublicParameters};
-use crate::composer::CompressedCircuit;
 use crate::error::Error;
 use crate::fft::{EvaluationDomain, Evaluations, Polynomial};
 use crate::proof_system::preprocess::Polynomials;
@@ -61,31 +57,22 @@ impl Compiler {
         Self::compile_with_composer(pp, label, &composer)
     }
 
-    /// Return a bytes representation of a compressed circuit, capable of
-    /// generating its prover and verifier instances.
-    #[cfg(feature = "alloc")]
-    pub fn compress<C>() -> Result<Vec<u8>, Error>
-    where
-        C: Circuit,
-    {
-        let hades_optimization = true;
-        CompressedCircuit::from_circuit::<C>(hades_optimization)
-    }
-
     /// Generates a [Prover] and [Verifier] from a buffer created by
-    /// [Self::compress].
-    pub fn decompress(
+    /// [Circuit::compress].
+    pub fn compile_with_compressed(
         pp: &PublicParameters,
         label: &[u8],
         compressed: &[u8],
     ) -> Result<(Prover, Verifier), Error> {
-        CompressedCircuit::from_bytes(pp, label, compressed)
+        let composer = Composer::from_bytes(compressed)?;
+
+        Self::compile_with_composer(pp, label, &composer)
     }
 
     /// Create a new arguments set from a given circuit instance
     ///
     /// Use the default implementation of the circuit
-    pub(crate) fn compile_with_composer(
+    fn compile_with_composer(
         pp: &PublicParameters,
         label: &[u8],
         composer: &Composer,

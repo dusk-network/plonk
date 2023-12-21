@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Move compress module under composer
   - Move constraint_system module under composer
   - Move permutation module under composer
+- Change API for circuit (de-)compression [#804]
 
 ### Removed
 
@@ -555,6 +556,7 @@ is necessary since `rkyv/validation` was required as a bound.
 
 <!-- ISSUES -->
 [#805]: https://github.com/dusk-network/plonk/issues/805
+[#804]: https://github.com/dusk-network/plonk/issues/804
 [#802]: https://github.com/dusk-network/plonk/issues/802
 [#797]: https://github.com/dusk-network/plonk/issues/797
 [#796]: https://github.com/dusk-network/plonk/issues/796

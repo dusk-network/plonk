@@ -84,11 +84,11 @@ fn circuit_with_all_gates() {
     let (prover, verifier) = Compiler::compile::<DummyCircuit>(&pp, label)
         .expect("failed to compile circuit");
 
-    let compressed = Compiler::compress::<DummyCircuit>()
-        .expect("failed to compress circuit");
+    let compressed =
+        DummyCircuit::compress().expect("failed to compress circuit");
 
     let (decompressed_prover, decompressed_verifier) =
-        Compiler::decompress(&pp, label, &compressed).unwrap();
+        Compiler::compile_with_compressed(&pp, label, &compressed).unwrap();
 
     let decoded_prover_bytes = decompressed_prover.to_bytes();
     let len = prover.serialized_size();
