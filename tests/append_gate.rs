@@ -36,10 +36,7 @@ fn append_gate() {
     }
 
     impl Circuit for TestCircuit {
-        fn circuit<C>(&self, composer: &mut C) -> Result<(), Error>
-        where
-            C: Composer,
-        {
+        fn circuit(&self, composer: &mut Composer) -> Result<(), Error> {
             let w_a = composer.append_witness(self.a);
             let w_b = composer.append_witness(self.b);
             let w_o = composer.append_witness(self.o);

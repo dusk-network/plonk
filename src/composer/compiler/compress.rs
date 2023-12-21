@@ -11,8 +11,8 @@ use msgpacker::{MsgPacker, Packable, Unpackable};
 use alloc::vec::Vec;
 
 use super::{
-    Arithmetization, BlsScalar, Builder, Circuit, Compiler, Composer,
-    Constraint, Error, Prover, PublicParameters, Selector, Verifier, Witness,
+    BlsScalar, Circuit, Compiler, Composer, Constraint, Error, Gate, Prover,
+    PublicParameters, Selector, Verifier, Witness,
 };
 
 mod hades;
@@ -84,18 +84,21 @@ impl CompressedCircuit {
     where
         C: Circuit,
     {
-        let mut builder = Builder::initialized();
-        C::default().circuit(&mut builder)?;
-        Ok(Self::from_builder(hades_optimization, builder))
+        let mut composer = Composer::initialized();
+        C::default().circuit(&mut composer)?;
+        Ok(Self::from_composer(hades_optimization, composer))
     }
 
-    pub fn from_builder(hades_optimization: bool, builder: Builder) -> Vec<u8> {
+    pub fn from_composer(
+        hades_optimization: bool,
+        composer: Composer,
+    ) -> Vec<u8> {
         let mut public_inputs: Vec<_> =
-            builder.public_inputs.keys().copied().collect();
+            composer.public_inputs.keys().copied().collect();
         public_inputs.sort();
 
-        let witnesses = builder.witnesses.len();
-        let polynomials = builder.constraints;
+        let witnesses = composer.witnesses.len();
+        let polynomials = composer.constraints;
 
         let constraints = polynomials.into_iter();
         let mut scalars = scalar_map(hades_optimization);
@@ -103,7 +106,7 @@ impl CompressedCircuit {
         let mut polynomials = HashMap::new();
         let constraints = constraints
             .map(
-                |Arithmetization {
+                |Gate {
                      q_m,
                      q_l,
                      q_r,
@@ -241,14 +244,13 @@ impl CompressedCircuit {
         }
         let scalars = version_scalars;
 
-        #[allow(deprecated)]
         // we use `uninitialized` because the decompressor will also contain the
         // dummy constraints, if they were part of the prover when encoding.
-        let mut builder = Builder::uninitialized();
+        let mut composer = Composer::uninitialized();
 
         let mut pi = 0;
         (0..witnesses).for_each(|_| {
-            builder.append_witness(BlsScalar::zero());
+            composer.append_witness(BlsScalar::zero());
         });
 
         for (
@@ -353,9 +355,9 @@ impl CompressedCircuit {
                 }
             }
 
-            builder.append_custom_gate(constraint);
+            composer.append_custom_gate(constraint);
         }
 
-        Compiler::compile_with_builder(pp, label, &builder)
+        Compiler::compile_with_composer(pp, label, &composer)
     }
 }

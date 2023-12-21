@@ -16,7 +16,7 @@ use crate::fft::{EvaluationDomain, Evaluations, Polynomial};
 use crate::proof_system::preprocess::Polynomials;
 use crate::proof_system::{widget, ProverKey};
 
-use super::{Arithmetization, Builder, Circuit, Composer, Prover, Verifier};
+use super::{Circuit, Composer, Gate, Prover, Verifier};
 
 #[cfg(feature = "alloc")]
 mod compress;
@@ -35,10 +35,10 @@ impl Compiler {
     where
         C: Circuit,
     {
-        let mut builder = Builder::initialized();
-        C::default().circuit(&mut builder)?;
+        let mut composer = Composer::initialized();
+        C::default().circuit(&mut composer)?;
 
-        Self::compile_with_builder(pp, label, &builder)
+        Self::compile_with_composer(pp, label, &composer)
     }
 
     /// Create a new arguments set from a given circuit instance
@@ -52,10 +52,10 @@ impl Compiler {
     where
         C: Circuit,
     {
-        let mut builder = Builder::initialized();
-        circuit.circuit(&mut builder)?;
+        let mut composer = Composer::initialized();
+        circuit.circuit(&mut composer)?;
 
-        Self::compile_with_builder(pp, label, &builder)
+        Self::compile_with_composer(pp, label, &composer)
     }
 
     /// Return a bytes representation of a compressed circuit, capable of
@@ -81,17 +81,17 @@ impl Compiler {
     /// Create a new arguments set from a given circuit instance
     ///
     /// Use the default implementation of the circuit
-    fn compile_with_builder(
+    fn compile_with_composer(
         pp: &PublicParameters,
         label: &[u8],
-        builder: &Builder,
+        composer: &Composer,
     ) -> Result<(Prover, Verifier), Error> {
-        let n = (builder.constraints() + 6).next_power_of_two();
+        let n = (composer.constraints() + 6).next_power_of_two();
 
         let (commit, opening) = pp.trim(n)?;
 
         let (prover, verifier) =
-            Self::preprocess(label, commit, opening, builder)?;
+            Self::preprocess(label, commit, opening, composer)?;
 
         Ok((prover, verifier))
     }
@@ -100,7 +100,7 @@ impl Compiler {
         label: &[u8],
         commit_key: CommitKey,
         opening_key: OpeningKey,
-        prover: &Builder,
+        prover: &Composer,
     ) -> Result<(Prover, Verifier), Error> {
         let mut perm = prover.perm.clone();
 

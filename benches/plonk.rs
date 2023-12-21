@@ -31,10 +31,7 @@ impl<const DEGREE: usize> Default for BenchCircuit<DEGREE> {
 }
 
 impl<const DEGREE: usize> Circuit for BenchCircuit<DEGREE> {
-    fn circuit<C>(&self, composer: &mut C) -> Result<(), Error>
-    where
-        C: Composer,
-    {
+    fn circuit(&self, composer: &mut Composer) -> Result<(), Error> {
         let w_a = composer.append_witness(self.a);
         let w_b = composer.append_witness(self.b);
         let w_x = composer.append_witness(self.x);
@@ -59,7 +56,7 @@ impl<const DEGREE: usize> Circuit for BenchCircuit<DEGREE> {
             composer.component_add_point(w_z, w_z);
             composer.append_logic_and::<128>(w_a, w_b);
             composer.append_logic_xor::<128>(w_a, w_b);
-            composer.component_boolean(C::ONE);
+            composer.component_boolean(Composer::ONE);
             composer.component_decomposition::<254>(w_a);
             composer.component_mul_generator(
                 w_y,
@@ -67,11 +64,11 @@ impl<const DEGREE: usize> Circuit for BenchCircuit<DEGREE> {
             )?;
             composer.component_mul_point(w_y, w_z);
             composer.component_range::<128>(w_a);
-            composer.component_select(C::ONE, w_a, w_b);
-            composer.component_select_identity(C::ONE, w_z);
-            composer.component_select_one(C::ONE, w_a);
-            composer.component_select_point(C::ONE, w_z, w_z);
-            composer.component_select_zero(C::ONE, w_a);
+            composer.component_select(Composer::ONE, w_a, w_b);
+            composer.component_select_identity(Composer::ONE, w_z);
+            composer.component_select_one(Composer::ONE, w_a);
+            composer.component_select_point(Composer::ONE, w_z, w_z);
+            composer.component_select_zero(Composer::ONE, w_a);
 
             diff = composer.constraints() - prev;
             prev = composer.constraints();

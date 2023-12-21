@@ -58,15 +58,6 @@ impl Runtime {
         }
     }
 
-    /// Create a new PLONK runtime with the provided capacity
-    #[allow(unused_variables)]
-    pub fn with_capacity(capacity: usize) -> Self {
-        Self {
-            #[cfg(feature = "debug")]
-            debugger: Debugger::with_capacity(capacity),
-        }
-    }
-
     #[allow(unused_variables)]
     pub(crate) fn event(&mut self, event: RuntimeEvent) {
         #[cfg(feature = "debug")]

@@ -34,10 +34,7 @@ fn assert_equal_point() {
     }
 
     impl Circuit for TestCircuit {
-        fn circuit<C>(&self, composer: &mut C) -> Result<(), Error>
-        where
-            C: Composer,
-        {
+        fn circuit(&self, composer: &mut Composer) -> Result<(), Error> {
             let w_p1 = composer.append_point(self.p1);
             let w_p2 = composer.append_point(self.p2);
             composer.assert_equal_point(w_p1, w_p2);
@@ -126,10 +123,7 @@ fn assert_equal_public_point() {
     }
 
     impl Circuit for TestCircuit {
-        fn circuit<C>(&self, composer: &mut C) -> Result<(), Error>
-        where
-            C: Composer,
-        {
+        fn circuit(&self, composer: &mut Composer) -> Result<(), Error> {
             let w_point = composer.append_point(self.point);
             composer.assert_equal_public_point(w_point, self.public);
 

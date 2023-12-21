@@ -24,11 +24,8 @@ impl TestSize {
 }
 
 impl Circuit for TestSize {
-    fn circuit<C>(&self, composer: &mut C) -> Result<(), Error>
-    where
-        C: Composer,
-    {
-        let sum = self.witnesses.iter().fold(C::ZERO, |acc, scalar| {
+    fn circuit(&self, composer: &mut Composer) -> Result<(), Error> {
+        let sum = self.witnesses.iter().fold(Composer::ZERO, |acc, scalar| {
             let w = composer.append_witness(*scalar);
             let constraint = Constraint::new().left(1).a(acc).right(1).b(w);
             composer.gate_add(constraint)
@@ -57,7 +54,7 @@ fn size() {
     let sum = witnesses.iter().sum();
     let circuit = TestSize::new(witnesses, sum);
     let result = prover.prove(rng, &circuit);
-    let empty_circuit_size = Builder::initialized().constraints();
+    let empty_circuit_size = Composer::initialized().constraints();
     assert!(result.is_err_and(|e| e
         == Error::InvalidCircuitSize(
             empty_circuit_size + 5,

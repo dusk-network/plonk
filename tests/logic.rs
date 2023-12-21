@@ -39,10 +39,7 @@ fn append_logic_and() {
     }
 
     impl<const BIT_PAIRS: usize> Circuit for TestCircuit<BIT_PAIRS> {
-        fn circuit<C>(&self, composer: &mut C) -> Result<(), Error>
-        where
-            C: Composer,
-        {
+        fn circuit(&self, composer: &mut Composer) -> Result<(), Error> {
             let w_a = composer.append_witness(self.a);
             let w_b = composer.append_witness(self.b);
             let w_result = composer.append_witness(self.result);
@@ -217,10 +214,7 @@ fn append_logic_xor() {
     }
 
     impl<const BIT_PAIRS: usize> Circuit for TestCircuit<BIT_PAIRS> {
-        fn circuit<C>(&self, composer: &mut C) -> Result<(), Error>
-        where
-            C: Composer,
-        {
+        fn circuit(&self, composer: &mut Composer) -> Result<(), Error> {
             let w_a = composer.append_witness(self.a);
             let w_b = composer.append_witness(self.b);
             let w_result = composer.append_witness(self.result);

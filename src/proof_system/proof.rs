@@ -26,12 +26,14 @@ use rkyv::{
 /// Quotient, Shifted and Opening polynomials as well as the
 /// `ProofEvaluations`.
 ///
-/// It's main goal is to allow the `Verifier` to
-/// formally verify that the secret witnesses used to generate the [`Proof`]
-/// satisfy a circuit that both [`Builder`](crate::prelude::Builder) and
-/// [`Verifier`](crate::prelude::Verifier) have in common succintly
-/// and without any capabilities of adquiring any kind of knowledge about the
-/// witness used to construct the Proof.
+/// It's main goal is to allow the `Verifier` to formally verify that the secret
+/// witnesses used to generate the [`Proof`] satisfy a circuit that both
+/// [`Composer`] and [`Verifier`] have in common succintly and without any
+/// capabilities of adquiring any kind of knowledge about the witness used to
+/// construct the Proof.
+///
+/// [`Composer`]: [`crate::prelude::Composer`]
+/// [`Verifier`]: [`crate::prelude::Verifier`]
 #[derive(Debug, Eq, PartialEq, Clone, Default)]
 #[cfg_attr(
     feature = "rkyv-impl",

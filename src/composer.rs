@@ -7,8 +7,8 @@
 //! PLONK turbo composer definitions
 
 use alloc::vec::Vec;
-use core::cmp;
-use core::ops::Index;
+use core::{cmp, ops};
+use hashbrown::HashMap;
 
 use dusk_bls12_381::BlsScalar;
 use dusk_jubjub::{JubJubAffine, JubJubExtended, JubJubScalar};
@@ -19,72 +19,144 @@ use crate::constraint_system::{
     Constraint, Selector, WiredWitness, Witness, WitnessPoint,
 };
 use crate::error::Error;
+use crate::permutation::Permutation;
 use crate::runtime::{Runtime, RuntimeEvent};
 
-mod arithmetization;
-mod builder;
 mod circuit;
 mod compiler;
+mod gate;
 mod prover;
 mod verifier;
 
-pub use arithmetization::Arithmetization;
-pub use builder::Builder;
 pub use circuit::Circuit;
 pub use compiler::Compiler;
+pub use gate::Gate;
 pub use prover::Prover;
 pub use verifier::Verifier;
 
+/// Construct and prove circuits
+#[derive(Debug, Clone)]
+pub struct Composer {
+    /// Constraint system gates
+    pub(crate) constraints: Vec<Gate>,
+
+    /// Sparse representation of the public inputs
+    pub(crate) public_inputs: HashMap<usize, BlsScalar>,
+
+    /// Witness values
+    pub(crate) witnesses: Vec<BlsScalar>,
+
+    /// Permutation argument.
+    pub(crate) perm: Permutation,
+
+    /// PLONK runtime controller
+    pub(crate) runtime: Runtime,
+}
+
+impl ops::Index<Witness> for Composer {
+    type Output = BlsScalar;
+
+    fn index(&self, w: Witness) -> &Self::Output {
+        &self.witnesses[w.index()]
+    }
+}
+
+// pub trait Composer: Sized + Index<Witness, Output = BlsScalar> {
 /// Circuit builder tool
-pub trait Composer: Sized + Index<Witness, Output = BlsScalar> {
+impl Composer {
     /// Zero representation inside the constraint system.
     ///
     /// A turbo composer expects the first witness to be always present and to
     /// be zero.
-    const ZERO: Witness = Witness::ZERO;
+    pub const ZERO: Witness = Witness::ZERO;
 
     /// `One` representation inside the constraint system.
     ///
     /// A turbo composer expects the 2nd witness to be always present and to
     /// be one.
-    const ONE: Witness = Witness::ONE;
+    pub const ONE: Witness = Witness::ONE;
 
     /// Identity point representation inside the constraint system
-    const IDENTITY: WitnessPoint = WitnessPoint::new(Self::ZERO, Self::ONE);
-
-    /// Create an empty constraint system.
-    ///
-    /// This shouldn't be used directly; instead, use [`Self::initialized`]
-    #[deprecated(
-        since = "0.13.0",
-        note = "this function is meant for internal use. call `initialized` instead"
-    )]
-    fn uninitialized() -> Self;
+    pub const IDENTITY: WitnessPoint = WitnessPoint::new(Self::ZERO, Self::ONE);
 
     /// Constraints count
-    fn constraints(&self) -> usize;
+    pub fn constraints(&self) -> usize {
+        self.constraints.len()
+    }
 
     /// Allocate a witness value into the composer and return its index.
-    #[deprecated(
-        since = "0.13.0",
-        note = "this function is meant for internal use. call `append_witness` instead"
-    )]
-    fn append_witness_internal(&mut self, witness: BlsScalar) -> Witness;
+    fn append_witness_internal(&mut self, witness: BlsScalar) -> Witness {
+        let n = self.witnesses.len();
 
-    /// Append a new width-4 poly gate/constraint.
-    #[deprecated(
-        since = "0.13.0",
-        note = "this function is meant for internal use. call `append_custom_gate` instead"
-    )]
-    fn append_custom_gate_internal(&mut self, constraint: Constraint);
+        // Get a new Witness from the permutation
+        self.perm.new_witness();
+
+        // Bind the allocated witness
+        self.witnesses.push(witness);
+
+        Witness::new(n)
+    }
+
+    /// Append a new width-4 gate/constraint.
+    fn append_custom_gate_internal(&mut self, constraint: Constraint) {
+        let n = self.constraints.len();
+
+        let w_a = constraint.witness(WiredWitness::A);
+        let w_b = constraint.witness(WiredWitness::B);
+        let w_o = constraint.witness(WiredWitness::O);
+        let w_d = constraint.witness(WiredWitness::D);
+
+        let q_m = *constraint.coeff(Selector::Multiplication);
+        let q_l = *constraint.coeff(Selector::Left);
+        let q_r = *constraint.coeff(Selector::Right);
+        let q_o = *constraint.coeff(Selector::Output);
+        let q_4 = *constraint.coeff(Selector::Fourth);
+        let q_c = *constraint.coeff(Selector::Constant);
+
+        let q_arith = *constraint.coeff(Selector::Arithmetic);
+        let q_range = *constraint.coeff(Selector::Range);
+        let q_logic = *constraint.coeff(Selector::Logic);
+        let q_fixed_group_add = *constraint.coeff(Selector::GroupAddFixedBase);
+        let q_variable_group_add =
+            *constraint.coeff(Selector::GroupAddVariableBase);
+
+        let gate = Gate {
+            q_m,
+            q_l,
+            q_r,
+            q_o,
+            q_4,
+            q_c,
+            q_arith,
+            q_range,
+            q_logic,
+            q_fixed_group_add,
+            q_variable_group_add,
+            w_a,
+            w_b,
+            w_o,
+            w_d,
+        };
+
+        self.constraints.push(gate);
+
+        if constraint.has_public_input() {
+            let pi = *constraint.coeff(Selector::PublicInput);
+
+            self.public_inputs.insert(n, pi);
+        }
+
+        self.perm.add_witnesses_to_map(w_a, w_b, w_o, w_d, n);
+    }
 
     /// PLONK runtime controller
-    fn runtime(&mut self) -> &mut Runtime;
+    pub(crate) fn runtime(&mut self) -> &mut Runtime {
+        &mut self.runtime
+    }
 
     /// Initialize the constraint system with the constants for 0 and 1 and
     /// append two dummy gates
-    fn initialized() -> Self {
-        #[allow(deprecated)]
+    pub fn initialized() -> Self {
         let mut slf = Self::uninitialized();
 
         let zero = slf.append_witness(0);
@@ -98,11 +170,64 @@ pub trait Composer: Sized + Index<Witness, Output = BlsScalar> {
         slf
     }
 
+    /// Create an empty constraint system.
+    ///
+    /// This shouldn't be used directly; instead, use [`Self::initialized`]
+    fn uninitialized() -> Self {
+        Self {
+            constraints: Vec::new(),
+            public_inputs: HashMap::new(),
+            witnesses: Vec::new(),
+            perm: Permutation::new(),
+            runtime: Runtime::new(),
+        }
+    }
+
+    /// Adds blinding factors to the witness polynomials with two dummy
+    /// arithmetic constraints
+    fn append_dummy_gates(&mut self) {
+        let six = self.append_witness(BlsScalar::from(6));
+        let one = self.append_witness(BlsScalar::from(1));
+        let seven = self.append_witness(BlsScalar::from(7));
+        let min_twenty = self.append_witness(-BlsScalar::from(20));
+
+        // Add a dummy constraint so that we do not have zero polynomials
+        let constraint = Constraint::new()
+            .mult(1)
+            .left(2)
+            .right(3)
+            .fourth(1)
+            .constant(4)
+            .output(4)
+            .a(six)
+            .b(seven)
+            .d(one)
+            .o(min_twenty);
+
+        self.append_gate(constraint);
+
+        // Add another dummy constraint so that we do not get the identity
+        // permutation
+        let constraint = Constraint::new()
+            .mult(1)
+            .left(1)
+            .right(1)
+            .constant(127)
+            .output(1)
+            .a(min_twenty)
+            .b(six)
+            .o(seven);
+
+        self.append_gate(constraint);
+    }
+
     /// Allocate a witness value into the composer and return its index.
-    fn append_witness<W: Into<BlsScalar>>(&mut self, witness: W) -> Witness {
+    pub fn append_witness<W: Into<BlsScalar>>(
+        &mut self,
+        witness: W,
+    ) -> Witness {
         let witness = witness.into();
 
-        #[allow(deprecated)]
         let witness = self.append_witness_internal(witness);
 
         let v = self[witness];
@@ -112,12 +237,11 @@ pub trait Composer: Sized + Index<Witness, Output = BlsScalar> {
         witness
     }
 
-    /// Append a new width-4 poly gate/constraint.
-    fn append_custom_gate(&mut self, constraint: Constraint) {
+    /// Append a new width-4 gate/constraint.
+    pub fn append_custom_gate(&mut self, constraint: Constraint) {
         self.runtime()
             .event(RuntimeEvent::ConstraintAppended { c: constraint });
 
-        #[allow(deprecated)]
         self.append_custom_gate_internal(constraint)
     }
 
@@ -132,7 +256,7 @@ pub trait Composer: Sized + Index<Witness, Output = BlsScalar> {
     ///   `a` and `b`.
     /// - is_component_xor = 0 -> Performs AND between the first `num_bits` for
     ///   `a` and `b`.
-    fn append_logic_component<const BIT_PAIRS: usize>(
+    pub fn append_logic_component<const BIT_PAIRS: usize>(
         &mut self,
         a: Witness,
         b: Witness,
@@ -245,7 +369,7 @@ pub trait Composer: Sized + Index<Witness, Output = BlsScalar> {
     ///
     /// Will error with a `JubJubScalarMalformed` error if `jubjub` doesn't fit
     /// `Fr`
-    fn component_mul_generator<P: Into<JubJubExtended>>(
+    pub fn component_mul_generator<P: Into<JubJubExtended>>(
         &mut self,
         jubjub: Witness,
         generator: P,
@@ -399,11 +523,11 @@ pub trait Composer: Sized + Index<Witness, Output = BlsScalar> {
         Ok(WitnessPoint::new(acc_x, acc_y))
     }
 
-    /// Append a new width-4 poly gate/constraint.
+    /// Append a new width-4 gate/constraint.
     ///
     /// The constraint added will enforce the following:
     /// `q_m · a · b  + q_l · a + q_r · b + q_o · o + q_4 · d + q_c + PI = 0`.
-    fn append_gate(&mut self, constraint: Constraint) {
+    pub fn append_gate(&mut self, constraint: Constraint) {
         let constraint = Constraint::arithmetic(&constraint);
 
         self.append_custom_gate(constraint)
@@ -412,7 +536,10 @@ pub trait Composer: Sized + Index<Witness, Output = BlsScalar> {
     /// Evaluate the polynomial and append an output that satisfies the equation
     ///
     /// Return `None` if the output selector is zero
-    fn append_evaluated_output(&mut self, s: Constraint) -> Option<Witness> {
+    pub fn append_evaluated_output(
+        &mut self,
+        s: Constraint,
+    ) -> Option<Witness> {
         let a = s.witness(WiredWitness::A);
         let b = s.witness(WiredWitness::B);
         let d = s.witness(WiredWitness::D);
@@ -458,47 +585,12 @@ pub trait Composer: Sized + Index<Witness, Output = BlsScalar> {
         o.map(|o| self.append_witness(o))
     }
 
-    /// Adds blinding factors to the witness polynomials with two dummy
-    /// arithmetic constraints
-    fn append_dummy_gates(&mut self) {
-        let six = self.append_witness(BlsScalar::from(6));
-        let one = self.append_witness(BlsScalar::from(1));
-        let seven = self.append_witness(BlsScalar::from(7));
-        let min_twenty = self.append_witness(-BlsScalar::from(20));
-
-        // Add a dummy constraint so that we do not have zero polynomials
-        let constraint = Constraint::new()
-            .mult(1)
-            .left(2)
-            .right(3)
-            .fourth(1)
-            .constant(4)
-            .output(4)
-            .a(six)
-            .b(seven)
-            .d(one)
-            .o(min_twenty);
-
-        self.append_gate(constraint);
-
-        // Add another dummy constraint so that we do not get the identity
-        // permutation
-        let constraint = Constraint::new()
-            .mult(1)
-            .left(1)
-            .right(1)
-            .constant(127)
-            .output(1)
-            .a(min_twenty)
-            .b(six)
-            .o(seven);
-
-        self.append_gate(constraint);
-    }
-
     /// Constrain a scalar into the circuit description and return an allocated
     /// [`Witness`] with its value
-    fn append_constant<C: Into<BlsScalar>>(&mut self, constant: C) -> Witness {
+    pub fn append_constant<C: Into<BlsScalar>>(
+        &mut self,
+        constant: C,
+    ) -> Witness {
         let constant = constant.into();
         let witness = self.append_witness(constant);
 
@@ -508,7 +600,7 @@ pub trait Composer: Sized + Index<Witness, Output = BlsScalar> {
     }
 
     /// Appends a point in affine form as [`WitnessPoint`]
-    fn append_point<P: Into<JubJubAffine>>(
+    pub fn append_point<P: Into<JubJubAffine>>(
         &mut self,
         affine: P,
     ) -> WitnessPoint {
@@ -522,7 +614,7 @@ pub trait Composer: Sized + Index<Witness, Output = BlsScalar> {
 
     /// Constrain a point into the circuit description and return an allocated
     /// [`WitnessPoint`] with its coordinates
-    fn append_constant_point<P: Into<JubJubAffine>>(
+    pub fn append_constant_point<P: Into<JubJubAffine>>(
         &mut self,
         affine: P,
     ) -> WitnessPoint {
@@ -537,7 +629,7 @@ pub trait Composer: Sized + Index<Witness, Output = BlsScalar> {
     /// Appends a point in affine form as [`WitnessPoint`]
     ///
     /// Creates two public inputs as `(x, y)`
-    fn append_public_point<P: Into<JubJubAffine>>(
+    pub fn append_public_point<P: Into<JubJubAffine>>(
         &mut self,
         affine: P,
     ) -> WitnessPoint {
@@ -562,7 +654,7 @@ pub trait Composer: Sized + Index<Witness, Output = BlsScalar> {
     /// Allocate a witness value into the composer and return its index.
     ///
     /// Create a public input with the scalar
-    fn append_public<P: Into<BlsScalar>>(&mut self, public: P) -> Witness {
+    pub fn append_public<P: Into<BlsScalar>>(&mut self, public: P) -> Witness {
         let public = public.into();
         let witness = self.append_witness(public);
 
@@ -576,7 +668,7 @@ pub trait Composer: Sized + Index<Witness, Output = BlsScalar> {
     }
 
     /// Asserts `a == b` by appending a gate
-    fn assert_equal(&mut self, a: Witness, b: Witness) {
+    pub fn assert_equal(&mut self, a: Witness, b: Witness) {
         let constraint =
             Constraint::new().left(1).right(-BlsScalar::one()).a(a).b(b);
 
@@ -586,7 +678,7 @@ pub trait Composer: Sized + Index<Witness, Output = BlsScalar> {
     /// Adds a logical AND gate that performs the bitwise AND between two values
     /// specified first `num_bits = BIT_PAIRS * 2` bits returning a [`Witness`]
     /// holding the result.
-    fn append_logic_and<const BIT_PAIRS: usize>(
+    pub fn append_logic_and<const BIT_PAIRS: usize>(
         &mut self,
         a: Witness,
         b: Witness,
@@ -597,7 +689,7 @@ pub trait Composer: Sized + Index<Witness, Output = BlsScalar> {
     /// Adds a logical XOR gate that performs the XOR between two values for the
     /// specified first `num_bits = BIT_PAIRS * 2` bits returning a [`Witness`]
     /// holding the result.
-    fn append_logic_xor<const BIT_PAIRS: usize>(
+    pub fn append_logic_xor<const BIT_PAIRS: usize>(
         &mut self,
         a: Witness,
         b: Witness,
@@ -608,7 +700,7 @@ pub trait Composer: Sized + Index<Witness, Output = BlsScalar> {
     /// Constrain `a` to be equal to `constant + pi`.
     ///
     /// `constant` will be defined as part of the public circuit description.
-    fn assert_equal_constant<C: Into<BlsScalar>>(
+    pub fn assert_equal_constant<C: Into<BlsScalar>>(
         &mut self,
         a: Witness,
         constant: C,
@@ -627,7 +719,7 @@ pub trait Composer: Sized + Index<Witness, Output = BlsScalar> {
 
     /// Asserts that the coordinates of the two points `a` and `b` are the same
     /// by appending two gates
-    fn assert_equal_point(&mut self, a: WitnessPoint, b: WitnessPoint) {
+    pub fn assert_equal_point(&mut self, a: WitnessPoint, b: WitnessPoint) {
         self.assert_equal(*a.x(), *b.x());
         self.assert_equal(*a.y(), *b.y());
     }
@@ -635,7 +727,7 @@ pub trait Composer: Sized + Index<Witness, Output = BlsScalar> {
     /// Asserts `point == public`.
     ///
     /// Will add `public` affine coordinates `(x,y)` as public inputs
-    fn assert_equal_public_point<P: Into<JubJubAffine>>(
+    pub fn assert_equal_public_point<P: Into<JubJubAffine>>(
         &mut self,
         point: WitnessPoint,
         public: P,
@@ -656,7 +748,7 @@ pub trait Composer: Sized + Index<Witness, Output = BlsScalar> {
     }
 
     /// Adds two curve points by consuming 2 gates.
-    fn component_add_point(
+    pub fn component_add_point(
         &mut self,
         a: WitnessPoint,
         b: WitnessPoint,
@@ -705,7 +797,7 @@ pub trait Composer: Sized + Index<Witness, Output = BlsScalar> {
     /// Note that using this constraint with whatever [`Witness`] that
     /// is not representing a value equalling 0 or 1, will always force the
     /// equation to fail.
-    fn component_boolean(&mut self, a: Witness) {
+    pub fn component_boolean(&mut self, a: Witness) {
         let zero = Self::ZERO;
         let constraint = Constraint::new()
             .mult(1)
@@ -728,7 +820,7 @@ pub trait Composer: Sized + Index<Witness, Output = BlsScalar> {
     /// an unsatisfied circuit.
     ///
     /// Consumes `2 · N + 1` gates
-    fn component_decomposition<const N: usize>(
+    pub fn component_decomposition<const N: usize>(
         &mut self,
         scalar: Witness,
     ) -> [Witness; N] {
@@ -770,7 +862,7 @@ pub trait Composer: Sized + Index<Witness, Output = BlsScalar> {
     ///
     /// `bit` is expected to be constrained by
     /// [`Composer::component_boolean`]
-    fn component_select_identity(
+    pub fn component_select_identity(
         &mut self,
         bit: Witness,
         a: WitnessPoint,
@@ -782,7 +874,7 @@ pub trait Composer: Sized + Index<Witness, Output = BlsScalar> {
     }
 
     /// Evaluate `jubjub · point` as a [`WitnessPoint`]
-    fn component_mul_point(
+    pub fn component_mul_point(
         &mut self,
         jubjub: Witness,
         point: WitnessPoint,
@@ -809,7 +901,7 @@ pub trait Composer: Sized + Index<Witness, Output = BlsScalar> {
     ///
     /// `bit` is expected to be constrained by
     /// [`Composer::component_boolean`]
-    fn component_select(
+    pub fn component_select(
         &mut self,
         bit: Witness,
         a: Witness,
@@ -844,7 +936,7 @@ pub trait Composer: Sized + Index<Witness, Output = BlsScalar> {
     ///
     /// `bit` is expected to be constrained by
     /// [`Composer::component_boolean`]
-    fn component_select_one(
+    pub fn component_select_one(
         &mut self,
         bit: Witness,
         value: Witness,
@@ -876,7 +968,7 @@ pub trait Composer: Sized + Index<Witness, Output = BlsScalar> {
     ///
     /// `bit` is expected to be constrained by
     /// [`Composer::component_boolean`]
-    fn component_select_point(
+    pub fn component_select_point(
         &mut self,
         bit: Witness,
         a: WitnessPoint,
@@ -895,7 +987,7 @@ pub trait Composer: Sized + Index<Witness, Output = BlsScalar> {
     ///
     /// `bit` is expected to be constrained by
     /// [`Composer::component_boolean`]
-    fn component_select_zero(
+    pub fn component_select_zero(
         &mut self,
         bit: Witness,
         value: Witness,
@@ -914,7 +1006,10 @@ pub trait Composer: Sized + Index<Witness, Output = BlsScalar> {
     /// (num_bits - 1)/8 + 9 gates, when num_bits > 0,
     /// and 7 gates, when num_bits = 0
     /// to the circuit description.
-    fn component_range<const BIT_PAIRS: usize>(&mut self, witness: Witness) {
+    pub fn component_range<const BIT_PAIRS: usize>(
+        &mut self,
+        witness: Witness,
+    ) {
         // the bits are iterated as chunks of two; hence, we require an even
         // number
         let num_bits = cmp::min(BIT_PAIRS * 2, 256);
@@ -1022,7 +1117,7 @@ pub trait Composer: Sized + Index<Witness, Output = BlsScalar> {
     ///
     /// Set `q_o = (-1)` and override the output of the constraint with:
     /// `o := q_l · a + q_r · b + q_4 · d + q_c + PI`
-    fn gate_add(&mut self, s: Constraint) -> Witness {
+    pub fn gate_add(&mut self, s: Constraint) -> Witness {
         let s = Constraint::arithmetic(&s).output(-BlsScalar::one());
 
         let o = self
@@ -1039,7 +1134,7 @@ pub trait Composer: Sized + Index<Witness, Output = BlsScalar> {
     ///
     /// Set `q_o = (-1)` and override the output of the constraint with:
     /// `o := q_m · a · b + q_4 · d + q_c + PI`
-    fn gate_mul(&mut self, s: Constraint) -> Witness {
+    pub fn gate_mul(&mut self, s: Constraint) -> Witness {
         let s = Constraint::arithmetic(&s).output(-BlsScalar::one());
 
         let o = self
@@ -1052,18 +1147,18 @@ pub trait Composer: Sized + Index<Witness, Output = BlsScalar> {
         o
     }
 
-    /// Prove a circuit with a builder initialized with dummy gates
-    fn prove<C>(constraints: usize, circuit: &C) -> Result<Self, Error>
+    /// Prove a circuit with a composer initialized with dummy gates
+    pub fn prove<C>(constraints: usize, circuit: &C) -> Result<Self, Error>
     where
         C: Circuit,
     {
-        let mut builder = Self::initialized();
+        let mut composer = Self::initialized();
 
-        circuit.circuit(&mut builder)?;
+        circuit.circuit(&mut composer)?;
 
         // assert that the circuit has the same amount of constraints as the
         // circuit description
-        let description_size = builder.constraints();
+        let description_size = composer.constraints();
         if description_size != constraints {
             return Err(Error::InvalidCircuitSize(
                 description_size,
@@ -1071,8 +1166,39 @@ pub trait Composer: Sized + Index<Witness, Output = BlsScalar> {
             ));
         }
 
-        builder.runtime().event(RuntimeEvent::ProofFinished);
+        composer.runtime().event(RuntimeEvent::ProofFinished);
 
-        Ok(builder)
+        Ok(composer)
+    }
+
+    pub(crate) fn public_input_indexes(&self) -> Vec<usize> {
+        let mut public_input_indexes: Vec<_> =
+            self.public_inputs.keys().copied().collect();
+
+        public_input_indexes.as_mut_slice().sort();
+
+        public_input_indexes
+    }
+
+    pub(crate) fn public_inputs(&self) -> Vec<BlsScalar> {
+        self.public_input_indexes()
+            .iter()
+            .filter_map(|idx| self.public_inputs.get(idx).copied())
+            .collect()
+    }
+
+    pub(crate) fn dense_public_inputs(
+        public_input_indexes: &[usize],
+        public_inputs: &[BlsScalar],
+        size: usize,
+    ) -> Vec<BlsScalar> {
+        let mut dense_public_inputs = vec![BlsScalar::zero(); size];
+
+        public_input_indexes
+            .iter()
+            .zip(public_inputs.iter())
+            .for_each(|(idx, pi)| dense_public_inputs[*idx] = *pi);
+
+        dense_public_inputs
     }
 }

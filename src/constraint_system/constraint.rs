@@ -4,7 +4,7 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use crate::composer::{Builder, Composer};
+use crate::composer::Composer;
 use crate::constraint_system::Witness;
 use dusk_bls12_381::BlsScalar;
 
@@ -103,7 +103,7 @@ impl Constraint {
     pub const fn new() -> Self {
         Self {
             coefficients: [BlsScalar::zero(); Self::COEFFICIENTS],
-            witnesses: [Builder::ZERO; Self::WITNESSES],
+            witnesses: [Composer::ZERO; Self::WITNESSES],
             has_public_input: false,
         }
     }
