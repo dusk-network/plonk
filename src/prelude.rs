@@ -12,8 +12,8 @@
 #[cfg(feature = "alloc")]
 pub use crate::{
     commitment_scheme::PublicParameters,
-    composer::{Circuit, Compiler, Composer, Prover, Verifier},
-    constraint_system::{Constraint, Witness, WitnessPoint},
+    compiler::{Compiler, Prover, Verifier},
+    composer::{Circuit, Composer, Constraint, Witness, WitnessPoint},
 };
 
 pub use crate::error::Error;

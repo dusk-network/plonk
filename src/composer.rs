@@ -14,25 +14,24 @@ use dusk_bls12_381::BlsScalar;
 use dusk_jubjub::{JubJubAffine, JubJubExtended, JubJubScalar};
 
 use crate::bit_iterator::BitIterator8;
-use crate::constraint_system::ecc::WnafRound;
-use crate::constraint_system::{
-    Constraint, Selector, WiredWitness, Witness, WitnessPoint,
-};
 use crate::error::Error;
-use crate::permutation::Permutation;
 use crate::runtime::{Runtime, RuntimeEvent};
 
 mod circuit;
-mod compiler;
+mod compress;
+mod constraint_system;
 mod gate;
-mod prover;
-mod verifier;
+
+pub(crate) mod permutation;
 
 pub use circuit::Circuit;
-pub use compiler::Compiler;
+use constraint_system::ecc::WnafRound;
+pub use constraint_system::{Constraint, Witness, WitnessPoint};
 pub use gate::Gate;
-pub use prover::Prover;
-pub use verifier::Verifier;
+
+pub(crate) use compress::CompressedCircuit;
+pub(crate) use constraint_system::{Selector, WireData, WiredWitness};
+pub(crate) use permutation::Permutation;
 
 /// Construct and prove circuits
 #[derive(Debug, Clone)]
@@ -173,7 +172,7 @@ impl Composer {
     /// Create an empty constraint system.
     ///
     /// This shouldn't be used directly; instead, use [`Self::initialized`]
-    fn uninitialized() -> Self {
+    pub(crate) fn uninitialized() -> Self {
         Self {
             constraints: Vec::new(),
             public_inputs: HashMap::new(),

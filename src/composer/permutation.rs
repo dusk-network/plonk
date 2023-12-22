@@ -4,7 +4,7 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use crate::constraint_system::{WireData, Witness};
+use crate::composer::{WireData, Witness};
 use crate::fft::{EvaluationDomain, Polynomial};
 use alloc::vec::Vec;
 use constants::{K1, K2, K3};

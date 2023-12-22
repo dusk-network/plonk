@@ -8,7 +8,7 @@
 
 use dusk_bls12_381::BlsScalar;
 
-use crate::constraint_system::{Constraint, Witness};
+use crate::prelude::{Constraint, Witness};
 
 #[cfg(feature = "debug")]
 use crate::debugger::Debugger;

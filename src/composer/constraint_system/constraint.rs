@@ -4,8 +4,7 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use crate::composer::Composer;
-use crate::constraint_system::Witness;
+use crate::prelude::{Composer, Witness};
 use dusk_bls12_381::BlsScalar;
 
 /// Selectors used to address a coefficient inside of a [`Constraint`]
