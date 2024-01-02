@@ -25,6 +25,14 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: cargo bench --no-run
 
+  run_examples:
+    name: Run Examples
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo run --release --example circuit
+
   build_docs:
     name: Build Documentation
     runs-on: ubuntu-latest

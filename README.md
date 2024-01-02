@@ -15,80 +15,9 @@ an exhaustive security analysis. Use at your own risk.
 
 ## Usage
 
-```rust
-use dusk_plonk::prelude::*;
-use rand_core::OsRng;
+Check the 'examples' directory for the usage.
 
-// Implement a circuit that checks:
-// 1) a + b = c where C is a PI
-// 2) a < 2^6
-// 3) b < 2^4
-// 4) a * b = d where D is a PI
-// 5) JubJub::GENERATOR * e(JubJubScalar) = f where F is a Public Input
-#[derive(Debug, Default)]
-pub struct TestCircuit {
-    a: BlsScalar,
-    b: BlsScalar,
-    c: BlsScalar,
-    d: BlsScalar,
-    e: JubJubScalar,
-    f: JubJubAffine,
-}
-
-impl Circuit for TestCircuit {
-    fn circuit(&self, composer: &mut Composer) -> Result<(), Error>
-    {
-        let a = composer.append_witness(self.a);
-        let b = composer.append_witness(self.b);
-
-        // Make first constraint a + b = c
-        let constraint =
-            Constraint::new().left(1).right(1).public(-self.c).a(a).b(b);
-
-        composer.append_gate(constraint);
-
-        // Check that a and b are in range
-        const HALF_SIX: usize = 3;
-        composer.component_range::<HALF_SIX>(a);
-        const HALF_FOUR: usize = 2;
-        composer.component_range::<HALF_FOUR>(b);
-
-        // Make second constraint a * b = d
-        let constraint =
-            Constraint::new().mult(1).public(-self.d).a(a).b(b);
-
-        composer.append_gate(constraint);
-
-        let e = composer.append_witness(self.e);
-        let scalar_mul_result = composer
-            .component_mul_generator(e, dusk_jubjub::GENERATOR_EXTENDED)?;
-
-        // Apply the constraint
-        composer.assert_equal_public_point(scalar_mul_result, self.f);
-
-        Ok(())
-    }
-}
-
-let label = b"transcript-arguments";
-let pp = PublicParameters::setup(1 << 12, &mut OsRng)
-    .expect("failed to setup");
-
-let (prover, verifier) = Compiler::compile::<TestCircuit>(&pp, label)
-    .expect("failed to compile circuit");
-
-// Generate the proof and its public inputs
-let (proof, public_inputs) = prover
-    .prove(&mut OsRng, &TestCircuit::default())
-    .expect("failed to prove");
-
-// Verify the generated proof
-verifier
-    .verify(&proof, &public_inputs)
-    .expect("failed to verify proof");
-```
-
-### Features
+## Features
 
 This crate includes a variety of features which will briefly be explained below:
 - `alloc`: Enables the usage of an allocator and with it the capability of performing `Proof` constructions and 
@@ -100,8 +29,6 @@ This crate includes a variety of features which will briefly be explained below:
 - `debug`: Enables the runtime debugger backend. Will output [CDF](https://crates.io/crates/dusk-cdf) files to the path defined in the `CDF_OUTPUT` environment variable. If used, the binary must be compiled with `debug = true`. For more info, check the [cargo book](https://doc.rust-lang.org/cargo/reference/profiles.html#debug).
   __The recommended method is to derive the std output, and the std error, and then place them in text file 
     which can be used to efficiently analyse the gates.__
-- `canon`: Enables `canonical` serialization for particular data structures, which is very useful in integrating  this library within the rest of the Dusk stack - especially for storage purposes.
-
 
 ## Documentation
 
