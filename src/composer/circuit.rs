@@ -4,9 +4,12 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use crate::error::Error;
+#[cfg(feature = "alloc")]
+use alloc::vec::Vec;
 
-use super::Composer;
+use crate::prelude::{Composer, Error};
+
+use super::compress::CompressedCircuit;
 
 /// Circuit implementation that can be proved by a Composer
 ///
@@ -22,5 +25,23 @@ pub trait Circuit: Default {
             Ok(_) => composer.constraints(),
             Err(_) => 0,
         }
+    }
+
+    /// Return a bytes representation of a compressed circuit, capable of
+    /// being compiled into its prover and verifier instances with
+    /// [`Compiler::compile_with_compressed`].
+    ///
+    /// [`Compiler::compile_with_compressed`]:
+    /// [`crate::prelude::Compiler::compile_with_compressed`]
+    #[cfg(feature = "alloc")]
+    fn compress() -> Result<Vec<u8>, Error> {
+        let mut composer = Composer::initialized();
+        Self::default().circuit(&mut composer)?;
+
+        let hades_optimization = true;
+        Ok(CompressedCircuit::from_composer(
+            hades_optimization,
+            composer,
+        ))
     }
 }

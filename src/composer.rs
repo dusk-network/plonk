@@ -25,11 +25,9 @@ mod gate;
 pub(crate) mod permutation;
 
 pub use circuit::Circuit;
-use constraint_system::ecc::WnafRound;
 pub use constraint_system::{Constraint, Witness, WitnessPoint};
 pub use gate::Gate;
 
-pub(crate) use compress::CompressedCircuit;
 pub(crate) use constraint_system::{Selector, WireData, WiredWitness};
 pub(crate) use permutation::Permutation;
 
@@ -81,6 +79,11 @@ impl Composer {
     /// Constraints count
     pub fn constraints(&self) -> usize {
         self.constraints.len()
+    }
+
+    /// Create a [`Composer`] instance from a compressed circuit
+    pub(crate) fn from_bytes(compressed: &[u8]) -> Result<Self, Error> {
+        compress::CompressedCircuit::from_bytes(compressed)
     }
 
     /// Allocate a witness value into the composer and return its index.
@@ -474,7 +477,7 @@ impl Composer {
             let xy_alpha = self.append_witness(xy_alphas[i]);
             let xy_beta = x_beta * y_beta;
 
-            let wnaf_round = WnafRound {
+            let wnaf_round = constraint_system::ecc::WnafRound {
                 acc_x,
                 acc_y,
                 accumulated_bit,
