@@ -322,12 +322,10 @@ pub(crate) mod alloc {
         }
     }
 
-    #[cfg(feature = "alloc")]
     fn best_fft(a: &mut [BlsScalar], omega: BlsScalar, log_n: u32) {
         serial_fft(a, omega, log_n)
     }
 
-    #[cfg(feature = "alloc")]
     #[inline]
     fn bitreverse(mut n: u32, l: u32) -> u32 {
         let mut r = 0;
@@ -338,7 +336,6 @@ pub(crate) mod alloc {
         r
     }
 
-    #[cfg(feature = "alloc")]
     pub(crate) fn serial_fft(
         a: &mut [BlsScalar],
         omega: BlsScalar,
@@ -402,6 +399,7 @@ pub(crate) mod alloc {
 }
 
 #[cfg(test)]
+#[cfg(feature = "alloc")]
 mod tests {
     use super::*;
 

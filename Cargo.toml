@@ -42,10 +42,6 @@ tempdir = "0.3"
 rand = "0.8"
 rkyv = {version = "0.7", default-features = false, features = ["size_32"]}
 
-[[bench]]
-name = "plonk"
-harness = false
-
 [features]
 default = ["std"]
 std = [
@@ -78,9 +74,69 @@ lto = true
 incremental = false
 codegen-units = 1
 
+[[example]]
+name = "circuit"
+required-features = ["alloc"]
+
+[[bench]]
+name = "plonk"
+harness = false
+
+[[test]]
+name = "append_gate"
+required-features = ["alloc"]
+
+[[test]]
+name = "assert_point"
+required-features = ["alloc"]
+
+[[test]]
+name = "assert_scalar"
+required-features = ["alloc"]
+
+[[test]]
+name = "boolean"
+required-features = ["alloc"]
+
+[[test]]
+name = "composer"
+required-features = ["alloc"]
+
 [[test]]
 name = "debugger"
 required-features = ["debug", "std"]
+
+[[test]]
+name = "decomposition"
+required-features = ["alloc"]
+
+[[test]]
+name = "ecc"
+required-features = ["alloc"]
+
+[[test]]
+name = "error_size"
+required-features = ["alloc"]
+
+[[test]]
+name = "gate_add_mul"
+required-features = ["alloc"]
+
+[[test]]
+name = "logic"
+required-features = ["alloc"]
+
+[[test]]
+name = "range"
+required-features = ["alloc"]
+
+[[test]]
+name = "select_bls"
+required-features = ["alloc"]
+
+[[test]]
+name = "select_point"
+required-features = ["alloc"]
 
 [package.metadata.docs.rs]
 rustdoc-args = [ "--html-in-header", "./docs/katex-header.html" ]
