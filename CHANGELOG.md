@@ -7,10 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.19.0] - 2024-01-03
+
 ### Fixed
 
 - Fix inconsistency in gate ordering of arithmetic verifier key [#797]
 - Fix leading coefficients might be zero [#796]
+- Fix tests when default features are turned off by placing them behind the `alloc` feature
 
 ### Changed
 
@@ -29,6 +32,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 
 - Remove `Builder` struct with introduction of `Composer` struct [#802]
+- Remove example from README in favor of an actual example in the example directory that is behind the `alloc` feature [#346]
+
+### Added
+
+- Add example for circuit creation [#346]
 
 ## [0.18.0] - 2023-12-13
 
@@ -660,6 +668,7 @@ is necessary since `rkyv/validation` was required as a bound.
 [#351]: https://github.com/dusk-network/plonk/issues/351
 [#396]: https://github.com/dusk-network/plonk/issues/396
 [#354]: https://github.com/dusk-network/plonk/issues/354
+[#346]: https://github.com/dusk-network/plonk/issues/346
 [#343]: https://github.com/dusk-network/plonk/issues/343
 [#383]: https://github.com/dusk-network/plonk/issues/383
 [#371]: https://github.com/dusk-network/plonk/issues/371
@@ -671,7 +680,8 @@ is necessary since `rkyv/validation` was required as a bound.
 [#282]: https://github.com/dusk-network/plonk/issues/282
 
 <!-- VERSIONS -->
-[Unreleased]: https://github.com/dusk-network/plonk/compare/v0.18.0...HEAD
+[Unreleased]: https://github.com/dusk-network/plonk/compare/v0.19.0...HEAD
+[0.19.0]: https://github.com/dusk-network/plonk/compare/v0.18.0...v0.19.0
 [0.18.0]: https://github.com/dusk-network/plonk/compare/v0.17.0...v0.18.0
 [0.17.0]: https://github.com/dusk-network/plonk/compare/v0.16.0...v0.17.0
 [0.16.0]: https://github.com/dusk-network/plonk/compare/v0.15.0...v0.16.0
