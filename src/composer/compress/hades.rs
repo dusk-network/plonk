@@ -4,14 +4,18 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use sha2::{Digest, Sha512};
+// Extracted from
+// https://github.com/dusk-network/Poseidon252/blob/master/assets/HOWTO.md
 
 use super::BlsScalar;
+use sha2::{Digest, Sha512};
 
-const CONSTANTS: usize = 960;
-
-// Extracted from
-// https://github.com/dusk-network/Hades252/blob/a4d55e06ee9ff7f549043582e8d194eb0a01bf24/assets/HOWTO.md
+// the width of the hades permutation container
+const WIDTH: usize = 5;
+// the total amount of rounds (partial + full) within one hades permutation
+const ROUNDS: usize = 59 + 8;
+// the amount of constants needed for one hades permutation
+const CONSTANTS: usize = ROUNDS * WIDTH;
 
 pub fn constants() -> [BlsScalar; CONSTANTS] {
     let mut cnst = [BlsScalar::zero(); CONSTANTS];
@@ -30,8 +34,6 @@ pub fn constants() -> [BlsScalar; CONSTANTS] {
 
     cnst
 }
-
-const WIDTH: usize = 5;
 
 pub fn mds() -> [[BlsScalar; WIDTH]; WIDTH] {
     let mut matrix = [[BlsScalar::zero(); WIDTH]; WIDTH];
