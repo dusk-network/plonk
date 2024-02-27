@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Reduce hades constants count in circuit compression from 960 to 335 [#813]
 
+### Added
+
+- Add `Default` trait for `Witness` [#815]
+
 ## [0.19.0] - 2024-01-03
 
 ### Fixed
@@ -567,6 +571,7 @@ is necessary since `rkyv/validation` was required as a bound.
 - Proof system module.
 
 <!-- ISSUES -->
+[#815]: https://github.com/dusk-network/plonk/issues/815
 [#813]: https://github.com/dusk-network/plonk/issues/813
 [#805]: https://github.com/dusk-network/plonk/issues/805
 [#804]: https://github.com/dusk-network/plonk/issues/804
