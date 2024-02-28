@@ -29,6 +29,12 @@ pub struct Witness {
     index: usize,
 }
 
+impl Default for Witness {
+    fn default() -> Self {
+        crate::composer::Composer::ZERO
+    }
+}
+
 impl Witness {
     /// A `0` witness representation.
     pub const ZERO: Witness = Witness::new(0);
