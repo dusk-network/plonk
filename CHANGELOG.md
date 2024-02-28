@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.19.1] - 2024-02-28
+
 ### Changed
 
 - Reduce hades constants count in circuit compression from 960 to 335 [#813]
@@ -690,7 +692,8 @@ is necessary since `rkyv/validation` was required as a bound.
 [#282]: https://github.com/dusk-network/plonk/issues/282
 
 <!-- VERSIONS -->
-[Unreleased]: https://github.com/dusk-network/plonk/compare/v0.19.0...HEAD
+[Unreleased]: https://github.com/dusk-network/plonk/compare/v0.19.1...HEAD
+[0.19.1]: https://github.com/dusk-network/plonk/compare/v0.19.0...v0.19.1
 [0.19.0]: https://github.com/dusk-network/plonk/compare/v0.18.0...v0.19.0
 [0.18.0]: https://github.com/dusk-network/plonk/compare/v0.17.0...v0.18.0
 [0.17.0]: https://github.com/dusk-network/plonk/compare/v0.16.0...v0.17.0
