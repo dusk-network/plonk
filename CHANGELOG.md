@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `zeroize` as an optional dependency [#818]
+- Add `zeroize` feature [#818]
+- Add `Zeroize` trait implementation for `Witness` behind `zeroize` feature [#818]
+
 ## [0.19.1] - 2024-02-28
 
 ### Changed
@@ -573,6 +579,7 @@ is necessary since `rkyv/validation` was required as a bound.
 - Proof system module.
 
 <!-- ISSUES -->
+[#818]: https://github.com/dusk-network/plonk/issues/818
 [#815]: https://github.com/dusk-network/plonk/issues/815
 [#813]: https://github.com/dusk-network/plonk/issues/813
 [#805]: https://github.com/dusk-network/plonk/issues/805

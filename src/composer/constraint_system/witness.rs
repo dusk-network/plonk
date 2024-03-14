@@ -52,3 +52,6 @@ impl Witness {
         self.index
     }
 }
+
+#[cfg(feature = "zeroize")]
+impl zeroize::DefaultIsZeroes for Witness {}
