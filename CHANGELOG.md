@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.19.2] - 2024-03-27
+
 ### Added
 
 - Add `zeroize` as an optional dependency [#818]
@@ -699,7 +701,8 @@ is necessary since `rkyv/validation` was required as a bound.
 [#282]: https://github.com/dusk-network/plonk/issues/282
 
 <!-- VERSIONS -->
-[Unreleased]: https://github.com/dusk-network/plonk/compare/v0.19.1...HEAD
+[Unreleased]: https://github.com/dusk-network/plonk/compare/v0.19.2...HEAD
+[0.19.2]: https://github.com/dusk-network/plonk/compare/v0.19.1...v0.19.2
 [0.19.1]: https://github.com/dusk-network/plonk/compare/v0.19.0...v0.19.1
 [0.19.0]: https://github.com/dusk-network/plonk/compare/v0.18.0...v0.19.0
 [0.18.0]: https://github.com/dusk-network/plonk/compare/v0.17.0...v0.18.0
