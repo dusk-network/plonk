@@ -1,7 +1,7 @@
 # PLONK 
 ![Build Status](https://github.com/dusk-network/plonk/workflows/Continuous%20integration/badge.svg)
 [![Repository](https://img.shields.io/badge/github-plonk-blueviolet?logo=github)](https://github.com/dusk-network/plonk)
-[![Documentation](https://img.shields.io/badge/docs-plonk-blue?logo=rust)](https://docs.rs/plonk/)
+[![Documentation](https://img.shields.io/badge/docs-plonk-blue?logo=rust)](https://docs.rs/dusk-plonk/latest/dusk_plonk/)
 
 
 _This is a pure Rust implementation of the PLONK proving system over BLS12-381_
