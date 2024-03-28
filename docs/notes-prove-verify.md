@@ -226,7 +226,7 @@ to each gate type:
 \\]
 
 The utility for this in PLONK, 
-as a univeral SNARK, is that 
+as a universal SNARK, is that 
 any operation or relationship 
 that holds with the inputted 
 vectors, will also hold over 
@@ -291,7 +291,7 @@ formed, given certain inputs.
 
 Langrangian polynomials are 
 introduced as a means of 
-constructing continous 
+constructing continuous 
 functions
 from discrete data. With alternative 
 polynomial constructions, discrete 
