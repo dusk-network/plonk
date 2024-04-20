@@ -6,7 +6,7 @@ KZG10 Commitments
 ==================
 
 PLONK can be constructed with different 
-commitment schemes and does not requre solely
+commitment schemes and does not require solely
 homomorphic commitments. However, this library
 implements only homomorphic commitments for two 
 reasons. One is their useful properties when 
