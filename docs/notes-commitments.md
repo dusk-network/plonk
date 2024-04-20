@@ -8,7 +8,7 @@ To employ a commitment scheme, is simply to select a value
 from a finite set and commit to the value such that the 
 new 'committed' value cannot be changed. 
 Commitment schemes are used in cryptography, 
-oft in conjunction with zero knowlegde proofs to 
+oft in conjunction with zero knowledge proofs to 
 allow a prover to commit to a polynomial, with values
 represented by a short reference string. This is 
 then used by verifiers to confirm or deny the claims 
@@ -83,7 +83,7 @@ means that a commitment to b reveals no information about b.
 When \\(P\\) generates the public key and sends it to \\(V\\), then 
 the *binding* is unconditional and the *hiding* is computational. 
 The *unconditional binding* describes how \\(P\\) is unable to 
-change the commitment value after it has been commited to. 
+change the commitment value after it has been committed to. 
 The *computational hiding* means the probability of \\(V\\) being 
 able to guess the commitment value is negligible. 
 
