@@ -33,7 +33,7 @@
 //! [Dusk team](dusk.network) of this algorithm using as a reference
 //! implementation this one done by the creators of the protocol:
 //!
-//! <https://github.com/AztecProtocol/barretenberg/blob/master/barretenberg/src/aztec/plonk/>
+//! <https://github.com/AztecProtocol/barretenberg/tree/master/cpp/src/barretenberg/plonk/>
 
 // Bitshift/Bitwise ops are allowed to gain performance.
 #![allow(clippy::suspicious_arithmetic_impl)]

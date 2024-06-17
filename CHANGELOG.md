@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Remove docs [#819]
+
 ## [0.19.2] - 2024-03-27
 
 ### Added
@@ -581,6 +585,7 @@ is necessary since `rkyv/validation` was required as a bound.
 - Proof system module.
 
 <!-- ISSUES -->
+[#819]: https://github.com/dusk-network/plonk/issues/819
 [#818]: https://github.com/dusk-network/plonk/issues/818
 [#815]: https://github.com/dusk-network/plonk/issues/815
 [#813]: https://github.com/dusk-network/plonk/issues/813
