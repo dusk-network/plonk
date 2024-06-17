@@ -70,7 +70,7 @@ behavior is threatening or harassing, report it. We are dedicated to providing
 an environment where participants feel welcome and safe.
 
 Reports should be directed to Emanuele Francioni <emanuele@dusk.network>, the
-Project Steward(s) for Dusk Network. It is the Project Steward’s duty to
+Project Steward(s) for Dusk. It is the Project Steward’s duty to
 receive and address reported violations of the code of conduct. They will then
 work with a committee consisting of representatives from the Dusk Network BV team. If for any reason you
 are uncomfortable reaching out to the Project Steward, please email

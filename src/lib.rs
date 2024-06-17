@@ -5,18 +5,16 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 #![doc = include_str!("../README.md")]
-#![doc(
-    html_logo_url = "https://lh3.googleusercontent.com/SmwswGxtgIANTbDrCOn5EKcRBnVdHjmYsHYxLq2HZNXWCQ9-fZyaea-bNgdX9eR0XGSqiMFi=w128-h128-e365"
-)]
-#![doc(html_favicon_url = "https://dusk.network/lib/img/favicon-16x16.png")]
+#![doc(html_logo_url = "https://dusk.network/favicon.svg")]
+#![doc(html_favicon_url = "https://dusk.network/favicon.png")]
 //!<a href="https://codecov.io/gh/dusk-network/plonk">
 //!  <img src="https://codecov.io/gh/dusk-network/plonk/branch/master/graph/badge.svg" />
 //!</a>
-//! <a href="https://travis-ci.com/dusk-network/plonk">
-//! <img src="https://travis-ci.com/dusk-network/plonk.svg?branch=master" />
+//! <a href="https://github.com/dusk-network/plonk/actions/workflows/dusk_ci.yml/badge.svg">
+//! <img src="https://img.shields.io/github/actions/workflow/status/dusk-network/plonk/dusk_ci.yml" />
 //! </a>
 //! <a href="https://github.com/dusk-network/plonk">
-//! <img alt="GitHub issues" src="https://img.shields.io/github/issues-raw/dusk-network/plonk?style=plastic">
+//! <img alt="GitHub issues" src="https://img.shields.io/github/issues-raw/dusk-network/plonk">
 //! </a>
 //! <a href="https://github.com/dusk-network/plonk/blob/master/LICENSE">
 //! <img alt="GitHub" src="https://img.shields.io/github/license/dusk-network/plonk?color=%230E55EF">
@@ -31,9 +29,9 @@
 //! - Zachary J. Williamson (Aztec Protocol)
 //! - Oana Ciobotaru
 //!
-//! This crate contains a pure-rust implementation done by the [DuskNetwork
-//! team](dusk.network) of this algorithm using as a reference implementation
-//! this one done by the creators of the protocol:
+//! This crate contains a pure-rust implementation done by the
+//! [Dusk team](dusk.network) of this algorithm using as a reference
+//! implementation this one done by the creators of the protocol:
 //!
 //! <https://github.com/AztecProtocol/barretenberg/blob/master/barretenberg/src/aztec/plonk/>
 
@@ -78,17 +76,5 @@ mod commitment_scheme;
 mod error;
 mod fft;
 mod proof_system;
-
-#[doc = include_str!("../docs/notes-intro.md")]
-pub mod notes {
-    #[doc = include_str!("../docs/notes-commitments.md")]
-    pub mod commitment_schemes {}
-    #[doc = include_str!("../docs/notes-snark.md")]
-    pub mod snark_construction {}
-    #[doc = include_str!("../docs/notes-prove-verify.md")]
-    pub mod prove_verify {}
-    #[doc = include_str!("../docs/notes-KZG10.md")]
-    pub mod kzg10_docs {}
-}
 
 pub mod prelude;
