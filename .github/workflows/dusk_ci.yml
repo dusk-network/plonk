@@ -21,7 +21,7 @@ jobs:
     name: Build Benchmarks
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: Swatinem/rust-cache@v2
       - run: cargo bench --no-run
 
@@ -29,7 +29,7 @@ jobs:
     name: Run Examples
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: Swatinem/rust-cache@v2
       - run: cargo run --release --example circuit
 
@@ -37,7 +37,7 @@ jobs:
     name: Build Documentation
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - run: make doc
       - run: make doc-internal
 
@@ -45,7 +45,7 @@ jobs:
     name: Build no_std
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - run: rustup target add thumbv6m-none-eabi
       - uses: Swatinem/rust-cache@v2
 
@@ -59,7 +59,7 @@ jobs:
     name: Test with all features
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3     
+      - uses: actions/checkout@v4
       - uses: Swatinem/rust-cache@v2
       - run: sudo apt install -y kcov
       - run: RUSTFLAGS='-Cdebuginfo=2 -Cinline-threshold=0 -Clink-dead-code' cargo test --release --no-run --all-features
@@ -68,7 +68,7 @@ jobs:
           find target/release/deps -type f -executable ! -name "*.*" |
           xargs -n1 kcov --exclude-pattern=/.cargo,/usr/lib --verify target/cov
       - name: Upload coverage
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v4
         with:
           token: ${{secrets.CODECOV_TOKEN}}
 
