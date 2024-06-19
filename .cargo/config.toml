@@ -1,4 +1,4 @@
 [build]
 # Flags needed to render LaTeX in documentation
 # With this, `cargo docs` must be run with the `--no-deps` flag
-rustdocflags =  "--html-in-header ./docs/katex-header.html"
+rustdocflags =  "--html-in-header ./katex-header.html"

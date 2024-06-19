@@ -138,4 +138,4 @@ name = "select_point"
 required-features = ["alloc"]
 
 [package.metadata.docs.rs]
-rustdoc-args = [ "--html-in-header", "./docs/katex-header.html" ]
+rustdoc-args = [ "--html-in-header", "./katex-header.html" ]
