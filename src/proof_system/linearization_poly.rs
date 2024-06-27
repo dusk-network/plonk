@@ -195,24 +195,20 @@ pub(crate) fn compute(
     ),
     a_w_poly: &Polynomial,
     b_w_poly: &Polynomial,
-    o_w_poly: &Polynomial,
     d_w_poly: &Polynomial,
     t_x_poly: &Polynomial,
     z_poly: &Polynomial,
+    a_eval: &BlsScalar,
+    b_eval: &BlsScalar,
+    o_eval: &BlsScalar,
+    d_eval: &BlsScalar,
+    s_sigma_1_eval: &BlsScalar,
+    s_sigma_2_eval: &BlsScalar,
+    s_sigma_3_eval: &BlsScalar,
+    perm_eval: &BlsScalar,
 ) -> (Polynomial, Evaluations) {
     // Compute evaluations
     let t_eval = t_x_poly.evaluate(z_challenge);
-    let a_eval = a_w_poly.evaluate(z_challenge);
-    let b_eval = b_w_poly.evaluate(z_challenge);
-    let o_eval = o_w_poly.evaluate(z_challenge);
-    let d_eval = d_w_poly.evaluate(z_challenge);
-
-    let s_sigma_1_eval =
-        prover_key.permutation.s_sigma_1.0.evaluate(z_challenge);
-    let s_sigma_2_eval =
-        prover_key.permutation.s_sigma_2.0.evaluate(z_challenge);
-    let s_sigma_3_eval =
-        prover_key.permutation.s_sigma_3.0.evaluate(z_challenge);
 
     let q_arith_eval = prover_key.arithmetic.q_arith.0.evaluate(z_challenge);
     let q_c_eval = prover_key.logic.q_c.0.evaluate(z_challenge);
@@ -222,7 +218,6 @@ pub(crate) fn compute(
     let a_next_eval = a_w_poly.evaluate(&(z_challenge * domain.group_gen));
     let b_next_eval = b_w_poly.evaluate(&(z_challenge * domain.group_gen));
     let d_next_eval = d_w_poly.evaluate(&(z_challenge * domain.group_gen));
-    let perm_eval = z_poly.evaluate(&(z_challenge * domain.group_gen));
 
     let f_1 = compute_circuit_satisfiability(
         (
@@ -231,10 +226,10 @@ pub(crate) fn compute(
             fixed_base_separation_challenge,
             var_base_separation_challenge,
         ),
-        &a_eval,
-        &b_eval,
-        &o_eval,
-        &d_eval,
+        a_eval,
+        b_eval,
+        o_eval,
+        d_eval,
         &a_next_eval,
         &b_next_eval,
         &d_next_eval,
@@ -250,7 +245,7 @@ pub(crate) fn compute(
         (alpha, beta, gamma),
         (&a_eval, &b_eval, &o_eval, &d_eval),
         (&s_sigma_1_eval, &s_sigma_2_eval, &s_sigma_3_eval),
-        &perm_eval,
+        perm_eval,
         z_poly,
     );
 
@@ -263,10 +258,10 @@ pub(crate) fn compute(
         r_poly,
         Evaluations {
             proof: ProofEvaluations {
-                a_eval,
-                b_eval,
-                o_eval,
-                d_eval,
+                a_eval: *a_eval,
+                b_eval: *b_eval,
+                o_eval: *o_eval,
+                d_eval: *d_eval,
                 a_next_eval,
                 b_next_eval,
                 d_next_eval,
@@ -274,11 +269,11 @@ pub(crate) fn compute(
                 q_c_eval,
                 q_l_eval,
                 q_r_eval,
-                s_sigma_1_eval,
-                s_sigma_2_eval,
-                s_sigma_3_eval,
+                s_sigma_1_eval: *s_sigma_1_eval,
+                s_sigma_2_eval: *s_sigma_2_eval,
+                s_sigma_3_eval: *s_sigma_3_eval,
                 r_poly_eval,
-                perm_eval,
+                perm_eval: *perm_eval,
             },
             t_eval,
         },

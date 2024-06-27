@@ -394,6 +394,45 @@ impl Prover {
         // compute evaluation challenge 'z'
         let z_challenge = transcript.challenge_scalar(b"z_challenge");
 
+        // compute opening evaluations
+        let a_eval = a_w_poly.evaluate(&z_challenge);
+        let b_eval = b_w_poly.evaluate(&z_challenge);
+        let o_eval = o_w_poly.evaluate(&z_challenge);
+        let d_eval = d_w_poly.evaluate(&z_challenge);
+
+        let s_sigma_1_eval = self
+            .prover_key
+            .permutation
+            .s_sigma_1
+            .0
+            .evaluate(&z_challenge);
+        let s_sigma_2_eval = self
+            .prover_key
+            .permutation
+            .s_sigma_2
+            .0
+            .evaluate(&z_challenge);
+        let s_sigma_3_eval = self
+            .prover_key
+            .permutation
+            .s_sigma_3
+            .0
+            .evaluate(&z_challenge);
+
+        let perm_eval = z_poly.evaluate(&(z_challenge * domain.group_gen));
+
+        // add opening evaluations to transcript.
+        transcript.append_scalar(b"a_eval", &a_eval);
+        transcript.append_scalar(b"b_eval", &b_eval);
+        transcript.append_scalar(b"o_eval", &o_eval);
+        transcript.append_scalar(b"d_eval", &d_eval);
+
+        transcript.append_scalar(b"s_sigma_1_eval", &s_sigma_1_eval);
+        transcript.append_scalar(b"s_sigma_2_eval", &s_sigma_2_eval);
+        transcript.append_scalar(b"s_sigma_3_eval", &s_sigma_3_eval);
+
+        transcript.append_scalar(b"perm_eval", &perm_eval);
+
         // round 5
         // compute linearization polynomial
         let (r_poly, evaluations) = linearization_poly::compute(
@@ -411,41 +450,31 @@ impl Prover {
             ),
             &a_w_poly,
             &b_w_poly,
-            &o_w_poly,
             &d_w_poly,
             &t_poly,
             &z_poly,
+            &a_eval,
+            &b_eval,
+            &o_eval,
+            &d_eval,
+            &s_sigma_1_eval,
+            &s_sigma_2_eval,
+            &s_sigma_3_eval,
+            &perm_eval,
         );
 
         // add evaluations to transcript.
-        transcript.append_scalar(b"a_eval", &evaluations.proof.a_eval);
-        transcript.append_scalar(b"b_eval", &evaluations.proof.b_eval);
-        transcript.append_scalar(b"o_eval", &evaluations.proof.o_eval);
-        transcript.append_scalar(b"d_eval", &evaluations.proof.d_eval);
         transcript
             .append_scalar(b"a_next_eval", &evaluations.proof.a_next_eval);
         transcript
             .append_scalar(b"b_next_eval", &evaluations.proof.b_next_eval);
         transcript
             .append_scalar(b"d_next_eval", &evaluations.proof.d_next_eval);
-        transcript.append_scalar(
-            b"s_sigma_1_eval",
-            &evaluations.proof.s_sigma_1_eval,
-        );
-        transcript.append_scalar(
-            b"s_sigma_2_eval",
-            &evaluations.proof.s_sigma_2_eval,
-        );
-        transcript.append_scalar(
-            b"s_sigma_3_eval",
-            &evaluations.proof.s_sigma_3_eval,
-        );
         transcript
             .append_scalar(b"q_arith_eval", &evaluations.proof.q_arith_eval);
         transcript.append_scalar(b"q_c_eval", &evaluations.proof.q_c_eval);
         transcript.append_scalar(b"q_l_eval", &evaluations.proof.q_l_eval);
         transcript.append_scalar(b"q_r_eval", &evaluations.proof.q_r_eval);
-        transcript.append_scalar(b"perm_eval", &evaluations.proof.perm_eval);
         transcript.append_scalar(b"t_eval", &evaluations.t_eval);
         transcript.append_scalar(b"r_eval", &evaluations.proof.r_poly_eval);
 

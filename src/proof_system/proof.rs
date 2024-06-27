@@ -245,6 +245,27 @@ pub(crate) mod alloc {
             // Compute evaluation challenge z
             let z_challenge = transcript.challenge_scalar(b"z_challenge");
 
+            // Add opening evaluations to transcript
+            transcript.append_scalar(b"a_eval", &self.evaluations.a_eval);
+            transcript.append_scalar(b"b_eval", &self.evaluations.b_eval);
+            transcript.append_scalar(b"o_eval", &self.evaluations.o_eval);
+            transcript.append_scalar(b"d_eval", &self.evaluations.d_eval);
+
+            transcript.append_scalar(
+                b"s_sigma_1_eval",
+                &self.evaluations.s_sigma_1_eval,
+            );
+            transcript.append_scalar(
+                b"s_sigma_2_eval",
+                &self.evaluations.s_sigma_2_eval,
+            );
+            transcript.append_scalar(
+                b"s_sigma_3_eval",
+                &self.evaluations.s_sigma_3_eval,
+            );
+
+            transcript.append_scalar(b"perm_eval", &self.evaluations.perm_eval);
+
             // Compute zero polynomial evaluated at challenge `z`
             let z_h_eval = domain.evaluate_vanishing_polynomial(&z_challenge);
 
@@ -275,34 +296,17 @@ pub(crate) mod alloc {
                 self.compute_quotient_commitment(&z_challenge, domain.size());
 
             // Add evaluations to transcript
-            transcript.append_scalar(b"a_eval", &self.evaluations.a_eval);
-            transcript.append_scalar(b"b_eval", &self.evaluations.b_eval);
-            transcript.append_scalar(b"o_eval", &self.evaluations.o_eval);
-            transcript.append_scalar(b"d_eval", &self.evaluations.d_eval);
             transcript
                 .append_scalar(b"a_next_eval", &self.evaluations.a_next_eval);
             transcript
                 .append_scalar(b"b_next_eval", &self.evaluations.b_next_eval);
             transcript
                 .append_scalar(b"d_next_eval", &self.evaluations.d_next_eval);
-            transcript.append_scalar(
-                b"s_sigma_1_eval",
-                &self.evaluations.s_sigma_1_eval,
-            );
-            transcript.append_scalar(
-                b"s_sigma_2_eval",
-                &self.evaluations.s_sigma_2_eval,
-            );
-            transcript.append_scalar(
-                b"s_sigma_3_eval",
-                &self.evaluations.s_sigma_3_eval,
-            );
             transcript
                 .append_scalar(b"q_arith_eval", &self.evaluations.q_arith_eval);
             transcript.append_scalar(b"q_c_eval", &self.evaluations.q_c_eval);
             transcript.append_scalar(b"q_l_eval", &self.evaluations.q_l_eval);
             transcript.append_scalar(b"q_r_eval", &self.evaluations.q_r_eval);
-            transcript.append_scalar(b"perm_eval", &self.evaluations.perm_eval);
             transcript.append_scalar(b"t_eval", &t_eval);
             transcript.append_scalar(b"r_eval", &self.evaluations.r_poly_eval);
 
