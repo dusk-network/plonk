@@ -419,7 +419,7 @@ impl Prover {
             .0
             .evaluate(&z_challenge);
 
-        let perm_eval = z_poly.evaluate(&(z_challenge * domain.group_gen));
+        let z_eval = z_poly.evaluate(&(z_challenge * domain.group_gen));
 
         // add opening evaluations to transcript.
         transcript.append_scalar(b"a_eval", &a_eval);
@@ -431,7 +431,7 @@ impl Prover {
         transcript.append_scalar(b"s_sigma_2_eval", &s_sigma_2_eval);
         transcript.append_scalar(b"s_sigma_3_eval", &s_sigma_3_eval);
 
-        transcript.append_scalar(b"perm_eval", &perm_eval);
+        transcript.append_scalar(b"z_eval", &z_eval);
 
         // round 5
         // compute linearization polynomial
@@ -460,7 +460,7 @@ impl Prover {
             &s_sigma_1_eval,
             &s_sigma_2_eval,
             &s_sigma_3_eval,
-            &perm_eval,
+            &z_eval,
         );
 
         // add evaluations to transcript.

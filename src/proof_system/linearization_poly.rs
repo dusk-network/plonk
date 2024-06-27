@@ -91,7 +91,7 @@ pub(crate) struct ProofEvaluations {
     // (Shifted) Evaluation of the permutation polynomial at `z * root of
     // unity`
     #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
-    pub(crate) perm_eval: BlsScalar,
+    pub(crate) z_eval: BlsScalar,
 }
 
 // The struct ProofEvaluations has 16 BlsScalars
@@ -119,7 +119,7 @@ impl Serializable<{ 16 * BlsScalar::SIZE }> for ProofEvaluations {
         writer.write(&self.s_sigma_2_eval.to_bytes());
         writer.write(&self.s_sigma_3_eval.to_bytes());
         writer.write(&self.r_poly_eval.to_bytes());
-        writer.write(&self.perm_eval.to_bytes());
+        writer.write(&self.z_eval.to_bytes());
 
         buf
     }
@@ -143,7 +143,7 @@ impl Serializable<{ 16 * BlsScalar::SIZE }> for ProofEvaluations {
         let s_sigma_2_eval = BlsScalar::from_reader(&mut buffer)?;
         let s_sigma_3_eval = BlsScalar::from_reader(&mut buffer)?;
         let r_poly_eval = BlsScalar::from_reader(&mut buffer)?;
-        let perm_eval = BlsScalar::from_reader(&mut buffer)?;
+        let z_eval = BlsScalar::from_reader(&mut buffer)?;
 
         Ok(ProofEvaluations {
             a_eval,
@@ -161,7 +161,7 @@ impl Serializable<{ 16 * BlsScalar::SIZE }> for ProofEvaluations {
             s_sigma_2_eval,
             s_sigma_3_eval,
             r_poly_eval,
-            perm_eval,
+            z_eval,
         })
     }
 }
@@ -205,7 +205,7 @@ pub(crate) fn compute(
     s_sigma_1_eval: &BlsScalar,
     s_sigma_2_eval: &BlsScalar,
     s_sigma_3_eval: &BlsScalar,
-    perm_eval: &BlsScalar,
+    z_eval: &BlsScalar,
 ) -> (Polynomial, Evaluations) {
     // Compute evaluations
     let t_eval = t_x_poly.evaluate(z_challenge);
@@ -245,7 +245,7 @@ pub(crate) fn compute(
         (alpha, beta, gamma),
         (&a_eval, &b_eval, &o_eval, &d_eval),
         (&s_sigma_1_eval, &s_sigma_2_eval, &s_sigma_3_eval),
-        perm_eval,
+        z_eval,
         z_poly,
     );
 
@@ -273,7 +273,7 @@ pub(crate) fn compute(
                 s_sigma_2_eval: *s_sigma_2_eval,
                 s_sigma_3_eval: *s_sigma_3_eval,
                 r_poly_eval,
-                perm_eval: *perm_eval,
+                z_eval: *z_eval,
             },
             t_eval,
         },

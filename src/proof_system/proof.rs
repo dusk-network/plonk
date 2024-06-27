@@ -264,7 +264,7 @@ pub(crate) mod alloc {
                 &self.evaluations.s_sigma_3_eval,
             );
 
-            transcript.append_scalar(b"perm_eval", &self.evaluations.perm_eval);
+            transcript.append_scalar(b"z_eval", &self.evaluations.z_eval);
 
             // Compute zero polynomial evaluated at challenge `z`
             let z_h_eval = domain.evaluate_vanishing_polynomial(&z_challenge);
@@ -286,7 +286,7 @@ pub(crate) mod alloc {
                 &z_challenge,
                 &z_h_eval,
                 &l1_eval,
-                &self.evaluations.perm_eval,
+                &self.evaluations.z_eval,
             );
 
             // Compute commitment to quotient polynomial
@@ -363,7 +363,7 @@ pub(crate) mod alloc {
             let mut shifted_aggregate_proof =
                 AggregateProof::with_witness(self.w_z_chall_w_comm);
             shifted_aggregate_proof
-                .add_part((self.evaluations.perm_eval, self.z_comm));
+                .add_part((self.evaluations.z_eval, self.z_comm));
             shifted_aggregate_proof
                 .add_part((self.evaluations.a_next_eval, self.a_comm));
             shifted_aggregate_proof
@@ -625,7 +625,7 @@ mod proof_tests {
                 s_sigma_2_eval: BlsScalar::random(&mut OsRng),
                 s_sigma_3_eval: BlsScalar::random(&mut OsRng),
                 r_poly_eval: BlsScalar::random(&mut OsRng),
-                perm_eval: BlsScalar::random(&mut OsRng),
+                z_eval: BlsScalar::random(&mut OsRng),
             },
         };
 
