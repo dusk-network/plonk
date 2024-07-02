@@ -266,6 +266,8 @@ pub(crate) mod alloc {
 
             transcript.append_scalar(b"z_eval", &self.evaluations.z_eval);
 
+            let v_challenge = transcript.challenge_scalar(b"v_challenge");
+
             // Compute zero polynomial evaluated at challenge `z`
             let z_h_eval = domain.evaluate_vanishing_polynomial(&z_challenge);
 
@@ -357,7 +359,7 @@ pub(crate) mod alloc {
                 verifier_key.permutation.s_sigma_3,
             ));
             // Flatten proof with opening challenge
-            let flattened_proof_a = aggregate_proof.flatten(transcript);
+            let flattened_proof_a = aggregate_proof.flatten(&v_challenge);
 
             // Compose the shifted aggregate proof
             let mut shifted_aggregate_proof =
@@ -371,10 +373,15 @@ pub(crate) mod alloc {
             shifted_aggregate_proof
                 .add_part((self.evaluations.d_next_eval, self.d_comm));
 
-            let flattened_proof_b = shifted_aggregate_proof.flatten(transcript);
+            let v_challenge_shifted =
+                transcript.challenge_scalar(b"v_challenge_shifted");
+            let flattened_proof_b =
+                shifted_aggregate_proof.flatten(&v_challenge_shifted);
+
             // Add commitment to openings to transcript
             transcript.append_commitment(b"w_z", &self.w_z_chall_comm);
             transcript.append_commitment(b"w_z_w", &self.w_z_chall_w_comm);
+
             // Batch check
             if opening_key
                 .batch_check(
