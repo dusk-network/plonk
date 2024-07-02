@@ -191,7 +191,6 @@ impl CommitKey {
     /// We apply the same optimization mentioned in when computing each witness;
     /// removing f(z).
     pub(crate) fn compute_aggregate_witness(
-        &self,
         polynomials: &[Polynomial],
         point: &BlsScalar,
         transcript: &mut Transcript,
@@ -392,8 +391,11 @@ mod test {
         }
 
         // Compute the aggregate witness for polynomials
-        let witness_poly =
-            ck.compute_aggregate_witness(polynomials, point, transcript);
+        let witness_poly = CommitKey::compute_aggregate_witness(
+            polynomials,
+            point,
+            transcript,
+        );
 
         // Commit to witness polynomial
         let witness_commitment = ck.commit(&witness_poly)?;

@@ -493,7 +493,7 @@ impl Prover {
 
         // compute aggregate witness to polynomials evaluated at the evaluation
         // challenge z. The challenge v is selected inside
-        let aggregate_witness = self.commit_key.compute_aggregate_witness(
+        let aggregate_witness = CommitKey::compute_aggregate_witness(
             &[
                 quot,
                 r_poly,
@@ -512,12 +512,11 @@ impl Prover {
 
         // compute aggregate witness to polynomials evaluated at the shifted
         // evaluation challenge
-        let shifted_aggregate_witness =
-            self.commit_key.compute_aggregate_witness(
-                &[z_poly, a_w_poly, b_w_poly, d_w_poly],
-                &(z_challenge * domain.group_gen),
-                &mut transcript,
-            );
+        let shifted_aggregate_witness = CommitKey::compute_aggregate_witness(
+            &[z_poly, a_w_poly, b_w_poly, d_w_poly],
+            &(z_challenge * domain.group_gen),
+            &mut transcript,
+        );
         let w_z_chall_w_comm =
             self.commit_key.commit(&shifted_aggregate_witness)?;
 
