@@ -394,7 +394,49 @@ impl Prover {
         // compute evaluation challenge 'z'
         let z_challenge = transcript.challenge_scalar(b"z_challenge");
 
+        // compute opening evaluations
+        let a_eval = a_w_poly.evaluate(&z_challenge);
+        let b_eval = b_w_poly.evaluate(&z_challenge);
+        let o_eval = o_w_poly.evaluate(&z_challenge);
+        let d_eval = d_w_poly.evaluate(&z_challenge);
+
+        let s_sigma_1_eval = self
+            .prover_key
+            .permutation
+            .s_sigma_1
+            .0
+            .evaluate(&z_challenge);
+        let s_sigma_2_eval = self
+            .prover_key
+            .permutation
+            .s_sigma_2
+            .0
+            .evaluate(&z_challenge);
+        let s_sigma_3_eval = self
+            .prover_key
+            .permutation
+            .s_sigma_3
+            .0
+            .evaluate(&z_challenge);
+
+        let z_eval = z_poly.evaluate(&(z_challenge * domain.group_gen));
+
+        // add opening evaluations to transcript.
+        transcript.append_scalar(b"a_eval", &a_eval);
+        transcript.append_scalar(b"b_eval", &b_eval);
+        transcript.append_scalar(b"o_eval", &o_eval);
+        transcript.append_scalar(b"d_eval", &d_eval);
+
+        transcript.append_scalar(b"s_sigma_1_eval", &s_sigma_1_eval);
+        transcript.append_scalar(b"s_sigma_2_eval", &s_sigma_2_eval);
+        transcript.append_scalar(b"s_sigma_3_eval", &s_sigma_3_eval);
+
+        transcript.append_scalar(b"z_eval", &z_eval);
+
         // round 5
+        // compute the challenge 'v'
+        let v_challenge = transcript.challenge_scalar(b"v_challenge");
+
         // compute linearization polynomial
         let (r_poly, evaluations) = linearization_poly::compute(
             &domain,
@@ -411,41 +453,31 @@ impl Prover {
             ),
             &a_w_poly,
             &b_w_poly,
-            &o_w_poly,
             &d_w_poly,
             &t_poly,
             &z_poly,
+            &a_eval,
+            &b_eval,
+            &o_eval,
+            &d_eval,
+            &s_sigma_1_eval,
+            &s_sigma_2_eval,
+            &s_sigma_3_eval,
+            &z_eval,
         );
 
         // add evaluations to transcript.
-        transcript.append_scalar(b"a_eval", &evaluations.proof.a_eval);
-        transcript.append_scalar(b"b_eval", &evaluations.proof.b_eval);
-        transcript.append_scalar(b"o_eval", &evaluations.proof.o_eval);
-        transcript.append_scalar(b"d_eval", &evaluations.proof.d_eval);
         transcript
             .append_scalar(b"a_next_eval", &evaluations.proof.a_next_eval);
         transcript
             .append_scalar(b"b_next_eval", &evaluations.proof.b_next_eval);
         transcript
             .append_scalar(b"d_next_eval", &evaluations.proof.d_next_eval);
-        transcript.append_scalar(
-            b"s_sigma_1_eval",
-            &evaluations.proof.s_sigma_1_eval,
-        );
-        transcript.append_scalar(
-            b"s_sigma_2_eval",
-            &evaluations.proof.s_sigma_2_eval,
-        );
-        transcript.append_scalar(
-            b"s_sigma_3_eval",
-            &evaluations.proof.s_sigma_3_eval,
-        );
         transcript
             .append_scalar(b"q_arith_eval", &evaluations.proof.q_arith_eval);
         transcript.append_scalar(b"q_c_eval", &evaluations.proof.q_c_eval);
         transcript.append_scalar(b"q_l_eval", &evaluations.proof.q_l_eval);
         transcript.append_scalar(b"q_r_eval", &evaluations.proof.q_r_eval);
-        transcript.append_scalar(b"perm_eval", &evaluations.proof.perm_eval);
         transcript.append_scalar(b"t_eval", &evaluations.t_eval);
         transcript.append_scalar(b"r_eval", &evaluations.proof.r_poly_eval);
 
@@ -462,9 +494,8 @@ impl Prover {
 
         let quot = &abc + &d;
 
-        // compute aggregate witness to polynomials evaluated at the evaluation
-        // challenge z. The challenge v is selected inside
-        let aggregate_witness = self.commit_key.compute_aggregate_witness(
+        // compute the opening proof polynomial 'W_z(X)'
+        let aggregate_witness = CommitKey::compute_aggregate_witness(
             &[
                 quot,
                 r_poly,
@@ -477,18 +508,20 @@ impl Prover {
                 self.prover_key.permutation.s_sigma_3.0.clone(),
             ],
             &z_challenge,
-            &mut transcript,
+            &v_challenge,
         );
         let w_z_chall_comm = self.commit_key.commit(&aggregate_witness)?;
 
-        // compute aggregate witness to polynomials evaluated at the shifted
-        // evaluation challenge
-        let shifted_aggregate_witness =
-            self.commit_key.compute_aggregate_witness(
-                &[z_poly, a_w_poly, b_w_poly, d_w_poly],
-                &(z_challenge * domain.group_gen),
-                &mut transcript,
-            );
+        // compute the shifted challenge 'v'
+        let v_challenge_shifted =
+            transcript.challenge_scalar(b"v_challenge_shifted");
+
+        // compute the shifted opening proof polynomial 'W_zw(X)'
+        let shifted_aggregate_witness = CommitKey::compute_aggregate_witness(
+            &[z_poly, a_w_poly, b_w_poly, d_w_poly],
+            &(z_challenge * domain.group_gen),
+            &v_challenge_shifted,
+        );
         let w_z_chall_w_comm =
             self.commit_key.commit(&shifted_aggregate_witness)?;
 

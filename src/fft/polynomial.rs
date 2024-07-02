@@ -128,7 +128,7 @@ impl Polynomial {
         let powers = util::powers_of(value, self.len());
 
         // Multiply the powers of the value by the coefficients
-        let mul_coeff = self.iter().zip(powers.into_iter()).map(|(c, p)| p * c);
+        let mul_coeff = self.iter().zip(powers).map(|(c, p)| p * c);
 
         // Sum it all up
         let mut sum = BlsScalar::zero();

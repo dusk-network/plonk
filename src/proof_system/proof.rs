@@ -245,6 +245,29 @@ pub(crate) mod alloc {
             // Compute evaluation challenge z
             let z_challenge = transcript.challenge_scalar(b"z_challenge");
 
+            // Add opening evaluations to transcript
+            transcript.append_scalar(b"a_eval", &self.evaluations.a_eval);
+            transcript.append_scalar(b"b_eval", &self.evaluations.b_eval);
+            transcript.append_scalar(b"o_eval", &self.evaluations.o_eval);
+            transcript.append_scalar(b"d_eval", &self.evaluations.d_eval);
+
+            transcript.append_scalar(
+                b"s_sigma_1_eval",
+                &self.evaluations.s_sigma_1_eval,
+            );
+            transcript.append_scalar(
+                b"s_sigma_2_eval",
+                &self.evaluations.s_sigma_2_eval,
+            );
+            transcript.append_scalar(
+                b"s_sigma_3_eval",
+                &self.evaluations.s_sigma_3_eval,
+            );
+
+            transcript.append_scalar(b"z_eval", &self.evaluations.z_eval);
+
+            let v_challenge = transcript.challenge_scalar(b"v_challenge");
+
             // Compute zero polynomial evaluated at challenge `z`
             let z_h_eval = domain.evaluate_vanishing_polynomial(&z_challenge);
 
@@ -265,7 +288,7 @@ pub(crate) mod alloc {
                 &z_challenge,
                 &z_h_eval,
                 &l1_eval,
-                &self.evaluations.perm_eval,
+                &self.evaluations.z_eval,
             );
 
             // Compute commitment to quotient polynomial
@@ -275,34 +298,17 @@ pub(crate) mod alloc {
                 self.compute_quotient_commitment(&z_challenge, domain.size());
 
             // Add evaluations to transcript
-            transcript.append_scalar(b"a_eval", &self.evaluations.a_eval);
-            transcript.append_scalar(b"b_eval", &self.evaluations.b_eval);
-            transcript.append_scalar(b"o_eval", &self.evaluations.o_eval);
-            transcript.append_scalar(b"d_eval", &self.evaluations.d_eval);
             transcript
                 .append_scalar(b"a_next_eval", &self.evaluations.a_next_eval);
             transcript
                 .append_scalar(b"b_next_eval", &self.evaluations.b_next_eval);
             transcript
                 .append_scalar(b"d_next_eval", &self.evaluations.d_next_eval);
-            transcript.append_scalar(
-                b"s_sigma_1_eval",
-                &self.evaluations.s_sigma_1_eval,
-            );
-            transcript.append_scalar(
-                b"s_sigma_2_eval",
-                &self.evaluations.s_sigma_2_eval,
-            );
-            transcript.append_scalar(
-                b"s_sigma_3_eval",
-                &self.evaluations.s_sigma_3_eval,
-            );
             transcript
                 .append_scalar(b"q_arith_eval", &self.evaluations.q_arith_eval);
             transcript.append_scalar(b"q_c_eval", &self.evaluations.q_c_eval);
             transcript.append_scalar(b"q_l_eval", &self.evaluations.q_l_eval);
             transcript.append_scalar(b"q_r_eval", &self.evaluations.q_r_eval);
-            transcript.append_scalar(b"perm_eval", &self.evaluations.perm_eval);
             transcript.append_scalar(b"t_eval", &t_eval);
             transcript.append_scalar(b"r_eval", &self.evaluations.r_poly_eval);
 
@@ -353,13 +359,13 @@ pub(crate) mod alloc {
                 verifier_key.permutation.s_sigma_3,
             ));
             // Flatten proof with opening challenge
-            let flattened_proof_a = aggregate_proof.flatten(transcript);
+            let flattened_proof_a = aggregate_proof.flatten(&v_challenge);
 
             // Compose the shifted aggregate proof
             let mut shifted_aggregate_proof =
                 AggregateProof::with_witness(self.w_z_chall_w_comm);
             shifted_aggregate_proof
-                .add_part((self.evaluations.perm_eval, self.z_comm));
+                .add_part((self.evaluations.z_eval, self.z_comm));
             shifted_aggregate_proof
                 .add_part((self.evaluations.a_next_eval, self.a_comm));
             shifted_aggregate_proof
@@ -367,10 +373,15 @@ pub(crate) mod alloc {
             shifted_aggregate_proof
                 .add_part((self.evaluations.d_next_eval, self.d_comm));
 
-            let flattened_proof_b = shifted_aggregate_proof.flatten(transcript);
+            let v_challenge_shifted =
+                transcript.challenge_scalar(b"v_challenge_shifted");
+            let flattened_proof_b =
+                shifted_aggregate_proof.flatten(&v_challenge_shifted);
+
             // Add commitment to openings to transcript
             transcript.append_commitment(b"w_z", &self.w_z_chall_comm);
             transcript.append_commitment(b"w_z_w", &self.w_z_chall_w_comm);
+
             // Batch check
             if opening_key
                 .batch_check(
@@ -621,7 +632,7 @@ mod proof_tests {
                 s_sigma_2_eval: BlsScalar::random(&mut OsRng),
                 s_sigma_3_eval: BlsScalar::random(&mut OsRng),
                 r_poly_eval: BlsScalar::random(&mut OsRng),
-                perm_eval: BlsScalar::random(&mut OsRng),
+                z_eval: BlsScalar::random(&mut OsRng),
             },
         };
 

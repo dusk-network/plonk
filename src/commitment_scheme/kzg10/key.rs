@@ -191,13 +191,11 @@ impl CommitKey {
     /// We apply the same optimization mentioned in when computing each witness;
     /// removing f(z).
     pub(crate) fn compute_aggregate_witness(
-        &self,
         polynomials: &[Polynomial],
         point: &BlsScalar,
-        transcript: &mut Transcript,
+        v_challenge: &BlsScalar,
     ) -> Polynomial {
-        let v_challenge = transcript.challenge_scalar(b"v_challenge");
-        let powers = util::powers_of(&v_challenge, polynomials.len() - 1);
+        let powers = util::powers_of(v_challenge, polynomials.len() - 1);
 
         assert_eq!(powers.len(), polynomials.len());
 
@@ -391,9 +389,14 @@ mod test {
             polynomial_commitments.push(ck.commit(poly)?)
         }
 
+        let v_challenge = transcript.challenge_scalar(b"v_challenge");
+
         // Compute the aggregate witness for polynomials
-        let witness_poly =
-            ck.compute_aggregate_witness(polynomials, point, transcript);
+        let witness_poly = CommitKey::compute_aggregate_witness(
+            polynomials,
+            point,
+            &v_challenge,
+        );
 
         // Commit to witness polynomial
         let witness_commitment = ck.commit(&witness_poly)?;
@@ -496,8 +499,9 @@ mod test {
 
         // Verifier's View
         let ok = {
-            let flattened_proof =
-                aggregated_proof.flatten(&mut Transcript::new(b"agg_flatten"));
+            let transcript = &mut Transcript::new(b"agg_flatten");
+            let v_challenge = transcript.challenge_scalar(b"v_challenge");
+            let flattened_proof = aggregated_proof.flatten(&v_challenge);
             check(&opening_key, point, flattened_proof)
         };
 
@@ -544,7 +548,8 @@ mod test {
         // Verifier's View
 
         let mut transcript = Transcript::new(b"agg_batch");
-        let flattened_proof = aggregated_proof.flatten(&mut transcript);
+        let v_challenge = transcript.challenge_scalar(b"v_challenge");
+        let flattened_proof = aggregated_proof.flatten(&v_challenge);
 
         opening_key.batch_check(
             &[point_a, point_b],
