@@ -39,7 +39,7 @@ impl ProverKey {
         a_w_i_next: &BlsScalar,
         b_w_i: &BlsScalar,
         b_w_i_next: &BlsScalar,
-        o_w_i: &BlsScalar,
+        c_w_i: &BlsScalar,
         d_w_i: &BlsScalar,
         d_w_i_next: &BlsScalar,
     ) -> BlsScalar {
@@ -62,7 +62,7 @@ impl ProverKey {
         let d = d_w_i_next - four * d_w_i;
         let o_2 = delta(d) * kappa_sq;
 
-        let w = o_w_i;
+        let w = c_w_i;
         let o_3 = (w - a * b) * kappa_cu;
 
         let o_4 = delta_xor_and(&a, &b, w, &d, q_c_i) * kappa_qu;
@@ -77,7 +77,7 @@ impl ProverKey {
         a_next_eval: &BlsScalar,
         b_eval: &BlsScalar,
         b_next_eval: &BlsScalar,
-        o_eval: &BlsScalar,
+        c_eval: &BlsScalar,
         d_eval: &BlsScalar,
         d_next_eval: &BlsScalar,
         q_c_eval: &BlsScalar,
@@ -99,7 +99,7 @@ impl ProverKey {
         let d = d_next_eval - four * d_eval;
         let o_2 = delta(d) * kappa_sq;
 
-        let w = o_eval;
+        let w = c_eval;
         let o_3 = (w - a * b) * kappa_cu;
 
         let o_4 = delta_xor_and(&a, &b, w, &d, q_c_eval) * kappa_qu;

@@ -485,13 +485,13 @@ mod test {
             let poly_b = Polynomial::rand(26 + 1, &mut OsRng);
             let poly_b_eval = poly_b.evaluate(&point);
 
-            let poly_o = Polynomial::rand(27, &mut OsRng);
-            let poly_o_eval = poly_o.evaluate(&point);
+            let poly_c = Polynomial::rand(27, &mut OsRng);
+            let poly_c_eval = poly_c.evaluate(&point);
 
             open_multiple(
                 &ck,
-                &[poly_a, poly_b, poly_o],
-                vec![poly_a_eval, poly_b_eval, poly_o_eval],
+                &[poly_a, poly_b, poly_c],
+                vec![poly_a_eval, poly_b_eval, poly_c_eval],
                 &point,
                 &mut Transcript::new(b"agg_flatten"),
             )?
@@ -525,16 +525,16 @@ mod test {
             let poly_b = Polynomial::rand(26, &mut OsRng);
             let poly_b_eval = poly_b.evaluate(&point_a);
 
-            let poly_o = Polynomial::rand(27, &mut OsRng);
-            let poly_o_eval = poly_o.evaluate(&point_a);
+            let poly_c = Polynomial::rand(27, &mut OsRng);
+            let poly_c_eval = poly_c.evaluate(&point_a);
 
             let poly_d = Polynomial::rand(28, &mut OsRng);
             let poly_d_eval = poly_d.evaluate(&point_b);
 
             let aggregated_proof = open_multiple(
                 &ck,
-                &[poly_a, poly_b, poly_o],
-                vec![poly_a_eval, poly_b_eval, poly_o_eval],
+                &[poly_a, poly_b, poly_c],
+                vec![poly_a_eval, poly_b_eval, poly_c_eval],
                 &point_a,
                 &mut Transcript::new(b"agg_batch"),
             )?;

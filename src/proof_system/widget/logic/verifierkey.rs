@@ -61,7 +61,7 @@ mod alloc {
             let d = evaluations.d_next_eval - four * evaluations.d_eval;
             let o_2 = delta(d) * kappa_sq;
 
-            let o = evaluations.o_eval;
+            let o = evaluations.c_eval;
             let o_3 = (o - a * b) * kappa_cu;
 
             let o_4 =

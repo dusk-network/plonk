@@ -20,7 +20,7 @@ pub(crate) fn compute(
     domain: &EvaluationDomain,
     prover_key: &ProverKey,
     z_poly: &Polynomial,
-    (a_w_poly, b_w_poly, o_w_poly, d_w_poly): (
+    (a_w_poly, b_w_poly, c_w_poly, d_w_poly): (
         &Polynomial,
         &Polynomial,
         &Polynomial,
@@ -52,14 +52,14 @@ pub(crate) fn compute(
 
     let mut a_w_eval_8n = domain_8n.coset_fft(a_w_poly);
     let mut b_w_eval_8n = domain_8n.coset_fft(b_w_poly);
-    let o_w_eval_8n = domain_8n.coset_fft(o_w_poly);
+    let c_w_eval_8n = domain_8n.coset_fft(c_w_poly);
     let mut d_w_eval_8n = domain_8n.coset_fft(d_w_poly);
 
     for i in 0..8 {
         z_eval_8n.push(z_eval_8n[i]);
         a_w_eval_8n.push(a_w_eval_8n[i]);
         b_w_eval_8n.push(b_w_eval_8n[i]);
-        // o_w_eval_8n push not required
+        // c_w_eval_8n push not required
         d_w_eval_8n.push(d_w_eval_8n[i]);
     }
 
@@ -72,14 +72,14 @@ pub(crate) fn compute(
             var_base_challenge,
         ),
         prover_key,
-        (&a_w_eval_8n, &b_w_eval_8n, &o_w_eval_8n, &d_w_eval_8n),
+        (&a_w_eval_8n, &b_w_eval_8n, &c_w_eval_8n, &d_w_eval_8n),
         public_inputs_poly,
     );
 
     let t_2 = compute_permutation_checks(
         domain,
         prover_key,
-        (&a_w_eval_8n, &b_w_eval_8n, &o_w_eval_8n, &d_w_eval_8n),
+        (&a_w_eval_8n, &b_w_eval_8n, &c_w_eval_8n, &d_w_eval_8n),
         &z_eval_8n,
         (alpha, beta, gamma),
     );
@@ -114,7 +114,7 @@ fn compute_circuit_satisfiability_equation(
         var_base_challenge,
     ): (&BlsScalar, &BlsScalar, &BlsScalar, &BlsScalar),
     prover_key: &ProverKey,
-    (a_w_eval_8n, b_w_eval_8n, o_w_eval_8n, d_w_eval_8n): (
+    (a_w_eval_8n, b_w_eval_8n, c_w_eval_8n, d_w_eval_8n): (
         &[BlsScalar],
         &[BlsScalar],
         &[BlsScalar],
@@ -135,7 +135,7 @@ fn compute_circuit_satisfiability_equation(
         .map(|i| {
             let a_w = &a_w_eval_8n[i];
             let b_w = &b_w_eval_8n[i];
-            let o_w = &o_w_eval_8n[i];
+            let c_w = &c_w_eval_8n[i];
             let d_w = &d_w_eval_8n[i];
             let a_w_next = &a_w_eval_8n[i + 8];
             let b_w_next = &b_w_eval_8n[i + 8];
@@ -144,14 +144,14 @@ fn compute_circuit_satisfiability_equation(
 
             let a = prover_key
                 .arithmetic
-                .compute_quotient_i(i, a_w, b_w, o_w, d_w);
+                .compute_quotient_i(i, a_w, b_w, c_w, d_w);
 
             let b = prover_key.range.compute_quotient_i(
                 i,
                 range_challenge,
                 a_w,
                 b_w,
-                o_w,
+                c_w,
                 d_w,
                 d_w_next,
             );
@@ -163,7 +163,7 @@ fn compute_circuit_satisfiability_equation(
                 a_w_next,
                 b_w,
                 b_w_next,
-                o_w,
+                c_w,
                 d_w,
                 d_w_next,
             );
@@ -175,7 +175,7 @@ fn compute_circuit_satisfiability_equation(
                 a_w_next,
                 b_w,
                 b_w_next,
-                o_w,
+                c_w,
                 d_w,
                 d_w_next,
             );
@@ -187,7 +187,7 @@ fn compute_circuit_satisfiability_equation(
                 a_w_next,
                 b_w,
                 b_w_next,
-                o_w,
+                c_w,
                 d_w,
                 d_w_next,
             );
@@ -201,7 +201,7 @@ fn compute_circuit_satisfiability_equation(
 fn compute_permutation_checks(
     domain: &EvaluationDomain,
     prover_key: &ProverKey,
-    (a_w_eval_8n, b_w_eval_8n, o_w_eval_8n, d_w_eval_8n): (
+    (a_w_eval_8n, b_w_eval_8n, c_w_eval_8n, d_w_eval_8n): (
         &[BlsScalar],
         &[BlsScalar],
         &[BlsScalar],
@@ -227,7 +227,7 @@ fn compute_permutation_checks(
                 i,
                 &a_w_eval_8n[i],
                 &b_w_eval_8n[i],
-                &o_w_eval_8n[i],
+                &c_w_eval_8n[i],
                 &d_w_eval_8n[i],
                 &z_eval_8n[i],
                 &z_eval_8n[i + 8],

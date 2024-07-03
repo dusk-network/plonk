@@ -256,32 +256,32 @@ impl Prover {
         // convert wires to padded scalars
         let mut a_w_scalar = vec![BlsScalar::zero(); size];
         let mut b_w_scalar = vec![BlsScalar::zero(); size];
-        let mut o_w_scalar = vec![BlsScalar::zero(); size];
+        let mut c_w_scalar = vec![BlsScalar::zero(); size];
         let mut d_w_scalar = vec![BlsScalar::zero(); size];
 
         prover.constraints.iter().enumerate().for_each(|(i, c)| {
             a_w_scalar[i] = prover[c.w_a];
             b_w_scalar[i] = prover[c.w_b];
-            o_w_scalar[i] = prover[c.w_o];
+            c_w_scalar[i] = prover[c.w_o];
             d_w_scalar[i] = prover[c.w_d];
         });
 
         let a_w_poly = Self::blind_poly(rng, &a_w_scalar, 1, &domain);
         let b_w_poly = Self::blind_poly(rng, &b_w_scalar, 1, &domain);
-        let o_w_poly = Self::blind_poly(rng, &o_w_scalar, 1, &domain);
+        let c_w_poly = Self::blind_poly(rng, &c_w_scalar, 1, &domain);
         let d_w_poly = Self::blind_poly(rng, &d_w_scalar, 1, &domain);
 
         // commit to wire polynomials
         // ([a(x)]_1, [b(x)]_1, [c(x)]_1, [d(x)]_1)
         let a_w_poly_commit = self.commit_key.commit(&a_w_poly)?;
         let b_w_poly_commit = self.commit_key.commit(&b_w_poly)?;
-        let o_w_poly_commit = self.commit_key.commit(&o_w_poly)?;
+        let c_w_poly_commit = self.commit_key.commit(&c_w_poly)?;
         let d_w_poly_commit = self.commit_key.commit(&d_w_poly)?;
 
         // Add wire polynomial commitments to transcript
         transcript.append_commitment(b"a_w", &a_w_poly_commit);
         transcript.append_commitment(b"b_w", &b_w_poly_commit);
-        transcript.append_commitment(b"o_w", &o_w_poly_commit);
+        transcript.append_commitment(b"c_w", &c_w_poly_commit);
         transcript.append_commitment(b"d_w", &d_w_poly_commit);
 
         // round 2
@@ -299,7 +299,7 @@ impl Prover {
         let wires = [
             a_w_scalar.as_slice(),
             b_w_scalar.as_slice(),
-            o_w_scalar.as_slice(),
+            c_w_scalar.as_slice(),
             d_w_scalar.as_slice(),
         ];
         let permutation = prover
@@ -327,7 +327,7 @@ impl Prover {
         let pi_poly = Polynomial::from_coefficients_vec(pi_poly);
 
         // compute quotient polynomial
-        let wires = (&a_w_poly, &b_w_poly, &o_w_poly, &d_w_poly);
+        let wires = (&a_w_poly, &b_w_poly, &c_w_poly, &d_w_poly);
         let args = &(
             alpha,
             beta,
@@ -397,7 +397,7 @@ impl Prover {
         // compute opening evaluations
         let a_eval = a_w_poly.evaluate(&z_challenge);
         let b_eval = b_w_poly.evaluate(&z_challenge);
-        let o_eval = o_w_poly.evaluate(&z_challenge);
+        let c_eval = c_w_poly.evaluate(&z_challenge);
         let d_eval = d_w_poly.evaluate(&z_challenge);
 
         let s_sigma_1_eval = self
@@ -424,7 +424,7 @@ impl Prover {
         // add opening evaluations to transcript.
         transcript.append_scalar(b"a_eval", &a_eval);
         transcript.append_scalar(b"b_eval", &b_eval);
-        transcript.append_scalar(b"o_eval", &o_eval);
+        transcript.append_scalar(b"c_eval", &c_eval);
         transcript.append_scalar(b"d_eval", &d_eval);
 
         transcript.append_scalar(b"s_sigma_1_eval", &s_sigma_1_eval);
@@ -458,7 +458,7 @@ impl Prover {
             &z_poly,
             &a_eval,
             &b_eval,
-            &o_eval,
+            &c_eval,
             &d_eval,
             &s_sigma_1_eval,
             &s_sigma_2_eval,
@@ -501,7 +501,7 @@ impl Prover {
                 r_poly,
                 a_w_poly.clone(),
                 b_w_poly.clone(),
-                o_w_poly,
+                c_w_poly,
                 d_w_poly.clone(),
                 self.prover_key.permutation.s_sigma_1.0.clone(),
                 self.prover_key.permutation.s_sigma_2.0.clone(),
@@ -528,7 +528,7 @@ impl Prover {
         let proof = Proof {
             a_comm: a_w_poly_commit,
             b_comm: b_w_poly_commit,
-            o_comm: o_w_poly_commit,
+            c_comm: c_w_poly_commit,
             d_comm: d_w_poly_commit,
 
             z_comm: z_poly_commit,

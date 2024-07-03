@@ -107,7 +107,7 @@ mod alloc {
             scalars.push(evaluations.b_eval * q_arith_eval);
             points.push(self.q_r.0);
 
-            scalars.push(evaluations.o_eval * q_arith_eval);
+            scalars.push(evaluations.c_eval * q_arith_eval);
             points.push(self.q_o.0);
 
             scalars.push(evaluations.d_eval * q_arith_eval);
