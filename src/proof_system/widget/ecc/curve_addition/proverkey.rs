@@ -5,6 +5,7 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use crate::fft::{Evaluations, Polynomial};
+use crate::proof_system::linearization_poly::ProofEvaluations;
 use dusk_bls12_381::BlsScalar;
 use dusk_jubjub::EDWARDS_D;
 
@@ -80,25 +81,19 @@ impl ProverKey {
     pub(crate) fn compute_linearization(
         &self,
         curve_add_separation_challenge: &BlsScalar,
-        a_eval: &BlsScalar,
-        a_next_eval: &BlsScalar,
-        b_eval: &BlsScalar,
-        b_next_eval: &BlsScalar,
-        c_eval: &BlsScalar,
-        d_eval: &BlsScalar,
-        d_next_eval: &BlsScalar,
+        evaluations: &ProofEvaluations,
     ) -> Polynomial {
         let q_variable_group_add_poly = &self.q_variable_group_add.0;
 
         let kappa = curve_add_separation_challenge.square();
 
-        let x_1 = a_eval;
-        let x_3 = a_next_eval;
-        let y_1 = b_eval;
-        let y_3 = b_next_eval;
-        let x_2 = c_eval;
-        let y_2 = d_eval;
-        let x1_y2 = d_next_eval;
+        let x_1 = evaluations.a_eval;
+        let x_3 = evaluations.a_next_eval;
+        let y_1 = evaluations.b_eval;
+        let y_3 = evaluations.b_next_eval;
+        let x_2 = evaluations.c_eval;
+        let y_2 = evaluations.d_eval;
+        let x1_y2 = evaluations.d_next_eval;
 
         // Checks
         //

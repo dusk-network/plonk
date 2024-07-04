@@ -5,6 +5,7 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use crate::fft::{Evaluations, Polynomial};
+use crate::proof_system::linearization_poly::ProofEvaluations;
 
 use dusk_bls12_381::BlsScalar;
 
@@ -73,14 +74,7 @@ impl ProverKey {
     pub(crate) fn compute_linearization(
         &self,
         logic_separation_challenge: &BlsScalar,
-        a_eval: &BlsScalar,
-        a_next_eval: &BlsScalar,
-        b_eval: &BlsScalar,
-        b_next_eval: &BlsScalar,
-        c_eval: &BlsScalar,
-        d_eval: &BlsScalar,
-        d_next_eval: &BlsScalar,
-        q_c_eval: &BlsScalar,
+        evaluations: &ProofEvaluations,
     ) -> Polynomial {
         let four = BlsScalar::from(4);
         let q_logic_poly = &self.q_logic.0;
@@ -90,19 +84,20 @@ impl ProverKey {
         let kappa_cu = kappa_sq * kappa;
         let kappa_qu = kappa_cu * kappa;
 
-        let a = a_next_eval - four * a_eval;
+        let a = evaluations.a_next_eval - four * evaluations.a_eval;
         let o_0 = delta(a);
 
-        let b = b_next_eval - four * b_eval;
+        let b = evaluations.b_next_eval - four * evaluations.b_eval;
         let o_1 = delta(b) * kappa;
 
-        let d = d_next_eval - four * d_eval;
+        let d = evaluations.d_next_eval - four * evaluations.d_eval;
         let o_2 = delta(d) * kappa_sq;
 
-        let w = c_eval;
+        let w = evaluations.c_eval;
         let o_3 = (w - a * b) * kappa_cu;
 
-        let o_4 = delta_xor_and(&a, &b, w, &d, q_c_eval) * kappa_qu;
+        let o_4 =
+            delta_xor_and(&a, &b, &w, &d, &evaluations.q_c_eval) * kappa_qu;
 
         let t = (o_0 + o_1 + o_2 + o_3 + o_4) * logic_separation_challenge;
 

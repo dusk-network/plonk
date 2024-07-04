@@ -266,38 +266,7 @@ pub(crate) mod alloc {
 
             transcript.append_scalar(b"z_eval", &self.evaluations.z_eval);
 
-            let v_challenge = transcript.challenge_scalar(b"v_challenge");
-
-            // Compute zero polynomial evaluated at challenge `z`
-            let z_h_eval = domain.evaluate_vanishing_polynomial(&z_challenge);
-
-            // Compute first lagrange polynomial evaluated at challenge `z`
-            let l1_eval = compute_first_lagrange_evaluation(
-                &domain,
-                &z_h_eval,
-                &z_challenge,
-            );
-
-            // Compute quotient polynomial evaluated at challenge `z`
-            let t_eval = self.compute_quotient_evaluation(
-                &domain,
-                pub_inputs,
-                &alpha,
-                &beta,
-                &gamma,
-                &z_challenge,
-                &z_h_eval,
-                &l1_eval,
-                &self.evaluations.z_eval,
-            );
-
-            // Compute commitment to quotient polynomial
-            // This method is necessary as we pass the `un-splitted` variation
-            // to our commitment scheme
-            let t_comm =
-                self.compute_quotient_commitment(&z_challenge, domain.size());
-
-            // Add evaluations to transcript
+            // Add extra evaluations to transcript
             transcript
                 .append_scalar(b"a_next_eval", &self.evaluations.a_next_eval);
             transcript
@@ -309,8 +278,18 @@ pub(crate) mod alloc {
             transcript.append_scalar(b"q_c_eval", &self.evaluations.q_c_eval);
             transcript.append_scalar(b"q_l_eval", &self.evaluations.q_l_eval);
             transcript.append_scalar(b"q_r_eval", &self.evaluations.q_r_eval);
-            transcript.append_scalar(b"t_eval", &t_eval);
-            transcript.append_scalar(b"r_eval", &self.evaluations.r_poly_eval);
+
+            let v_challenge = transcript.challenge_scalar(b"v_challenge");
+
+            // Compute zero polynomial evaluated at challenge `z`
+            let z_h_eval = domain.evaluate_vanishing_polynomial(&z_challenge);
+
+            // Compute first lagrange polynomial evaluated at challenge `z`
+            let l1_eval = compute_first_lagrange_evaluation(
+                &domain,
+                &z_h_eval,
+                &z_challenge,
+            );
 
             // Compute linearization commitment
             let r_comm = self.compute_linearization_commitment(
@@ -326,7 +305,26 @@ pub(crate) mod alloc {
                 &z_challenge,
                 l1_eval,
                 verifier_key,
+                &domain,
             );
+
+            let pi_eval =
+                compute_barycentric_eval(pub_inputs, &z_challenge, &domain);
+
+            let r_0_eval = pi_eval
+                - l1_eval * alpha.square()
+                - alpha
+                    * (self.evaluations.a_eval
+                        + beta * self.evaluations.s_sigma_1_eval
+                        + gamma)
+                    * (self.evaluations.b_eval
+                        + beta * self.evaluations.s_sigma_2_eval
+                        + gamma)
+                    * (self.evaluations.c_eval
+                        + beta * self.evaluations.s_sigma_3_eval
+                        + gamma)
+                    * (self.evaluations.d_eval + gamma)
+                    * self.evaluations.z_eval;
 
             // Commitment Scheme
             // Now we delegate computation to the commitment scheme by batch
@@ -340,8 +338,7 @@ pub(crate) mod alloc {
             //
             let mut aggregate_proof =
                 AggregateProof::with_witness(self.w_z_chall_comm);
-            aggregate_proof.add_part((t_eval, t_comm));
-            aggregate_proof.add_part((self.evaluations.r_poly_eval, r_comm));
+            aggregate_proof.add_part((-r_0_eval, r_comm));
             aggregate_proof.add_part((self.evaluations.a_eval, self.a_comm));
             aggregate_proof.add_part((self.evaluations.b_eval, self.b_comm));
             aggregate_proof.add_part((self.evaluations.c_eval, self.c_comm));
@@ -397,71 +394,6 @@ pub(crate) mod alloc {
             Ok(())
         }
 
-        #[allow(clippy::too_many_arguments)]
-        fn compute_quotient_evaluation(
-            &self,
-            domain: &EvaluationDomain,
-            pub_inputs: &[BlsScalar],
-            alpha: &BlsScalar,
-            beta: &BlsScalar,
-            gamma: &BlsScalar,
-            z_challenge: &BlsScalar,
-            z_h_eval: &BlsScalar,
-            l1_eval: &BlsScalar,
-            z_hat_eval: &BlsScalar,
-        ) -> BlsScalar {
-            // Compute the public input polynomial evaluated at challenge `z`
-            let pi_eval =
-                compute_barycentric_eval(pub_inputs, z_challenge, domain);
-
-            // Compute powers of alpha_0
-            let alpha_sq = alpha.square();
-
-            // r + PI(z)
-            let a = self.evaluations.r_poly_eval + pi_eval;
-
-            // a + beta * sigma_1 + gamma
-            let beta_sig1 = beta * self.evaluations.s_sigma_1_eval;
-            let b_0 = self.evaluations.a_eval + beta_sig1 + gamma;
-
-            // b + beta * sigma_2 + gamma
-            let beta_sig2 = beta * self.evaluations.s_sigma_2_eval;
-            let b_1 = self.evaluations.b_eval + beta_sig2 + gamma;
-
-            // o + beta * sigma_3 + gamma
-            let beta_sig3 = beta * self.evaluations.s_sigma_3_eval;
-            let b_2 = self.evaluations.c_eval + beta_sig3 + gamma;
-
-            // ((d + gamma) * z_hat) * alpha_0
-            let b_3 = (self.evaluations.d_eval + gamma) * z_hat_eval * alpha;
-
-            let b = b_0 * b_1 * b_2 * b_3;
-
-            // l_1(z) * alpha_0^2
-            let c = l1_eval * alpha_sq;
-
-            // Return t_eval
-            (
-                a - b - c
-                //+ d
-            ) * z_h_eval.invert().unwrap()
-        }
-
-        fn compute_quotient_commitment(
-            &self,
-            z_challenge: &BlsScalar,
-            n: usize,
-        ) -> Commitment {
-            let z_n = z_challenge.pow(&[n as u64, 0, 0, 0]);
-            let z_two_n = z_challenge.pow(&[2 * n as u64, 0, 0, 0]);
-            let z_three_n = z_challenge.pow(&[3 * n as u64, 0, 0, 0]);
-            let t_comm = self.t_low_comm.0
-                + self.t_mid_comm.0 * z_n
-                + self.t_high_comm.0 * z_two_n
-                + self.t_4_comm.0 * z_three_n;
-            Commitment::from(t_comm)
-        }
-
         // Commitment to [r]_1
         #[allow(clippy::too_many_arguments)]
         fn compute_linearization_commitment(
@@ -478,6 +410,7 @@ pub(crate) mod alloc {
             z_challenge: &BlsScalar,
             l1_eval: BlsScalar,
             verifier_key: &VerifierKey,
+            domain: &EvaluationDomain,
         ) -> Commitment {
             let mut scalars: Vec<_> = Vec::with_capacity(6);
             let mut points: Vec<G1Affine> = Vec::with_capacity(6);
@@ -526,6 +459,28 @@ pub(crate) mod alloc {
                 self.z_comm.0,
             );
 
+            let domain_size = domain.size();
+            let z_h_eval = -domain.evaluate_vanishing_polynomial(z_challenge);
+
+            let z_n =
+                z_challenge.pow(&[domain_size as u64, 0, 0, 0]) * z_h_eval;
+            let z_two_n =
+                z_challenge.pow(&[2 * domain_size as u64, 0, 0, 0]) * z_h_eval;
+            let z_three_n =
+                z_challenge.pow(&[3 * domain_size as u64, 0, 0, 0]) * z_h_eval;
+
+            scalars.push(z_h_eval);
+            points.push(self.t_low_comm.0);
+
+            scalars.push(z_n);
+            points.push(self.t_mid_comm.0);
+
+            scalars.push(z_two_n);
+            points.push(self.t_high_comm.0);
+
+            scalars.push(z_three_n);
+            points.push(self.t_4_comm.0);
+
             Commitment::from(msm_variable_base(&points, &scalars))
         }
     }
@@ -540,7 +495,7 @@ pub(crate) mod alloc {
         z_h_eval * denom.invert().unwrap()
     }
 
-    fn compute_barycentric_eval(
+    pub(crate) fn compute_barycentric_eval(
         evaluations: &[BlsScalar],
         point: &BlsScalar,
         domain: &EvaluationDomain,
@@ -631,7 +586,6 @@ mod proof_tests {
                 s_sigma_1_eval: BlsScalar::random(&mut OsRng),
                 s_sigma_2_eval: BlsScalar::random(&mut OsRng),
                 s_sigma_3_eval: BlsScalar::random(&mut OsRng),
-                r_poly_eval: BlsScalar::random(&mut OsRng),
                 z_eval: BlsScalar::random(&mut OsRng),
             },
         };

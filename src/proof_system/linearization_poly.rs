@@ -7,7 +7,7 @@
 #[cfg(feature = "alloc")]
 use crate::{
     fft::{EvaluationDomain, Polynomial},
-    proof_system::ProverKey,
+    proof_system::{proof, ProverKey},
 };
 
 use dusk_bls12_381::BlsScalar;
@@ -20,14 +20,6 @@ use rkyv::{
     ser::{ScratchSpace, Serializer},
     Archive, Deserialize, Serialize,
 };
-
-/// Evaluations at points `z` or and `z * root of unity`
-#[allow(dead_code)]
-pub(crate) struct Evaluations {
-    pub(crate) proof: ProofEvaluations,
-    // Evaluation of the linearization sigma polynomial at `z`
-    pub(crate) t_eval: BlsScalar,
-}
 
 /// Subset of all of the evaluations. These evaluations
 /// are added to the [`Proof`](super::Proof).
@@ -84,18 +76,14 @@ pub(crate) struct ProofEvaluations {
     #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) s_sigma_3_eval: BlsScalar,
 
-    // Evaluation of the linearization sigma polynomial at `z`
-    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
-    pub(crate) r_poly_eval: BlsScalar,
-
     // (Shifted) Evaluation of the permutation polynomial at `z * root of
     // unity`
     #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) z_eval: BlsScalar,
 }
 
-// The struct ProofEvaluations has 16 BlsScalars
-impl Serializable<{ 16 * BlsScalar::SIZE }> for ProofEvaluations {
+// The struct ProofEvaluations has 15 BlsScalars
+impl Serializable<{ 15 * BlsScalar::SIZE }> for ProofEvaluations {
     type Error = dusk_bytes::Error;
 
     #[allow(unused_must_use)]
@@ -118,7 +106,6 @@ impl Serializable<{ 16 * BlsScalar::SIZE }> for ProofEvaluations {
         writer.write(&self.s_sigma_1_eval.to_bytes());
         writer.write(&self.s_sigma_2_eval.to_bytes());
         writer.write(&self.s_sigma_3_eval.to_bytes());
-        writer.write(&self.r_poly_eval.to_bytes());
         writer.write(&self.z_eval.to_bytes());
 
         buf
@@ -142,7 +129,6 @@ impl Serializable<{ 16 * BlsScalar::SIZE }> for ProofEvaluations {
         let s_sigma_1_eval = BlsScalar::from_reader(&mut buffer)?;
         let s_sigma_2_eval = BlsScalar::from_reader(&mut buffer)?;
         let s_sigma_3_eval = BlsScalar::from_reader(&mut buffer)?;
-        let r_poly_eval = BlsScalar::from_reader(&mut buffer)?;
         let z_eval = BlsScalar::from_reader(&mut buffer)?;
 
         Ok(ProofEvaluations {
@@ -160,7 +146,6 @@ impl Serializable<{ 16 * BlsScalar::SIZE }> for ProofEvaluations {
             s_sigma_1_eval,
             s_sigma_2_eval,
             s_sigma_3_eval,
-            r_poly_eval,
             z_eval,
         })
     }
@@ -172,7 +157,6 @@ impl Serializable<{ 16 * BlsScalar::SIZE }> for ProofEvaluations {
 // TODO: Improve the method signature
 #[allow(clippy::type_complexity)]
 pub(crate) fn compute(
-    domain: &EvaluationDomain,
     prover_key: &ProverKey,
     (
         alpha,
@@ -193,32 +177,15 @@ pub(crate) fn compute(
         BlsScalar,
         BlsScalar,
     ),
-    a_w_poly: &Polynomial,
-    b_w_poly: &Polynomial,
-    d_w_poly: &Polynomial,
-    t_x_poly: &Polynomial,
     z_poly: &Polynomial,
-    a_eval: &BlsScalar,
-    b_eval: &BlsScalar,
-    c_eval: &BlsScalar,
-    d_eval: &BlsScalar,
-    s_sigma_1_eval: &BlsScalar,
-    s_sigma_2_eval: &BlsScalar,
-    s_sigma_3_eval: &BlsScalar,
-    z_eval: &BlsScalar,
-) -> (Polynomial, Evaluations) {
-    // Compute evaluations
-    let t_eval = t_x_poly.evaluate(z_challenge);
-
-    let q_arith_eval = prover_key.arithmetic.q_arith.0.evaluate(z_challenge);
-    let q_c_eval = prover_key.logic.q_c.0.evaluate(z_challenge);
-    let q_l_eval = prover_key.fixed_base.q_l.0.evaluate(z_challenge);
-    let q_r_eval = prover_key.fixed_base.q_r.0.evaluate(z_challenge);
-
-    let a_next_eval = a_w_poly.evaluate(&(z_challenge * domain.group_gen));
-    let b_next_eval = b_w_poly.evaluate(&(z_challenge * domain.group_gen));
-    let d_next_eval = d_w_poly.evaluate(&(z_challenge * domain.group_gen));
-
+    evaluations: &ProofEvaluations,
+    domain: &EvaluationDomain,
+    t_low_poly: &Polynomial,
+    t_mid_poly: &Polynomial,
+    t_high_poly: &Polynomial,
+    t_4_poly: &Polynomial,
+    pub_inputs: &[BlsScalar],
+) -> Polynomial {
     let f_1 = compute_circuit_satisfiability(
         (
             range_separation_challenge,
@@ -226,58 +193,55 @@ pub(crate) fn compute(
             fixed_base_separation_challenge,
             var_base_separation_challenge,
         ),
-        a_eval,
-        b_eval,
-        c_eval,
-        d_eval,
-        &a_next_eval,
-        &b_next_eval,
-        &d_next_eval,
-        &q_arith_eval,
-        &q_c_eval,
-        &q_l_eval,
-        &q_r_eval,
+        evaluations,
         prover_key,
     );
+
+    let pi_eval =
+        proof::alloc::compute_barycentric_eval(pub_inputs, z_challenge, domain);
+
+    let f_1 = &f_1 + &pi_eval;
 
     let f_2 = prover_key.permutation.compute_linearization(
         z_challenge,
         (alpha, beta, gamma),
-        (&a_eval, &b_eval, &c_eval, &d_eval),
-        (&s_sigma_1_eval, &s_sigma_2_eval, &s_sigma_3_eval),
-        z_eval,
+        (
+            &evaluations.a_eval,
+            &evaluations.b_eval,
+            &evaluations.c_eval,
+            &evaluations.d_eval,
+        ),
+        (
+            &evaluations.s_sigma_1_eval,
+            &evaluations.s_sigma_2_eval,
+            &evaluations.s_sigma_3_eval,
+        ),
+        &evaluations.z_eval,
         z_poly,
     );
 
-    let r_poly = &f_1 + &f_2;
+    let domain_size = domain.size();
 
-    // Evaluate linearization polynomial at challenge `z`
-    let r_poly_eval = r_poly.evaluate(z_challenge);
+    let z_n = z_challenge.pow(&[domain_size as u64, 0, 0, 0]);
+    let z_two_n = z_challenge.pow(&[2 * domain_size as u64, 0, 0, 0]);
+    let z_three_n = z_challenge.pow(&[3 * domain_size as u64, 0, 0, 0]);
 
-    (
-        r_poly,
-        Evaluations {
-            proof: ProofEvaluations {
-                a_eval: *a_eval,
-                b_eval: *b_eval,
-                c_eval: *c_eval,
-                d_eval: *d_eval,
-                a_next_eval,
-                b_next_eval,
-                d_next_eval,
-                q_arith_eval,
-                q_c_eval,
-                q_l_eval,
-                q_r_eval,
-                s_sigma_1_eval: *s_sigma_1_eval,
-                s_sigma_2_eval: *s_sigma_2_eval,
-                s_sigma_3_eval: *s_sigma_3_eval,
-                r_poly_eval,
-                z_eval: *z_eval,
-            },
-            t_eval,
-        },
-    )
+    let a = t_low_poly;
+    let b = t_mid_poly * &z_n;
+    let c = t_high_poly * &z_two_n;
+    let d = t_4_poly * &z_three_n;
+    let abc = &(a + &b) + &c;
+
+    let quot = &abc + &d;
+
+    let z_h_eval = -domain.evaluate_vanishing_polynomial(z_challenge);
+
+    let quot = &quot * &z_h_eval;
+
+    let f = &f_1 + &f_2;
+
+    // r_poly
+    &f + &quot
 }
 
 #[cfg(feature = "alloc")]
@@ -288,72 +252,26 @@ fn compute_circuit_satisfiability(
         fixed_base_separation_challenge,
         var_base_separation_challenge,
     ): (&BlsScalar, &BlsScalar, &BlsScalar, &BlsScalar),
-    a_eval: &BlsScalar,
-    b_eval: &BlsScalar,
-    c_eval: &BlsScalar,
-    d_eval: &BlsScalar,
-    a_next_eval: &BlsScalar,
-    b_next_eval: &BlsScalar,
-    d_next_eval: &BlsScalar,
-    q_arith_eval: &BlsScalar,
-    q_c_eval: &BlsScalar,
-    q_l_eval: &BlsScalar,
-    q_r_eval: &BlsScalar,
+    evaluations: &ProofEvaluations,
     prover_key: &ProverKey,
 ) -> Polynomial {
-    let a = prover_key.arithmetic.compute_linearization(
-        a_eval,
-        b_eval,
-        c_eval,
-        d_eval,
-        q_arith_eval,
-    );
+    let a = prover_key.arithmetic.compute_linearization(evaluations);
 
-    let b = prover_key.range.compute_linearization(
-        range_separation_challenge,
-        a_eval,
-        b_eval,
-        c_eval,
-        d_eval,
-        d_next_eval,
-    );
+    let b = prover_key
+        .range
+        .compute_linearization(range_separation_challenge, evaluations);
 
-    let c = prover_key.logic.compute_linearization(
-        logic_separation_challenge,
-        a_eval,
-        a_next_eval,
-        b_eval,
-        b_next_eval,
-        c_eval,
-        d_eval,
-        d_next_eval,
-        q_c_eval,
-    );
+    let c = prover_key
+        .logic
+        .compute_linearization(logic_separation_challenge, evaluations);
 
-    let d = prover_key.fixed_base.compute_linearization(
-        fixed_base_separation_challenge,
-        a_eval,
-        a_next_eval,
-        b_eval,
-        b_next_eval,
-        c_eval,
-        d_eval,
-        d_next_eval,
-        q_l_eval,
-        q_r_eval,
-        q_c_eval,
-    );
+    let d = prover_key
+        .fixed_base
+        .compute_linearization(fixed_base_separation_challenge, evaluations);
 
-    let e = prover_key.variable_base.compute_linearization(
-        var_base_separation_challenge,
-        a_eval,
-        a_next_eval,
-        b_eval,
-        b_next_eval,
-        c_eval,
-        d_eval,
-        d_next_eval,
-    );
+    let e = prover_key
+        .variable_base
+        .compute_linearization(var_base_separation_challenge, evaluations);
 
     let mut linearization_poly = &a + &b;
     linearization_poly += &c;

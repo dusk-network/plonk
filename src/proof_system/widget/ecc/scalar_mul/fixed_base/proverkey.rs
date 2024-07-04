@@ -5,6 +5,7 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use crate::fft::{Evaluations, Polynomial};
+use crate::proof_system::linearization_poly::ProofEvaluations;
 use dusk_bls12_381::BlsScalar;
 use dusk_jubjub::EDWARDS_D;
 
@@ -104,16 +105,7 @@ impl ProverKey {
     pub(crate) fn compute_linearization(
         &self,
         ecc_separation_challenge: &BlsScalar,
-        a_eval: &BlsScalar,
-        a_next_eval: &BlsScalar,
-        b_eval: &BlsScalar,
-        b_next_eval: &BlsScalar,
-        c_eval: &BlsScalar,
-        d_eval: &BlsScalar,
-        d_next_eval: &BlsScalar,
-        q_l_eval: &BlsScalar,
-        q_r_eval: &BlsScalar,
-        q_c_eval: &BlsScalar,
+        evaluations: &ProofEvaluations,
     ) -> Polynomial {
         let q_fixed_group_add_poly = &self.q_fixed_group_add.0;
 
@@ -121,19 +113,19 @@ impl ProverKey {
         let kappa_sq = kappa.square();
         let kappa_cu = kappa_sq * kappa;
 
-        let x_beta_eval = q_l_eval;
-        let y_beta_eval = q_r_eval;
+        let x_beta_eval = evaluations.q_l_eval;
+        let y_beta_eval = evaluations.q_r_eval;
 
-        let acc_x = a_eval;
-        let acc_x_next = a_next_eval;
-        let acc_y = b_eval;
-        let acc_y_next = b_next_eval;
+        let acc_x = evaluations.a_eval;
+        let acc_x_next = evaluations.a_next_eval;
+        let acc_y = evaluations.b_eval;
+        let acc_y_next = evaluations.b_next_eval;
 
-        let xy_alpha = c_eval;
+        let xy_alpha = evaluations.c_eval;
 
-        let accumulated_bit = d_eval;
-        let accumulated_bit_next = d_next_eval;
-        let bit = extract_bit(accumulated_bit, accumulated_bit_next);
+        let accumulated_bit = evaluations.d_eval;
+        let accumulated_bit_next = evaluations.d_next_eval;
+        let bit = extract_bit(&accumulated_bit, &accumulated_bit_next);
 
         // Check bit consistency
         let bit_consistency = check_bit_consistency(bit);
@@ -144,7 +136,7 @@ impl ProverKey {
         let x_alpha = x_beta_eval * bit;
 
         // xy_alpha consistency check
-        let xy_consistency = ((bit * q_c_eval) - xy_alpha) * kappa;
+        let xy_consistency = ((bit * evaluations.q_c_eval) - xy_alpha) * kappa;
 
         // x accumulator consistency check
         let x_3 = acc_x_next;

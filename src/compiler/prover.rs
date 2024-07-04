@@ -14,11 +14,11 @@ use merlin::Transcript;
 use rand_core::{CryptoRng, RngCore};
 
 use crate::commitment_scheme::CommitKey;
+use crate::compiler::prover::linearization_poly::ProofEvaluations;
 use crate::error::Error;
 use crate::fft::{EvaluationDomain, Polynomial};
-use crate::proof_system::proof::Proof;
 use crate::proof_system::{
-    linearization_poly, quotient_poly, ProverKey, VerifierKey,
+    linearization_poly, proof::Proof, quotient_poly, ProverKey, VerifierKey,
 };
 use crate::transcript::TranscriptProtocol;
 
@@ -433,13 +433,50 @@ impl Prover {
 
         transcript.append_scalar(b"z_eval", &z_eval);
 
+        // Compute extra evaluations
+        let a_next_eval = a_w_poly.evaluate(&(z_challenge * domain.group_gen));
+        let b_next_eval = b_w_poly.evaluate(&(z_challenge * domain.group_gen));
+        let d_next_eval = d_w_poly.evaluate(&(z_challenge * domain.group_gen));
+
+        let q_arith_eval =
+            self.prover_key.arithmetic.q_arith.0.evaluate(&z_challenge);
+        let q_c_eval = self.prover_key.logic.q_c.0.evaluate(&z_challenge);
+        let q_l_eval = self.prover_key.fixed_base.q_l.0.evaluate(&z_challenge);
+        let q_r_eval = self.prover_key.fixed_base.q_r.0.evaluate(&z_challenge);
+
+        // add extra evaluations to transcript.
+        transcript.append_scalar(b"a_next_eval", &a_next_eval);
+        transcript.append_scalar(b"b_next_eval", &b_next_eval);
+        transcript.append_scalar(b"d_next_eval", &d_next_eval);
+        transcript.append_scalar(b"q_arith_eval", &q_arith_eval);
+        transcript.append_scalar(b"q_c_eval", &q_c_eval);
+        transcript.append_scalar(b"q_l_eval", &q_l_eval);
+        transcript.append_scalar(b"q_r_eval", &q_r_eval);
+
+        let evaluations = ProofEvaluations {
+            a_eval,
+            b_eval,
+            c_eval,
+            d_eval,
+            a_next_eval,
+            b_next_eval,
+            d_next_eval,
+            q_arith_eval,
+            q_c_eval,
+            q_l_eval,
+            q_r_eval,
+            s_sigma_1_eval,
+            s_sigma_2_eval,
+            s_sigma_3_eval,
+            z_eval,
+        };
+
         // round 5
         // compute the challenge 'v'
         let v_challenge = transcript.challenge_scalar(b"v_challenge");
 
         // compute linearization polynomial
-        let (r_poly, evaluations) = linearization_poly::compute(
-            &domain,
+        let r_poly = linearization_poly::compute(
             &self.prover_key,
             &(
                 alpha,
@@ -451,53 +488,19 @@ impl Prover {
                 var_base_sep_challenge,
                 z_challenge,
             ),
-            &a_w_poly,
-            &b_w_poly,
-            &d_w_poly,
-            &t_poly,
             &z_poly,
-            &a_eval,
-            &b_eval,
-            &c_eval,
-            &d_eval,
-            &s_sigma_1_eval,
-            &s_sigma_2_eval,
-            &s_sigma_3_eval,
-            &z_eval,
+            &evaluations,
+            &domain,
+            &t_low_poly,
+            &t_mid_poly,
+            &t_high_poly,
+            &t_4_poly,
+            &public_inputs,
         );
-
-        // add evaluations to transcript.
-        transcript
-            .append_scalar(b"a_next_eval", &evaluations.proof.a_next_eval);
-        transcript
-            .append_scalar(b"b_next_eval", &evaluations.proof.b_next_eval);
-        transcript
-            .append_scalar(b"d_next_eval", &evaluations.proof.d_next_eval);
-        transcript
-            .append_scalar(b"q_arith_eval", &evaluations.proof.q_arith_eval);
-        transcript.append_scalar(b"q_c_eval", &evaluations.proof.q_c_eval);
-        transcript.append_scalar(b"q_l_eval", &evaluations.proof.q_l_eval);
-        transcript.append_scalar(b"q_r_eval", &evaluations.proof.q_r_eval);
-        transcript.append_scalar(b"t_eval", &evaluations.t_eval);
-        transcript.append_scalar(b"r_eval", &evaluations.proof.r_poly_eval);
-
-        // compute Openings using KZG10
-        let z_n = z_challenge.pow(&[domain_size as u64, 0, 0, 0]);
-        let z_two_n = z_challenge.pow(&[2 * domain_size as u64, 0, 0, 0]);
-        let z_three_n = z_challenge.pow(&[3 * domain_size as u64, 0, 0, 0]);
-
-        let a = &t_low_poly;
-        let b = &t_mid_poly * &z_n;
-        let c = &t_high_poly * &z_two_n;
-        let d = &t_4_poly * &z_three_n;
-        let abc = &(a + &b) + &c;
-
-        let quot = &abc + &d;
 
         // compute the opening proof polynomial 'W_z(X)'
         let aggregate_witness = CommitKey::compute_aggregate_witness(
             &[
-                quot,
                 r_poly,
                 a_w_poly.clone(),
                 b_w_poly.clone(),
@@ -541,7 +544,7 @@ impl Prover {
             w_z_chall_comm,
             w_z_chall_w_comm,
 
-            evaluations: evaluations.proof,
+            evaluations,
         };
 
         Ok((proof, public_inputs))
