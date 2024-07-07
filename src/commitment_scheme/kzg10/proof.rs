@@ -34,6 +34,7 @@ pub(crate) mod alloc {
     /// Proof that multiple polynomials were correctly evaluated at a point `z`,
     /// each producing their respective evaluated points p_i(z).
     #[derive(Debug)]
+    #[allow(dead_code)]
     pub(crate) struct AggregateProof {
         /// This is a commitment to the aggregated witness polynomial.
         pub(crate) commitment_to_witness: Commitment,
@@ -45,6 +46,7 @@ pub(crate) mod alloc {
         pub(crate) commitments_to_polynomials: Vec<Commitment>,
     }
 
+    #[allow(dead_code)]
     impl AggregateProof {
         /// Initializes an `AggregatedProof` with the commitment to the witness.
         pub(crate) fn with_witness(witness: Commitment) -> AggregateProof {

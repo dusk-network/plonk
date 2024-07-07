@@ -12,6 +12,11 @@ use crate::commitment_scheme::Commitment;
 
 use dusk_bytes::{DeserializableSlice, Serializable};
 
+#[cfg(feature = "std")]
+use rayon::prelude::*;
+
+const V_MAX_DEGREE: usize = 7;
+
 #[cfg(feature = "rkyv-impl")]
 use crate::util::check_field;
 #[cfg(feature = "rkyv-impl")]
@@ -172,6 +177,7 @@ impl Serializable<{ 11 * Commitment::SIZE + ProofEvaluations::SIZE }>
 }
 
 #[cfg(feature = "alloc")]
+#[allow(unused_imports)]
 pub(crate) mod alloc {
     use super::*;
     use crate::{
@@ -185,7 +191,7 @@ pub(crate) mod alloc {
     #[rustfmt::skip]
     use ::alloc::vec::Vec;
     use dusk_bls12_381::{
-        multiscalar_mul::msm_variable_base, BlsScalar, G1Affine,
+        multiscalar_mul::msm_variable_base, BlsScalar, G1Affine, G1Projective,
     };
     use merlin::Transcript;
     #[cfg(feature = "std")]
@@ -193,6 +199,7 @@ pub(crate) mod alloc {
 
     impl Proof {
         /// Performs the verification of a [`Proof`] returning a boolean result.
+        #[allow(non_snake_case)]
         pub(crate) fn verify(
             &self,
             verifier_key: &VerifierKey,
@@ -280,6 +287,14 @@ pub(crate) mod alloc {
             transcript.append_scalar(b"q_r_eval", &self.evaluations.q_r_eval);
 
             let v_challenge = transcript.challenge_scalar(b"v_challenge");
+            let v_w_challenge = transcript.challenge_scalar(b"v_w_challenge");
+
+            // Add commitment to openings to transcript
+            transcript.append_commitment(b"w_z", &self.w_z_chall_comm);
+            transcript.append_commitment(b"w_z_w", &self.w_z_chall_w_comm);
+
+            // Compute the challenge 'u'
+            let u_challenge = transcript.challenge_scalar(b"u_challenge");
 
             // Compute zero polynomial evaluated at challenge `z`
             let z_h_eval = domain.evaluate_vanishing_polynomial(&z_challenge);
@@ -291,26 +306,31 @@ pub(crate) mod alloc {
                 &z_challenge,
             );
 
-            // Compute linearization commitment
-            let r_comm = self.compute_linearization_commitment(
-                &alpha,
-                &beta,
-                &gamma,
-                (
-                    &range_sep_challenge,
-                    &logic_sep_challenge,
-                    &fixed_base_sep_challenge,
-                    &var_base_sep_challenge,
-                ),
-                &z_challenge,
-                l1_eval,
-                verifier_key,
-                &domain,
-            );
+            // Compute '[D]_1'
+            let D = self
+                .compute_linearization_commitment(
+                    &alpha,
+                    &beta,
+                    &gamma,
+                    (
+                        &range_sep_challenge,
+                        &logic_sep_challenge,
+                        &fixed_base_sep_challenge,
+                        &var_base_sep_challenge,
+                    ),
+                    &z_challenge,
+                    &u_challenge,
+                    l1_eval,
+                    verifier_key,
+                    &domain,
+                )
+                .0;
 
+            // Evaluate public inputs
             let pi_eval =
                 compute_barycentric_eval(pub_inputs, &z_challenge, &domain);
 
+            // Compute r_0
             let r_0_eval = pi_eval
                 - l1_eval * alpha.square()
                 - alpha
@@ -326,70 +346,119 @@ pub(crate) mod alloc {
                     * (self.evaluations.d_eval + gamma)
                     * self.evaluations.z_eval;
 
-            // Commitment Scheme
-            // Now we delegate computation to the commitment scheme by batch
-            // checking two proofs The `AggregateProof`, which is a
-            // proof that all the necessary polynomials evaluated at
-            // challenge `z` are correct and a `SingleProof` which
-            // is proof that the permutation polynomial evaluated at the shifted
-            // root of unity is correct
+            // Coefficients to compute [E]_1
+            let mut v_coeffs_E = vec![v_challenge];
 
-            // Compose the Aggregated Proof
-            //
-            let mut aggregate_proof =
-                AggregateProof::with_witness(self.w_z_chall_comm);
-            aggregate_proof.add_part((-r_0_eval, r_comm));
-            aggregate_proof.add_part((self.evaluations.a_eval, self.a_comm));
-            aggregate_proof.add_part((self.evaluations.b_eval, self.b_comm));
-            aggregate_proof.add_part((self.evaluations.c_eval, self.c_comm));
-            aggregate_proof.add_part((self.evaluations.d_eval, self.d_comm));
-            aggregate_proof.add_part((
-                self.evaluations.s_sigma_1_eval,
-                verifier_key.permutation.s_sigma_1,
-            ));
-            aggregate_proof.add_part((
-                self.evaluations.s_sigma_2_eval,
-                verifier_key.permutation.s_sigma_2,
-            ));
-            aggregate_proof.add_part((
-                self.evaluations.s_sigma_3_eval,
-                verifier_key.permutation.s_sigma_3,
-            ));
-            // Flatten proof with opening challenge
-            let flattened_proof_a = aggregate_proof.flatten(&v_challenge);
-
-            // Compose the shifted aggregate proof
-            let mut shifted_aggregate_proof =
-                AggregateProof::with_witness(self.w_z_chall_w_comm);
-            shifted_aggregate_proof
-                .add_part((self.evaluations.z_eval, self.z_comm));
-            shifted_aggregate_proof
-                .add_part((self.evaluations.a_next_eval, self.a_comm));
-            shifted_aggregate_proof
-                .add_part((self.evaluations.b_next_eval, self.b_comm));
-            shifted_aggregate_proof
-                .add_part((self.evaluations.d_next_eval, self.d_comm));
-
-            let v_challenge_shifted =
-                transcript.challenge_scalar(b"v_challenge_shifted");
-            let flattened_proof_b =
-                shifted_aggregate_proof.flatten(&v_challenge_shifted);
-
-            // Add commitment to openings to transcript
-            transcript.append_commitment(b"w_z", &self.w_z_chall_comm);
-            transcript.append_commitment(b"w_z_w", &self.w_z_chall_w_comm);
-
-            // Batch check
-            if opening_key
-                .batch_check(
-                    &[z_challenge, (z_challenge * domain.group_gen)],
-                    &[flattened_proof_a, flattened_proof_b],
-                    transcript,
-                )
-                .is_err()
-            {
-                return Err(Error::ProofVerificationError);
+            // Compute the powers of the v_challenge
+            for i in 1..V_MAX_DEGREE {
+                v_coeffs_E.push(v_coeffs_E[i - 1] * v_challenge);
             }
+
+            // Compute the powers of the v_challenge multiplied by u_challenge
+            v_coeffs_E.push(v_w_challenge * u_challenge);
+            v_coeffs_E.push(v_coeffs_E[V_MAX_DEGREE] * v_w_challenge);
+            v_coeffs_E.push(v_coeffs_E[V_MAX_DEGREE + 1] * v_w_challenge);
+
+            // Coefficients to compute [F]_1
+            let mut v_coeffs_F = v_coeffs_E[..V_MAX_DEGREE].to_vec();
+
+            // As we include the shifted coefficients when computing [F]_1,
+            // we group them to save scalar multiplications when multiplying
+            // by [a]_1, [b]_1, and [d]_1
+            v_coeffs_F[0] += v_coeffs_E[V_MAX_DEGREE];
+            v_coeffs_F[1] += v_coeffs_E[V_MAX_DEGREE + 1];
+            v_coeffs_F[3] += v_coeffs_E[V_MAX_DEGREE + 2];
+
+            // Commitments to compute [F]_1
+            let F_comms = vec![
+                self.a_comm.0,
+                self.b_comm.0,
+                self.c_comm.0,
+                self.d_comm.0,
+                verifier_key.permutation.s_sigma_1.0,
+                verifier_key.permutation.s_sigma_2.0,
+                verifier_key.permutation.s_sigma_3.0,
+            ];
+
+            // Compute '[F]_1' in single-core
+            #[cfg(not(feature = "std"))]
+            let mut F: G1Projective = F_comms
+                .iter()
+                .zip(v_coeffs_F.iter())
+                .map(|(poly, coeff)| poly * coeff)
+                .sum();
+
+            // Compute '[F]_1' in multi-core
+            #[cfg(feature = "std")]
+            let mut F: G1Projective = F_comms
+                .par_iter()
+                .zip(v_coeffs_F.par_iter())
+                .map(|(poly, coeff)| poly * coeff)
+                .sum();
+
+            // [F]_1 = [D]_1 + (v)[a]_1 + (v^2)[b]_1 + (v^3)[c]_1 + (v^4)[d]_1 +
+            // + (v^5)[s_sigma_1]_1 + (v^6)[s_sigma_2]_1 + (v^7)[s_sigma_3]_1 +
+            // + (u * v_w)[a]_1 + (u * v_w^2)[b]_1 + (u * v_w^3)[d]_1
+            F += D;
+
+            // Evaluations to compute [E]_1
+            let E_evals = vec![
+                self.evaluations.a_eval,
+                self.evaluations.b_eval,
+                self.evaluations.c_eval,
+                self.evaluations.d_eval,
+                self.evaluations.s_sigma_1_eval,
+                self.evaluations.s_sigma_2_eval,
+                self.evaluations.s_sigma_3_eval,
+                self.evaluations.a_next_eval,
+                self.evaluations.b_next_eval,
+                self.evaluations.d_next_eval,
+            ];
+
+            // Compute '[E]_1' = (-r_0 + (v)a + (v^2)b + (v^3)c + (v^4)d +
+            // + (v^5)s_sigma_1 + (v^6)s_sigma_2 + (v^7)s_sigma_3 +
+            // + (u)z_w + (u * v_w)a_w + (u * v_w^2)b_w + (u * v_w^3)d_w)
+            let mut E: BlsScalar = E_evals
+                .iter()
+                .zip(v_coeffs_E.iter())
+                .map(|(eval, coeff)| eval * coeff)
+                .sum();
+            E += -r_0_eval + (u_challenge * self.evaluations.z_eval);
+
+            let E = E * opening_key.g;
+
+            // Compute the G_1 element of the first pairing:
+            // [W_z]_1 + u * [W_zw]_1
+            //
+            // Note that we negate this value to be able to subtract
+            // the pairings later on, using the multi Miller loop
+            let left = G1Affine::from(
+                -(self.w_z_chall_comm.0
+                    + u_challenge * self.w_z_chall_w_comm.0),
+            );
+
+            // Compute the G_1 element of the second pairing:
+            // z * [W_z]_1 + (u * z * w) * [W_zw]_1 + [F]_1 - [E]_1
+            let right = G1Affine::from(
+                z_challenge * self.w_z_chall_comm.0
+                    + (u_challenge * z_challenge * domain.group_gen)
+                        * self.w_z_chall_w_comm.0
+                    + F
+                    - E,
+            );
+
+            // Compute the two pairings and subtract them
+            let pairing = dusk_bls12_381::multi_miller_loop(&[
+                (&left, &opening_key.prepared_x_h),
+                (&right, &opening_key.prepared_h),
+            ])
+            .final_exponentiation();
+
+            // Return 'ProofVerificationError' if the two
+            // pairings are not equal, continue otherwise
+            if pairing != dusk_bls12_381::Gt::identity() {
+                return Err(Error::ProofVerificationError);
+            };
 
             Ok(())
         }
@@ -408,6 +477,7 @@ pub(crate) mod alloc {
                 var_base_sep_challenge,
             ): (&BlsScalar, &BlsScalar, &BlsScalar, &BlsScalar),
             z_challenge: &BlsScalar,
+            u_challenge: &BlsScalar,
             l1_eval: BlsScalar,
             verifier_key: &VerifierKey,
             domain: &EvaluationDomain,
@@ -454,6 +524,7 @@ pub(crate) mod alloc {
                 &mut points,
                 &self.evaluations,
                 z_challenge,
+                u_challenge,
                 (alpha, beta, gamma),
                 &l1_eval,
                 self.z_comm.0,

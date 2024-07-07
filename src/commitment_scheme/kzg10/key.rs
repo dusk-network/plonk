@@ -225,15 +225,15 @@ pub struct OpeningKey {
     /// The generator of G2.
     #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) h: G2Affine,
-    /// \beta times the above generator of G2.
+    /// 'x' times the above generator of G2.
     #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
-    pub(crate) beta_h: G2Affine,
+    pub(crate) x_h: G2Affine,
     /// The generator of G2, prepared for use in pairings.
     #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) prepared_h: G2Prepared,
-    /// \beta times the above generator of G2, prepared for use in pairings.
+    /// 'x' times the above generator of G2, prepared for use in pairings.
     #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
-    pub(crate) prepared_beta_h: G2Prepared,
+    pub(crate) prepared_x_h: G2Prepared,
 }
 
 impl Serializable<{ G1Affine::SIZE + G2Affine::SIZE * 2 }> for OpeningKey {
@@ -246,7 +246,7 @@ impl Serializable<{ G1Affine::SIZE + G2Affine::SIZE * 2 }> for OpeningKey {
         // This can't fail therefore we don't care about the Result nor use it.
         writer.write(&self.g.to_bytes());
         writer.write(&self.h.to_bytes());
-        writer.write(&self.beta_h.to_bytes());
+        writer.write(&self.x_h.to_bytes());
 
         buf
     }
@@ -262,24 +262,21 @@ impl Serializable<{ G1Affine::SIZE + G2Affine::SIZE * 2 }> for OpeningKey {
 }
 
 impl OpeningKey {
-    pub(crate) fn new(
-        g: G1Affine,
-        h: G2Affine,
-        beta_h: G2Affine,
-    ) -> OpeningKey {
+    pub(crate) fn new(g: G1Affine, h: G2Affine, x_h: G2Affine) -> OpeningKey {
         let prepared_h = G2Prepared::from(h);
-        let prepared_beta_h = G2Prepared::from(beta_h);
+        let prepared_x_h = G2Prepared::from(x_h);
         OpeningKey {
             g,
             h,
-            beta_h,
+            x_h,
             prepared_h,
-            prepared_beta_h,
+            prepared_x_h,
         }
     }
 
     /// Checks whether a batch of polynomials evaluated at different points,
     /// returned their specified value.
+    #[allow(dead_code)]
     pub(crate) fn batch_check(
         &self,
         points: &[BlsScalar],
@@ -313,7 +310,7 @@ impl OpeningKey {
         let affine_total_c = G1Affine::from(total_c);
 
         let pairing = dusk_bls12_381::multi_miller_loop(&[
-            (&affine_total_w, &self.prepared_beta_h),
+            (&affine_total_w, &self.prepared_x_h),
             (&affine_total_c, &self.prepared_h),
         ])
         .final_exponentiation();
@@ -343,7 +340,7 @@ mod test {
             - (op_key.g * proof.evaluated_point))
             .into();
 
-        let inner_b: G2Affine = (op_key.beta_h - (op_key.h * point)).into();
+        let inner_b: G2Affine = (op_key.x_h - (op_key.h * point)).into();
         let prepared_inner_b = G2Prepared::from(-inner_b);
 
         let pairing = dusk_bls12_381::multi_miller_loop(&[

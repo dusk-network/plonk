@@ -48,6 +48,7 @@ mod alloc {
             points: &mut Vec<G1Affine>,
             evaluations: &ProofEvaluations,
             z_challenge: &BlsScalar,
+            u_challenge: &BlsScalar,
             (alpha, beta, gamma): (&BlsScalar, &BlsScalar, &BlsScalar),
             l1_eval: &BlsScalar,
             z_comm: G1Affine,
@@ -77,7 +78,7 @@ mod alloc {
             // l1(z) * alpha^2
             let r = l1_eval * alpha_sq;
 
-            scalars.push(x + r);
+            scalars.push(x + r + u_challenge);
             points.push(z_comm);
 
             // -1 * (a_eval + beta * sigma_1_eval + gamma)

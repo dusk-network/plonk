@@ -515,15 +515,14 @@ impl Prover {
         );
         let w_z_chall_comm = self.commit_key.commit(&aggregate_witness)?;
 
-        // compute the shifted challenge 'v'
-        let v_challenge_shifted =
-            transcript.challenge_scalar(b"v_challenge_shifted");
+        // compute the shifted challenge 'v_w'
+        let v_w_challenge = transcript.challenge_scalar(b"v_w_challenge");
 
         // compute the shifted opening proof polynomial 'W_zw(X)'
         let shifted_aggregate_witness = CommitKey::compute_aggregate_witness(
             &[z_poly, a_w_poly, b_w_poly, d_w_poly],
             &(z_challenge * domain.group_gen),
-            &v_challenge_shifted,
+            &v_w_challenge,
         );
         let w_z_chall_w_comm =
             self.commit_key.commit(&shifted_aggregate_witness)?;
