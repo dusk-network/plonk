@@ -33,11 +33,11 @@ impl ProverKey {
         &self,
         index: usize,
         range_separation_challenge: &BlsScalar,
-        a_w_i: &BlsScalar,
-        b_w_i: &BlsScalar,
-        c_w_i: &BlsScalar,
-        d_w_i: &BlsScalar,
-        d_w_i_next: &BlsScalar,
+        a_i: &BlsScalar,
+        b_i: &BlsScalar,
+        c_i: &BlsScalar,
+        d_i: &BlsScalar,
+        d_i_w: &BlsScalar,
     ) -> BlsScalar {
         let four = BlsScalar::from(4);
         let q_range_i = &self.q_range.1[index];
@@ -49,10 +49,10 @@ impl ProverKey {
         // Delta([o(X) - 4 * d(X)]) + Delta([b(X) - 4 * o(X)]) + Delta([a(X) - 4
         // * b(X)]) + Delta([d(Xg) - 4 * a(X)]) * Q_Range(X)
         //
-        let b_1 = delta(c_w_i - four * d_w_i);
-        let b_2 = delta(b_w_i - four * c_w_i) * kappa;
-        let b_3 = delta(a_w_i - four * b_w_i) * kappa_sq;
-        let b_4 = delta(d_w_i_next - four * a_w_i) * kappa_cu;
+        let b_1 = delta(c_i - four * d_i);
+        let b_2 = delta(b_i - four * c_i) * kappa;
+        let b_3 = delta(a_i - four * b_i) * kappa_sq;
+        let b_4 = delta(d_i_w - four * a_i) * kappa_cu;
         (b_1 + b_2 + b_3 + b_4) * q_range_i * range_separation_challenge
     }
 
@@ -69,14 +69,14 @@ impl ProverKey {
         let kappa_cu = kappa_sq * kappa;
 
         // Delta([c_eval - 4 * d_eval]) + Delta([b_eval - 4 * c_eval]) +
-        // Delta([a_eval - 4 * b_eval]) + Delta([d_next_eval - 4 * a_eval]) *
+        // Delta([a_eval - 4 * b_eval]) + Delta([d_w_eval - 4 * a_eval]) *
         // Q_Range(X)
         let b_1 = delta(evaluations.c_eval - four * evaluations.d_eval);
         let b_2 = delta(evaluations.b_eval - four * evaluations.c_eval) * kappa;
         let b_3 =
             delta(evaluations.a_eval - four * evaluations.b_eval) * kappa_sq;
-        let b_4 = delta(evaluations.d_next_eval - four * evaluations.a_eval)
-            * kappa_cu;
+        let b_4 =
+            delta(evaluations.d_w_eval - four * evaluations.a_eval) * kappa_cu;
 
         let t = (b_1 + b_2 + b_3 + b_4) * range_separation_challenge;
 

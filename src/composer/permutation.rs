@@ -222,8 +222,8 @@ impl Permutation {
         // Constants defining cosets H, k1H, k2H, etc
         let ks = vec![BlsScalar::one(), K1, K2, K3];
 
-        // Transpose wires and sigma values to get "rows" in the form [a_w_i,
-        // b_w_i, c_w_i, d_w_i] where each row contains the wire and sigma
+        // Transpose wires and sigma values to get "rows" in the form [a_i,
+        // b_i, c_i, d_i] where each row contains the wire and sigma
         // values for a single gate
         let gatewise_wires = izip!(wires[0], wires[1], wires[2], wires[3])
             .map(|(w0, w1, w2, w3)| vec![w0, w1, w2, w3]);
@@ -309,10 +309,10 @@ mod test {
     #[allow(dead_code)]
     fn compute_fast_permutation_poly(
         domain: &EvaluationDomain,
-        a_w: &[BlsScalar],
-        b_w: &[BlsScalar],
-        c_w: &[BlsScalar],
-        d_w: &[BlsScalar],
+        a: &[BlsScalar],
+        b: &[BlsScalar],
+        c: &[BlsScalar],
+        d: &[BlsScalar],
         beta: &BlsScalar,
         gamma: &BlsScalar,
         (s_sigma_1_poly, s_sigma_2_poly, s_sigma_3_poly, s_sigma_4_poly): (
@@ -356,24 +356,24 @@ mod test {
             common_roots.iter().map(|x| x * K3).collect();
 
         // Compute left_wire + gamma
-        let a_w_gamma: Vec<_> = a_w.iter().map(|a_w| a_w + gamma).collect();
+        let a_gamma: Vec<_> = a.iter().map(|a| a + gamma).collect();
 
         // Compute right_wire + gamma
-        let b_w_gamma: Vec<_> = b_w.iter().map(|b_w| b_w + gamma).collect();
+        let b_gamma: Vec<_> = b.iter().map(|b| b + gamma).collect();
 
         // Compute out_wire + gamma
-        let c_w_gamma: Vec<_> = c_w.iter().map(|c_w| c_w + gamma).collect();
+        let c_gamma: Vec<_> = c.iter().map(|c| c + gamma).collect();
 
         // Compute fourth_wire + gamma
-        let d_w_gamma: Vec<_> = d_w.iter().map(|d_w| d_w + gamma).collect();
+        let d_gamma: Vec<_> = d.iter().map(|d| d + gamma).collect();
 
         // Compute 6 accumulator components
         // Parallelizable
         let accumulator_components_without_l1: Vec<_> = izip!(
-            a_w_gamma,
-            b_w_gamma,
-            c_w_gamma,
-            d_w_gamma,
+            a_gamma,
+            b_gamma,
+            c_gamma,
+            d_gamma,
             common_roots,
             beta_roots_k1,
             beta_roots_k2,
@@ -385,10 +385,10 @@ mod test {
         )
         .map(
             |(
-                a_w_gamma,
-                b_w_gamma,
-                c_w_gamma,
-                d_w_gamma,
+                a_gamma,
+                b_gamma,
+                c_gamma,
+                d_gamma,
                 beta_root,
                 beta_root_k1,
                 beta_root_k2,
@@ -399,28 +399,28 @@ mod test {
                 beta_s_sigma_4,
             )| {
                 // w_j + beta * root^j-1 + gamma
-                let ac1 = a_w_gamma + beta_root;
+                let ac1 = a_gamma + beta_root;
 
                 // w_{n+j} + beta * K1 * root^j-1 + gamma
-                let ac2 = b_w_gamma + beta_root_k1;
+                let ac2 = b_gamma + beta_root_k1;
 
                 // w_{2n+j} + beta * K2 * root^j-1 + gamma
-                let ac3 = c_w_gamma + beta_root_k2;
+                let ac3 = c_gamma + beta_root_k2;
 
                 // w_{3n+j} + beta * K3 * root^j-1 + gamma
-                let ac4 = d_w_gamma + beta_root_k3;
+                let ac4 = d_gamma + beta_root_k3;
 
                 // 1 / w_j + beta * sigma(j) + gamma
-                let ac5 = (a_w_gamma + beta_s_sigma_1).invert().unwrap();
+                let ac5 = (a_gamma + beta_s_sigma_1).invert().unwrap();
 
                 // 1 / w_{n+j} + beta * sigma(n+j) + gamma
-                let ac6 = (b_w_gamma + beta_s_sigma_2).invert().unwrap();
+                let ac6 = (b_gamma + beta_s_sigma_2).invert().unwrap();
 
                 // 1 / w_{2n+j} + beta * sigma(2n+j) + gamma
-                let ac7 = (c_w_gamma + beta_s_sigma_3).invert().unwrap();
+                let ac7 = (c_gamma + beta_s_sigma_3).invert().unwrap();
 
                 // 1 / w_{3n+j} + beta * sigma(3n+j) + gamma
-                let ac8 = (d_w_gamma + beta_s_sigma_4).invert().unwrap();
+                let ac8 = (d_gamma + beta_s_sigma_4).invert().unwrap();
 
                 [ac1, ac2, ac3, ac4, ac5, ac6, ac7, ac8]
             },
@@ -470,10 +470,10 @@ mod test {
 
     fn compute_slow_permutation_poly<I>(
         domain: &EvaluationDomain,
-        a_w: I,
-        b_w: I,
-        c_w: I,
-        d_w: I,
+        a: I,
+        b: I,
+        c: I,
+        d: I,
         beta: &BlsScalar,
         gamma: &BlsScalar,
         (s_sigma_1_poly, s_sigma_2_poly, s_sigma_3_poly, s_sigma_4_poly): (
@@ -516,16 +516,16 @@ mod test {
         let beta_roots_k3_iter = domain.elements().map(|root| K3 * beta * root);
 
         // Compute left_wire + gamma
-        let a_w_gamma: Vec<_> = a_w.map(|w| w + gamma).collect();
+        let a_gamma: Vec<_> = a.map(|w| w + gamma).collect();
 
         // Compute right_wire + gamma
-        let b_w_gamma: Vec<_> = b_w.map(|w| w + gamma).collect();
+        let b_gamma: Vec<_> = b.map(|w| w + gamma).collect();
 
         // Compute out_wire + gamma
-        let c_w_gamma: Vec<_> = c_w.map(|w| w + gamma).collect();
+        let c_gamma: Vec<_> = c.map(|w| w + gamma).collect();
 
         // Compute fourth_wire + gamma
-        let d_w_gamma: Vec<_> = d_w.map(|w| w + gamma).collect();
+        let d_gamma: Vec<_> = d.map(|w| w + gamma).collect();
 
         let mut numerator_partial_components: Vec<BlsScalar> =
             Vec::with_capacity(n);
@@ -542,35 +542,35 @@ mod test {
 
         // Compute numerator coefficients
         for (
-            a_w_gamma,
-            b_w_gamma,
-            c_w_gamma,
-            d_w_gamma,
+            a_gamma,
+            b_gamma,
+            c_gamma,
+            d_gamma,
             beta_root,
             beta_root_k1,
             beta_root_k2,
             beta_root_k3,
         ) in izip!(
-            a_w_gamma.iter(),
-            b_w_gamma.iter(),
-            c_w_gamma.iter(),
-            d_w_gamma.iter(),
+            a_gamma.iter(),
+            b_gamma.iter(),
+            c_gamma.iter(),
+            d_gamma.iter(),
             beta_roots_iter,
             beta_roots_k1_iter,
             beta_roots_k2_iter,
             beta_roots_k3_iter,
         ) {
-            // (a_w + beta * root + gamma)
-            let prod_a = beta_root + a_w_gamma;
+            // (a + beta * root + gamma)
+            let prod_a = beta_root + a_gamma;
 
-            // (b_w + beta * root * k_1 + gamma)
-            let prod_b = beta_root_k1 + b_w_gamma;
+            // (b + beta * root * k_1 + gamma)
+            let prod_b = beta_root_k1 + b_gamma;
 
-            // (c_w + beta * root * k_2 + gamma)
-            let prod_c = beta_root_k2 + c_w_gamma;
+            // (c + beta * root * k_2 + gamma)
+            let prod_c = beta_root_k2 + c_gamma;
 
-            // (d_w + beta * root * k_3 + gamma)
-            let prod_d = beta_root_k3 + d_w_gamma;
+            // (d + beta * root * k_3 + gamma)
+            let prod_d = beta_root_k3 + d_gamma;
 
             let mut prod = prod_a * prod_b * prod_c * prod_d;
 
@@ -583,35 +583,35 @@ mod test {
 
         // Compute denominator coefficients
         for (
-            a_w_gamma,
-            b_w_gamma,
-            c_w_gamma,
-            d_w_gamma,
+            a_gamma,
+            b_gamma,
+            c_gamma,
+            d_gamma,
             beta_s_sigma_1,
             beta_s_sigma_2,
             beta_s_sigma_3,
             beta_s_sigma_4,
         ) in izip!(
-            a_w_gamma,
-            b_w_gamma,
-            c_w_gamma,
-            d_w_gamma,
+            a_gamma,
+            b_gamma,
+            c_gamma,
+            d_gamma,
             beta_s_sigma_1_iter,
             beta_s_sigma_2_iter,
             beta_s_sigma_3_iter,
             beta_s_sigma_4_iter,
         ) {
-            // (a_w + beta * s_sigma_1 + gamma)
-            let prod_a = beta_s_sigma_1 + a_w_gamma;
+            // (a + beta * s_sigma_1 + gamma)
+            let prod_a = beta_s_sigma_1 + a_gamma;
 
-            // (b_w + beta * s_sigma_2 + gamma)
-            let prod_b = beta_s_sigma_2 + b_w_gamma;
+            // (b + beta * s_sigma_2 + gamma)
+            let prod_b = beta_s_sigma_2 + b_gamma;
 
-            // (c_w + beta * s_sigma_3 + gamma)
-            let prod_c = beta_s_sigma_3 + c_w_gamma;
+            // (c + beta * s_sigma_3 + gamma)
+            let prod_c = beta_s_sigma_3 + c_gamma;
 
-            // (d_w + beta * s_sigma_4 + gamma)
-            let prod_d = beta_s_sigma_4 + d_w_gamma;
+            // (d + beta * s_sigma_4 + gamma)
+            let prod_d = beta_s_sigma_4 + d_gamma;
 
             let mut prod = prod_a * prod_b * prod_c * prod_d;
 
@@ -797,25 +797,25 @@ mod test {
         assert_eq!(encoded_s_sigma_4[2], w_cubed * K3);
         assert_eq!(encoded_s_sigma_4[3], K3);
 
-        let a_w = vec![
+        let a = vec![
             BlsScalar::from(2),
             BlsScalar::from(2),
             BlsScalar::from(2),
             BlsScalar::from(2),
         ];
-        let b_w = vec![
+        let b = vec![
             BlsScalar::from(2),
             BlsScalar::one(),
             BlsScalar::one(),
             BlsScalar::one(),
         ];
-        let c_w = vec![
+        let c = vec![
             BlsScalar::one(),
             BlsScalar::one(),
             BlsScalar::one(),
             BlsScalar::one(),
         ];
-        let d_w = vec![
+        let d = vec![
             BlsScalar::one(),
             BlsScalar::one(),
             BlsScalar::one(),
@@ -826,10 +826,10 @@ mod test {
             num_wire_mappings,
             perm,
             &domain,
-            a_w,
-            b_w,
-            c_w,
-            d_w,
+            a,
+            b,
+            c,
+            d,
         );
     }
 
@@ -953,19 +953,19 @@ mod test {
         perm.add_witnesses_to_map(var_one, var_two, var_three, var_four, 0);
         perm.add_witnesses_to_map(var_three, var_two, var_one, var_four, 1);
 
-        let a_w: Vec<_> = vec![BlsScalar::one(), BlsScalar::from(3)];
-        let b_w: Vec<_> = vec![BlsScalar::from(2), BlsScalar::from(2)];
-        let c_w: Vec<_> = vec![BlsScalar::from(3), BlsScalar::one()];
-        let d_w: Vec<_> = vec![BlsScalar::one(), BlsScalar::one()];
+        let a: Vec<_> = vec![BlsScalar::one(), BlsScalar::from(3)];
+        let b: Vec<_> = vec![BlsScalar::from(2), BlsScalar::from(2)];
+        let c: Vec<_> = vec![BlsScalar::from(3), BlsScalar::one()];
+        let d: Vec<_> = vec![BlsScalar::one(), BlsScalar::one()];
 
         test_correct_permutation_poly(
             num_wire_mappings,
             perm,
             &domain,
-            a_w,
-            b_w,
-            c_w,
-            d_w,
+            a,
+            b,
+            c,
+            d,
         );
     }
 
@@ -981,10 +981,10 @@ mod test {
         n: usize,
         mut perm: Permutation,
         domain: &EvaluationDomain,
-        a_w: Vec<BlsScalar>,
-        b_w: Vec<BlsScalar>,
-        c_w: Vec<BlsScalar>,
-        d_w: Vec<BlsScalar>,
+        a: Vec<BlsScalar>,
+        b: Vec<BlsScalar>,
+        c: Vec<BlsScalar>,
+        d: Vec<BlsScalar>,
     ) {
         // 0. Generate beta and gamma challenges
         //
@@ -998,10 +998,10 @@ mod test {
         let (z_vec, numerator_components, denominator_components) =
             compute_slow_permutation_poly(
                 domain,
-                a_w.clone().into_iter(),
-                b_w.clone().into_iter(),
-                c_w.clone().into_iter(),
-                d_w.clone().into_iter(),
+                a.clone().into_iter(),
+                b.clone().into_iter(),
+                c.clone().into_iter(),
+                d.clone().into_iter(),
                 &beta,
                 &gamma,
                 (
@@ -1014,10 +1014,10 @@ mod test {
 
         let fast_z_vec = compute_fast_permutation_poly(
             domain,
-            &a_w,
-            &b_w,
-            &c_w,
-            &d_w,
+            &a,
+            &b,
+            &c,
+            &d,
             &beta,
             &gamma,
             (

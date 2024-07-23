@@ -52,22 +52,22 @@ mod alloc {
             let kappa_cu = kappa_sq * kappa;
             let kappa_qu = kappa_cu * kappa;
 
-            let a = evaluations.a_next_eval - four * evaluations.a_eval;
-            let o_0 = delta(a);
+            let a = evaluations.a_w_eval - four * evaluations.a_eval;
+            let c_0 = delta(a);
 
-            let b = evaluations.b_next_eval - four * evaluations.b_eval;
-            let o_1 = delta(b) * kappa;
+            let b = evaluations.b_w_eval - four * evaluations.b_eval;
+            let c_1 = delta(b) * kappa;
 
-            let d = evaluations.d_next_eval - four * evaluations.d_eval;
-            let o_2 = delta(d) * kappa_sq;
+            let d = evaluations.d_w_eval - four * evaluations.d_eval;
+            let c_2 = delta(d) * kappa_sq;
 
-            let o = evaluations.c_eval;
-            let o_3 = (o - a * b) * kappa_cu;
+            let w = evaluations.c_eval;
+            let c_3 = (w - a * b) * kappa_cu;
 
-            let o_4 =
-                delta_xor_and(&a, &b, &o, &d, &evaluations.q_c_eval) * kappa_qu;
+            let c_4 =
+                delta_xor_and(&a, &b, &w, &d, &evaluations.q_c_eval) * kappa_qu;
             scalars.push(
-                (o_0 + o_1 + o_2 + o_3 + o_4) * logic_separation_challenge,
+                (c_0 + c_1 + c_2 + c_3 + c_4) * logic_separation_challenge,
             );
             points.push(self.q_logic.0);
         }

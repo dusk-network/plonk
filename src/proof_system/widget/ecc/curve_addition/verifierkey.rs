@@ -46,12 +46,12 @@ mod alloc {
             let kappa = curve_add_separation_challenge.square();
 
             let x_1 = evaluations.a_eval;
-            let x_3 = evaluations.a_next_eval;
+            let x_3 = evaluations.a_w_eval;
             let y_1 = evaluations.b_eval;
-            let y_3 = evaluations.b_next_eval;
+            let y_3 = evaluations.b_w_eval;
             let x_2 = evaluations.c_eval;
             let y_2 = evaluations.d_eval;
-            let x1_y2 = evaluations.d_next_eval;
+            let x1_y2 = evaluations.d_w_eval;
 
             // Checks
             //

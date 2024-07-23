@@ -91,7 +91,7 @@ impl Serializable<{ 20 * Commitment::SIZE + u64::SIZE }> for VerifierKey {
         writer.write(&self.arithmetic.q_l.to_bytes());
         writer.write(&self.arithmetic.q_r.to_bytes());
         writer.write(&self.arithmetic.q_o.to_bytes());
-        writer.write(&self.arithmetic.q_4.to_bytes());
+        writer.write(&self.arithmetic.q_f.to_bytes());
         writer.write(&self.arithmetic.q_c.to_bytes());
         writer.write(&self.arithmetic.q_arith.to_bytes());
         writer.write(&self.logic.q_logic.to_bytes());
@@ -140,7 +140,7 @@ impl VerifierKey {
         q_l: Commitment,
         q_r: Commitment,
         q_o: Commitment,
-        q_4: Commitment,
+        q_f: Commitment,
         q_c: Commitment,
         q_arith: Commitment,
         q_logic: Commitment,
@@ -157,7 +157,7 @@ impl VerifierKey {
             q_l,
             q_r,
             q_o,
-            q_4,
+            q_f,
             q_c,
             q_arith,
         };
@@ -213,7 +213,7 @@ pub(crate) mod alloc {
             transcript.append_commitment(b"q_r", &self.arithmetic.q_r);
             transcript.append_commitment(b"q_o", &self.arithmetic.q_o);
             transcript.append_commitment(b"q_c", &self.arithmetic.q_c);
-            transcript.append_commitment(b"q_4", &self.arithmetic.q_4);
+            transcript.append_commitment(b"q_f", &self.arithmetic.q_f);
             transcript.append_commitment(b"q_arith", &self.arithmetic.q_arith);
             transcript.append_commitment(b"q_range", &self.range.q_range);
             transcript.append_commitment(b"q_logic", &self.logic.q_logic);
@@ -286,7 +286,7 @@ pub(crate) mod alloc {
         /// Returns the size of the ProverKey for serialization.
         ///
         /// Note:
-        /// Duplicate polynomials of the ProverKey (e.g. `q_l`, `q_r` and `q_c`)
+        /// Duplicate polynomials of the ProverKey (e.g. `q_L`, `q_R` and `q_C`)
         /// are only counted once.
         fn serialization_size(&self) -> usize {
             // Fetch size in bytes of each Polynomial
@@ -344,9 +344,9 @@ pub(crate) mod alloc {
             writer.write(&self.arithmetic.q_o.0.to_var_bytes());
             writer.write(&self.arithmetic.q_o.1.to_var_bytes());
 
-            writer.write(&(self.arithmetic.q_4.0.len() as u64).to_bytes());
-            writer.write(&self.arithmetic.q_4.0.to_var_bytes());
-            writer.write(&self.arithmetic.q_4.1.to_var_bytes());
+            writer.write(&(self.arithmetic.q_f.0.len() as u64).to_bytes());
+            writer.write(&self.arithmetic.q_f.0.to_var_bytes());
+            writer.write(&self.arithmetic.q_f.1.to_var_bytes());
 
             writer.write(&(self.arithmetic.q_c.0.len() as u64).to_bytes());
             writer.write(&self.arithmetic.q_c.0.to_var_bytes());
@@ -464,9 +464,9 @@ pub(crate) mod alloc {
             let q_o_evals = evals_from_reader(&mut buffer)?;
             let q_o = (q_o_poly, q_o_evals);
 
-            let q_4_poly = poly_from_reader(&mut buffer)?;
-            let q_4_evals = evals_from_reader(&mut buffer)?;
-            let q_4 = (q_4_poly, q_4_evals);
+            let q_f_poly = poly_from_reader(&mut buffer)?;
+            let q_f_evals = evals_from_reader(&mut buffer)?;
+            let q_f = (q_f_poly, q_f_evals);
 
             let q_c_poly = poly_from_reader(&mut buffer)?;
             let q_c_evals = evals_from_reader(&mut buffer)?;
@@ -520,7 +520,7 @@ pub(crate) mod alloc {
                 q_r: q_r.clone(),
                 q_o,
                 q_c: q_c.clone(),
-                q_4,
+                q_f,
                 q_arith,
             };
 
@@ -604,7 +604,7 @@ mod test {
         let q_r = rand_poly_eval(n);
         let q_o = rand_poly_eval(n);
         let q_c = rand_poly_eval(n);
-        let q_4 = rand_poly_eval(n);
+        let q_f = rand_poly_eval(n);
         let q_arith = rand_poly_eval(n);
 
         let q_logic = rand_poly_eval(n);
@@ -629,7 +629,7 @@ mod test {
             q_r: q_r.clone(),
             q_o,
             q_c: q_c.clone(),
-            q_4,
+            q_f,
             q_arith,
         };
 
@@ -689,7 +689,7 @@ mod test {
         let q_r = Commitment(G1Affine::generator());
         let q_o = Commitment(G1Affine::generator());
         let q_c = Commitment(G1Affine::generator());
-        let q_4 = Commitment(G1Affine::generator());
+        let q_f = Commitment(G1Affine::generator());
         let q_arith = Commitment(G1Affine::generator());
 
         let q_range = Commitment(G1Affine::generator());
@@ -710,7 +710,7 @@ mod test {
             q_r,
             q_o,
             q_c,
-            q_4,
+            q_f,
             q_arith,
         };
 

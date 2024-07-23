@@ -254,35 +254,39 @@ impl Prover {
 
         // round 1
         // convert wires to padded scalars
-        let mut a_w_scalar = vec![BlsScalar::zero(); size];
-        let mut b_w_scalar = vec![BlsScalar::zero(); size];
-        let mut c_w_scalar = vec![BlsScalar::zero(); size];
-        let mut d_w_scalar = vec![BlsScalar::zero(); size];
+        let mut a_scalars = vec![BlsScalar::zero(); size];
+        let mut b_scalars = vec![BlsScalar::zero(); size];
+        let mut c_scalars = vec![BlsScalar::zero(); size];
+        let mut d_scalars = vec![BlsScalar::zero(); size];
 
-        prover.constraints.iter().enumerate().for_each(|(i, c)| {
-            a_w_scalar[i] = prover[c.w_a];
-            b_w_scalar[i] = prover[c.w_b];
-            c_w_scalar[i] = prover[c.w_o];
-            d_w_scalar[i] = prover[c.w_d];
-        });
+        prover
+            .constraints
+            .iter()
+            .enumerate()
+            .for_each(|(i, constraint)| {
+                a_scalars[i] = prover[constraint.a];
+                b_scalars[i] = prover[constraint.b];
+                c_scalars[i] = prover[constraint.c];
+                d_scalars[i] = prover[constraint.d];
+            });
 
-        let a_w_poly = Self::blind_poly(rng, &a_w_scalar, 1, &domain);
-        let b_w_poly = Self::blind_poly(rng, &b_w_scalar, 1, &domain);
-        let c_w_poly = Self::blind_poly(rng, &c_w_scalar, 1, &domain);
-        let d_w_poly = Self::blind_poly(rng, &d_w_scalar, 1, &domain);
+        let a_poly = Self::blind_poly(rng, &a_scalars, 1, &domain);
+        let b_poly = Self::blind_poly(rng, &b_scalars, 1, &domain);
+        let c_poly = Self::blind_poly(rng, &c_scalars, 1, &domain);
+        let d_poly = Self::blind_poly(rng, &d_scalars, 1, &domain);
 
         // commit to wire polynomials
         // ([a(x)]_1, [b(x)]_1, [c(x)]_1, [d(x)]_1)
-        let a_w_poly_commit = self.commit_key.commit(&a_w_poly)?;
-        let b_w_poly_commit = self.commit_key.commit(&b_w_poly)?;
-        let c_w_poly_commit = self.commit_key.commit(&c_w_poly)?;
-        let d_w_poly_commit = self.commit_key.commit(&d_w_poly)?;
+        let a_comm = self.commit_key.commit(&a_poly)?;
+        let b_comm = self.commit_key.commit(&b_poly)?;
+        let c_comm = self.commit_key.commit(&c_poly)?;
+        let d_comm = self.commit_key.commit(&d_poly)?;
 
         // Add wire polynomial commitments to transcript
-        transcript.append_commitment(b"a_w", &a_w_poly_commit);
-        transcript.append_commitment(b"b_w", &b_w_poly_commit);
-        transcript.append_commitment(b"c_w", &c_w_poly_commit);
-        transcript.append_commitment(b"d_w", &d_w_poly_commit);
+        transcript.append_commitment(b"a_comm", &a_comm);
+        transcript.append_commitment(b"b_comm", &b_comm);
+        transcript.append_commitment(b"c_comm", &c_comm);
+        transcript.append_commitment(b"d_comm", &d_comm);
 
         // round 2
         // permutation challenges
@@ -297,18 +301,18 @@ impl Prover {
             &self.prover_key.permutation.s_sigma_4.0,
         ];
         let wires = [
-            a_w_scalar.as_slice(),
-            b_w_scalar.as_slice(),
-            c_w_scalar.as_slice(),
-            d_w_scalar.as_slice(),
+            a_scalars.as_slice(),
+            b_scalars.as_slice(),
+            c_scalars.as_slice(),
+            d_scalars.as_slice(),
         ];
         let permutation = prover
             .perm
             .compute_permutation_vec(&domain, wires, &beta, &gamma, sigma);
 
         let z_poly = Self::blind_poly(rng, &permutation, 2, &domain);
-        let z_poly_commit = self.commit_key.commit(&z_poly)?;
-        transcript.append_commitment(b"z", &z_poly_commit);
+        let z_comm = self.commit_key.commit(&z_poly)?;
+        transcript.append_commitment(b"z_comm", &z_comm);
 
         // round 3
         // compute quotient challenge alpha
@@ -327,7 +331,7 @@ impl Prover {
         let pi_poly = Polynomial::from_coefficients_vec(pi_poly);
 
         // compute quotient polynomial
-        let wires = (&a_w_poly, &b_w_poly, &c_w_poly, &d_w_poly);
+        let wires = (&a_poly, &b_poly, &c_poly, &d_poly);
         let args = &(
             alpha,
             beta,
@@ -352,7 +356,7 @@ impl Prover {
         let mut t_low_vec = t_poly[0..domain_size].to_vec();
         let mut t_mid_vec = t_poly[domain_size..2 * domain_size].to_vec();
         let mut t_high_vec = t_poly[2 * domain_size..3 * domain_size].to_vec();
-        let mut t_4_vec = t_poly[3 * domain_size..].to_vec();
+        let mut t_fourth_vec = t_poly[3 * domain_size..].to_vec();
 
         // select 3 blinding factors for the quotient splitted polynomials
         let b_10 = BlsScalar::random(&mut *rng);
@@ -370,35 +374,35 @@ impl Prover {
         t_high_vec[0] -= b_11;
         t_high_vec.push(b_12);
 
-        // t_4'(X) - b_12
-        t_4_vec[0] -= b_12;
+        // t_fourth'(X) - b_12
+        t_fourth_vec[0] -= b_12;
 
         let t_low_poly = Polynomial::from_coefficients_vec(t_low_vec);
         let t_mid_poly = Polynomial::from_coefficients_vec(t_mid_vec);
         let t_high_poly = Polynomial::from_coefficients_vec(t_high_vec);
-        let t_4_poly = Polynomial::from_coefficients_vec(t_4_vec);
+        let t_fourth_poly = Polynomial::from_coefficients_vec(t_fourth_vec);
 
         // commit to split quotient polynomial
-        let t_low_commit = self.commit_key.commit(&t_low_poly)?;
-        let t_mid_commit = self.commit_key.commit(&t_mid_poly)?;
-        let t_high_commit = self.commit_key.commit(&t_high_poly)?;
-        let t_4_commit = self.commit_key.commit(&t_4_poly)?;
+        let t_low_comm = self.commit_key.commit(&t_low_poly)?;
+        let t_mid_comm = self.commit_key.commit(&t_mid_poly)?;
+        let t_high_comm = self.commit_key.commit(&t_high_poly)?;
+        let t_fourth_comm = self.commit_key.commit(&t_fourth_poly)?;
 
         // add quotient polynomial commitments to transcript
-        transcript.append_commitment(b"t_low", &t_low_commit);
-        transcript.append_commitment(b"t_mid", &t_mid_commit);
-        transcript.append_commitment(b"t_high", &t_high_commit);
-        transcript.append_commitment(b"t_4", &t_4_commit);
+        transcript.append_commitment(b"t_low_comm", &t_low_comm);
+        transcript.append_commitment(b"t_mid_comm", &t_mid_comm);
+        transcript.append_commitment(b"t_high_comm", &t_high_comm);
+        transcript.append_commitment(b"t_fourth_comm", &t_fourth_comm);
 
         // round 4
         // compute evaluation challenge 'z'
         let z_challenge = transcript.challenge_scalar(b"z_challenge");
 
         // compute opening evaluations
-        let a_eval = a_w_poly.evaluate(&z_challenge);
-        let b_eval = b_w_poly.evaluate(&z_challenge);
-        let c_eval = c_w_poly.evaluate(&z_challenge);
-        let d_eval = d_w_poly.evaluate(&z_challenge);
+        let a_eval = a_poly.evaluate(&z_challenge);
+        let b_eval = b_poly.evaluate(&z_challenge);
+        let c_eval = c_poly.evaluate(&z_challenge);
+        let d_eval = d_poly.evaluate(&z_challenge);
 
         let s_sigma_1_eval = self
             .prover_key
@@ -433,10 +437,10 @@ impl Prover {
 
         transcript.append_scalar(b"z_eval", &z_eval);
 
-        // Compute extra evaluations
-        let a_next_eval = a_w_poly.evaluate(&(z_challenge * domain.group_gen));
-        let b_next_eval = b_w_poly.evaluate(&(z_challenge * domain.group_gen));
-        let d_next_eval = d_w_poly.evaluate(&(z_challenge * domain.group_gen));
+        // Compute shifted evaluations
+        let a_w_eval = a_poly.evaluate(&(z_challenge * domain.group_gen));
+        let b_w_eval = b_poly.evaluate(&(z_challenge * domain.group_gen));
+        let d_w_eval = d_poly.evaluate(&(z_challenge * domain.group_gen));
 
         let q_arith_eval =
             self.prover_key.arithmetic.q_arith.0.evaluate(&z_challenge);
@@ -445,9 +449,9 @@ impl Prover {
         let q_r_eval = self.prover_key.fixed_base.q_r.0.evaluate(&z_challenge);
 
         // add extra evaluations to transcript.
-        transcript.append_scalar(b"a_next_eval", &a_next_eval);
-        transcript.append_scalar(b"b_next_eval", &b_next_eval);
-        transcript.append_scalar(b"d_next_eval", &d_next_eval);
+        transcript.append_scalar(b"a_w_eval", &a_w_eval);
+        transcript.append_scalar(b"b_w_eval", &b_w_eval);
+        transcript.append_scalar(b"d_w_eval", &d_w_eval);
         transcript.append_scalar(b"q_arith_eval", &q_arith_eval);
         transcript.append_scalar(b"q_c_eval", &q_c_eval);
         transcript.append_scalar(b"q_l_eval", &q_l_eval);
@@ -458,9 +462,9 @@ impl Prover {
             b_eval,
             c_eval,
             d_eval,
-            a_next_eval,
-            b_next_eval,
-            d_next_eval,
+            a_w_eval,
+            b_w_eval,
+            d_w_eval,
             q_arith_eval,
             q_c_eval,
             q_l_eval,
@@ -494,7 +498,7 @@ impl Prover {
             &t_low_poly,
             &t_mid_poly,
             &t_high_poly,
-            &t_4_poly,
+            &t_fourth_poly,
             &public_inputs,
         );
 
@@ -502,10 +506,10 @@ impl Prover {
         let aggregate_witness = CommitKey::compute_aggregate_witness(
             &[
                 r_poly,
-                a_w_poly.clone(),
-                b_w_poly.clone(),
-                c_w_poly,
-                d_w_poly.clone(),
+                a_poly.clone(),
+                b_poly.clone(),
+                c_poly,
+                d_poly.clone(),
                 self.prover_key.permutation.s_sigma_1.0.clone(),
                 self.prover_key.permutation.s_sigma_2.0.clone(),
                 self.prover_key.permutation.s_sigma_3.0.clone(),
@@ -520,7 +524,7 @@ impl Prover {
 
         // compute the shifted opening proof polynomial 'W_zw(X)'
         let shifted_aggregate_witness = CommitKey::compute_aggregate_witness(
-            &[z_poly, a_w_poly, b_w_poly, d_w_poly],
+            &[z_poly, a_poly, b_poly, d_poly],
             &(z_challenge * domain.group_gen),
             &v_w_challenge,
         );
@@ -528,17 +532,17 @@ impl Prover {
             self.commit_key.commit(&shifted_aggregate_witness)?;
 
         let proof = Proof {
-            a_comm: a_w_poly_commit,
-            b_comm: b_w_poly_commit,
-            c_comm: c_w_poly_commit,
-            d_comm: d_w_poly_commit,
+            a_comm,
+            b_comm,
+            c_comm,
+            d_comm,
 
-            z_comm: z_poly_commit,
+            z_comm,
 
-            t_low_comm: t_low_commit,
-            t_mid_comm: t_mid_commit,
-            t_high_comm: t_high_commit,
-            t_4_comm: t_4_commit,
+            t_low_comm,
+            t_mid_comm,
+            t_high_comm,
+            t_fourth_comm,
 
             w_z_chall_comm,
             w_z_chall_w_comm,

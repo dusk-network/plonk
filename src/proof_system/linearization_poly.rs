@@ -45,14 +45,14 @@ pub(crate) struct ProofEvaluations {
     pub(crate) d_eval: BlsScalar,
     //
     #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
-    pub(crate) a_next_eval: BlsScalar,
+    pub(crate) a_w_eval: BlsScalar,
     //
     #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
-    pub(crate) b_next_eval: BlsScalar,
+    pub(crate) b_w_eval: BlsScalar,
     // Evaluation of the witness polynomial for the fourth wire at `z * root of
     // unity`
     #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
-    pub(crate) d_next_eval: BlsScalar,
+    pub(crate) d_w_eval: BlsScalar,
     // Evaluation of the arithmetic selector polynomial at `z`
     #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) q_arith_eval: BlsScalar,
@@ -96,9 +96,9 @@ impl Serializable<{ 15 * BlsScalar::SIZE }> for ProofEvaluations {
         writer.write(&self.b_eval.to_bytes());
         writer.write(&self.c_eval.to_bytes());
         writer.write(&self.d_eval.to_bytes());
-        writer.write(&self.a_next_eval.to_bytes());
-        writer.write(&self.b_next_eval.to_bytes());
-        writer.write(&self.d_next_eval.to_bytes());
+        writer.write(&self.a_w_eval.to_bytes());
+        writer.write(&self.b_w_eval.to_bytes());
+        writer.write(&self.d_w_eval.to_bytes());
         writer.write(&self.q_arith_eval.to_bytes());
         writer.write(&self.q_c_eval.to_bytes());
         writer.write(&self.q_l_eval.to_bytes());
@@ -119,9 +119,9 @@ impl Serializable<{ 15 * BlsScalar::SIZE }> for ProofEvaluations {
         let b_eval = BlsScalar::from_reader(&mut buffer)?;
         let c_eval = BlsScalar::from_reader(&mut buffer)?;
         let d_eval = BlsScalar::from_reader(&mut buffer)?;
-        let a_next_eval = BlsScalar::from_reader(&mut buffer)?;
-        let b_next_eval = BlsScalar::from_reader(&mut buffer)?;
-        let d_next_eval = BlsScalar::from_reader(&mut buffer)?;
+        let a_w_eval = BlsScalar::from_reader(&mut buffer)?;
+        let b_w_eval = BlsScalar::from_reader(&mut buffer)?;
+        let d_w_eval = BlsScalar::from_reader(&mut buffer)?;
         let q_arith_eval = BlsScalar::from_reader(&mut buffer)?;
         let q_c_eval = BlsScalar::from_reader(&mut buffer)?;
         let q_l_eval = BlsScalar::from_reader(&mut buffer)?;
@@ -136,9 +136,9 @@ impl Serializable<{ 15 * BlsScalar::SIZE }> for ProofEvaluations {
             b_eval,
             c_eval,
             d_eval,
-            a_next_eval,
-            b_next_eval,
-            d_next_eval,
+            a_w_eval,
+            b_w_eval,
+            d_w_eval,
             q_arith_eval,
             q_c_eval,
             q_l_eval,
@@ -183,7 +183,7 @@ pub(crate) fn compute(
     t_low_poly: &Polynomial,
     t_mid_poly: &Polynomial,
     t_high_poly: &Polynomial,
-    t_4_poly: &Polynomial,
+    t_fourth_poly: &Polynomial,
     pub_inputs: &[BlsScalar],
 ) -> Polynomial {
     let f_1 = compute_circuit_satisfiability(
@@ -229,7 +229,7 @@ pub(crate) fn compute(
     let a = t_low_poly;
     let b = t_mid_poly * &z_n;
     let c = t_high_poly * &z_two_n;
-    let d = t_4_poly * &z_three_n;
+    let d = t_fourth_poly * &z_three_n;
     let abc = &(a + &b) + &c;
 
     let quot = &abc + &d;

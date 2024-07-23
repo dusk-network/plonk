@@ -10,19 +10,19 @@ use dusk_bls12_381::BlsScalar;
 /// Selectors used to address a coefficient inside of a [`Constraint`]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Selector {
-    /// Multiplication coefficient `q_m`
+    /// Multiplication coefficient `q_M`
     Multiplication = 0x00,
-    /// Left coefficient `q_l`
+    /// Left coefficient `q_L`
     Left = 0x01,
-    /// Right coefficient `q_r`
+    /// Right coefficient `q_R`
     Right = 0x02,
-    /// Output coefficient `q_o`
+    /// Output coefficient `q_O`
     Output = 0x03,
-    /// Fourth advice coefficient `q_4`
+    /// Fourth advice coefficient `q_F`
     Fourth = 0x04,
-    /// Constant expression `q_c`
+    /// Constant expression `q_C`
     Constant = 0x05,
-    /// Public input `pi`
+    /// Public input `PI`
     PublicInput = 0x06,
 
     /// Arithmetic coefficient (internal use)
@@ -44,8 +44,8 @@ pub(crate) enum WiredWitness {
     A = 0x00,
     /// `B` witness
     B = 0x01,
-    /// `O` witness
-    O = 0x02,
+    /// `C` witness
+    C = 0x02,
     /// `D` witness
     D = 0x03,
 }
@@ -196,9 +196,9 @@ impl Constraint {
         self
     }
 
-    /// Set witness `o` wired to `qO`
-    pub fn o(mut self, w: Witness) -> Self {
-        self.set_witness(WiredWitness::O, w);
+    /// Set witness `c` wired to `qO`
+    pub fn c(mut self, w: Witness) -> Self {
+        self.set_witness(WiredWitness::C, w);
 
         self
     }

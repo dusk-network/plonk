@@ -19,10 +19,10 @@ mod hades;
 )]
 pub struct CompressedConstraint {
     pub polynomial: usize,
-    pub w_a: usize,
-    pub w_b: usize,
-    pub w_o: usize,
-    pub w_d: usize,
+    pub a: usize,
+    pub b: usize,
+    pub c: usize,
+    pub d: usize,
 }
 
 #[derive(
@@ -33,7 +33,7 @@ pub struct CompressedPolynomial {
     pub q_l: usize,
     pub q_r: usize,
     pub q_o: usize,
-    pub q_4: usize,
+    pub q_f: usize,
     pub q_c: usize,
     pub q_arith: usize,
     pub q_range: usize,
@@ -99,17 +99,17 @@ impl CompressedCircuit {
                      q_l,
                      q_r,
                      q_o,
-                     q_4,
+                     q_f,
                      q_c,
                      q_arith,
                      q_range,
                      q_logic,
                      q_fixed_group_add,
                      q_variable_group_add,
-                     w_a,
-                     w_b,
-                     w_o,
-                     w_d,
+                     a,
+                     b,
+                     c,
+                     d,
                  }| {
                     let len = scalars.len();
                     let q_m = *scalars.entry(q_m).or_insert(len);
@@ -120,7 +120,7 @@ impl CompressedCircuit {
                     let len = scalars.len();
                     let q_o = *scalars.entry(q_o).or_insert(len);
                     let len = scalars.len();
-                    let q_4 = *scalars.entry(q_4).or_insert(len);
+                    let q_f = *scalars.entry(q_f).or_insert(len);
                     let len = scalars.len();
                     let q_c = *scalars.entry(q_c).or_insert(len);
                     let len = scalars.len();
@@ -140,7 +140,7 @@ impl CompressedCircuit {
                         q_l,
                         q_r,
                         q_o,
-                        q_4,
+                        q_f,
                         q_c,
                         q_arith,
                         q_range,
@@ -155,10 +155,10 @@ impl CompressedCircuit {
 
                     CompressedConstraint {
                         polynomial,
-                        w_a: w_a.index(),
-                        w_b: w_b.index(),
-                        w_o: w_o.index(),
-                        w_d: w_d.index(),
+                        a: a.index(),
+                        b: b.index(),
+                        c: c.index(),
+                        d: d.index(),
                     }
                 },
             )
@@ -241,10 +241,10 @@ impl CompressedCircuit {
             i,
             CompressedConstraint {
                 polynomial,
-                w_a,
-                w_b,
-                w_o,
-                w_d,
+                a,
+                b,
+                c,
+                d,
             },
         ) in constraints.into_iter().enumerate()
         {
@@ -253,7 +253,7 @@ impl CompressedCircuit {
                 q_l,
                 q_r,
                 q_o,
-                q_4,
+                q_f,
                 q_c,
                 q_arith,
                 q_range,
@@ -281,8 +281,8 @@ impl CompressedCircuit {
                 .get(q_o)
                 .copied()
                 .ok_or(Error::InvalidCompressedCircuit)?;
-            let q_4 = scalars
-                .get(q_4)
+            let q_f = scalars
+                .get(q_f)
                 .copied()
                 .ok_or(Error::InvalidCompressedCircuit)?;
             let q_c = scalars
@@ -310,27 +310,27 @@ impl CompressedCircuit {
                 .copied()
                 .ok_or(Error::InvalidCompressedCircuit)?;
 
-            let w_a = Witness::new(w_a);
-            let w_b = Witness::new(w_b);
-            let w_o = Witness::new(w_o);
-            let w_d = Witness::new(w_d);
+            let a = Witness::new(a);
+            let b = Witness::new(b);
+            let c = Witness::new(c);
+            let d = Witness::new(d);
 
             let mut constraint = Constraint::default()
                 .set(Selector::Multiplication, q_m)
                 .set(Selector::Left, q_l)
                 .set(Selector::Right, q_r)
                 .set(Selector::Output, q_o)
-                .set(Selector::Fourth, q_4)
+                .set(Selector::Fourth, q_f)
                 .set(Selector::Constant, q_c)
                 .set(Selector::Arithmetic, q_arith)
                 .set(Selector::Range, q_range)
                 .set(Selector::Logic, q_logic)
                 .set(Selector::GroupAddFixedBase, q_fixed_group_add)
                 .set(Selector::GroupAddVariableBase, q_variable_group_add)
-                .a(w_a)
-                .b(w_b)
-                .o(w_o)
-                .d(w_d);
+                .a(a)
+                .b(b)
+                .c(c)
+                .d(d);
 
             if let Some(idx) = public_inputs.get(pi) {
                 if idx == &i {

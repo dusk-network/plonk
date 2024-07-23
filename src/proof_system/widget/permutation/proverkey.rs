@@ -46,22 +46,22 @@ impl ProverKey {
     pub(crate) fn compute_quotient_i(
         &self,
         index: usize,
-        a_w_i: &BlsScalar,
-        b_w_i: &BlsScalar,
-        c_w_i: &BlsScalar,
-        d_w_i: &BlsScalar,
+        a_i: &BlsScalar,
+        b_i: &BlsScalar,
+        c_i: &BlsScalar,
+        d_i: &BlsScalar,
         z_i: &BlsScalar,
-        z_i_next: &BlsScalar,
+        z_i_w: &BlsScalar,
         alpha: &BlsScalar,
         l1_alpha_sq: &BlsScalar,
         beta: &BlsScalar,
         gamma: &BlsScalar,
     ) -> BlsScalar {
         let a = self.compute_quotient_identity_range_check_i(
-            index, a_w_i, b_w_i, c_w_i, d_w_i, z_i, alpha, beta, gamma,
+            index, a_i, b_i, c_i, d_i, z_i, alpha, beta, gamma,
         );
         let b = self.compute_quotient_copy_range_check_i(
-            index, a_w_i, b_w_i, c_w_i, d_w_i, z_i_next, alpha, beta, gamma,
+            index, a_i, b_i, c_i, d_i, z_i_w, alpha, beta, gamma,
         );
         let c = self.compute_quotient_term_check_one_i(z_i, l1_alpha_sq);
         a + b + c
@@ -71,10 +71,10 @@ impl ProverKey {
     fn compute_quotient_identity_range_check_i(
         &self,
         index: usize,
-        a_w_i: &BlsScalar,
-        b_w_i: &BlsScalar,
-        c_w_i: &BlsScalar,
-        d_w_i: &BlsScalar,
+        a_i: &BlsScalar,
+        b_i: &BlsScalar,
+        c_i: &BlsScalar,
+        d_i: &BlsScalar,
         z_i: &BlsScalar,
         alpha: &BlsScalar,
         beta: &BlsScalar,
@@ -82,10 +82,10 @@ impl ProverKey {
     ) -> BlsScalar {
         let x = self.linear_evaluations[index];
 
-        (a_w_i + (beta * x) + gamma)
-            * (b_w_i + (beta * K1 * x) + gamma)
-            * (c_w_i + (beta * K2 * x) + gamma)
-            * (d_w_i + (beta * K3 * x) + gamma)
+        (a_i + (beta * x) + gamma)
+            * (b_i + (beta * K1 * x) + gamma)
+            * (c_i + (beta * K2 * x) + gamma)
+            * (d_i + (beta * K3 * x) + gamma)
             * z_i
             * alpha
     }
@@ -95,11 +95,11 @@ impl ProverKey {
     fn compute_quotient_copy_range_check_i(
         &self,
         index: usize,
-        a_w_i: &BlsScalar,
-        b_w_i: &BlsScalar,
-        c_w_i: &BlsScalar,
-        d_w_i: &BlsScalar,
-        z_i_next: &BlsScalar,
+        a_i: &BlsScalar,
+        b_i: &BlsScalar,
+        c_i: &BlsScalar,
+        d_i: &BlsScalar,
+        z_i_w: &BlsScalar,
         alpha: &BlsScalar,
         beta: &BlsScalar,
         gamma: &BlsScalar,
@@ -109,11 +109,11 @@ impl ProverKey {
         let s_sigma_3_eval = self.s_sigma_3.1[index];
         let s_sigma_4_eval = self.s_sigma_4.1[index];
 
-        let product = (a_w_i + (beta * s_sigma_1_eval) + gamma)
-            * (b_w_i + (beta * s_sigma_2_eval) + gamma)
-            * (c_w_i + (beta * s_sigma_3_eval) + gamma)
-            * (d_w_i + (beta * s_sigma_4_eval) + gamma)
-            * z_i_next
+        let product = (a_i + (beta * s_sigma_1_eval) + gamma)
+            * (b_i + (beta * s_sigma_2_eval) + gamma)
+            * (c_i + (beta * s_sigma_3_eval) + gamma)
+            * (d_i + (beta * s_sigma_4_eval) + gamma)
+            * z_i_w
             * alpha;
 
         -product

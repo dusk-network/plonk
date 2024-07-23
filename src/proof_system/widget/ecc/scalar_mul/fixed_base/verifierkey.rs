@@ -58,15 +58,15 @@ mod alloc {
             let y_beta_eval = evaluations.q_r_eval;
 
             let acc_x = evaluations.a_eval;
-            let acc_x_next = evaluations.a_next_eval;
+            let acc_x_w = evaluations.a_w_eval;
             let acc_y = evaluations.b_eval;
-            let acc_y_next = evaluations.b_next_eval;
+            let acc_y_w = evaluations.b_w_eval;
 
             let xy_alpha = evaluations.c_eval;
 
             let accumulated_bit = evaluations.d_eval;
-            let accumulated_bit_next = evaluations.d_next_eval;
-            let bit = extract_bit(&accumulated_bit, &accumulated_bit_next);
+            let accumulated_bit_w = evaluations.d_w_eval;
+            let bit = extract_bit(&accumulated_bit, &accumulated_bit_w);
 
             // Check bit consistency
             let bit_consistency = check_bit_consistency(bit);
@@ -81,13 +81,13 @@ mod alloc {
                 ((bit * evaluations.q_c_eval) - xy_alpha) * kappa;
 
             // x accumulator consistency check
-            let x_3 = acc_x_next;
+            let x_3 = acc_x_w;
             let lhs = x_3 + (x_3 * xy_alpha * acc_x * acc_y * EDWARDS_D);
             let rhs = (x_alpha * acc_y) + (y_alpha * acc_x);
             let x_acc_consistency = (lhs - rhs) * kappa_sq;
 
             // y accumulator consistency check
-            let y_3 = acc_y_next;
+            let y_3 = acc_y_w;
             let lhs = y_3 - (y_3 * xy_alpha * acc_x * acc_y * EDWARDS_D);
             let rhs = (x_alpha * acc_x) + (y_alpha * acc_y);
             let y_acc_consistency = (lhs - rhs) * kappa_cu;
