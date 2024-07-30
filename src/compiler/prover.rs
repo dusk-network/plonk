@@ -359,23 +359,23 @@ impl Prover {
         let mut t_fourth_vec = t_poly[3 * domain_size..].to_vec();
 
         // select 3 blinding factors for the quotient splitted polynomials
-        let b_10 = BlsScalar::random(&mut *rng);
-        let b_11 = BlsScalar::random(&mut *rng);
         let b_12 = BlsScalar::random(&mut *rng);
+        let b_13 = BlsScalar::random(&mut *rng);
+        let b_14 = BlsScalar::random(&mut *rng);
 
-        // t_low'(X) + b_10*X^n
-        t_low_vec.push(b_10);
+        // t_low'(X) + b_12*X^n
+        t_low_vec.push(b_12);
 
-        // t_mid'(X) - b_10 + b_11*X^n
-        t_mid_vec[0] -= b_10;
-        t_mid_vec.push(b_11);
+        // t_mid'(X) - b_12 + b_13*X^n
+        t_mid_vec[0] -= b_12;
+        t_mid_vec.push(b_13);
 
-        // t_high'(X) - b_11 + b_12*X^n
-        t_high_vec[0] -= b_11;
-        t_high_vec.push(b_12);
+        // t_high'(X) - b_13 + b_14*X^n
+        t_high_vec[0] -= b_13;
+        t_high_vec.push(b_14);
 
-        // t_fourth'(X) - b_12
-        t_fourth_vec[0] -= b_12;
+        // t_fourth'(X) - b_14
+        t_fourth_vec[0] -= b_14;
 
         let t_low_poly = Polynomial::from_coefficients_vec(t_low_vec);
         let t_mid_poly = Polynomial::from_coefficients_vec(t_mid_vec);
@@ -437,21 +437,24 @@ impl Prover {
 
         transcript.append_scalar(b"z_eval", &z_eval);
 
-        // Compute shifted evaluations
+        // compute shifted evaluations
         let a_w_eval = a_poly.evaluate(&(z_challenge * domain.group_gen));
         let b_w_eval = b_poly.evaluate(&(z_challenge * domain.group_gen));
         let d_w_eval = d_poly.evaluate(&(z_challenge * domain.group_gen));
 
+        // compute selector evaluations
         let q_arith_eval =
             self.prover_key.arithmetic.q_arith.0.evaluate(&z_challenge);
         let q_c_eval = self.prover_key.logic.q_c.0.evaluate(&z_challenge);
         let q_l_eval = self.prover_key.fixed_base.q_l.0.evaluate(&z_challenge);
         let q_r_eval = self.prover_key.fixed_base.q_r.0.evaluate(&z_challenge);
 
-        // add extra evaluations to transcript.
+        // add shifted evaluations to transcript
         transcript.append_scalar(b"a_w_eval", &a_w_eval);
         transcript.append_scalar(b"b_w_eval", &b_w_eval);
         transcript.append_scalar(b"d_w_eval", &d_w_eval);
+
+        // add selector evaluations to transcript.
         transcript.append_scalar(b"q_arith_eval", &q_arith_eval);
         transcript.append_scalar(b"q_c_eval", &q_c_eval);
         transcript.append_scalar(b"q_l_eval", &q_l_eval);
