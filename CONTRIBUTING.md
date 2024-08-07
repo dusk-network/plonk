@@ -14,12 +14,12 @@ Patches are welcomed as pull requests on
 [our Github](https://github.com/dusk-network/plonk), as well as by
 email (preferably sent to all of the authors listed in `Cargo.toml`).
 
-If you want to work on an issue, please let us know in the comments of it and
+If you want to work on an issue, please let us know in the comments it and
 we will assign it to you.
 
 If you're new to this repository and you want to contribute, you can
 look for the issues tagged the with `good first issue` label. We try to add this tag
-to the issues we belive are easy for newcomers.
+to the issues we believe are easy for newcomers.
 
 If you need any help regarding an issue feel free to ask the authors in the `Draft pull request`
 or the issue (or by email if you prefer it by any reason.)
