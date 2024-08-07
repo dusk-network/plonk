@@ -314,7 +314,7 @@ is necessary since `rkyv/validation` was required as a bound.
 
 ### Fixed
 
-- Fix circuit debuggger compilation issues. [#488]
+- Fix circuit debugger compilation issues. [#488]
 - Fix import paths for lib components. [#489]
 
 ## [0.6.1] - 2021-03-12
