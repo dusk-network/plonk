@@ -14,7 +14,7 @@ Patches are welcomed as pull requests on
 [our Github](https://github.com/dusk-network/plonk), as well as by
 email (preferably sent to all of the authors listed in `Cargo.toml`).
 
-If you want to work on an issue, please let us know in the comments it and
+If you want to work on an issue, please let us know in the comments of it and
 we will assign it to you.
 
 If you're new to this repository and you want to contribute, you can
