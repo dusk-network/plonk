@@ -34,7 +34,7 @@ as the documentation regarding the data structures that it exports. To check thi
 Benchmarks taken on `Apple M1`, for a circuit-size of `2^16` constraints:
 
 - Proving time: `7.871s`
-- Verification time: `3.732ms` **(This time does not vary depending on the circuit-size.)**
+- Verification time: `2.821ms` **(This time does not vary depending on the circuit-size.)**
 
 For more results, please run `cargo bench` to get a full report of benchmarks in respect of constraint numbers.
 

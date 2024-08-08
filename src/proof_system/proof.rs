@@ -358,48 +358,6 @@ pub(crate) mod alloc {
             v_coeffs_E.push(v_coeffs_E[V_MAX_DEGREE] * v_w_challenge);
             v_coeffs_E.push(v_coeffs_E[V_MAX_DEGREE + 1] * v_w_challenge);
 
-            // Coefficients to compute [F]_1
-            let mut v_coeffs_F = v_coeffs_E[..V_MAX_DEGREE].to_vec();
-
-            // As we include the shifted coefficients when computing [F]_1,
-            // we group them to save scalar multiplications when multiplying
-            // by [a]_1, [b]_1, and [d]_1
-            v_coeffs_F[0] += v_coeffs_E[V_MAX_DEGREE];
-            v_coeffs_F[1] += v_coeffs_E[V_MAX_DEGREE + 1];
-            v_coeffs_F[3] += v_coeffs_E[V_MAX_DEGREE + 2];
-
-            // Commitments to compute [F]_1
-            let F_comms = vec![
-                self.a_comm.0,
-                self.b_comm.0,
-                self.c_comm.0,
-                self.d_comm.0,
-                verifier_key.permutation.s_sigma_1.0,
-                verifier_key.permutation.s_sigma_2.0,
-                verifier_key.permutation.s_sigma_3.0,
-            ];
-
-            // Compute '[F]_1' in single-core
-            #[cfg(not(feature = "std"))]
-            let mut F: G1Projective = F_comms
-                .iter()
-                .zip(v_coeffs_F.iter())
-                .map(|(poly, coeff)| poly * coeff)
-                .sum();
-
-            // Compute '[F]_1' in multi-core
-            #[cfg(feature = "std")]
-            let mut F: G1Projective = F_comms
-                .par_iter()
-                .zip(v_coeffs_F.par_iter())
-                .map(|(poly, coeff)| poly * coeff)
-                .sum();
-
-            // [F]_1 = [D]_1 + (v)[a]_1 + (v^2)[b]_1 + (v^3)[c]_1 + (v^4)[d]_1 +
-            // + (v^5)[s_sigma_1]_1 + (v^6)[s_sigma_2]_1 + (v^7)[s_sigma_3]_1 +
-            // + (u * v_w)[a]_1 + (u * v_w^2)[b]_1 + (u * v_w^3)[d]_1
-            F += D;
-
             // Evaluations to compute [E]_1
             let E_evals = vec![
                 self.evaluations.a_eval,
@@ -414,17 +372,72 @@ pub(crate) mod alloc {
                 self.evaluations.d_w_eval,
             ];
 
-            // Compute '[E]_1' = (-r_0 + (v)a + (v^2)b + (v^3)c + (v^4)d +
+            // Compute E = (-r_0 + (v)a + (v^2)b + (v^3)c + (v^4)d +
             // + (v^5)s_sigma_1 + (v^6)s_sigma_2 + (v^7)s_sigma_3 +
             // + (u)z_w + (u * v_w)a_w + (u * v_w^2)b_w + (u * v_w^3)d_w)
-            let mut E: BlsScalar = E_evals
+            let mut E_scalar: BlsScalar = E_evals
                 .iter()
                 .zip(v_coeffs_E.iter())
                 .map(|(eval, coeff)| eval * coeff)
                 .sum();
-            E += -r_0_eval + (u_challenge * self.evaluations.z_eval);
+            E_scalar += -r_0_eval + (u_challenge * self.evaluations.z_eval);
 
-            let E = E * opening_key.g;
+            // We group all the remaining scalar multiplications in the
+            // verification process, with the purpose of
+            // parallelizing them
+            let scalarmuls_points = vec![
+                self.a_comm.0,
+                self.b_comm.0,
+                self.c_comm.0,
+                self.d_comm.0,
+                verifier_key.permutation.s_sigma_1.0,
+                verifier_key.permutation.s_sigma_2.0,
+                verifier_key.permutation.s_sigma_3.0,
+                opening_key.g,
+                self.w_z_chall_w_comm.0,
+                self.w_z_chall_comm.0,
+                self.w_z_chall_w_comm.0,
+            ];
+
+            let mut scalarmuls_scalars = v_coeffs_E[..V_MAX_DEGREE].to_vec();
+
+            // As we include the shifted coefficients when computing [F]_1,
+            // we group them to save scalar multiplications when multiplying
+            // by [a]_1, [b]_1, and [d]_1
+            scalarmuls_scalars[0] += v_coeffs_E[V_MAX_DEGREE];
+            scalarmuls_scalars[1] += v_coeffs_E[V_MAX_DEGREE + 1];
+            scalarmuls_scalars[3] += v_coeffs_E[V_MAX_DEGREE + 2];
+
+            scalarmuls_scalars.push(E_scalar);
+            scalarmuls_scalars.push(u_challenge);
+            scalarmuls_scalars.push(z_challenge);
+            scalarmuls_scalars
+                .push(u_challenge * z_challenge * domain.group_gen);
+
+            // Compute the scalar multiplications in single-core
+            #[cfg(not(feature = "std"))]
+            let scalarmuls: Vec<G1Projective> = scalarmuls_points
+                .iter()
+                .zip(scalarmuls_scalars.iter())
+                .map(|(point, scalar)| point * scalar)
+                .collect();
+
+            // Compute the scalar multiplications in multi-core
+            #[cfg(feature = "std")]
+            let scalarmuls: Vec<G1Projective> = scalarmuls_points
+                .par_iter()
+                .zip(scalarmuls_scalars.par_iter())
+                .map(|(point, scalar)| point * scalar)
+                .collect();
+
+            // [F]_1 = [D]_1 + (v)[a]_1 + (v^2)[b]_1 + (v^3)[c]_1 + (v^4)[d]_1 +
+            // + (v^5)[s_sigma_1]_1 + (v^6)[s_sigma_2]_1 + (v^7)[s_sigma_3]_1 +
+            // + (u * v_w)[a]_1 + (u * v_w^2)[b]_1 + (u * v_w^3)[d]_1
+            let mut F: G1Projective = scalarmuls[..V_MAX_DEGREE].iter().sum();
+            F += D;
+
+            // [E]_1 = E * G
+            let E = scalarmuls[V_MAX_DEGREE];
 
             // Compute the G_1 element of the first pairing:
             // [W_z]_1 + u * [W_zw]_1
@@ -432,17 +445,13 @@ pub(crate) mod alloc {
             // Note that we negate this value to be able to subtract
             // the pairings later on, using the multi Miller loop
             let left = G1Affine::from(
-                -(self.w_z_chall_comm.0
-                    + u_challenge * self.w_z_chall_w_comm.0),
+                -(self.w_z_chall_comm.0 + scalarmuls[V_MAX_DEGREE + 1]),
             );
 
             // Compute the G_1 element of the second pairing:
             // z * [W_z]_1 + (u * z * w) * [W_zw]_1 + [F]_1 - [E]_1
             let right = G1Affine::from(
-                z_challenge * self.w_z_chall_comm.0
-                    + (u_challenge * z_challenge * domain.group_gen)
-                        * self.w_z_chall_w_comm.0
-                    + F
+                scalarmuls[V_MAX_DEGREE + 2] + scalarmuls[V_MAX_DEGREE + 3] + F
                     - E,
             );
 
