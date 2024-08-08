@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Modify the prover to match the paper [#831]
 - Modify the verifier to match the paper [#831]
 - Rename some variables to match the paper [#831]
+- Modify the parallelization to have a faster verifier [#834]
 
 ### Removed
 
@@ -592,6 +593,7 @@ is necessary since `rkyv/validation` was required as a bound.
 - Proof system module.
 
 <!-- ISSUES -->
+[#834]: https://github.com/dusk-network/plonk/issues/834
 [#831]: https://github.com/dusk-network/plonk/issues/831
 [#819]: https://github.com/dusk-network/plonk/issues/819
 [#818]: https://github.com/dusk-network/plonk/issues/818
