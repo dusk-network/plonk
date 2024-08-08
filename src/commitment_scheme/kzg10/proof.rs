@@ -24,18 +24,17 @@ pub(crate) struct Proof {
 #[cfg(feature = "alloc")]
 pub(crate) mod alloc {
     use super::*;
-    use crate::transcript::TranscriptProtocol;
     use crate::util::powers_of;
     #[rustfmt::skip]
     use ::alloc::vec::Vec;
     use dusk_bls12_381::G1Projective;
-    use merlin::Transcript;
     #[cfg(feature = "std")]
     use rayon::prelude::*;
 
     /// Proof that multiple polynomials were correctly evaluated at a point `z`,
     /// each producing their respective evaluated points p_i(z).
     #[derive(Debug)]
+    #[allow(dead_code)]
     pub(crate) struct AggregateProof {
         /// This is a commitment to the aggregated witness polynomial.
         pub(crate) commitment_to_witness: Commitment,
@@ -47,6 +46,7 @@ pub(crate) mod alloc {
         pub(crate) commitments_to_polynomials: Vec<Commitment>,
     }
 
+    #[allow(dead_code)]
     impl AggregateProof {
         /// Initializes an `AggregatedProof` with the commitment to the witness.
         pub(crate) fn with_witness(witness: Commitment) -> AggregateProof {
@@ -65,12 +65,9 @@ pub(crate) mod alloc {
         }
 
         /// Flattens an `AggregateProof` into a `Proof`.
-        /// The transcript must have the same view as the transcript that was
-        /// used to aggregate the witness in the proving stage.
-        pub(crate) fn flatten(&self, transcript: &mut Transcript) -> Proof {
-            let v_challenge = transcript.challenge_scalar(b"v_challenge");
+        pub(crate) fn flatten(&self, v_challenge: &BlsScalar) -> Proof {
             let powers = powers_of(
-                &v_challenge,
+                v_challenge,
                 self.commitments_to_polynomials.len() - 1,
             );
 

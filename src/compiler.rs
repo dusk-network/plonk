@@ -108,7 +108,7 @@ impl Compiler {
         let mut q_l = vec![BlsScalar::zero(); size];
         let mut q_r = vec![BlsScalar::zero(); size];
         let mut q_o = vec![BlsScalar::zero(); size];
-        let mut q_4 = vec![BlsScalar::zero(); size];
+        let mut q_f = vec![BlsScalar::zero(); size];
         let mut q_c = vec![BlsScalar::zero(); size];
         let mut q_arith = vec![BlsScalar::zero(); size];
         let mut q_range = vec![BlsScalar::zero(); size];
@@ -116,25 +116,29 @@ impl Compiler {
         let mut q_fixed_group_add = vec![BlsScalar::zero(); size];
         let mut q_variable_group_add = vec![BlsScalar::zero(); size];
 
-        prover.constraints.iter().enumerate().for_each(|(i, c)| {
-            q_m[i] = c.q_m;
-            q_l[i] = c.q_l;
-            q_r[i] = c.q_r;
-            q_o[i] = c.q_o;
-            q_4[i] = c.q_4;
-            q_c[i] = c.q_c;
-            q_arith[i] = c.q_arith;
-            q_range[i] = c.q_range;
-            q_logic[i] = c.q_logic;
-            q_fixed_group_add[i] = c.q_fixed_group_add;
-            q_variable_group_add[i] = c.q_variable_group_add;
-        });
+        prover
+            .constraints
+            .iter()
+            .enumerate()
+            .for_each(|(i, constraint)| {
+                q_m[i] = constraint.q_m;
+                q_l[i] = constraint.q_l;
+                q_r[i] = constraint.q_r;
+                q_o[i] = constraint.q_o;
+                q_f[i] = constraint.q_f;
+                q_c[i] = constraint.q_c;
+                q_arith[i] = constraint.q_arith;
+                q_range[i] = constraint.q_range;
+                q_logic[i] = constraint.q_logic;
+                q_fixed_group_add[i] = constraint.q_fixed_group_add;
+                q_variable_group_add[i] = constraint.q_variable_group_add;
+            });
 
         let q_m_poly = domain.ifft(&q_m);
         let q_l_poly = domain.ifft(&q_l);
         let q_r_poly = domain.ifft(&q_r);
         let q_o_poly = domain.ifft(&q_o);
-        let q_4_poly = domain.ifft(&q_4);
+        let q_f_poly = domain.ifft(&q_f);
         let q_c_poly = domain.ifft(&q_c);
         let q_arith_poly = domain.ifft(&q_arith);
         let q_range_poly = domain.ifft(&q_range);
@@ -146,7 +150,7 @@ impl Compiler {
         let q_l_poly = Polynomial::from_coefficients_vec(q_l_poly);
         let q_r_poly = Polynomial::from_coefficients_vec(q_r_poly);
         let q_o_poly = Polynomial::from_coefficients_vec(q_o_poly);
-        let q_4_poly = Polynomial::from_coefficients_vec(q_4_poly);
+        let q_f_poly = Polynomial::from_coefficients_vec(q_f_poly);
         let q_c_poly = Polynomial::from_coefficients_vec(q_c_poly);
         let q_arith_poly = Polynomial::from_coefficients_vec(q_arith_poly);
         let q_range_poly = Polynomial::from_coefficients_vec(q_range_poly);
@@ -160,72 +164,69 @@ impl Compiler {
         let [s_sigma_1_poly, s_sigma_2_poly, s_sigma_3_poly, s_sigma_4_poly] =
             perm.compute_sigma_polynomials(size, &domain);
 
-        let q_m_poly_commit = commit_key.commit(&q_m_poly).unwrap_or_default();
-        let q_l_poly_commit = commit_key.commit(&q_l_poly).unwrap_or_default();
-        let q_r_poly_commit = commit_key.commit(&q_r_poly).unwrap_or_default();
-        let q_o_poly_commit = commit_key.commit(&q_o_poly).unwrap_or_default();
-        let q_4_poly_commit = commit_key.commit(&q_4_poly).unwrap_or_default();
-        let q_c_poly_commit = commit_key.commit(&q_c_poly).unwrap_or_default();
-        let q_arith_poly_commit =
-            commit_key.commit(&q_arith_poly).unwrap_or_default();
-        let q_range_poly_commit =
-            commit_key.commit(&q_range_poly).unwrap_or_default();
-        let q_logic_poly_commit =
-            commit_key.commit(&q_logic_poly).unwrap_or_default();
-        let q_fixed_group_add_poly_commit = commit_key
+        let q_m_comm = commit_key.commit(&q_m_poly).unwrap_or_default();
+        let q_l_comm = commit_key.commit(&q_l_poly).unwrap_or_default();
+        let q_r_comm = commit_key.commit(&q_r_poly).unwrap_or_default();
+        let q_o_comm = commit_key.commit(&q_o_poly).unwrap_or_default();
+        let q_f_comm = commit_key.commit(&q_f_poly).unwrap_or_default();
+        let q_c_comm = commit_key.commit(&q_c_poly).unwrap_or_default();
+        let q_arith_comm = commit_key.commit(&q_arith_poly).unwrap_or_default();
+        let q_range_comm = commit_key.commit(&q_range_poly).unwrap_or_default();
+        let q_logic_comm = commit_key.commit(&q_logic_poly).unwrap_or_default();
+        let q_fixed_group_add_comm = commit_key
             .commit(&q_fixed_group_add_poly)
             .unwrap_or_default();
-        let q_variable_group_add_poly_commit = commit_key
+        let q_variable_group_add_comm = commit_key
             .commit(&q_variable_group_add_poly)
             .unwrap_or_default();
 
-        let s_sigma_1_poly_commit = commit_key.commit(&s_sigma_1_poly)?;
-        let s_sigma_2_poly_commit = commit_key.commit(&s_sigma_2_poly)?;
-        let s_sigma_3_poly_commit = commit_key.commit(&s_sigma_3_poly)?;
-        let s_sigma_4_poly_commit = commit_key.commit(&s_sigma_4_poly)?;
+        let s_sigma_1_comm = commit_key.commit(&s_sigma_1_poly)?;
+        let s_sigma_2_comm = commit_key.commit(&s_sigma_2_poly)?;
+        let s_sigma_3_comm = commit_key.commit(&s_sigma_3_poly)?;
+        let s_sigma_4_comm = commit_key.commit(&s_sigma_4_poly)?;
 
         // verifier Key for arithmetic circuits
         let arithmetic_verifier_key = widget::arithmetic::VerifierKey {
-            q_m: q_m_poly_commit,
-            q_l: q_l_poly_commit,
-            q_r: q_r_poly_commit,
-            q_o: q_o_poly_commit,
-            q_4: q_4_poly_commit,
-            q_c: q_c_poly_commit,
-            q_arith: q_arith_poly_commit,
+            q_m: q_m_comm,
+            q_l: q_l_comm,
+            q_r: q_r_comm,
+            q_o: q_o_comm,
+            q_f: q_f_comm,
+            q_c: q_c_comm,
+            q_arith: q_arith_comm,
         };
 
         // verifier Key for range circuits
         let range_verifier_key = widget::range::VerifierKey {
-            q_range: q_range_poly_commit,
+            q_range: q_range_comm,
         };
 
         // verifier Key for logic circuits
         let logic_verifier_key = widget::logic::VerifierKey {
-            q_c: q_c_poly_commit,
-            q_logic: q_logic_poly_commit,
+            q_c: q_c_comm,
+            q_logic: q_logic_comm,
         };
 
         // verifier Key for ecc circuits
         let ecc_verifier_key =
             widget::ecc::scalar_mul::fixed_base::VerifierKey {
-                q_l: q_l_poly_commit,
-                q_r: q_r_poly_commit,
-                q_fixed_group_add: q_fixed_group_add_poly_commit,
+                q_l: q_l_comm,
+                q_r: q_r_comm,
+                q_fixed_group_add: q_fixed_group_add_comm,
             };
 
         // verifier Key for curve addition circuits
         let curve_addition_verifier_key =
             widget::ecc::curve_addition::VerifierKey {
-                q_variable_group_add: q_variable_group_add_poly_commit,
+                q_variable_group_add: q_variable_group_add_comm,
             };
 
         // verifier Key for permutation argument
         let permutation_verifier_key = widget::permutation::VerifierKey {
-            s_sigma_1: s_sigma_1_poly_commit,
-            s_sigma_2: s_sigma_2_poly_commit,
-            s_sigma_3: s_sigma_3_poly_commit,
-            s_sigma_4: s_sigma_4_poly_commit,
+            s_sigma_1: s_sigma_1_comm,
+            s_sigma_2: s_sigma_2_comm,
+            s_sigma_3: s_sigma_3_comm,
+            s_sigma_4: s_sigma_4_comm,
         };
 
         let verifier_key = widget::VerifierKey {
@@ -243,7 +244,7 @@ impl Compiler {
             q_l: q_l_poly,
             q_r: q_r_poly,
             q_o: q_o_poly,
-            q_4: q_4_poly,
+            q_f: q_f_poly,
             q_c: q_c_poly,
             q_arith: q_arith_poly,
             q_range: q_range_poly,
@@ -282,8 +283,8 @@ impl Compiler {
             domain_8n.coset_fft(&selectors.q_c),
             domain_8n,
         );
-        let q_4_eval_8n = Evaluations::from_vec_and_domain(
-            domain_8n.coset_fft(&selectors.q_4),
+        let q_f_eval_8n = Evaluations::from_vec_and_domain(
+            domain_8n.coset_fft(&selectors.q_f),
             domain_8n,
         );
         let q_arith_eval_8n = Evaluations::from_vec_and_domain(
@@ -334,7 +335,7 @@ impl Compiler {
             q_l: (selectors.q_l.clone(), q_l_eval_8n.clone()),
             q_r: (selectors.q_r.clone(), q_r_eval_8n.clone()),
             q_o: (selectors.q_o, q_o_eval_8n),
-            q_4: (selectors.q_4, q_4_eval_8n),
+            q_f: (selectors.q_f, q_f_eval_8n),
             q_c: (selectors.q_c.clone(), q_c_eval_8n.clone()),
             q_arith: (selectors.q_arith, q_arith_eval_8n),
         };

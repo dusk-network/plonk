@@ -191,13 +191,11 @@ impl CommitKey {
     /// We apply the same optimization mentioned in when computing each witness;
     /// removing f(z).
     pub(crate) fn compute_aggregate_witness(
-        &self,
         polynomials: &[Polynomial],
         point: &BlsScalar,
-        transcript: &mut Transcript,
+        v_challenge: &BlsScalar,
     ) -> Polynomial {
-        let v_challenge = transcript.challenge_scalar(b"v_challenge");
-        let powers = util::powers_of(&v_challenge, polynomials.len() - 1);
+        let powers = util::powers_of(v_challenge, polynomials.len() - 1);
 
         assert_eq!(powers.len(), polynomials.len());
 
@@ -227,15 +225,15 @@ pub struct OpeningKey {
     /// The generator of G2.
     #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) h: G2Affine,
-    /// \beta times the above generator of G2.
+    /// 'x' times the above generator of G2.
     #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
-    pub(crate) beta_h: G2Affine,
+    pub(crate) x_h: G2Affine,
     /// The generator of G2, prepared for use in pairings.
     #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) prepared_h: G2Prepared,
-    /// \beta times the above generator of G2, prepared for use in pairings.
+    /// 'x' times the above generator of G2, prepared for use in pairings.
     #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
-    pub(crate) prepared_beta_h: G2Prepared,
+    pub(crate) prepared_x_h: G2Prepared,
 }
 
 impl Serializable<{ G1Affine::SIZE + G2Affine::SIZE * 2 }> for OpeningKey {
@@ -248,7 +246,7 @@ impl Serializable<{ G1Affine::SIZE + G2Affine::SIZE * 2 }> for OpeningKey {
         // This can't fail therefore we don't care about the Result nor use it.
         writer.write(&self.g.to_bytes());
         writer.write(&self.h.to_bytes());
-        writer.write(&self.beta_h.to_bytes());
+        writer.write(&self.x_h.to_bytes());
 
         buf
     }
@@ -264,24 +262,21 @@ impl Serializable<{ G1Affine::SIZE + G2Affine::SIZE * 2 }> for OpeningKey {
 }
 
 impl OpeningKey {
-    pub(crate) fn new(
-        g: G1Affine,
-        h: G2Affine,
-        beta_h: G2Affine,
-    ) -> OpeningKey {
+    pub(crate) fn new(g: G1Affine, h: G2Affine, x_h: G2Affine) -> OpeningKey {
         let prepared_h = G2Prepared::from(h);
-        let prepared_beta_h = G2Prepared::from(beta_h);
+        let prepared_x_h = G2Prepared::from(x_h);
         OpeningKey {
             g,
             h,
-            beta_h,
+            x_h,
             prepared_h,
-            prepared_beta_h,
+            prepared_x_h,
         }
     }
 
     /// Checks whether a batch of polynomials evaluated at different points,
     /// returned their specified value.
+    #[allow(dead_code)]
     pub(crate) fn batch_check(
         &self,
         points: &[BlsScalar],
@@ -315,7 +310,7 @@ impl OpeningKey {
         let affine_total_c = G1Affine::from(total_c);
 
         let pairing = dusk_bls12_381::multi_miller_loop(&[
-            (&affine_total_w, &self.prepared_beta_h),
+            (&affine_total_w, &self.prepared_x_h),
             (&affine_total_c, &self.prepared_h),
         ])
         .final_exponentiation();
@@ -345,7 +340,7 @@ mod test {
             - (op_key.g * proof.evaluated_point))
             .into();
 
-        let inner_b: G2Affine = (op_key.beta_h - (op_key.h * point)).into();
+        let inner_b: G2Affine = (op_key.x_h - (op_key.h * point)).into();
         let prepared_inner_b = G2Prepared::from(-inner_b);
 
         let pairing = dusk_bls12_381::multi_miller_loop(&[
@@ -391,9 +386,14 @@ mod test {
             polynomial_commitments.push(ck.commit(poly)?)
         }
 
+        let v_challenge = transcript.challenge_scalar(b"v_challenge");
+
         // Compute the aggregate witness for polynomials
-        let witness_poly =
-            ck.compute_aggregate_witness(polynomials, point, transcript);
+        let witness_poly = CommitKey::compute_aggregate_witness(
+            polynomials,
+            point,
+            &v_challenge,
+        );
 
         // Commit to witness polynomial
         let witness_commitment = ck.commit(&witness_poly)?;
@@ -482,13 +482,13 @@ mod test {
             let poly_b = Polynomial::rand(26 + 1, &mut OsRng);
             let poly_b_eval = poly_b.evaluate(&point);
 
-            let poly_o = Polynomial::rand(27, &mut OsRng);
-            let poly_o_eval = poly_o.evaluate(&point);
+            let poly_c = Polynomial::rand(27, &mut OsRng);
+            let poly_c_eval = poly_c.evaluate(&point);
 
             open_multiple(
                 &ck,
-                &[poly_a, poly_b, poly_o],
-                vec![poly_a_eval, poly_b_eval, poly_o_eval],
+                &[poly_a, poly_b, poly_c],
+                vec![poly_a_eval, poly_b_eval, poly_c_eval],
                 &point,
                 &mut Transcript::new(b"agg_flatten"),
             )?
@@ -496,8 +496,9 @@ mod test {
 
         // Verifier's View
         let ok = {
-            let flattened_proof =
-                aggregated_proof.flatten(&mut Transcript::new(b"agg_flatten"));
+            let transcript = &mut Transcript::new(b"agg_flatten");
+            let v_challenge = transcript.challenge_scalar(b"v_challenge");
+            let flattened_proof = aggregated_proof.flatten(&v_challenge);
             check(&opening_key, point, flattened_proof)
         };
 
@@ -521,16 +522,16 @@ mod test {
             let poly_b = Polynomial::rand(26, &mut OsRng);
             let poly_b_eval = poly_b.evaluate(&point_a);
 
-            let poly_o = Polynomial::rand(27, &mut OsRng);
-            let poly_o_eval = poly_o.evaluate(&point_a);
+            let poly_c = Polynomial::rand(27, &mut OsRng);
+            let poly_c_eval = poly_c.evaluate(&point_a);
 
             let poly_d = Polynomial::rand(28, &mut OsRng);
             let poly_d_eval = poly_d.evaluate(&point_b);
 
             let aggregated_proof = open_multiple(
                 &ck,
-                &[poly_a, poly_b, poly_o],
-                vec![poly_a_eval, poly_b_eval, poly_o_eval],
+                &[poly_a, poly_b, poly_c],
+                vec![poly_a_eval, poly_b_eval, poly_c_eval],
                 &point_a,
                 &mut Transcript::new(b"agg_batch"),
             )?;
@@ -544,7 +545,8 @@ mod test {
         // Verifier's View
 
         let mut transcript = Transcript::new(b"agg_batch");
-        let flattened_proof = aggregated_proof.flatten(&mut transcript);
+        let v_challenge = transcript.challenge_scalar(b"v_challenge");
+        let flattened_proof = aggregated_proof.flatten(&v_challenge);
 
         opening_key.batch_check(
             &[point_a, point_b],

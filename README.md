@@ -5,7 +5,7 @@
 
 _This is a pure Rust implementation of the PLONK proving system over BLS12-381._
 
-This library contains a modular implementation of KZG10 as the default polynomial commitment scheme.
+This library contains a modular implementation of KZG10 as the default polynomial commitment scheme. Moreover, it includes custom gates for efficiency purposes. The details on our specific implementation can be found [here](docs/dusk-plonk-specs.pdf).
 
 **DISCLAIMER**: This library is currently unstable and still needs to undergo an exhaustive security analysis. Use at your own risk.
 
@@ -34,7 +34,7 @@ as the documentation regarding the data structures that it exports. To check thi
 Benchmarks taken on `Apple M1`, for a circuit-size of `2^16` constraints:
 
 - Proving time: `7.871s`
-- Verification time: `7.643ms` **(This time does not vary depending on the circuit-size.)**
+- Verification time: `3.732ms` **(This time does not vary depending on the circuit-size.)**
 
 For more results, please run `cargo bench` to get a full report of benchmarks in respect of constraint numbers.
 

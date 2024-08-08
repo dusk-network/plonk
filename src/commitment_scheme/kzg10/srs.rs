@@ -230,7 +230,7 @@ mod test {
         assert_eq!(got_pp.commit_key.powers_of_g, pp.commit_key.powers_of_g);
         assert_eq!(got_pp.opening_key.g, pp.opening_key.g);
         assert_eq!(got_pp.opening_key.h, pp.opening_key.h);
-        assert_eq!(got_pp.opening_key.beta_h, pp.opening_key.beta_h);
+        assert_eq!(got_pp.opening_key.x_h, pp.opening_key.x_h);
     }
 
     #[test]
@@ -245,6 +245,6 @@ mod test {
         assert_eq!(pp.commit_key, pp_p.commit_key);
         assert_eq!(pp.opening_key.g, pp_p.opening_key.g);
         assert_eq!(pp.opening_key.h, pp_p.opening_key.h);
-        assert_eq!(pp.opening_key.beta_h, pp_p.opening_key.beta_h);
+        assert_eq!(pp.opening_key.x_h, pp_p.opening_key.x_h);
     }
 }

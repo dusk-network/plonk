@@ -20,7 +20,7 @@ pub(crate) fn compute(
     domain: &EvaluationDomain,
     prover_key: &ProverKey,
     z_poly: &Polynomial,
-    (a_w_poly, b_w_poly, o_w_poly, d_w_poly): (
+    (a_poly, b_poly, c_poly, d_poly): (
         &Polynomial,
         &Polynomial,
         &Polynomial,
@@ -50,17 +50,17 @@ pub(crate) fn compute(
 
     let mut z_eval_8n = domain_8n.coset_fft(z_poly);
 
-    let mut a_w_eval_8n = domain_8n.coset_fft(a_w_poly);
-    let mut b_w_eval_8n = domain_8n.coset_fft(b_w_poly);
-    let o_w_eval_8n = domain_8n.coset_fft(o_w_poly);
-    let mut d_w_eval_8n = domain_8n.coset_fft(d_w_poly);
+    let mut a_eval_8n = domain_8n.coset_fft(a_poly);
+    let mut b_eval_8n = domain_8n.coset_fft(b_poly);
+    let c_eval_8n = domain_8n.coset_fft(c_poly);
+    let mut d_eval_8n = domain_8n.coset_fft(d_poly);
 
     for i in 0..8 {
         z_eval_8n.push(z_eval_8n[i]);
-        a_w_eval_8n.push(a_w_eval_8n[i]);
-        b_w_eval_8n.push(b_w_eval_8n[i]);
-        // o_w_eval_8n push not required
-        d_w_eval_8n.push(d_w_eval_8n[i]);
+        a_eval_8n.push(a_eval_8n[i]);
+        b_eval_8n.push(b_eval_8n[i]);
+        // c_eval_8n push not required
+        d_eval_8n.push(d_eval_8n[i]);
     }
 
     let t_1 = compute_circuit_satisfiability_equation(
@@ -72,14 +72,14 @@ pub(crate) fn compute(
             var_base_challenge,
         ),
         prover_key,
-        (&a_w_eval_8n, &b_w_eval_8n, &o_w_eval_8n, &d_w_eval_8n),
+        (&a_eval_8n, &b_eval_8n, &c_eval_8n, &d_eval_8n),
         public_inputs_poly,
     );
 
     let t_2 = compute_permutation_checks(
         domain,
         prover_key,
-        (&a_w_eval_8n, &b_w_eval_8n, &o_w_eval_8n, &d_w_eval_8n),
+        (&a_eval_8n, &b_eval_8n, &c_eval_8n, &d_eval_8n),
         &z_eval_8n,
         (alpha, beta, gamma),
     );
@@ -104,7 +104,6 @@ pub(crate) fn compute(
 }
 
 // Ensures that the circuit is satisfied
-// Ensures that the circuit is satisfied
 fn compute_circuit_satisfiability_equation(
     domain: &EvaluationDomain,
     (
@@ -114,7 +113,7 @@ fn compute_circuit_satisfiability_equation(
         var_base_challenge,
     ): (&BlsScalar, &BlsScalar, &BlsScalar, &BlsScalar),
     prover_key: &ProverKey,
-    (a_w_eval_8n, b_w_eval_8n, o_w_eval_8n, d_w_eval_8n): (
+    (a_eval_8n, b_eval_8n, c_eval_8n, d_eval_8n): (
         &[BlsScalar],
         &[BlsScalar],
         &[BlsScalar],
@@ -133,66 +132,67 @@ fn compute_circuit_satisfiability_equation(
 
     let t: Vec<_> = range
         .map(|i| {
-            let a_w = &a_w_eval_8n[i];
-            let b_w = &b_w_eval_8n[i];
-            let o_w = &o_w_eval_8n[i];
-            let d_w = &d_w_eval_8n[i];
-            let a_w_next = &a_w_eval_8n[i + 8];
-            let b_w_next = &b_w_eval_8n[i + 8];
-            let d_w_next = &d_w_eval_8n[i + 8];
+            let a = &a_eval_8n[i];
+            let b = &b_eval_8n[i];
+            let c = &c_eval_8n[i];
+            let d = &d_eval_8n[i];
+            let a_w = &a_eval_8n[i + 8];
+            let b_w = &b_eval_8n[i + 8];
+            let d_w = &d_eval_8n[i + 8];
             let pi = &public_eval_8n[i];
 
-            let a = prover_key
-                .arithmetic
-                .compute_quotient_i(i, a_w, b_w, o_w, d_w);
+            let t_arith =
+                prover_key.arithmetic.compute_quotient_i(i, a, b, c, d);
 
-            let b = prover_key.range.compute_quotient_i(
+            let t_range = prover_key.range.compute_quotient_i(
                 i,
                 range_challenge,
-                a_w,
-                b_w,
-                o_w,
+                a,
+                b,
+                c,
+                d,
                 d_w,
-                d_w_next,
             );
 
-            let c = prover_key.logic.compute_quotient_i(
+            let t_logic = prover_key.logic.compute_quotient_i(
                 i,
                 logic_challenge,
+                a,
                 a_w,
-                a_w_next,
+                b,
                 b_w,
-                b_w_next,
-                o_w,
+                c,
+                d,
                 d_w,
-                d_w_next,
             );
 
-            let d = prover_key.fixed_base.compute_quotient_i(
+            let t_fixed = prover_key.fixed_base.compute_quotient_i(
                 i,
                 fixed_base_challenge,
+                a,
                 a_w,
-                a_w_next,
+                b,
                 b_w,
-                b_w_next,
-                o_w,
+                c,
+                d,
                 d_w,
-                d_w_next,
             );
 
-            let e = prover_key.variable_base.compute_quotient_i(
+            let t_var = prover_key.variable_base.compute_quotient_i(
                 i,
                 var_base_challenge,
+                a,
                 a_w,
-                a_w_next,
+                b,
                 b_w,
-                b_w_next,
-                o_w,
+                c,
+                d,
                 d_w,
-                d_w_next,
             );
 
-            (a + pi) + b + c + d + e
+            // Multiplication by selectors and challenges
+            // has already been done
+            t_arith + t_range + t_logic + t_fixed + t_var + pi
         })
         .collect();
     t
@@ -201,7 +201,7 @@ fn compute_circuit_satisfiability_equation(
 fn compute_permutation_checks(
     domain: &EvaluationDomain,
     prover_key: &ProverKey,
-    (a_w_eval_8n, b_w_eval_8n, o_w_eval_8n, d_w_eval_8n): (
+    (a_eval_8n, b_eval_8n, c_eval_8n, d_eval_8n): (
         &[BlsScalar],
         &[BlsScalar],
         &[BlsScalar],
@@ -225,10 +225,10 @@ fn compute_permutation_checks(
         .map(|i| {
             prover_key.permutation.compute_quotient_i(
                 i,
-                &a_w_eval_8n[i],
-                &b_w_eval_8n[i],
-                &o_w_eval_8n[i],
-                &d_w_eval_8n[i],
+                &a_eval_8n[i],
+                &b_eval_8n[i],
+                &c_eval_8n[i],
+                &d_eval_8n[i],
                 &z_eval_8n[i],
                 &z_eval_8n[i + 8],
                 alpha,

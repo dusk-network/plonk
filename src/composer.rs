@@ -103,16 +103,16 @@ impl Composer {
     fn append_custom_gate_internal(&mut self, constraint: Constraint) {
         let n = self.constraints.len();
 
-        let w_a = constraint.witness(WiredWitness::A);
-        let w_b = constraint.witness(WiredWitness::B);
-        let w_o = constraint.witness(WiredWitness::O);
-        let w_d = constraint.witness(WiredWitness::D);
+        let a = constraint.witness(WiredWitness::A);
+        let b = constraint.witness(WiredWitness::B);
+        let c = constraint.witness(WiredWitness::C);
+        let d = constraint.witness(WiredWitness::D);
 
         let q_m = *constraint.coeff(Selector::Multiplication);
         let q_l = *constraint.coeff(Selector::Left);
         let q_r = *constraint.coeff(Selector::Right);
         let q_o = *constraint.coeff(Selector::Output);
-        let q_4 = *constraint.coeff(Selector::Fourth);
+        let q_f = *constraint.coeff(Selector::Fourth);
         let q_c = *constraint.coeff(Selector::Constant);
 
         let q_arith = *constraint.coeff(Selector::Arithmetic);
@@ -127,17 +127,17 @@ impl Composer {
             q_l,
             q_r,
             q_o,
-            q_4,
+            q_f,
             q_c,
             q_arith,
             q_range,
             q_logic,
             q_fixed_group_add,
             q_variable_group_add,
-            w_a,
-            w_b,
-            w_o,
-            w_d,
+            a,
+            b,
+            c,
+            d,
         };
 
         self.constraints.push(gate);
@@ -148,7 +148,7 @@ impl Composer {
             self.public_inputs.insert(n, pi);
         }
 
-        self.perm.add_witnesses_to_map(w_a, w_b, w_o, w_d, n);
+        self.perm.add_witnesses_to_map(a, b, c, d, n);
     }
 
     /// PLONK runtime controller
@@ -204,7 +204,7 @@ impl Composer {
             .a(six)
             .b(seven)
             .d(one)
-            .o(min_twenty);
+            .c(min_twenty);
 
         self.append_gate(constraint);
 
@@ -218,7 +218,7 @@ impl Composer {
             .output(1)
             .a(min_twenty)
             .b(six)
-            .o(seven);
+            .c(seven);
 
         self.append_gate(constraint);
     }
@@ -345,7 +345,7 @@ impl Composer {
             let wit_c = self.append_witness(prod_quad_bls);
             let wit_d = self.append_witness(out_acc);
 
-            constraint = constraint.o(wit_c);
+            constraint = constraint.c(wit_c);
 
             self.append_custom_gate(constraint);
 
@@ -494,7 +494,7 @@ impl Composer {
                     .constant(wnaf_round.xy_beta)
                     .a(wnaf_round.acc_x)
                     .b(wnaf_round.acc_y)
-                    .o(wnaf_round.xy_alpha)
+                    .c(wnaf_round.xy_alpha)
                     .d(wnaf_round.accumulated_bit);
 
             self.append_custom_gate(constraint)
@@ -528,7 +528,7 @@ impl Composer {
     /// Append a new width-4 gate/constraint.
     ///
     /// The constraint added will enforce the following:
-    /// `q_m · a · b  + q_l · a + q_r · b + q_o · o + q_4 · d + q_c + PI = 0`.
+    /// `q_M · a · b  + q_L · a + q_R · b + q_O · o + q_F · d + q_C + PI = 0`.
     pub fn append_gate(&mut self, constraint: Constraint) {
         let constraint = Constraint::arithmetic(&constraint);
 
@@ -553,18 +553,18 @@ impl Composer {
         let qm = s.coeff(Selector::Multiplication);
         let ql = s.coeff(Selector::Left);
         let qr = s.coeff(Selector::Right);
-        let qd = s.coeff(Selector::Fourth);
+        let qf = s.coeff(Selector::Fourth);
         let qc = s.coeff(Selector::Constant);
         let pi = s.coeff(Selector::PublicInput);
 
-        let x = qm * a * b + ql * a + qr * b + qd * d + qc + pi;
+        let x = qm * a * b + ql * a + qr * b + qf * d + qc + pi;
 
         let y = s.coeff(Selector::Output);
 
-        // Invert is an expensive operation; in most cases, `qo` is going to be
+        // Invert is an expensive operation; in most cases, `q_O` is going to be
         // either 1 or -1, so we can optimize these
         #[allow(dead_code)]
-        let o = {
+        let c = {
             const ONE: BlsScalar = BlsScalar::one();
             const MINUS_ONE: BlsScalar = BlsScalar([
                 0xfffffffd00000003,
@@ -584,7 +584,7 @@ impl Composer {
             }
         };
 
-        o.map(|o| self.append_witness(o))
+        c.map(|c| self.append_witness(c))
     }
 
     /// Constrain a scalar into the circuit description and return an allocated
@@ -780,7 +780,7 @@ impl Composer {
         let y_3 = self.append_witness(y_3);
 
         // Add the rest of the prepared points into the composer
-        let constraint = Constraint::new().a(x_1).b(y_1).o(x_2).d(y_2);
+        let constraint = Constraint::new().a(x_1).b(y_1).c(x_2).d(y_2);
         let constraint = Constraint::group_add_variable_base(&constraint);
 
         self.append_custom_gate(constraint);
@@ -806,7 +806,7 @@ impl Composer {
             .output(-BlsScalar::one())
             .a(a)
             .b(a)
-            .o(a)
+            .c(a)
             .d(zero);
 
         self.append_gate(constraint);
@@ -956,7 +956,7 @@ impl Composer {
             .constant(1)
             .a(bit)
             .b(value)
-            .o(f_x);
+            .c(f_x);
 
         self.append_gate(constraint);
 
@@ -1077,7 +1077,7 @@ impl Composer {
             let idx = i / 4;
             let witness = match i % 4 {
                 0 => WiredWitness::D,
-                1 => WiredWitness::O,
+                1 => WiredWitness::C,
                 2 => WiredWitness::B,
                 3 => WiredWitness::A,
                 _ => unreachable!(),
@@ -1117,36 +1117,36 @@ impl Composer {
 
     /// Evaluate and return `o` by appending a new constraint into the circuit.
     ///
-    /// Set `q_o = (-1)` and override the output of the constraint with:
-    /// `o := q_l · a + q_r · b + q_4 · d + q_c + PI`
+    /// Set `q_O = (-1)` and override the output of the constraint with:
+    /// `c := q_L · a + q_R · b + q_F · d + q_C + PI`
     pub fn gate_add(&mut self, s: Constraint) -> Witness {
         let s = Constraint::arithmetic(&s).output(-BlsScalar::one());
 
-        let o = self
+        let c = self
             .append_evaluated_output(s)
             .expect("output selector is -1");
-        let s = s.o(o);
+        let s = s.c(c);
 
         self.append_gate(s);
 
-        o
+        c
     }
 
-    /// Evaluate and return `o` by appending a new constraint into the circuit.
+    /// Evaluate and return `c` by appending a new constraint into the circuit.
     ///
-    /// Set `q_o = (-1)` and override the output of the constraint with:
-    /// `o := q_m · a · b + q_4 · d + q_c + PI`
+    /// Set `q_O = (-1)` and override the output of the constraint with:
+    /// `c := q_M · a · b + q_F · d + q_C + PI`
     pub fn gate_mul(&mut self, s: Constraint) -> Witness {
         let s = Constraint::arithmetic(&s).output(-BlsScalar::one());
 
-        let o = self
+        let c = self
             .append_evaluated_output(s)
             .expect("output selector is -1");
-        let s = s.o(o);
+        let s = s.c(c);
 
         self.append_gate(s);
 
-        o
+        c
     }
 
     /// Prove a circuit with a composer initialized with dummy gates

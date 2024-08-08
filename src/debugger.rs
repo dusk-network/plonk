@@ -80,89 +80,90 @@ impl Debugger {
             EncodableWitness::new(id, None, value, source)
         });
 
-        let constraints =
-            self.constraints
-                .iter()
-                .enumerate()
-                .map(|(id, (source, c))| {
-                    let source = source.clone();
+        let constraints = self.constraints.iter().enumerate().map(
+            |(id, (source, constraint))| {
+                let source = source.clone();
 
-                    let qm = c.coeff(Selector::Multiplication);
-                    let ql = c.coeff(Selector::Left);
-                    let qr = c.coeff(Selector::Right);
-                    let qd = c.coeff(Selector::Fourth);
-                    let qc = c.coeff(Selector::Constant);
-                    let qo = c.coeff(Selector::Output);
-                    let pi = c.coeff(Selector::PublicInput);
-                    let qarith = c.coeff(Selector::Arithmetic);
-                    let qlogic = c.coeff(Selector::Logic);
-                    let qrange = c.coeff(Selector::Range);
-                    let qgroup_variable =
-                        c.coeff(Selector::GroupAddVariableBase);
-                    let qfixed_add = c.coeff(Selector::GroupAddFixedBase);
+                let qm = constraint.coeff(Selector::Multiplication);
+                let ql = constraint.coeff(Selector::Left);
+                let qr = constraint.coeff(Selector::Right);
+                let qo = constraint.coeff(Selector::Output);
+                let qf = constraint.coeff(Selector::Fourth);
+                let qc = constraint.coeff(Selector::Constant);
+                let pi = constraint.coeff(Selector::PublicInput);
+                let qarith = constraint.coeff(Selector::Arithmetic);
+                let qlogic = constraint.coeff(Selector::Logic);
+                let qrange = constraint.coeff(Selector::Range);
+                let qgroup_variable =
+                    constraint.coeff(Selector::GroupAddVariableBase);
+                let qfixed_add = constraint.coeff(Selector::GroupAddFixedBase);
 
-                    let witnesses = WiredWitnesses {
-                        a: c.witness(WiredWitness::A).index(),
-                        b: c.witness(WiredWitness::B).index(),
-                        d: c.witness(WiredWitness::D).index(),
-                        o: c.witness(WiredWitness::O).index(),
-                    };
+                let witnesses = WiredWitnesses {
+                    a: constraint.witness(WiredWitness::A).index(),
+                    b: constraint.witness(WiredWitness::B).index(),
+                    // TODO: change by 'c' in debugger crate
+                    o: constraint.witness(WiredWitness::C).index(),
+                    d: constraint.witness(WiredWitness::D).index(),
+                };
 
-                    let wa = self
-                        .witnesses
-                        .get(witnesses.a)
-                        .map(|(_, _, v)| *v)
-                        .unwrap_or_default();
+                let wa = self
+                    .witnesses
+                    .get(witnesses.a)
+                    .map(|(_, _, v)| *v)
+                    .unwrap_or_default();
 
-                    let wb = self
-                        .witnesses
-                        .get(witnesses.b)
-                        .map(|(_, _, v)| *v)
-                        .unwrap_or_default();
+                let wb = self
+                    .witnesses
+                    .get(witnesses.b)
+                    .map(|(_, _, v)| *v)
+                    .unwrap_or_default();
 
-                    let wd = self
-                        .witnesses
-                        .get(witnesses.d)
-                        .map(|(_, _, v)| *v)
-                        .unwrap_or_default();
+                let wc = self
+                    .witnesses
+                    // TODO: change by 'c' in debugger crate
+                    .get(witnesses.o)
+                    .map(|(_, _, v)| *v)
+                    .unwrap_or_default();
 
-                    let wo = self
-                        .witnesses
-                        .get(witnesses.o)
-                        .map(|(_, _, v)| *v)
-                        .unwrap_or_default();
+                let wd = self
+                    .witnesses
+                    .get(witnesses.d)
+                    .map(|(_, _, v)| *v)
+                    .unwrap_or_default();
 
-                    // TODO check arith, range, logic & ecc wires
-                    let evaluation = qm * wa * wb
-                        + ql * wa
-                        + qr * wb
-                        + qd * wd
-                        + qo * wo
-                        + qc
-                        + pi;
+                // TODO check arith, range, logic & ecc wires
+                let evaluation = qm * wa * wb
+                    + ql * wa
+                    + qr * wb
+                    + qo * wc
+                    + qf * wd
+                    + qc
+                    + pi;
 
-                    let evaluation = evaluation == BlsScalar::zero();
+                let evaluation = evaluation == BlsScalar::zero();
 
-                    let selectors = Selectors {
-                        qm: qm.to_bytes().into(),
-                        ql: ql.to_bytes().into(),
-                        qr: qr.to_bytes().into(),
-                        qd: qd.to_bytes().into(),
-                        qc: qc.to_bytes().into(),
-                        qo: qo.to_bytes().into(),
-                        pi: pi.to_bytes().into(),
-                        qarith: qarith.to_bytes().into(),
-                        qlogic: qlogic.to_bytes().into(),
-                        qrange: qrange.to_bytes().into(),
-                        qgroup_variable: qgroup_variable.to_bytes().into(),
-                        qfixed_add: qfixed_add.to_bytes().into(),
-                    };
+                let selectors = Selectors {
+                    qm: qm.to_bytes().into(),
+                    ql: ql.to_bytes().into(),
+                    qr: qr.to_bytes().into(),
+                    qo: qo.to_bytes().into(),
+                    // TODO: change by 'qf' in debugger crate
+                    qd: qf.to_bytes().into(),
+                    qc: qc.to_bytes().into(),
+                    pi: pi.to_bytes().into(),
+                    qarith: qarith.to_bytes().into(),
+                    qlogic: qlogic.to_bytes().into(),
+                    qrange: qrange.to_bytes().into(),
+                    qgroup_variable: qgroup_variable.to_bytes().into(),
+                    qfixed_add: qfixed_add.to_bytes().into(),
+                };
 
-                    let polynomial =
-                        Polynomial::new(selectors, witnesses, evaluation);
+                let polynomial =
+                    Polynomial::new(selectors, witnesses, evaluation);
 
-                    EncodableConstraint::new(id, polynomial, source)
-                });
+                EncodableConstraint::new(id, polynomial, source)
+            },
+        );
 
         if let Err(e) = Config::load()
             .and_then(|config| {

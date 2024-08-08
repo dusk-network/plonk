@@ -5,6 +5,7 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use crate::fft::{Evaluations, Polynomial};
+use crate::proof_system::linearization_poly::ProofEvaluations;
 use dusk_bls12_381::BlsScalar;
 use dusk_jubjub::EDWARDS_D;
 
@@ -33,25 +34,25 @@ impl ProverKey {
         &self,
         index: usize,
         curve_add_separation_challenge: &BlsScalar,
-        a_w_i: &BlsScalar,      // x_1
-        a_w_i_next: &BlsScalar, // x_3
-        b_w_i: &BlsScalar,      // y_1
-        b_w_i_next: &BlsScalar, // y_3
-        o_w_i: &BlsScalar,      // x_2
-        d_w_i: &BlsScalar,      // y_2
-        d_w_i_next: &BlsScalar, // x_1 * y_2
+        a_i: &BlsScalar,   // x_1
+        a_i_w: &BlsScalar, // x_3
+        b_i: &BlsScalar,   // y_1
+        b_i_w: &BlsScalar, // y_3
+        c_i: &BlsScalar,   // x_2
+        d_i: &BlsScalar,   // y_2
+        d_i_w: &BlsScalar, // x_1 * y_2
     ) -> BlsScalar {
         let q_variable_group_add_i = &self.q_variable_group_add.1[index];
 
         let kappa = curve_add_separation_challenge.square();
 
-        let x_1 = a_w_i;
-        let x_3 = a_w_i_next;
-        let y_1 = b_w_i;
-        let y_3 = b_w_i_next;
-        let x_2 = o_w_i;
-        let y_2 = d_w_i;
-        let x1_y2 = d_w_i_next;
+        let x_1 = a_i;
+        let x_3 = a_i_w;
+        let y_1 = b_i;
+        let y_3 = b_i_w;
+        let x_2 = c_i;
+        let y_2 = d_i;
+        let x1_y2 = d_i_w;
 
         // Checks
         //
@@ -80,25 +81,19 @@ impl ProverKey {
     pub(crate) fn compute_linearization(
         &self,
         curve_add_separation_challenge: &BlsScalar,
-        a_eval: &BlsScalar,
-        a_next_eval: &BlsScalar,
-        b_eval: &BlsScalar,
-        b_next_eval: &BlsScalar,
-        o_eval: &BlsScalar,
-        d_eval: &BlsScalar,
-        d_next_eval: &BlsScalar,
+        evaluations: &ProofEvaluations,
     ) -> Polynomial {
         let q_variable_group_add_poly = &self.q_variable_group_add.0;
 
         let kappa = curve_add_separation_challenge.square();
 
-        let x_1 = a_eval;
-        let x_3 = a_next_eval;
-        let y_1 = b_eval;
-        let y_3 = b_next_eval;
-        let x_2 = o_eval;
-        let y_2 = d_eval;
-        let x1_y2 = d_next_eval;
+        let x_1 = evaluations.a_eval;
+        let x_3 = evaluations.a_w_eval;
+        let y_1 = evaluations.b_eval;
+        let y_3 = evaluations.b_w_eval;
+        let x_2 = evaluations.c_eval;
+        let y_2 = evaluations.d_eval;
+        let x1_y2 = evaluations.d_w_eval;
 
         // Checks
         //

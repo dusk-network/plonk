@@ -18,7 +18,7 @@ fn append_gate() {
     pub struct TestCircuit {
         a: BlsScalar,
         b: BlsScalar,
-        o: BlsScalar,
+        c: BlsScalar,
         d: BlsScalar,
         public: BlsScalar,
     }
@@ -27,20 +27,20 @@ fn append_gate() {
         pub fn new(
             a: BlsScalar,
             b: BlsScalar,
-            o: BlsScalar,
+            c: BlsScalar,
             d: BlsScalar,
             public: BlsScalar,
         ) -> Self {
-            Self { a, b, o, d, public }
+            Self { a, b, c, d, public }
         }
     }
 
     impl Circuit for TestCircuit {
         fn circuit(&self, composer: &mut Composer) -> Result<(), Error> {
-            let w_a = composer.append_witness(self.a);
-            let w_b = composer.append_witness(self.b);
-            let w_o = composer.append_witness(self.o);
-            let w_d = composer.append_witness(self.d);
+            let a = composer.append_witness(self.a);
+            let b = composer.append_witness(self.b);
+            let c = composer.append_witness(self.c);
+            let d = composer.append_witness(self.d);
 
             let constraint = Constraint::new()
                 .left(1)
@@ -48,10 +48,10 @@ fn append_gate() {
                 .mult(1)
                 .fourth(1)
                 .output(1)
-                .a(w_a)
-                .b(w_b)
-                .o(w_o)
-                .d(w_d)
+                .a(a)
+                .b(b)
+                .c(c)
+                .d(d)
                 .public(self.public)
                 .constant(BlsScalar::zero());
 
@@ -71,10 +71,10 @@ fn append_gate() {
     let public = BlsScalar::zero();
     let a = BlsScalar::zero();
     let b = BlsScalar::zero();
-    let o = BlsScalar::zero();
+    let c = BlsScalar::zero();
     let d = BlsScalar::zero();
     let pi = vec![public];
-    let circuit = TestCircuit::new(a, b, o, d, public);
+    let circuit = TestCircuit::new(a, b, c, d, public);
     let pp = PublicParameters::setup(capacity, &mut rng)
         .expect("Creation of public parameter shouldn't fail");
     let (prover, verifier) = Compiler::compile::<TestCircuit>(&pp, label)
@@ -85,95 +85,95 @@ fn append_gate() {
     check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
 
     // Test satisfied circuit:
-    // q_l·a + q_r·b + q_m·a·b + q_o·o + q_4·d + public + constant = 0
+    // q_l·a + q_r·b + q_m·a·b + q_o·c + q_4·d + public + constant = 0
     let msg = "Verification of satisfied circuit should pass";
     let a = BlsScalar::one();
     let b = BlsScalar::one();
-    let o = -BlsScalar::from(4);
+    let c = -BlsScalar::from(4);
     let d = BlsScalar::one();
-    let circuit = TestCircuit::new(a, b, o, d, public);
+    let circuit = TestCircuit::new(a, b, c, d, public);
     check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
 
     // Test satisfied circuit:
-    // q_l·a + q_r·b + q_m·a·b + q_o·o + q_4·d + public + constant = 0
+    // q_l·a + q_r·b + q_m·a·b + q_o·c + q_4·d + public + constant = 0
     let msg = "Verification of satisfied circuit should pass";
     let a = BlsScalar::one();
     let b = BlsScalar::zero();
-    let o = -BlsScalar::one();
+    let c = -BlsScalar::one();
     let d = BlsScalar::zero();
-    let circuit = TestCircuit::new(a, b, o, d, public);
+    let circuit = TestCircuit::new(a, b, c, d, public);
     check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
 
     // Test satisfied circuit:
-    // q_l·a + q_r·b + q_m·a·b + q_o·o + q_4·d + public + constant = 0
+    // q_l·a + q_r·b + q_m·a·b + q_o·c + q_4·d + public + constant = 0
     let msg = "Verification of satisfied circuit should pass";
     let a = BlsScalar::zero();
     let b = BlsScalar::one();
-    let o = -BlsScalar::one();
+    let c = -BlsScalar::one();
     let d = BlsScalar::zero();
-    let circuit = TestCircuit::new(a, b, o, d, public);
+    let circuit = TestCircuit::new(a, b, c, d, public);
     check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
 
     // Test satisfied circuit:
-    // q_l·a + q_r·b + q_m·a·b + q_o·o + q_4·d + public + constant = 0
+    // q_l·a + q_r·b + q_m·a·b + q_o·c + q_4·d + public + constant = 0
     let msg = "Verification of satisfied circuit should pass";
     let a = BlsScalar::one();
     let b = BlsScalar::one();
-    let o = -BlsScalar::from(3u64);
+    let c = -BlsScalar::from(3u64);
     let d = BlsScalar::zero();
-    let circuit = TestCircuit::new(a, b, o, d, public);
+    let circuit = TestCircuit::new(a, b, c, d, public);
     check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
 
     // Test satisfied circuit:
-    // q_l·a + q_r·b + q_m·a·b + q_o·o + q_4·d + public + constant = 0
+    // q_l·a + q_r·b + q_m·a·b + q_o·c + q_4·d + public + constant = 0
     let msg = "Verification of satisfied circuit should pass";
     let a = -BlsScalar::one();
     let b = BlsScalar::zero();
-    let o = BlsScalar::zero();
+    let c = BlsScalar::zero();
     let d = BlsScalar::one();
-    let circuit = TestCircuit::new(a, b, o, d, public);
+    let circuit = TestCircuit::new(a, b, c, d, public);
     check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
 
     // Test satisfied circuit:
-    // q_l·a + q_r·b + q_m·a·b + q_o·o + q_4·d + public + constant = 0
+    // q_l·a + q_r·b + q_m·a·b + q_o·c + q_4·d + public + constant = 0
     let msg = "Verification of satisfied circuit should pass";
     let a = BlsScalar::random(&mut rng);
     let b = BlsScalar::random(&mut rng);
     let d = BlsScalar::random(&mut rng);
     let public = BlsScalar::from(42);
-    let o = -(a + b + a * b + d + public);
+    let c = -(a + b + a * b + d + public);
     let pi = vec![public];
-    let circuit = TestCircuit::new(a, b, o, d, public);
+    let circuit = TestCircuit::new(a, b, c, d, public);
     check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
 
     // Test unsatisfied circuit:
     let msg = "Proof creation of unsatisfied circuit should fail";
     let a = BlsScalar::random(&mut rng);
     let b = BlsScalar::random(&mut rng);
-    let o = BlsScalar::random(&mut rng);
+    let c = BlsScalar::random(&mut rng);
     let d = BlsScalar::random(&mut rng);
     let public = BlsScalar::random(&mut rng);
-    let circuit = TestCircuit::new(a, b, o, d, public);
+    let circuit = TestCircuit::new(a, b, c, d, public);
     check_unsatisfied_circuit(&prover, &circuit, &mut rng, &msg);
 
     // Test unsatisfied circuit:
-    // q_l·a + q_r·b + q_m·a·b + q_o·o + q_4·d + public + constant = 0
+    // q_l·a + q_r·b + q_m·a·b + q_o·c + q_4·d + public + constant = 0
     let msg = "Proof creation of unsatisfied circuit should fail";
     let a = BlsScalar::one();
     let b = BlsScalar::one();
-    let o = BlsScalar::one();
+    let c = BlsScalar::one();
     let d = BlsScalar::one();
     let public = BlsScalar::one();
-    let circuit = TestCircuit::new(a, b, o, d, public);
+    let circuit = TestCircuit::new(a, b, c, d, public);
     check_unsatisfied_circuit(&prover, &circuit, &mut rng, &msg);
 
     // Test unsatisfied circuit
     let msg = "Verification of unsatisfied circuit should pass";
     let a = BlsScalar::one();
     let b = BlsScalar::one();
-    let o = BlsScalar::one();
+    let c = BlsScalar::one();
     let d = BlsScalar::one();
     let public = BlsScalar::one();
-    let circuit = TestCircuit::new(a, b, o, d, public);
+    let circuit = TestCircuit::new(a, b, c, d, public);
     check_unsatisfied_circuit(&prover, &circuit, &mut rng, &msg);
 }

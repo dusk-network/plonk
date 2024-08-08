@@ -5,6 +5,7 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use crate::fft::{Evaluations, Polynomial};
+use crate::proof_system::linearization_poly::ProofEvaluations;
 
 use dusk_bls12_381::BlsScalar;
 
@@ -35,13 +36,13 @@ impl ProverKey {
         &self,
         index: usize,
         logic_separation_challenge: &BlsScalar,
-        a_w_i: &BlsScalar,
-        a_w_i_next: &BlsScalar,
-        b_w_i: &BlsScalar,
-        b_w_i_next: &BlsScalar,
-        o_w_i: &BlsScalar,
-        d_w_i: &BlsScalar,
-        d_w_i_next: &BlsScalar,
+        a_i: &BlsScalar,
+        a_i_w: &BlsScalar,
+        b_i: &BlsScalar,
+        b_i_w: &BlsScalar,
+        c_i: &BlsScalar,
+        d_i: &BlsScalar,
+        d_i_w: &BlsScalar,
     ) -> BlsScalar {
         let four = BlsScalar::from(4);
 
@@ -53,34 +54,27 @@ impl ProverKey {
         let kappa_cu = kappa_sq * kappa;
         let kappa_qu = kappa_cu * kappa;
 
-        let a = a_w_i_next - four * a_w_i;
-        let o_0 = delta(a);
+        let a = a_i_w - four * a_i;
+        let c_0 = delta(a);
 
-        let b = b_w_i_next - four * b_w_i;
-        let o_1 = delta(b) * kappa;
+        let b = b_i_w - four * b_i;
+        let c_1 = delta(b) * kappa;
 
-        let d = d_w_i_next - four * d_w_i;
-        let o_2 = delta(d) * kappa_sq;
+        let d = d_i_w - four * d_i;
+        let c_2 = delta(d) * kappa_sq;
 
-        let w = o_w_i;
-        let o_3 = (w - a * b) * kappa_cu;
+        let w = c_i;
+        let c_3 = (w - a * b) * kappa_cu;
 
-        let o_4 = delta_xor_and(&a, &b, w, &d, q_c_i) * kappa_qu;
+        let c_4 = delta_xor_and(&a, &b, w, &d, q_c_i) * kappa_qu;
 
-        q_logic_i * (o_3 + o_0 + o_1 + o_2 + o_4) * logic_separation_challenge
+        q_logic_i * (c_3 + c_0 + c_1 + c_2 + c_4) * logic_separation_challenge
     }
 
     pub(crate) fn compute_linearization(
         &self,
         logic_separation_challenge: &BlsScalar,
-        a_eval: &BlsScalar,
-        a_next_eval: &BlsScalar,
-        b_eval: &BlsScalar,
-        b_next_eval: &BlsScalar,
-        o_eval: &BlsScalar,
-        d_eval: &BlsScalar,
-        d_next_eval: &BlsScalar,
-        q_c_eval: &BlsScalar,
+        evaluations: &ProofEvaluations,
     ) -> Polynomial {
         let four = BlsScalar::from(4);
         let q_logic_poly = &self.q_logic.0;
@@ -90,21 +84,22 @@ impl ProverKey {
         let kappa_cu = kappa_sq * kappa;
         let kappa_qu = kappa_cu * kappa;
 
-        let a = a_next_eval - four * a_eval;
-        let o_0 = delta(a);
+        let a = evaluations.a_w_eval - four * evaluations.a_eval;
+        let c_0 = delta(a);
 
-        let b = b_next_eval - four * b_eval;
-        let o_1 = delta(b) * kappa;
+        let b = evaluations.b_w_eval - four * evaluations.b_eval;
+        let c_1 = delta(b) * kappa;
 
-        let d = d_next_eval - four * d_eval;
-        let o_2 = delta(d) * kappa_sq;
+        let d = evaluations.d_w_eval - four * evaluations.d_eval;
+        let c_2 = delta(d) * kappa_sq;
 
-        let w = o_eval;
-        let o_3 = (w - a * b) * kappa_cu;
+        let w = evaluations.c_eval;
+        let c_3 = (w - a * b) * kappa_cu;
 
-        let o_4 = delta_xor_and(&a, &b, w, &d, q_c_eval) * kappa_qu;
+        let c_4 =
+            delta_xor_and(&a, &b, &w, &d, &evaluations.q_c_eval) * kappa_qu;
 
-        let t = (o_0 + o_1 + o_2 + o_3 + o_4) * logic_separation_challenge;
+        let t = (c_0 + c_1 + c_2 + c_3 + c_4) * logic_separation_challenge;
 
         q_logic_poly * &t
     }

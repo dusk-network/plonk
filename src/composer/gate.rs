@@ -21,7 +21,7 @@ pub struct Gate {
     /// Output wire selector
     pub(crate) q_o: BlsScalar,
     /// Fourth wire selector
-    pub(crate) q_4: BlsScalar,
+    pub(crate) q_f: BlsScalar,
     /// Constant wire selector
     pub(crate) q_c: BlsScalar,
     /// Arithmetic wire selector
@@ -36,11 +36,11 @@ pub struct Gate {
     pub(crate) q_variable_group_add: BlsScalar,
 
     /// Left wire witness.
-    pub(crate) w_a: Witness,
+    pub(crate) a: Witness,
     /// Right wire witness.
-    pub(crate) w_b: Witness,
+    pub(crate) b: Witness,
     /// Output wire witness.
-    pub(crate) w_o: Witness,
+    pub(crate) c: Witness,
     /// Fourth wire witness.
-    pub(crate) w_d: Witness,
+    pub(crate) d: Witness,
 }

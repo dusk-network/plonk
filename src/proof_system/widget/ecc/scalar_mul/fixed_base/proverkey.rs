@@ -5,6 +5,7 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use crate::fft::{Evaluations, Polynomial};
+use crate::proof_system::linearization_poly::ProofEvaluations;
 use dusk_bls12_381::BlsScalar;
 use dusk_jubjub::EDWARDS_D;
 
@@ -39,13 +40,13 @@ impl ProverKey {
         &self,
         index: usize,
         ecc_separation_challenge: &BlsScalar,
-        a_w_i: &BlsScalar,      // acc_x or curr_x
-        a_w_i_next: &BlsScalar, //  // next_x
-        b_w_i: &BlsScalar,      // acc_y or curr_y
-        b_w_i_next: &BlsScalar, // next_y
-        o_w_i: &BlsScalar,      // xy_alpha
-        d_w_i: &BlsScalar,      // accumulated_bit
-        d_w_i_next: &BlsScalar, // accumulated_bit_next
+        a_i: &BlsScalar,   // acc_x or curr_x
+        a_i_w: &BlsScalar, // shifted x
+        b_i: &BlsScalar,   // acc_y or curr_y
+        b_i_w: &BlsScalar, // shifted y
+        c_i: &BlsScalar,   // xy_alpha
+        d_i: &BlsScalar,   // accumulated_bit
+        d_i_w: &BlsScalar, // accumulated_bit_w
     ) -> BlsScalar {
         let q_fixed_group_add_i = &self.q_fixed_group_add.1[index];
         let q_c_i = &self.q_c.1[index];
@@ -57,16 +58,16 @@ impl ProverKey {
         let x_beta = &self.q_l.1[index];
         let y_beta = &self.q_r.1[index];
 
-        let acc_x = a_w_i;
-        let acc_x_next = a_w_i_next;
-        let acc_y = b_w_i;
-        let acc_y_next = b_w_i_next;
+        let acc_x = a_i;
+        let acc_x_w = a_i_w;
+        let acc_y = b_i;
+        let acc_y_w = b_i_w;
 
-        let xy_alpha = o_w_i;
+        let xy_alpha = c_i;
 
-        let accumulated_bit = d_w_i;
-        let accumulated_bit_next = d_w_i_next;
-        let bit = extract_bit(accumulated_bit, accumulated_bit_next);
+        let accumulated_bit = d_i;
+        let accumulated_bit_w = d_i_w;
+        let bit = extract_bit(accumulated_bit, accumulated_bit_w);
 
         // Checks
         //
@@ -82,13 +83,13 @@ impl ProverKey {
         let xy_consistency = ((bit * q_c_i) - xy_alpha) * kappa;
 
         // x accumulator consistency check
-        let x_3 = acc_x_next;
+        let x_3 = acc_x_w;
         let lhs = x_3 + (x_3 * xy_alpha * acc_x * acc_y * EDWARDS_D);
         let rhs = (acc_x * y_alpha) + (acc_y * x_alpha);
         let x_acc_consistency = (lhs - rhs) * kappa_sq;
 
         // y accumulator consistency check
-        let y_3 = acc_y_next;
+        let y_3 = acc_y_w;
         let lhs = y_3 - (y_3 * xy_alpha * acc_x * acc_y * EDWARDS_D);
         let rhs = (acc_y * y_alpha) + (acc_x * x_alpha);
         let y_acc_consistency = (lhs - rhs) * kappa_cu;
@@ -104,16 +105,7 @@ impl ProverKey {
     pub(crate) fn compute_linearization(
         &self,
         ecc_separation_challenge: &BlsScalar,
-        a_eval: &BlsScalar,
-        a_next_eval: &BlsScalar,
-        b_eval: &BlsScalar,
-        b_next_eval: &BlsScalar,
-        o_eval: &BlsScalar,
-        d_eval: &BlsScalar,
-        d_next_eval: &BlsScalar,
-        q_l_eval: &BlsScalar,
-        q_r_eval: &BlsScalar,
-        q_c_eval: &BlsScalar,
+        evaluations: &ProofEvaluations,
     ) -> Polynomial {
         let q_fixed_group_add_poly = &self.q_fixed_group_add.0;
 
@@ -121,19 +113,19 @@ impl ProverKey {
         let kappa_sq = kappa.square();
         let kappa_cu = kappa_sq * kappa;
 
-        let x_beta_eval = q_l_eval;
-        let y_beta_eval = q_r_eval;
+        let x_beta_eval = evaluations.q_l_eval;
+        let y_beta_eval = evaluations.q_r_eval;
 
-        let acc_x = a_eval;
-        let acc_x_next = a_next_eval;
-        let acc_y = b_eval;
-        let acc_y_next = b_next_eval;
+        let acc_x = evaluations.a_eval;
+        let acc_x_w = evaluations.a_w_eval;
+        let acc_y = evaluations.b_eval;
+        let acc_y_w = evaluations.b_w_eval;
 
-        let xy_alpha = o_eval;
+        let xy_alpha = evaluations.c_eval;
 
-        let accumulated_bit = d_eval;
-        let accumulated_bit_next = d_next_eval;
-        let bit = extract_bit(accumulated_bit, accumulated_bit_next);
+        let accumulated_bit = evaluations.d_eval;
+        let accumulated_bit_w = evaluations.d_w_eval;
+        let bit = extract_bit(&accumulated_bit, &accumulated_bit_w);
 
         // Check bit consistency
         let bit_consistency = check_bit_consistency(bit);
@@ -144,16 +136,16 @@ impl ProverKey {
         let x_alpha = x_beta_eval * bit;
 
         // xy_alpha consistency check
-        let xy_consistency = ((bit * q_c_eval) - xy_alpha) * kappa;
+        let xy_consistency = ((bit * evaluations.q_c_eval) - xy_alpha) * kappa;
 
         // x accumulator consistency check
-        let x_3 = acc_x_next;
+        let x_3 = acc_x_w;
         let lhs = x_3 + (x_3 * xy_alpha * acc_x * acc_y * EDWARDS_D);
         let rhs = (x_alpha * acc_y) + (y_alpha * acc_x);
         let x_acc_consistency = (lhs - rhs) * kappa_sq;
 
         // y accumulator consistency check
-        let y_3 = acc_y_next;
+        let y_3 = acc_y_w;
         let lhs = y_3 - (y_3 * xy_alpha * acc_x * acc_y * EDWARDS_D);
         let rhs = (x_alpha * acc_x) + (y_alpha * acc_y);
         let y_acc_consistency = (lhs - rhs) * kappa_cu;
@@ -167,12 +159,9 @@ impl ProverKey {
     }
 }
 
-pub(crate) fn extract_bit(
-    curr_acc: &BlsScalar,
-    next_acc: &BlsScalar,
-) -> BlsScalar {
-    // Next - 2 * current
-    next_acc - curr_acc - curr_acc
+pub(crate) fn extract_bit(acc: &BlsScalar, acc_w: &BlsScalar) -> BlsScalar {
+    // acc_w - 2 * acc
+    acc_w - acc - acc
 }
 
 // Ensures that the bit is either +1, -1 or 0

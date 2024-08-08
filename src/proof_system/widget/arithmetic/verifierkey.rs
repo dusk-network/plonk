@@ -32,7 +32,7 @@ pub(crate) struct VerifierKey {
     #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub q_o: Commitment,
     #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
-    pub q_4: Commitment,
+    pub q_f: Commitment,
     #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub q_c: Commitment,
     #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
@@ -51,7 +51,7 @@ impl Serializable<{ 7 * Commitment::SIZE }> for VerifierKey {
         writer.write(&self.q_l.to_bytes());
         writer.write(&self.q_r.to_bytes());
         writer.write(&self.q_o.to_bytes());
-        writer.write(&self.q_4.to_bytes());
+        writer.write(&self.q_f.to_bytes());
         writer.write(&self.q_c.to_bytes());
         writer.write(&self.q_arith.to_bytes());
 
@@ -64,7 +64,7 @@ impl Serializable<{ 7 * Commitment::SIZE }> for VerifierKey {
         let q_l = Commitment::from_reader(&mut buffer)?;
         let q_r = Commitment::from_reader(&mut buffer)?;
         let q_o = Commitment::from_reader(&mut buffer)?;
-        let q_4 = Commitment::from_reader(&mut buffer)?;
+        let q_f = Commitment::from_reader(&mut buffer)?;
         let q_c = Commitment::from_reader(&mut buffer)?;
         let q_arith = Commitment::from_reader(&mut buffer)?;
 
@@ -73,7 +73,7 @@ impl Serializable<{ 7 * Commitment::SIZE }> for VerifierKey {
             q_l,
             q_r,
             q_o,
-            q_4,
+            q_f,
             q_c,
             q_arith,
         })
@@ -107,11 +107,11 @@ mod alloc {
             scalars.push(evaluations.b_eval * q_arith_eval);
             points.push(self.q_r.0);
 
-            scalars.push(evaluations.o_eval * q_arith_eval);
+            scalars.push(evaluations.c_eval * q_arith_eval);
             points.push(self.q_o.0);
 
             scalars.push(evaluations.d_eval * q_arith_eval);
-            points.push(self.q_4.0);
+            points.push(self.q_f.0);
 
             scalars.push(q_arith_eval);
             points.push(self.q_c.0);

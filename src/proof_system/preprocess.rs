@@ -15,11 +15,8 @@ pub(crate) struct Polynomials {
     pub(crate) q_l: Polynomial,
     pub(crate) q_r: Polynomial,
     pub(crate) q_o: Polynomial,
+    pub(crate) q_f: Polynomial, // for 3-input gates
     pub(crate) q_c: Polynomial,
-
-    // additional selector for 3-input gates added for efficiency of
-    // implementation
-    pub(crate) q_4: Polynomial,
 
     // additional selectors for different kinds of circuits added for
     // efficiency of implementation
@@ -33,5 +30,5 @@ pub(crate) struct Polynomials {
     pub(crate) s_sigma_1: Polynomial,
     pub(crate) s_sigma_2: Polynomial,
     pub(crate) s_sigma_3: Polynomial,
-    pub(crate) s_sigma_4: Polynomial, // for q_4
+    pub(crate) s_sigma_4: Polynomial, // for q_F
 }

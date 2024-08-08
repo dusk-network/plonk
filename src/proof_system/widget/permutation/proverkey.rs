@@ -46,22 +46,22 @@ impl ProverKey {
     pub(crate) fn compute_quotient_i(
         &self,
         index: usize,
-        a_w_i: &BlsScalar,
-        b_w_i: &BlsScalar,
-        o_w_i: &BlsScalar,
-        d_w_i: &BlsScalar,
+        a_i: &BlsScalar,
+        b_i: &BlsScalar,
+        c_i: &BlsScalar,
+        d_i: &BlsScalar,
         z_i: &BlsScalar,
-        z_i_next: &BlsScalar,
+        z_i_w: &BlsScalar,
         alpha: &BlsScalar,
         l1_alpha_sq: &BlsScalar,
         beta: &BlsScalar,
         gamma: &BlsScalar,
     ) -> BlsScalar {
         let a = self.compute_quotient_identity_range_check_i(
-            index, a_w_i, b_w_i, o_w_i, d_w_i, z_i, alpha, beta, gamma,
+            index, a_i, b_i, c_i, d_i, z_i, alpha, beta, gamma,
         );
         let b = self.compute_quotient_copy_range_check_i(
-            index, a_w_i, b_w_i, o_w_i, d_w_i, z_i_next, alpha, beta, gamma,
+            index, a_i, b_i, c_i, d_i, z_i_w, alpha, beta, gamma,
         );
         let c = self.compute_quotient_term_check_one_i(z_i, l1_alpha_sq);
         a + b + c
@@ -71,10 +71,10 @@ impl ProverKey {
     fn compute_quotient_identity_range_check_i(
         &self,
         index: usize,
-        a_w_i: &BlsScalar,
-        b_w_i: &BlsScalar,
-        o_w_i: &BlsScalar,
-        d_w_i: &BlsScalar,
+        a_i: &BlsScalar,
+        b_i: &BlsScalar,
+        c_i: &BlsScalar,
+        d_i: &BlsScalar,
         z_i: &BlsScalar,
         alpha: &BlsScalar,
         beta: &BlsScalar,
@@ -82,10 +82,10 @@ impl ProverKey {
     ) -> BlsScalar {
         let x = self.linear_evaluations[index];
 
-        (a_w_i + (beta * x) + gamma)
-            * (b_w_i + (beta * K1 * x) + gamma)
-            * (o_w_i + (beta * K2 * x) + gamma)
-            * (d_w_i + (beta * K3 * x) + gamma)
+        (a_i + (beta * x) + gamma)
+            * (b_i + (beta * K1 * x) + gamma)
+            * (c_i + (beta * K2 * x) + gamma)
+            * (d_i + (beta * K3 * x) + gamma)
             * z_i
             * alpha
     }
@@ -95,11 +95,11 @@ impl ProverKey {
     fn compute_quotient_copy_range_check_i(
         &self,
         index: usize,
-        a_w_i: &BlsScalar,
-        b_w_i: &BlsScalar,
-        o_w_i: &BlsScalar,
-        d_w_i: &BlsScalar,
-        z_i_next: &BlsScalar,
+        a_i: &BlsScalar,
+        b_i: &BlsScalar,
+        c_i: &BlsScalar,
+        d_i: &BlsScalar,
+        z_i_w: &BlsScalar,
         alpha: &BlsScalar,
         beta: &BlsScalar,
         gamma: &BlsScalar,
@@ -109,11 +109,11 @@ impl ProverKey {
         let s_sigma_3_eval = self.s_sigma_3.1[index];
         let s_sigma_4_eval = self.s_sigma_4.1[index];
 
-        let product = (a_w_i + (beta * s_sigma_1_eval) + gamma)
-            * (b_w_i + (beta * s_sigma_2_eval) + gamma)
-            * (o_w_i + (beta * s_sigma_3_eval) + gamma)
-            * (d_w_i + (beta * s_sigma_4_eval) + gamma)
-            * z_i_next
+        let product = (a_i + (beta * s_sigma_1_eval) + gamma)
+            * (b_i + (beta * s_sigma_2_eval) + gamma)
+            * (c_i + (beta * s_sigma_3_eval) + gamma)
+            * (d_i + (beta * s_sigma_4_eval) + gamma)
+            * z_i_w
             * alpha;
 
         -product
@@ -131,7 +131,7 @@ impl ProverKey {
         &self,
         z_challenge: &BlsScalar,
         (alpha, beta, gamma): (&BlsScalar, &BlsScalar, &BlsScalar),
-        (a_eval, b_eval, o_eval, d_eval): (
+        (a_eval, b_eval, c_eval, d_eval): (
             &BlsScalar,
             &BlsScalar,
             &BlsScalar,
@@ -146,13 +146,13 @@ impl ProverKey {
         z_poly: &Polynomial,
     ) -> Polynomial {
         let a = self.compute_linearizer_identity_range_check(
-            (a_eval, b_eval, o_eval, d_eval),
+            (a_eval, b_eval, c_eval, d_eval),
             z_challenge,
             (alpha, beta, gamma),
             z_poly,
         );
         let b = self.compute_linearizer_copy_range_check(
-            (a_eval, b_eval, o_eval),
+            (a_eval, b_eval, c_eval),
             z_eval,
             sigma_1_eval,
             sigma_2_eval,
@@ -172,10 +172,10 @@ impl ProverKey {
         &(&a + &b) + &c
     }
     // (a_eval + beta * z_challenge + gamma)(b_eval + beta * K1 * z_challenge +
-    // gamma)(o_eval + beta * K2 * z_challenge + gamma) * alpha z(X)
+    // gamma)(c_eval + beta * K2 * z_challenge + gamma) * alpha z(X)
     fn compute_linearizer_identity_range_check(
         &self,
-        (a_eval, b_eval, o_eval, d_eval): (
+        (a_eval, b_eval, c_eval, d_eval): (
             &BlsScalar,
             &BlsScalar,
             &BlsScalar,
@@ -196,9 +196,9 @@ impl ProverKey {
         let mut a_1 = b_eval + beta_z_k1;
         a_1 += gamma;
 
-        // o_eval + beta * K2 * z_challenge + gamma
+        // c_eval + beta * K2 * z_challenge + gamma
         let beta_z_k2 = K2 * beta_z;
-        let mut a_2 = o_eval + beta_z_k2;
+        let mut a_2 = c_eval + beta_z_k2;
         a_2 += gamma;
 
         // d_eval + beta * K3 * z_challenge + gamma
@@ -210,17 +210,17 @@ impl ProverKey {
         a *= a_2;
         a *= a_3;
         a *= alpha; // (a_eval + beta * z_challenge + gamma)(b_eval + beta * K1 *
-                    // z_challenge + gamma)(o_eval + beta * K2 * z_challenge + gamma)(d_eval
+                    // z_challenge + gamma)(c_eval + beta * K2 * z_challenge + gamma)(d_eval
                     // + beta * K3 * z_challenge + gamma) * alpha
         z_poly * &a // (a_eval + beta * z_challenge + gamma)(b_eval + beta * K1
-                    // * z_challenge + gamma)(o_eval + beta * K2 * z_challenge +
+                    // * z_challenge + gamma)(c_eval + beta * K2 * z_challenge +
                     // gamma) * alpha z(X)
     }
     // -(a_eval + beta * sigma_1 + gamma)(b_eval + beta * sigma_2 + gamma)
-    // (o_eval + beta * sigma_3 + gamma) * beta *z_eval * alpha^2 * Sigma_4(X)
+    // (c_eval + beta * sigma_3 + gamma) * beta *z_eval * alpha^2 * Sigma_4(X)
     fn compute_linearizer_copy_range_check(
         &self,
-        (a_eval, b_eval, o_eval): (&BlsScalar, &BlsScalar, &BlsScalar),
+        (a_eval, b_eval, c_eval): (&BlsScalar, &BlsScalar, &BlsScalar),
         z_eval: &BlsScalar,
         sigma_1_eval: &BlsScalar,
         sigma_2_eval: &BlsScalar,
@@ -238,9 +238,9 @@ impl ProverKey {
         let mut a_1 = b_eval + beta_sigma_2;
         a_1 += gamma;
 
-        // o_eval + beta * sigma_3 + gamma
+        // c_eval + beta * sigma_3 + gamma
         let beta_sigma_3 = beta * sigma_3_eval;
-        let mut a_2 = o_eval + beta_sigma_3;
+        let mut a_2 = c_eval + beta_sigma_3;
         a_2 += gamma;
 
         let beta_z_eval = beta * z_eval;
@@ -248,10 +248,10 @@ impl ProverKey {
         let mut a = a_0 * a_1 * a_2;
         a *= beta_z_eval;
         a *= alpha; // (a_eval + beta * sigma_1 + gamma)(b_eval + beta * sigma_2 +
-                    // gamma)(o_eval + beta * sigma_3 + gamma) * beta * z_eval * alpha
+                    // gamma)(c_eval + beta * sigma_3 + gamma) * beta * z_eval * alpha
 
         s_sigma_4_poly * &-a // -(a_eval + beta * sigma_1 + gamma)(b_eval +
-                             // beta * sigma_2 + gamma) (o_eval + beta *
+                             // beta * sigma_2 + gamma) (c_eval + beta *
                              // sigma_3 + gamma) * beta * z_eval * alpha^2 *
                              // Sigma_4(X)
     }
