@@ -124,7 +124,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
-- Remove 'setup' funcion from common test module [#763]
+- Remove 'setup' function from common test module [#763]
 
 ### Changed
 
@@ -356,7 +356,7 @@ is necessary since `rkyv/validation` was required as a bound.
 - Removed previous implementations attached to `PublicInputValues`. [#416]
 - Deprecated `anyhow` and `thiserror`. [#343]
 - Remove `serialisation` module and use single serialization fn's. [#347]
-- Remove uncessary `match` branch for `var_c` [#414]
+- Remove unnecessary `match` branch for `var_c` [#414]
 - Remove legacy fns and move to test modules the only-for-testing ones. [#434]
 
 ### Changed
