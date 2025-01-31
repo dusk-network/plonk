@@ -109,6 +109,90 @@ fn component_add_point() {
 }
 
 #[test]
+fn component_sub_point() {
+    pub struct TestCircuit {
+        p1: JubJubExtended,
+        p2: JubJubExtended,
+        sub: JubJubExtended,
+    }
+
+    impl TestCircuit {
+        pub fn new(
+            p1: JubJubExtended,
+            p2: JubJubExtended,
+            sub: JubJubExtended,
+        ) -> Self {
+            Self { p1, p2, sub }
+        }
+    }
+
+    impl Default for TestCircuit {
+        fn default() -> Self {
+            let p1 = JubJubExtended::identity();
+            let p2 = JubJubExtended::identity();
+            let sub = JubJubExtended::identity();
+            Self::new(p1.into(), p2.into(), sub.into())
+        }
+    }
+
+    impl Circuit for TestCircuit {
+        fn circuit(&self, composer: &mut Composer) -> Result<(), Error> {
+            let w_p1 = composer.append_point(self.p1);
+            let w_p2 = composer.append_point(self.p2);
+            let w_sub = composer.append_point(self.sub);
+
+            let sub_circuit = composer.component_sub_point(w_p1, w_p2);
+
+            composer.assert_equal_point(w_sub, sub_circuit);
+
+            Ok(())
+        }
+    }
+
+    // Compile common circuit descriptions for the prover and verifier to be
+    // used by all tests
+    let label = b"component_sub_point";
+    let mut rng = StdRng::seed_from_u64(0xcafe);
+    let capacity = 1 << 4;
+    let pp = PublicParameters::setup(capacity, &mut rng)
+        .expect("Creation of public parameter shouldn't fail");
+    let (prover, verifier) = Compiler::compile::<TestCircuit>(&pp, label)
+        .expect("Circuit should compile");
+
+    // Test default works:
+    let msg = "Default circuit verification should pass";
+    let circuit = TestCircuit::default();
+    let pi = vec![];
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
+
+    // Test identity works:
+    let msg = "Random point subtraction should satisfy the circuit";
+    let p1 = dusk_jubjub::GENERATOR_EXTENDED * &JubJubScalar::random(&mut rng);
+    let p2 = JubJubExtended::identity();
+    let sub = p1.clone();
+    let circuit = TestCircuit::new(p1, p2, sub);
+    let pi = vec![];
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
+
+    // Test random works:
+    let msg = "Random point subtraction should satisfy the circuit";
+    let p1 = dusk_jubjub::GENERATOR_EXTENDED * &JubJubScalar::random(&mut rng);
+    let p2 = dusk_jubjub::GENERATOR_EXTENDED * &JubJubScalar::random(&mut rng);
+    let sub = p1 - p2;
+    let circuit = TestCircuit::new(p1, p2, sub);
+    let pi = vec![];
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
+
+    // Unsatisfied circuit
+    let msg = "Unsatisfied circuit should not pass";
+    let p1 = dusk_jubjub::GENERATOR_EXTENDED * &JubJubScalar::from(0xdecafu64);
+    let p2 = dusk_jubjub::GENERATOR_EXTENDED * &JubJubScalar::from(0xcafeu64);
+    let sub = dusk_jubjub::GENERATOR_EXTENDED * &JubJubScalar::from(0xcabu64);
+    let circuit = TestCircuit::new(p1, p2, sub);
+    check_unsatisfied_circuit(&prover, &circuit, &mut rng, msg);
+}
+
+#[test]
 fn component_mul_generator() {
     pub struct TestCircuit {
         scalar: JubJubScalar,

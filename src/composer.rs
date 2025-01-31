@@ -749,6 +749,23 @@ impl Composer {
         );
     }
 
+    /// Subtracts a curve point from another by consuming 3 gates.
+    pub fn component_sub_point(
+        &mut self,
+        a: WitnessPoint,
+        b: WitnessPoint,
+    ) -> WitnessPoint {
+        // We negate the 'x' coordinate of the point 'b', so that neg_b = (-b.x,
+        // b.y)
+        let constraint = Constraint::new().left(-BlsScalar::one()).a(*b.x());
+        let neg_b_x = self.gate_mul(constraint);
+
+        let neg_b = WitnessPoint::new(neg_b_x, *b.y());
+
+        // We perform a - b = (a.x, a.y) + (-b.x, b.y)
+        self.component_add_point(a, neg_b)
+    }
+
     /// Adds two curve points by consuming 2 gates.
     pub fn component_add_point(
         &mut self,
