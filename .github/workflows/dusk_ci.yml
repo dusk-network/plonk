@@ -57,7 +57,7 @@ jobs:
 
   ci:
     name: Test with all features
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
       - uses: Swatinem/rust-cache@v2
