@@ -356,7 +356,7 @@ is necessary since `rkyv/validation` was required as a bound.
 - Removed previous implementations attached to `PublicInputValues`. [#416]
 - Deprecated `anyhow` and `thiserror`. [#343]
 - Remove `serialisation` module and use single serialization fn's. [#347]
-- Remove uncessary `match` branch for `var_c` [#414]
+- Remove unnecessary `match` branch for `var_c` [#414]
 - Remove legacy fns and move to test modules the only-for-testing ones. [#434]
 
 ### Changed
