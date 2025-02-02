@@ -124,7 +124,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
-- Remove 'setup' funcion from common test module [#763]
+- Remove 'setup' function from common test module [#763]
 
 ### Changed
 
