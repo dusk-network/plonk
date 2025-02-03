@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add components to subtract and also to negate points in-circuit [#842]
 
+### Changed 
+
+- Update dependency `dusk-bls12_381` to 0.14
+
 ## [0.20.2] - 2024-11-14
 
 ### Changed 
