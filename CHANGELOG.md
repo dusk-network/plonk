@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add component to subtract points in-circuit [#842]
+- Add components to subtract and also to negate points in-circuit [#842]
 
 ## [0.20.2] - 2024-11-14
 
