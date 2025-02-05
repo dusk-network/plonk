@@ -1,6 +1,6 @@
 [package]
 name = "dusk-plonk"
-version = "0.20.2"
+version = "0.20.3"
 categories =["algorithms", "cryptography", "science", "mathematics"]
 edition = "2021"
 keywords = ["cryptography", "plonk", "zk-snarks", "zero-knowledge", "crypto"]
@@ -18,7 +18,7 @@ exclude = [
 merlin = {version = "3.0", default-features = false}
 rand_core = {version="0.6", default-features=false}
 dusk-bytes = "0.1"
-dusk-bls12_381 = {version = "0.14", default-features = false, features = ["groups", "pairings"]}
+dusk-bls12_381 = {version = "0.13", default-features = false, features = ["groups", "pairings"]}
 dusk-jubjub = {version = "0.14", default-features = false}
 ff = {version = "0.13", default-features = false}
 itertools = {version = "0.9", default-features = false}
