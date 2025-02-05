@@ -7,13 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.20.3] - 2025-02-05
+
 ### Added
 
 - Add components to subtract and also to negate points in-circuit [#842]
-
-### Changed 
-
-- Update dependency `dusk-bls12_381` to 0.14
 
 ## [0.20.2] - 2024-11-14
 
@@ -733,7 +731,8 @@ is necessary since `rkyv/validation` was required as a bound.
 [#282]: https://github.com/dusk-network/plonk/issues/282
 
 <!-- VERSIONS -->
-[Unreleased]: https://github.com/dusk-network/plonk/compare/v0.20.2...HEAD
+[Unreleased]: https://github.com/dusk-network/plonk/compare/v0.20.3...HEAD
+[0.20.3]: https://github.com/dusk-network/plonk/compare/v0.20.2...v0.20.3
 [0.20.2]: https://github.com/dusk-network/plonk/compare/v0.20.0...v0.20.2
 [0.20.0]: https://github.com/dusk-network/plonk/compare/v0.19.2...v0.20.0
 [0.19.2]: https://github.com/dusk-network/plonk/compare/v0.19.1...v0.19.2
