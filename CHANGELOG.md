@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Change dependency `dusk-bls12_381` to 0.14
+- Change dependency `dusk-jubjub` to 0.15
+
 ## [0.20.3] - 2025-02-05
 
 ### Added
