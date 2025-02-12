@@ -6,7 +6,7 @@
 
 //! FFT module contains the tools needed by the Composer backend
 //! to know and use the logic behind Polynomials. As well as
-//! the operations that the `Composer` needs to peform with them.
+//! the operations that the `Composer` needs to perform with them.
 
 cfg_if::cfg_if!(
 if #[cfg(feature = "alloc")]
