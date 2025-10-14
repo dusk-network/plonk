@@ -22,7 +22,7 @@ impl Circuit for EmptyCircuit {
 fn generate_cdf_works() -> io::Result<()> {
     let rng = &mut rand::thread_rng();
 
-    let dir = tempdir::TempDir::new("plonk-cdf")?;
+    let dir = tempfile::Builder::new().prefix("plonk-cdf").tempdir()?;
     let path = dir.path().canonicalize()?.join("test.cdf");
 
     let label = b"transcript-arguments";
