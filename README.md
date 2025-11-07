@@ -5,9 +5,9 @@
 
 _This is a pure Rust implementation of the PLONK proving system over BLS12-381._
 
-This library contains a modular implementation of KZG10 as the default polynomial commitment scheme. Moreover, it includes custom gates for efficiency purposes. The details on our specific implementation can be found [here](docs/dusk-plonk-specs.pdf).
+This library contains a modular implementation of KZG10 as the default polynomial commitment scheme. Moreover, it includes custom gates for efficiency purposes. The details on our specific implementation can be found [here](docs/dusk-plonk-specs.pdf). An audit can be found [here](https://github.com/dusk-network/audits).
 
-**DISCLAIMER**: This library is currently unstable and still needs to undergo an exhaustive security analysis. Use at your own risk.
+**DISCLAIMER**: This library is currently unstable. A security audit has been completed, though further in-depth analysis and testing are encouraged. Use at your own risk.
 
 ## Usage
 
@@ -17,7 +17,7 @@ To see how to use this library, check the 'examples' directory.
 
 This crate includes a variety of features which are briefly explained below:
 - `alloc`: Enables the usage of an allocator, allowing for `Proof` constructions and verifications. Without this feature it **IS NOT** possible to prove or verify anything. 
-  Its absence only makes `dusk-plonk` export certain fixed-size data structures such as `Proof`, which can be useful in no_std environments where we don't have allocators available.
+  Its absence only makes `dusk-plonk` export certain fixed-size data structures such as `Proof`. This is useful in no_std environments that also do not make use of an allocator.
 - `std`: Enables `std` usage as well as `rayon` parallelization in some proving and verifying operations. 
   It also uses the `std` versions of the elliptic curve dependencies, utilizing the `parallel` feature 
   from `dusk-bls12-381`. This feature is enabled by default.
