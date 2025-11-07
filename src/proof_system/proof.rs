@@ -34,7 +34,7 @@ use rkyv::{
 /// It's main goal is to allow the `Verifier` to formally verify that the secret
 /// witnesses used to generate the [`Proof`] satisfy a circuit that both
 /// [`Composer`] and [`Verifier`] have in common succintly and without any
-/// capabilities of adquiring any kind of knowledge about the witness used to
+/// capabilities of acquiring any kind of knowledge about the witness used to
 /// construct the Proof.
 ///
 /// [`Composer`]: [`crate::prelude::Composer`]
