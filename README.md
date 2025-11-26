@@ -1,5 +1,5 @@
 # PLONK 
-![Build Status](https://github.com/dusk-network/plonk/workflows/Continuous%20integration/badge.svg)
+[![Build Status](https://github.com/dusk-network/plonk/workflows/Continuous%20integration/badge.svg)](https://github.com/dusk-network/plonk/actions)
 [![Repository](https://img.shields.io/badge/github-plonk-blueviolet?logo=github)](https://github.com/dusk-network/plonk)
 [![Documentation](https://img.shields.io/badge/docs-plonk-blue?logo=rust)](https://docs.rs/dusk-plonk/latest/)
 
