@@ -73,7 +73,7 @@ impl TranscriptProtocol for Transcript {
         // Safety: static lifetime is a pointless requirement from merlin that
         // doesn't add any security but instead restricts a lot the
         // serialization and deserialization of transcripts
-        let label = unsafe { mem::transmute(label) };
+        let label = unsafe { mem::transmute::<&[u8], &[u8]>(label) };
 
         let mut transcript = Transcript::new(label);
 

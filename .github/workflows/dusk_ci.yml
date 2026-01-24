@@ -72,6 +72,6 @@ jobs:
         with:
           token: ${{secrets.CODECOV_TOKEN}}
 
-  test_nightly_std:
-    name: Nightly tests std
+  test_stable_std:
+    name: Stable tests std
     uses: dusk-network/.github/.github/workflows/run-tests.yml@main

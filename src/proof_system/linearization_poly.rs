@@ -151,10 +151,9 @@ impl Serializable<{ 15 * BlsScalar::SIZE }> for ProofEvaluations {
     }
 }
 
-#[cfg(feature = "alloc")]
-
 /// Compute the linearization polynomial.
 // TODO: Improve the method signature
+#[cfg(feature = "alloc")]
 #[allow(clippy::type_complexity)]
 pub(crate) fn compute(
     prover_key: &ProverKey,
