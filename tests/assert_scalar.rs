@@ -6,8 +6,8 @@
 
 use dusk_plonk::prelude::*;
 use ff::Field;
-use rand::rngs::StdRng;
 use rand::SeedableRng;
+use rand::rngs::StdRng;
 
 mod common;
 use common::{

@@ -12,8 +12,8 @@ use dusk_bls12_381::BlsScalar;
 use bytecheck::CheckBytes;
 #[cfg(feature = "rkyv-impl")]
 use rkyv::{
-    ser::{ScratchSpace, Serializer},
     Archive, Deserialize, Serialize,
+    ser::{ScratchSpace, Serializer},
 };
 
 #[derive(Debug, Eq, PartialEq, Clone)]
@@ -210,11 +210,11 @@ impl ProverKey {
         a *= a_2;
         a *= a_3;
         a *= alpha; // (a_eval + beta * z_challenge + gamma)(b_eval + beta * K1 *
-                    // z_challenge + gamma)(c_eval + beta * K2 * z_challenge + gamma)(d_eval
-                    // + beta * K3 * z_challenge + gamma) * alpha
+        // z_challenge + gamma)(c_eval + beta * K2 * z_challenge + gamma)(d_eval
+        // + beta * K3 * z_challenge + gamma) * alpha
         z_poly * &a // (a_eval + beta * z_challenge + gamma)(b_eval + beta * K1
-                    // * z_challenge + gamma)(c_eval + beta * K2 * z_challenge +
-                    // gamma) * alpha z(X)
+        // * z_challenge + gamma)(c_eval + beta * K2 * z_challenge +
+        // gamma) * alpha z(X)
     }
     // -(a_eval + beta * sigma_1 + gamma)(b_eval + beta * sigma_2 + gamma)
     // (c_eval + beta * sigma_3 + gamma) * beta *z_eval * alpha^2 * Sigma_4(X)
@@ -248,12 +248,12 @@ impl ProverKey {
         let mut a = a_0 * a_1 * a_2;
         a *= beta_z_eval;
         a *= alpha; // (a_eval + beta * sigma_1 + gamma)(b_eval + beta * sigma_2 +
-                    // gamma)(c_eval + beta * sigma_3 + gamma) * beta * z_eval * alpha
+        // gamma)(c_eval + beta * sigma_3 + gamma) * beta * z_eval * alpha
 
         s_sigma_4_poly * &-a // -(a_eval + beta * sigma_1 + gamma)(b_eval +
-                             // beta * sigma_2 + gamma) (c_eval + beta *
-                             // sigma_3 + gamma) * beta * z_eval * alpha^2 *
-                             // Sigma_4(X)
+        // beta * sigma_2 + gamma) (c_eval + beta *
+        // sigma_3 + gamma) * beta * z_eval * alpha^2 *
+        // Sigma_4(X)
     }
 
     fn compute_linearizer_check_is_one(

@@ -10,7 +10,7 @@ use crate::commitment_scheme::{CommitKey, OpeningKey, PublicParameters};
 use crate::error::Error;
 use crate::fft::{EvaluationDomain, Evaluations, Polynomial};
 use crate::proof_system::preprocess::Polynomials;
-use crate::proof_system::{widget, ProverKey};
+use crate::proof_system::{ProverKey, widget};
 
 use crate::prelude::{Circuit, Composer};
 
@@ -161,8 +161,12 @@ impl Compiler {
             Polynomial::from_coefficients_vec(q_variable_group_add_poly);
 
         // 2. compute the sigma polynomials
-        let [s_sigma_1_poly, s_sigma_2_poly, s_sigma_3_poly, s_sigma_4_poly] =
-            perm.compute_sigma_polynomials(size, &domain);
+        let [
+            s_sigma_1_poly,
+            s_sigma_2_poly,
+            s_sigma_3_poly,
+            s_sigma_4_poly,
+        ] = perm.compute_sigma_polynomials(size, &domain);
 
         let q_m_comm = commit_key.commit(&q_m_poly).unwrap_or_default();
         let q_l_comm = commit_key.commit(&q_l_poly).unwrap_or_default();

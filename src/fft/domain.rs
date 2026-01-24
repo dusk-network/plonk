@@ -19,8 +19,8 @@ use dusk_bytes::{DeserializableSlice, Serializable};
 use bytecheck::CheckBytes;
 #[cfg(feature = "rkyv-impl")]
 use rkyv::{
-    ser::{ScratchSpace, Serializer},
     Archive, Deserialize, Serialize,
+    ser::{ScratchSpace, Serializer},
 };
 
 /// Defines a domain over which finite field (I)FFTs can be performed. Works

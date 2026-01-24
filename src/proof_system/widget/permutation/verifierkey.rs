@@ -10,8 +10,8 @@ use crate::commitment_scheme::Commitment;
 use bytecheck::CheckBytes;
 #[cfg(feature = "rkyv-impl")]
 use rkyv::{
-    ser::{ScratchSpace, Serializer},
     Archive, Deserialize, Serialize,
+    ser::{ScratchSpace, Serializer},
 };
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]

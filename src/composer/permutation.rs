@@ -993,8 +993,12 @@ mod test {
         assert_ne!(gamma, beta);
 
         // 1. Compute the permutation polynomial using both methods
-        let [s_sigma_1_poly, s_sigma_2_poly, s_sigma_3_poly, s_sigma_4_poly] =
-            perm.compute_sigma_polynomials(n, domain);
+        let [
+            s_sigma_1_poly,
+            s_sigma_2_poly,
+            s_sigma_3_poly,
+            s_sigma_4_poly,
+        ] = perm.compute_sigma_polynomials(n, domain);
         let (z_vec, numerator_components, denominator_components) =
             compute_slow_permutation_poly(
                 domain,

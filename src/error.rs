@@ -129,7 +129,10 @@ impl std::fmt::Display for Error {
                 write!(f, "circuit has already been preprocessed")
             }
             Self::InvalidCircuitSize(description_size, circuit_size) => {
-                write!(f, "circuit description has a different amount of gates than the circuit for the proof creation: description size = {description_size}, circuit size = {circuit_size}")
+                write!(
+                    f,
+                    "circuit description has a different amount of gates than the circuit for the proof creation: description size = {description_size}, circuit size = {circuit_size}"
+                )
             }
             Self::DegreeIsZero => {
                 write!(f, "cannot create PublicParameters with max degree 0")
@@ -152,19 +155,27 @@ impl std::fmt::Display for Error {
             Self::NotEnoughBytes => write!(f, "not enough bytes left to read"),
             Self::PointMalformed => write!(f, "BLS point bytes malformed"),
             Self::BlsScalarMalformed => write!(f, "BLS scalar bytes malformed"),
-            Self::JubJubScalarMalformed => write!(f, "JubJub scalar bytes malformed"),
+            Self::JubJubScalarMalformed => {
+                write!(f, "JubJub scalar bytes malformed")
+            }
             Self::BytesError(err) => write!(f, "{:?}", err),
             Self::UnsupportedWNAF2k => write!(
                 f,
                 "WNAF2k cannot hold values not contained in `[-1..1]`"
             ),
-            Self::PublicInputNotFound {
+            Self::PublicInputNotFound { index } => write!(
+                f,
+                "The public input of index {} is defined in the circuit description, but wasn't declared in the prove instance",
                 index
-            } => write!(f, "The public input of index {} is defined in the circuit description, but wasn't declared in the prove instance", index),
-            Self::InconsistentPublicInputsLen {
-                expected, provided,
-            } => write!(f, "The provided public inputs set of length {} doesn't match the processed verifier: {}", provided, expected),
-            Self::InvalidCompressedCircuit => write!(f, "invalid compressed circuit"),
+            ),
+            Self::InconsistentPublicInputsLen { expected, provided } => write!(
+                f,
+                "The provided public inputs set of length {} doesn't match the processed verifier: {}",
+                provided, expected
+            ),
+            Self::InvalidCompressedCircuit => {
+                write!(f, "invalid compressed circuit")
+            }
         }
     }
 }

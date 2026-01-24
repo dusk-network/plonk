@@ -12,8 +12,8 @@ use dusk_bytes::{DeserializableSlice, Serializable};
 use bytecheck::CheckBytes;
 #[cfg(feature = "rkyv-impl")]
 use rkyv::{
-    ser::{ScratchSpace, Serializer},
     Archive, Deserialize, Serialize,
+    ser::{ScratchSpace, Serializer},
 };
 
 /// Holds a commitment to a polynomial in a form of a [`G1Affine`]-bls12_381

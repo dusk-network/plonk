@@ -19,8 +19,8 @@ use crate::util::check_field;
 use bytecheck::{CheckBytes, StructCheckError};
 #[cfg(feature = "rkyv-impl")]
 use rkyv::{
-    ser::{ScratchSpace, Serializer},
     Archive, Deserialize, Serialize,
+    ser::{ScratchSpace, Serializer},
 };
 
 /// PLONK circuit Verification Key.

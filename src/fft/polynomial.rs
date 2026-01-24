@@ -19,8 +19,8 @@ use dusk_bytes::{DeserializableSlice, Serializable};
 use bytecheck::CheckBytes;
 #[cfg(feature = "rkyv-impl")]
 use rkyv::{
-    ser::{ScratchSpace, Serializer},
     Archive, Deserialize, Serialize,
+    ser::{ScratchSpace, Serializer},
 };
 
 /// Represents a polynomial in coeffiient form.
@@ -82,10 +82,12 @@ impl Polynomial {
         result.truncate_leading_zeros();
         // Check that either the coefficients vec is empty or that the last
         // coeff is non-zero.
-        assert!(result
-            .coeffs
-            .last()
-            .is_none_or(|coeff| coeff != &BlsScalar::zero()));
+        assert!(
+            result
+                .coeffs
+                .last()
+                .is_none_or(|coeff| coeff != &BlsScalar::zero())
+        );
 
         result
     }

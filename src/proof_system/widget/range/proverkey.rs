@@ -12,8 +12,8 @@ use dusk_bls12_381::BlsScalar;
 use bytecheck::CheckBytes;
 #[cfg(feature = "rkyv-impl")]
 use rkyv::{
-    ser::{ScratchSpace, Serializer},
     Archive, Deserialize, Serialize,
+    ser::{ScratchSpace, Serializer},
 };
 
 #[derive(Debug, Eq, PartialEq, Clone)]

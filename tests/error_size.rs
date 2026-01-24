@@ -5,8 +5,8 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use dusk_plonk::prelude::*;
-use rand::rngs::StdRng;
 use rand::SeedableRng;
+use rand::rngs::StdRng;
 
 const CAPACITY: usize = 1 << 4;
 const LABEL: &[u8] = b"check_public_inputs";

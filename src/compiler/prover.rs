@@ -18,7 +18,7 @@ use crate::compiler::prover::linearization_poly::ProofEvaluations;
 use crate::error::Error;
 use crate::fft::{EvaluationDomain, Polynomial};
 use crate::proof_system::{
-    linearization_poly, proof::Proof, quotient_poly, ProverKey, VerifierKey,
+    ProverKey, VerifierKey, linearization_poly, proof::Proof, quotient_poly,
 };
 use crate::transcript::TranscriptProtocol;
 
