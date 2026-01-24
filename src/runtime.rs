@@ -64,3 +64,27 @@ impl Runtime {
         self.debugger.event(event);
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn runtime_new_default_and_events_do_not_panic() {
+        let mut rt = Runtime::new();
+
+        rt.event(RuntimeEvent::WitnessAppended {
+            w: Witness::ZERO,
+            v: BlsScalar::from(42u64),
+        });
+
+        rt.event(RuntimeEvent::ConstraintAppended {
+            c: Constraint::new(),
+        });
+        rt.event(RuntimeEvent::ProofFinished);
+
+        // `Default` delegates to `new()`.
+        let mut rt2 = Runtime::default();
+        rt2.event(RuntimeEvent::ProofFinished);
+    }
+}

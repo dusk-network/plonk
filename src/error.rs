@@ -188,3 +188,70 @@ impl From<DuskBytesError> for Error {
 
 #[cfg(feature = "std")]
 impl std::error::Error for Error {}
+
+#[cfg(all(test, feature = "std"))]
+mod tests {
+    use super::*;
+    use dusk_bls12_381::BlsScalar;
+    use dusk_bytes::{DeserializableSlice, Serializable};
+
+    #[test]
+    fn display_arms_are_exercised() {
+        let bogus = [0u8; BlsScalar::SIZE - 1];
+        let dusk_err = BlsScalar::from_slice(&bogus)
+            .expect_err("decoding from a short slice must fail");
+        let bytes_error: Error = dusk_err.into();
+        assert!(matches!(bytes_error, Error::BytesError(_)));
+
+        // Format each variant at least once so the `Display` impl gets covered.
+        let all_errors: [Error; 20] = [
+            Error::InvalidEvalDomainSize {
+                log_size_of_group: 32,
+                adacity: 28,
+            },
+            Error::ProofVerificationError,
+            Error::CircuitInputsNotFound,
+            Error::UninitializedPIGenerator,
+            Error::InvalidPublicInputBytes,
+            Error::CircuitAlreadyPreprocessed,
+            Error::InvalidCircuitSize(1, 2),
+            Error::MismatchedPolyLen,
+            Error::DegreeIsZero,
+            Error::TruncatedDegreeTooLarge,
+            Error::TruncatedDegreeIsZero,
+            Error::PolynomialDegreeTooLarge,
+            Error::PolynomialDegreeIsZero,
+            Error::PairingCheckFailure,
+            Error::NotEnoughBytes,
+            Error::PointMalformed,
+            Error::BlsScalarMalformed,
+            Error::JubJubScalarMalformed,
+            Error::UnsupportedWNAF2k,
+            Error::InvalidCompressedCircuit,
+        ];
+
+        for e in all_errors {
+            let s = e.to_string();
+            assert!(!s.is_empty());
+        }
+
+        // Variants with payloads.
+        assert!(
+            Error::PublicInputNotFound { index: 7 }
+                .to_string()
+                .contains("index")
+        );
+        assert!(
+            Error::InconsistentPublicInputsLen {
+                expected: 1,
+                provided: 2
+            }
+            .to_string()
+            .contains("provided")
+        );
+
+        assert!(!bytes_error.to_string().is_empty());
+        let _as_std_error: &dyn std::error::Error =
+            &Error::ProofVerificationError;
+    }
+}
