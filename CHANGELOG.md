@@ -7,8 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Added MSRV, set to rust version `1.85` [#860]
+
 ### Changed
 
+- Update rust edition to 2024 [#861]
+- Update rust toolchain to stable [#859]
+- Change dependency `msgpacker`to `0.4.8`
 - Update rust toolchain to nightly 2024-10-17 (1.84.0)
 
 ## [0.21.0] - 2025-02-06
@@ -618,6 +625,9 @@ is necessary since `rkyv/validation` was required as a bound.
 - Proof system module.
 
 <!-- ISSUES -->
+[#861]: https://github.com/dusk-network/plonk/issues/861
+[#860]: https://github.com/dusk-network/plonk/issues/860
+[#859]: https://github.com/dusk-network/plonk/issues/859
 [#842]: https://github.com/dusk-network/plonk/issues/842
 [#834]: https://github.com/dusk-network/plonk/issues/834
 [#831]: https://github.com/dusk-network/plonk/issues/831
