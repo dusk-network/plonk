@@ -108,3 +108,50 @@ pub(crate) mod alloc {
         }
     }
 }
+
+#[cfg(all(test, feature = "alloc"))]
+mod tests {
+    use super::*;
+    use dusk_bls12_381::{G1Affine, G1Projective};
+
+    #[test]
+    fn aggregate_proof_flatten_is_linear_combination() {
+        // Build an aggregate proof with 3 parts.
+        let witness_commitment: Commitment = G1Affine::generator().into();
+        let mut agg = alloc::AggregateProof::with_witness(witness_commitment);
+
+        let c0: Commitment =
+            (G1Projective::generator() * BlsScalar::from(2u64)).into();
+        let c1: Commitment =
+            (G1Projective::generator() * BlsScalar::from(3u64)).into();
+        let c2: Commitment =
+            (G1Projective::generator() * BlsScalar::from(5u64)).into();
+
+        let e0 = BlsScalar::from(11u64);
+        let e1 = BlsScalar::from(13u64);
+        let e2 = BlsScalar::from(17u64);
+
+        agg.add_part((e0, c0));
+        agg.add_part((e1, c1));
+        agg.add_part((e2, c2));
+
+        let v = BlsScalar::from(7u64);
+
+        let proof = agg.flatten(&v);
+
+        // commitment_to_witness is left unchanged.
+        assert_eq!(proof.commitment_to_witness, witness_commitment);
+
+        let powers = crate::util::powers_of(&v, 2);
+        assert_eq!(powers.len(), 3);
+
+        let expected_eval = e0 * powers[0] + e1 * powers[1] + e2 * powers[2];
+        assert_eq!(proof.evaluated_point, expected_eval);
+
+        let expected_commitment_proj: G1Projective =
+            c0.0 * &powers[0] + c1.0 * &powers[1] + c2.0 * &powers[2];
+        let expected_commitment: Commitment = expected_commitment_proj.into();
+
+        assert_eq!(proof.commitment_to_polynomial, expected_commitment);
+    }
+}

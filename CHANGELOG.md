@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Added more tests for low coverage parts of the code [#861] 
 - Added MSRV, set to rust version `1.85` [#860]
 
 ### Changed
@@ -625,6 +626,7 @@ is necessary since `rkyv/validation` was required as a bound.
 - Proof system module.
 
 <!-- ISSUES -->
+[#862]: https://github.com/dusk-network/plonk/issues/862
 [#861]: https://github.com/dusk-network/plonk/issues/861
 [#860]: https://github.com/dusk-network/plonk/issues/860
 [#859]: https://github.com/dusk-network/plonk/issues/859

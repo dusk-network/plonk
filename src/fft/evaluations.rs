@@ -166,3 +166,132 @@ impl<'a> DivAssign<&'a Evaluations> for Evaluations {
             .for_each(|(a, b)| *a *= b.invert().unwrap());
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::fft::domain::EvaluationDomain;
+    use crate::fft::polynomial::Polynomial;
+
+    #[test]
+    fn evaluations_var_bytes_roundtrip() {
+        let poly = Polynomial::from_coefficients_vec(vec![
+            BlsScalar::from(1u64),
+            BlsScalar::from(2u64),
+            BlsScalar::from(3u64),
+            BlsScalar::from(4u64),
+        ]);
+
+        let domain = EvaluationDomain::new(poly.len())
+            .expect("domain construction should succeed");
+        let evals = domain.fft(&poly);
+
+        let evaluations = Evaluations::from_vec_and_domain(evals, domain);
+        let bytes = evaluations.to_var_bytes();
+
+        let decoded = Evaluations::from_slice(&bytes)
+            .expect("decoding evaluations should succeed");
+        assert_eq!(evaluations, decoded);
+    }
+
+    #[test]
+    fn evaluations_interpolate_roundtrip() {
+        let poly = Polynomial::from_coefficients_vec(vec![
+            BlsScalar::from(7u64),
+            BlsScalar::from(0u64),
+            BlsScalar::from(5u64),
+        ]);
+
+        let domain = EvaluationDomain::new(poly.len())
+            .expect("domain construction should succeed");
+        let evals = domain.fft(&poly);
+        let evaluations = Evaluations::from_vec_and_domain(evals, domain);
+
+        let recovered = evaluations.clone().interpolate();
+        assert_eq!(recovered, poly);
+    }
+
+    #[test]
+    fn evaluations_arithmetic_is_element_wise() {
+        let domain = EvaluationDomain::new(4)
+            .expect("domain construction should succeed");
+
+        let a = Evaluations::from_vec_and_domain(
+            vec![
+                BlsScalar::from(1u64),
+                BlsScalar::from(2u64),
+                BlsScalar::from(3u64),
+                BlsScalar::from(4u64),
+            ],
+            domain,
+        );
+        let b = Evaluations::from_vec_and_domain(
+            vec![
+                BlsScalar::from(5u64),
+                BlsScalar::from(6u64),
+                BlsScalar::from(7u64),
+                BlsScalar::from(8u64),
+            ],
+            domain,
+        );
+
+        // Indexing
+        assert_eq!(a[2], BlsScalar::from(3u64));
+
+        let add = &a + &b;
+        assert_eq!(
+            add.evals,
+            vec![
+                BlsScalar::from(6u64),
+                BlsScalar::from(8u64),
+                BlsScalar::from(10u64),
+                BlsScalar::from(12u64)
+            ]
+        );
+
+        let sub = &b - &a;
+        assert_eq!(
+            sub.evals,
+            vec![
+                BlsScalar::from(4u64),
+                BlsScalar::from(4u64),
+                BlsScalar::from(4u64),
+                BlsScalar::from(4u64)
+            ]
+        );
+
+        let mul = &a * &b;
+        assert_eq!(
+            mul.evals,
+            vec![
+                BlsScalar::from(5u64),
+                BlsScalar::from(12u64),
+                BlsScalar::from(21u64),
+                BlsScalar::from(32u64)
+            ]
+        );
+
+        let mut div = b.clone();
+        div /= &a;
+        assert_eq!(div.evals[0], BlsScalar::from(5u64));
+        assert_eq!(div.evals[1], BlsScalar::from(3u64));
+    }
+
+    #[test]
+    #[should_panic(expected = "domains are unequal")]
+    fn operations_panic_on_domain_mismatch() {
+        let domain_a = EvaluationDomain::new(4).unwrap();
+        let domain_b = EvaluationDomain::new(8).unwrap();
+
+        let a = Evaluations::from_vec_and_domain(
+            vec![BlsScalar::one(); domain_a.size()],
+            domain_a,
+        );
+        let b = Evaluations::from_vec_and_domain(
+            vec![BlsScalar::one(); domain_b.size()],
+            domain_b,
+        );
+
+        let _ = &a + &b;
+    }
+}

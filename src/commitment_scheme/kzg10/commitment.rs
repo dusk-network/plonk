@@ -82,4 +82,23 @@ mod commitment_tests {
             .expect("Error on the deserialization");
         assert_eq!(commitment, obtained_comm);
     }
+
+    #[test]
+    fn commitment_default_is_identity() {
+        let c = Commitment::default();
+        assert_eq!(c, Commitment(G1Affine::identity()));
+
+        let bytes = c.to_bytes();
+        let obtained = Commitment::from_slice(&bytes)
+            .expect("identity commitment should deserialize");
+        assert_eq!(c, obtained);
+    }
+
+    #[test]
+    fn commitment_from_projective_matches_affine() {
+        let projective = G1Projective::generator();
+        let from_proj: Commitment = projective.into();
+        let from_aff: Commitment = G1Affine::generator().into();
+        assert_eq!(from_proj, from_aff);
+    }
 }
