@@ -19,8 +19,8 @@ use dusk_bytes::{DeserializableSlice, Serializable};
 use bytecheck::CheckBytes;
 #[cfg(feature = "rkyv-impl")]
 use rkyv::{
-    ser::{ScratchSpace, Serializer},
     Archive, Deserialize, Serialize,
+    ser::{ScratchSpace, Serializer},
 };
 
 /// Represents a polynomial in coeffiient form.
@@ -82,10 +82,12 @@ impl Polynomial {
         result.truncate_leading_zeros();
         // Check that either the coefficients vec is empty or that the last
         // coeff is non-zero.
-        assert!(result
-            .coeffs
-            .last()
-            .map_or(true, |coeff| coeff != &BlsScalar::zero()));
+        assert!(
+            result
+                .coeffs
+                .last()
+                .is_none_or(|coeff| coeff != &BlsScalar::zero())
+        );
 
         result
     }
@@ -109,11 +111,7 @@ impl Polynomial {
     }
 
     fn truncate_leading_zeros(&mut self) {
-        while self
-            .coeffs
-            .last()
-            .map_or(false, |c| c == &BlsScalar::zero())
-        {
+        while self.coeffs.last().is_some_and(|c| c == &BlsScalar::zero()) {
             self.coeffs.pop();
         }
     }
@@ -185,7 +183,7 @@ impl Sum for Polynomial {
     }
 }
 
-impl<'a, 'b> Add<&'a Polynomial> for &'b Polynomial {
+impl<'a> Add<&'a Polynomial> for &Polynomial {
     type Output = Polynomial;
 
     fn add(self, other: &'a Polynomial) -> Polynomial {
@@ -269,7 +267,7 @@ impl Neg for Polynomial {
     }
 }
 
-impl<'a, 'b> Sub<&'a Polynomial> for &'b Polynomial {
+impl<'a> Sub<&'a Polynomial> for &Polynomial {
     type Output = Polynomial;
 
     #[inline]
@@ -370,7 +368,7 @@ impl Polynomial {
 }
 
 /// Performs O(nlogn) multiplication of polynomials if F is smooth.
-impl<'a, 'b> Mul<&'a Polynomial> for &'b Polynomial {
+impl<'a> Mul<&'a Polynomial> for &Polynomial {
     type Output = Polynomial;
 
     #[inline]
@@ -395,7 +393,7 @@ impl<'a, 'b> Mul<&'a Polynomial> for &'b Polynomial {
     }
 }
 
-impl<'a, 'b> Mul<&'a BlsScalar> for &'b Polynomial {
+impl<'a> Mul<&'a BlsScalar> for &Polynomial {
     type Output = Polynomial;
 
     #[inline]
@@ -409,7 +407,7 @@ impl<'a, 'b> Mul<&'a BlsScalar> for &'b Polynomial {
     }
 }
 
-impl<'a, 'b> Add<&'a BlsScalar> for &'b Polynomial {
+impl<'a> Add<&'a BlsScalar> for &Polynomial {
     type Output = Polynomial;
 
     #[inline]
@@ -427,7 +425,7 @@ impl<'a, 'b> Add<&'a BlsScalar> for &'b Polynomial {
     }
 }
 
-impl<'a, 'b> Sub<&'a BlsScalar> for &'b Polynomial {
+impl<'a> Sub<&'a BlsScalar> for &Polynomial {
     type Output = Polynomial;
 
     #[inline]

@@ -20,8 +20,8 @@ use dusk_bytes::{DeserializableSlice, Serializable};
 use bytecheck::CheckBytes;
 #[cfg(feature = "rkyv-impl")]
 use rkyv::{
-    ser::{ScratchSpace, Serializer},
     Archive, Deserialize, Serialize,
+    ser::{ScratchSpace, Serializer},
 };
 
 /// Stores a polynomial in evaluation form.
@@ -90,7 +90,7 @@ impl Index<usize> for Evaluations {
     }
 }
 
-impl<'a, 'b> Mul<&'a Evaluations> for &'b Evaluations {
+impl<'a> Mul<&'a Evaluations> for &Evaluations {
     type Output = Evaluations;
 
     #[inline]
@@ -112,7 +112,7 @@ impl<'a> MulAssign<&'a Evaluations> for Evaluations {
     }
 }
 
-impl<'a, 'b> Add<&'a Evaluations> for &'b Evaluations {
+impl<'a> Add<&'a Evaluations> for &Evaluations {
     type Output = Evaluations;
 
     #[inline]
@@ -134,7 +134,7 @@ impl<'a> AddAssign<&'a Evaluations> for Evaluations {
     }
 }
 
-impl<'a, 'b> Sub<&'a Evaluations> for &'b Evaluations {
+impl<'a> Sub<&'a Evaluations> for &Evaluations {
     type Output = Evaluations;
 
     #[inline]

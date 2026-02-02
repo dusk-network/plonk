@@ -23,8 +23,8 @@ use crate::util::check_field;
 use bytecheck::{CheckBytes, StructCheckError};
 #[cfg(feature = "rkyv-impl")]
 use rkyv::{
-    ser::{ScratchSpace, Serializer},
     Archive, Deserialize, Serialize,
+    ser::{ScratchSpace, Serializer},
 };
 
 /// A Proof is a composition of `Commitment`s to the Witness, Permutation,
@@ -191,7 +191,7 @@ pub(crate) mod alloc {
     #[rustfmt::skip]
     use ::alloc::vec::Vec;
     use dusk_bls12_381::{
-        multiscalar_mul::msm_variable_base, BlsScalar, G1Affine, G1Projective,
+        BlsScalar, G1Affine, G1Projective, multiscalar_mul::msm_variable_base,
     };
     use merlin::Transcript;
     #[cfg(feature = "std")]

@@ -7,7 +7,7 @@
 #[cfg(feature = "alloc")]
 use crate::{
     fft::{EvaluationDomain, Polynomial},
-    proof_system::{proof, ProverKey},
+    proof_system::{ProverKey, proof},
 };
 
 use dusk_bls12_381::BlsScalar;
@@ -17,8 +17,8 @@ use dusk_bytes::{DeserializableSlice, Serializable};
 use bytecheck::CheckBytes;
 #[cfg(feature = "rkyv-impl")]
 use rkyv::{
-    ser::{ScratchSpace, Serializer},
     Archive, Deserialize, Serialize,
+    ser::{ScratchSpace, Serializer},
 };
 
 /// Subset of all of the evaluations. These evaluations
@@ -151,10 +151,9 @@ impl Serializable<{ 15 * BlsScalar::SIZE }> for ProofEvaluations {
     }
 }
 
-#[cfg(feature = "alloc")]
-
 /// Compute the linearization polynomial.
 // TODO: Improve the method signature
+#[cfg(feature = "alloc")]
 #[allow(clippy::type_complexity)]
 pub(crate) fn compute(
     prover_key: &ProverKey,
