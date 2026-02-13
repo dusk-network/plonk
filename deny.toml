@@ -19,6 +19,9 @@ ignore = false
 [bans]
 multiple-versions = "warn"
 wildcards = "allow"
+skip = [
+  { crate = "syn@1.0.109", reason = "Unavoidable transitive split between rkyv 0.7.x proc-macro dependencies (syn 1.x) and newer proc-macro dependencies (syn 2.x)" },
+]
 
 [sources]
 unknown-registry = "deny"
