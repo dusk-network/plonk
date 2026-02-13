@@ -75,3 +75,7 @@ jobs:
   test_stable_std:
     name: Stable tests std
     uses: dusk-network/.github/.github/workflows/run-tests.yml@main
+
+  cargo_deny:
+    name: Cargo Deny
+    uses: dusk-network/.github/.github/workflows/cargo-deny.yml@main
