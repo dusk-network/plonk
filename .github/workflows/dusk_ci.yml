@@ -79,3 +79,12 @@ jobs:
         uses: codecov/codecov-action@v4
         with:
           token: ${{secrets.CODECOV_TOKEN}}
+
+  cargo_deny:
+    name: Cargo Deny
+    uses: dusk-network/.github/.github/workflows/cargo-deny.yml@f6d992d53d414c1b224d4fd5a8e8f9d40017115e
+    with:
+      runner: ubuntu-22.04
+      rust-toolchain: "1.96.1"
+      cargo-deny-version: "0.20.2"
+      enable_sccache: false
