@@ -20,6 +20,26 @@ mod verifier;
 pub use prover::Prover;
 pub use verifier::Verifier;
 
+/// Version selector for proving and verification behavior.
+///
+/// This is intended as a compatibility switch for consumers that need to
+/// validate or produce proofs created under older rules.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
+#[non_exhaustive]
+pub enum PlonkVersion {
+    /// Compatibility behavior for older proofs.
+    V1,
+    /// Current behavior.
+    V2,
+}
+
+impl PlonkVersion {
+    /// The version used by the default `prove` / `verify` methods.
+    pub const fn current() -> Self {
+        PlonkVersion::V2
+    }
+}
+
 /// Generate the arguments to prove and verify a circuit
 pub struct Compiler;
 

@@ -22,6 +22,12 @@ use rayon::prelude::*;
 //   a, b, c, d, s_sigma_1, s_sigma_2, s_sigma_3,
 //   q_arith, q_c, q_l, q_r
 const V_MAX_DEGREE: usize = 11;
+// Legacy number of (unshifted) polynomials opened at `z`, excluding the
+// linearization polynomial `r(X)`.
+//
+// This matches the pre-soundness-fix batching that does NOT bind selector /
+// constant evaluations in the batched opening at `z`.
+const V_MAX_DEGREE_LEGACY: usize = 7;
 
 #[cfg(feature = "rkyv-impl")]
 use crate::util::check_field;
@@ -478,6 +484,293 @@ pub(crate) mod alloc {
             // z * [W_z]_1 + (u * z * w) * [W_zw]_1 + [F]_1 - [E]_1
             let right = G1Affine::from(
                 scalarmuls[V_MAX_DEGREE + 2] + scalarmuls[V_MAX_DEGREE + 3] + F
+                    - E,
+            );
+
+            // Compute the two pairings and subtract them
+            let pairing = dusk_bls12_381::multi_miller_loop(&[
+                (&left, &opening_key.prepared_x_h),
+                (&right, &opening_key.prepared_h),
+            ])
+            .final_exponentiation();
+
+            // Return 'ProofVerificationError' if the two
+            // pairings are not equal, continue otherwise
+            if pairing != dusk_bls12_381::Gt::identity() {
+                return Err(Error::ProofVerificationError);
+            };
+
+            Ok(())
+        }
+
+        /// Performs proof verification using the legacy batching behavior
+        /// (PLONK v1).
+        #[allow(non_snake_case)]
+        pub(crate) fn verify_legacy(
+            &self,
+            verifier_key: &VerifierKey,
+            transcript: &mut Transcript,
+            opening_key: &OpeningKey,
+            pub_inputs: &[BlsScalar],
+        ) -> Result<(), Error> {
+            let domain = EvaluationDomain::new(verifier_key.n)?;
+
+            // Subgroup checks are done when the proof is deserialized.
+
+            // In order for the Verifier and Prover to have the same view in the
+            // non-interactive setting Both parties must commit the same
+            // elements into the transcript Below the verifier will simulate
+            // an interaction with the prover by adding the same elements
+            // that the prover added into the transcript, hence generating the
+            // same challenges
+            //
+            // Add commitment to witness polynomials to transcript
+            transcript.append_commitment(b"a_comm", &self.a_comm);
+            transcript.append_commitment(b"b_comm", &self.b_comm);
+            transcript.append_commitment(b"c_comm", &self.c_comm);
+            transcript.append_commitment(b"d_comm", &self.d_comm);
+
+            // Compute beta and gamma challenges
+            let beta = transcript.challenge_scalar(b"beta");
+            transcript.append_scalar(b"beta", &beta);
+            let gamma = transcript.challenge_scalar(b"gamma");
+
+            // Add commitment to permutation polynomial to transcript
+            transcript.append_commitment(b"z_comm", &self.z_comm);
+
+            // Compute quotient challenge
+            let alpha = transcript.challenge_scalar(b"alpha");
+            let range_sep_challenge =
+                transcript.challenge_scalar(b"range separation challenge");
+            let logic_sep_challenge =
+                transcript.challenge_scalar(b"logic separation challenge");
+            let fixed_base_sep_challenge =
+                transcript.challenge_scalar(b"fixed base separation challenge");
+            let var_base_sep_challenge = transcript
+                .challenge_scalar(b"variable base separation challenge");
+
+            // Add commitment to quotient polynomial to transcript
+            transcript.append_commitment(b"t_low_comm", &self.t_low_comm);
+            transcript.append_commitment(b"t_mid_comm", &self.t_mid_comm);
+            transcript.append_commitment(b"t_high_comm", &self.t_high_comm);
+            transcript.append_commitment(b"t_fourth_comm", &self.t_fourth_comm);
+
+            // Compute evaluation challenge z
+            let z_challenge = transcript.challenge_scalar(b"z_challenge");
+
+            // Add opening evaluations to transcript
+            transcript.append_scalar(b"a_eval", &self.evaluations.a_eval);
+            transcript.append_scalar(b"b_eval", &self.evaluations.b_eval);
+            transcript.append_scalar(b"c_eval", &self.evaluations.c_eval);
+            transcript.append_scalar(b"d_eval", &self.evaluations.d_eval);
+
+            transcript.append_scalar(
+                b"s_sigma_1_eval",
+                &self.evaluations.s_sigma_1_eval,
+            );
+            transcript.append_scalar(
+                b"s_sigma_2_eval",
+                &self.evaluations.s_sigma_2_eval,
+            );
+            transcript.append_scalar(
+                b"s_sigma_3_eval",
+                &self.evaluations.s_sigma_3_eval,
+            );
+
+            transcript.append_scalar(b"z_eval", &self.evaluations.z_eval);
+
+            // Add extra shifted evaluations to transcript
+            transcript.append_scalar(b"a_w_eval", &self.evaluations.a_w_eval);
+            transcript.append_scalar(b"b_w_eval", &self.evaluations.b_w_eval);
+            transcript.append_scalar(b"d_w_eval", &self.evaluations.d_w_eval);
+            transcript
+                .append_scalar(b"q_arith_eval", &self.evaluations.q_arith_eval);
+            transcript.append_scalar(b"q_c_eval", &self.evaluations.q_c_eval);
+            transcript.append_scalar(b"q_l_eval", &self.evaluations.q_l_eval);
+            transcript.append_scalar(b"q_r_eval", &self.evaluations.q_r_eval);
+
+            let v_challenge = transcript.challenge_scalar(b"v_challenge");
+            let v_w_challenge = transcript.challenge_scalar(b"v_w_challenge");
+
+            // Add commitment to openings to transcript
+            transcript
+                .append_commitment(b"w_z_chall_comm", &self.w_z_chall_comm);
+            transcript
+                .append_commitment(b"w_z_chall_w_comm", &self.w_z_chall_w_comm);
+
+            // Compute the challenge 'u'
+            let u_challenge = transcript.challenge_scalar(b"u_challenge");
+
+            // Compute zero polynomial evaluated at challenge `z`
+            let z_h_eval = domain.evaluate_vanishing_polynomial(&z_challenge);
+
+            // Compute first lagrange polynomial evaluated at challenge `z`
+            let l1_eval = compute_first_lagrange_evaluation(
+                &domain,
+                &z_h_eval,
+                &z_challenge,
+            );
+
+            // Compute '[D]_1'
+            let D = self
+                .compute_linearization_commitment(
+                    &alpha,
+                    &beta,
+                    &gamma,
+                    (
+                        &range_sep_challenge,
+                        &logic_sep_challenge,
+                        &fixed_base_sep_challenge,
+                        &var_base_sep_challenge,
+                    ),
+                    &z_challenge,
+                    &u_challenge,
+                    l1_eval,
+                    verifier_key,
+                    &domain,
+                )
+                .0;
+
+            // Evaluate public inputs
+            let pi_eval =
+                compute_barycentric_eval(pub_inputs, &z_challenge, &domain);
+
+            // Compute r_0
+            let r_0_eval = pi_eval
+                - l1_eval * alpha.square()
+                - alpha
+                    * (self.evaluations.a_eval
+                        + beta * self.evaluations.s_sigma_1_eval
+                        + gamma)
+                    * (self.evaluations.b_eval
+                        + beta * self.evaluations.s_sigma_2_eval
+                        + gamma)
+                    * (self.evaluations.c_eval
+                        + beta * self.evaluations.s_sigma_3_eval
+                        + gamma)
+                    * (self.evaluations.d_eval + gamma)
+                    * self.evaluations.z_eval;
+
+            // Coefficients to compute [E]_1
+            let mut v_coeffs_E = vec![v_challenge];
+
+            // Compute the powers of the v_challenge
+            for i in 1..V_MAX_DEGREE_LEGACY {
+                v_coeffs_E.push(v_coeffs_E[i - 1] * v_challenge);
+            }
+
+            // Compute the powers of the v_challenge multiplied by u_challenge
+            v_coeffs_E.push(v_w_challenge * u_challenge);
+            v_coeffs_E
+                .push(v_coeffs_E[V_MAX_DEGREE_LEGACY] * v_w_challenge);
+            v_coeffs_E.push(
+                v_coeffs_E[V_MAX_DEGREE_LEGACY + 1] * v_w_challenge,
+            );
+
+            // Evaluations to compute [E]_1
+            //
+            // IMPORTANT: Ordering must match the legacy prover's batched
+            // opening at `z` (pre-soundness-fix).
+            let E_evals = vec![
+                self.evaluations.a_eval,
+                self.evaluations.b_eval,
+                self.evaluations.c_eval,
+                self.evaluations.d_eval,
+                self.evaluations.s_sigma_1_eval,
+                self.evaluations.s_sigma_2_eval,
+                self.evaluations.s_sigma_3_eval,
+                self.evaluations.a_w_eval,
+                self.evaluations.b_w_eval,
+                self.evaluations.d_w_eval,
+            ];
+
+            // Compute E = (-r_0 + (v)a + (v^2)b + (v^3)c + (v^4)d +
+            // + (v^5)s_sigma_1 + (v^6)s_sigma_2 + (v^7)s_sigma_3 +
+            // + (u)z_w + (u * v_w)a_w + (u * v_w^2)b_w + (u * v_w^3)d_w)
+            let mut E_scalar: BlsScalar = E_evals
+                .iter()
+                .zip(v_coeffs_E.iter())
+                .map(|(eval, coeff)| eval * coeff)
+                .sum();
+            E_scalar += -r_0_eval + (u_challenge * self.evaluations.z_eval);
+
+            // We group all the remaining scalar multiplications in the
+            // verification process, with the purpose of
+            // parallelizing them
+            let scalarmuls_points = vec![
+                self.a_comm.0,
+                self.b_comm.0,
+                self.c_comm.0,
+                self.d_comm.0,
+                verifier_key.permutation.s_sigma_1.0,
+                verifier_key.permutation.s_sigma_2.0,
+                verifier_key.permutation.s_sigma_3.0,
+                opening_key.g,
+                self.w_z_chall_w_comm.0,
+                self.w_z_chall_comm.0,
+                self.w_z_chall_w_comm.0,
+            ];
+
+            let mut scalarmuls_scalars =
+                v_coeffs_E[..V_MAX_DEGREE_LEGACY].to_vec();
+
+            // As we include the shifted coefficients when computing [F]_1,
+            // we group them to save scalar multiplications when multiplying
+            // by [a]_1, [b]_1, and [d]_1
+            scalarmuls_scalars[0] += v_coeffs_E[V_MAX_DEGREE_LEGACY];
+            scalarmuls_scalars[1] += v_coeffs_E[V_MAX_DEGREE_LEGACY + 1];
+            scalarmuls_scalars[3] += v_coeffs_E[V_MAX_DEGREE_LEGACY + 2];
+
+            scalarmuls_scalars.push(E_scalar);
+            scalarmuls_scalars.push(u_challenge);
+            scalarmuls_scalars.push(z_challenge);
+            scalarmuls_scalars
+                .push(u_challenge * z_challenge * domain.group_gen);
+
+            // Compute the scalar multiplications in single-core
+            #[cfg(not(feature = "std"))]
+            let scalarmuls: Vec<G1Projective> = scalarmuls_points
+                .iter()
+                .zip(scalarmuls_scalars.iter())
+                .map(|(point, scalar)| point * scalar)
+                .collect();
+
+            // Compute the scalar multiplications in multi-core
+            #[cfg(feature = "std")]
+            let scalarmuls: Vec<G1Projective> = scalarmuls_points
+                .par_iter()
+                .zip(scalarmuls_scalars.par_iter())
+                .map(|(point, scalar)| point * scalar)
+                .collect();
+
+            // [F]_1 = [D]_1 + (v)[a]_1 + (v^2)[b]_1 + (v^3)[c]_1 + (v^4)[d]_1 +
+            // + (v^5)[s_sigma_1]_1 + (v^6)[s_sigma_2]_1 + (v^7)[s_sigma_3]_1 +
+            // + (u * v_w)[a]_1 + (u * v_w^2)[b]_1 + (u * v_w^3)[d]_1
+            let mut F: G1Projective =
+                scalarmuls[..V_MAX_DEGREE_LEGACY].iter().sum();
+            F += D;
+
+            // [E]_1 = E * G
+            let E = scalarmuls[V_MAX_DEGREE_LEGACY];
+
+            // Compute the G_1 element of the first pairing:
+            // [W_z]_1 + u * [W_zw]_1
+            //
+            // Note that we negate this value to be able to subtract
+            // the pairings later on, using the multi Miller loop
+            let left = G1Affine::from(
+                -(
+                    self.w_z_chall_comm.0
+                        + scalarmuls[V_MAX_DEGREE_LEGACY + 1]
+                ),
+            );
+
+            // Compute the G_1 element of the second pairing:
+            // z * [W_z]_1 + (u * z * w) * [W_zw]_1 + [F]_1 - [E]_1
+            let right = G1Affine::from(
+                scalarmuls[V_MAX_DEGREE_LEGACY + 2]
+                    + scalarmuls[V_MAX_DEGREE_LEGACY + 3]
+                    + F
                     - E,
             );
 
