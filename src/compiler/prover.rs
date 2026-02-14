@@ -445,9 +445,12 @@ impl Prover {
         // compute selector evaluations
         let q_arith_eval =
             self.prover_key.arithmetic.q_arith.0.evaluate(&z_challenge);
-        let q_c_eval = self.prover_key.logic.q_c.0.evaluate(&z_challenge);
-        let q_l_eval = self.prover_key.fixed_base.q_l.0.evaluate(&z_challenge);
-        let q_r_eval = self.prover_key.fixed_base.q_r.0.evaluate(&z_challenge);
+        // These selector/constant polynomials are shared across widgets.
+        // Evaluate them from the arithmetic key to match transcript-seeded
+        // commitments under the corresponding labels.
+        let q_c_eval = self.prover_key.arithmetic.q_c.0.evaluate(&z_challenge);
+        let q_l_eval = self.prover_key.arithmetic.q_l.0.evaluate(&z_challenge);
+        let q_r_eval = self.prover_key.arithmetic.q_r.0.evaluate(&z_challenge);
 
         // add shifted evaluations to transcript
         transcript.append_scalar(b"a_w_eval", &a_w_eval);
@@ -516,6 +519,13 @@ impl Prover {
                 self.prover_key.permutation.s_sigma_1.0.clone(),
                 self.prover_key.permutation.s_sigma_2.0.clone(),
                 self.prover_key.permutation.s_sigma_3.0.clone(),
+                // Bind selector evaluations (q_*) used inside the verifier
+                // linearization commitment to their committed polynomials by
+                // including them in the same batched opening at `z`.
+                self.prover_key.arithmetic.q_arith.0.clone(),
+                self.prover_key.arithmetic.q_c.0.clone(),
+                self.prover_key.arithmetic.q_l.0.clone(),
+                self.prover_key.arithmetic.q_r.0.clone(),
             ],
             &z_challenge,
             &v_challenge,

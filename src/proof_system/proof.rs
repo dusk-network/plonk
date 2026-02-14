@@ -15,7 +15,13 @@ use dusk_bytes::{DeserializableSlice, Serializable};
 #[cfg(feature = "std")]
 use rayon::prelude::*;
 
-const V_MAX_DEGREE: usize = 7;
+// Number of (unshifted) polynomials opened at `z`, excluding the linearization
+// polynomial `r(X)`.
+//
+// We open at `z`:
+//   a, b, c, d, s_sigma_1, s_sigma_2, s_sigma_3,
+//   q_arith, q_c, q_l, q_r
+const V_MAX_DEGREE: usize = 11;
 
 #[cfg(feature = "rkyv-impl")]
 use crate::util::check_field;
@@ -359,7 +365,12 @@ pub(crate) mod alloc {
             v_coeffs_E.push(v_coeffs_E[V_MAX_DEGREE + 1] * v_w_challenge);
 
             // Evaluations to compute [E]_1
+            //
+            // IMPORTANT: Ordering must match the prover's batched opening at `z`
+            // (`CommitKey::compute_aggregate_witness([...])`) and the verifier's
+            // commitment list below.
             let E_evals = vec![
+                // Unshifted openings at z
                 self.evaluations.a_eval,
                 self.evaluations.b_eval,
                 self.evaluations.c_eval,
@@ -367,6 +378,12 @@ pub(crate) mod alloc {
                 self.evaluations.s_sigma_1_eval,
                 self.evaluations.s_sigma_2_eval,
                 self.evaluations.s_sigma_3_eval,
+                // Bind selector/constant evaluations used inside linearization
+                self.evaluations.q_arith_eval,
+                self.evaluations.q_c_eval,
+                self.evaluations.q_l_eval,
+                self.evaluations.q_r_eval,
+                // Shifted openings at z*w
                 self.evaluations.a_w_eval,
                 self.evaluations.b_w_eval,
                 self.evaluations.d_w_eval,
@@ -386,6 +403,7 @@ pub(crate) mod alloc {
             // verification process, with the purpose of
             // parallelizing them
             let scalarmuls_points = vec![
+                // Unshifted openings at z
                 self.a_comm.0,
                 self.b_comm.0,
                 self.c_comm.0,
@@ -393,7 +411,15 @@ pub(crate) mod alloc {
                 verifier_key.permutation.s_sigma_1.0,
                 verifier_key.permutation.s_sigma_2.0,
                 verifier_key.permutation.s_sigma_3.0,
+                // Selector/constant commitments whose evaluations are used
+                // inside the verifier linearization commitment.
+                verifier_key.arithmetic.q_arith.0,
+                verifier_key.arithmetic.q_c.0,
+                verifier_key.arithmetic.q_l.0,
+                verifier_key.arithmetic.q_r.0,
+                // Commitment to generator G for [E]_1
                 opening_key.g,
+                // Opening proof commitments
                 self.w_z_chall_w_comm.0,
                 self.w_z_chall_comm.0,
                 self.w_z_chall_w_comm.0,
