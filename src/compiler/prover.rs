@@ -74,7 +74,7 @@ impl Prover {
     /// if hiding degree = 1: (b2*X^(n+1) + b1*X^n - b2*X - b1) + witnesses
     /// if hiding degree = 2: (b3*X^(n+2) + b2*X^(n+1) + b1*X^n - b3*X^2 - b2*X
     /// - b1) + witnesses
-    fn blind_poly<R>(
+    pub(crate) fn blind_poly<R>(
         rng: &mut R,
         witnesses: &[BlsScalar],
         hiding_degree: usize,
