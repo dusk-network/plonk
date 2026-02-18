@@ -15,7 +15,7 @@ use crate::error::Error;
 use crate::proof_system::{Proof, VerifierKey};
 use crate::transcript::TranscriptProtocol;
 
-use super::Composer;
+use super::{Composer, PlonkVersion};
 
 /// Verify proofs of a given circuit
 pub struct Verifier {
@@ -189,11 +189,22 @@ impl Verifier {
         ))
     }
 
-    /// Verify a generated proof
+    /// Verify a generated proof using the current (latest) verification
+    /// behavior.
     pub fn verify(
         &self,
         proof: &Proof,
         public_inputs: &[BlsScalar],
+    ) -> Result<(), Error> {
+        self.verify_with_version(proof, public_inputs, PlonkVersion::current())
+    }
+
+    /// Verify a generated proof using an explicitly selected version.
+    pub fn verify_with_version(
+        &self,
+        proof: &Proof,
+        public_inputs: &[BlsScalar],
+        version: PlonkVersion,
     ) -> Result<(), Error> {
         if public_inputs.len() != self.public_input_indexes.len() {
             return Err(Error::InconsistentPublicInputsLen {
@@ -214,11 +225,19 @@ impl Verifier {
             self.size,
         );
 
-        proof.verify(
-            &self.verifier_key,
-            &mut transcript,
-            &self.opening_key,
-            &dense_public_inputs,
-        )
+        match version {
+            PlonkVersion::V1 => proof.verify_legacy(
+                &self.verifier_key,
+                &mut transcript,
+                &self.opening_key,
+                &dense_public_inputs,
+            ),
+            PlonkVersion::V2 => proof.verify(
+                &self.verifier_key,
+                &mut transcript,
+                &self.opening_key,
+                &dense_public_inputs,
+            ),
+        }
     }
 }

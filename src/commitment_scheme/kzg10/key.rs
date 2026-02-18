@@ -163,10 +163,9 @@ impl CommitKey {
         &self,
         poly_degree: usize,
     ) -> Result<(), Error> {
-        match (poly_degree == 0, poly_degree > self.max_degree()) {
-            (true, _) => Err(Error::PolynomialDegreeIsZero),
-            (false, true) => Err(Error::PolynomialDegreeTooLarge),
-            (false, false) => Ok(()),
+        match poly_degree > self.max_degree() {
+            true => Err(Error::PolynomialDegreeTooLarge),
+            false => Ok(()),
         }
     }
 
