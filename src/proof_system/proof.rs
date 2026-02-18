@@ -661,11 +661,9 @@ pub(crate) mod alloc {
 
             // Compute the powers of the v_challenge multiplied by u_challenge
             v_coeffs_E.push(v_w_challenge * u_challenge);
+            v_coeffs_E.push(v_coeffs_E[V_MAX_DEGREE_LEGACY] * v_w_challenge);
             v_coeffs_E
-                .push(v_coeffs_E[V_MAX_DEGREE_LEGACY] * v_w_challenge);
-            v_coeffs_E.push(
-                v_coeffs_E[V_MAX_DEGREE_LEGACY + 1] * v_w_challenge,
-            );
+                .push(v_coeffs_E[V_MAX_DEGREE_LEGACY + 1] * v_w_challenge);
 
             // Evaluations to compute [E]_1
             //
@@ -759,10 +757,7 @@ pub(crate) mod alloc {
             // Note that we negate this value to be able to subtract
             // the pairings later on, using the multi Miller loop
             let left = G1Affine::from(
-                -(
-                    self.w_z_chall_comm.0
-                        + scalarmuls[V_MAX_DEGREE_LEGACY + 1]
-                ),
+                -(self.w_z_chall_comm.0 + scalarmuls[V_MAX_DEGREE_LEGACY + 1]),
             );
 
             // Compute the G_1 element of the second pairing:
@@ -1017,11 +1012,11 @@ mod soundness_tests {
     use crate::fft::{EvaluationDomain, Polynomial};
     use crate::proof_system::linearization_poly::{self, ProofEvaluations};
     use crate::proof_system::proof::{self, Proof};
+    use crate::transcript::TranscriptProtocol;
     use dusk_bls12_381::BlsScalar;
     use ff::Field;
-    use rand::rngs::StdRng;
     use rand::SeedableRng;
-    use crate::transcript::TranscriptProtocol;
+    use rand::rngs::StdRng;
     use rand_core::{CryptoRng, RngCore};
 
     // Simple arithmetic circuit: a + b + a*b + d + public + 1 = result
@@ -1078,11 +1073,9 @@ mod soundness_tests {
         circuit: &ArithCircuit,
         rng: &mut (impl RngCore + CryptoRng),
     ) -> (Proof, Vec<BlsScalar>) {
-        let composed =
-            Composer::prove(prover.constraints, circuit).unwrap();
+        let composed = Composer::prove(prover.constraints, circuit).unwrap();
         let size = prover.size;
-        let domain =
-            EvaluationDomain::new(prover.constraints).unwrap();
+        let domain = EvaluationDomain::new(prover.constraints).unwrap();
 
         let mut transcript = prover.transcript.clone();
 
@@ -1115,14 +1108,10 @@ mod soundness_tests {
                 d_scalars[i] = composed[constraint.d];
             });
 
-        let a_poly =
-            Prover::blind_poly(rng, &a_scalars, 1, &domain);
-        let b_poly =
-            Prover::blind_poly(rng, &b_scalars, 1, &domain);
-        let c_poly =
-            Prover::blind_poly(rng, &c_scalars, 1, &domain);
-        let d_poly =
-            Prover::blind_poly(rng, &d_scalars, 1, &domain);
+        let a_poly = Prover::blind_poly(rng, &a_scalars, 1, &domain);
+        let b_poly = Prover::blind_poly(rng, &b_scalars, 1, &domain);
+        let c_poly = Prover::blind_poly(rng, &c_scalars, 1, &domain);
+        let d_poly = Prover::blind_poly(rng, &d_scalars, 1, &domain);
 
         let a_comm = prover.commit_key.commit(&a_poly).unwrap();
         let b_comm = prover.commit_key.commit(&b_poly).unwrap();
@@ -1144,8 +1133,7 @@ mod soundness_tests {
         for z in z_scalars.iter_mut() {
             *z = BlsScalar::random(&mut *rng);
         }
-        let z_poly =
-            Prover::blind_poly(rng, &z_scalars, 2, &domain);
+        let z_poly = Prover::blind_poly(rng, &z_scalars, 2, &domain);
         let z_comm = prover.commit_key.commit(&z_poly).unwrap();
         transcript.append_commitment(b"z_comm", &z_comm);
 
@@ -1155,46 +1143,38 @@ mod soundness_tests {
             transcript.challenge_scalar(b"range separation challenge");
         let logic_sep_challenge =
             transcript.challenge_scalar(b"logic separation challenge");
-        let fixed_base_sep_challenge = transcript
-            .challenge_scalar(b"fixed base separation challenge");
-        let var_base_sep_challenge = transcript
-            .challenge_scalar(b"variable base separation challenge");
+        let fixed_base_sep_challenge =
+            transcript.challenge_scalar(b"fixed base separation challenge");
+        let var_base_sep_challenge =
+            transcript.challenge_scalar(b"variable base separation challenge");
 
-        let rand_linear_poly =
-            |rng: &mut dyn RngCore| -> Polynomial {
-                let c0 = BlsScalar::random(&mut *rng);
-                let mut c1 = BlsScalar::random(&mut *rng);
-                while c1 == BlsScalar::zero() {
-                    c1 = BlsScalar::random(&mut *rng);
-                }
-                Polynomial::from_coefficients_vec(vec![c0, c1])
-            };
+        let rand_linear_poly = |rng: &mut dyn RngCore| -> Polynomial {
+            let c0 = BlsScalar::random(&mut *rng);
+            let mut c1 = BlsScalar::random(&mut *rng);
+            while c1 == BlsScalar::zero() {
+                c1 = BlsScalar::random(&mut *rng);
+            }
+            Polynomial::from_coefficients_vec(vec![c0, c1])
+        };
 
         let t_low_poly = rand_linear_poly(rng);
         let t_mid_poly = rand_linear_poly(rng);
         let t_high_poly = rand_linear_poly(rng);
         let t_fourth_poly = rand_linear_poly(rng);
 
-        let t_low_comm =
-            prover.commit_key.commit(&t_low_poly).unwrap();
-        let t_mid_comm =
-            prover.commit_key.commit(&t_mid_poly).unwrap();
-        let t_high_comm =
-            prover.commit_key.commit(&t_high_poly).unwrap();
-        let t_fourth_comm =
-            prover.commit_key.commit(&t_fourth_poly).unwrap();
+        let t_low_comm = prover.commit_key.commit(&t_low_poly).unwrap();
+        let t_mid_comm = prover.commit_key.commit(&t_mid_poly).unwrap();
+        let t_high_comm = prover.commit_key.commit(&t_high_poly).unwrap();
+        let t_fourth_comm = prover.commit_key.commit(&t_fourth_poly).unwrap();
 
         transcript.append_commitment(b"t_low_comm", &t_low_comm);
         transcript.append_commitment(b"t_mid_comm", &t_mid_comm);
-        transcript
-            .append_commitment(b"t_high_comm", &t_high_comm);
-        transcript
-            .append_commitment(b"t_fourth_comm", &t_fourth_comm);
+        transcript.append_commitment(b"t_high_comm", &t_high_comm);
+        transcript.append_commitment(b"t_fourth_comm", &t_fourth_comm);
 
         // Round 4: honest evaluations of wire and sigma
         // polynomials at z_challenge
-        let z_challenge =
-            transcript.challenge_scalar(b"z_challenge");
+        let z_challenge = transcript.challenge_scalar(b"z_challenge");
 
         let a_eval = a_poly.evaluate(&z_challenge);
         let b_eval = b_poly.evaluate(&z_challenge);
@@ -1220,43 +1200,27 @@ mod soundness_tests {
             .0
             .evaluate(&z_challenge);
 
-        let z_eval =
-            z_poly.evaluate(&(z_challenge * domain.group_gen));
+        let z_eval = z_poly.evaluate(&(z_challenge * domain.group_gen));
 
         transcript.append_scalar(b"a_eval", &a_eval);
         transcript.append_scalar(b"b_eval", &b_eval);
         transcript.append_scalar(b"c_eval", &c_eval);
         transcript.append_scalar(b"d_eval", &d_eval);
-        transcript
-            .append_scalar(b"s_sigma_1_eval", &s_sigma_1_eval);
-        transcript
-            .append_scalar(b"s_sigma_2_eval", &s_sigma_2_eval);
-        transcript
-            .append_scalar(b"s_sigma_3_eval", &s_sigma_3_eval);
+        transcript.append_scalar(b"s_sigma_1_eval", &s_sigma_1_eval);
+        transcript.append_scalar(b"s_sigma_2_eval", &s_sigma_2_eval);
+        transcript.append_scalar(b"s_sigma_3_eval", &s_sigma_3_eval);
         transcript.append_scalar(b"z_eval", &z_eval);
 
-        let a_w_eval =
-            a_poly.evaluate(&(z_challenge * domain.group_gen));
-        let b_w_eval =
-            b_poly.evaluate(&(z_challenge * domain.group_gen));
-        let d_w_eval =
-            d_poly.evaluate(&(z_challenge * domain.group_gen));
+        let a_w_eval = a_poly.evaluate(&(z_challenge * domain.group_gen));
+        let b_w_eval = b_poly.evaluate(&(z_challenge * domain.group_gen));
+        let d_w_eval = d_poly.evaluate(&(z_challenge * domain.group_gen));
 
         // compute honest selector evaluations (except q_arith)
-        let q_c_eval =
-            prover.prover_key.logic.q_c.0.evaluate(&z_challenge);
-        let q_l_eval = prover
-            .prover_key
-            .fixed_base
-            .q_l
-            .0
-            .evaluate(&z_challenge);
-        let q_r_eval = prover
-            .prover_key
-            .fixed_base
-            .q_r
-            .0
-            .evaluate(&z_challenge);
+        let q_c_eval = prover.prover_key.logic.q_c.0.evaluate(&z_challenge);
+        let q_l_eval =
+            prover.prover_key.fixed_base.q_l.0.evaluate(&z_challenge);
+        let q_r_eval =
+            prover.prover_key.fixed_base.q_r.0.evaluate(&z_challenge);
 
         transcript.append_scalar(b"a_w_eval", &a_w_eval);
         transcript.append_scalar(b"b_w_eval", &b_w_eval);
@@ -1268,19 +1232,16 @@ mod soundness_tests {
         // q_arith_eval = 0, then with q_arith_eval = 1, and solve
         // for the value that makes the verification equation hold.
         let q_arith_eval = {
-            let z_h_eval =
-                domain.evaluate_vanishing_polynomial(&z_challenge);
+            let z_h_eval = domain.evaluate_vanishing_polynomial(&z_challenge);
             let n_fr = BlsScalar::from(domain.size() as u64);
-            let denom =
-                n_fr * (z_challenge - BlsScalar::one());
+            let denom = n_fr * (z_challenge - BlsScalar::one());
             let _l1_eval = z_h_eval * denom.invert().unwrap();
 
-            let pi_eval =
-                proof::alloc::compute_barycentric_eval(
-                    &dense_public_inputs,
-                    &z_challenge,
-                    &domain,
-                );
+            let pi_eval = proof::alloc::compute_barycentric_eval(
+                &dense_public_inputs,
+                &z_challenge,
+                &domain,
+            );
 
             let r_0_eval = pi_eval
                 - _l1_eval * alpha.square()
@@ -1342,18 +1303,15 @@ mod soundness_tests {
                 .prover_key
                 .arithmetic
                 .compute_linearization(&evals_q1);
-            let arith_base_at_z =
-                arith_base_poly.evaluate(&z_challenge);
+            let arith_base_at_z = arith_base_poly.evaluate(&z_challenge);
 
             // Solve for the q_arith_eval that balances r(z) = target
             let target_r_at_z = -r_0_eval + pi_eval;
-            (target_r_at_z - r_q0_at_z)
-                * arith_base_at_z.invert().unwrap()
+            (target_r_at_z - r_q0_at_z) * arith_base_at_z.invert().unwrap()
         };
 
         // Append forged selector evaluations to transcript
-        transcript
-            .append_scalar(b"q_arith_eval", &q_arith_eval);
+        transcript.append_scalar(b"q_arith_eval", &q_arith_eval);
         transcript.append_scalar(b"q_c_eval", &q_c_eval);
         transcript.append_scalar(b"q_l_eval", &q_l_eval);
         transcript.append_scalar(b"q_r_eval", &q_r_eval);
@@ -1377,8 +1335,7 @@ mod soundness_tests {
         };
 
         // Round 5: compute opening proofs using forged evaluations
-        let v_challenge =
-            transcript.challenge_scalar(b"v_challenge");
+        let v_challenge = transcript.challenge_scalar(b"v_challenge");
 
         let r_poly = linearization_poly::compute(
             &prover.prover_key,
@@ -1402,53 +1359,30 @@ mod soundness_tests {
             &dense_public_inputs,
         );
 
-        let aggregate_witness =
-            CommitKey::compute_aggregate_witness(
-                &[
-                    r_poly,
-                    a_poly.clone(),
-                    b_poly.clone(),
-                    c_poly.clone(),
-                    d_poly.clone(),
-                    prover
-                        .prover_key
-                        .permutation
-                        .s_sigma_1
-                        .0
-                        .clone(),
-                    prover
-                        .prover_key
-                        .permutation
-                        .s_sigma_2
-                        .0
-                        .clone(),
-                    prover
-                        .prover_key
-                        .permutation
-                        .s_sigma_3
-                        .0
-                        .clone(),
-                ],
-                &z_challenge,
-                &v_challenge,
-            );
+        let aggregate_witness = CommitKey::compute_aggregate_witness(
+            &[
+                r_poly,
+                a_poly.clone(),
+                b_poly.clone(),
+                c_poly.clone(),
+                d_poly.clone(),
+                prover.prover_key.permutation.s_sigma_1.0.clone(),
+                prover.prover_key.permutation.s_sigma_2.0.clone(),
+                prover.prover_key.permutation.s_sigma_3.0.clone(),
+            ],
+            &z_challenge,
+            &v_challenge,
+        );
         let w_z_chall_comm =
             prover.commit_key.commit(&aggregate_witness).unwrap();
 
-        let v_w_challenge =
-            transcript.challenge_scalar(b"v_w_challenge");
+        let v_w_challenge = transcript.challenge_scalar(b"v_w_challenge");
 
-        let shifted_aggregate_witness =
-            CommitKey::compute_aggregate_witness(
-                &[
-                    z_poly,
-                    a_poly,
-                    b_poly,
-                    d_poly,
-                ],
-                &(z_challenge * domain.group_gen),
-                &v_w_challenge,
-            );
+        let shifted_aggregate_witness = CommitKey::compute_aggregate_witness(
+            &[z_poly, a_poly, b_poly, d_poly],
+            &(z_challenge * domain.group_gen),
+            &v_w_challenge,
+        );
         let w_z_chall_w_comm = prover
             .commit_key
             .commit(&shifted_aggregate_witness)
@@ -1482,15 +1416,14 @@ mod soundness_tests {
     fn forged_selector_eval_proof_must_be_rejected() {
         let mut rng = StdRng::seed_from_u64(0xdead_beef);
         let capacity = 1 << 4;
-        let pp = PublicParameters::setup(capacity, &mut rng)
-            .expect("setup failed");
+        let pp =
+            PublicParameters::setup(capacity, &mut rng).expect("setup failed");
 
         let a = BlsScalar::from(3);
         let b = BlsScalar::from(5);
         let d = BlsScalar::from(7);
         let public = BlsScalar::from(11);
-        let result =
-            a + b + a * b + d + public + BlsScalar::one();
+        let result = a + b + a * b + d + public + BlsScalar::one();
 
         let circuit = ArithCircuit {
             a,
