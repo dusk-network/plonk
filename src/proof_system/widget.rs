@@ -65,15 +65,17 @@ impl<C> CheckBytes<C> for ArchivedVerifierKey {
         value: *const Self,
         context: &mut C,
     ) -> Result<&'a Self, Self::Error> {
-        check_field(&(*value).n, context, "n")?;
-        check_field(&(*value).arithmetic, context, "arithmetic")?;
-        check_field(&(*value).logic, context, "logic")?;
-        check_field(&(*value).range, context, "range")?;
-        check_field(&(*value).fixed_base, context, "fixed_base")?;
-        check_field(&(*value).variable_base, context, "variable_base")?;
-        check_field(&(*value).permutation, context, "permutation")?;
+        unsafe {
+            check_field(&(*value).n, context, "n")?;
+            check_field(&(*value).arithmetic, context, "arithmetic")?;
+            check_field(&(*value).logic, context, "logic")?;
+            check_field(&(*value).range, context, "range")?;
+            check_field(&(*value).fixed_base, context, "fixed_base")?;
+            check_field(&(*value).variable_base, context, "variable_base")?;
+            check_field(&(*value).permutation, context, "permutation")?;
 
-        Ok(&*value)
+            Ok(&*value)
+        }
     }
 }
 

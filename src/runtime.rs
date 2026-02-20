@@ -6,8 +6,10 @@
 
 //! PLONK runtime controller
 
+#[cfg(feature = "debug")]
 use dusk_bls12_381::BlsScalar;
 
+#[cfg(feature = "debug")]
 use crate::prelude::{Constraint, Witness};
 
 #[cfg(feature = "debug")]
@@ -19,14 +21,17 @@ use crate::debugger::Debugger;
 pub enum RuntimeEvent {
     /// A witness was appended to the constraint system
     WitnessAppended {
+        #[cfg(feature = "debug")]
         /// Appended witness
         w: Witness,
+        #[cfg(feature = "debug")]
         /// Witness value
         v: BlsScalar,
     },
 
     /// A constraint was appended
     ConstraintAppended {
+        #[cfg(feature = "debug")]
         /// Appended constraint
         c: Constraint,
     },
@@ -69,16 +74,24 @@ impl Runtime {
 mod tests {
     use super::*;
 
+    #[cfg(feature = "debug")]
+    use crate::prelude::{Constraint, Witness};
+    #[cfg(feature = "debug")]
+    use dusk_bls12_381::BlsScalar;
+
     #[test]
     fn runtime_new_default_and_events_do_not_panic() {
         let mut rt = Runtime::new();
 
         rt.event(RuntimeEvent::WitnessAppended {
+            #[cfg(feature = "debug")]
             w: Witness::ZERO,
+            #[cfg(feature = "debug")]
             v: BlsScalar::from(42u64),
         });
 
         rt.event(RuntimeEvent::ConstraintAppended {
+            #[cfg(feature = "debug")]
             c: Constraint::new(),
         });
         rt.event(RuntimeEvent::ProofFinished);

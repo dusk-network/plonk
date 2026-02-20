@@ -21,12 +21,14 @@ pub unsafe fn check_field<F, C>(
 where
     F: bytecheck::CheckBytes<C>,
 {
-    F::check_bytes(field, context).map_err(|e| {
-        bytecheck::StructCheckError {
-            field_name,
-            inner: bytecheck::ErrorBox::new(e),
-        }
-    })?;
+    unsafe {
+        F::check_bytes(field, context).map_err(|e| {
+            bytecheck::StructCheckError {
+                field_name,
+                inner: bytecheck::ErrorBox::new(e),
+            }
+        })?;
+    }
     Ok(())
 }
 

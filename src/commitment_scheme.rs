@@ -26,9 +26,3 @@ pub(crate) use kzg10::{CommitKey, OpeningKey};
 
 #[cfg(feature = "alloc")]
 pub use kzg10::PublicParameters;
-
-#[cfg(all(feature = "alloc", feature = "rkyv-impl"))]
-pub use kzg10::{
-    ArchivedCommitKey, ArchivedOpeningKey, ArchivedPublicParameters,
-    CommitKeyResolver, OpeningKeyResolver, PublicParametersResolver,
-};

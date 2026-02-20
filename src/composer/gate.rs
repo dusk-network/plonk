@@ -83,7 +83,7 @@ mod tests {
 
     #[test]
     fn gate_partial_eq_compares_fields() {
-        let mut a = Gate {
+        let a = Gate {
             q_m: BlsScalar::from(1u64),
             q_l: BlsScalar::from(2u64),
             q_r: BlsScalar::from(3u64),

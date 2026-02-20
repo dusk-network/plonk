@@ -232,17 +232,24 @@ impl Composer {
 
         let witness = self.append_witness_internal(witness);
 
+        #[cfg(feature = "debug")]
         let v = self[witness];
-        self.runtime()
-            .event(RuntimeEvent::WitnessAppended { w: witness, v });
+        self.runtime().event(RuntimeEvent::WitnessAppended {
+            #[cfg(feature = "debug")]
+            w: witness,
+            #[cfg(feature = "debug")]
+            v,
+        });
 
         witness
     }
 
     /// Append a new width-4 gate/constraint.
     pub fn append_custom_gate(&mut self, constraint: Constraint) {
-        self.runtime()
-            .event(RuntimeEvent::ConstraintAppended { c: constraint });
+        self.runtime().event(RuntimeEvent::ConstraintAppended {
+            #[cfg(feature = "debug")]
+            c: constraint,
+        });
 
         self.append_custom_gate_internal(constraint)
     }
