@@ -27,16 +27,18 @@ pub use verifier::Verifier;
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
 #[non_exhaustive]
 pub enum PlonkVersion {
-    /// Compatibility behavior for older proofs.
+    /// Legacy profile for historical compatibility.
     V1,
-    /// Current behavior.
+    /// Legacy profile with selector-bound opening checks.
     V2,
+    /// Transcript-fixed profile.
+    V3,
 }
 
 impl PlonkVersion {
     /// The version used by the default `prove` / `verify` methods.
     pub const fn current() -> Self {
-        PlonkVersion::V2
+        PlonkVersion::V3
     }
 }
 

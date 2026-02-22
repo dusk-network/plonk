@@ -208,8 +208,17 @@ pub(crate) mod alloc {
     use merlin::Transcript;
 
     impl VerifierKey {
-        /// Adds the circuit description to the transcript
-        pub(crate) fn seed_transcript(&self, transcript: &mut Transcript) {
+        fn seed_transcript_inner(
+            &self,
+            transcript: &mut Transcript,
+            bind_s_sigma_4: bool,
+        ) {
+            let s_sigma_4 = if bind_s_sigma_4 {
+                &self.permutation.s_sigma_4
+            } else {
+                &self.permutation.s_sigma_1
+            };
+
             transcript.append_commitment(b"q_m", &self.arithmetic.q_m);
             transcript.append_commitment(b"q_l", &self.arithmetic.q_l);
             transcript.append_commitment(b"q_r", &self.arithmetic.q_r);
@@ -234,11 +243,23 @@ pub(crate) mod alloc {
                 .append_commitment(b"s_sigma_2", &self.permutation.s_sigma_2);
             transcript
                 .append_commitment(b"s_sigma_3", &self.permutation.s_sigma_3);
-            transcript
-                .append_commitment(b"s_sigma_4", &self.permutation.s_sigma_1);
+            transcript.append_commitment(b"s_sigma_4", s_sigma_4);
 
             // Append circuit size to transcript
             transcript.circuit_domain_sep(self.n as u64);
+        }
+
+        /// Adds the circuit description to the transcript
+        pub(crate) fn seed_transcript_legacy(
+            &self,
+            transcript: &mut Transcript,
+        ) {
+            self.seed_transcript_inner(transcript, false);
+        }
+
+        /// Adds the circuit description to the transcript
+        pub(crate) fn seed_transcript(&self, transcript: &mut Transcript) {
+            self.seed_transcript_inner(transcript, true);
         }
     }
 
@@ -750,5 +771,39 @@ mod test {
         let got = VerifierKey::from_bytes(&verifier_key_bytes).unwrap();
 
         assert_eq!(got, verifier_key);
+    }
+
+    #[test]
+    fn seed_transcript_binds_s_sigma_4_commitment() {
+        use crate::commitment_scheme::Commitment;
+        use crate::transcript::TranscriptProtocol;
+        use dusk_bls12_381::G1Affine;
+        use merlin::Transcript;
+
+        let n = 2usize.pow(5);
+        let common = Commitment(G1Affine::generator());
+        let sigma4_a = Commitment(G1Affine::identity());
+        let sigma4_b = Commitment(G1Affine::generator());
+
+        let make_vk = |s_sigma_4| {
+            VerifierKey::from_polynomial_commitments(
+                n, common, common, common, common, common, common, common,
+                common, common, common, common, common, common, common,
+                s_sigma_4,
+            )
+        };
+
+        let vk_a = make_vk(sigma4_a);
+        let vk_b = make_vk(sigma4_b);
+        assert_ne!(vk_a.permutation.s_sigma_4, vk_b.permutation.s_sigma_4);
+
+        let mut transcript_a = Transcript::new(b"vk_seed");
+        let mut transcript_b = Transcript::new(b"vk_seed");
+        vk_a.seed_transcript(&mut transcript_a);
+        vk_b.seed_transcript(&mut transcript_b);
+
+        let challenge_a = transcript_a.challenge_scalar(b"beta");
+        let challenge_b = transcript_b.challenge_scalar(b"beta");
+        assert_ne!(challenge_a, challenge_b);
     }
 }

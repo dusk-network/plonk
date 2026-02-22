@@ -245,8 +245,48 @@ impl Prover {
         R: RngCore + CryptoRng,
     {
         match version {
-            PlonkVersion::V1 => self.prove_inner(rng, circuit, false),
-            PlonkVersion::V2 => self.prove_inner(rng, circuit, true),
+            PlonkVersion::V1 => self.prove_legacy(rng, circuit, version, false),
+            PlonkVersion::V2 => self.prove_legacy(rng, circuit, version, true),
+            PlonkVersion::V3 => self.prove_inner(rng, circuit, version, true),
+        }
+    }
+
+    fn prove_legacy<C, R>(
+        &self,
+        rng: &mut R,
+        circuit: &C,
+        version: PlonkVersion,
+        bind_selectors_in_batched_opening: bool,
+    ) -> Result<(Proof, Vec<BlsScalar>), Error>
+    where
+        C: Circuit,
+        R: RngCore + CryptoRng,
+    {
+        #[cfg(feature = "legacy-proving")]
+        {
+            self.prove_inner(
+                rng,
+                circuit,
+                version,
+                bind_selectors_in_batched_opening,
+            )
+        }
+
+        #[cfg(not(feature = "legacy-proving"))]
+        {
+            let _ = (rng, circuit, version, bind_selectors_in_batched_opening);
+            Err(Error::LegacyProvingDisabled)
+        }
+    }
+
+    fn transcript_for_version(&self, version: PlonkVersion) -> Transcript {
+        match version {
+            PlonkVersion::V1 | PlonkVersion::V2 => self.transcript.clone(),
+            PlonkVersion::V3 => Transcript::base_v3(
+                self.label.as_slice(),
+                &self.verifier_key,
+                self.constraints,
+            ),
         }
     }
 
@@ -254,6 +294,7 @@ impl Prover {
         &self,
         rng: &mut R,
         circuit: &C,
+        version: PlonkVersion,
         bind_selectors_in_batched_opening: bool,
     ) -> Result<(Proof, Vec<BlsScalar>), Error>
     where
@@ -267,7 +308,7 @@ impl Prover {
 
         let domain = EvaluationDomain::new(constraints)?;
 
-        let mut transcript = self.transcript.clone();
+        let mut transcript = self.transcript_for_version(version);
 
         let public_inputs = prover.public_inputs();
         let public_input_indexes = prover.public_input_indexes();

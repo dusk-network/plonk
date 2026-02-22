@@ -44,7 +44,8 @@ rand = "0.8"
 rkyv = {version = "0.7", default-features = false, features = ["size_32"]}
 
 [features]
-default = ["std"]
+default = ["std", "legacy-proving"]
+legacy-proving = []
 std = [
     "rand_core/std",
     "dusk-bls12_381/default",  # Includes `parallel`
