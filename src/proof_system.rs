@@ -18,19 +18,7 @@ cfg_if::cfg_if!(
         pub(crate) use widget::alloc::ProverKey;
         pub(crate) use widget::VerifierKey;
 
-        cfg_if::cfg_if!(
-            if #[cfg(feature = "rkyv-impl")] {
-                pub use widget::alloc::{ArchivedProverKey, ProverKeyResolver};
-            }
-        );
     }
 );
 
 pub use proof::Proof;
-
-cfg_if::cfg_if!(
-    if #[cfg(feature = "rkyv-impl")] {
-        pub use proof::{ArchivedProof, ProofResolver};
-        pub use widget::{ArchivedVerifierKey, VerifierKeyResolver};
-    }
-);

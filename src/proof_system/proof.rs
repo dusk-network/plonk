@@ -107,23 +107,29 @@ impl<C> CheckBytes<C> for ArchivedProof {
         value: *const Self,
         context: &mut C,
     ) -> Result<&'a Self, Self::Error> {
-        check_field(&(*value).a_comm, context, "a_comm")?;
-        check_field(&(*value).b_comm, context, "b_comm")?;
-        check_field(&(*value).c_comm, context, "c_comm")?;
-        check_field(&(*value).d_comm, context, "d_comm")?;
+        unsafe {
+            check_field(&(*value).a_comm, context, "a_comm")?;
+            check_field(&(*value).b_comm, context, "b_comm")?;
+            check_field(&(*value).c_comm, context, "c_comm")?;
+            check_field(&(*value).d_comm, context, "d_comm")?;
 
-        check_field(&(*value).z_comm, context, "z_comm")?;
+            check_field(&(*value).z_comm, context, "z_comm")?;
 
-        check_field(&(*value).t_low_comm, context, "t_low_comm")?;
-        check_field(&(*value).t_mid_comm, context, "t_mid_comm")?;
-        check_field(&(*value).t_high_comm, context, "t_high_comm")?;
-        check_field(&(*value).t_fourth_comm, context, "t_fourth_comm")?;
+            check_field(&(*value).t_low_comm, context, "t_low_comm")?;
+            check_field(&(*value).t_mid_comm, context, "t_mid_comm")?;
+            check_field(&(*value).t_high_comm, context, "t_high_comm")?;
+            check_field(&(*value).t_fourth_comm, context, "t_fourth_comm")?;
 
-        check_field(&(*value).w_z_chall_comm, context, "w_z_chall_comm")?;
-        check_field(&(*value).w_z_chall_w_comm, context, "w_z_chall_w_comm")?;
-        check_field(&(*value).evaluations, context, "evaluations")?;
+            check_field(&(*value).w_z_chall_comm, context, "w_z_chall_comm")?;
+            check_field(
+                &(*value).w_z_chall_w_comm,
+                context,
+                "w_z_chall_w_comm",
+            )?;
+            check_field(&(*value).evaluations, context, "evaluations")?;
 
-        Ok(&*value)
+            Ok(&*value)
+        }
     }
 }
 
@@ -1004,7 +1010,6 @@ mod proof_tests {
 #[cfg(test)]
 #[cfg(feature = "std")]
 mod soundness_tests {
-    use super::*;
     use crate::commitment_scheme::{CommitKey, PublicParameters};
     use crate::compiler::{Compiler, Prover, Verifier};
     use crate::composer::{Circuit, Composer, Constraint};
