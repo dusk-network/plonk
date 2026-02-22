@@ -35,6 +35,11 @@ fn plonk_v2_and_v3_proofs_are_not_cross_compatible() {
     let (prover, verifier) = Compiler::compile::<MulCircuit>(&pp, b"versioned")
         .expect("failed to compile circuit");
 
+    let err_v1 = prover
+        .prove_with_version(rng, &MulCircuit, PlonkVersion::V1)
+        .expect_err("v1 proving should be unsupported");
+    assert_eq!(err_v1, Error::UnsupportedProvingVersion);
+
     let (proof_v2, pi_v2) = prover
         .prove_with_version(rng, &MulCircuit, PlonkVersion::V2)
         .expect("v2 proving failed");
@@ -73,6 +78,11 @@ fn legacy_proving_is_disabled_without_feature() {
     let pp = PublicParameters::setup(1 << 9, rng).expect("failed to create pp");
     let (prover, _) = Compiler::compile::<MulCircuit>(&pp, b"versioned")
         .expect("failed to compile circuit");
+
+    let err_v1 = prover
+        .prove_with_version(rng, &MulCircuit, PlonkVersion::V1)
+        .expect_err("v1 proving should be unsupported");
+    assert_eq!(err_v1, Error::UnsupportedProvingVersion);
 
     let err_v2 = prover
         .prove_with_version(rng, &MulCircuit, PlonkVersion::V2)
