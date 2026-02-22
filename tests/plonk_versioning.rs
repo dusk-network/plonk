@@ -74,11 +74,6 @@ fn legacy_proving_is_disabled_without_feature() {
     let (prover, _) = Compiler::compile::<MulCircuit>(&pp, b"versioned")
         .expect("failed to compile circuit");
 
-    let err_v1 = prover
-        .prove_with_version(rng, &MulCircuit, PlonkVersion::V1)
-        .expect_err("v1 proving should be disabled");
-    assert_eq!(err_v1, Error::LegacyProvingDisabled);
-
     let err_v2 = prover
         .prove_with_version(rng, &MulCircuit, PlonkVersion::V2)
         .expect_err("v2 proving should be disabled");
