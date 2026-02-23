@@ -45,6 +45,7 @@ rkyv = {version = "0.7", default-features = false, features = ["size_32"]}
 
 [features]
 default = ["std"]
+legacy-proving = []
 std = [
     "rand_core/std",
     "dusk-bls12_381/default",  # Includes `parallel`

@@ -245,8 +245,42 @@ impl Prover {
         R: RngCore + CryptoRng,
     {
         match version {
-            PlonkVersion::V1 => self.prove_inner(rng, circuit, false),
-            PlonkVersion::V2 => self.prove_inner(rng, circuit, true),
+            PlonkVersion::V1 => Err(Error::UnsupportedProvingVersion),
+            PlonkVersion::V2 => self.prove_legacy(rng, circuit, version),
+            PlonkVersion::V3 => self.prove_inner(rng, circuit, version),
+        }
+    }
+
+    fn prove_legacy<C, R>(
+        &self,
+        rng: &mut R,
+        circuit: &C,
+        version: PlonkVersion,
+    ) -> Result<(Proof, Vec<BlsScalar>), Error>
+    where
+        C: Circuit,
+        R: RngCore + CryptoRng,
+    {
+        #[cfg(feature = "legacy-proving")]
+        {
+            self.prove_inner(rng, circuit, version)
+        }
+
+        #[cfg(not(feature = "legacy-proving"))]
+        {
+            let _ = (rng, circuit, version);
+            Err(Error::LegacyProvingDisabled)
+        }
+    }
+
+    fn transcript_for_version(&self, version: PlonkVersion) -> Transcript {
+        match version {
+            PlonkVersion::V1 | PlonkVersion::V2 => self.transcript.clone(),
+            PlonkVersion::V3 => Transcript::base_v3(
+                self.label.as_slice(),
+                &self.verifier_key,
+                self.constraints,
+            ),
         }
     }
 
@@ -254,7 +288,7 @@ impl Prover {
         &self,
         rng: &mut R,
         circuit: &C,
-        bind_selectors_in_batched_opening: bool,
+        version: PlonkVersion,
     ) -> Result<(Proof, Vec<BlsScalar>), Error>
     where
         C: Circuit,
@@ -267,7 +301,7 @@ impl Prover {
 
         let domain = EvaluationDomain::new(constraints)?;
 
-        let mut transcript = self.transcript.clone();
+        let mut transcript = self.transcript_for_version(version);
 
         let public_inputs = prover.public_inputs();
         let public_input_indexes = prover.public_input_indexes();
@@ -538,45 +572,27 @@ impl Prover {
         );
 
         // compute the opening proof polynomial 'W_z(X)'
-        let aggregate_witness = if bind_selectors_in_batched_opening {
-            CommitKey::compute_aggregate_witness(
-                &[
-                    r_poly,
-                    a_poly.clone(),
-                    b_poly.clone(),
-                    c_poly,
-                    d_poly.clone(),
-                    self.prover_key.permutation.s_sigma_1.0.clone(),
-                    self.prover_key.permutation.s_sigma_2.0.clone(),
-                    self.prover_key.permutation.s_sigma_3.0.clone(),
-                    // Bind selector evaluations (q_*) used inside the verifier
-                    // linearization commitment to their committed polynomials
-                    // by including them in the same batched opening at `z`.
-                    self.prover_key.arithmetic.q_arith.0.clone(),
-                    self.prover_key.arithmetic.q_c.0.clone(),
-                    self.prover_key.arithmetic.q_l.0.clone(),
-                    self.prover_key.arithmetic.q_r.0.clone(),
-                ],
-                &z_challenge,
-                &v_challenge,
-            )
-        } else {
-            // Legacy batching did not include selector/constant polynomials.
-            CommitKey::compute_aggregate_witness(
-                &[
-                    r_poly,
-                    a_poly.clone(),
-                    b_poly.clone(),
-                    c_poly,
-                    d_poly.clone(),
-                    self.prover_key.permutation.s_sigma_1.0.clone(),
-                    self.prover_key.permutation.s_sigma_2.0.clone(),
-                    self.prover_key.permutation.s_sigma_3.0.clone(),
-                ],
-                &z_challenge,
-                &v_challenge,
-            )
-        };
+        let aggregate_witness = CommitKey::compute_aggregate_witness(
+            &[
+                r_poly,
+                a_poly.clone(),
+                b_poly.clone(),
+                c_poly,
+                d_poly.clone(),
+                self.prover_key.permutation.s_sigma_1.0.clone(),
+                self.prover_key.permutation.s_sigma_2.0.clone(),
+                self.prover_key.permutation.s_sigma_3.0.clone(),
+                // Bind selector evaluations (q_*) used inside the verifier
+                // linearization commitment to their committed polynomials
+                // by including them in the same batched opening at `z`.
+                self.prover_key.arithmetic.q_arith.0.clone(),
+                self.prover_key.arithmetic.q_c.0.clone(),
+                self.prover_key.arithmetic.q_l.0.clone(),
+                self.prover_key.arithmetic.q_r.0.clone(),
+            ],
+            &z_challenge,
+            &v_challenge,
+        );
         let w_z_chall_comm = self.commit_key.commit(&aggregate_witness)?;
 
         // compute the shifted challenge 'v_w'

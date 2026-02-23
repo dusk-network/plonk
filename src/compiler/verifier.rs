@@ -213,7 +213,7 @@ impl Verifier {
             });
         }
 
-        let mut transcript = self.transcript.clone();
+        let mut transcript = self.transcript_for_version(version);
 
         public_inputs
             .iter()
@@ -232,11 +232,22 @@ impl Verifier {
                 &self.opening_key,
                 &dense_public_inputs,
             ),
-            PlonkVersion::V2 => proof.verify(
+            PlonkVersion::V2 | PlonkVersion::V3 => proof.verify(
                 &self.verifier_key,
                 &mut transcript,
                 &self.opening_key,
                 &dense_public_inputs,
+            ),
+        }
+    }
+
+    fn transcript_for_version(&self, version: PlonkVersion) -> Transcript {
+        match version {
+            PlonkVersion::V1 | PlonkVersion::V2 => self.transcript.clone(),
+            PlonkVersion::V3 => Transcript::base_v3(
+                self.label.as_slice(),
+                &self.verifier_key,
+                self.constraints,
             ),
         }
     }

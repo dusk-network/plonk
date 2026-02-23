@@ -41,6 +41,13 @@ pub(crate) trait TranscriptProtocol {
         verifier_key: &VerifierKey,
         constraints: usize,
     ) -> Self;
+
+    /// Create a transcript seeded with v3 verifier-key binding behavior.
+    fn base_v3(
+        label: &[u8],
+        verifier_key: &VerifierKey,
+        constraints: usize,
+    ) -> Self;
 }
 
 impl TranscriptProtocol for Transcript {
@@ -74,6 +81,22 @@ impl TranscriptProtocol for Transcript {
         // transcripts for provers and verifiers. However, we don't have a use
         // case for this feature in Dusk.
 
+        let label = transcript_label_static(label);
+
+        let mut transcript = Transcript::new(label);
+
+        transcript.circuit_domain_sep(constraints as u64);
+
+        verifier_key.seed_transcript_legacy(&mut transcript);
+
+        transcript
+    }
+
+    fn base_v3(
+        label: &[u8],
+        verifier_key: &VerifierKey,
+        constraints: usize,
+    ) -> Self {
         let label = transcript_label_static(label);
 
         let mut transcript = Transcript::new(label);

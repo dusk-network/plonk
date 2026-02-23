@@ -95,6 +95,10 @@ pub enum Error {
     },
     /// The provided compressed circuit bytes representation is invalid.
     InvalidCompressedCircuit,
+    /// Legacy proving was requested but this build disables legacy proving.
+    LegacyProvingDisabled,
+    /// The requested proving version is no longer supported.
+    UnsupportedProvingVersion,
 }
 
 #[cfg(feature = "std")]
@@ -176,6 +180,12 @@ impl std::fmt::Display for Error {
             Self::InvalidCompressedCircuit => {
                 write!(f, "invalid compressed circuit")
             }
+            Self::LegacyProvingDisabled => {
+                write!(f, "legacy proving is disabled in this build")
+            }
+            Self::UnsupportedProvingVersion => {
+                write!(f, "requested proving version is unsupported")
+            }
         }
     }
 }
@@ -204,7 +214,7 @@ mod tests {
         assert!(matches!(bytes_error, Error::BytesError(_)));
 
         // Format each variant at least once so the `Display` impl gets covered.
-        let all_errors: [Error; 20] = [
+        let all_errors: [Error; 22] = [
             Error::InvalidEvalDomainSize {
                 log_size_of_group: 32,
                 adacity: 28,
@@ -228,6 +238,8 @@ mod tests {
             Error::JubJubScalarMalformed,
             Error::UnsupportedWNAF2k,
             Error::InvalidCompressedCircuit,
+            Error::LegacyProvingDisabled,
+            Error::UnsupportedProvingVersion,
         ];
 
         for e in all_errors {

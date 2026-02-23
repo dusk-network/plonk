@@ -18,6 +18,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Update rust toolchain to stable [#859]
 - Change dependency `msgpacker`to `0.4.8`
 - Update rust toolchain to nightly 2024-10-17 (1.84.0)
+- Added `PlonkVersion::V3` and switched `PlonkVersion::current()` to `V3`.
+- Added explicit versioned proving and verification paths for
+  `PlonkVersion::V2` and `PlonkVersion::V3`.
+- Legacy proving is now opt-in via the `legacy-proving` feature.
+- Removed v1 proving support from `prove_with_version`; legacy proving
+  support is now limited to v2 when explicitly enabled.
+
+### Fixed
+
+- Bound selector evaluations to the batched KZG opening checks at challenge
+  point `z` during verification.
+- Hardened prover deserialization by replacing unchecked commit-key decoding
+  with checked parsing.
+- Removed unsafe transcript label transmute usage.
+- Wired transcript seeding so v3 correctly binds `s_sigma_4`.
 
 ## [0.21.0] - 2025-02-06
 
