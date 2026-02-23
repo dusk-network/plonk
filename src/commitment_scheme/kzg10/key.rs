@@ -99,6 +99,46 @@ impl CommitKey {
         }
     }
 
+    /// Deserialize [`CommitKey`] from bytes created by
+    /// [`CommitKey::to_raw_var_bytes`] while validating each decoded point.
+    pub fn from_raw_var_bytes(bytes: &[u8]) -> Result<Self, Error> {
+        if bytes.len() < u64::SIZE {
+            return Err(Error::NotEnoughBytes);
+        }
+
+        let mut len = [0u8; u64::SIZE];
+        len.copy_from_slice(&bytes[..u64::SIZE]);
+        let len = u64::from_le_bytes(len) as usize;
+
+        let expected_len = u64::SIZE
+            .checked_add(
+                len.checked_mul(G1Affine::RAW_SIZE)
+                    .ok_or(Error::NotEnoughBytes)?,
+            )
+            .ok_or(Error::NotEnoughBytes)?;
+
+        if bytes.len() != expected_len {
+            return Err(Error::NotEnoughBytes);
+        }
+
+        let mut powers_of_g = Vec::with_capacity(len);
+
+        for chunk in bytes[u64::SIZE..].chunks_exact(G1Affine::RAW_SIZE) {
+            // Safety: raw-byte chunk size is checked by `chunks_exact`.
+            let point = unsafe { G1Affine::from_slice_unchecked(chunk) };
+            let point_is_valid =
+                bool::from(point.is_on_curve() & point.is_torsion_free());
+
+            if !point_is_valid {
+                return Err(Error::PointMalformed);
+            }
+
+            powers_of_g.push(point);
+        }
+
+        Ok(Self { powers_of_g })
+    }
+
     /// Serializes the [`CommitKey`] into a byte slice.
     pub fn to_var_bytes(&self) -> Vec<u8> {
         self.powers_of_g
@@ -587,5 +627,40 @@ mod test {
 
         assert_eq!(ck, ck_p);
         Ok(())
+    }
+
+    #[test]
+    fn commit_key_bytes_raw_checked() -> Result<(), Error> {
+        let (ck, _) = setup_test(7)?;
+
+        let bytes = ck.to_raw_var_bytes();
+        let decoded = CommitKey::from_raw_var_bytes(&bytes)?;
+
+        assert_eq!(ck, decoded);
+        Ok(())
+    }
+
+    #[test]
+    fn commit_key_bytes_raw_checked_rejects_truncated() -> Result<(), Error> {
+        let (ck, _) = setup_test(7)?;
+        let mut bytes = ck.to_raw_var_bytes();
+        bytes.pop();
+
+        assert!(matches!(
+            CommitKey::from_raw_var_bytes(&bytes),
+            Err(Error::NotEnoughBytes)
+        ));
+        Ok(())
+    }
+
+    #[test]
+    fn commit_key_bytes_raw_checked_rejects_malformed_point() {
+        let mut bytes = vec![0u8; u64::SIZE + G1Affine::RAW_SIZE];
+        bytes[0] = 1; // one point in little-endian length prefix
+
+        assert!(matches!(
+            CommitKey::from_raw_var_bytes(&bytes),
+            Err(Error::PointMalformed)
+        ));
     }
 }

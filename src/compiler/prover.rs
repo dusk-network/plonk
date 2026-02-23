@@ -206,8 +206,7 @@ impl Prover {
         let label = label.to_vec();
         let prover_key = ProverKey::from_slice(prover_key)?;
 
-        // Safety: checked len
-        let commit_key = unsafe { CommitKey::from_slice_unchecked(commit_key) };
+        let commit_key = CommitKey::from_raw_var_bytes(commit_key)?;
 
         let verifier_key = VerifierKey::from_slice(verifier_key)?;
 
@@ -612,5 +611,46 @@ impl Prover {
         };
 
         Ok((proof, public_inputs))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Prover;
+    use crate::error::Error;
+    use crate::prelude::{Circuit, Compiler, Composer, PublicParameters};
+    use dusk_bls12_381::BlsScalar;
+    use rand::SeedableRng;
+    use rand::rngs::StdRng;
+
+    #[derive(Default)]
+    struct MinimalCircuit;
+
+    impl Circuit for MinimalCircuit {
+        fn circuit(&self, composer: &mut Composer) -> Result<(), Error> {
+            let w = composer.append_witness(BlsScalar::from(7u64));
+            composer.assert_equal_constant(w, BlsScalar::from(7u64), None);
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn prover_try_from_bytes_rejects_malformed_commit_key_without_panicking() {
+        let mut rng = StdRng::seed_from_u64(42);
+        let pp = PublicParameters::setup(1 << 10, &mut rng)
+            .expect("public parameters should build");
+        let (prover, _) = Compiler::compile::<MinimalCircuit>(&pp, b"p1.4-3")
+            .expect("circuit should compile");
+
+        let mut bytes = prover.to_bytes();
+        bytes[16..24].copy_from_slice(&(0u64).to_be_bytes()); // commit-key length
+
+        let result =
+            std::panic::catch_unwind(|| Prover::try_from_bytes(&bytes));
+        assert!(result.is_ok(), "deserializer should never panic");
+        assert!(
+            result.expect("checked above").is_err(),
+            "malformed input must be rejected"
+        );
     }
 }
