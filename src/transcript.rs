@@ -7,7 +7,7 @@
 //! This is an extension over the [Merlin Transcript](Transcript)
 //! which adds a few extra functionalities.
 
-use core::mem;
+use alloc::boxed::Box;
 
 use dusk_bls12_381::BlsScalar;
 use dusk_bytes::Serializable;
@@ -15,6 +15,10 @@ use merlin::Transcript;
 
 use crate::commitment_scheme::Commitment;
 use crate::proof_system::VerifierKey;
+
+fn transcript_label_static(label: &[u8]) -> &'static [u8] {
+    Box::leak(label.to_vec().into_boxed_slice())
+}
 
 /// Transcript adds an abstraction over the Merlin transcript
 /// For convenience
@@ -70,10 +74,7 @@ impl TranscriptProtocol for Transcript {
         // transcripts for provers and verifiers. However, we don't have a use
         // case for this feature in Dusk.
 
-        // Safety: static lifetime is a pointless requirement from merlin that
-        // doesn't add any security but instead restricts a lot the
-        // serialization and deserialization of transcripts
-        let label = unsafe { mem::transmute::<&[u8], &[u8]>(label) };
+        let label = transcript_label_static(label);
 
         let mut transcript = Transcript::new(label);
 
