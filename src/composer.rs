@@ -507,20 +507,16 @@ impl Composer {
             self.append_custom_gate(constraint)
         }
 
-        // last gate isn't activated for ecc
+        // This row is a shifted-wire anchor for the last fixed-base step.
+        // The previous q_fixed_group_add row constrains these as a_w/b_w/d_w.
         let acc_x = self.append_witness(point_acc[bits].get_u());
         let acc_y = self.append_witness(point_acc[bits].get_v());
 
-        // FIXME this implementation presents a plethora of vulnerabilities and
-        // requires reworking
-        //
-        // we are accepting any scalar argument and trusting it to be the
-        // expected input. it happens to be correct in this
-        // implementation, but can be exploited by malicious provers who
-        // might just input anything here
+        // This is the final scalar recurrence state
+        // It is constrained by the previous fixed-base row as d_w and by assert_equal below
         let last_accumulated_bit = self.append_witness(scalar_acc[bits]);
 
-        // FIXME the gate isn't checking anything. maybe remove?
+        // Keep this anchor row since removing it would break the shifted-wire chain.
         let constraint =
             Constraint::new().a(acc_x).b(acc_y).d(last_accumulated_bit);
         self.append_gate(constraint);

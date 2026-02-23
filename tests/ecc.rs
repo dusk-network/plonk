@@ -358,6 +358,32 @@ fn component_mul_generator() {
     let circuit = TestCircuit::new(scalar, generator, result);
     check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, msg);
 
+    // Test boundary:
+    // GENERATOR * (r - 1)
+    let msg = "Circuit with max scalar should pass";
+    let scalar = -JubJubScalar::one();
+    let result = generator * &scalar;
+    let circuit = TestCircuit::new(scalar, generator, result);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, msg);
+
+    // Verify multiple scalars, then perturb result by +G
+    // and ensure proving fails for the same scalar.
+    for s in 0u64..16 {
+        let scalar = JubJubScalar::from(s);
+        let result = generator * &scalar;
+        let ok_msg = format!("Circuit with scalar {s} should pass");
+        let circuit = TestCircuit::new(scalar, generator, result);
+        check_satisfied_circuit(
+            &prover, &verifier, &pi, &circuit, &mut rng, &ok_msg,
+        );
+
+        let bad_result = result + generator;
+        let bad_msg =
+            format!("Circuit with scalar {s} and shifted result should fail");
+        let bad_circuit = TestCircuit::new(scalar, generator, bad_result);
+        check_unsatisfied_circuit(&prover, &bad_circuit, &mut rng, &bad_msg);
+    }
+
     // Test unsatisfied:
     // GENERATOR * 7 != GENERATOR * 8
     let msg = "Unsatisfied circuit should not pass";
