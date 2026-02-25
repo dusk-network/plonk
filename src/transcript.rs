@@ -16,8 +16,44 @@ use merlin::Transcript;
 use crate::commitment_scheme::Commitment;
 use crate::proof_system::VerifierKey;
 
-fn transcript_label_static(label: &[u8]) -> &'static [u8] {
-    Box::leak(label.to_vec().into_boxed_slice())
+// Merlin's `Transcript::new` requires `&'static [u8]`, but callers pass
+// runtime `&[u8]` labels. `Box::leak` bridges the gap by promoting the
+// allocation to `'static`. Without caching, every call to `base` / `base_v3`
+// leaks a new allocation — on a long-running node this accumulates
+// proportionally to the number of verified transactions.
+cfg_if::cfg_if! {
+    if #[cfg(feature = "std")] {
+        // With std we cache leaked labels in a `HashMap` so each distinct
+        // label is only leaked once, bounding memory to the number of
+        // unique circuit labels (typically a handful).
+        fn transcript_label_static(label: &[u8]) -> &'static [u8] {
+            use alloc::vec::Vec;
+            use std::sync::Mutex;
+            use std::collections::HashMap;
+
+            static CACHE: Mutex<Option<HashMap<Vec<u8>, &'static [u8]>>> =
+                Mutex::new(None);
+
+            let mut guard =
+                CACHE.lock().unwrap_or_else(|e| e.into_inner());
+            let map = guard.get_or_insert_with(HashMap::new);
+
+            if let Some(&cached) = map.get(label) {
+                return cached;
+            }
+
+            let leaked: &'static [u8] =
+                Box::leak(label.to_vec().into_boxed_slice());
+            map.insert(label.to_vec(), leaked);
+            leaked
+        }
+    } else {
+        // no_std (WASM): executions are short-lived so accumulation is not
+        // a concern — keep the simple Box::leak approach.
+        fn transcript_label_static(label: &[u8]) -> &'static [u8] {
+            Box::leak(label.to_vec().into_boxed_slice())
+        }
+    }
 }
 
 /// Transcript adds an abstraction over the Merlin transcript
