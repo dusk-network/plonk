@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.22.0] - 2026-02-27
+
 ### Added
 
 - Added more tests for low coverage parts of the code [#861] 
@@ -769,7 +771,8 @@ is necessary since `rkyv/validation` was required as a bound.
 [#282]: https://github.com/dusk-network/plonk/issues/282
 
 <!-- VERSIONS -->
-[Unreleased]: https://github.com/dusk-network/plonk/compare/v0.21.0...HEAD
+[Unreleased]: https://github.com/dusk-network/plonk/compare/v0.22.0...HEAD
+[0.22.0]: https://github.com/dusk-network/plonk/compare/v0.21.0...v0.22.0
 [0.21.0]: https://github.com/dusk-network/plonk/compare/v0.20.3...v0.21.0
 [0.20.3]: https://github.com/dusk-network/plonk/compare/v0.20.2...v0.20.3
 [0.20.2]: https://github.com/dusk-network/plonk/compare/v0.20.0...v0.20.2
