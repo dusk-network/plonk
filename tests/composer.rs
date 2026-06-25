@@ -90,6 +90,20 @@ fn circuit_with_all_gates() {
     let compressed =
         DummyCircuit::compress().expect("failed to compress circuit");
 
+    let mut packed = miniz_oxide::inflate::decompress_to_vec(&compressed)
+        .expect("failed to decompress circuit");
+    packed.push(0xc0); // valid msgpack nil value after the circuit payload
+    let compressed_with_trailing_data =
+        miniz_oxide::deflate::compress_to_vec(&packed, 10);
+    assert!(matches!(
+        Compiler::compile_with_compressed(
+            &pp,
+            label,
+            &compressed_with_trailing_data
+        ),
+        Err(Error::InvalidCompressedCircuit)
+    ));
+
     let (decompressed_prover, decompressed_verifier) =
         Compiler::compile_with_compressed(&pp, label, &compressed).unwrap();
 
