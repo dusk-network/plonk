@@ -69,7 +69,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: Swatinem/rust-cache@v2
       - run: sudo apt install -y kcov
-      - run: RUSTFLAGS='-Cdebuginfo=2 -Cinline-threshold=0 -Clink-dead-code' cargo test --release --no-run --all-features
+      - run: RUSTFLAGS='-Cdebuginfo=2 -Cllvm-args=--inline-threshold=0 -Clink-dead-code' cargo test --release --no-run --all-features
       - name: Collect coverage
         run: >
           find target/release/deps -type f -executable ! -name "*.*" |
