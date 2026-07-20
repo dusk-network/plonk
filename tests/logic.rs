@@ -25,15 +25,12 @@ fn append_logic_and() {
 
     impl<const BIT_PAIRS: usize> TestCircuit<BIT_PAIRS> {
         pub fn new(a: BlsScalar, b: BlsScalar) -> Self {
-            let bits = cmp::min(BIT_PAIRS * 2, 256);
+            // the op width is capped at 254 bits, so the mask never overflows
+            // the 255-bit BlsScalar
+            let bits = cmp::min(BIT_PAIRS * 2, 254);
             let bit_mask = BlsScalar::pow_of_2(bits as u64) - BlsScalar::one();
 
-            // BlsScalar are max 255 bits long which means that a bit_mask with
-            // more than 255 bits will be overflowing and therefore incorrect
-            let result = match bits <= 255 {
-                true => a & b & bit_mask,
-                false => a & b,
-            };
+            let result = a & b & bit_mask;
 
             Self { a, b, result }
         }
@@ -58,7 +55,7 @@ fn append_logic_and() {
     // default circuit
     let label = b"append_logic_and";
     let mut rng = StdRng::seed_from_u64(0x1ead);
-    let capacity = 1 << 8;
+    let capacity = 1 << 12;
     let pp = PublicParameters::setup(capacity, &mut rng)
         .expect("Creation of public parameter shouldn't fail");
     let (prover, verifier) = Compiler::compile::<TestCircuit<0>>(&pp, label)
@@ -137,44 +134,45 @@ fn append_logic_and() {
         &"Sanity check should pass",
     );
 
-    // Test with bits = 256
+    // Test with bits = 254 (the maximum width, BIT_PAIRS = 127)
     //
     // Create new circuit description for the prover and verifier
-    const BIT_PAIRS_128: usize = 128;
+    const BIT_PAIRS_127: usize = 127;
+    let bit_mask = BlsScalar::pow_of_2(254) - BlsScalar::one();
     let (prover, verifier) =
-        Compiler::compile::<TestCircuit<BIT_PAIRS_128>>(&pp, label)
+        Compiler::compile::<TestCircuit<BIT_PAIRS_127>>(&pp, label)
             .expect("Circuit should compile");
 
     // Test sanity:
     let a = -BlsScalar::one();
     let b = -BlsScalar::one();
-    let result = -BlsScalar::one();
-    let circuit: TestCircuit<BIT_PAIRS_128> = TestCircuit { a, b, result };
+    let result = a & b & bit_mask;
+    let circuit: TestCircuit<BIT_PAIRS_127> = TestCircuit { a, b, result };
     check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
 
     // Test random works:
     let msg = "Circuit verification with random values should pass";
     let a = BlsScalar::random(&mut rng);
     let b = BlsScalar::random(&mut rng);
-    let circuit: TestCircuit<BIT_PAIRS_128> = TestCircuit::new(a, b);
+    let circuit: TestCircuit<BIT_PAIRS_127> = TestCircuit::new(a, b);
     check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
 
     // Test invalid circuit fails
     let msg = "Proof creation of unsatisfied circuit should fail";
     let a = BlsScalar::random(&mut rng);
     let b = BlsScalar::random(&mut rng);
-    let right_result = a & b;
+    let right_result = a & b & bit_mask;
     let c = BlsScalar::random(&mut rng);
-    let wrong_result = a & c;
+    let wrong_result = a & c & bit_mask;
     assert_ne!(right_result, wrong_result);
-    let circuit: TestCircuit<BIT_PAIRS_128> = TestCircuit {
+    let circuit: TestCircuit<BIT_PAIRS_127> = TestCircuit {
         a,
         b,
         result: wrong_result,
     };
     check_unsatisfied_circuit(&prover, &circuit, &mut rng, &msg);
     // sanity check
-    let circuit_satisfied: TestCircuit<BIT_PAIRS_128> = TestCircuit {
+    let circuit_satisfied: TestCircuit<BIT_PAIRS_127> = TestCircuit {
         a,
         b,
         result: right_result,
@@ -200,15 +198,12 @@ fn append_logic_xor() {
 
     impl<const BIT_PAIRS: usize> TestCircuit<BIT_PAIRS> {
         pub fn new(a: BlsScalar, b: BlsScalar) -> Self {
-            let bits = cmp::min(BIT_PAIRS * 2, 256);
+            // the op width is capped at 254 bits, so the mask never overflows
+            // the 255-bit BlsScalar
+            let bits = cmp::min(BIT_PAIRS * 2, 254);
             let bit_mask = BlsScalar::pow_of_2(bits as u64) - BlsScalar::one();
 
-            // BlsScalar are max 255 bits long so a bit_mask with more than 255
-            // bits will be overflowing and incorrect
-            let result = match bits < 256 {
-                true => (a & bit_mask) ^ (b & bit_mask),
-                false => a ^ b,
-            };
+            let result = (a & bit_mask) ^ (b & bit_mask);
 
             Self { a, b, result }
         }
@@ -234,7 +229,7 @@ fn append_logic_xor() {
     let label = b"append_logic_xor";
 
     let mut rng = StdRng::seed_from_u64(0xdea1);
-    let capacity = 1 << 8;
+    let capacity = 1 << 12;
     let pp = PublicParameters::setup(capacity, &mut rng)
         .expect("Creation of public parameter shouldn't fail");
     let (prover, verifier) = Compiler::compile::<TestCircuit<0>>(&pp, label)
@@ -314,44 +309,45 @@ fn append_logic_xor() {
         &"Sanity check should pass",
     );
 
-    // Test with bits = 256
+    // Test with bits = 254 (the maximum width, BIT_PAIRS = 127)
     //
     // Create new prover and verifier circuit descriptions
-    const BIT_PAIRS_128: usize = 128;
+    const BIT_PAIRS_127: usize = 127;
+    let bit_mask = BlsScalar::pow_of_2(254) - BlsScalar::one();
     let (prover, verifier) =
-        Compiler::compile::<TestCircuit<BIT_PAIRS_128>>(&pp, label)
+        Compiler::compile::<TestCircuit<BIT_PAIRS_127>>(&pp, label)
             .expect("Circuit should compile");
 
     // Test sanity:
     let a = -BlsScalar::one();
     let b = BlsScalar::zero();
-    let result = -BlsScalar::one();
-    let circuit: TestCircuit<BIT_PAIRS_128> = TestCircuit { a, b, result };
+    let result = a & bit_mask;
+    let circuit: TestCircuit<BIT_PAIRS_127> = TestCircuit { a, b, result };
     check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
 
     // Test random works:
     let msg = "Circuit verification with random values should pass";
     let a = BlsScalar::random(&mut rng);
     let b = BlsScalar::random(&mut rng);
-    let circuit: TestCircuit<BIT_PAIRS_128> = TestCircuit::new(a, b);
+    let circuit: TestCircuit<BIT_PAIRS_127> = TestCircuit::new(a, b);
     check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
 
     // Test invalid circuit fails
     let msg = "Proof creation of unsatisfied circuit should fail";
     let a = BlsScalar::random(&mut rng);
     let b = BlsScalar::random(&mut rng);
-    let right_result = a ^ b;
+    let right_result = (a & bit_mask) ^ (b & bit_mask);
     let c = BlsScalar::random(&mut rng);
-    let wrong_result = a ^ c;
+    let wrong_result = (a & bit_mask) ^ (c & bit_mask);
     assert_ne!(right_result, wrong_result);
-    let circuit: TestCircuit<BIT_PAIRS_128> = TestCircuit {
+    let circuit: TestCircuit<BIT_PAIRS_127> = TestCircuit {
         a,
         b,
         result: wrong_result,
     };
     check_unsatisfied_circuit(&prover, &circuit, &mut rng, &msg);
     // sanity check
-    let circuit_satisfied: TestCircuit<BIT_PAIRS_128> = TestCircuit {
+    let circuit_satisfied: TestCircuit<BIT_PAIRS_127> = TestCircuit {
         a,
         b,
         result: right_result,
