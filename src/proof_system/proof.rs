@@ -384,9 +384,9 @@ pub(crate) mod alloc {
 
             // Evaluations to compute [E]_1
             //
-            // IMPORTANT: Ordering must match the prover's batched opening at `z`
-            // (`CommitKey::compute_aggregate_witness([...])`) and the verifier's
-            // commitment list below.
+            // IMPORTANT: Ordering must match the prover's batched opening at
+            // `z` (`CommitKey::compute_aggregate_witness([...])`)
+            // and the verifier's commitment list below.
             let E_evals = [
                 // Unshifted openings at z
                 self.evaluations.a_eval,

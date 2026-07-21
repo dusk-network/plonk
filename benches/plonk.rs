@@ -54,8 +54,8 @@ impl<const DEGREE: usize> Circuit for BenchCircuit<DEGREE> {
             composer.gate_add(Constraint::new().left(1).right(1).a(w_a).b(w_b));
 
             composer.component_add_point(w_z, w_z);
-            composer.append_logic_and::<128>(w_a, w_b);
-            composer.append_logic_xor::<128>(w_a, w_b);
+            composer.append_logic_and::<127>(w_a, w_b);
+            composer.append_logic_xor::<127>(w_a, w_b);
             composer.component_boolean(Composer::ONE);
             composer.component_decomposition::<254>(w_a);
             composer.component_mul_generator(
@@ -63,7 +63,7 @@ impl<const DEGREE: usize> Circuit for BenchCircuit<DEGREE> {
                 dusk_jubjub::GENERATOR_EXTENDED,
             )?;
             composer.component_mul_point(w_y, w_z);
-            composer.component_range::<128>(w_a);
+            composer.component_range_bits::<256>(w_a);
             composer.component_select(Composer::ONE, w_a, w_b);
             composer.component_select_identity(Composer::ONE, w_z);
             composer.component_select_one(Composer::ONE, w_a);

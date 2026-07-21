@@ -31,10 +31,10 @@ impl Circuit for TestCircuit {
         let d = composer.append_witness(self.d);
 
         // 1) a < 2^6
-        composer.component_range::<3>(a); // 3 BIT_PAIRS = 6 bits
+        composer.component_range_bits::<6>(a);
 
         // 2) b < 2^4
-        composer.component_range::<2>(b); // 2 BIT_PAIRS = 4 bits
+        composer.component_range_bits::<4>(b);
 
         // 3) a + b + 42 = c where c is public input
         let constraint = Constraint::new()

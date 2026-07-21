@@ -22,6 +22,18 @@ mod compress;
 mod constraint_system;
 mod gate;
 
+#[cfg(test)]
+mod logic_gate_soundness_tests;
+
+#[cfg(test)]
+mod range_soundness_tests;
+
+#[cfg(test)]
+mod soundness_support;
+
+#[cfg(test)]
+mod truncate_soundness_tests;
+
 pub(crate) mod permutation;
 
 pub use circuit::Circuit;
@@ -55,6 +67,21 @@ impl ops::Index<Witness> for Composer {
     fn index(&self, w: Witness) -> &Self::Output {
         &self.witnesses[w.index()]
     }
+}
+
+/// Recompose `bits[start..end]` (little-endian, bit `i` weighing `2^i`) into a
+/// field element with `bits[start]` as the least significant bit, i.e. the
+/// value `sum_{i in [start, end)} bits[i] * 2^(i - start)`.
+fn recompose_bits(bits: &[u8; 256], start: usize, end: usize) -> BlsScalar {
+    let two = BlsScalar::from(2u64);
+    let mut value = BlsScalar::zero();
+    for i in (start..end).rev() {
+        value *= two;
+        if bits[i] == 1 {
+            value += BlsScalar::one();
+        }
+    }
+    value
 }
 
 // pub trait Composer: Sized + Index<Witness, Output = BlsScalar> {
@@ -254,8 +281,19 @@ impl Composer {
     /// Performs a logical AND or XOR op between the inputs provided for
     /// `num_bits = BIT_PAIRS * 2` bits (counting from the least significant).
     ///
-    /// Each logic gate adds `BIT_PAIRS + 1` gates to the circuit to
-    /// perform the whole operation.
+    /// `BIT_PAIRS` is capped at `127` (254 bits): the closing truncation
+    /// binding is only canonical up to 254 bits, since a canonical
+    /// `BlsScalar` is 255 bits. `BIT_PAIRS > 127` would silently drop input
+    /// bits, so it is rejected at **compile time** rather than truncated.
+    ///
+    /// Each logic op adds `BIT_PAIRS + 1` gates for the operation itself, plus
+    /// the gates binding the result to the input witnesses. Per input the
+    /// binding range-checks the high part and the canonical guard's two
+    /// differences — a total width of `510 - num_bits` bits, so roughly
+    /// `(510 - num_bits) / 8` gates plus a small fixed remainder. The binding
+    /// therefore shrinks as `num_bits` grows, but the operation loop grows
+    /// twice as fast, so the total rises with width: 172 gates at 2 bits, 234
+    /// at 250.
     ///
     /// ## Constraint
     /// - is_component_xor = 1 -> Performs XOR between the first `num_bits` for
@@ -268,10 +306,21 @@ impl Composer {
         b: Witness,
         is_component_xor: bool,
     ) -> Witness {
-        // the bits are iterated as chunks of two; hence, we require an even
-        // number
-        let num_bits = cmp::min(BIT_PAIRS * 2, 256);
-        let num_quads = num_bits >> 1;
+        // The bits are processed in quads (two bits each), so the width is
+        // always even. It is capped at 254 — the largest even width for which
+        // the closing truncation binding below is canonical (a canonical
+        // `BlsScalar` is 255 bits). Exceeding `BIT_PAIRS = 127` would silently
+        // drop bits, a soundness footgun, so it is a hard compile-time error
+        // rather than a quiet cap.
+        const {
+            assert!(
+                BIT_PAIRS <= 127,
+                "BIT_PAIRS must be <= 127: the logic gadget operates on at most 254 bits"
+            )
+        };
+
+        let num_bits = BIT_PAIRS * 2;
+        let num_quads = BIT_PAIRS;
 
         let bls_four = BlsScalar::from(4u64);
         let mut left_acc = BlsScalar::zero();
@@ -358,15 +407,110 @@ impl Composer {
 
         // pad last output with `0`
         // | an  | bn  | 0   | dn  |
-        let a = constraint.witness(WiredWitness::A);
-        let b = constraint.witness(WiredWitness::B);
+        let left_acc_wit = constraint.witness(WiredWitness::A);
+        let right_acc_wit = constraint.witness(WiredWitness::B);
         let d = constraint.witness(WiredWitness::D);
 
-        let constraint = Constraint::new().a(a).b(b).d(d);
+        let constraint =
+            Constraint::new().a(left_acc_wit).b(right_acc_wit).d(d);
 
         self.append_custom_gate(constraint);
 
+        // Bind the recomposed accumulators to the input witnesses. The loop
+        // above constrains the accumulators only among themselves;
+        // without this binding the output is decoupled from `a`/`b` and
+        // a malicious prover can pick arbitrary accumulators (and thus
+        // an arbitrary output) for the identical gate layout. Mirrors
+        // `component_range`'s closing `assert_equal`, generalised to a
+        // canonical truncation to `num_bits` bits.
+        self.bind_logic_accumulators::<BIT_PAIRS>(
+            a,
+            b,
+            left_acc_wit,
+            right_acc_wit,
+        );
+
         d
+    }
+
+    /// Bind the recomposed logic accumulators to the gadget's input witnesses.
+    ///
+    /// `left_acc`/`right_acc` are the final accumulators produced by
+    /// [`Self::append_logic_component`]; the logic gate guarantees each lies in
+    /// `[0, 2^num_bits)`. This binds them to the low `num_bits` of `a`/`b` so
+    /// the output cannot be decoupled from the inputs.
+    fn bind_logic_accumulators<const BIT_PAIRS: usize>(
+        &mut self,
+        a: Witness,
+        b: Witness,
+        left_acc: Witness,
+        right_acc: Witness,
+    ) {
+        // A zero-bit logic op reads no input bits and returns `0`, so there is
+        // nothing to bind.
+        if BIT_PAIRS == 0 {
+            return;
+        }
+
+        self.bind_truncated_input::<BIT_PAIRS>(a, left_acc);
+        self.bind_truncated_input::<BIT_PAIRS>(b, right_acc);
+    }
+
+    /// Constrain `acc` to be the low `num_bits = BIT_PAIRS * 2` bits of
+    /// `input` (`BIT_PAIRS <= 127`, enforced by the caller).
+    ///
+    /// `acc` is already constrained to `[0, 2^num_bits)` by the logic gate;
+    /// this ties it to `input` through the shared truncation split.
+    fn bind_truncated_input<const BIT_PAIRS: usize>(
+        &mut self,
+        input: Witness,
+        acc: Witness,
+    ) {
+        // matches the width of `append_logic_component`, which caps
+        // `BIT_PAIRS` at 127 (254 bits) at compile time
+        let num_bits = BIT_PAIRS * 2;
+        self.bind_truncation_split(input, acc, num_bits);
+    }
+
+    /// Bind an already-bounded `low` to the low `num_bits` of `input` via the
+    /// canonical truncation split `input = high * 2^num_bits + low`.
+    ///
+    /// Derives `high` from `input`, range-checks it to
+    /// `[0, 2^(255 - num_bits))`, enforces the linear relation, and adds the
+    /// canonical `< r` guard so the split cannot alias `input + r`. The caller
+    /// MUST already constrain `low` to `[0, 2^num_bits)` — with a range check,
+    /// or through the logic gate for the logic gadget — otherwise the split is
+    /// not unique and the binding is unsound. Shared core of
+    /// [`Self::component_truncate`] and [`Self::bind_truncated_input`].
+    fn bind_truncation_split(
+        &mut self,
+        input: Witness,
+        low: Witness,
+        num_bits: usize,
+    ) {
+        // A canonical field element is < 2^255, so its high part fits in
+        // `255 - num_bits` bits.
+        let high_bits = 255 - num_bits;
+        let pow = BlsScalar::pow_of_2(num_bits as u64);
+
+        // high = floor(input / 2^num_bits), recomposed from the high input
+        // bits, range-checked so it cannot absorb a different low part.
+        let input_bits = self[input].to_bits();
+        let high_value = recompose_bits(&input_bits, num_bits, 256);
+        let high = self.append_witness(high_value);
+        self.range_check(high, high_bits);
+
+        // input == high * 2^num_bits + low
+        let recomposed =
+            self.gate_add(Constraint::new().left(pow).right(1).a(high).b(low));
+        self.assert_equal(recomposed, input);
+
+        // The linear relation above also admits the non-canonical assignment
+        // that recomposes to `input + r` (a small `high` with a different
+        // `low`, both still in range), decoupling `low` from `input`. The
+        // canonical guard rejects exactly that alias, pinning `low` to the
+        // integer reduction.
+        self.assert_canonical_truncation(high, low, num_bits);
     }
 
     /// Evaluate `jubjub · Generator` as a [`WitnessPoint`]
@@ -679,9 +823,10 @@ impl Composer {
         self.append_gate(constraint);
     }
 
-    /// Adds a logical AND gate that performs the bitwise AND between two values
-    /// specified first `num_bits = BIT_PAIRS * 2` bits returning a [`Witness`]
-    /// holding the result.
+    /// Adds a logical AND gate that performs the bitwise AND between two
+    /// values for the specified first `num_bits = BIT_PAIRS * 2` bits
+    /// (`BIT_PAIRS <= 127`, max 254 bits) returning a [`Witness`] holding the
+    /// result.
     pub fn append_logic_and<const BIT_PAIRS: usize>(
         &mut self,
         a: Witness,
@@ -690,9 +835,9 @@ impl Composer {
         self.append_logic_component::<BIT_PAIRS>(a, b, false)
     }
 
-    /// Adds a logical XOR gate that performs the XOR between two values for the
-    /// specified first `num_bits = BIT_PAIRS * 2` bits returning a [`Witness`]
-    /// holding the result.
+    /// Adds a logical XOR gate that performs the XOR between two values for
+    /// the specified first `num_bits = BIT_PAIRS * 2` bits (`BIT_PAIRS <=
+    /// 127`, max 254 bits) returning a [`Witness`] holding the result.
     pub fn append_logic_xor<const BIT_PAIRS: usize>(
         &mut self,
         a: Witness,
@@ -1024,6 +1169,37 @@ impl Composer {
         self.gate_mul(constraint)
     }
 
+    /// Constrains a [`Witness`] to the range `[0, 2^BITS)`, for any (possibly
+    /// odd) compile-time `BITS` up to `256`.
+    ///
+    /// This is the bit-width-native range check. Even widths use the base-4
+    /// quad decomposition; an odd width peels off the most-significant bit as a
+    /// boolean and quad-checks the even remainder, so the cost is essentially
+    /// that of the even check.
+    ///
+    /// Prefer this over the bit-pair-counted [`Self::component_range`]: `BITS`
+    /// is the actual bit width, with no `× 2` to track.
+    ///
+    /// A canonical `BlsScalar` is below `2^255`, so any `BITS >= 255` is
+    /// satisfied by every witness: the check still emits its gates but
+    /// constrains nothing.
+    pub fn component_range_bits<const BITS: usize>(
+        &mut self,
+        witness: Witness,
+    ) {
+        // `range_check` recomposes a witness < 2^256, so wider checks are
+        // meaningless; reject them at compile time rather than silently
+        // capping.
+        const {
+            assert!(
+                BITS <= 256,
+                "BITS must be <= 256: a witness is at most 256 bits wide"
+            )
+        };
+
+        self.range_check(witness, BITS);
+    }
+
     /// Adds a range-constraint gate that checks and constrains a [`Witness`]
     /// to be encoded in at most `num_bits = BIT_PAIRS * 2` bits, which means
     /// that the underlying [`BlsScalar`] of the [`Witness`] will be within the
@@ -1033,14 +1209,194 @@ impl Composer {
     /// (num_bits - 1)/8 + 9 gates, when num_bits > 0,
     /// and 7 gates, when num_bits = 0
     /// to the circuit description.
+    /// Widths above `BIT_PAIRS = 128` are clamped to 256 bits rather than
+    /// rejected, so they all mean the same check.
+    #[deprecated(note = "this counts bit-pairs, an easy 2x footgun. Use \
+        `component_range_bits::<BITS>`, which counts bits directly: for \
+        `N <= 128` replace `component_range::<N>` with \
+        `component_range_bits::<2 * N>`; a wider `N` was clamped to 256 bits, \
+        so it becomes `component_range_bits::<256>`.")]
     pub fn component_range<const BIT_PAIRS: usize>(
         &mut self,
         witness: Witness,
     ) {
-        // the bits are iterated as chunks of two; hence, we require an even
-        // number
-        let num_bits = cmp::min(BIT_PAIRS * 2, 256);
+        // Delegates to the shared base-4 core: `BIT_PAIRS` bit-pairs is `2 *
+        // BIT_PAIRS` bits, capped at 256. The core emits the same base-4
+        // decomposition this entry point checks, so the gate layout — and thus
+        // the verifier key — is identical for every caller.
+        self.range_check_even(witness, cmp::min(BIT_PAIRS * 2, 256));
+    }
 
+    /// Extract the low `N` bits of `witness` as a new [`Witness`], canonically
+    /// bound to its input.
+    ///
+    /// This is the truncation primitive: it proves `low = witness mod 2^N`
+    /// directly via the relation `witness = high * 2^N + low`, with a range
+    /// check on `low` (`N` bits), a range check on `high` (the remaining
+    /// `255 - N` bits), the linear binding gate, and a canonical `< r` guard so
+    /// the `(high, low)` split cannot alias the non-canonical representation
+    /// `witness + r`. `N` may be odd.
+    ///
+    /// `append_logic_xor::<BIT_PAIRS>(witness, ZERO)` also yields the low bits,
+    /// but it is a bitwise operator pressed into a truncation role: it pays for
+    /// the full bitwise widget over the discarded high bits and its width is a
+    /// bit-pair count, not a bit count. Prefer `component_truncate` when the
+    /// intent is "take the low `N` bits"; reach for the logic gate when the
+    /// intent is an actual bitwise `XOR`.
+    ///
+    /// Cost: the gadget range-checks the full `N + (255 - N)` split plus a
+    /// same-width canonical guard, so the decomposed width — and with it the
+    /// gate count — is essentially independent of `N`: 84-88 gates across the
+    /// whole range. That is cheaper than `append_logic_xor::<N / 2>(x, ZERO)`
+    /// at every width, and the gap widens with `N`, since the logic gadget pays
+    /// for its per-quad loop on top of the same binding: 88 against 172 gates
+    /// at 2 bits, 88 against 234 at 250.
+    ///
+    /// `N` is capped at `254` at compile time: a canonical `BlsScalar` is 255
+    /// bits, so a wider truncation would leave the high part with less than one
+    /// bit and the canonical guard ill-defined.
+    pub fn component_truncate<const N: usize>(
+        &mut self,
+        witness: Witness,
+    ) -> Witness {
+        // A canonical `BlsScalar` is 255 bits, so the truncation binding below
+        // is only canonical up to 254 bits. A wider width would silently drop
+        // input bits, so it is a hard compile-time error rather than a quiet
+        // cap.
+        const {
+            assert!(
+                N <= 254,
+                "N must be <= 254: truncation operates on at most 254 bits"
+            )
+        };
+
+        // Split the low `N` bits off `witness` as a bounded witness, then bind
+        // it back to `witness` through the shared truncation split.
+        let low_value = recompose_bits(&self[witness].to_bits(), 0, N);
+        let low = self.append_witness(low_value);
+        self.range_check(low, N);
+        self.bind_truncation_split(witness, low, N);
+
+        low
+    }
+
+    /// Constrain `(high, low)` to be the canonical split of a field element at
+    /// bit `num_bits`, i.e. `high * 2^num_bits + low < r`. This adds only the
+    /// `< r` guard, rejecting the single non-canonical alias `witness + r`; it
+    /// does not bound `low` or `high` itself.
+    ///
+    /// Caller MUST range-check both operands before calling — `low` to
+    /// `[0, 2^num_bits)` and `high` to `[0, 2^(255 - num_bits))` — otherwise
+    /// the split is not unique and the binding is unsound. This is the
+    /// shared core for every truncation caller; the obligation is not
+    /// enforced in-gate.
+    fn assert_canonical_truncation(
+        &mut self,
+        high: Witness,
+        low: Witness,
+        num_bits: usize,
+    ) {
+        let high_bits = 255 - num_bits;
+
+        // Modulus-derived bounds: write `r - 1 = r_high * 2^num_bits + r_low`.
+        // The split is canonical (i.e. `< r`, not `< 2r`) iff `(high, low) <=
+        // (r_high, r_low)` lexicographically.
+        let modulus_bits = (-BlsScalar::one()).to_bits();
+        let r_low = recompose_bits(&modulus_bits, 0, num_bits);
+        let r_high = recompose_bits(&modulus_bits, num_bits, 256);
+
+        // Enforce `high <= r_high` via `diff = r_high - high in [0,
+        // 2^high_bits)`.
+        let diff = self.gate_add(
+            Constraint::new()
+                .left(-BlsScalar::one())
+                .a(high)
+                .constant(r_high),
+        );
+        self.range_check(diff, high_bits);
+
+        // is_top = 1 iff high == r_high (diff == 0). Standard is-zero gadget:
+        // set `product = diff * inverse` and `is_top = 1 - product`, then the
+        // final gate `diff * is_top = 0` pins everything.
+        let diff_inverse = self[diff].invert().unwrap_or(BlsScalar::zero());
+        let inverse = self.append_witness(diff_inverse);
+        let product =
+            self.gate_mul(Constraint::new().mult(1).a(diff).b(inverse));
+        // is_top = 1 - product
+        let is_top = self.gate_add(
+            Constraint::new()
+                .left(-BlsScalar::one())
+                .a(product)
+                .constant(1),
+        );
+        // diff * is_top = 0. This alone pins is_top to exactly `[diff == 0]`,
+        // so no explicit `component_boolean(is_top)` is needed. If diff == 0,
+        // then product = 0 and is_top = 1 - 0 = 1. If diff != 0, this gate
+        // forces is_top = 0, which forces product = 1 and hence the prover to
+        // supply inverse = diff^-1. Either way is_top is 0 or 1; no other value
+        // satisfies the system, so a boolean constraint would be redundant.
+        self.append_gate(Constraint::new().mult(1).a(diff).b(is_top));
+
+        // When high == r_high, require low <= r_low (so the value is < r). The
+        // guard is `is_top * (r_low - low)`, which must lie in `[0,
+        // 2^num_bits)`: for `low > r_low` it underflows to a huge field
+        // element and fails the range check; for `high < r_high` it is zero
+        // (canonicity already holds).
+        let r_low_minus_low = self.gate_add(
+            Constraint::new()
+                .left(-BlsScalar::one())
+                .a(low)
+                .constant(r_low),
+        );
+        let guard = self
+            .gate_mul(Constraint::new().mult(1).a(is_top).b(r_low_minus_low));
+        self.range_check(guard, num_bits);
+    }
+
+    /// Constrain `value` to lie in `[0, 2^num_bits)`, for any (possibly odd)
+    /// runtime `num_bits`. A runtime-sized, odd-capable counterpart to
+    /// [`Self::component_range`], whose `const BIT_PAIRS` entry point can only
+    /// size even widths known at compile time.
+    ///
+    /// Even widths use the quad-based [`Self::range_check_even`] (the same
+    /// width-4 base-4 decomposition as `component_range`); an odd width peels
+    /// off the most-significant bit as a boolean and quad-checks the even
+    /// remainder, so the cost is essentially that of the even check.
+    fn range_check(&mut self, value: Witness, num_bits: usize) {
+        if num_bits % 2 == 0 {
+            self.range_check_even(value, num_bits);
+            return;
+        }
+
+        // value == lower + top_bit * 2^(num_bits - 1), with `lower` in
+        // `[0, 2^(num_bits - 1))` and `top_bit` boolean — so value <
+        // 2^num_bits.
+        let top = num_bits - 1;
+        let value_bits = self[value].to_bits();
+        let lower_value = recompose_bits(&value_bits, 0, top);
+        let top_bit_value = BlsScalar::from(value_bits[top] as u64);
+
+        let lower = self.append_witness(lower_value);
+        self.range_check_even(lower, top);
+
+        let top_bit = self.append_witness(top_bit_value);
+        self.component_boolean(top_bit);
+
+        let recomposed = self.gate_add(
+            Constraint::new()
+                .left(1)
+                .right(BlsScalar::pow_of_2(top as u64))
+                .a(lower)
+                .b(top_bit),
+        );
+        self.assert_equal(recomposed, value);
+    }
+
+    /// Constrain `value` to lie in `[0, 2^num_bits)` for an even runtime
+    /// `num_bits` (`<= 256`). This is the shared base-4 decomposition that
+    /// [`Self::component_range`] and the even path of [`Self::range_check`]
+    /// delegate to — the single source of truth for the width-4 range layout.
+    fn range_check_even(&mut self, witness: Witness, num_bits: usize) {
         // if num_bits = 0 constrain witness to 0
         if num_bits == 0 {
             let constraint = Constraint::new().left(1).a(witness);
@@ -1054,13 +1410,8 @@ impl Composer {
         let mut bits: Vec<_> = bit_iter.collect();
         bits.reverse();
 
-        // considering this is a width-4 program, one gate will contain 4
-        // accumulators. each accumulator proves that a single quad is a
-        // base-4 digit. accumulators are bijective to quads, and these
-        // are 2-bits each. given that, one gate accumulates 8 bits.
+        // each gate holds 4 quads (2 bits each), so one gate accumulates 8 bits
         let mut num_gates = num_bits >> 3;
-
-        // given each gate accumulates 8 bits, its count must be padded
         if num_bits % 8 != 0 {
             num_gates += 1;
         }
@@ -1075,12 +1426,9 @@ impl Composer {
         // last gate is reserved for either the genesis quad or the padding
         let used_gates = num_gates + 1;
 
-        let base = Constraint::new();
-        let base = Constraint::range(&base);
+        let base = Constraint::range(&Constraint::new());
         let mut constraints = vec![base; used_gates];
 
-        // We collect the set of accumulators to return back to the user
-        // and keep a running count of the current accumulator
         let mut accumulators: Vec<Witness> = Vec::new();
         let mut accumulator = BlsScalar::zero();
         let four = BlsScalar::from(4);
@@ -1096,19 +1444,18 @@ impl Composer {
             accumulator += BlsScalar::from(quad);
 
             let accumulator_var = self.append_witness(accumulator);
-
             accumulators.push(accumulator_var);
 
             let idx = i / 4;
-            let witness = match i % 4 {
-                0 => WiredWitness::D,
-                1 => WiredWitness::C,
-                2 => WiredWitness::B,
-                3 => WiredWitness::A,
-                _ => unreachable!(),
-            };
+            // wires fill D, C, B, A within each gate as `i` advances
+            let wire = [
+                WiredWitness::D,
+                WiredWitness::C,
+                WiredWitness::B,
+                WiredWitness::A,
+            ][i % 4];
 
-            constraints[idx].set_witness(witness, accumulator_var);
+            constraints[idx].set_witness(wire, accumulator_var);
         }
 
         // last constraint is zeroed as it is reserved for the genesis quad or
@@ -1117,10 +1464,6 @@ impl Composer {
             *c = Constraint::new();
         }
 
-        // the accumulators count is a function to the number of quads. hence,
-        // this optional gate will not cause different circuits depending on the
-        // witness because this computation is bound to the constant bits count
-        // alone.
         if let Some(accumulator) = accumulators.last() {
             if let Some(c) = constraints.last_mut() {
                 c.set_witness(WiredWitness::D, *accumulator);
@@ -1131,10 +1474,6 @@ impl Composer {
             .into_iter()
             .for_each(|c| self.append_custom_gate(c));
 
-        // the accumulators count is a function to the number of quads. hence,
-        // this optional gate will not cause different circuits depending on the
-        // witness because this computation is bound to the constant bits count
-        // alone.
         if let Some(accumulator) = accumulators.last() {
             self.assert_equal(*accumulator, witness);
         }

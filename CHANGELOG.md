@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `Composer::component_truncate<N>` to extract the low `N` bits of a witness [#867]
+- Add `Composer::component_range_bits<BITS>` range check counting bits directly [#867]
+
+### Changed
+
+- Cap logic gadget width at 254 bits; `BIT_PAIRS > 127` is now a compile-time error [#867]
+- Change the verifier key of circuits using the logic gadget [#867]
+- Increase the gate count of `append_logic_and`/`append_logic_xor` to bind their inputs [#867]
+
+### Deprecated
+
+- Deprecate `Composer::component_range<BIT_PAIRS>` in favour of `Composer::component_range_bits<BITS>` [#867]
+
+### Fixed
+
+- Bind `append_logic_xor`/`append_logic_and` output to their inputs [#867]
+
 ## [0.22.1] - 2026-06-12
 
 ### Added
@@ -665,6 +684,7 @@ is necessary since `rkyv/validation` was required as a bound.
 - Proof system module.
 
 <!-- ISSUES -->
+[#867]: https://github.com/dusk-network/plonk/issues/867
 [#862]: https://github.com/dusk-network/plonk/issues/862
 [#861]: https://github.com/dusk-network/plonk/issues/861
 [#860]: https://github.com/dusk-network/plonk/issues/860

@@ -140,5 +140,9 @@ required-features = ["alloc"]
 name = "select_point"
 required-features = ["alloc"]
 
+[[test]]
+name = "truncate"
+required-features = ["alloc"]
+
 [package.metadata.docs.rs]
 rustdoc-args = [ "--html-in-header", "./katex-header.html" ]
