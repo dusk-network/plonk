@@ -1074,6 +1074,11 @@ impl Composer {
     }
 
     /// Subtracts a curve point from another by consuming 3 gates.
+    ///
+    /// As with [`Self::component_add_point`], point validity (on-curve and,
+    /// where it matters, prime-order subgroup membership) is a **caller
+    /// obligation** discharged at the point's entry boundary — this gate
+    /// assumes valid group elements and does not re-check them.
     pub fn component_sub_point(
         &mut self,
         a: WitnessPoint,
@@ -1087,6 +1092,19 @@ impl Composer {
     }
 
     /// Adds two curve points by consuming 2 gates.
+    ///
+    /// # Point validity is a caller obligation
+    ///
+    /// This gate constrains only the twisted-Edwards addition identity; it does
+    /// **not** check that `a`/`b` lie on the curve or in the prime-order
+    /// subgroup. Point arithmetic is closed over the group, so validity is
+    /// intended to be enforced **once, at the boundary where a point enters the
+    /// circuit** — not re-checked at every operation. Callers must ensure each
+    /// [`WitnessPoint`] reaching this gate is a valid group element: an output
+    /// of [`Self::component_mul_generator`], a point bound to a
+    /// decoded/committed source, or one explicitly constrained on entry. An
+    /// off-curve or low-order input yields a well-formed proof over the wrong
+    /// group element — a soundness break in the *consumer circuit*, not here.
     pub fn component_add_point(
         &mut self,
         a: WitnessPoint,
@@ -1213,6 +1231,18 @@ impl Composer {
     }
 
     /// Evaluate `jubjub · point` as a [`WitnessPoint`]
+    ///
+    /// # Point validity is a caller obligation
+    ///
+    /// The `point` base is used as-is; this routine does **not** check that it
+    /// lies on the curve or in the prime-order subgroup. As for
+    /// [`Self::component_add_point`], validity is expected to be enforced once,
+    /// at the boundary where `point` enters the circuit — a prover-supplied base
+    /// with no such boundary (e.g. one that is not an output of
+    /// [`Self::component_mul_generator`] and not bound to a decoded/committed
+    /// source) must be constrained on entry. A low-order or off-curve base
+    /// otherwise lets the scalar multiplication operate over the wrong group
+    /// element — a soundness break in the *consumer circuit*, not here.
     pub fn component_mul_point(
         &mut self,
         jubjub: Witness,
