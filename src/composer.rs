@@ -10,7 +10,7 @@ use alloc::vec::Vec;
 use core::{cmp, ops};
 
 use dusk_bls12_381::BlsScalar;
-use dusk_jubjub::{JubJubAffine, JubJubExtended, JubJubScalar};
+use dusk_jubjub::{EDWARDS_D, JubJubAffine, JubJubExtended, JubJubScalar};
 use hashbrown::HashMap;
 
 use crate::bit_iterator::BitIterator8;
@@ -36,6 +36,9 @@ mod range_soundness_tests;
 
 #[cfg(test)]
 mod soundness_support;
+
+#[cfg(test)]
+mod torsion_free_soundness_tests;
 
 #[cfg(test)]
 mod truncate_soundness_tests;
@@ -74,6 +77,16 @@ impl ops::Index<Witness> for Composer {
         &self.witnesses[w.index()]
     }
 }
+
+/// The inverse of the curve cofactor in the scalar field: `8⁻¹ mod r`, with
+/// `r` the order of the prime-order subgroup. Used to derive the honest
+/// witness `Q = [8⁻¹]·P` for [`Composer::assert_torsion_free_point`].
+const EIGHT_INV: JubJubScalar = JubJubScalar::from_raw([
+    0x5a12e1cbdadee597,
+    0x14cd041279990210,
+    0x20cce76020268760,
+    0x01cfb69d4ca675f5,
+]);
 
 /// Recompose `bits[start..end]` (little-endian, bit `i` weighing `2^i`) into a
 /// field element with `bits[start]` as the least significant bit, i.e. the
@@ -1063,6 +1076,88 @@ impl Composer {
         );
     }
 
+    /// Constrain `point` to lie in the prime-order subgroup of the embedded
+    /// curve by consuming 12 gates.
+    ///
+    /// This is the boundary check that discharges the point-validity caller
+    /// obligation stated on [`Self::component_add_point`] and
+    /// [`Self::component_mul_point`]: call it once, where an untrusted
+    /// (prover-supplied) point enters the circuit — group closure then keeps
+    /// every derived point valid, so the arithmetic gates never re-check
+    /// their inputs.
+    ///
+    /// The check appends a witness `Q`, constrains it to the curve equation
+    /// `-u² + v² = 1 + d·u²·v²` and enforces `point == [8]·Q` through three
+    /// constrained doublings. On a cofactor-8 curve the image of
+    /// multiplication-by-8 is exactly the prime-order subgroup, so a
+    /// satisfying assignment exists if and only if `point` is a prime-order
+    /// subgroup element — the identity included, being the subgroup's neutral
+    /// element. The semantics match dusk-jubjub's `is_torsion_free`, not its
+    /// `is_prime_order` (which additionally excludes the identity): a
+    /// consumer that must also rule out the identity point has to constrain
+    /// that separately. Soundness rests on the appended constraints alone,
+    /// which bind every intermediate witness: the honest witness value
+    /// `Q = [8⁻¹]·point` computed here is only structural, and the doubling
+    /// chain relies on the completeness of the twisted Edwards addition law
+    /// (`a = -1` a square, `d` a non-square), which leaves no exceptional
+    /// case with a free witness.
+    pub fn assert_torsion_free_point(&mut self, point: WitnessPoint) {
+        let u = self[*point.x()];
+        let v = self[*point.y()];
+
+        // Honest witness Q = [8⁻¹]·point. An off-curve `point` admits no
+        // satisfying `Q` at all; the identity stands in for it so that
+        // witness generation stays panic-free and the proof fails at the
+        // constraints instead. The branch is on witness data, but it is
+        // constant for every honest prover (the point is always on-curve);
+        // a dishonest assignment only changes which constraint rejects.
+        let u2 = u.square();
+        let v2 = v.square();
+        let on_curve = v2 - u2 == BlsScalar::one() + EDWARDS_D * u2 * v2;
+        let q = if on_curve {
+            let point = JubJubAffine::from_raw_unchecked(u, v);
+            (JubJubExtended::from(point) * EIGHT_INV).into()
+        } else {
+            JubJubAffine::identity()
+        };
+
+        self.assert_torsion_free_gates(point, q);
+    }
+
+    /// The constraints behind [`Self::assert_torsion_free_point`], taking the
+    /// witness `Q` as a parameter. Kept separate so the soundness tests can
+    /// stand in for a malicious prover and inject an arbitrary `Q`.
+    fn assert_torsion_free_gates(
+        &mut self,
+        point: WitnessPoint,
+        q: JubJubAffine,
+    ) {
+        let q = self.append_point(q);
+        let qu = *q.x();
+        let qv = *q.y();
+
+        // Constrain Q to the curve: -u² + v² - d·u²·v² - 1 = 0
+        let u2 = self.gate_mul(Constraint::new().mult(1).a(qu).b(qu));
+        let v2 = self.gate_mul(Constraint::new().mult(1).a(qv).b(qv));
+        let u2v2 = self.gate_mul(Constraint::new().mult(1).a(u2).b(v2));
+        self.append_gate(
+            Constraint::new()
+                .left(-BlsScalar::one())
+                .a(u2)
+                .right(1)
+                .b(v2)
+                .output(-EDWARDS_D)
+                .c(u2v2)
+                .constant(-BlsScalar::one()),
+        );
+
+        // Constrain point == [8]·Q
+        let q2 = self.component_add_point(q, q);
+        let q4 = self.component_add_point(q2, q2);
+        let q8 = self.component_add_point(q4, q4);
+        self.assert_equal_point(point, q8);
+    }
+
     /// Negates a curve point by consuming 1 gate.
     pub fn component_neg_point(&mut self, p: WitnessPoint) -> WitnessPoint {
         // We negate the 'x' coordinate of the point 'p', so that
@@ -1105,6 +1200,8 @@ impl Composer {
     /// decoded/committed source, or one explicitly constrained on entry. An
     /// off-curve or low-order input yields a well-formed proof over the wrong
     /// group element — a soundness break in the *consumer circuit*, not here.
+    /// [`Self::assert_torsion_free_point`] is the boundary check that
+    /// discharges this obligation for an untrusted point.
     pub fn component_add_point(
         &mut self,
         a: WitnessPoint,
@@ -1237,12 +1334,14 @@ impl Composer {
     /// The `point` base is used as-is; this routine does **not** check that it
     /// lies on the curve or in the prime-order subgroup. As for
     /// [`Self::component_add_point`], validity is expected to be enforced once,
-    /// at the boundary where `point` enters the circuit — a prover-supplied base
-    /// with no such boundary (e.g. one that is not an output of
+    /// at the boundary where `point` enters the circuit — a prover-supplied
+    /// base with no such boundary (e.g. one that is not an output of
     /// [`Self::component_mul_generator`] and not bound to a decoded/committed
     /// source) must be constrained on entry. A low-order or off-curve base
     /// otherwise lets the scalar multiplication operate over the wrong group
     /// element — a soundness break in the *consumer circuit*, not here.
+    /// [`Self::assert_torsion_free_point`] is the boundary check that
+    /// discharges this obligation for an untrusted point.
     pub fn component_mul_point(
         &mut self,
         jubjub: Witness,

@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `Composer::assert_torsion_free_point` boundary check constraining a witness point into the prime-order subgroup [#870]
 - Add `Composer::component_truncate<N>` to extract the low `N` bits of a witness [#867]
 - Add `Composer::component_range_bits<BITS>` range check counting bits directly [#867]
 - Add the public `Error::JubJubGeneratorNotPrimeOrder` variant [#832]
@@ -709,6 +710,7 @@ is necessary since `rkyv/validation` was required as a bound.
 - Proof system module.
 
 <!-- ISSUES -->
+[#870]: https://github.com/dusk-network/plonk/issues/870
 [#867]: https://github.com/dusk-network/plonk/issues/867
 [#862]: https://github.com/dusk-network/plonk/issues/862
 [#861]: https://github.com/dusk-network/plonk/issues/861
