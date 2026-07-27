@@ -17,6 +17,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Cap logic gadget width at 254 bits; `BIT_PAIRS > 127` is now a compile-time error [#867]
 - Change the verifier key of circuits using the logic gadget [#867]
 - Increase the gate count of `append_logic_and`/`append_logic_xor` to bind their inputs [#867]
+- Make `Composer::append_evaluated_output` append exactly one active arithmetic
+  row, including when the output selector is zero. This changes circuit layouts
+  for direct callers, which must regenerate circuit-specific proving and
+  verifier keys and cached compressed circuit descriptions. The `gate_add` and
+  `gate_mul` wrapper layouts remain one row and are unchanged.
 - Constrain `Composer::component_mul_generator` inputs to canonical Jubjub
   scalars and its signed-digit recurrence to 253 effective digits. This changes
   the circuit shape: applications using the component must regenerate their
@@ -31,6 +36,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Bind `append_logic_xor`/`append_logic_and` output to their inputs [#867]
+- Bind the witness returned by `append_evaluated_output` to its input
+  polynomial. Previously the public helper only calculated and allocated the
+  result using host witness values, allowing a shape-compatible prover to
+  replace it and prove a false relation such as public `2 + 3 = 9`.
 - Prevent a fixed-base scalar-multiplication soundness failure where 256 signed
   digits could encode the BLS scalar-field modulus `q`. The scalar endpoint
   then equalled public zero modulo `q`, while the same digits drove the point
