@@ -17,6 +17,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Cap logic gadget width at 254 bits; `BIT_PAIRS > 127` is now a compile-time error [#867]
 - Change the verifier key of circuits using the logic gadget [#867]
 - Increase the gate count of `append_logic_and`/`append_logic_xor` to bind their inputs [#867]
+- Constrain `Composer::component_mul_generator` inputs to canonical Jubjub
+  scalars and its signed-digit recurrence to 253 effective digits. This changes
+  the circuit shape: applications using the component must regenerate their
+  circuit-specific proving and verifier keys, as well as cached compressed
+  circuit descriptions. The universal SRS need not be regenerated, but public
+  parameters must have capacity for the additional 70 gates per call.
 
 ### Deprecated
 
@@ -25,6 +31,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Bind `append_logic_xor`/`append_logic_and` output to their inputs [#867]
+- Prevent a fixed-base scalar-multiplication soundness failure where 256 signed
+  digits could encode the BLS scalar-field modulus `q`. The scalar endpoint
+  then equalled public zero modulo `q`, while the same digits drove the point
+  endpoint to the nonidentity point `[q]G`, allowing a proof of a false public
+  scalar/point relation.
 
 ## [0.22.1] - 2026-06-12
 

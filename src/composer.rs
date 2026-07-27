@@ -23,6 +23,9 @@ mod constraint_system;
 mod gate;
 
 #[cfg(test)]
+mod fixed_base_soundness_tests;
+
+#[cfg(test)]
 mod logic_gate_soundness_tests;
 
 #[cfg(test)]
@@ -83,6 +86,19 @@ fn recompose_bits(bits: &[u8; 256], start: usize, end: usize) -> BlsScalar {
     }
     value
 }
+
+/// Bit width of a canonical Jubjub scalar.
+const JUBJUB_SCALAR_BITS: usize = 252;
+
+/// Number of signed-digit rows emitted by the fixed-base scalar-multiplication
+/// widget.
+const FIXED_BASE_SIGNED_DIGIT_ROUNDS: usize = 256;
+
+/// A width-2 NAF of a 252-bit scalar may carry into bit 252, so 253 signed
+/// digits are required. The remaining three most-significant rows must encode
+/// zero.
+const FIXED_BASE_LEADING_ZERO_ROUNDS: usize =
+    FIXED_BASE_SIGNED_DIGIT_ROUNDS - (JUBJUB_SCALAR_BITS + 1);
 
 // pub trait Composer: Sized + Index<Witness, Output = BlsScalar> {
 /// Circuit builder tool
@@ -513,12 +529,43 @@ impl Composer {
         self.assert_canonical_truncation(high, low, num_bits);
     }
 
-    /// Evaluate `jubjub · Generator` as a [`WitnessPoint`]
+    /// Evaluate `jubjub · generator` as a [`WitnessPoint`].
     ///
-    /// `generator` will be appended to the circuit description as constant
+    /// `generator` is appended to the circuit description as a constant.
     ///
-    /// Will error with a `JubJubScalarMalformed` error if `jubjub` doesn't fit
-    /// `Fr`
+    /// The circuit constrains `jubjub` to the canonical Jubjub scalar interval
+    /// `[0, r)`, where `r` is the prime-order subgroup modulus. It also bounds
+    /// the signed-digit recurrence to 253 effective digits. Together these
+    /// constraints make the closing equality an integer equality rather than
+    /// merely an equality modulo the BLS scalar-field modulus `q`: the signed
+    /// integer has absolute value below `2^253`, the input is below `2^252`,
+    /// and therefore their difference has absolute value below `2^254 < q`.
+    ///
+    /// Without both bounds, a malicious prover could encode `q` in the 256
+    /// signed digits. The scalar accumulator would then close at public zero
+    /// in the BLS field while the point accumulator closes at the generally
+    /// nonidentity point `[q]generator`.
+    ///
+    /// The three leading zero rows are retained because the fixed-base widget
+    /// uses shifted wires between consecutive rows. This preserves its
+    /// 256-row shifted-wire structure while constraining it to the 253 digits
+    /// needed by a width-2 NAF of any canonical Jubjub scalar, including the
+    /// carry for `r - 1`.
+    ///
+    /// # Circuit compatibility
+    ///
+    /// The added constraints change the circuit shape. Circuit-specific
+    /// proving and verifier keys, and cached compressed circuit descriptions,
+    /// must be regenerated. They add 70 gates per call, so the universal SRS
+    /// does not need regeneration but the supplied parameters must have
+    /// capacity for the larger circuit.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::JubJubScalarMalformed`] during honest witness
+    /// generation if `jubjub` is not a canonical Jubjub scalar. Soundness does
+    /// not rely on that host-side check: the same canonicality and signed-digit
+    /// bounds are enforced by circuit constraints.
     pub fn component_mul_generator<P: Into<JubJubExtended>>(
         &mut self,
         jubjub: Witness,
@@ -526,31 +573,9 @@ impl Composer {
     ) -> Result<WitnessPoint, Error> {
         let generator = generator.into();
 
-        // the number of bits is truncated to the maximum possible. however, we
-        // could slice off 3 bits from the top of wnaf since Fr price is
-        // 252 bits. Alternatively, we could move to base4 and halve the
-        // number of gates considering that the product of wnaf adjacent
-        // entries is zero.
-        let bits: usize = 256;
-
-        // compute 2^iG
-        let mut wnaf_point_multiples: Vec<_> = {
-            let mut multiples = vec![JubJubExtended::default(); bits];
-
-            multiples[0] = generator;
-
-            for i in 1..bits {
-                multiples[i] = multiples[i - 1].double();
-            }
-
-            dusk_jubjub::batch_normalize(&mut multiples).collect()
-        };
-
-        wnaf_point_multiples.reverse();
-
-        // we should error instead of producing invalid proofs - otherwise this
-        // can easily become an attack vector to either shutdown prover
-        // services or create malicious statements
+        // Reject malformed values during honest witness generation instead of
+        // panicking or producing an invalid proof. This is only an API guard;
+        // `append_fixed_base_signed_digits` enforces canonicality in-circuit.
         let scalar: JubJubScalar =
             match JubJubScalar::from_bytes(&self[jubjub].to_bytes()).into() {
                 Some(s) => s,
@@ -560,21 +585,54 @@ impl Composer {
         let width = 2;
         let wnaf_entries = scalar.compute_windowed_naf(width);
 
-        // this will pass as long as `compute_windowed_naf` returns an array
-        // with 256 elements
         debug_assert_eq!(
             wnaf_entries.len(),
-            bits,
+            FIXED_BASE_SIGNED_DIGIT_ROUNDS,
             "the wnaf_entries array is expected to be 256 elements long"
         );
+
+        self.append_fixed_base_signed_digits(jubjub, generator, &wnaf_entries)
+    }
+
+    /// Constrain a fixed-base multiplication for a supplied signed-digit
+    /// witness assignment.
+    ///
+    /// This is separated from honest wNAF generation so the soundness tests
+    /// can inject adversarial assignments into the exact production layout.
+    /// The constraints, not the provenance of `signed_digits`, must reject
+    /// noncanonical and field-wrapping representations.
+    fn append_fixed_base_signed_digits(
+        &mut self,
+        jubjub: Witness,
+        generator: JubJubExtended,
+        signed_digits: &[i8; FIXED_BASE_SIGNED_DIGIT_ROUNDS],
+    ) -> Result<WitnessPoint, Error> {
+        self.assert_canonical_jubjub_scalar(jubjub);
+
+        // Compute [2^i]generator and reverse the table to match the
+        // most-significant-first Horner recurrence of the scalar accumulator.
+        let mut wnaf_point_multiples: Vec<_> = {
+            let mut multiples =
+                vec![JubJubExtended::default(); FIXED_BASE_SIGNED_DIGIT_ROUNDS];
+
+            multiples[0] = generator;
+
+            for i in 1..FIXED_BASE_SIGNED_DIGIT_ROUNDS {
+                multiples[i] = multiples[i - 1].double();
+            }
+
+            dusk_jubjub::batch_normalize(&mut multiples).collect()
+        };
+
+        wnaf_point_multiples.reverse();
 
         // initialize the accumulators
         let mut scalar_acc = vec![BlsScalar::zero()];
         let mut point_acc = vec![JubJubAffine::identity()];
 
-        // auxillary point to help with checks on the backend
+        // Auxiliary point to help with checks on the backend.
         let two = BlsScalar::from(2u64);
-        let xy_alphas: Vec<_> = wnaf_entries
+        let xy_alphas: Vec<_> = signed_digits
             .iter()
             .rev()
             .enumerate()
@@ -602,10 +660,16 @@ impl Composer {
             })
             .collect::<Result<_, Error>>()?;
 
-        for i in 0..bits {
+        let mut leading_accumulator = Self::ZERO;
+
+        for i in 0..FIXED_BASE_SIGNED_DIGIT_ROUNDS {
             let acc_x = self.append_witness(point_acc[i].get_u());
             let acc_y = self.append_witness(point_acc[i].get_v());
             let accumulated_bit = self.append_witness(scalar_acc[i]);
+
+            if i == FIXED_BASE_LEADING_ZERO_ROUNDS {
+                leading_accumulator = accumulated_bit;
+            }
 
             // the point accumulator must start from identity and its scalar
             // from zero
@@ -650,13 +714,16 @@ impl Composer {
 
         // This row is a shifted-wire anchor for the last fixed-base step.
         // The previous q_fixed_group_add row constrains these as a_w/b_w/d_w.
-        let acc_x = self.append_witness(point_acc[bits].get_u());
-        let acc_y = self.append_witness(point_acc[bits].get_v());
+        let acc_x = self
+            .append_witness(point_acc[FIXED_BASE_SIGNED_DIGIT_ROUNDS].get_u());
+        let acc_y = self
+            .append_witness(point_acc[FIXED_BASE_SIGNED_DIGIT_ROUNDS].get_v());
 
         // This is the final scalar recurrence state
         // It is constrained by the previous fixed-base row as d_w and by
         // assert_equal below
-        let last_accumulated_bit = self.append_witness(scalar_acc[bits]);
+        let last_accumulated_bit =
+            self.append_witness(scalar_acc[FIXED_BASE_SIGNED_DIGIT_ROUNDS]);
 
         // Keep this anchor row since removing it would break the shifted-wire
         // chain.
@@ -664,11 +731,42 @@ impl Composer {
             Constraint::new().a(acc_x).b(acc_y).d(last_accumulated_bit);
         self.append_gate(constraint);
 
+        // The first three signed digits (bits 255, 254, and 253) must all be
+        // zero. Starting from zero, their weighted sum lies in [-7, 7], so it
+        // cannot wrap the BLS field; the only {-1, 0, 1} assignment with
+        // accumulator zero after these rounds is (0, 0, 0). This leaves 253
+        // effective digits, enough for the width-2 NAF carry of a 252-bit
+        // Jubjub scalar but too few to encode ±q.
+        self.assert_equal_constant(
+            leading_accumulator,
+            BlsScalar::zero(),
+            None,
+        );
+
         // constrain the last element in the accumulator to be equal to the
         // input jubjub scalar
         self.assert_equal(last_accumulated_bit, jubjub);
 
         Ok(WitnessPoint::new(acc_x, acc_y))
+    }
+
+    /// Constrain `scalar` to the canonical Jubjub scalar interval `[0, r)`.
+    ///
+    /// The first range check establishes `scalar < 2^252`. The second checks
+    /// `(r - 1) - scalar < 2^252`; if `scalar >= r`, that subtraction
+    /// underflows modulo the much larger BLS scalar-field modulus and cannot
+    /// satisfy the range check.
+    fn assert_canonical_jubjub_scalar(&mut self, scalar: Witness) {
+        self.range_check(scalar, JUBJUB_SCALAR_BITS);
+
+        let max_jubjub_scalar = BlsScalar::from(-JubJubScalar::one());
+        let distance_from_max = self.gate_add(
+            Constraint::new()
+                .left(-BlsScalar::one())
+                .a(scalar)
+                .constant(max_jubjub_scalar),
+        );
+        self.range_check(distance_from_max, JUBJUB_SCALAR_BITS);
     }
 
     /// Append a new width-4 gate/constraint.
