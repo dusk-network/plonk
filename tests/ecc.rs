@@ -358,13 +358,44 @@ fn component_mul_generator() {
     let circuit = TestCircuit::new(scalar, generator, result);
     check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, msg);
 
-    // Test boundary:
-    // GENERATOR * (r - 1)
-    let msg = "Circuit with max scalar should pass";
+    // Test the canonical upper boundary. In the scalar field this is also
+    // `-1`; its width-2 NAF carries into digit 252, so it pins the highest
+    // signed digit the fixed-base gadget must retain.
+    let msg = "Circuit with scalar -1 (r - 1) should pass";
     let scalar = -JubJubScalar::one();
     let result = generator * &scalar;
     let circuit = TestCircuit::new(scalar, generator, result);
     check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, msg);
+
+    // Exercise signed-digit carries at the low end and around the highest
+    // ordinary bit of a canonical Jubjub scalar.
+    let two_to_251 = JubJubScalar::from_raw([0, 0, 0, 1 << 59]);
+    let carry_boundaries = [
+        ("low carry at 3", JubJubScalar::from(3u64)),
+        (
+            "carry into bit 251",
+            JubJubScalar::from_raw([
+                u64::MAX,
+                u64::MAX,
+                u64::MAX,
+                (1 << 59) - 1,
+            ]),
+        ),
+        ("exact bit 251", two_to_251),
+        ("bit 251 plus one", two_to_251 + JubJubScalar::one()),
+    ];
+    for (case, scalar) in carry_boundaries {
+        let result = generator * &scalar;
+        let circuit = TestCircuit::new(scalar, generator, result);
+        check_satisfied_circuit(
+            &prover,
+            &verifier,
+            &pi,
+            &circuit,
+            &mut rng,
+            &format!("Circuit with {case} should pass"),
+        );
+    }
 
     // Verify multiple scalars, then perturb result by +G
     // and ensure proving fails for the same scalar.
