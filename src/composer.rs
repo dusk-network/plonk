@@ -46,7 +46,9 @@ mod truncate_soundness_tests;
 pub(crate) mod permutation;
 
 pub use circuit::Circuit;
-pub use constraint_system::{Constraint, Witness, WitnessPoint};
+pub use constraint_system::{
+    Constraint, TorsionFreeWitnessPoint, Witness, WitnessPoint,
+};
 pub(crate) use constraint_system::{Selector, WireData, WiredWitness};
 pub use gate::Gate;
 pub(crate) use permutation::Permutation;
@@ -150,8 +152,14 @@ const _: () = assert!(
 // pub trait Composer: Sized + Index<Witness, Output = BlsScalar> {
 /// Circuit builder tool
 impl Composer {
-    /// Identity point representation inside the constraint system
-    pub const IDENTITY: WitnessPoint = WitnessPoint::new(Self::ZERO, Self::ONE);
+    /// Identity point representation inside the constraint system. The
+    /// identity is the prime-order subgroup's neutral element, so it carries
+    /// the [`TorsionFreeWitnessPoint`] membership by construction.
+    pub const IDENTITY: TorsionFreeWitnessPoint =
+        TorsionFreeWitnessPoint::new_unchecked(WitnessPoint::new(
+            Self::ZERO,
+            Self::ONE,
+        ));
     /// `One` representation inside the constraint system.
     ///
     /// A turbo composer expects the 2nd witness to be always present and to
@@ -618,6 +626,13 @@ impl Composer {
     /// generation if `jubjub` is not a canonical Jubjub scalar. Soundness does
     /// not rely on that host-side check: the same canonicality and signed-digit
     /// bounds are enforced by circuit constraints.
+    ///
+    /// The returned point is untyped: the `generator` base is caller-supplied
+    /// and not validated here, so this routine cannot vouch for subgroup
+    /// membership of its multiples. A caller passing a generator known to lie
+    /// in the prime-order subgroup can wrap the result with
+    /// [`TorsionFreeWitnessPoint::new_unchecked`]; see
+    /// [`TorsionFreeWitnessPoint`] for the boundary rule.
     pub fn component_mul_generator<P: Into<JubJubExtended>>(
         &mut self,
         jubjub: Witness,
@@ -941,22 +956,45 @@ impl Composer {
     }
 
     /// Constrain a point into the circuit description and return an allocated
-    /// [`WitnessPoint`] with its coordinates
+    /// [`TorsionFreeWitnessPoint`] with its coordinates.
+    ///
+    /// The constant is validated natively at circuit build: a point outside
+    /// the prime-order subgroup errors with
+    /// [`Error::JubJubPointNotTorsionFree`] instead of baking an invalid
+    /// group element into the circuit description. This is the constant-point
+    /// arm of the boundary rule documented on [`TorsionFreeWitnessPoint`].
     pub fn append_constant_point<P: Into<JubJubAffine>>(
         &mut self,
         affine: P,
-    ) -> WitnessPoint {
+    ) -> Result<TorsionFreeWitnessPoint, Error> {
         let affine = affine.into();
+
+        // `is_torsion_free` alone accepts some off-curve coordinate pairs
+        // (e.g. `(0, 0)`, which the order-multiplication ladder collapses
+        // onto the identity), so the curve equation is checked separately.
+        let is_member = affine.is_on_curve()
+            & JubJubExtended::from(affine).is_torsion_free();
+        if !bool::from(is_member) {
+            return Err(Error::JubJubPointNotTorsionFree);
+        }
 
         let x = self.append_constant(affine.get_u());
         let y = self.append_constant(affine.get_v());
 
-        WitnessPoint::new(x, y)
+        Ok(TorsionFreeWitnessPoint::new_unchecked(WitnessPoint::new(
+            x, y,
+        )))
     }
 
     /// Appends a point in affine form as [`WitnessPoint`]
     ///
     /// Creates two public inputs as `(x, y)`
+    ///
+    /// The returned point is untyped: whether a public point is a prime-order
+    /// subgroup element is established outside the circuit, as part of the
+    /// verifier's protocol. A caller whose protocol performs that check can
+    /// wrap the result with [`TorsionFreeWitnessPoint::new_unchecked`]; see
+    /// [`TorsionFreeWitnessPoint`] for the boundary rule.
     pub fn append_public_point<P: Into<JubJubAffine>>(
         &mut self,
         affine: P,
@@ -1077,11 +1115,11 @@ impl Composer {
     }
 
     /// Constrain `point` to lie in the prime-order subgroup of the embedded
-    /// curve by consuming 12 gates.
+    /// curve by consuming 12 gates, returning it as a
+    /// [`TorsionFreeWitnessPoint`].
     ///
-    /// This is the boundary check that discharges the point-validity caller
-    /// obligation stated on [`Self::component_add_point`] and
-    /// [`Self::component_mul_point`]: call it once, where an untrusted
+    /// This is the in-circuit arm of the boundary rule documented on
+    /// [`TorsionFreeWitnessPoint`]: call it once, where an untrusted
     /// (prover-supplied) point enters the circuit — group closure then keeps
     /// every derived point valid, so the arithmetic gates never re-check
     /// their inputs.
@@ -1101,7 +1139,10 @@ impl Composer {
     /// chain relies on the completeness of the twisted Edwards addition law
     /// (`a = -1` a square, `d` a non-square), which leaves no exceptional
     /// case with a free witness.
-    pub fn assert_torsion_free_point(&mut self, point: WitnessPoint) {
+    pub fn assert_torsion_free_point(
+        &mut self,
+        point: WitnessPoint,
+    ) -> TorsionFreeWitnessPoint {
         let u = self[*point.x()];
         let v = self[*point.y()];
 
@@ -1111,17 +1152,16 @@ impl Composer {
         // constraints instead. The branch is on witness data, but it is
         // constant for every honest prover (the point is always on-curve);
         // a dishonest assignment only changes which constraint rejects.
-        let u2 = u.square();
-        let v2 = v.square();
-        let on_curve = v2 - u2 == BlsScalar::one() + EDWARDS_D * u2 * v2;
-        let q = if on_curve {
-            let point = JubJubAffine::from_raw_unchecked(u, v);
-            (JubJubExtended::from(point) * EIGHT_INV).into()
+        let point_value = JubJubAffine::from_raw_unchecked(u, v);
+        let q = if bool::from(point_value.is_on_curve()) {
+            (JubJubExtended::from(point_value) * EIGHT_INV).into()
         } else {
             JubJubAffine::identity()
         };
 
         self.assert_torsion_free_gates(point, q);
+
+        TorsionFreeWitnessPoint::new_unchecked(point)
     }
 
     /// The constraints behind [`Self::assert_torsion_free_point`], taking the
@@ -1152,33 +1192,42 @@ impl Composer {
         );
 
         // Constrain point == [8]·Q
-        let q2 = self.component_add_point(q, q);
-        let q4 = self.component_add_point(q2, q2);
-        let q8 = self.component_add_point(q4, q4);
+        let q2 = self.add_point_gates(q, q);
+        let q4 = self.add_point_gates(q2, q2);
+        let q8 = self.add_point_gates(q4, q4);
         self.assert_equal_point(point, q8);
     }
 
     /// Negates a curve point by consuming 1 gate.
-    pub fn component_neg_point(&mut self, p: WitnessPoint) -> WitnessPoint {
+    ///
+    /// Negation preserves subgroup membership, so the
+    /// [`TorsionFreeWitnessPoint`] type carries through.
+    pub fn component_neg_point(
+        &mut self,
+        p: TorsionFreeWitnessPoint,
+    ) -> TorsionFreeWitnessPoint {
         // We negate the 'x' coordinate of the point 'p', so that
         // neg_point = (-p.x, p.y)
         let constraint = Constraint::new().left(-BlsScalar::one()).a(*p.x());
         let neg_p_x = self.gate_mul(constraint);
 
-        WitnessPoint::new(neg_p_x, *p.y())
+        TorsionFreeWitnessPoint::new_unchecked(WitnessPoint::new(
+            neg_p_x,
+            *p.y(),
+        ))
     }
 
     /// Subtracts a curve point from another by consuming 3 gates.
     ///
-    /// As with [`Self::component_add_point`], point validity (on-curve and,
-    /// where it matters, prime-order subgroup membership) is a **caller
-    /// obligation** discharged at the point's entry boundary — this gate
-    /// assumes valid group elements and does not re-check them.
+    /// Subgroup membership of the inputs is carried by the
+    /// [`TorsionFreeWitnessPoint`] type — see its documentation for the
+    /// boundary rule on how membership is established. Group closure keeps
+    /// the difference in the subgroup, hence the typed return.
     pub fn component_sub_point(
         &mut self,
-        a: WitnessPoint,
-        b: WitnessPoint,
-    ) -> WitnessPoint {
+        a: TorsionFreeWitnessPoint,
+        b: TorsionFreeWitnessPoint,
+    ) -> TorsionFreeWitnessPoint {
         // We negate the point 'b'
         let neg_b = self.component_neg_point(b);
 
@@ -1188,21 +1237,27 @@ impl Composer {
 
     /// Adds two curve points by consuming 2 gates.
     ///
-    /// # Point validity is a caller obligation
-    ///
-    /// This gate constrains only the twisted-Edwards addition identity; it does
-    /// **not** check that `a`/`b` lie on the curve or in the prime-order
-    /// subgroup. Point arithmetic is closed over the group, so validity is
-    /// intended to be enforced **once, at the boundary where a point enters the
-    /// circuit** — not re-checked at every operation. Callers must ensure each
-    /// [`WitnessPoint`] reaching this gate is a valid group element: an output
-    /// of [`Self::component_mul_generator`], a point bound to a
-    /// decoded/committed source, or one explicitly constrained on entry. An
-    /// off-curve or low-order input yields a well-formed proof over the wrong
-    /// group element — a soundness break in the *consumer circuit*, not here.
-    /// [`Self::assert_torsion_free_point`] is the boundary check that
-    /// discharges this obligation for an untrusted point.
+    /// The gate constrains only the twisted-Edwards addition identity; it
+    /// does **not** re-check that `a`/`b` lie on the curve or in the
+    /// prime-order subgroup. Subgroup membership of the inputs is instead
+    /// carried by the [`TorsionFreeWitnessPoint`] type — see its
+    /// documentation for the boundary rule on how membership is established.
+    /// Group closure keeps the sum in the subgroup, hence the typed return.
     pub fn component_add_point(
+        &mut self,
+        a: TorsionFreeWitnessPoint,
+        b: TorsionFreeWitnessPoint,
+    ) -> TorsionFreeWitnessPoint {
+        let sum = self.add_point_gates(a.into(), b.into());
+
+        TorsionFreeWitnessPoint::new_unchecked(sum)
+    }
+
+    /// The gates behind [`Self::component_add_point`], operating on untyped
+    /// points. Kept separate so in-crate gadgets (the torsion-free check and
+    /// its soundness tests) can emit the addition gates for points whose
+    /// membership is not yet established.
+    fn add_point_gates(
         &mut self,
         a: WitnessPoint,
         b: WitnessPoint,
@@ -1308,58 +1363,54 @@ impl Composer {
         decomposition
     }
 
-    /// Conditionally selects identity as [`WitnessPoint`] based on an input
-    /// bit.
+    /// Conditionally selects identity as [`TorsionFreeWitnessPoint`] based on
+    /// an input bit.
     ///
     /// bit == 1 => a,
     /// bit == 0 => identity,
     ///
     /// `bit` is expected to be constrained by
     /// [`Composer::component_boolean`]
+    ///
+    /// Both outcomes are subgroup members, so the
+    /// [`TorsionFreeWitnessPoint`] type carries through.
     pub fn component_select_identity(
         &mut self,
         bit: Witness,
-        a: WitnessPoint,
-    ) -> WitnessPoint {
+        a: TorsionFreeWitnessPoint,
+    ) -> TorsionFreeWitnessPoint {
         let x = self.component_select_zero(bit, *a.x());
         let y = self.component_select_one(bit, *a.y());
 
-        WitnessPoint::new(x, y)
+        TorsionFreeWitnessPoint::new_unchecked(WitnessPoint::new(x, y))
     }
 
-    /// Evaluate `jubjub · point` as a [`WitnessPoint`]
+    /// Evaluate `jubjub · point` as a [`TorsionFreeWitnessPoint`]
     ///
-    /// # Point validity is a caller obligation
-    ///
-    /// The `point` base is used as-is; this routine does **not** check that it
-    /// lies on the curve or in the prime-order subgroup. As for
-    /// [`Self::component_add_point`], validity is expected to be enforced once,
-    /// at the boundary where `point` enters the circuit — a prover-supplied
-    /// base with no such boundary (e.g. one that is not an output of
-    /// [`Self::component_mul_generator`] and not bound to a decoded/committed
-    /// source) must be constrained on entry. A low-order or off-curve base
-    /// otherwise lets the scalar multiplication operate over the wrong group
-    /// element — a soundness break in the *consumer circuit*, not here.
-    /// [`Self::assert_torsion_free_point`] is the boundary check that
-    /// discharges this obligation for an untrusted point.
+    /// The scalar multiplication does **not** re-check that the `point` base
+    /// lies on the curve or in the prime-order subgroup. Subgroup membership
+    /// of the base is instead carried by the [`TorsionFreeWitnessPoint`] type
+    /// — see its documentation for the boundary rule on how membership is
+    /// established. Group closure keeps every multiple in the subgroup, hence
+    /// the typed return.
     pub fn component_mul_point(
         &mut self,
         jubjub: Witness,
-        point: WitnessPoint,
-    ) -> WitnessPoint {
+        point: TorsionFreeWitnessPoint,
+    ) -> TorsionFreeWitnessPoint {
         // Turn scalar into bits
         let scalar_bits = self.component_decomposition::<252>(jubjub);
 
-        let mut result = Self::IDENTITY;
+        let mut result = WitnessPoint::from(Self::IDENTITY);
 
         for bit in scalar_bits.iter().rev() {
-            result = self.component_add_point(result, result);
+            result = self.add_point_gates(result, result);
 
             let point_to_add = self.component_select_identity(*bit, point);
-            result = self.component_add_point(result, point_to_add);
+            result = self.add_point_gates(result, point_to_add.into());
         }
 
-        result
+        TorsionFreeWitnessPoint::new_unchecked(result)
     }
 
     /// Conditionally selects a [`Witness`] based on an input bit.
@@ -1436,6 +1487,12 @@ impl Composer {
     ///
     /// `bit` is expected to be constrained by
     /// [`Composer::component_boolean`]
+    ///
+    /// This mux deliberately stays untyped: it is not a group operation, and
+    /// selecting between unvalidated points is legitimate. Consequently the
+    /// output is only as validated as the chosen input — where the boundary
+    /// rule on [`TorsionFreeWitnessPoint`] requires membership, establish it
+    /// on the selected point.
     pub fn component_select_point(
         &mut self,
         bit: Witness,

@@ -194,7 +194,9 @@ impl Circuit for TorsionFreeCircuit {
     fn circuit(&self, composer: &mut Composer) -> Result<(), Error> {
         let point = composer.append_point(self.point);
         match &self.mode {
-            Mode::Honest => composer.assert_torsion_free_point(point),
+            Mode::Honest => {
+                composer.assert_torsion_free_point(point);
+            }
             Mode::InjectQ(q) => composer.assert_torsion_free_gates(point, *q),
             Mode::ForgeOnCurveRow { q, u2, v2, u2v2 } => {
                 // Mirror `assert_torsion_free_gates` gate for gate, with the
@@ -216,9 +218,9 @@ impl Circuit for TorsionFreeCircuit {
                         .c(u2v2)
                         .constant(-BlsScalar::one()),
                 );
-                let q2 = composer.component_add_point(q, q);
-                let q4 = composer.component_add_point(q2, q2);
-                let q8 = composer.component_add_point(q4, q4);
+                let q2 = composer.add_point_gates(q, q);
+                let q4 = composer.add_point_gates(q2, q2);
+                let q8 = composer.add_point_gates(q4, q4);
                 composer.assert_equal_point(point, q8);
             }
             Mode::ForgeFirstDoubling { q, s } => {
@@ -228,8 +230,8 @@ impl Circuit for TorsionFreeCircuit {
                 let q = composer.append_point(*q);
                 honest_on_curve_row(composer, q);
                 let q2 = forged_double(composer, q, *s);
-                let q4 = composer.component_add_point(q2, q2);
-                let q8 = composer.component_add_point(q4, q4);
+                let q4 = composer.add_point_gates(q2, q2);
+                let q8 = composer.add_point_gates(q4, q4);
                 composer.assert_equal_point(point, q8);
             }
         }
@@ -295,6 +297,33 @@ fn torsion_free_layout_matches_golden() {
         "assert_torsion_free_point gate layout drifted — verifier keys of \
          every consumer circuit change",
     );
+}
+
+// Constant points are validated natively at circuit build: members (the
+// identity included) are appended, torsion components are refused before
+// they can enter the circuit description.
+#[test]
+fn constant_points_validated_natively() {
+    let mut composer = Composer::initialized();
+
+    assert!(composer.append_constant_point(prime_order_point()).is_ok());
+    assert!(
+        composer
+            .append_constant_point(JubJubAffine::identity())
+            .is_ok()
+    );
+
+    for point in [
+        torsion_order_2(),
+        torsion_order_4(),
+        torsion_order_8(),
+        off_curve_zero(),
+    ] {
+        assert_eq!(
+            composer.append_constant_point(point).unwrap_err(),
+            Error::JubJubPointNotTorsionFree,
+        );
+    }
 }
 
 #[test]

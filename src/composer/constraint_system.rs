@@ -15,6 +15,6 @@ pub(crate) mod witness;
 
 pub use constraint::Constraint;
 pub(crate) use constraint::{Selector, WiredWitness};
-pub use ecc::WitnessPoint;
+pub use ecc::{TorsionFreeWitnessPoint, WitnessPoint};
 pub(crate) use witness::WireData;
 pub use witness::Witness;

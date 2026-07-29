@@ -18,5 +18,8 @@ pub use crate::proof_system::Proof;
 pub use crate::{
     commitment_scheme::PublicParameters,
     compiler::{Compiler, PlonkVersion, Prover, Verifier},
-    composer::{Circuit, Composer, Constraint, Witness, WitnessPoint},
+    composer::{
+        Circuit, Composer, Constraint, TorsionFreeWitnessPoint, Witness,
+        WitnessPoint,
+    },
 };

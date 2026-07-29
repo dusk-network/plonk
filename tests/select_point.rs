@@ -246,10 +246,14 @@ fn component_select_identity() {
             let w_point = composer.append_point(self.point);
             let w_result = composer.append_point(self.result);
 
+            // The test inputs are multiples of the prime-order generator or
+            // the identity, so subgroup membership holds by construction.
+            let w_point = TorsionFreeWitnessPoint::new_unchecked(w_point);
+
             let result_circuit =
                 composer.component_select_identity(w_bit, w_point);
 
-            composer.assert_equal_point(w_result, result_circuit);
+            composer.assert_equal_point(w_result, result_circuit.into());
 
             Ok(())
         }

@@ -9,13 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `Composer::assert_torsion_free_point` boundary check constraining a witness point into the prime-order subgroup [#870]
+- Add `Composer::assert_torsion_free_point` boundary check constraining a witness point into the prime-order subgroup, returning it as `TorsionFreeWitnessPoint` [#870]
+- Add `TorsionFreeWitnessPoint` encoding prime-order subgroup membership in the type system [#870]
+- Add `Error::JubJubPointNotTorsionFree` for constant points outside the prime-order subgroup [#870]
 - Add `Composer::component_truncate<N>` to extract the low `N` bits of a witness [#867]
 - Add `Composer::component_range_bits<BITS>` range check counting bits directly [#867]
 - Add the public `Error::JubJubGeneratorNotPrimeOrder` variant [#832]
 
 ### Changed
 
+- Change `component_add_point`, `component_sub_point` and `component_mul_point` to take and return `TorsionFreeWitnessPoint` [#870]
+- Change `component_neg_point` and `component_select_identity` to take and return `TorsionFreeWitnessPoint` [#870]
+- Change `Composer::IDENTITY` to a `TorsionFreeWitnessPoint` [#870]
+- Change `append_constant_point` to validate the constant natively and return `Result<TorsionFreeWitnessPoint, Error>` [#870]
 - Cap logic gadget width at 254 bits; `BIT_PAIRS > 127` is now a compile-time error [#867]
 - Change the verifier key of circuits using the logic gadget [#867]
 - Increase the gate count of `append_logic_and`/`append_logic_xor` to bind their inputs [#867]
