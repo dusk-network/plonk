@@ -103,6 +103,37 @@ const FIXED_BASE_SIGNED_DIGIT_ROUNDS: usize = 256;
 const FIXED_BASE_LEADING_ZERO_ROUNDS: usize =
     FIXED_BASE_SIGNED_DIGIT_ROUNDS - (JUBJUB_SCALAR_BITS + 1);
 
+/// Widest effective signed-digit width at which the fixed-base accumulator
+/// endpoint cannot encode a modulus wrap: `2^254 - 1 < q - (r - 1)`, verified
+/// against the actual moduli by the width-bound test in
+/// `fixed_base_soundness_tests`. Specific to the `(q, r)` pair — unrelated to
+/// the 254-bit caps of the logic and truncation gadgets, which derive from
+/// `q < 2^255` alone.
+const FIXED_BASE_MAX_SOUND_WIDTH: usize = 254;
+
+// The leading rounds forced to zero cap the effective signed-digit width of
+// `component_mul_generator`. At the width above or below, the accumulator
+// endpoint cannot reach the claimed Jubjub scalar plus or minus the BLS
+// scalar modulus, so the closing check is an integer equality rather than an
+// equality modulo the BLS scalar field, ruling out modulus-wrap forgeries.
+// One bit more and the forgery would compile clean, so an incompatible width
+// change must fail the build.
+const _: () = assert!(
+    FIXED_BASE_SIGNED_DIGIT_ROUNDS - FIXED_BASE_LEADING_ZERO_ROUNDS
+        <= FIXED_BASE_MAX_SOUND_WIDTH,
+    "the fixed-base signed-digit width must stay too narrow to encode a modulus wrap"
+);
+
+// The zero-pin on `leading_accumulator` forces the top digits to zero as
+// integers only while the leading block itself cannot wrap: `2^L - 1 < q`.
+// `L <= FIXED_BASE_MAX_SOUND_WIDTH` suffices, since the width-bound test
+// proves `2^254 - 1 < q - (r - 1) < q`. The cap is sufficient, not tight —
+// the leading count sits far below it.
+const _: () = assert!(
+    FIXED_BASE_LEADING_ZERO_ROUNDS <= FIXED_BASE_MAX_SOUND_WIDTH,
+    "the fixed-base leading-zero block must stay too narrow to wrap the BLS modulus"
+);
+
 // pub trait Composer: Sized + Index<Witness, Output = BlsScalar> {
 /// Circuit builder tool
 impl Composer {
