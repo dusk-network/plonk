@@ -79,6 +79,9 @@ pub enum Error {
     /// This error occurs when a malformed JubJub scalar is decoded from a byte
     /// array.
     JubJubScalarMalformed,
+    /// This error occurs when a fixed-base generator is not a prime-order
+    /// Jubjub point.
+    JubJubGeneratorNotPrimeOrder,
     /// WNAF2k should be in `[-1, 0, 1]`
     UnsupportedWNAF2k,
     /// The provided public inputs doesn't match the circuit definition
@@ -162,6 +165,9 @@ impl std::fmt::Display for Error {
             Self::JubJubScalarMalformed => {
                 write!(f, "JubJub scalar bytes malformed")
             }
+            Self::JubJubGeneratorNotPrimeOrder => {
+                write!(f, "JubJub generator is not a prime-order point")
+            }
             Self::BytesError(err) => write!(f, "{:?}", err),
             Self::UnsupportedWNAF2k => write!(
                 f,
@@ -215,7 +221,7 @@ mod tests {
         assert!(matches!(bytes_error, Error::BytesError(_)));
 
         // Format each variant at least once so the `Display` impl gets covered.
-        let all_errors: [Error; 22] = [
+        let all_errors: [Error; 23] = [
             Error::InvalidEvalDomainSize {
                 log_size_of_group: 32,
                 adacity: 28,
@@ -237,6 +243,7 @@ mod tests {
             Error::PointMalformed,
             Error::BlsScalarMalformed,
             Error::JubJubScalarMalformed,
+            Error::JubJubGeneratorNotPrimeOrder,
             Error::UnsupportedWNAF2k,
             Error::InvalidCompressedCircuit,
             Error::LegacyProvingDisabled,

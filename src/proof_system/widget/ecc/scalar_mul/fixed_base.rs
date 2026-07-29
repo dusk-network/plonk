@@ -17,10 +17,11 @@ pub(crate) use verifierkey::VerifierKey;
 // for two reasons:
 // - We constrain the accumulator to start from the identity point, which the
 //   verifier knows is on the curve
-// - We are adding multiples of the generator to the accumulator which the
-//   verifier also knows is on the curve and is prime order
-// - We do allow arbitrary BlsScalar multiplication, and possibly XXX: may add
-//   constraints to ensure the generator is correct (prime order)
+// - We are adding multiples of the generator to the accumulator.
+//   `Composer::component_mul_generator` rejects generators that are not
+//   on-curve points of exact prime order before emitting these gates.
+// - We do allow arbitrary BlsScalar multiplication; the composer separately
+//   constrains it to the canonical Jubjub scalar interval.
 
 // Bits are accumulated in base2. So we use d(Xw) - 2d(X) to extract the base2
 // bit

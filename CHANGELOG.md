@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add `Composer::component_truncate<N>` to extract the low `N` bits of a witness [#867]
 - Add `Composer::component_range_bits<BITS>` range check counting bits directly [#867]
+- Add the public `Error::JubJubGeneratorNotPrimeOrder` variant [#867]
 
 ### Changed
 
@@ -22,6 +23,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   for direct callers, which must regenerate circuit-specific proving and
   verifier keys and cached compressed circuit descriptions. The `gate_add` and
   `gate_mul` wrapper layouts remain one row and are unchanged.
+- Make `Composer::component_mul_generator` reject generators that are not
+  on-curve points of exact prime order. Callers using custom generators should
+  re-audit them; rejected generators now return
+  `Error::JubJubGeneratorNotPrimeOrder` [#867]
 - Constrain `Composer::component_mul_generator` inputs to canonical Jubjub
   scalars and its signed-digit recurrence to 253 effective digits. This changes
   the circuit shape: applications using the component must regenerate their

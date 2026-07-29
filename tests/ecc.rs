@@ -433,6 +433,17 @@ fn component_mul_generator() {
 }
 
 #[test]
+fn component_mul_generator_rejects_non_prime_order_generator() {
+    let mut composer = Composer::initialized();
+    let scalar = composer.append_witness(JubJubScalar::one());
+
+    let result =
+        composer.component_mul_generator(scalar, JubJubExtended::identity());
+
+    assert!(matches!(result, Err(Error::JubJubGeneratorNotPrimeOrder)));
+}
+
+#[test]
 fn component_mul_point() {
     pub struct TestCircuit {
         scalar: JubJubScalar,

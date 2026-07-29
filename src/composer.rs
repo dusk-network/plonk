@@ -565,6 +565,11 @@ impl Composer {
     ///
     /// # Errors
     ///
+    /// Returns [`Error::JubJubGeneratorNotPrimeOrder`] if `generator` is not
+    /// an on-curve point of exact prime order. In particular, the identity,
+    /// small-order points, and points with a nontrivial torsion component are
+    /// rejected.
+    ///
     /// Returns [`Error::JubJubScalarMalformed`] during honest witness
     /// generation if `jubjub` is not a canonical Jubjub scalar. Soundness does
     /// not rely on that host-side check: the same canonicality and signed-digit
@@ -575,6 +580,10 @@ impl Composer {
         generator: P,
     ) -> Result<WitnessPoint, Error> {
         let generator = generator.into();
+
+        if !bool::from(generator.is_on_curve() & generator.is_prime_order()) {
+            return Err(Error::JubJubGeneratorNotPrimeOrder);
+        }
 
         // Reject malformed values during honest witness generation instead of
         // panicking or producing an invalid proof. This is only an API guard;
