@@ -637,6 +637,7 @@ impl Prover {
 #[cfg(test)]
 mod tests {
     use dusk_bls12_381::BlsScalar;
+    use dusk_bytes::{DeserializableSlice, Serializable};
     use rand::SeedableRng;
     use rand::rngs::StdRng;
 
@@ -655,6 +656,15 @@ mod tests {
         }
     }
 
+    fn assert_deserialization_error_without_panic(bytes: &[u8]) {
+        let result = std::panic::catch_unwind(|| Prover::try_from_bytes(bytes));
+        assert!(result.is_ok(), "deserializer should never panic");
+        assert!(
+            result.expect("checked above").is_err(),
+            "malformed input must be rejected"
+        );
+    }
+
     #[test]
     fn prover_try_from_bytes_rejects_malformed_commit_key_without_panicking() {
         let mut rng = StdRng::seed_from_u64(42);
@@ -666,13 +676,57 @@ mod tests {
         let mut bytes = prover.to_bytes();
         bytes[16..24].copy_from_slice(&(0u64).to_be_bytes()); // commit-key length
 
-        let result =
-            std::panic::catch_unwind(|| Prover::try_from_bytes(&bytes));
-        assert!(result.is_ok(), "deserializer should never panic");
-        assert!(
-            result.expect("checked above").is_err(),
-            "malformed input must be rejected"
-        );
+        assert_deserialization_error_without_panic(&bytes);
+    }
+
+    #[test]
+    fn prover_try_from_bytes_rejects_malformed_inner_key_without_panicking() {
+        let mut rng = StdRng::seed_from_u64(43);
+        let pp = PublicParameters::setup(1 << 10, &mut rng)
+            .expect("public parameters should build");
+        let (prover, _) = Compiler::compile::<MinimalCircuit>(&pp, b"p1.4-3")
+            .expect("circuit should compile");
+        let bytes = prover.to_bytes();
+
+        let label_len = u64::from_be_bytes(
+            bytes[..u64::SIZE].try_into().expect("header is complete"),
+        ) as usize;
+        let prover_key_offset = 6 * u64::SIZE + label_len;
+        let evaluations_size_offset = prover_key_offset + u64::SIZE;
+        let first_polynomial_len_offset = prover_key_offset + 2 * u64::SIZE;
+
+        let mut oversized_evaluations = bytes.clone();
+        oversized_evaluations
+            [evaluations_size_offset..evaluations_size_offset + u64::SIZE]
+            .copy_from_slice(&u64::MAX.to_bytes());
+        assert_deserialization_error_without_panic(&oversized_evaluations);
+
+        let mut undersized_evaluations = bytes.clone();
+        undersized_evaluations
+            [evaluations_size_offset..evaluations_size_offset + u64::SIZE]
+            .copy_from_slice(&0u64.to_bytes());
+        assert_deserialization_error_without_panic(&undersized_evaluations);
+
+        let mut oversized_polynomial = bytes.clone();
+        oversized_polynomial[first_polynomial_len_offset
+            ..first_polynomial_len_offset + u64::SIZE]
+            .copy_from_slice(&u64::MAX.to_bytes());
+        assert_deserialization_error_without_panic(&oversized_polynomial);
+
+        let polynomial_len = u64::from_slice(
+            &bytes[first_polynomial_len_offset
+                ..first_polynomial_len_offset + u64::SIZE],
+        )
+        .expect("serialized polynomial length should decode")
+            as usize;
+        let first_evaluations_offset = first_polynomial_len_offset
+            + u64::SIZE
+            + polynomial_len * BlsScalar::SIZE;
+        let mut malformed_domain = bytes;
+        malformed_domain[first_evaluations_offset + u64::SIZE
+            ..first_evaluations_offset + u64::SIZE + u32::SIZE]
+            .copy_from_slice(&0u32.to_bytes());
+        assert_deserialization_error_without_panic(&malformed_domain);
     }
 
     #[test]

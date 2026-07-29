@@ -439,32 +439,54 @@ pub(crate) mod alloc {
         /// Deserializes a slice of bytes into a [`ProverKey`].
         pub fn from_slice(bytes: &[u8]) -> Result<ProverKey, Error> {
             let mut buffer = bytes;
-            let n = u64::from_reader(&mut buffer)? as usize;
-            let evaluations_size = u64::from_reader(&mut buffer)? as usize;
+            let n = usize::try_from(u64::from_reader(&mut buffer)?)
+                .map_err(|_| dusk_bytes::Error::InvalidData)?;
+            let evaluations_size =
+                usize::try_from(u64::from_reader(&mut buffer)?)
+                    .map_err(|_| dusk_bytes::Error::InvalidData)?;
+            let evaluations_domain_size =
+                n.checked_mul(8).ok_or(dusk_bytes::Error::InvalidData)?;
+            if evaluations_domain_size.checked_next_power_of_two()
+                != Some(evaluations_domain_size)
+            {
+                return Err(dusk_bytes::Error::InvalidData.into());
+            }
+            let evaluations_domain =
+                EvaluationDomain::new(evaluations_domain_size)?;
 
             let poly_from_reader =
                 |buf: &mut &[u8]| -> Result<Polynomial, Error> {
                     let serialized_poly_len =
-                        u64::from_reader(buf)? as usize * BlsScalar::SIZE;
+                        usize::try_from(u64::from_reader(buf)?)
+                            .ok()
+                            .and_then(|len| len.checked_mul(BlsScalar::SIZE))
+                            .ok_or(Error::NotEnoughBytes)?;
                     // If the announced len is zero, simply return an empty poly
                     // and leave the buffer intact.
                     if serialized_poly_len == 0 {
                         return Ok(Polynomial::zero());
                     }
-                    let (a, b) = buf.split_at(serialized_poly_len);
-                    let poly = Polynomial::from_slice(a);
+                    let (a, b) = buf
+                        .split_at_checked(serialized_poly_len)
+                        .ok_or(Error::NotEnoughBytes)?;
+                    let poly = Polynomial::from_slice(a)?;
                     *buf = b;
 
-                    poly
+                    Ok(poly)
                 };
 
             let evals_from_reader =
                 |buf: &mut &[u8]| -> Result<Evaluations, Error> {
-                    let (a, b) = buf.split_at(evaluations_size);
-                    let eval = Evaluations::from_slice(a);
+                    let (a, b) = buf
+                        .split_at_checked(evaluations_size)
+                        .ok_or(Error::NotEnoughBytes)?;
+                    let eval = Evaluations::from_slice(a)?;
+                    if eval.domain() != evaluations_domain {
+                        return Err(dusk_bytes::Error::InvalidData.into());
+                    }
                     *buf = b;
 
-                    eval
+                    Ok(eval)
                 };
 
             let q_m_poly = poly_from_reader(&mut buffer)?;
@@ -592,56 +614,51 @@ pub(crate) mod alloc {
 #[cfg(feature = "alloc")]
 #[cfg(test)]
 mod test {
-    use ff::Field;
+    use dusk_bls12_381::BlsScalar;
 
     use super::alloc::ProverKey;
     use super::*;
+    use crate::error::Error;
     use crate::fft::{EvaluationDomain, Evaluations, Polynomial};
-    #[rustfmt::skip]
-    use ::alloc::vec::Vec;
-    use dusk_bls12_381::BlsScalar;
-    use rand_core::OsRng;
 
-    fn rand_poly_eval(n: usize) -> (Polynomial, Evaluations) {
-        let polynomial = Polynomial::rand(n, &mut OsRng);
-        (polynomial, rand_evaluations(n))
+    fn poly_eval(
+        n: usize,
+        evaluations_domain: EvaluationDomain,
+    ) -> (Polynomial, Evaluations) {
+        let polynomial =
+            Polynomial::from_coefficients_vec(vec![BlsScalar::from(1u64); n]);
+        (polynomial, evaluations(evaluations_domain))
     }
 
-    fn rand_evaluations(n: usize) -> Evaluations {
-        let domain = EvaluationDomain::new(4 * n).unwrap();
-        let values: Vec<_> =
-            (0..4 * n).map(|_| BlsScalar::random(&mut OsRng)).collect();
-
+    fn evaluations(domain: EvaluationDomain) -> Evaluations {
+        let values = vec![BlsScalar::from(2u64); domain.size()];
         Evaluations::from_vec_and_domain(values, domain)
     }
 
-    #[test]
-    fn test_serialize_deserialize_prover_key() {
-        let n = 1 << 11;
+    fn prover_key(n: usize, evaluations_domain: EvaluationDomain) -> ProverKey {
+        let q_m = poly_eval(n, evaluations_domain);
+        let q_l = poly_eval(n, evaluations_domain);
+        let q_r = poly_eval(n, evaluations_domain);
+        let q_o = poly_eval(n, evaluations_domain);
+        let q_c = poly_eval(n, evaluations_domain);
+        let q_f = poly_eval(n, evaluations_domain);
+        let q_arith = poly_eval(n, evaluations_domain);
 
-        let q_m = rand_poly_eval(n);
-        let q_l = rand_poly_eval(n);
-        let q_r = rand_poly_eval(n);
-        let q_o = rand_poly_eval(n);
-        let q_c = rand_poly_eval(n);
-        let q_f = rand_poly_eval(n);
-        let q_arith = rand_poly_eval(n);
+        let q_logic = poly_eval(n, evaluations_domain);
 
-        let q_logic = rand_poly_eval(n);
+        let q_range = poly_eval(n, evaluations_domain);
 
-        let q_range = rand_poly_eval(n);
+        let q_fixed_group_add = poly_eval(n, evaluations_domain);
 
-        let q_fixed_group_add = rand_poly_eval(n);
+        let q_variable_group_add = poly_eval(n, evaluations_domain);
 
-        let q_variable_group_add = rand_poly_eval(n);
+        let s_sigma_1 = poly_eval(n, evaluations_domain);
+        let s_sigma_2 = poly_eval(n, evaluations_domain);
+        let s_sigma_3 = poly_eval(n, evaluations_domain);
+        let s_sigma_4 = poly_eval(n, evaluations_domain);
+        let linear_evaluations = evaluations(evaluations_domain);
 
-        let s_sigma_1 = rand_poly_eval(n);
-        let s_sigma_2 = rand_poly_eval(n);
-        let s_sigma_3 = rand_poly_eval(n);
-        let s_sigma_4 = rand_poly_eval(n);
-        let linear_evaluations = rand_evaluations(n);
-
-        let v_h_coset_8n = rand_evaluations(n);
+        let v_h_coset_8n = evaluations(evaluations_domain);
 
         let arithmetic = arithmetic::ProverKey {
             q_m,
@@ -679,7 +696,7 @@ mod test {
             q_variable_group_add,
         };
 
-        let prover_key = ProverKey {
+        ProverKey {
             n,
             arithmetic,
             logic,
@@ -688,13 +705,58 @@ mod test {
             variable_base,
             permutation,
             v_h_coset_8n,
-        };
+        }
+    }
+
+    #[test]
+    fn test_serialize_deserialize_prover_key() {
+        let n = 1 << 5;
+        let evaluations_domain =
+            EvaluationDomain::new(8 * n).expect("8n domain should be valid");
+        let prover_key = prover_key(n, evaluations_domain);
 
         let prover_key_bytes = prover_key.to_var_bytes();
         let pk = ProverKey::from_slice(&prover_key_bytes).unwrap();
 
         assert_eq!(pk, prover_key);
         assert_eq!(pk.to_var_bytes(), prover_key.to_var_bytes());
+    }
+
+    #[test]
+    fn prover_key_rejects_malformed_serialized_lengths() {
+        let n = 1 << 3;
+        let evaluations_domain =
+            EvaluationDomain::new(8 * n).expect("8n domain should be valid");
+        let bytes = prover_key(n, evaluations_domain).to_var_bytes();
+
+        let mut oversized_evaluations = bytes.clone();
+        oversized_evaluations[u64::SIZE..2 * u64::SIZE]
+            .copy_from_slice(&u64::MAX.to_bytes());
+        assert!(ProverKey::from_slice(&oversized_evaluations).is_err());
+
+        let mut oversized_polynomial = bytes.clone();
+        oversized_polynomial[2 * u64::SIZE..3 * u64::SIZE]
+            .copy_from_slice(&u64::MAX.to_bytes());
+        assert!(ProverKey::from_slice(&oversized_polynomial).is_err());
+
+        let truncated = &bytes[..bytes.len() - 1];
+        assert!(matches!(
+            ProverKey::from_slice(truncated),
+            Err(Error::NotEnoughBytes)
+        ));
+    }
+
+    #[test]
+    fn prover_key_rejects_non_8n_evaluation_domains() {
+        let n = 1 << 3;
+        let wrong_domain =
+            EvaluationDomain::new(4 * n).expect("4n domain should be valid");
+        let bytes = prover_key(n, wrong_domain).to_var_bytes();
+
+        assert!(matches!(
+            ProverKey::from_slice(&bytes),
+            Err(Error::BytesError(dusk_bytes::Error::InvalidData))
+        ));
     }
 
     #[test]

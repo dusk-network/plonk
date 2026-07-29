@@ -64,6 +64,24 @@ impl Evaluations {
     pub fn from_slice(bytes: &[u8]) -> Result<Evaluations, Error> {
         let mut buffer = bytes;
         let domain = EvaluationDomain::from_reader(&mut buffer)?;
+        let domain_size = usize::try_from(domain.size)
+            .map_err(|_| dusk_bytes::Error::InvalidData)?;
+
+        // Domains are serialized in full. Reconstruct the canonical domain so
+        // malformed parameters cannot enter arithmetic through this path.
+        if domain_size.checked_next_power_of_two() != Some(domain_size)
+            || EvaluationDomain::new(domain_size)? != domain
+        {
+            return Err(dusk_bytes::Error::InvalidData.into());
+        }
+
+        let evaluations_size = domain_size
+            .checked_mul(BlsScalar::SIZE)
+            .ok_or(dusk_bytes::Error::InvalidData)?;
+        if buffer.len() != evaluations_size {
+            return Err(dusk_bytes::Error::InvalidData.into());
+        }
+
         let evals = buffer
             .chunks(BlsScalar::SIZE)
             .map(BlsScalar::from_slice)
@@ -77,6 +95,11 @@ impl Evaluations {
         domain: EvaluationDomain,
     ) -> Self {
         Self { evals, domain }
+    }
+
+    /// Return the evaluation domain.
+    pub(crate) const fn domain(&self) -> EvaluationDomain {
+        self.domain
     }
 
     /// Interpolate a polynomial from a list of evaluations
@@ -197,6 +220,51 @@ mod tests {
         let decoded = Evaluations::from_slice(&bytes)
             .expect("decoding evaluations should succeed");
         assert_eq!(evaluations, decoded);
+    }
+
+    #[test]
+    fn evaluations_reject_mismatched_serialized_lengths() {
+        let domain = EvaluationDomain::new(4)
+            .expect("domain construction should succeed");
+        let evaluations = Evaluations::from_vec_and_domain(
+            vec![BlsScalar::from(1u64); domain.size()],
+            domain,
+        );
+        let bytes = evaluations.to_var_bytes();
+
+        let truncated = &bytes[..bytes.len() - BlsScalar::SIZE];
+        assert!(matches!(
+            Evaluations::from_slice(truncated),
+            Err(Error::BytesError(dusk_bytes::Error::InvalidData))
+        ));
+
+        let mut extended = bytes;
+        extended.extend_from_slice(&BlsScalar::from(2u64).to_bytes());
+        assert!(matches!(
+            Evaluations::from_slice(&extended),
+            Err(Error::BytesError(dusk_bytes::Error::InvalidData))
+        ));
+    }
+
+    #[test]
+    fn evaluations_reject_malformed_serialized_domain() {
+        let domain = EvaluationDomain::new(4)
+            .expect("domain construction should succeed");
+        let evaluations = Evaluations::from_vec_and_domain(
+            vec![BlsScalar::from(1u64); domain.size()],
+            domain,
+        );
+        let mut bytes = evaluations.to_var_bytes();
+
+        // Keep the serialized size (and therefore the evaluation count)
+        // intact, but make the domain parameters internally inconsistent.
+        bytes[u64::SIZE..u64::SIZE + u32::SIZE]
+            .copy_from_slice(&0u32.to_bytes());
+
+        assert!(matches!(
+            Evaluations::from_slice(&bytes),
+            Err(Error::BytesError(dusk_bytes::Error::InvalidData))
+        ));
     }
 
     #[test]
