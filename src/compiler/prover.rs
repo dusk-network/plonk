@@ -555,16 +555,16 @@ impl Prover {
         // compute linearization polynomial
         let r_poly = linearization_poly::compute(
             &self.prover_key,
-            &(
+            &linearization_poly::LinearizationChallenges {
                 alpha,
                 beta,
                 gamma,
-                range_sep_challenge,
-                logic_sep_challenge,
-                fixed_base_sep_challenge,
-                var_base_sep_challenge,
-                z_challenge,
-            ),
+                range_separation: range_sep_challenge,
+                logic_separation: logic_sep_challenge,
+                fixed_base_separation: fixed_base_sep_challenge,
+                variable_base_separation: var_base_sep_challenge,
+                z: z_challenge,
+            },
             &z_poly,
             &evaluations,
             &domain,
