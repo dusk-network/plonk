@@ -214,7 +214,7 @@ impl<'a> Add<&'a Polynomial> for &Polynomial {
 impl<'a> AddAssign<&'a Polynomial> for Polynomial {
     fn add_assign(&mut self, other: &'a Polynomial) {
         if self.is_zero() {
-            self.coeffs.truncate(0);
+            self.coeffs.clear();
             self.coeffs.extend_from_slice(&other.coeffs);
         } else if other.is_zero() {
         } else if self.degree() >= other.degree() {
@@ -236,7 +236,7 @@ impl<'a> AddAssign<&'a Polynomial> for Polynomial {
 impl<'a> AddAssign<(BlsScalar, &'a Polynomial)> for Polynomial {
     fn add_assign(&mut self, (f, other): (BlsScalar, &'a Polynomial)) {
         if self.is_zero() {
-            self.coeffs.truncate(0);
+            self.coeffs.clear();
             self.coeffs.extend_from_slice(&other.coeffs);
             self.coeffs.iter_mut().for_each(|c| *c *= &f);
         } else if other.is_zero() {
