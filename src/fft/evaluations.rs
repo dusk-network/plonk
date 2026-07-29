@@ -25,7 +25,12 @@ use super::domain::EvaluationDomain;
 use super::polynomial::Polynomial;
 use crate::error::Error;
 
-/// Stores a polynomial in evaluation form.
+/// Stores a polynomial in evaluation form together with its domain.
+///
+/// Keeping the domain makes the value self-contained: arithmetic operations
+/// can reject incompatible evaluation sets, interpolation needs no external
+/// parameter, and both byte encodings can round-trip an `Evaluations` value
+/// independently.
 #[derive(PartialEq, Eq, Debug, Clone)]
 #[cfg_attr(
     feature = "rkyv-impl",
@@ -37,7 +42,6 @@ pub(crate) struct Evaluations {
     /// The evaluations of a polynomial over the domain `D`
     #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) evals: Vec<BlsScalar>,
-    // FIXME: We should probably remove this and make it an external object.
     #[doc(hidden)]
     #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     domain: EvaluationDomain,

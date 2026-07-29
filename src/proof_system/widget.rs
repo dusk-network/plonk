@@ -441,10 +441,6 @@ pub(crate) mod alloc {
             let mut buffer = bytes;
             let n = u64::from_reader(&mut buffer)? as usize;
             let evaluations_size = u64::from_reader(&mut buffer)? as usize;
-            // let domain = crate::fft::EvaluationDomain::new(4 * size)?;
-            // TODO: By creating this we can avoid including the
-            // EvaluationDomain inside Evaluations. See:
-            // dusk-network/plonk#436
 
             let poly_from_reader =
                 |buf: &mut &[u8]| -> Result<Polynomial, Error> {
