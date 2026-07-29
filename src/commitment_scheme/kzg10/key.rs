@@ -278,6 +278,28 @@ pub struct OpeningKey {
     pub(crate) prepared_x_h: G2Prepared,
 }
 
+fn batch_challenge(
+    transcript: &mut Transcript,
+    points: &[BlsScalar],
+    proofs: &[Proof],
+) -> BlsScalar {
+    transcript.append_message(b"dom-sep", b"kzg10-batch-check-v1");
+    transcript.append_u64(b"batch-len", proofs.len() as u64);
+    for (point, proof) in points.iter().zip(proofs) {
+        transcript.append_scalar(b"batch-point", point);
+        transcript.append_commitment(
+            b"batch-polynomial-commitment",
+            &proof.commitment_to_polynomial,
+        );
+        transcript.append_scalar(b"batch-evaluation", &proof.evaluated_point);
+        transcript.append_commitment(
+            b"batch-witness-commitment",
+            &proof.commitment_to_witness,
+        );
+    }
+    transcript.challenge_scalar(b"batch-challenge")
+}
+
 impl Serializable<{ G1Affine::SIZE + G2Affine::SIZE * 2 }> for OpeningKey {
     type Error = dusk_bytes::Error;
 
@@ -317,8 +339,16 @@ impl OpeningKey {
         }
     }
 
-    /// Checks whether a batch of polynomials evaluated at different points,
-    /// returned their specified value.
+    /// Checks whether a batch of polynomials evaluated at different points
+    /// returned their specified values.
+    ///
+    /// The caller-provided transcript supplies any surrounding protocol
+    /// context. This method then binds the batch length and every opening
+    /// point, polynomial commitment, evaluation, and witness commitment before
+    /// deriving the random linear-combination challenge. The challenge
+    /// therefore cannot be known before the complete batch is fixed, and no
+    /// additional verifier randomness is required.
+    // Retained for planned production batch verification.
     #[allow(dead_code)]
     pub(crate) fn batch_check(
         &self,
@@ -326,10 +356,14 @@ impl OpeningKey {
         proofs: &[Proof],
         transcript: &mut Transcript,
     ) -> Result<(), Error> {
+        if proofs.is_empty() || points.len() != proofs.len() {
+            return Err(Error::ProofVerificationError);
+        }
+
         let mut total_c = G1Projective::identity();
         let mut total_w = G1Projective::identity();
 
-        let u_challenge = transcript.challenge_scalar(b"batch"); // XXX: Verifier can add their own randomness at this point
+        let u_challenge = batch_challenge(transcript, points, proofs);
         let powers = util::powers_of(&u_challenge, proofs.len() - 1);
         // Instead of multiplying g and gamma_g in each turn, we simply
         // accumulate their coefficients and perform a final
@@ -511,6 +545,72 @@ mod test {
             &mut Transcript::new(b""),
         )
     }
+
+    #[test]
+    fn batch_challenge_binds_the_complete_batch() -> Result<(), Error> {
+        let (ck, _) = setup_test(4)?;
+        let point = BlsScalar::from(10u64);
+        let polynomial = Polynomial::rand(4, &mut OsRng);
+        let evaluation = polynomial.evaluate(&point);
+        let proof = open_single(&ck, &polynomial, &evaluation, &point)?;
+
+        let derive = |points: &[BlsScalar], proofs: &[Proof]| {
+            batch_challenge(
+                &mut Transcript::new(b"batch-binding"),
+                points,
+                proofs,
+            )
+        };
+        let expected = derive(&[point], &[proof]);
+
+        assert_ne!(expected, derive(&[point + BlsScalar::one()], &[proof]));
+
+        let mut changed = proof;
+        changed.commitment_to_polynomial = Commitment::default();
+        assert_ne!(expected, derive(&[point], &[changed]));
+
+        changed = proof;
+        changed.evaluated_point += BlsScalar::one();
+        assert_ne!(expected, derive(&[point], &[changed]));
+
+        changed = proof;
+        changed.commitment_to_witness = Commitment::default();
+        assert_ne!(expected, derive(&[point], &[changed]));
+
+        assert_ne!(expected, derive(&[point, point], &[proof, proof]));
+
+        Ok(())
+    }
+
+    #[test]
+    fn batch_check_rejects_empty_or_mismatched_batches() -> Result<(), Error> {
+        let (_, opening_key) = setup_test(2)?;
+        let proof = Proof {
+            commitment_to_witness: Commitment::default(),
+            evaluated_point: BlsScalar::zero(),
+            commitment_to_polynomial: Commitment::default(),
+        };
+
+        assert_eq!(
+            opening_key.batch_check(
+                &[],
+                &[],
+                &mut Transcript::new(b"empty-batch")
+            ),
+            Err(Error::ProofVerificationError)
+        );
+        assert_eq!(
+            opening_key.batch_check(
+                &[BlsScalar::zero()],
+                &[proof, proof],
+                &mut Transcript::new(b"mismatched-batch")
+            ),
+            Err(Error::ProofVerificationError)
+        );
+
+        Ok(())
+    }
+
     #[test]
     fn test_aggregate_witness() -> Result<(), Error> {
         let max_degree = 27;
