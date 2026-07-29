@@ -23,6 +23,9 @@ mod constraint_system;
 mod gate;
 
 #[cfg(test)]
+mod evaluated_output_soundness_tests;
+
+#[cfg(test)]
 mod fixed_base_soundness_tests;
 
 #[cfg(test)]
@@ -779,12 +782,33 @@ impl Composer {
         self.append_custom_gate(constraint)
     }
 
-    /// Evaluate the polynomial and append an output that satisfies the equation
+    /// Evaluate an arithmetic constraint, allocate its output, and append the
+    /// gate that constrains that output to the inputs.
     ///
-    /// Return `None` if the output selector is zero
+    /// For an invertible output selector `q_O`, this solves
+    ///
+    /// `q_M·a·b + q_L·a + q_R·b + q_O·c + q_F·d + q_C + PI = 0`
+    ///
+    /// for `c`, appends `c` as a witness, wires it into the constraint, and
+    /// appends exactly one active arithmetic gate.
+    ///
+    /// If `q_O` is zero, no output can be solved for: this returns `None` but
+    /// still appends exactly one arithmetic gate enforcing the supplied
+    /// polynomial on its input witnesses.
+    ///
+    /// The appended gate is the soundness boundary. Computing `c` from host
+    /// witness values alone is not a circuit constraint: without this row, a
+    /// malicious prover could replace `c` while preserving the circuit shape.
+    ///
+    /// # Circuit compatibility
+    ///
+    /// Direct callers now receive one arithmetic row and must regenerate their
+    /// circuit-specific proving and verifier keys, and any cached compressed
+    /// circuit description. [`Self::gate_add`] and [`Self::gate_mul`] still
+    /// emit exactly one row, so their circuit layouts are unchanged.
     pub fn append_evaluated_output(
         &mut self,
-        s: Constraint,
+        mut s: Constraint,
     ) -> Option<Witness> {
         let a = s.witness(WiredWitness::A);
         let b = s.witness(WiredWitness::B);
@@ -807,7 +831,6 @@ impl Composer {
 
         // Invert is an expensive operation; in most cases, `q_O` is going to be
         // either 1 or -1, so we can optimize these
-        #[allow(dead_code)]
         let c = {
             const ONE: BlsScalar = BlsScalar::one();
             const MINUS_ONE: BlsScalar = BlsScalar([
@@ -828,7 +851,13 @@ impl Composer {
             }
         };
 
-        c.map(|c| self.append_witness(c))
+        let output = c.map(|c| self.append_witness(c));
+        if let Some(output) = output {
+            s = s.c(output);
+        }
+        self.append_gate(s);
+
+        output
     }
 
     /// Constrain a scalar into the circuit description and return an allocated
@@ -1584,14 +1613,8 @@ impl Composer {
     pub fn gate_add(&mut self, s: Constraint) -> Witness {
         let s = Constraint::arithmetic(&s).output(-BlsScalar::one());
 
-        let c = self
-            .append_evaluated_output(s)
-            .expect("output selector is -1");
-        let s = s.c(c);
-
-        self.append_gate(s);
-
-        c
+        self.append_evaluated_output(s)
+            .expect("output selector is -1")
     }
 
     /// Evaluate and return `c` by appending a new constraint into the circuit.
@@ -1601,14 +1624,8 @@ impl Composer {
     pub fn gate_mul(&mut self, s: Constraint) -> Witness {
         let s = Constraint::arithmetic(&s).output(-BlsScalar::one());
 
-        let c = self
-            .append_evaluated_output(s)
-            .expect("output selector is -1");
-        let s = s.c(c);
-
-        self.append_gate(s);
-
-        c
+        self.append_evaluated_output(s)
+            .expect("output selector is -1")
     }
 
     /// Prove a circuit with a composer initialized with dummy gates
