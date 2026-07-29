@@ -256,10 +256,9 @@ impl CommitKey {
 #[cfg_attr(
     feature = "rkyv-impl",
     derive(Archive, Deserialize, Serialize),
-    archive(bound(serialize = "__S: Sized + Serializer + ScratchSpace")),
+    archive(bound(serialize = "__S: Serializer + ScratchSpace")),
     archive_attr(derive(CheckBytes))
 )]
-// TODO remove the `Sized` bound on the serializer
 pub struct OpeningKey {
     /// The generator of G1.
     #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
