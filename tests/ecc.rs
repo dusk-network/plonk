@@ -444,6 +444,23 @@ fn component_mul_generator_rejects_non_prime_order_generator() {
 }
 
 #[test]
+fn component_mul_generator_rejects_zero_z_generator() {
+    let mut composer = Composer::initialized();
+    let scalar = composer.append_witness(JubJubScalar::one());
+    let generator = JubJubExtended::from_raw_unchecked(
+        BlsScalar::zero(),
+        BlsScalar::one(),
+        BlsScalar::zero(),
+        BlsScalar::zero(),
+        BlsScalar::zero(),
+    );
+
+    let result = composer.component_mul_generator(scalar, generator);
+
+    assert!(matches!(result, Err(Error::JubJubGeneratorNotPrimeOrder)));
+}
+
+#[test]
 fn component_mul_point() {
     pub struct TestCircuit {
         scalar: JubJubScalar,
