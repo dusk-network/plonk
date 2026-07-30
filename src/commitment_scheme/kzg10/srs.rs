@@ -32,10 +32,9 @@ use crate::util;
 #[cfg_attr(
     feature = "rkyv-impl",
     derive(Archive, Deserialize, Serialize),
-    archive(bound(serialize = "__S: Sized + Serializer + ScratchSpace")),
+    archive(bound(serialize = "__S: Serializer + ScratchSpace")),
     archive_attr(derive(CheckBytes))
 )]
-// TODO remove the `Sized` bound on the serializer
 pub struct PublicParameters {
     /// Key used to generate proofs for composed circuits.
     #[cfg_attr(feature = "rkyv-impl", omit_bounds)]

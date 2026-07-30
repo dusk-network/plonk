@@ -58,25 +58,11 @@ pub struct Constraint {
     coefficients: [BlsScalar; Self::COEFFICIENTS],
     witnesses: [Witness; Self::WITNESSES],
 
-    // TODO Workaround solution to keep the sparse public input indexes in the
-    // composer
-    //
-    // The indexes are needed to build the `VerifierData` so it won't contain
-    // all the constraints of the circuit.
-    //
-    // However, the composer uses a dense instance of the public inputs to
-    // prove statements. This way, it will need to keep the vector of
-    // indexes internally so the `VerifierData` can be properly generated.
-    //
-    // Whenever `Constraint::public` is called and appended to a composer, the
-    // composer must include this constraint index into the sparse set of
-    // public input indexes.
-    //
-    // This workaround can be removed only after the composer replaces the
-    // internal `Vec<BlsScalar>` of the selectors by a single
-    // `Vec<Constraint>`.
-    //
-    // Related issue: https://github.com/dusk-network/plonk/issues/607
+    // Records that `public` was called independently of the coefficient value.
+    // A zero-valued public input is otherwise indistinguishable from a row
+    // without a public input. When the constraint is appended, the composer
+    // uses this flag to retain the row in its sparse public-input map; those
+    // row indexes are then included in the verifier data.
     has_public_input: bool,
 }
 
@@ -218,41 +204,26 @@ impl Constraint {
         Self::from_external(s).set(Selector::Arithmetic, 1)
     }
 
-    #[allow(dead_code)]
-    // TODO to be used when `ComposerBackend` replaces internal selectors
-    // with this struct
     pub(crate) fn range(s: &Self) -> Self {
         Self::from_external(s).set(Selector::Range, 1)
     }
 
-    #[allow(dead_code)]
-    // TODO to be used when `ComposerBackend` replaces internal selectors
-    // with this struct
     pub(crate) fn logic(s: &Self) -> Self {
         Self::from_external(s)
             .set(Selector::Constant, 1)
             .set(Selector::Logic, 1)
     }
 
-    #[allow(dead_code)]
-    // TODO to be used when `ComposerBackend` replaces internal selectors
-    // with this struct
     pub(crate) fn logic_xor(s: &Self) -> Self {
         Self::from_external(s)
             .set(Selector::Constant, -BlsScalar::one())
             .set(Selector::Logic, -BlsScalar::one())
     }
 
-    #[allow(dead_code)]
-    // TODO to be used when `ComposerBackend` replaces internal selectors
-    // with this struct
     pub(crate) fn group_add_fixed_base(s: &Self) -> Self {
         Self::from_external(s).set(Selector::GroupAddFixedBase, 1)
     }
 
-    #[allow(dead_code)]
-    // TODO to be used when `ComposerBackend` replaces internal selectors
-    // with this struct
     pub(crate) fn group_add_variable_base(s: &Self) -> Self {
         Self::from_external(s).set(Selector::GroupAddVariableBase, 1)
     }

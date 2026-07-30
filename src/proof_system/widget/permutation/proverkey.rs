@@ -34,12 +34,6 @@ pub(crate) struct ProverKey {
     pub(crate) s_sigma_4: (Polynomial, Evaluations),
     #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) linear_evaluations: Evaluations,
-    /* Evaluations of f(x) = X
-     * [XXX: Remove this and
-     * benchmark if it makes a
-     * considerable difference
-     * -- These are just the
-     * domain elements] */
 }
 
 impl ProverKey {
