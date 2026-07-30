@@ -54,9 +54,8 @@ impl WitnessPoint {
 /// Once established, membership is preserved by the group operations
 /// ([`Composer::component_add_point`], [`Composer::component_sub_point`],
 /// [`Composer::component_mul_point`], [`Composer::component_neg_point`],
-/// [`Composer::component_select_identity`] — the latter provided its `bit`
-/// is constrained by [`Composer::component_boolean`]), which therefore take
-/// and return this type: a point in the subgroup cannot leave it.
+/// [`Composer::component_select_identity`]), which therefore take and return
+/// this type: a point in the subgroup cannot leave it.
 ///
 /// Decoding bytes into an affine point or binding a point to a commitment
 /// does **not** establish subgroup membership on its own: decoding only
@@ -76,7 +75,6 @@ impl WitnessPoint {
 /// [`Composer::component_mul_point`]: crate::prelude::Composer::component_mul_point
 /// [`Composer::component_neg_point`]: crate::prelude::Composer::component_neg_point
 /// [`Composer::component_select_identity`]: crate::prelude::Composer::component_select_identity
-/// [`Composer::component_boolean`]: crate::prelude::Composer::component_boolean
 /// [`Composer::component_mul_generator`]: crate::prelude::Composer::component_mul_generator
 #[derive(Debug, Clone, Copy)]
 pub struct TorsionFreeWitnessPoint(WitnessPoint);

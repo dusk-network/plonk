@@ -299,6 +299,35 @@ fn torsion_free_layout_matches_golden() {
     );
 }
 
+// `component_mul_point` promises consumers an unchanged layout now that
+// `component_select_identity` constrains its bit: the loop must keep calling
+// the raw `select_identity_gates` seam. Routing it through the public method
+// would add a redundant boolean gate per round and silently move every
+// consumer's verifier key. Pin the layout to a digest captured when the
+// promise was made.
+#[test]
+fn mul_point_layout_matches_golden() {
+    // captured from `component_mul_point` when `component_select_identity`
+    // gained its boolean constraint
+    const GOLDEN: [u8; 32] = [
+        250, 132, 56, 170, 228, 252, 166, 13, 108, 124, 132, 6, 89, 188, 88,
+        247, 231, 121, 77, 144, 115, 248, 63, 117, 196, 123, 96, 37, 146, 174,
+        156, 68,
+    ];
+
+    let mut composer = Composer::initialized();
+    let scalar = composer.append_witness(JubJubScalar::from(17u64));
+    let point = composer.append_point(prime_order_point());
+    let point = TorsionFreeWitnessPoint::new_unchecked(point);
+    composer.component_mul_point(scalar, point);
+    assert_eq!(
+        gate_digest(&composer.constraints),
+        GOLDEN,
+        "component_mul_point gate layout drifted — verifier keys of every \
+         consumer circuit change",
+    );
+}
+
 // Constant points are validated natively at circuit build: members (the
 // identity included) are appended, torsion components are refused before
 // they can enter the circuit description.

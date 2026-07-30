@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Change `component_add_point`, `component_sub_point` and `component_mul_point` to take and return `TorsionFreeWitnessPoint` [#870]
 - Change `component_neg_point` and `component_select_identity` to take and return `TorsionFreeWitnessPoint` [#870]
+- Change `component_select_identity` to constrain its `bit` to be boolean, consuming one additional gate. This changes the verifier key of circuits calling it directly; `component_mul_point` is unaffected [#870]
 - Change `Composer::IDENTITY` to a `TorsionFreeWitnessPoint` [#870]
 - Change `append_constant_point` to validate the constant natively and return `Result<TorsionFreeWitnessPoint, Error>` [#870]
 - Change `component_mul_generator` to return `Result<TorsionFreeWitnessPoint, Error>`, its generator being validated to exact prime order [#870]

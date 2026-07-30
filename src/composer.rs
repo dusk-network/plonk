@@ -1364,25 +1364,42 @@ impl Composer {
     }
 
     /// Conditionally selects identity as [`TorsionFreeWitnessPoint`] based on
-    /// an input bit.
+    /// an input bit, consuming 3 gates.
     ///
     /// bit == 1 => a,
     /// bit == 0 => identity,
     ///
-    /// `bit` is expected to be constrained by
-    /// [`Composer::component_boolean`]
-    ///
-    /// Both outcomes are subgroup members, so the
-    /// [`TorsionFreeWitnessPoint`] type carries through.
+    /// `bit` is constrained to be boolean by this component: both outcomes
+    /// are then subgroup members, so the [`TorsionFreeWitnessPoint`] type
+    /// carries through. Without that constraint a non-boolean assignment `t`
+    /// would evaluate to `(t·x, 1 - t + t·y)` — generally not even on the
+    /// curve — while still carrying the membership type.
     pub fn component_select_identity(
         &mut self,
         bit: Witness,
         a: TorsionFreeWitnessPoint,
     ) -> TorsionFreeWitnessPoint {
+        self.component_boolean(bit);
+        let selected = self.select_identity_gates(bit, a);
+
+        // With `bit` constrained boolean, both mux outcomes are `a` and the
+        // identity — subgroup members either way.
+        TorsionFreeWitnessPoint::new_unchecked(selected)
+    }
+
+    /// The gates behind [`Self::component_select_identity`] without the
+    /// boolean constraint on `bit`. Like the other private seams, it returns
+    /// the untyped point: the caller owns the boolean constraint that makes
+    /// the selection a subgroup member.
+    fn select_identity_gates(
+        &mut self,
+        bit: Witness,
+        a: TorsionFreeWitnessPoint,
+    ) -> WitnessPoint {
         let x = self.component_select_zero(bit, *a.x());
         let y = self.component_select_one(bit, *a.y());
 
-        TorsionFreeWitnessPoint::new_unchecked(WitnessPoint::new(x, y))
+        WitnessPoint::new(x, y)
     }
 
     /// Evaluate `jubjub · point` as a [`TorsionFreeWitnessPoint`]
@@ -1406,8 +1423,11 @@ impl Composer {
         for bit in scalar_bits.iter().rev() {
             result = self.add_point_gates(result, result);
 
-            let point_to_add = self.component_select_identity(*bit, point);
-            result = self.add_point_gates(result, point_to_add.into());
+            // The bits are already boolean-constrained by the decomposition,
+            // so the unconstrained seam is sound here and saves a gate per
+            // round.
+            let point_to_add = self.select_identity_gates(*bit, point);
+            result = self.add_point_gates(result, point_to_add);
         }
 
         TorsionFreeWitnessPoint::new_unchecked(result)
