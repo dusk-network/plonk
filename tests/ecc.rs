@@ -331,7 +331,7 @@ fn component_mul_generator() {
             let circuit_result =
                 composer.component_mul_generator(w_scalar, self.generator)?;
 
-            composer.assert_equal_point(w_result, circuit_result);
+            composer.assert_equal_point(w_result, circuit_result.into());
 
             Ok(())
         }

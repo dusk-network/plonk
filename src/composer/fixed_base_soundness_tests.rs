@@ -160,10 +160,12 @@ impl Circuit for FixedBaseCircuit {
     fn circuit(&self, composer: &mut Composer) -> Result<(), Error> {
         let scalar = composer.append_public(self.scalar);
         let point = match &self.forged_digits {
-            None => composer.component_mul_generator(
-                scalar,
-                dusk_jubjub::GENERATOR_EXTENDED,
-            )?,
+            None => composer
+                .component_mul_generator(
+                    scalar,
+                    dusk_jubjub::GENERATOR_EXTENDED,
+                )?
+                .into(),
             Some(digits) => composer.append_fixed_base_signed_digits(
                 scalar,
                 dusk_jubjub::GENERATOR_EXTENDED,

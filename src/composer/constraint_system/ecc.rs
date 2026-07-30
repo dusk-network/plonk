@@ -58,11 +58,12 @@ impl WitnessPoint {
 /// is constrained by [`Composer::component_boolean`]), which therefore take
 /// and return this type: a point in the subgroup cannot leave it.
 ///
-/// Decoding bytes into an affine point, binding a point to a commitment, or
-/// obtaining a point from [`Composer::component_mul_generator`] does **not**
-/// establish subgroup membership on its own: decoding only guarantees an
-/// on-curve point, a commitment only binds the value, and the generator base
-/// is not validated.
+/// Decoding bytes into an affine point or binding a point to a commitment
+/// does **not** establish subgroup membership on its own: decoding only
+/// guarantees an on-curve point, and a commitment only binds the value.
+/// [`Composer::component_mul_generator`] does return the typed point: it
+/// validates its generator to be of exact prime order, so every multiple of
+/// it lies in the subgroup.
 ///
 /// The prime-order subgroup contains the identity, so a torsion-free point
 /// may still be the identity — consumers that must rule it out have to

@@ -584,9 +584,13 @@ impl Composer {
         self.assert_canonical_truncation(high, low, num_bits);
     }
 
-    /// Evaluate `jubjub · generator` as a [`WitnessPoint`].
+    /// Evaluate `jubjub · generator` as a [`TorsionFreeWitnessPoint`].
     ///
-    /// `generator` is appended to the circuit description as a constant.
+    /// `generator` is appended to the circuit description as a constant. It
+    /// is validated to be an on-curve point of exact prime order, so every
+    /// multiple of it lies in the prime-order subgroup and the result carries
+    /// the [`TorsionFreeWitnessPoint`] membership by construction; see that
+    /// type for the boundary rule.
     ///
     /// The circuit constrains `jubjub` to the canonical Jubjub scalar interval
     /// `[0, r)`, where `r` is the prime-order subgroup modulus. It also bounds
@@ -626,18 +630,11 @@ impl Composer {
     /// generation if `jubjub` is not a canonical Jubjub scalar. Soundness does
     /// not rely on that host-side check: the same canonicality and signed-digit
     /// bounds are enforced by circuit constraints.
-    ///
-    /// The returned point is untyped: the `generator` base is caller-supplied
-    /// and not validated here, so this routine cannot vouch for subgroup
-    /// membership of its multiples. A caller passing a generator known to lie
-    /// in the prime-order subgroup can wrap the result with
-    /// [`TorsionFreeWitnessPoint::new_unchecked`]; see
-    /// [`TorsionFreeWitnessPoint`] for the boundary rule.
     pub fn component_mul_generator<P: Into<JubJubExtended>>(
         &mut self,
         jubjub: Witness,
         generator: P,
-    ) -> Result<WitnessPoint, Error> {
+    ) -> Result<TorsionFreeWitnessPoint, Error> {
         let generator = generator.into();
 
         if !bool::from(generator.is_on_curve() & generator.is_prime_order()) {
@@ -662,7 +659,10 @@ impl Composer {
             "the wnaf_entries array is expected to be 256 elements long"
         );
 
+        // The generator passed the exact prime-order validation above, so
+        // its multiples cannot leave the prime-order subgroup.
         self.append_fixed_base_signed_digits(jubjub, generator, &wnaf_entries)
+            .map(TorsionFreeWitnessPoint::new_unchecked)
     }
 
     /// Constrain a fixed-base multiplication for a supplied signed-digit

@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Change `component_neg_point` and `component_select_identity` to take and return `TorsionFreeWitnessPoint` [#870]
 - Change `Composer::IDENTITY` to a `TorsionFreeWitnessPoint` [#870]
 - Change `append_constant_point` to validate the constant natively and return `Result<TorsionFreeWitnessPoint, Error>` [#870]
+- Change `component_mul_generator` to return `Result<TorsionFreeWitnessPoint, Error>`, its generator being validated to exact prime order [#870]
 - Cap logic gadget width at 254 bits; `BIT_PAIRS > 127` is now a compile-time error [#867]
 - Change the verifier key of circuits using the logic gadget [#867]
 - Increase the gate count of `append_logic_and`/`append_logic_xor` to bind their inputs [#867]
