@@ -26,6 +26,28 @@ use crate::proof_system::widget::logic::proverkey::{
 use crate::proof_system::widget::range::proverkey::delta as range_delta;
 use crate::runtime::RuntimeEvent;
 
+/// Gate-identity family names, index-aligned with the array returned by
+/// [`Debugger::identity_evaluations`].
+const IDENTITY_FAMILIES: [&str; 17] = [
+    "arithmetic",
+    "range delta c/d",
+    "range delta b/c",
+    "range delta a/b",
+    "range accumulator",
+    "logic left quad",
+    "logic right quad",
+    "logic output quad",
+    "logic product",
+    "logic relation",
+    "fixed-base bit consistency",
+    "fixed-base xy consistency",
+    "fixed-base x accumulator",
+    "fixed-base y accumulator",
+    "variable-base xy consistency",
+    "variable-base x accumulator",
+    "variable-base y accumulator",
+];
+
 /// PLONK debugger
 #[derive(Debug, Clone)]
 pub(crate) struct Debugger {
@@ -64,7 +86,7 @@ impl Debugger {
         &self,
         constraint_index: usize,
         constraint: &Constraint,
-    ) -> [BlsScalar; 17] {
+    ) -> [BlsScalar; IDENTITY_FAMILIES.len()] {
         let qm = *constraint.coeff(Selector::Multiplication);
         let ql = *constraint.coeff(Selector::Left);
         let qr = *constraint.coeff(Selector::Right);
@@ -155,6 +177,58 @@ impl Debugger {
         self.identity_evaluations(constraint_index, constraint)
             .into_iter()
             .all(|identity| identity == BlsScalar::zero())
+    }
+
+    /// Constraints whose assignment fails a gate identity, each paired with
+    /// the name of the first identity family it fails.
+    fn unsatisfied_constraints(&self) -> Vec<(usize, &'static str)> {
+        self.constraints
+            .iter()
+            .enumerate()
+            .filter_map(|(index, (_, constraint))| {
+                self.identity_evaluations(index, constraint)
+                    .into_iter()
+                    .position(|identity| identity != BlsScalar::zero())
+                    .map(|identity| (index, IDENTITY_FAMILIES[identity]))
+            })
+            .collect()
+    }
+
+    /// The diagnostic naming the first unsatisfied constraint, if any.
+    /// Proving destroys the which-constraint information before it fails, so
+    /// this is the only place a failing gate can be named.
+    ///
+    /// The check covers the prove-time assignment against its own
+    /// constraints; the compiled circuit description's selectors are not
+    /// available here. When the two disagree — same gate count, different
+    /// selector values — proving still fails with an unsatisfied-circuit
+    /// error while this report stays silent, so a silent report next to that
+    /// error points at a description/assignment mismatch. The mirror also
+    /// holds: a row vacuous in the description but live at prove time is
+    /// named here while the proof goes through — the report catching a
+    /// constraint missing from the verifier key — which is why the report
+    /// must not be gated on proving having failed.
+    fn unsatisfied_report(&self) -> Option<String> {
+        let unsatisfied = self.unsatisfied_constraints();
+        let (index, family) = unsatisfied.first()?;
+        let source = &self.constraints[*index].0;
+
+        Some(format!(
+            "plonk debugger: {} of {} constraints are unsatisfied; the \
+             first, constraint {index}, fails the {family} identity and was \
+             appended at {}:{}:{}",
+            unsatisfied.len(),
+            self.constraints.len(),
+            source.path(),
+            source.line(),
+            source.col(),
+        ))
+    }
+
+    fn report_unsatisfied(&self) {
+        if let Some(report) = self.unsatisfied_report() {
+            eprintln!("{report}");
+        }
     }
 
     /// Resolver the caller function
@@ -296,6 +370,7 @@ impl Debugger {
             }
 
             RuntimeEvent::ProofFinished => {
+                self.report_unsatisfied();
                 self.write_output();
             }
         }
@@ -349,11 +424,16 @@ mod tests {
             "{name} fixture did not satisfy every identity: {identities:?}"
         );
         assert!(debugger.evaluates_to_zero(0, constraint));
+        assert!(
+            debugger.unsatisfied_constraints().is_empty(),
+            "{name} fixture must report no unsatisfied constraints"
+        );
     }
 
     fn assert_identity_fails(
         name: &str,
         identity_index: usize,
+        family: &'static str,
         constraint: Constraint,
         values: [BlsScalar; 8],
     ) {
@@ -370,6 +450,13 @@ mod tests {
             !debugger.evaluates_to_zero(0, constraint),
             "{name} evaluated as satisfied"
         );
+
+        assert_eq!(
+            debugger.unsatisfied_constraints(),
+            vec![(0, family)],
+            "{name} must be reported as the only unsatisfied constraint, \
+             failing the {family} identity"
+        );
     }
 
     fn add(
@@ -379,6 +466,34 @@ mod tests {
     ) -> [BlsScalar; 8] {
         values[index] += BlsScalar::from(amount);
         values
+    }
+
+    #[test]
+    fn unsatisfied_report_counts_and_names_the_first() {
+        // With no witnesses every wire reads zero, so a gate demanding
+        // constant 1 is unsatisfied on its arithmetic identity.
+        let unsatisfied_gate =
+            || Constraint::arithmetic(&Constraint::new().constant(1u64));
+        let debugger = Debugger {
+            witnesses: Vec::new(),
+            constraints: vec![
+                (EncodableSource::default(), unsatisfied_gate()),
+                (EncodableSource::default(), unsatisfied_gate()),
+            ],
+        };
+
+        let report = debugger
+            .unsatisfied_report()
+            .expect("both constraints are unsatisfied");
+        assert!(report.contains("2 of 2 constraints"));
+        assert!(report.contains("constraint 0"));
+        assert!(report.contains("arithmetic identity"));
+
+        let satisfied = Debugger {
+            witnesses: Vec::new(),
+            constraints: vec![(EncodableSource::default(), Constraint::new())],
+        };
+        assert!(satisfied.unsatisfied_report().is_none());
     }
 
     #[test]
@@ -463,84 +578,147 @@ mod tests {
         let mut invalid_range_3 = range_values;
         invalid_range_3[7] = BlsScalar::from(368u64);
 
+        // (case name, identity index, reported family, constraint, values);
+        // the family is spelled out per case so the assertion pins the
+        // `IDENTITY_FAMILIES` entry independently of the array itself.
         let invalid_cases = [
-            ("arithmetic", 0, arithmetic, add(arithmetic_values, 0, 1)),
-            ("range delta c/d", 1, range, invalid_range_0),
-            ("range delta b/c", 2, range, invalid_range_1),
-            ("range delta a/b", 3, range, invalid_range_2),
-            ("range accumulator", 4, range, invalid_range_3),
-            ("logic left quad", 5, logic_and, add(logic_and_values, 4, 1)),
+            (
+                "arithmetic",
+                0,
+                "arithmetic",
+                arithmetic,
+                add(arithmetic_values, 0, 1),
+            ),
+            (
+                "range delta c/d",
+                1,
+                "range delta c/d",
+                range,
+                invalid_range_0,
+            ),
+            (
+                "range delta b/c",
+                2,
+                "range delta b/c",
+                range,
+                invalid_range_1,
+            ),
+            (
+                "range delta a/b",
+                3,
+                "range delta a/b",
+                range,
+                invalid_range_2,
+            ),
+            (
+                "range accumulator",
+                4,
+                "range accumulator",
+                range,
+                invalid_range_3,
+            ),
+            (
+                "logic left quad",
+                5,
+                "logic left quad",
+                logic_and,
+                add(logic_and_values, 4, 1),
+            ),
             (
                 "logic right quad",
                 6,
+                "logic right quad",
                 logic_and,
                 add(logic_and_values, 5, 3),
             ),
             (
                 "logic output quad",
                 7,
+                "logic output quad",
                 logic_and,
                 add(logic_and_values, 7, 3),
             ),
-            ("logic product", 8, logic_and, add(logic_and_values, 2, 1)),
+            (
+                "logic product",
+                8,
+                "logic product",
+                logic_and,
+                add(logic_and_values, 2, 1),
+            ),
             (
                 "logic AND relation",
                 9,
+                "logic relation",
                 logic_and,
                 add(logic_and_values, 7, 1),
             ),
             (
                 "logic XOR relation",
                 9,
+                "logic relation",
                 logic_xor,
                 add(logic_xor_values, 7, 1),
             ),
             (
                 "fixed-base bit consistency",
                 10,
+                "fixed-base bit consistency",
                 fixed_base,
                 add(fixed_base_values, 7, 1),
             ),
             (
                 "fixed-base xy consistency",
                 11,
+                "fixed-base xy consistency",
                 fixed_base,
                 add(fixed_base_values, 2, 1),
             ),
             (
                 "fixed-base x accumulator",
                 12,
+                "fixed-base x accumulator",
                 fixed_base,
                 add(fixed_base_values, 4, 1),
             ),
             (
                 "fixed-base y accumulator",
                 13,
+                "fixed-base y accumulator",
                 fixed_base,
                 add(fixed_base_values, 5, 1),
             ),
             (
                 "variable-base xy consistency",
                 14,
+                "variable-base xy consistency",
                 variable_base,
                 add(variable_base_values, 7, 1),
             ),
             (
                 "variable-base x accumulator",
                 15,
+                "variable-base x accumulator",
                 variable_base,
                 add(variable_base_values, 4, 1),
             ),
             (
                 "variable-base y accumulator",
                 16,
+                "variable-base y accumulator",
                 variable_base,
                 add(variable_base_values, 5, 1),
             ),
         ];
 
-        for (name, identity_index, constraint, values) in invalid_cases {
-            assert_identity_fails(name, identity_index, constraint, values);
+        for (name, identity_index, family, constraint, values) in invalid_cases
+        {
+            assert_identity_fails(
+                name,
+                identity_index,
+                family,
+                constraint,
+                values,
+            );
         }
     }
 }

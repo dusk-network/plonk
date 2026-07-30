@@ -30,6 +30,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Detect unsatisfied circuits during quotient computation and return
   `Error::CircuitUnsatisfied` instead of the misleading
   `Error::PolynomialDegreeTooLarge` [#877]
+- Report the first unsatisfied constraint — index, gate-identity family and
+  source location — on stderr when a prove attempt's assignment leaves a
+  constraint unsatisfied, under the `debug` feature [#877]
 - Cap logic gadget width at 254 bits; `BIT_PAIRS > 127` is now a compile-time error [#867]
 - Change the verifier key of circuits using the logic gadget [#867]
 - Increase the gate count of `append_logic_and`/`append_logic_xor` to bind their inputs [#867]
