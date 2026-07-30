@@ -15,6 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `Composer::component_truncate<N>` to extract the low `N` bits of a witness [#867]
 - Add `Composer::component_range_bits<BITS>` range check counting bits directly [#867]
 - Add the public `Error::JubJubGeneratorNotPrimeOrder` variant [#832]
+- Add the public `Error::CircuitUnsatisfied` variant, returned when proof
+  creation fails because the witness assignment does not satisfy the
+  constraint system [#877]
 
 ### Changed
 
@@ -24,6 +27,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Change `Composer::IDENTITY` to a `TorsionFreeWitnessPoint` [#870]
 - Change `append_constant_point` to validate the constant natively and return `Result<TorsionFreeWitnessPoint, Error>` [#870]
 - Change `component_mul_generator` to return `Result<TorsionFreeWitnessPoint, Error>`, its generator being validated to exact prime order [#870]
+- Detect unsatisfied circuits during quotient computation and return
+  `Error::CircuitUnsatisfied` instead of the misleading
+  `Error::PolynomialDegreeTooLarge` [#877]
 - Cap logic gadget width at 254 bits; `BIT_PAIRS > 127` is now a compile-time error [#867]
 - Change the verifier key of circuits using the logic gadget [#867]
 - Increase the gate count of `append_logic_and`/`append_logic_xor` to bind their inputs [#867]
@@ -718,6 +724,7 @@ is necessary since `rkyv/validation` was required as a bound.
 - Proof system module.
 
 <!-- ISSUES -->
+[#877]: https://github.com/dusk-network/plonk/issues/877
 [#870]: https://github.com/dusk-network/plonk/issues/870
 [#867]: https://github.com/dusk-network/plonk/issues/867
 [#861]: https://github.com/dusk-network/plonk/issues/861

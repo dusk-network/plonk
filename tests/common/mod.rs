@@ -57,7 +57,8 @@ pub(crate) fn check_satisfied_circuit_fails<C, R>(
     verifier.verify(&proof, &pi_expected).expect_err(msg);
 }
 
-// Check that proof creation of an unsatisfied circuit fails
+// Check that proof creation of an unsatisfied circuit fails with the error
+// dedicated to unsatisfied constraints.
 // This is also the case when the constants appended to the circuit does not
 // match the ones from the circuit description
 pub(crate) fn check_unsatisfied_circuit<C, R>(
@@ -69,5 +70,11 @@ pub(crate) fn check_unsatisfied_circuit<C, R>(
     C: Circuit,
     R: RngCore + CryptoRng,
 {
-    prover.prove(rng, circuit).expect_err(msg);
+    match prover.prove(rng, circuit) {
+        Ok(_) => panic!("{msg}"),
+        Err(Error::CircuitUnsatisfied) => (),
+        Err(error) => panic!(
+            "expected `Error::CircuitUnsatisfied`, got `{error:?}`: {msg}"
+        ),
+    }
 }

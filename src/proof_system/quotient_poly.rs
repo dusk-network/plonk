@@ -99,8 +99,39 @@ pub(crate) fn compute(
         .collect();
 
     let coset = domain_8n.coset_ifft(&quotient);
+    let quotient_poly = Polynomial::from_coefficients_vec(coset);
 
-    Ok(Polynomial::from_coefficients_vec(coset))
+    // A satisfied assignment yields a numerator divisible by the vanishing
+    // polynomial of the domain, and the quotient's degree is bounded by the
+    // numerator's: the permutation product z(x) (degree n + 2, with hiding
+    // degree 2) times the four wire factors (degree n + 1 each, with hiding
+    // degree 1) has degree 5n + 6, and every gate identity stays below that.
+    // Dividing by the vanishing polynomial (degree n) leaves at most 4n + 6.
+    //
+    // An unsatisfied assignment leaves a nonzero remainder r(x) with
+    // deg r < n. On the 8n-sized coset the pointwise division then computes
+    // q(x) + r(x)/z_H(x), and 1/z_H interpolates over that coset to
+    // c_0 + c_1·x^n + ... + c_7·x^7n with c_7 nonzero (z_H only takes 8
+    // distinct values there), pushing the interpolated result to a degree of
+    // at least 7n. The check is anchored on that detection floor rather than
+    // the honest ceiling, so it stays correct should blinding or a new gate
+    // ever push the honest quotient past 4n + 6 — up to 7n of headroom.
+    // Unsatisfied assignments are caught even when the commit key is roomy
+    // enough (small circuits, deserialized oversized keys) that the split
+    // quotient chunks would have committed fine and only failed at
+    // verification.
+    //
+    // `from_coefficients_vec` trims trailing zero coefficients, so the
+    // coefficient vector is either empty or ends on a non-zero coefficient
+    // and `len() == degree + 1`. Comparing lengths therefore reads the
+    // degree in constant time instead of rescanning the coefficients, and
+    // `degree() >= 7n` becomes `len() > 7n` (the empty polynomial passes
+    // either way).
+    if quotient_poly.len() > 7 * domain.size() {
+        return Err(Error::CircuitUnsatisfied);
+    }
+
+    Ok(quotient_poly)
 }
 
 // Ensures that the circuit is satisfied

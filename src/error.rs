@@ -39,6 +39,10 @@ pub enum Error {
     /// of gates than the circuit for the proof creation.
     /// The order: (description_size, circuit_size)
     InvalidCircuitSize(usize, usize),
+    /// This error occurs when proof creation fails because the constraint
+    /// system is not satisfied: the witness assignment or the appended
+    /// constants do not match the compiled circuit description.
+    CircuitUnsatisfied,
 
     // Preprocessing errors
     /// This error occurs when an error triggers during the preprocessing
@@ -144,6 +148,12 @@ impl std::fmt::Display for Error {
                     "circuit description has a different amount of gates than the circuit for the proof creation: description size = {description_size}, circuit size = {circuit_size}"
                 )
             }
+            Self::CircuitUnsatisfied => write!(
+                f,
+                "the circuit is not satisfied: the witness assignment or the \
+                 appended constants do not match the compiled circuit \
+                 description"
+            ),
             Self::DegreeIsZero => {
                 write!(f, "cannot create PublicParameters with max degree 0")
             }
@@ -227,7 +237,7 @@ mod tests {
         assert!(matches!(bytes_error, Error::BytesError(_)));
 
         // Format each variant at least once so the `Display` impl gets covered.
-        let all_errors: [Error; 24] = [
+        let all_errors: [Error; 25] = [
             Error::InvalidEvalDomainSize {
                 log_size_of_group: 32,
                 adacity: 28,
@@ -238,6 +248,7 @@ mod tests {
             Error::InvalidPublicInputBytes,
             Error::CircuitAlreadyPreprocessed,
             Error::InvalidCircuitSize(1, 2),
+            Error::CircuitUnsatisfied,
             Error::MismatchedPolyLen,
             Error::DegreeIsZero,
             Error::TruncatedDegreeTooLarge,
