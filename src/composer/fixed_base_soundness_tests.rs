@@ -13,12 +13,14 @@
 //! field while the point endpoint remained `[q]G != identity`, allowing a
 //! proof of a false public scalar/point relation.
 //!
-//! These tests compile the verifier key from the honest production gadget,
-//! then use the production constraint emitter with attacker-chosen digits.
-//! The forged circuits therefore have exactly the same selectors and wiring as
-//! the honest circuit. The injected assignments satisfy the old fixed-base
-//! transitions, the closing field equality, and the claimed public point; only
-//! the new canonical-scalar or leading-zero constraint rejects them.
+//! The forgery tests compile the verifier key from the honest production
+//! gadget, then use the production constraint emitter with attacker-chosen
+//! digits. The forged circuits therefore have exactly the same selectors and
+//! wiring as the honest circuit. The injected assignments satisfy the old
+//! fixed-base transitions, the closing field equality, and the claimed public
+//! point; only the new canonical-scalar or leading-zero constraint rejects
+//! them. The final test builds no circuit: it pins the width bound those
+//! constraints rely on to the field moduli by exact integer arithmetic.
 
 use rand::SeedableRng;
 use rand::rngs::StdRng;
@@ -287,5 +289,123 @@ fn fixed_base_requires_a_canonical_jubjub_scalar_under_v3() {
         &max,
         &noncanonical,
         "Jubjub modulus r is noncanonical",
+    );
+}
+
+fn limbs_from_canonical_bytes(bytes: [u8; 32]) -> [u64; 4] {
+    let mut limbs = [0u64; 4];
+    for (limb, chunk) in limbs.iter_mut().zip(bytes.chunks_exact(8)) {
+        *limb = u64::from_le_bytes(chunk.try_into().expect("8-byte chunk"));
+    }
+    limbs
+}
+
+fn checked_increment(mut limbs: [u64; 4]) -> [u64; 4] {
+    for limb in &mut limbs {
+        let (sum, carry) = limb.overflowing_add(1);
+        *limb = sum;
+        if !carry {
+            return limbs;
+        }
+    }
+    panic!("the increment must not overflow 256 bits");
+}
+
+fn checked_subtract(minuend: [u64; 4], subtrahend: [u64; 4]) -> [u64; 4] {
+    let mut difference = [0u64; 4];
+    let mut borrow = false;
+    for ((difference_limb, minuend_limb), subtrahend_limb) in
+        difference.iter_mut().zip(minuend).zip(subtrahend)
+    {
+        let (limb, underflowed) = minuend_limb.overflowing_sub(subtrahend_limb);
+        let (limb, borrowed) = limb.overflowing_sub(borrow as u64);
+        *difference_limb = limb;
+        borrow = underflowed || borrowed;
+    }
+    assert!(
+        !borrow,
+        "the minuend must not be smaller than the subtrahend"
+    );
+    difference
+}
+
+// The largest accumulator endpoint magnitude a signed-digit width can
+// produce: `2^width - 1`, with every digit at its extreme.
+fn max_endpoint_magnitude(width: usize) -> [u64; 4] {
+    let mut limbs = [0u64; 4];
+    for (limb_index, limb) in limbs.iter_mut().enumerate() {
+        *limb = match width.saturating_sub(limb_index * 64) {
+            0 => 0,
+            bits if bits >= 64 => u64::MAX,
+            bits => (1u64 << bits) - 1,
+        };
+    }
+    limbs
+}
+
+fn bit_length(limbs: [u64; 4]) -> usize {
+    for (limb_index, limb) in limbs.iter().enumerate().rev() {
+        if *limb != 0 {
+            return limb_index * 64 + 64 - limb.leading_zeros() as usize;
+        }
+    }
+    0
+}
+
+fn big_endian(limbs: [u64; 4]) -> [u64; 4] {
+    [limbs[3], limbs[2], limbs[1], limbs[0]]
+}
+
+/// The compile-time guard in `composer.rs` caps the effective signed-digit
+/// width at a literal 254. This test derives both sides of that literal from
+/// the actual field moduli — read back as exact integers from the canonical
+/// encodings of `-1` in each field — so a curve or field change that
+/// invalidates the bound fails here even though the width arithmetic still
+/// satisfies the guard.
+#[test]
+fn fixed_base_width_bound_is_tight_for_the_field_moduli() {
+    let bls_modulus_minus_one =
+        limbs_from_canonical_bytes((-BlsScalar::one()).to_bytes());
+    let jubjub_modulus_minus_one =
+        limbs_from_canonical_bytes((-JubJubScalar::one()).to_bytes());
+
+    // The hardcoded limb constants the forgery tests above rely on must be
+    // the real moduli.
+    assert_eq!(checked_increment(bls_modulus_minus_one), BLS_MODULUS);
+    assert_eq!(checked_increment(jubjub_modulus_minus_one), JUBJUB_MODULUS);
+
+    // The cheapest modulus wrap: an endpoint of magnitude `q - (r - 1)` is
+    // congruent modulo `q` to the largest canonical Jubjub scalar. Every
+    // other wrap needs a larger endpoint.
+    let cheapest_wrap = checked_increment(checked_subtract(
+        bls_modulus_minus_one,
+        jubjub_modulus_minus_one,
+    ));
+
+    // At the widest width the compile-time guard admits, no endpoint reaches
+    // a wrap — the closing scalar check is an integer equality.
+    assert!(
+        big_endian(max_endpoint_magnitude(FIXED_BASE_MAX_SOUND_WIDTH))
+            < big_endian(cheapest_wrap),
+        "the widest admitted width must be too narrow to encode a wrap",
+    );
+
+    // One more bit reaches the cheapest wrap: the bound is tight, not a
+    // margin.
+    assert!(
+        big_endian(max_endpoint_magnitude(FIXED_BASE_MAX_SOUND_WIDTH + 1))
+            >= big_endian(cheapest_wrap),
+        "one more bit must encode a wrap, or the width bound is stale",
+    );
+
+    // Completeness floor: a width-2 NAF of a canonical Jubjub scalar can
+    // carry one digit past the scalar's bit length, derived here from the
+    // real modulus rather than the constant it must match.
+    assert_eq!(bit_length(jubjub_modulus_minus_one), JUBJUB_SCALAR_BITS);
+    let effective_width =
+        FIXED_BASE_SIGNED_DIGIT_ROUNDS - FIXED_BASE_LEADING_ZERO_ROUNDS;
+    assert!(
+        effective_width >= bit_length(jubjub_modulus_minus_one) + 1,
+        "the effective width must fit every canonical scalar's NAF",
     );
 }
