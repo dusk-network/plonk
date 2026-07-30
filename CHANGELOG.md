@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add `Composer::component_truncate<N>` to extract the low `N` bits of a witness [#867]
 - Add `Composer::component_range_bits<BITS>` range check counting bits directly [#867]
-- Add the public `Error::JubJubGeneratorNotPrimeOrder` variant [#867]
+- Add the public `Error::JubJubGeneratorNotPrimeOrder` variant [#832]
 
 ### Changed
 
@@ -26,7 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Make `Composer::component_mul_generator` reject generators that are not
   on-curve points of exact prime order. Callers using custom generators should
   re-audit them; rejected generators now return
-  `Error::JubJubGeneratorNotPrimeOrder` [#867]
+  `Error::JubJubGeneratorNotPrimeOrder` [#832]
 - Constrain `Composer::component_mul_generator` inputs to canonical Jubjub
   scalars and its signed-digit recurrence to 253 effective digits. This changes
   the circuit shape: applications using the component must regenerate their
@@ -716,6 +716,7 @@ is necessary since `rkyv/validation` was required as a bound.
 [#859]: https://github.com/dusk-network/plonk/issues/859
 [#842]: https://github.com/dusk-network/plonk/issues/842
 [#834]: https://github.com/dusk-network/plonk/issues/834
+[#832]: https://github.com/dusk-network/plonk/issues/832
 [#831]: https://github.com/dusk-network/plonk/issues/831
 [#819]: https://github.com/dusk-network/plonk/issues/819
 [#818]: https://github.com/dusk-network/plonk/issues/818

@@ -324,7 +324,7 @@ pub(crate) mod alloc {
             let poly_num = 15;
 
             // The amount of distinct evaluations in `ProverKey`
-            // poly_num + 1 (permutation) + 1 (v_h_coset_4n)
+            // poly_num + 1 (permutation) + 1 (v_h_coset_8n)
             let eval_num = poly_num + 2;
 
             // The amount of i64 in `ProverKey`

@@ -60,11 +60,11 @@ impl Debugger {
             .unwrap_or_default()
     }
 
-    fn evaluates_to_zero(
+    fn identity_evaluations(
         &self,
         constraint_index: usize,
         constraint: &Constraint,
-    ) -> bool {
+    ) -> [BlsScalar; 17] {
         let qm = *constraint.coeff(Selector::Multiplication);
         let ql = *constraint.coeff(Selector::Left);
         let qr = *constraint.coeff(Selector::Right);
@@ -86,14 +86,8 @@ impl Debugger {
         let b_w = self.shifted_wire_value(constraint_index, WiredWitness::B);
         let d_w = self.shifted_wire_value(constraint_index, WiredWitness::D);
 
-        let gated_identity_is_zero =
-            |selector, identity| selector * identity == BlsScalar::zero();
-
         let arithmetic =
             (qm * a * b + ql * a + qr * b + qo * c + qf * d + qc) * qarith + pi;
-        if arithmetic != BlsScalar::zero() {
-            return false;
-        }
 
         let four = BlsScalar::from(4u64);
         let range_identities = [
@@ -102,12 +96,6 @@ impl Debugger {
             range_delta(a - four * b),
             range_delta(d_w - four * a),
         ];
-        if range_identities
-            .into_iter()
-            .any(|identity| !gated_identity_is_zero(qrange, identity))
-        {
-            return false;
-        }
 
         let left_quad = a_w - four * a;
         let right_quad = b_w - four * b;
@@ -119,12 +107,6 @@ impl Debugger {
             c - left_quad * right_quad,
             delta_xor_and(&left_quad, &right_quad, &c, &output_quad, &qc),
         ];
-        if logic_identities
-            .into_iter()
-            .any(|identity| !gated_identity_is_zero(qlogic, identity))
-        {
-            return false;
-        }
 
         let bit = extract_bit(&d, &d_w);
         let y_alpha = bit.square() * (qr - BlsScalar::one()) + BlsScalar::one();
@@ -135,12 +117,6 @@ impl Debugger {
             a_w + a_w * c * a * b * EDWARDS_D - (a * y_alpha + b * x_alpha),
             b_w - b_w * c * a * b * EDWARDS_D - (b * y_alpha + a * x_alpha),
         ];
-        if fixed_base_identities
-            .into_iter()
-            .any(|identity| !gated_identity_is_zero(qfixed_add, identity))
-        {
-            return false;
-        }
 
         let x1_y2 = d_w;
         let y1_x2 = b * c;
@@ -149,9 +125,36 @@ impl Debugger {
             x1_y2 + y1_x2 - (a_w + a_w * EDWARDS_D * x1_y2 * y1_x2),
             b * d + a * c - (b_w - b_w * EDWARDS_D * x1_y2 * y1_x2),
         ];
-        variable_base_identities
+
+        [
+            arithmetic,
+            range_identities[0] * qrange,
+            range_identities[1] * qrange,
+            range_identities[2] * qrange,
+            range_identities[3] * qrange,
+            logic_identities[0] * qlogic,
+            logic_identities[1] * qlogic,
+            logic_identities[2] * qlogic,
+            logic_identities[3] * qlogic,
+            logic_identities[4] * qlogic,
+            fixed_base_identities[0] * qfixed_add,
+            fixed_base_identities[1] * qfixed_add,
+            fixed_base_identities[2] * qfixed_add,
+            fixed_base_identities[3] * qfixed_add,
+            variable_base_identities[0] * qgroup_variable,
+            variable_base_identities[1] * qgroup_variable,
+            variable_base_identities[2] * qgroup_variable,
+        ]
+    }
+
+    fn evaluates_to_zero(
+        &self,
+        constraint_index: usize,
+        constraint: &Constraint,
+    ) -> bool {
+        self.identity_evaluations(constraint_index, constraint)
             .into_iter()
-            .all(|identity| gated_identity_is_zero(qgroup_variable, identity))
+            .all(|identity| identity == BlsScalar::zero())
     }
 
     /// Resolver the caller function
@@ -330,91 +333,214 @@ mod tests {
         }
     }
 
+    fn assert_satisfied(
+        name: &str,
+        constraint: Constraint,
+        values: [BlsScalar; 8],
+    ) {
+        let debugger = wire_rows(constraint, values);
+        let constraint = &debugger.constraints[0].1;
+        let identities = debugger.identity_evaluations(0, constraint);
+
+        assert!(
+            identities
+                .into_iter()
+                .all(|identity| identity == BlsScalar::zero()),
+            "{name} fixture did not satisfy every identity: {identities:?}"
+        );
+        assert!(debugger.evaluates_to_zero(0, constraint));
+    }
+
+    fn assert_identity_fails(
+        name: &str,
+        identity_index: usize,
+        constraint: Constraint,
+        values: [BlsScalar; 8],
+    ) {
+        let debugger = wire_rows(constraint, values);
+        let constraint = &debugger.constraints[0].1;
+        let identities = debugger.identity_evaluations(0, constraint);
+
+        assert_ne!(
+            identities[identity_index],
+            BlsScalar::zero(),
+            "{name} did not invalidate identity {identity_index}"
+        );
+        assert!(
+            !debugger.evaluates_to_zero(0, constraint),
+            "{name} evaluated as satisfied"
+        );
+    }
+
+    fn add(
+        mut values: [BlsScalar; 8],
+        index: usize,
+        amount: u64,
+    ) -> [BlsScalar; 8] {
+        values[index] += BlsScalar::from(amount);
+        values
+    }
+
     #[test]
     fn evaluates_all_gate_identities() {
-        let zeroes = [BlsScalar::zero(); 8];
-        let valid_constraints = [
-            Constraint::arithmetic(&Constraint::new()),
-            Constraint::range(&Constraint::new()),
-            Constraint::logic(&Constraint::new()),
-            Constraint::logic_xor(&Constraint::new()),
-            Constraint::group_add_fixed_base(&Constraint::new()),
-            Constraint::group_add_variable_base(&Constraint::new()),
+        let arithmetic = Constraint::arithmetic(
+            &Constraint::new()
+                .mult(1u64)
+                .left(1u64)
+                .right(1u64)
+                .output(1u64)
+                .fourth(1u64)
+                .constant(1u64)
+                .public(-BlsScalar::from(6u64)),
+        );
+        let arithmetic_values = [BlsScalar::one(); 8];
+
+        let range = Constraint::range(&Constraint::new());
+        let range_values = [91, 22, 5, 1, 7, 8, 9, 364].map(BlsScalar::from);
+
+        let logic_and = Constraint::logic(&Constraint::new());
+        let logic_and_values = [1, 2, 3, 4, 7, 9, 5, 17].map(BlsScalar::from);
+
+        let logic_xor = Constraint::logic_xor(&Constraint::new());
+        let logic_xor_values = [1, 2, 3, 4, 7, 9, 5, 18].map(BlsScalar::from);
+
+        let one = BlsScalar::one();
+        let inverse_one_plus_d = (one + EDWARDS_D)
+            .invert()
+            .expect("1 + EDWARDS_D is nonzero");
+        let inverse_one_minus_d = (one - EDWARDS_D)
+            .invert()
+            .expect("1 - EDWARDS_D is nonzero");
+
+        let fixed_base = Constraint::group_add_fixed_base(
+            &Constraint::new().right(1u64).constant(1u64),
+        );
+        let fixed_base_values = [
+            one,
+            one,
+            one,
+            one,
+            inverse_one_plus_d,
+            inverse_one_minus_d,
+            one,
+            BlsScalar::from(3u64),
+        ];
+        let variable_base =
+            Constraint::group_add_variable_base(&Constraint::new());
+        let variable_base_values = [
+            one,
+            one,
+            one,
+            one,
+            inverse_one_plus_d.double(),
+            inverse_one_minus_d.double(),
+            one,
+            one,
         ];
 
-        for constraint in valid_constraints {
-            let debugger = wire_rows(constraint, zeroes);
-            assert!(debugger.evaluates_to_zero(0, &debugger.constraints[0].1));
+        let valid_cases = [
+            ("arithmetic", arithmetic, arithmetic_values),
+            ("range", range, range_values),
+            ("logic AND", logic_and, logic_and_values),
+            ("logic XOR", logic_xor, logic_xor_values),
+            ("fixed-base addition", fixed_base, fixed_base_values),
+            (
+                "variable-base addition",
+                variable_base,
+                variable_base_values,
+            ),
+        ];
+        for (name, constraint, values) in valid_cases {
+            assert_satisfied(name, constraint, values);
         }
 
+        let mut invalid_range_0 = range_values;
+        invalid_range_0[3] = BlsScalar::zero();
+        let mut invalid_range_1 = range_values;
+        invalid_range_1[2] = BlsScalar::from(6u64);
+        let mut invalid_range_2 = range_values;
+        invalid_range_2[1] = BlsScalar::from(23u64);
+        let mut invalid_range_3 = range_values;
+        invalid_range_3[7] = BlsScalar::from(368u64);
+
         let invalid_cases = [
+            ("arithmetic", 0, arithmetic, add(arithmetic_values, 0, 1)),
+            ("range delta c/d", 1, range, invalid_range_0),
+            ("range delta b/c", 2, range, invalid_range_1),
+            ("range delta a/b", 3, range, invalid_range_2),
+            ("range accumulator", 4, range, invalid_range_3),
+            ("logic left quad", 5, logic_and, add(logic_and_values, 4, 1)),
             (
-                Constraint::arithmetic(&Constraint::new().constant(1u64)),
-                zeroes,
+                "logic right quad",
+                6,
+                logic_and,
+                add(logic_and_values, 5, 3),
             ),
             (
-                Constraint::range(&Constraint::new()),
-                [
-                    BlsScalar::zero(),
-                    BlsScalar::zero(),
-                    BlsScalar::zero(),
-                    BlsScalar::zero(),
-                    BlsScalar::zero(),
-                    BlsScalar::zero(),
-                    BlsScalar::zero(),
-                    BlsScalar::from(4u64),
-                ],
+                "logic output quad",
+                7,
+                logic_and,
+                add(logic_and_values, 7, 3),
+            ),
+            ("logic product", 8, logic_and, add(logic_and_values, 2, 1)),
+            (
+                "logic AND relation",
+                9,
+                logic_and,
+                add(logic_and_values, 7, 1),
             ),
             (
-                Constraint::logic(&Constraint::new()),
-                [
-                    BlsScalar::zero(),
-                    BlsScalar::zero(),
-                    BlsScalar::one(),
-                    BlsScalar::zero(),
-                    BlsScalar::zero(),
-                    BlsScalar::zero(),
-                    BlsScalar::zero(),
-                    BlsScalar::zero(),
-                ],
+                "logic XOR relation",
+                9,
+                logic_xor,
+                add(logic_xor_values, 7, 1),
             ),
             (
-                Constraint::group_add_fixed_base(&Constraint::new()),
-                [
-                    BlsScalar::zero(),
-                    BlsScalar::zero(),
-                    BlsScalar::one(),
-                    BlsScalar::zero(),
-                    BlsScalar::zero(),
-                    BlsScalar::zero(),
-                    BlsScalar::zero(),
-                    BlsScalar::zero(),
-                ],
+                "fixed-base bit consistency",
+                10,
+                fixed_base,
+                add(fixed_base_values, 7, 1),
             ),
             (
-                Constraint::group_add_variable_base(&Constraint::new()),
-                [
-                    BlsScalar::zero(),
-                    BlsScalar::zero(),
-                    BlsScalar::zero(),
-                    BlsScalar::zero(),
-                    BlsScalar::zero(),
-                    BlsScalar::zero(),
-                    BlsScalar::zero(),
-                    BlsScalar::one(),
-                ],
+                "fixed-base xy consistency",
+                11,
+                fixed_base,
+                add(fixed_base_values, 2, 1),
             ),
-            (Constraint::range(&Constraint::new().public(1u64)), zeroes),
+            (
+                "fixed-base x accumulator",
+                12,
+                fixed_base,
+                add(fixed_base_values, 4, 1),
+            ),
+            (
+                "fixed-base y accumulator",
+                13,
+                fixed_base,
+                add(fixed_base_values, 5, 1),
+            ),
+            (
+                "variable-base xy consistency",
+                14,
+                variable_base,
+                add(variable_base_values, 7, 1),
+            ),
+            (
+                "variable-base x accumulator",
+                15,
+                variable_base,
+                add(variable_base_values, 4, 1),
+            ),
+            (
+                "variable-base y accumulator",
+                16,
+                variable_base,
+                add(variable_base_values, 5, 1),
+            ),
         ];
 
-        for (case, (constraint, values)) in
-            invalid_cases.into_iter().enumerate()
-        {
-            let debugger = wire_rows(constraint, values);
-            assert!(
-                !debugger.evaluates_to_zero(0, &debugger.constraints[0].1),
-                "invalid gate case {case} evaluated as satisfied"
-            );
+        for (name, identity_index, constraint, values) in invalid_cases {
+            assert_identity_fails(name, identity_index, constraint, values);
         }
     }
 }

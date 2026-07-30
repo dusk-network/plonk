@@ -196,6 +196,10 @@ impl Prover {
             return Err(Error::NotEnoughBytes);
         }
 
+        if constraints.checked_next_power_of_two() != Some(size) {
+            return Err(dusk_bytes::Error::InvalidData.into());
+        }
+
         let label = &bytes[..label_len];
         bytes = &bytes[label_len..];
 
@@ -209,6 +213,10 @@ impl Prover {
 
         let label = label.to_vec();
         let prover_key = ProverKey::from_slice(prover_key)?;
+
+        if prover_key.n != size {
+            return Err(dusk_bytes::Error::InvalidData.into());
+        }
 
         let commit_key = CommitKey::from_raw_var_bytes(commit_key)?;
 
@@ -694,6 +702,20 @@ mod tests {
         let prover_key_offset = 6 * u64::SIZE + label_len;
         let evaluations_size_offset = prover_key_offset + u64::SIZE;
         let first_polynomial_len_offset = prover_key_offset + 2 * u64::SIZE;
+
+        let mut zero_size = bytes.clone();
+        zero_size[4 * u64::SIZE..5 * u64::SIZE]
+            .copy_from_slice(&0u64.to_bytes());
+        assert_deserialization_error_without_panic(&zero_size);
+
+        let size = u64::from_slice(&bytes[4 * u64::SIZE..5 * u64::SIZE])
+            .expect("serialized circuit size should decode");
+        let mut mismatched_prover_key_size = bytes.clone();
+        mismatched_prover_key_size[4 * u64::SIZE..5 * u64::SIZE]
+            .copy_from_slice(&(size * 2).to_bytes());
+        mismatched_prover_key_size[5 * u64::SIZE..6 * u64::SIZE]
+            .copy_from_slice(&(size + 1).to_bytes());
+        assert_deserialization_error_without_panic(&mismatched_prover_key_size);
 
         let mut oversized_evaluations = bytes.clone();
         oversized_evaluations
