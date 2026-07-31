@@ -4,8 +4,9 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-//! Bitwise logic gadgets: the shared AND/XOR widget, its binding to the input
-//! witnesses, and the two public entry points.
+//! Bitwise logic gadgets: the AND/XOR widget selected by a flag, the `and`
+//! and `xor` entry points wrapping it, and the binding of the widget's
+//! accumulators to its input witnesses.
 
 use alloc::vec::Vec;
 
