@@ -49,7 +49,7 @@ fn circuit_with_all_gates() {
             let r_w = composer.gate_mul(s);
 
             composer.append_constant(15);
-            composer.append_constant_point(self.z);
+            composer.append_constant_point(self.z)?;
             composer.append_public_point(self.z);
             composer.append_public(self.y);
 
@@ -60,7 +60,10 @@ fn circuit_with_all_gates() {
 
             composer.gate_add(Constraint::new().left(1).right(1).a(w_a).b(w_b));
 
-            composer.component_add_point(w_z, w_z);
+            // `z` is a multiple of the prime-order generator, so subgroup
+            // membership holds by construction.
+            let tf_z = TorsionFreeWitnessPoint::new_unchecked(w_z);
+            composer.component_add_point(tf_z, tf_z);
             composer.append_logic_and::<127>(w_a, w_b);
             composer.component_boolean(Composer::ONE);
             composer.component_decomposition::<254>(w_a);
@@ -68,10 +71,10 @@ fn circuit_with_all_gates() {
                 w_y,
                 dusk_jubjub::GENERATOR_EXTENDED,
             )?;
-            composer.component_mul_point(w_y, w_z);
+            composer.component_mul_point(w_y, tf_z);
             composer.component_range_bits::<256>(w_a);
             composer.component_select(Composer::ONE, w_a, w_b);
-            composer.component_select_identity(Composer::ONE, w_z);
+            composer.component_select_identity(Composer::ONE, tf_z);
             composer.component_select_one(Composer::ONE, w_a);
             composer.component_select_point(Composer::ONE, w_z, w_z);
             composer.component_select_zero(Composer::ONE, w_a);

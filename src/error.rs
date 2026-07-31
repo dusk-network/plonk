@@ -82,6 +82,9 @@ pub enum Error {
     /// This error occurs when a fixed-base generator is not a prime-order
     /// Jubjub point.
     JubJubGeneratorNotPrimeOrder,
+    /// This error occurs when a JubJub point that is not a member of the
+    /// prime-order subgroup is appended to a circuit as a constant.
+    JubJubPointNotTorsionFree,
     /// WNAF2k should be in `[-1, 0, 1]`
     UnsupportedWNAF2k,
     /// The provided public inputs doesn't match the circuit definition
@@ -168,6 +171,9 @@ impl std::fmt::Display for Error {
             Self::JubJubGeneratorNotPrimeOrder => {
                 write!(f, "JubJub generator is not a prime-order point")
             }
+            Self::JubJubPointNotTorsionFree => {
+                write!(f, "JubJub point is not in the prime-order subgroup")
+            }
             Self::BytesError(err) => write!(f, "{:?}", err),
             Self::UnsupportedWNAF2k => write!(
                 f,
@@ -221,7 +227,7 @@ mod tests {
         assert!(matches!(bytes_error, Error::BytesError(_)));
 
         // Format each variant at least once so the `Display` impl gets covered.
-        let all_errors: [Error; 23] = [
+        let all_errors: [Error; 24] = [
             Error::InvalidEvalDomainSize {
                 log_size_of_group: 32,
                 adacity: 28,
@@ -244,6 +250,7 @@ mod tests {
             Error::BlsScalarMalformed,
             Error::JubJubScalarMalformed,
             Error::JubJubGeneratorNotPrimeOrder,
+            Error::JubJubPointNotTorsionFree,
             Error::UnsupportedWNAF2k,
             Error::InvalidCompressedCircuit,
             Error::LegacyProvingDisabled,

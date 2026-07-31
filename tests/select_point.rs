@@ -246,10 +246,14 @@ fn component_select_identity() {
             let w_point = composer.append_point(self.point);
             let w_result = composer.append_point(self.result);
 
+            // The test inputs are multiples of the prime-order generator or
+            // the identity, so subgroup membership holds by construction.
+            let w_point = TorsionFreeWitnessPoint::new_unchecked(w_point);
+
             let result_circuit =
                 composer.component_select_identity(w_bit, w_point);
 
-            composer.assert_equal_point(w_result, result_circuit);
+            composer.assert_equal_point(w_result, result_circuit.into());
 
             Ok(())
         }
@@ -309,14 +313,28 @@ fn component_select_identity() {
     let circuit = TestCircuit::new(bit, point, result);
     check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
 
-    // Test invalid bit passes (bit should be constrained outside of the
-    // `select` component)
-    let msg = "Circuit with invalid bit can pass";
+    // Test invalid bit fails: the component constrains the bit to be
+    // boolean itself, otherwise a non-boolean assignment could smuggle an
+    // off-curve point through the `TorsionFreeWitnessPoint` type
+    let msg = "Circuit with invalid bit shouldn't pass";
     let bit = BlsScalar::random(&mut rng);
     let point = JubJubAffine::identity();
     let result = JubJubAffine::identity();
     let circuit = TestCircuit::new(bit, point, result);
-    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
+    check_unsatisfied_circuit(&prover, &circuit, &mut rng, msg);
+
+    // Test invalid bit fails with a non-identity point: for bit = t the
+    // selected coordinates are `(t·x, 1 - t + t·y)`, which for non-boolean
+    // `t` is generally not on the curve — the boolean constraint must reject
+    // the assignment even when the claimed result matches those coordinates
+    let msg = "Circuit with invalid bit and non-identity point shouldn't pass";
+    let bit = BlsScalar::random(&mut rng);
+    let point = dusk_jubjub::GENERATOR;
+    let forged_u = bit * point.get_u();
+    let forged_v = BlsScalar::one() - bit + bit * point.get_v();
+    let result = JubJubAffine::from_raw_unchecked(forged_u, forged_v);
+    let circuit = TestCircuit::new(bit, point, result);
+    check_unsatisfied_circuit(&prover, &circuit, &mut rng, msg);
 
     // Test one fails
     let msg = "Circuit with bit = 1 that selects identity shouldn't pass";

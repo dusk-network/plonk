@@ -45,9 +45,14 @@ fn component_add_point() {
             let w_p2 = composer.append_point(self.p2);
             let w_sum = composer.append_point(self.sum);
 
+            // The test inputs are multiples of the prime-order generator or
+            // the identity, so subgroup membership holds by construction.
+            let w_p1 = TorsionFreeWitnessPoint::new_unchecked(w_p1);
+            let w_p2 = TorsionFreeWitnessPoint::new_unchecked(w_p2);
+
             let sum_circuit = composer.component_add_point(w_p1, w_p2);
 
-            composer.assert_equal_point(w_sum, sum_circuit);
+            composer.assert_equal_point(w_sum, sum_circuit.into());
 
             Ok(())
         }
@@ -141,9 +146,14 @@ fn component_sub_point() {
             let w_p2 = composer.append_point(self.p2);
             let w_sub = composer.append_point(self.sub);
 
+            // The test inputs are multiples of the prime-order generator or
+            // the identity, so subgroup membership holds by construction.
+            let w_p1 = TorsionFreeWitnessPoint::new_unchecked(w_p1);
+            let w_p2 = TorsionFreeWitnessPoint::new_unchecked(w_p2);
+
             let sub_circuit = composer.component_sub_point(w_p1, w_p2);
 
-            composer.assert_equal_point(w_sub, sub_circuit);
+            composer.assert_equal_point(w_sub, sub_circuit.into());
 
             Ok(())
         }
@@ -227,9 +237,13 @@ fn component_neg_point() {
             let w_p = composer.append_point(self.p);
             let w_neg_p = composer.append_point(self.neg_p);
 
+            // The test inputs are multiples of the prime-order generator or
+            // the identity, so subgroup membership holds by construction.
+            let w_p = TorsionFreeWitnessPoint::new_unchecked(w_p);
+
             let neg_circuit = composer.component_neg_point(w_p);
 
-            composer.assert_equal_point(neg_circuit, w_neg_p);
+            composer.assert_equal_point(neg_circuit.into(), w_neg_p);
 
             Ok(())
         }
@@ -317,7 +331,7 @@ fn component_mul_generator() {
             let circuit_result =
                 composer.component_mul_generator(w_scalar, self.generator)?;
 
-            composer.assert_equal_point(w_result, circuit_result);
+            composer.assert_equal_point(w_result, circuit_result.into());
 
             Ok(())
         }
@@ -502,10 +516,14 @@ fn component_mul_point() {
             let w_point = composer.append_point(self.point);
             let w_result = composer.append_point(self.result);
 
+            // The test base is a multiple of the prime-order generator, so
+            // subgroup membership holds by construction.
+            let w_point = TorsionFreeWitnessPoint::new_unchecked(w_point);
+
             let result_circuit =
                 composer.component_mul_point(w_scalar, w_point);
 
-            composer.assert_equal_point(w_result, result_circuit);
+            composer.assert_equal_point(w_result, result_circuit.into());
 
             Ok(())
         }
