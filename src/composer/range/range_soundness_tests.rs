@@ -21,9 +21,13 @@
 use rand::SeedableRng;
 use rand::rngs::StdRng;
 
-use super::soundness_support::{assert_rejected, assert_verifies, gate_digest};
 use super::*;
-use crate::prelude::{Compiler, Prover, PublicParameters, Verifier};
+use crate::composer::soundness_support::{
+    assert_rejected, assert_verifies, gate_digest,
+};
+use crate::prelude::{
+    Circuit, Compiler, Error, Prover, PublicParameters, Verifier,
+};
 
 // A bare range check, used to pin `range_check`'s bounds directly.
 struct RangeCircuit<const NUM_BITS: usize> {

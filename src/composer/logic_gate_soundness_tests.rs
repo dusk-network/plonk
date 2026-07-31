@@ -22,6 +22,8 @@
 //! constraint — so a rejection here can only come from the binding, never from
 //! a layout mismatch or an unrelated proving error.
 
+use core::cmp;
+
 use rand::SeedableRng;
 use rand::rngs::StdRng;
 
