@@ -19,9 +19,13 @@ use ff::Field;
 use rand::SeedableRng;
 use rand::rngs::StdRng;
 
-use super::soundness_support::{assert_rejected, assert_verifies, gate_digest};
 use super::*;
-use crate::prelude::{Compiler, Prover, PublicParameters, Verifier};
+use crate::composer::soundness_support::{
+    assert_rejected, assert_verifies, gate_digest,
+};
+use crate::prelude::{
+    Circuit, Compiler, Error, Prover, PublicParameters, Verifier,
+};
 
 // Torsion points of the embedded curve, raw coordinates from dusk-jubjub's
 // (private) EIGHT_TORSION table. Their claimed orders are pinned by
