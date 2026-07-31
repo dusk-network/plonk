@@ -39,11 +39,13 @@
 use rand::SeedableRng;
 use rand::rngs::StdRng;
 
-use super::soundness_support::{
+use super::*;
+use crate::composer::soundness_support::{
     assert_rejected, assert_verifies, fits, pow, truncate,
 };
-use super::*;
-use crate::prelude::{Compiler, Prover, PublicParameters, Verifier};
+use crate::prelude::{
+    Circuit, Compiler, Error, Prover, PublicParameters, Verifier,
+};
 
 // An attacker's fork of [`Composer::component_truncate`]: byte-identical gate
 // emission, except the returned `low` (and the paired `high`) are sourced from
