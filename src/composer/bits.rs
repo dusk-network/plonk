@@ -31,6 +31,7 @@ pub(super) fn recompose_bits(
     value
 }
 
+/// Bit-level primitives
 impl Composer {
     /// Adds a boolean constraint (also known as binary constraint) where the
     /// gate eq. will enforce that the [`Witness`] received is either `0` or `1`

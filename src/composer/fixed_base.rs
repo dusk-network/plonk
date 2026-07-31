@@ -66,6 +66,7 @@ const _: () = assert!(
     "the fixed-base leading-zero block must stay too narrow to wrap the BLS modulus"
 );
 
+/// Fixed-base scalar-multiplication gadgets
 impl Composer {
     /// Evaluate `jubjub · generator` as a [`TorsionFreeWitnessPoint`].
     ///

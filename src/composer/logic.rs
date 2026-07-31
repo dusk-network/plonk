@@ -18,6 +18,7 @@ use crate::bit_iterator::BitIterator8;
 #[cfg(test)]
 mod logic_gate_soundness_tests;
 
+/// Bitwise logic gadgets
 impl Composer {
     /// Performs a logical AND or XOR op between the inputs provided for
     /// `num_bits = BIT_PAIRS * 2` bits (counting from the least significant).

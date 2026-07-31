@@ -15,6 +15,7 @@ use super::{Composer, Constraint, Witness};
 #[cfg(test)]
 mod truncate_soundness_tests;
 
+/// Truncation gadgets
 impl Composer {
     /// Bind an already-bounded `low` to the low `num_bits` of `input` via the
     /// canonical truncation split `input = high * 2^num_bits + low`.

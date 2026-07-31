@@ -12,6 +12,7 @@ use dusk_bls12_381::BlsScalar;
 
 use super::{Composer, Constraint, Witness};
 
+/// Conditional selection gadgets
 impl Composer {
     /// Conditionally selects a [`Witness`] based on an input bit.
     ///

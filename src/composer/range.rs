@@ -19,6 +19,7 @@ use crate::bit_iterator::BitIterator8;
 #[cfg(test)]
 mod range_soundness_tests;
 
+/// Range-check gadgets
 impl Composer {
     /// Constrains a [`Witness`] to the range `[0, 2^BITS)`, for any (possibly
     /// odd) compile-time `BITS` up to `256`.

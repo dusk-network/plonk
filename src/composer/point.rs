@@ -29,6 +29,7 @@ const EIGHT_INV: JubJubScalar = JubJubScalar::from_raw([
     0x01cfb69d4ca675f5,
 ]);
 
+/// Embedded-curve point gadgets
 impl Composer {
     /// Appends a point in affine form as [`WitnessPoint`]
     pub fn append_point<P: Into<JubJubAffine>>(
