@@ -388,4 +388,29 @@ impl Composer {
 
         TorsionFreeWitnessPoint::new_unchecked(result)
     }
+
+    /// Conditionally selects a [`WitnessPoint`] based on an input bit.
+    ///
+    /// bit == 1 => a,
+    /// bit == 0 => b,
+    ///
+    /// `bit` is expected to be constrained by
+    /// [`Composer::component_boolean`]
+    ///
+    /// This mux deliberately stays untyped: it is not a group operation, and
+    /// selecting between unvalidated points is legitimate. Consequently the
+    /// output is only as validated as the chosen input — where the boundary
+    /// rule on [`TorsionFreeWitnessPoint`] requires membership, establish it
+    /// on the selected point.
+    pub fn component_select_point(
+        &mut self,
+        bit: Witness,
+        a: WitnessPoint,
+        b: WitnessPoint,
+    ) -> WitnessPoint {
+        let x = self.component_select(bit, *a.x(), *b.x());
+        let y = self.component_select(bit, *a.y(), *b.y());
+
+        WitnessPoint::new(x, y)
+    }
 }
