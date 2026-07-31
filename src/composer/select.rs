@@ -4,33 +4,15 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-//! Boolean constraint and the selection gadgets built on it.
+//! Conditional selection gadgets. None of them constrains its `bit`: that is
+//! the caller's obligation, discharged with
+//! [`Composer::component_boolean`].
 
 use dusk_bls12_381::BlsScalar;
 
 use super::{Composer, Constraint, Witness};
 
 impl Composer {
-    /// Adds a boolean constraint (also known as binary constraint) where the
-    /// gate eq. will enforce that the [`Witness`] received is either `0` or `1`
-    /// by adding a constraint in the circuit.
-    ///
-    /// Note that using this constraint with whatever [`Witness`] that
-    /// is not representing a value equalling 0 or 1, will always force the
-    /// equation to fail.
-    pub fn component_boolean(&mut self, a: Witness) {
-        let zero = Self::ZERO;
-        let constraint = Constraint::new()
-            .mult(1)
-            .output(-BlsScalar::one())
-            .a(a)
-            .b(a)
-            .c(a)
-            .d(zero);
-
-        self.append_gate(constraint);
-    }
-
     /// Conditionally selects a [`Witness`] based on an input bit.
     ///
     /// bit == 1 => a,

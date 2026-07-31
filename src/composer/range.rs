@@ -12,7 +12,8 @@ use core::cmp;
 
 use dusk_bls12_381::BlsScalar;
 
-use super::{Composer, Constraint, WiredWitness, Witness, recompose_bits};
+use super::bits::recompose_bits;
+use super::{Composer, Constraint, WiredWitness, Witness};
 use crate::bit_iterator::BitIterator8;
 
 #[cfg(test)]

@@ -15,6 +15,7 @@ use hashbrown::HashMap;
 use crate::error::Error;
 use crate::runtime::{Runtime, RuntimeEvent};
 
+mod bits;
 mod circuit;
 mod compress;
 mod constraint_system;
@@ -67,21 +68,6 @@ impl ops::Index<Witness> for Composer {
     fn index(&self, w: Witness) -> &Self::Output {
         &self.witnesses[w.index()]
     }
-}
-
-/// Recompose `bits[start..end]` (little-endian, bit `i` weighing `2^i`) into a
-/// field element with `bits[start]` as the least significant bit, i.e. the
-/// value `sum_{i in [start, end)} bits[i] * 2^(i - start)`.
-fn recompose_bits(bits: &[u8; 256], start: usize, end: usize) -> BlsScalar {
-    let two = BlsScalar::from(2u64);
-    let mut value = BlsScalar::zero();
-    for i in (start..end).rev() {
-        value *= two;
-        if bits[i] == 1 {
-            value += BlsScalar::one();
-        }
-    }
-    value
 }
 
 // pub trait Composer: Sized + Index<Witness, Output = BlsScalar> {
@@ -428,50 +414,6 @@ impl Composer {
             public.map(|p| constraint.public(p)).unwrap_or(constraint);
 
         self.append_gate(constraint);
-    }
-
-    /// Decomposes `scalar` into an array truncated to `N` bits (max 256) in
-    /// little endian.
-    /// The `scalar` for 4, for example, would be deconstructed into the array
-    /// `[0, 0, 1]` for `N = 3` and `[0, 0, 1, 0, 0]` for `N = 5`.
-    ///
-    /// Asserts the reconstruction of the bits to be equal to `scalar`. So with
-    /// the above example, the deconstruction of 4 for `N < 3` would result in
-    /// an unsatisfied circuit.
-    ///
-    /// Consumes `2 · N + 1` gates
-    pub fn component_decomposition<const N: usize>(
-        &mut self,
-        scalar: Witness,
-    ) -> [Witness; N] {
-        // Static assertion
-        assert!(0 < N && N <= 256);
-
-        let mut decomposition = [Self::ZERO; N];
-
-        let acc = Self::ZERO;
-        let acc = self[scalar]
-            .to_bits()
-            .iter()
-            .enumerate()
-            .zip(decomposition.iter_mut())
-            .fold(acc, |acc, ((i, bit), w_bit)| {
-                *w_bit = self.append_witness(BlsScalar::from(*bit as u64));
-
-                self.component_boolean(*w_bit);
-
-                let constraint = Constraint::new()
-                    .left(BlsScalar::pow_of_2(i as u64))
-                    .right(1)
-                    .a(*w_bit)
-                    .b(acc);
-
-                self.gate_add(constraint)
-            });
-
-        self.assert_equal(acc, scalar);
-
-        decomposition
     }
 
     /// Evaluate and return `o` by appending a new constraint into the circuit.
