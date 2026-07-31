@@ -17,7 +17,7 @@ use super::{
 use crate::error::Error;
 
 #[cfg(test)]
-mod torsion_free_soundness_tests;
+mod soundness_tests;
 
 /// The inverse of the curve cofactor in the scalar field: `8⁻¹ mod r`, with
 /// `r` the order of the prime-order subgroup. Used to derive the honest

@@ -13,7 +13,7 @@ use super::bits::recompose_bits;
 use super::{Composer, Constraint, Witness};
 
 #[cfg(test)]
-mod truncate_soundness_tests;
+mod soundness_tests;
 
 /// Truncation gadgets
 impl Composer {

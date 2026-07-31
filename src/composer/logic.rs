@@ -16,7 +16,7 @@ use super::{Composer, Constraint, WiredWitness, Witness};
 use crate::bit_iterator::BitIterator8;
 
 #[cfg(test)]
-mod logic_gate_soundness_tests;
+mod soundness_tests;
 
 /// Bitwise logic gadgets
 impl Composer {
