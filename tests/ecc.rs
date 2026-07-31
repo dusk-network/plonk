@@ -474,6 +474,190 @@ fn component_mul_generator_rejects_zero_z_generator() {
     assert!(matches!(result, Err(Error::JubJubGeneratorNotPrimeOrder)));
 }
 
+/// Torsion points of the embedded curve, raw coordinates from dusk-jubjub's
+/// (private) `EIGHT_TORSION` table. Their claimed orders are pinned by
+/// `torsion_points_have_claimed_orders`.
+fn torsion_points() -> [(u32, JubJubAffine); 3] {
+    let order_8 = JubJubAffine::from_raw_unchecked(
+        BlsScalar::from_raw([
+            0xd92e_6a79_2720_0d43,
+            0x7aa4_1ac4_3dae_8582,
+            0xeaaa_e086_a166_18d1,
+            0x71d4_df38_ba9e_7973,
+        ]),
+        BlsScalar::from_raw([
+            0xff0d_2068_eff4_96dd,
+            0x9106_ee90_f384_a4a1,
+            0x16a1_3035_ad4d_7266,
+            0x4958_bdb2_1966_982e,
+        ]),
+    );
+    let order_4 = JubJubAffine::from_raw_unchecked(
+        BlsScalar::from_raw([
+            0xfffe_ffff_0000_0001,
+            0x67ba_a400_89fb_5bfe,
+            0xa5e8_0b39_939e_d334,
+            0x73ed_a753_299d_7d47,
+        ]),
+        BlsScalar::zero(),
+    );
+    let order_2 =
+        JubJubAffine::from_raw_unchecked(BlsScalar::zero(), -BlsScalar::one());
+
+    [(8, order_8), (4, order_4), (2, order_2)]
+}
+
+#[test]
+fn torsion_points_have_claimed_orders() {
+    // The guard predicates separate torsion points from prime-order ones but
+    // not the torsion orders from each other, so nothing else in these tests
+    // would notice a mis-transcribed row of the source table. Pin each claimed
+    // order by its doubling chain: the point reaches the identity after
+    // exactly `log2(order)` doublings and not before.
+    for (order, point) in torsion_points() {
+        let mut accumulator = JubJubExtended::from(point);
+        assert!(!bool::from(accumulator.is_identity()), "order {order}");
+
+        for _ in 1..order.ilog2() {
+            accumulator = accumulator.double();
+            assert!(!bool::from(accumulator.is_identity()), "order {order}");
+        }
+
+        assert!(
+            bool::from(accumulator.double().is_identity()),
+            "order {order}"
+        );
+    }
+}
+
+#[test]
+fn component_mul_generator_rejects_off_curve_generator() {
+    let mut composer = Composer::initialized();
+    let scalar = composer.append_witness(JubJubScalar::one());
+    // `(0, 0)` does not satisfy the curve equation. As an extended point it
+    // carries `Z = 1`, so the guard has to reject it through `is_on_curve`
+    // rather than through the leading `Z = 0` check.
+    let generator: JubJubExtended =
+        JubJubAffine::from_raw_unchecked(BlsScalar::zero(), BlsScalar::zero())
+            .into();
+    assert_ne!(generator.get_z(), BlsScalar::zero());
+    // The affine projection itself is off-curve, which separates this case
+    // from the extended-coordinate one below.
+    assert!(!bool::from(JubJubAffine::from(generator).is_on_curve()));
+    assert!(!bool::from(generator.is_on_curve()));
+
+    let result = composer.component_mul_generator(scalar, generator);
+
+    assert!(matches!(result, Err(Error::JubJubGeneratorNotPrimeOrder)));
+}
+
+#[test]
+fn component_mul_generator_rejects_inconsistent_extended_coordinates() {
+    let mut composer = Composer::initialized();
+    let scalar = composer.append_witness(JubJubScalar::one());
+    // `is_on_curve` on an extended point also ties the two halves of the
+    // extended coordinate to the affine ones: `u * v * z == t1 * t2`. Build a
+    // generator whose affine projection is the honest `GENERATOR` — on-curve
+    // and of prime order — but whose `t1`/`t2` break that identity, so this
+    // conjunct is the only thing left to reject it.
+    let affine = JubJubAffine::from(dusk_jubjub::GENERATOR_EXTENDED);
+    let generator = JubJubExtended::from_raw_unchecked(
+        affine.get_u(),
+        affine.get_v(),
+        BlsScalar::one(),
+        affine.get_u(),
+        affine.get_v() + BlsScalar::one(),
+    );
+    assert_ne!(generator.get_z(), BlsScalar::zero());
+    assert!(bool::from(JubJubAffine::from(generator).is_on_curve()));
+    assert!(!bool::from(generator.is_on_curve()));
+
+    let result = composer.component_mul_generator(scalar, generator);
+
+    assert!(matches!(result, Err(Error::JubJubGeneratorNotPrimeOrder)));
+}
+
+#[test]
+fn component_mul_generator_rejects_on_curve_torsion_generator() {
+    for (order, point) in torsion_points() {
+        let generator: JubJubExtended = point.into();
+
+        // Isolate the `is_torsion_free` branch: the point has to clear the
+        // `Z = 0` and on-curve checks and differ from the identity, otherwise
+        // an earlier condition rejects it and this branch is never reached.
+        assert_ne!(generator.get_z(), BlsScalar::zero(), "order {order}");
+        assert!(bool::from(generator.is_on_curve()), "order {order}");
+        assert!(!bool::from(generator.is_identity()), "order {order}");
+        assert!(bool::from(generator.is_small_order()), "order {order}");
+
+        let mut composer = Composer::initialized();
+        let scalar = composer.append_witness(JubJubScalar::one());
+
+        let result = composer.component_mul_generator(scalar, generator);
+
+        assert!(
+            matches!(result, Err(Error::JubJubGeneratorNotPrimeOrder)),
+            "order {order}"
+        );
+    }
+}
+
+#[test]
+fn component_mul_generator_rejects_mixed_order_generator() {
+    // A base of order `2r`, `4r` or `8r`: a prime-order point plus a torsion
+    // component. Unlike the small-order cases it survives the doubling chain
+    // `is_small_order` runs, so only the `r`-multiplication in
+    // `is_torsion_free` separates it from an honest generator.
+    let prime_order_part =
+        dusk_jubjub::GENERATOR_EXTENDED * &JubJubScalar::from(0xdead_beef_u64);
+
+    for (order, torsion) in torsion_points() {
+        let generator = prime_order_part + JubJubExtended::from(torsion);
+
+        assert_ne!(generator.get_z(), BlsScalar::zero(), "order {order}");
+        assert!(bool::from(generator.is_on_curve()), "order {order}");
+        assert!(!bool::from(generator.is_identity()), "order {order}");
+        assert!(!bool::from(generator.is_small_order()), "order {order}");
+
+        let mut composer = Composer::initialized();
+        let scalar = composer.append_witness(JubJubScalar::one());
+
+        let result = composer.component_mul_generator(scalar, generator);
+
+        assert!(
+            matches!(result, Err(Error::JubJubGeneratorNotPrimeOrder)),
+            "order {order}"
+        );
+    }
+}
+
+#[test]
+fn component_mul_generator_rejects_non_canonical_scalar() {
+    let mut composer = Composer::initialized();
+    // A BLS scalar at or above the Jubjub scalar modulus: the witness has no
+    // canonical Jubjub encoding, so the scalar guard rejects it. The generator
+    // is honest, so it cannot be what rejects the call.
+    let scalar = composer.append_witness(-BlsScalar::one());
+
+    let result = composer
+        .component_mul_generator(scalar, dusk_jubjub::GENERATOR_EXTENDED);
+
+    assert!(matches!(result, Err(Error::JubJubScalarMalformed)));
+}
+
+#[test]
+fn component_mul_generator_accepts_prime_order_generator() {
+    let mut composer = Composer::initialized();
+    let scalar = composer.append_witness(JubJubScalar::one());
+    // An honest base other than `GENERATOR`, so the rejection tests above
+    // cannot pass by refusing every generator.
+    let generator =
+        dusk_jubjub::GENERATOR_EXTENDED * &JubJubScalar::from(0xdead_beef_u64);
+    assert!(bool::from(generator.is_prime_order()));
+
+    assert!(composer.component_mul_generator(scalar, generator).is_ok());
+}
+
 #[test]
 fn component_mul_point() {
     pub struct TestCircuit {

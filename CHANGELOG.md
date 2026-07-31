@@ -126,13 +126,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.20.2] - 2024-11-14
 
-### Changed 
+### Changed
 
 - Lock msgpacker version to `0.4.3`
 
 ## [0.20.0] - 2024-08-14
 
-### Changed 
+### Changed
 
 - Modify the prover to match the paper [#831]
 - Modify the verifier to match the paper [#831]
@@ -720,7 +720,6 @@ is necessary since `rkyv/validation` was required as a bound.
 <!-- ISSUES -->
 [#870]: https://github.com/dusk-network/plonk/issues/870
 [#867]: https://github.com/dusk-network/plonk/issues/867
-[#862]: https://github.com/dusk-network/plonk/issues/862
 [#861]: https://github.com/dusk-network/plonk/issues/861
 [#860]: https://github.com/dusk-network/plonk/issues/860
 [#859]: https://github.com/dusk-network/plonk/issues/859
