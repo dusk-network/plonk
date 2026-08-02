@@ -504,6 +504,15 @@ mod test {
         srs.trim(degree)
     }
     #[test]
+    fn test_commit_rejects_oversized_polynomial() -> Result<(), Error> {
+        let degree = 25;
+        let (ck, _) = setup_test(degree)?;
+
+        let poly = Polynomial::rand(ck.max_degree() + 1, &mut OsRng);
+        assert_eq!(ck.commit(&poly), Err(Error::PolynomialDegreeTooLarge));
+        Ok(())
+    }
+    #[test]
     fn test_basic_commit() -> Result<(), Error> {
         let degree = 25;
         let (ck, opening_key) = setup_test(degree)?;

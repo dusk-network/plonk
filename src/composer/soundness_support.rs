@@ -17,9 +17,7 @@
 //! - the rejection must come from an **unsatisfied constraint** specifically,
 //!   not from any error the prover happens to return.
 //!
-//! [`gate_layout`] and [`assert_rejected`] pin those down; see
-//! [`UNSATISFIED`] for what the second one can and cannot tell apart on its
-//! own.
+//! [`gate_layout`] and [`assert_rejected`] pin those down.
 
 use rand::rngs::StdRng;
 
@@ -109,18 +107,6 @@ pub(super) fn gate_digest(gates: &[Gate]) -> [u8; 32] {
     acc.to_bytes()
 }
 
-/// The proving error an unsatisfied assignment surfaces as. The chain: the
-/// assignment does not satisfy the constraint system, so the quotient
-/// polynomial is not divisible by the vanishing polynomial, so a split chunk
-/// of it exceeds the commit key's maximum degree.
-///
-/// The variant is not exclusive to that chain — it is raised by
-/// `CommitKey::check_commit_degree_is_within_bounds`, which an undersized
-/// public parameter setup would also trip. What rules that out here is the
-/// control proof: it succeeds against the same commit key on an identical gate
-/// layout, so the only thing left that can differ is satisfiability.
-const UNSATISFIED: Error = Error::PolynomialDegreeTooLarge;
-
 /// Prove `honest` and verify the resulting proof, returning its public inputs.
 pub(super) fn assert_verifies<C: Circuit>(
     prover: &Prover,
@@ -145,6 +131,11 @@ pub(super) fn assert_verifies<C: Circuit>(
 /// accepted one no longer does, and the resulting `InvalidCircuitSize` would
 /// read as a successful rejection. Without the error check, any unrelated
 /// proving failure would do the same.
+///
+/// The control proof (the accepted circuit proving against the same commit
+/// key on an identical gate layout) is what makes [`Error::CircuitUnsatisfied`]
+/// conclusive here: the only thing that can differ between the accepted and
+/// rejected circuit is satisfiability.
 pub(super) fn assert_rejected<C: Circuit>(
     prover: &Prover,
     rng: &mut StdRng,
@@ -161,7 +152,7 @@ pub(super) fn assert_rejected<C: Circuit>(
 
     match prover.prove(rng, rejected) {
         Ok(_) => panic!("{case}: produced a proof"),
-        Err(error) if error == UNSATISFIED => {}
+        Err(Error::CircuitUnsatisfied) => {}
         Err(other) => panic!(
             "{case}: rejected by `{other:?}`, not by an unsatisfied \
              constraint — it is not exercising the constraint under test",
