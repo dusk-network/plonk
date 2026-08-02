@@ -23,6 +23,7 @@
 
 use rand::rngs::StdRng;
 
+use super::bits::recompose_bits;
 use super::*;
 use crate::prelude::{Prover, Verifier};
 

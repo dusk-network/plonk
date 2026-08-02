@@ -22,14 +22,18 @@
 //! constraint — so a rejection here can only come from the binding, never from
 //! a layout mismatch or an unrelated proving error.
 
+use core::cmp;
+
 use rand::SeedableRng;
 use rand::rngs::StdRng;
 
-use super::soundness_support::{
+use super::*;
+use crate::composer::soundness_support::{
     assert_rejected, assert_verifies, fits, truncate,
 };
-use super::*;
-use crate::prelude::{Compiler, Prover, PublicParameters, Verifier};
+use crate::prelude::{
+    Circuit, Compiler, Error, Prover, PublicParameters, Verifier,
+};
 
 // Inputs pinned to constants so they are identical for every prover. Both fit
 // in 32 bits, so for `BIT_PAIRS = 16` the result is exactly `input_a ^

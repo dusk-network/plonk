@@ -25,10 +25,10 @@
 use rand::SeedableRng;
 use rand::rngs::StdRng;
 
-use super::soundness_support::{assert_rejected, assert_verifies};
 use super::*;
+use crate::composer::soundness_support::{assert_rejected, assert_verifies};
 use crate::prelude::{
-    Compiler, PlonkVersion, Prover, PublicParameters, Verifier,
+    Circuit, Compiler, PlonkVersion, Prover, PublicParameters, Verifier,
 };
 
 // Canonical little-endian limbs of the BLS12-381 scalar-field modulus q.
