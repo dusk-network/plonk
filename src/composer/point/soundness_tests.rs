@@ -4,15 +4,44 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-//! Soundness regressions for `assert_torsion_free_point`.
+//! Soundness regressions for `assert_torsion_free_point` and
+//! `component_add_point`.
 //!
-//! The gadget must admit exactly the prime-order subgroup: honest members
-//! (identity included) prove, while on-curve torsion components and off-curve
-//! points are rejected. The threat model is a prover free to assign *every*
-//! witness, not just the input point — so beyond the production entry point
-//! (which derives the honest `Q`) the forgeries here inject attacker-chosen
-//! `Q` values and forge each family of intermediate witnesses directly: the
-//! on-curve row's squares and the doubling chain's outputs.
+//! The subgroup check must admit exactly the prime-order subgroup: honest
+//! members (identity included) prove, while on-curve torsion components and
+//! off-curve points are rejected. The threat model is a prover free to assign
+//! *every* witness, not just the input point — so beyond the production entry
+//! point (which derives the honest `Q`) the forgeries here inject
+//! attacker-chosen `Q` values and forge each family of intermediate witnesses
+//! directly: the on-curve row's squares and the doubling chain's outputs.
+//!
+//! The curve-addition gadget keeps its formula below degree 4 by allocating a
+//! helper witness for `x_1 * y_2`. Its widget identity folds three residuals as
+//! `xy + κ·x3 + κ²·y3`: the first binds that wire, the other two are the
+//! output-coordinate checks, which consume the wire in place of the product.
+//! The binding term is the wire's only in-gate pin, and the output checks solve
+//! for a matching `(x_3, y_3)` at every wire value but the two poles
+//! `±1/(D*y_1*x_2)`, where one check degenerates: at `+` the `y_3` check
+//! collapses to `y_1*y_2 + x_1*x_2 = 0` and leaves `y_3` free, at `-` the `x_3`
+//! check collapses to `x1_y2 + y1_x2 = 0` and leaves `x_3` free. **No case
+//! below exercises either** — `forced_output` inverts both denominators, so it
+//! panics on a pole rather than constructing one. Neither is an escape hatch,
+//! but that is an argument rather than a test: with `a = -1` a square and `d` a
+//! non-square (asserted in [`subgroup_parameters_hold`]) the addition law is
+//! complete, so no on-curve addends put the *honest* wire on a pole, and a
+//! forged pole wire still carries a nonzero binding residual.
+//!
+//! So without that term a prover picks the wire freely and still satisfies
+//! every other constraint — including, as the steering case shows, picking it
+//! so that the claimed sum of two *public* addends carries an x-coordinate of
+//! the attacker's choosing. Those forgeries reproduce the production emission
+//! with only the wire falsified and the coordinates its own checks force;
+//! `forced_output` does that solving, so it is itself pinned against
+//! `compute_quotient_i`. That pin is the only reach from `composer` into
+//! `proof_system::widget`, and is deliberate: it exists to tie this module's
+//! `forced_output` to the widget's own identity, and building the `ProverKey`
+//! by struct literal makes a new field on it break the build here rather than
+//! silently weaken the pin.
 
 use dusk_jubjub::GENERATOR_EXTENDED;
 use ff::Field;
@@ -23,9 +52,11 @@ use super::*;
 use crate::composer::soundness_support::{
     assert_rejected, assert_verifies, gate_digest,
 };
+use crate::fft::{EvaluationDomain, Evaluations, Polynomial};
 use crate::prelude::{
-    Circuit, Compiler, Error, Prover, PublicParameters, Verifier,
+    Circuit, Compiler, Error, PlonkVersion, Prover, PublicParameters, Verifier,
 };
+use crate::proof_system::widget::ecc::curve_addition;
 
 // Torsion points of the embedded curve, raw coordinates from dusk-jubjub's
 // (private) EIGHT_TORSION table. Their claimed orders are pinned by
@@ -544,5 +575,331 @@ fn forged_doubling_chain_rejected() {
         &accepted,
         &rejected,
         "forged doubling chain",
+    );
+}
+
+fn invert(value: BlsScalar) -> BlsScalar {
+    Option::from(value.invert()).expect("the denominator is invertible")
+}
+
+/// The coordinates the widget's output checks force once the helper wire
+/// carries `x1_y2`. Each check is linear in its own coordinate, so each has one
+/// solution: `x_3 * (1 + D*x1_y2*y1_x2) = x1_y2 + y1_x2` and
+/// `y_3 * (1 - D*x1_y2*y1_x2) = y_1*y_2 + x_1*x_2`.
+///
+/// `compute_quotient_i` weights these by `κ`/`κ²`; a factor on a residual that
+/// must vanish outright changes nothing. Pinned against the widget in
+/// [`forced_output_satisfies_the_widget_output_checks`].
+fn forced_output(
+    x_1: BlsScalar,
+    y_1: BlsScalar,
+    x_2: BlsScalar,
+    y_2: BlsScalar,
+    x1_y2: BlsScalar,
+) -> (BlsScalar, BlsScalar) {
+    let y1_x2 = y_1 * x_2;
+    let skew = EDWARDS_D * x1_y2 * y1_x2;
+
+    let x_3 = (x1_y2 + y1_x2) * invert(BlsScalar::one() + skew);
+    let y_3 = (y_1 * y_2 + x_1 * x_2) * invert(BlsScalar::one() - skew);
+
+    (x_3, y_3)
+}
+
+/// The helper-wire value whose forced output x-coordinate is `x_3`: the `x_3`
+/// check solved for the wire instead of the coordinate. This is what turns a
+/// free choice of the wire into a free choice of the claimed sum's
+/// x-coordinate.
+fn wire_forcing_x3(
+    y_1: BlsScalar,
+    x_2: BlsScalar,
+    x_3: BlsScalar,
+) -> BlsScalar {
+    let y1_x2 = y_1 * x_2;
+
+    (y1_x2 - x_3) * invert(x_3 * EDWARDS_D * y1_x2 - BlsScalar::one())
+}
+
+/// The point the steering forgery aims at: a real curve point that is not the
+/// sum, so the stolen x-coordinate is one that could legitimately have arisen.
+fn steering_target() -> JubJubAffine {
+    JubJubAffine::from(GENERATOR_EXTENDED * JubJubScalar::from(7u64))
+}
+
+/// The forged wires, shared so the circuit-level forgeries and the widget-level
+/// pin cannot drift apart.
+fn forged_wires(
+    honest_wire: BlsScalar,
+    y_1: BlsScalar,
+    x_2: BlsScalar,
+) -> [(&'static str, BlsScalar); 3] {
+    [
+        ("helper wire off by one", honest_wire + BlsScalar::one()),
+        ("helper wire zeroed", BlsScalar::zero()),
+        (
+            "helper wire steering the sum's x-coordinate",
+            wire_forcing_x3(y_1, x_2, steering_target().get_u()),
+        ),
+    ]
+}
+
+/// Adds two public points and exposes the sum publicly. Both addends being
+/// public leaves the gadget's intermediates as the prover's only freedom.
+struct CurveAdditionCircuit {
+    a: JubJubAffine,
+    b: JubJubAffine,
+    claimed_sum: JubJubAffine,
+    forged_x1_y2: Option<BlsScalar>,
+}
+
+impl Default for CurveAdditionCircuit {
+    fn default() -> Self {
+        Self::honest(GENERATOR_EXTENDED, GENERATOR_EXTENDED.double())
+    }
+}
+
+impl CurveAdditionCircuit {
+    fn honest(a: JubJubExtended, b: JubJubExtended) -> Self {
+        Self {
+            a: a.into(),
+            b: b.into(),
+            claimed_sum: (a + b).into(),
+            forged_x1_y2: None,
+        }
+    }
+
+    /// Same public addends, helper wire set to `x1_y2`, sum claimed to be what
+    /// the output checks then force. That sum is off-curve in general — nothing
+    /// in the gadget constrains the output to the curve, so the binding term is
+    /// the whole of the defence.
+    fn forged(a: JubJubAffine, b: JubJubAffine, x1_y2: BlsScalar) -> Self {
+        let (x_3, y_3) =
+            forced_output(a.get_u(), a.get_v(), b.get_u(), b.get_v(), x1_y2);
+
+        Self {
+            a,
+            b,
+            claimed_sum: JubJubAffine::from_raw_unchecked(x_3, y_3),
+            forged_x1_y2: Some(x1_y2),
+        }
+    }
+}
+
+impl Circuit for CurveAdditionCircuit {
+    fn circuit(&self, composer: &mut Composer) -> Result<(), Error> {
+        let a = composer.append_public_point(self.a);
+        let b = composer.append_public_point(self.b);
+
+        // The addends are the generator and its double: subgroup constants, so
+        // membership is established rather than merely vouched for, which is
+        // what `new_unchecked` requires. The wrap adds no constraints, leaving
+        // the layout under test untouched, and the binding exercised here does
+        // not depend on membership either way.
+        let sum = match self.forged_x1_y2 {
+            None => composer
+                .component_add_point(
+                    TorsionFreeWitnessPoint::new_unchecked(a),
+                    TorsionFreeWitnessPoint::new_unchecked(b),
+                )
+                .into(),
+            Some(x1_y2) => {
+                // `add_point_gates`' emission by hand, the private path
+                // `component_add_point` delegates to — witness order, selectors
+                // and wiring unchanged — with the helper wire and output
+                // coordinates replaced. `assert_rejected` compares this layout
+                // against the honest one, so drift fails the test.
+                //
+                // The coordinates come from `claimed_sum` rather than a second
+                // `forced_output` call: were they to disagree, the unsatisfied
+                // gate would be `assert_equal_public_point` and nothing would
+                // notice, since public-input values live outside `Gate`.
+                let x_1_y_2 = composer.append_witness(x1_y2);
+                let x_3 = composer.append_witness(self.claimed_sum.get_u());
+                let y_3 = composer.append_witness(self.claimed_sum.get_v());
+
+                let constraint =
+                    Constraint::new().a(*a.x()).b(*a.y()).c(*b.x()).d(*b.y());
+                let constraint =
+                    Constraint::group_add_variable_base(&constraint);
+                composer.append_custom_gate(constraint);
+
+                let constraint = Constraint::new().a(x_3).b(y_3).d(x_1_y_2);
+                composer.append_custom_gate(constraint);
+
+                WitnessPoint::new(x_3, y_3)
+            }
+        };
+
+        composer.assert_equal_public_point(sum, self.claimed_sum);
+
+        Ok(())
+    }
+}
+
+fn compile(pp: &PublicParameters) -> (Prover, Verifier) {
+    Compiler::compile::<CurveAdditionCircuit>(pp, b"curve-addition-soundness")
+        .expect("compile curve-addition soundness circuit")
+}
+
+#[test]
+fn curve_addition_binds_the_helper_wire() {
+    assert_eq!(PlonkVersion::current(), PlonkVersion::V3);
+
+    let mut rng = StdRng::seed_from_u64(0x_add_9_0117);
+    let pp = PublicParameters::setup(1 << 8, &mut rng).expect("setup");
+    let (prover, verifier) = compile(&pp);
+
+    let honest = CurveAdditionCircuit::default();
+    assert_verifies(&prover, &verifier, &mut rng, &honest);
+
+    let x_1 = honest.a.get_u();
+    let y_1 = honest.a.get_v();
+    let x_2 = honest.b.get_u();
+    let y_2 = honest.b.get_v();
+    let honest_wire = x_1 * y_2;
+
+    // On the honest wire, solving the output checks must land on
+    // `dusk-jubjub`'s own sum — what ties `forced_output` to the real curve.
+    let (honest_x_3, honest_y_3) =
+        forced_output(x_1, y_1, x_2, y_2, honest_wire);
+    assert_eq!(
+        JubJubAffine::from_raw_unchecked(honest_x_3, honest_y_3),
+        honest.claimed_sum,
+        "solving the output checks on the honest wire must give the true sum",
+    );
+
+    let target = steering_target();
+    assert_ne!(target.get_u(), honest.claimed_sum.get_u());
+
+    let [off_by_one, zeroed, steering] = forged_wires(honest_wire, y_1, x_2);
+
+    // Round-trip `wire_forcing_x3` back through `forced_output`: its wire is
+    // the one aiming the claimed sum at `target`. The reach of the attack.
+    assert_eq!(
+        CurveAdditionCircuit::forged(honest.a, honest.b, steering.1)
+            .claimed_sum
+            .get_u(),
+        target.get_u(),
+        "the steering wire must aim the claimed sum at the target",
+    );
+
+    for (case, forged_wire) in [off_by_one, zeroed, steering] {
+        assert_ne!(forged_wire, honest_wire, "{case}: must forge the wire");
+
+        let forgery =
+            CurveAdditionCircuit::forged(honest.a, honest.b, forged_wire);
+
+        assert_rejected(&prover, &mut rng, &honest, &forgery, case);
+    }
+}
+
+/// The forgeries rest on `forced_output`'s coordinates satisfying the widget's
+/// own output checks; nothing else here asserts that. The honest-witness
+/// comparison above pins one point of it, which an algebra change that still
+/// accepted the true Edwards sum would survive. This covers the forged wires.
+///
+/// A single-`1` selector evaluation reduces `compute_quotient_i` to the
+/// identity times the challenge, so matching the binding residual says `κ·x3 +
+/// κ²·y3` vanishes — one equation in two unknowns, which a matched nonzero pair
+/// also satisfies. Two challenges with distinct squares force both to zero.
+///
+/// That equality would also hold for a widget with both output checks deleted,
+/// the identity then being the binding term outright, so each coordinate is
+/// perturbed and required to move the identity off it.
+#[test]
+fn forced_output_satisfies_the_widget_output_checks() {
+    let selector = Evaluations::from_vec_and_domain(
+        Vec::from([BlsScalar::one()]),
+        EvaluationDomain::new(1).expect("a one-element domain"),
+    );
+    let prover_key = curve_addition::ProverKey {
+        q_variable_group_add: (Polynomial::zero(), selector),
+    };
+
+    // Arbitrary, beyond their squares differing so the two equations they give
+    // in the output residuals are independent.
+    let challenges = [
+        BlsScalar::from(0x0add_0117u64),
+        BlsScalar::from(0x7b0f_fd83u64),
+    ];
+    assert_ne!(
+        challenges[0].square(),
+        challenges[1].square(),
+        "the two challenges must weight the output residuals differently",
+    );
+
+    let honest = CurveAdditionCircuit::default();
+    let x_1 = honest.a.get_u();
+    let y_1 = honest.a.get_v();
+    let x_2 = honest.b.get_u();
+    let y_2 = honest.b.get_v();
+    let honest_wire = x_1 * y_2;
+
+    let [off_by_one, zeroed, steering] = forged_wires(honest_wire, y_1, x_2);
+
+    for (case, wire) in
+        [("honest wire", honest_wire), off_by_one, zeroed, steering]
+    {
+        let (x_3, y_3) = forced_output(x_1, y_1, x_2, y_2, wire);
+
+        for challenge in challenges {
+            let binding_term = (honest_wire - wire) * challenge;
+            let identity = |x_3, y_3| {
+                prover_key.compute_quotient_i(
+                    0, &challenge, &x_1, &x_3, &y_1, &y_3, &x_2, &y_2, &wire,
+                )
+            };
+
+            assert_eq!(
+                identity(x_3, y_3),
+                binding_term,
+                "{case}: the widget's identity must reduce to the binding term",
+            );
+
+            // Each check carries a nonzero coefficient on its own coordinate
+            // (`1 ± skew` — nonzero here, or `forced_output` would have
+            // panicked), so moving that coordinate must move the identity.
+            // Deleting both checks fails here, not above.
+            assert_ne!(
+                identity(x_3 + BlsScalar::one(), y_3),
+                binding_term,
+                "{case}: the x_3 check must constrain x_3",
+            );
+            assert_ne!(
+                identity(x_3, y_3 + BlsScalar::one()),
+                binding_term,
+                "{case}: the y_3 check must constrain y_3",
+            );
+        }
+    }
+}
+
+/// `assert_rejected` only checks the hand-copied emission against the gadget —
+/// an edit to both stays green while moving every deployed verifier key holding
+/// a curve addition. This pins the layout on its own.
+#[test]
+fn component_add_point_layout_matches_golden() {
+    // `gate_digest` captured from `component_add_point` as released in
+    // `v0.22.1` (`fc39ad3`), and unchanged since — across both the refactor
+    // that moved the emission into `add_point_gates` and the composer split
+    // that moved it into this module.
+    const GOLDEN: [u8; 32] = [
+        228, 59, 231, 43, 120, 95, 179, 34, 228, 43, 10, 248, 22, 142, 41, 174,
+        127, 155, 191, 155, 9, 56, 184, 82, 223, 173, 215, 132, 79, 23, 42, 4,
+    ];
+
+    let mut composer = Composer::initialized();
+    let a = composer.append_point(GENERATOR_EXTENDED);
+    let b = composer.append_point(GENERATOR_EXTENDED.double());
+    composer.component_add_point(
+        TorsionFreeWitnessPoint::new_unchecked(a),
+        TorsionFreeWitnessPoint::new_unchecked(b),
+    );
+
+    assert_eq!(
+        gate_digest(&composer.constraints),
+        GOLDEN,
+        "component_add_point's gate layout drifted from the deployed \
+         verifier keys",
     );
 }
