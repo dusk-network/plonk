@@ -73,10 +73,9 @@ impl Polynomial {
             || self.coeffs.iter().all(|coeff| coeff == &BlsScalar::zero())
     }
 
-    /// Constructs a new polynomial from a list of coefficients.
-    ///
-    /// # Panics
-    /// When the length of the coeffs is zero.
+    /// Constructs a new polynomial from a list of coefficients, dropping any
+    /// leading zeros. Coefficients that are empty, or entirely zero, give the
+    /// zero polynomial.
     pub(crate) fn from_coefficients_vec(coeffs: Vec<BlsScalar>) -> Self {
         let mut result = Self { coeffs };
         // If the leading coefficients end up being zero, pop them off.
