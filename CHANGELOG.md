@@ -68,6 +68,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   then equalled public zero modulo `q`, while the same digits drove the point
   endpoint to the nonidentity point `[q]G`, allowing a proof of a false public
   scalar/point relation.
+- Wrap the debugger's rotated (`_w`) wire reads to row 0 past the last
+  constraint, matching the prover's cyclic domain rather than reading zero
+  there. No circuit built through the public API changes output, since row 0's
+  wires are always the zero witness.
 
 ## [0.22.1] - 2026-06-12
 

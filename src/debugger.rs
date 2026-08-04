@@ -71,13 +71,23 @@ impl Debugger {
         self.witness_value(constraint.witness(wire))
     }
 
+    /// The wire of the row the prover's rotated (`_w`) evaluation reads.
+    ///
+    /// The prover interpolates over a cyclic domain of the padded circuit
+    /// size, so the last row's rotation wraps to row 0. Padding rows carry
+    /// zero wires, which is what a miss on `constraints` yields — but when
+    /// the gate count is already a power of two there is no padding, and the
+    /// wrap lands on a live constraint instead.
     fn shifted_wire_value(
         &self,
         constraint_index: usize,
         wire: WiredWitness,
     ) -> BlsScalar {
+        let padded_size = self.constraints.len().next_power_of_two();
+        let shifted = (constraint_index + 1) % padded_size;
+
         self.constraints
-            .get(constraint_index + 1)
+            .get(shifted)
             .map(|(_, constraint)| self.wire_value(constraint, wire))
             .unwrap_or_default()
     }
@@ -380,6 +390,7 @@ impl Debugger {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::composer::Composer;
 
     fn wire_rows(constraint: Constraint, values: [BlsScalar; 8]) -> Debugger {
         let current = constraint
@@ -466,6 +477,129 @@ mod tests {
     ) -> [BlsScalar; 8] {
         values[index] += BlsScalar::from(amount);
         values
+    }
+
+    /// Witness values for the wrap fixtures: index 0 is the zero witness,
+    /// 1..=4 are the last row's `a`, `b`, `c` and `d`, and index 5 is the
+    /// value row 0 carries on its fourth wire.
+    const WRAP_VALUES: [u64; 6] = [0, 91, 22, 5, 1, 364];
+
+    /// A circuit of `rows` rows ending in `last`, with a nonzero fourth wire
+    /// on row 0.
+    ///
+    /// The prover interpolates over a cyclic domain of the padded circuit
+    /// size, so the last row's rotated wires read row 0 when the row count is
+    /// already a power of two, and a zero padding row when it isn't.
+    fn wrap_fixture(rows: usize, last: Constraint) -> Debugger {
+        let mut constraints =
+            vec![(EncodableSource::default(), Constraint::new()); rows - 1];
+        constraints[0].1 = Constraint::new().d(Witness::new(5));
+        constraints.push((EncodableSource::default(), last));
+
+        Debugger {
+            witnesses: WRAP_VALUES
+                .into_iter()
+                .enumerate()
+                .map(|(index, value)| {
+                    (
+                        EncodableSource::default(),
+                        Witness::new(index),
+                        BlsScalar::from(value),
+                    )
+                })
+                .collect(),
+            constraints,
+        }
+    }
+
+    /// A range gate satisfied only when `d_w` reads row 0's fourth wire: its
+    /// accumulator identity is `delta(d_w - 4a)`, and `364 - 4 * 91` is zero
+    /// while `0 - 4 * 91` is not.
+    fn range_row_needing_wrap() -> Constraint {
+        Constraint::range(
+            &Constraint::new()
+                .a(Witness::new(1))
+                .b(Witness::new(2))
+                .c(Witness::new(3))
+                .d(Witness::new(4)),
+        )
+    }
+
+    // The three fixtures below assert on `evaluates_to_zero` as well as on
+    // the unsatisfied-constraint report: that call is what `write_output`
+    // records as the CDF `evaluation` flag, so it is the same value seen
+    // from both diagnostics.
+
+    #[test]
+    fn shifted_wires_wrap_to_row_zero_on_an_exact_fill() {
+        // Four rows need no padding, so the rotation wraps to row 0.
+        let debugger = wrap_fixture(4, range_row_needing_wrap());
+        let last = &debugger.constraints[3].1;
+
+        assert!(
+            debugger.evaluates_to_zero(3, last),
+            "row 0's fourth wire satisfies the last row's range accumulator; \
+             reading zero past the last row fails it"
+        );
+        assert!(debugger.unsatisfied_constraints().is_empty());
+        assert!(debugger.unsatisfied_report().is_none());
+    }
+
+    #[test]
+    fn exact_fill_wrap_catches_what_a_zero_read_would_miss() {
+        // The mirror case: every wire of the last row is the zero witness, so
+        // its range accumulator reduces to `delta(d_w)`. Row 0's fourth wire
+        // breaks it, while reading zero past the last row would report the
+        // circuit as satisfied.
+        let debugger = wrap_fixture(4, Constraint::range(&Constraint::new()));
+        let last = &debugger.constraints[3].1;
+
+        assert!(!debugger.evaluates_to_zero(3, last));
+        assert_eq!(
+            debugger.unsatisfied_constraints(),
+            vec![(3, "range accumulator")]
+        );
+
+        let report =
+            debugger.unsatisfied_report().expect("row 3 is unsatisfied");
+        assert!(report.contains("1 of 4 constraints"));
+        assert!(report.contains("constraint 3"));
+        assert!(report.contains("range accumulator identity"));
+    }
+
+    #[test]
+    fn shifted_wires_past_a_padded_circuit_read_as_zero() {
+        // Three rows pad to four, so the row after the last is a zero padding
+        // row and the rotation must not reach back to row 0. Wrapping modulo
+        // the row count rather than the padded size would satisfy this gate.
+        let debugger = wrap_fixture(3, range_row_needing_wrap());
+        let last = &debugger.constraints[2].1;
+
+        assert!(!debugger.evaluates_to_zero(2, last));
+        assert_eq!(
+            debugger.unsatisfied_constraints(),
+            vec![(2, "range accumulator")]
+        );
+    }
+
+    #[test]
+    fn row_zero_of_a_proving_composer_wires_only_the_zero_witness() {
+        // Every proving path builds from `Composer::initialized()`, whose row
+        // 0 wires all four slots to the zero witness. That is what makes the
+        // wrap read the same zeros the old unconditional fallback did, so no
+        // circuit reachable through the public API can tell the two apart.
+        //
+        // Nothing else enforces it. Pin it here rather than in the composer,
+        // because this module is what depends on it: should row 0 ever carry
+        // a live value, the rotated reads on an exact fill start resolving to
+        // it, and the reports above change with it.
+        let composer = Composer::initialized();
+        let row_zero = &composer.constraints[0];
+
+        for wire in [row_zero.a, row_zero.b, row_zero.c, row_zero.d] {
+            assert_eq!(wire, Composer::ZERO);
+        }
+        assert_eq!(composer[Composer::ZERO], BlsScalar::zero());
     }
 
     #[test]
