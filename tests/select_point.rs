@@ -51,9 +51,9 @@ fn component_select_point() {
     impl Circuit for TestCircuit {
         fn circuit(&self, composer: &mut Composer) -> Result<(), Error> {
             let w_bit = composer.append_witness(self.bit);
-            let w_point_a = composer.append_point(self.point_a);
-            let w_point_b = composer.append_point(self.point_b);
-            let w_result = composer.append_point(self.result);
+            let w_point_a = composer.append_point(self.point_a)?;
+            let w_point_b = composer.append_point(self.point_b)?;
+            let w_result = composer.append_point(self.result)?;
 
             let result_circuit =
                 composer.component_select_point(w_bit, w_point_a, w_point_b);
@@ -243,8 +243,8 @@ fn component_select_identity() {
     impl Circuit for TestCircuit {
         fn circuit(&self, composer: &mut Composer) -> Result<(), Error> {
             let w_bit = composer.append_witness(self.bit);
-            let w_point = composer.append_point(self.point);
-            let w_result = composer.append_point(self.result);
+            let w_point = composer.append_point(self.point)?;
+            let w_result = composer.append_point(self.result)?;
 
             // The test inputs are multiples of the prime-order generator or
             // the identity, so subgroup membership holds by construction.

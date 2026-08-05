@@ -41,9 +41,9 @@ fn component_add_point() {
 
     impl Circuit for TestCircuit {
         fn circuit(&self, composer: &mut Composer) -> Result<(), Error> {
-            let w_p1 = composer.append_point(self.p1);
-            let w_p2 = composer.append_point(self.p2);
-            let w_sum = composer.append_point(self.sum);
+            let w_p1 = composer.append_point(self.p1)?;
+            let w_p2 = composer.append_point(self.p2)?;
+            let w_sum = composer.append_point(self.sum)?;
 
             // The test inputs are multiples of the prime-order generator or
             // the identity, so subgroup membership holds by construction.
@@ -142,9 +142,9 @@ fn component_sub_point() {
 
     impl Circuit for TestCircuit {
         fn circuit(&self, composer: &mut Composer) -> Result<(), Error> {
-            let w_p1 = composer.append_point(self.p1);
-            let w_p2 = composer.append_point(self.p2);
-            let w_sub = composer.append_point(self.sub);
+            let w_p1 = composer.append_point(self.p1)?;
+            let w_p2 = composer.append_point(self.p2)?;
+            let w_sub = composer.append_point(self.sub)?;
 
             // The test inputs are multiples of the prime-order generator or
             // the identity, so subgroup membership holds by construction.
@@ -234,8 +234,8 @@ fn component_neg_point() {
 
     impl Circuit for TestCircuit {
         fn circuit(&self, composer: &mut Composer) -> Result<(), Error> {
-            let w_p = composer.append_point(self.p);
-            let w_neg_p = composer.append_point(self.neg_p);
+            let w_p = composer.append_point(self.p)?;
+            let w_neg_p = composer.append_point(self.neg_p)?;
 
             // The test inputs are multiples of the prime-order generator or
             // the identity, so subgroup membership holds by construction.
@@ -326,7 +326,7 @@ fn component_mul_generator() {
     impl Circuit for TestCircuit {
         fn circuit(&self, composer: &mut Composer) -> Result<(), Error> {
             let w_scalar = composer.append_witness(self.scalar);
-            let w_result = composer.append_point(self.result);
+            let w_result = composer.append_point(self.result)?;
 
             let circuit_result =
                 composer.component_mul_generator(w_scalar, self.generator)?;
@@ -658,6 +658,120 @@ fn component_mul_generator_accepts_prime_order_generator() {
     assert!(composer.component_mul_generator(scalar, generator).is_ok());
 }
 
+/// An extended point whose affine projection `(U/Z, V/Z)` is undefined:
+/// dusk-jubjub inverts `Z` unchecked and panics on zero. The numerators are
+/// the honest generator's coordinates, so nothing but the `Z` guard separates
+/// this input from a valid one — and `is_on_curve` cannot be what rejects it,
+/// since it projects internally and would panic first.
+fn zero_z_point() -> JubJubExtended {
+    let generator = JubJubAffine::from(dusk_jubjub::GENERATOR_EXTENDED);
+
+    JubJubExtended::from_raw_unchecked(
+        generator.get_u(),
+        generator.get_v(),
+        BlsScalar::zero(),
+        generator.get_u(),
+        generator.get_v(),
+    )
+}
+
+#[test]
+fn append_point_rejects_zero_z_point() {
+    let mut composer = Composer::initialized();
+
+    let result = composer.append_point(zero_z_point());
+
+    assert!(matches!(result, Err(Error::JubJubPointDegenerate)));
+}
+
+#[test]
+fn append_public_point_rejects_zero_z_point() {
+    let mut composer = Composer::initialized();
+
+    let result = composer.append_public_point(zero_z_point());
+
+    assert!(matches!(result, Err(Error::JubJubPointDegenerate)));
+}
+
+#[test]
+fn assert_equal_public_point_rejects_zero_z_point() {
+    let mut composer = Composer::initialized();
+    let point = composer
+        .append_point(dusk_jubjub::GENERATOR)
+        .expect("an honest generator should be appendable");
+
+    let result = composer.assert_equal_public_point(point, zero_z_point());
+
+    assert!(matches!(result, Err(Error::JubJubPointDegenerate)));
+}
+
+#[test]
+fn append_constant_point_separates_its_rejection_branches() {
+    let mut composer = Composer::initialized();
+
+    // Degenerate representation: refused before the membership check, which
+    // is the only order in which its `is_on_curve` half can run at all.
+    assert!(matches!(
+        composer.append_constant_point(zero_z_point()),
+        Err(Error::JubJubPointDegenerate)
+    ));
+
+    // Representable but outside the prime-order subgroup: the native
+    // membership check rejects it, and keeps its own error.
+    for (order, point) in torsion_points() {
+        assert_eq!(
+            composer.append_constant_point(point).unwrap_err(),
+            Error::JubJubPointNotTorsionFree,
+            "order {order}"
+        );
+    }
+}
+
+#[test]
+fn append_constant_point_rejects_inconsistent_extended_coordinates() {
+    let mut composer = Composer::initialized();
+    // The affine projection is the honest generator — on-curve and of prime
+    // order — while `T1 · T2 != U · V · Z`. Validating the extended point
+    // catches that; validating its projection, as the guard did while it sat
+    // after the conversion, would accept it.
+    let affine = JubJubAffine::from(dusk_jubjub::GENERATOR_EXTENDED);
+    let point = JubJubExtended::from_raw_unchecked(
+        affine.get_u(),
+        affine.get_v(),
+        BlsScalar::one(),
+        affine.get_u(),
+        affine.get_v() + BlsScalar::one(),
+    );
+    assert!(bool::from(JubJubAffine::from(point).is_on_curve()));
+    assert!(!bool::from(point.is_on_curve()));
+
+    let result = composer.append_constant_point(point);
+
+    assert!(matches!(result, Err(Error::JubJubPointNotTorsionFree)));
+}
+
+#[test]
+fn point_entry_points_accept_honest_points() {
+    let mut composer = Composer::initialized();
+    // An honest base other than `GENERATOR`, in both accepted input forms, so
+    // the rejection tests above cannot pass against entry points that refuse
+    // every point.
+    let extended =
+        dusk_jubjub::GENERATOR_EXTENDED * &JubJubScalar::from(0xdead_beef_u64);
+    let affine = JubJubAffine::from(extended);
+
+    let point = composer
+        .append_point(extended)
+        .expect("an honest point should be appendable");
+    assert!(composer.append_point(affine).is_ok());
+    assert!(composer.append_constant_point(extended).is_ok());
+    assert!(composer.append_constant_point(affine).is_ok());
+    assert!(composer.append_public_point(extended).is_ok());
+    assert!(composer.append_public_point(affine).is_ok());
+    assert!(composer.assert_equal_public_point(point, extended).is_ok());
+    assert!(composer.assert_equal_public_point(point, affine).is_ok());
+}
+
 #[test]
 fn component_mul_point() {
     pub struct TestCircuit {
@@ -697,8 +811,8 @@ fn component_mul_point() {
     impl Circuit for TestCircuit {
         fn circuit(&self, composer: &mut Composer) -> Result<(), Error> {
             let w_scalar = composer.append_witness(self.scalar);
-            let w_point = composer.append_point(self.point);
-            let w_result = composer.append_point(self.result);
+            let w_point = composer.append_point(self.point)?;
+            let w_result = composer.append_point(self.result)?;
 
             // The test base is a multiple of the prime-order generator, so
             // subgroup membership holds by construction.

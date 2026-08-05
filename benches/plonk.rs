@@ -36,7 +36,7 @@ impl<const DEGREE: usize> Circuit for BenchCircuit<DEGREE> {
         let w_b = composer.append_witness(self.b);
         let w_x = composer.append_witness(self.x);
         let w_y = composer.append_witness(self.y);
-        let w_z = composer.append_point(self.z);
+        let w_z = composer.append_point(self.z)?;
 
         let mut diff = 0;
         let mut prev = composer.constraints();
