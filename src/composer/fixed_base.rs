@@ -19,29 +19,26 @@ use super::{
 };
 use crate::error::Error;
 
-#[cfg(test)]
-mod soundness_tests;
-
 /// Bit width of a canonical Jubjub scalar.
-const JUBJUB_SCALAR_BITS: usize = 252;
+pub(super) const JUBJUB_SCALAR_BITS: usize = 252;
 
 /// Number of signed-digit rows emitted by the fixed-base scalar-multiplication
 /// widget.
-const FIXED_BASE_SIGNED_DIGIT_ROUNDS: usize = 256;
+pub(super) const FIXED_BASE_SIGNED_DIGIT_ROUNDS: usize = 256;
 
 /// A width-2 NAF of a 252-bit scalar may carry into bit 252, so 253 signed
 /// digits are required. The remaining three most-significant rows must encode
 /// zero.
-const FIXED_BASE_LEADING_ZERO_ROUNDS: usize =
+pub(super) const FIXED_BASE_LEADING_ZERO_ROUNDS: usize =
     FIXED_BASE_SIGNED_DIGIT_ROUNDS - (JUBJUB_SCALAR_BITS + 1);
 
 /// Widest effective signed-digit width at which the fixed-base accumulator
 /// endpoint cannot encode a modulus wrap: `2^254 - 1 < q - (r - 1)`, verified
-/// against the actual moduli by the width-bound test in this module's
-/// `soundness_tests`. Specific to the `(q, r)` pair — unrelated to
+/// against the actual moduli by the width-bound test in
+/// `tests::soundness::fixed_base`. Specific to the `(q, r)` pair — unrelated to
 /// the 254-bit caps of the logic and truncation gadgets, which derive from
 /// `q < 2^255` alone.
-const FIXED_BASE_MAX_SOUND_WIDTH: usize = 254;
+pub(super) const FIXED_BASE_MAX_SOUND_WIDTH: usize = 254;
 
 // The leading rounds forced to zero cap the effective signed-digit width of
 // `component_mul_generator`. At the width above or below, the accumulator
@@ -160,7 +157,7 @@ impl Composer {
     /// can inject adversarial assignments into the exact production layout.
     /// The constraints, not the provenance of `signed_digits`, must reject
     /// noncanonical and field-wrapping representations.
-    fn append_fixed_base_signed_digits(
+    pub(super) fn append_fixed_base_signed_digits(
         &mut self,
         jubjub: Witness,
         generator: JubJubExtended,

@@ -19,10 +19,14 @@
 //!
 //! [`gate_layout`] and [`assert_rejected`] pin those down.
 
+use alloc::vec::Vec;
+
+use dusk_bls12_381::BlsScalar;
 use rand::rngs::StdRng;
 
-use super::bits::recompose_bits;
-use super::*;
+use crate::composer::bits::recompose_bits;
+use crate::composer::{Circuit, Composer, Gate};
+use crate::error::Error;
 use crate::prelude::{Prover, Verifier};
 
 /// `2^num_bits` as a field element.

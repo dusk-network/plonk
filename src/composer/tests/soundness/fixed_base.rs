@@ -22,11 +22,18 @@
 //! them. The final test builds no circuit: it pins the width bound those
 //! constraints rely on to the field moduli by exact integer arithmetic.
 
+use dusk_bls12_381::BlsScalar;
+use dusk_jubjub::{JubJubExtended, JubJubScalar};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
 
-use super::*;
-use crate::composer::soundness_support::{assert_rejected, assert_verifies};
+use super::support::{assert_rejected, assert_verifies};
+use crate::composer::Composer;
+use crate::composer::fixed_base::{
+    FIXED_BASE_LEADING_ZERO_ROUNDS, FIXED_BASE_MAX_SOUND_WIDTH,
+    FIXED_BASE_SIGNED_DIGIT_ROUNDS, JUBJUB_SCALAR_BITS,
+};
+use crate::error::Error;
 use crate::prelude::{
     Circuit, Compiler, PlonkVersion, Prover, PublicParameters, Verifier,
 };

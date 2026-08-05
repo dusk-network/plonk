@@ -15,9 +15,6 @@ use dusk_bls12_381::BlsScalar;
 use super::{Composer, Constraint, WiredWitness, Witness};
 use crate::bit_iterator::BitIterator8;
 
-#[cfg(test)]
-mod soundness_tests;
-
 /// Bitwise logic gadgets
 impl Composer {
     /// Performs a logical AND or XOR op between the inputs provided for
@@ -181,7 +178,7 @@ impl Composer {
     /// [`Self::append_logic_component`]; the logic gate guarantees each lies in
     /// `[0, 2^num_bits)`. This binds them to the low `num_bits` of `a`/`b` so
     /// the output cannot be decoupled from the inputs.
-    fn bind_logic_accumulators<const BIT_PAIRS: usize>(
+    pub(super) fn bind_logic_accumulators<const BIT_PAIRS: usize>(
         &mut self,
         a: Witness,
         b: Witness,
@@ -203,7 +200,7 @@ impl Composer {
     ///
     /// `acc` is already constrained to `[0, 2^num_bits)` by the logic gate;
     /// this ties it to `input` through the shared truncation split.
-    fn bind_truncated_input<const BIT_PAIRS: usize>(
+    pub(super) fn bind_truncated_input<const BIT_PAIRS: usize>(
         &mut self,
         input: Witness,
         acc: Witness,

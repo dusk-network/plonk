@@ -43,14 +43,18 @@
 //! by struct literal makes a new field on it break the build here rather than
 //! silently weaken the pin.
 
-use dusk_jubjub::GENERATOR_EXTENDED;
+use dusk_bls12_381::BlsScalar;
+use dusk_jubjub::{
+    EDWARDS_D, GENERATOR_EXTENDED, JubJubAffine, JubJubExtended, JubJubScalar,
+};
 use ff::Field;
 use rand::SeedableRng;
 use rand::rngs::StdRng;
 
-use super::*;
-use crate::composer::soundness_support::{
-    assert_rejected, assert_verifies, gate_digest,
+use super::support::{assert_rejected, assert_verifies, gate_digest};
+use crate::composer::point::EIGHT_INV;
+use crate::composer::{
+    Composer, Constraint, TorsionFreeWitnessPoint, Witness, WitnessPoint,
 };
 use crate::fft::{EvaluationDomain, Evaluations, Polynomial};
 use crate::prelude::{

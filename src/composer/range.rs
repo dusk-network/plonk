@@ -16,9 +16,6 @@ use super::bits::recompose_bits;
 use super::{Composer, Constraint, WiredWitness, Witness};
 use crate::bit_iterator::BitIterator8;
 
-#[cfg(test)]
-mod soundness_tests;
-
 /// Range-check gadgets
 impl Composer {
     /// Constrains a [`Witness`] to the range `[0, 2^BITS)`, for any (possibly

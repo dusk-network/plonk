@@ -12,9 +12,6 @@ use dusk_bls12_381::BlsScalar;
 use super::bits::recompose_bits;
 use super::{Composer, Constraint, Witness};
 
-#[cfg(test)]
-mod soundness_tests;
-
 /// Truncation gadgets
 impl Composer {
     /// Bind an already-bounded `low` to the low `num_bits` of `input` via the

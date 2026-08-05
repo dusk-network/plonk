@@ -36,13 +36,13 @@
 //! canonical-guard margin — the only width where `r_high = 1`), and at an odd
 //! `N = 251` to cover the odd-width range-check path.
 
+use dusk_bls12_381::BlsScalar;
 use rand::SeedableRng;
 use rand::rngs::StdRng;
 
-use super::*;
-use crate::composer::soundness_support::{
-    assert_rejected, assert_verifies, fits, pow, truncate,
-};
+use super::support::{assert_rejected, assert_verifies, fits, pow, truncate};
+use crate::composer::bits::recompose_bits;
+use crate::composer::{Composer, Constraint, Witness};
 use crate::prelude::{
     Circuit, Compiler, Error, Prover, PublicParameters, Verifier,
 };

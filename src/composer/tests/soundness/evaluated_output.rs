@@ -18,11 +18,13 @@
 //! mismatch. Separate structural checks pin the helper and both wrappers to
 //! exactly one intended arithmetic row.
 
+use dusk_bls12_381::BlsScalar;
 use rand::SeedableRng;
 use rand::rngs::StdRng;
 
-use super::soundness_support::{assert_rejected, assert_verifies};
-use super::*;
+use super::support::{assert_rejected, assert_verifies};
+use crate::composer::{Circuit, Composer, Constraint, Witness};
+use crate::error::Error;
 use crate::prelude::{
     Compiler, PlonkVersion, Prover, PublicParameters, Verifier,
 };

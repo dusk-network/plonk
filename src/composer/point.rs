@@ -16,13 +16,10 @@ use super::{
 };
 use crate::error::Error;
 
-#[cfg(test)]
-mod soundness_tests;
-
 /// The inverse of the curve cofactor in the scalar field: `8⁻¹ mod r`, with
 /// `r` the order of the prime-order subgroup. Used to derive the honest
 /// witness `Q = [8⁻¹]·P` for [`Composer::assert_torsion_free_point`].
-const EIGHT_INV: JubJubScalar = JubJubScalar::from_raw([
+pub(super) const EIGHT_INV: JubJubScalar = JubJubScalar::from_raw([
     0x5a12e1cbdadee597,
     0x14cd041279990210,
     0x20cce76020268760,
@@ -189,7 +186,7 @@ impl Composer {
     /// The constraints behind [`Self::assert_torsion_free_point`], taking the
     /// witness `Q` as a parameter. Kept separate so the soundness tests can
     /// stand in for a malicious prover and inject an arbitrary `Q`.
-    fn assert_torsion_free_gates(
+    pub(super) fn assert_torsion_free_gates(
         &mut self,
         point: WitnessPoint,
         q: JubJubAffine,
@@ -279,7 +276,7 @@ impl Composer {
     /// points. Kept separate so in-crate gadgets (the torsion-free check and
     /// its soundness tests) can emit the addition gates for points whose
     /// membership is not yet established.
-    fn add_point_gates(
+    pub(super) fn add_point_gates(
         &mut self,
         a: WitnessPoint,
         b: WitnessPoint,
