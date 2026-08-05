@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Mark `Error` as `#[non_exhaustive]` [#884]
+- Remove the `Copy` derive from `Error` [#884]
 - Change `component_add_point`, `component_sub_point` and `component_mul_point` to take and return `TorsionFreeWitnessPoint` [#870]
 - Change `component_neg_point` and `component_select_identity` to take and return `TorsionFreeWitnessPoint` [#870]
 - Change `component_select_identity` to constrain its `bit` to be boolean, consuming one additional gate. This changes the verifier key of circuits calling it directly; `component_mul_point` is unaffected [#870]
