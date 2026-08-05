@@ -9,7 +9,8 @@
 use dusk_bytes::Error as DuskBytesError;
 
 /// Defines all possible errors that can be encountered in PLONK.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
+#[non_exhaustive]
 pub enum Error {
     // FFT errors
     /// This error occurs when an error triggers on any of the fft module
