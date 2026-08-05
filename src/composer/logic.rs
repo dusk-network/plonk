@@ -15,9 +15,6 @@ use dusk_bls12_381::BlsScalar;
 use super::{Composer, Constraint, WiredWitness, Witness};
 use crate::bit_iterator::BitIterator8;
 
-#[cfg(test)]
-mod soundness_tests;
-
 /// Bitwise logic gadgets
 impl Composer {
     /// Performs a logical AND or XOR op between the inputs provided for

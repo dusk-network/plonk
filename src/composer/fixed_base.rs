@@ -19,9 +19,6 @@ use super::{
 };
 use crate::error::Error;
 
-#[cfg(test)]
-mod soundness_tests;
-
 /// Bit width of a canonical Jubjub scalar.
 pub(super) const JUBJUB_SCALAR_BITS: usize = 252;
 
@@ -37,8 +34,8 @@ pub(super) const FIXED_BASE_LEADING_ZERO_ROUNDS: usize =
 
 /// Widest effective signed-digit width at which the fixed-base accumulator
 /// endpoint cannot encode a modulus wrap: `2^254 - 1 < q - (r - 1)`, verified
-/// against the actual moduli by the width-bound test in this module's
-/// `soundness_tests`. Specific to the `(q, r)` pair — unrelated to
+/// against the actual moduli by the width-bound test in
+/// `tests::soundness::fixed_base`. Specific to the `(q, r)` pair — unrelated to
 /// the 254-bit caps of the logic and truncation gadgets, which derive from
 /// `q < 2^255` alone.
 pub(super) const FIXED_BASE_MAX_SOUND_WIDTH: usize = 254;

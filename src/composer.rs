@@ -28,10 +28,7 @@ mod select;
 mod truncate;
 
 #[cfg(test)]
-mod evaluated_output_soundness_tests;
-
-#[cfg(test)]
-mod soundness_support;
+mod tests;
 
 pub(crate) mod permutation;
 

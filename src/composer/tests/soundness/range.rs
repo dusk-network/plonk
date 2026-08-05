@@ -18,13 +18,12 @@
 //! delegation existed — that the shared core still emits the layout the
 //! deployed keys were generated against.
 
+use dusk_bls12_381::BlsScalar;
 use rand::SeedableRng;
 use rand::rngs::StdRng;
 
-use super::*;
-use crate::composer::soundness_support::{
-    assert_rejected, assert_verifies, gate_digest,
-};
+use super::support::{assert_rejected, assert_verifies, gate_digest};
+use crate::composer::Composer;
 use crate::prelude::{
     Circuit, Compiler, Error, Prover, PublicParameters, Verifier,
 };

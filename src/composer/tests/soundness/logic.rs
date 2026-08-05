@@ -24,13 +24,13 @@
 
 use core::cmp;
 
+use dusk_bls12_381::BlsScalar;
 use rand::SeedableRng;
 use rand::rngs::StdRng;
 
-use super::*;
-use crate::composer::soundness_support::{
-    assert_rejected, assert_verifies, fits, truncate,
-};
+use super::support::{assert_rejected, assert_verifies, fits, truncate};
+use crate::bit_iterator::BitIterator8;
+use crate::composer::{Composer, Constraint, WiredWitness, Witness};
 use crate::prelude::{
     Circuit, Compiler, Error, Prover, PublicParameters, Verifier,
 };
