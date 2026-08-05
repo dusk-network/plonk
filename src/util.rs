@@ -50,13 +50,25 @@ pub(crate) fn powers_of(
 pub(crate) fn random_g1_point<R: RngCore + CryptoRng>(
     rng: &mut R,
 ) -> G1Projective {
-    G1Affine::generator() * BlsScalar::random(rng)
+    G1Affine::generator() * random_nonzero_bls_scalar(rng)
 }
 /// Generates a random G2 point using an RNG seed.
 pub(crate) fn random_g2_point<R: RngCore + CryptoRng>(
     rng: &mut R,
 ) -> G2Projective {
-    G2Affine::generator() * BlsScalar::random(rng)
+    G2Affine::generator() * random_nonzero_bls_scalar(rng)
+}
+
+/// Generates a nonzero random BLS scalar using an RNG seed.
+pub(crate) fn random_nonzero_bls_scalar<R: RngCore + CryptoRng>(
+    rng: &mut R,
+) -> BlsScalar {
+    loop {
+        let scalar = BlsScalar::random(&mut *rng);
+        if scalar != BlsScalar::zero() {
+            return scalar;
+        }
+    }
 }
 
 /// This function is only used to generate the SRS.
@@ -107,6 +119,49 @@ pub fn batch_inversion(v: &mut [BlsScalar]) {
 #[cfg(test)]
 mod test {
     use super::*;
+
+    #[derive(Default)]
+    struct ZeroThenOneRng {
+        fills: usize,
+    }
+
+    impl RngCore for ZeroThenOneRng {
+        fn next_u32(&mut self) -> u32 {
+            unimplemented!("scalar sampling uses fill_bytes")
+        }
+
+        fn next_u64(&mut self) -> u64 {
+            unimplemented!("scalar sampling uses fill_bytes")
+        }
+
+        fn fill_bytes(&mut self, dest: &mut [u8]) {
+            dest.fill(0);
+            if self.fills > 0 {
+                dest[0] = 1;
+            }
+            self.fills += 1;
+        }
+
+        fn try_fill_bytes(
+            &mut self,
+            dest: &mut [u8],
+        ) -> Result<(), rand_core::Error> {
+            self.fill_bytes(dest);
+            Ok(())
+        }
+    }
+
+    impl CryptoRng for ZeroThenOneRng {}
+
+    #[test]
+    fn random_nonzero_scalar_resamples_zero() {
+        let mut rng = ZeroThenOneRng::default();
+        let scalar = random_nonzero_bls_scalar(&mut rng);
+
+        assert_eq!(scalar, BlsScalar::one());
+        assert_eq!(rng.fills, 2);
+    }
+
     #[test]
     fn test_batch_inversion() {
         let one = BlsScalar::from(1);

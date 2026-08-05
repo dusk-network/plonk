@@ -321,21 +321,47 @@ impl Serializable<{ G1Affine::SIZE + G2Affine::SIZE * 2 }> for OpeningKey {
         let h = G2Affine::from_reader(&mut buffer)?;
         let beta_h = G2Affine::from_reader(&mut buffer)?;
 
-        Ok(Self::new(g, h, beta_h))
+        Self::try_new(g, h, beta_h)
     }
 }
 
 impl OpeningKey {
-    pub(crate) fn new(g: G1Affine, h: G2Affine, x_h: G2Affine) -> OpeningKey {
+    pub(crate) fn try_new(
+        g: G1Affine,
+        h: G2Affine,
+        x_h: G2Affine,
+    ) -> Result<OpeningKey, dusk_bytes::Error> {
+        let g_valid = bool::from(g.is_on_curve())
+            && bool::from(g.is_torsion_free())
+            && !bool::from(g.is_identity());
+        let h_valid = bool::from(h.is_on_curve())
+            && bool::from(h.is_torsion_free())
+            && !bool::from(h.is_identity());
+        let x_h_valid = bool::from(x_h.is_on_curve())
+            && bool::from(x_h.is_torsion_free())
+            && !bool::from(x_h.is_identity());
+
+        if !(g_valid && h_valid && x_h_valid) {
+            return Err(dusk_bytes::Error::InvalidData);
+        }
+
         let prepared_h = G2Prepared::from(h);
         let prepared_x_h = G2Prepared::from(x_h);
-        OpeningKey {
+        Ok(OpeningKey {
             g,
             h,
             x_h,
             prepared_h,
             prepared_x_h,
-        }
+        })
+    }
+
+    pub(crate) fn validated(&self) -> Result<OpeningKey, dusk_bytes::Error> {
+        let g = G1Affine::from_slice(&self.g.to_bytes())?;
+        let h = G2Affine::from_slice(&self.h.to_bytes())?;
+        let x_h = G2Affine::from_slice(&self.x_h.to_bytes())?;
+
+        Self::try_new(g, h, x_h)
     }
 
     /// Checks whether a batch of polynomials evaluated at different points
