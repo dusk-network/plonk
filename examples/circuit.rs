@@ -56,7 +56,7 @@ impl Circuit for TestCircuit {
         let e = composer.append_witness(self.e);
         let scalar_mul_result = composer
             .component_mul_generator(e, dusk_jubjub::GENERATOR_EXTENDED)?;
-        composer.assert_equal_public_point(scalar_mul_result.into(), self.f);
+        composer.assert_equal_public_point(scalar_mul_result.into(), self.f)?;
 
         Ok(())
     }

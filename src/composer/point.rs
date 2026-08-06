@@ -26,15 +26,55 @@ pub(super) const EIGHT_INV: JubJubScalar = JubJubScalar::from_raw([
     0x01cfb69d4ca675f5,
 ]);
 
+/// Reject an extended point that has no affine image.
+///
+/// A `JubJubExtended` represents the affine point `(U/Z, V/Z)`, so `Z = 0`
+/// denotes no point at all. dusk-jubjub's projection inverts `Z` without
+/// checking it and aborts the process on zero, and it exposes no fallible
+/// conversion to defer to. The point entry points below therefore call this
+/// *before* projecting, and before `JubJubExtended::is_on_curve`: that
+/// predicate projects internally, so it would abort rather than reject.
+fn reject_degenerate_z(point: &JubJubExtended) -> Result<(), Error> {
+    if point.get_z() == BlsScalar::zero() {
+        return Err(Error::JubJubPointDegenerate);
+    }
+
+    Ok(())
+}
+
 /// Embedded-curve point gadgets
 impl Composer {
-    /// Appends a point in affine form as [`WitnessPoint`]
-    pub fn append_point<P: Into<JubJubAffine>>(
+    /// Appends a point as [`WitnessPoint`], its coordinates allocated as
+    /// private witnesses.
+    ///
+    /// The returned point is untyped, and allocation validates nothing beyond
+    /// the point being representable: neither the curve equation nor subgroup
+    /// membership is established here. For a prover-controlled point that is
+    /// [`Composer::assert_torsion_free_point`]'s job — see
+    /// [`TorsionFreeWitnessPoint`] for the boundary rule.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::JubJubPointDegenerate`] if `point` is an extended
+    /// point with a zero `Z` coordinate, which denotes no affine point.
+    pub fn append_point<P: Into<JubJubExtended>>(
         &mut self,
-        affine: P,
-    ) -> WitnessPoint {
-        let affine = affine.into();
+        point: P,
+    ) -> Result<WitnessPoint, Error> {
+        let point = point.into();
+        reject_degenerate_z(&point)?;
 
+        Ok(self.append_affine_point(JubJubAffine::from(point)))
+    }
+
+    /// Allocate the coordinates of an affine point as private witnesses.
+    ///
+    /// The in-crate seam behind [`Self::append_point`], taking the projected
+    /// point so gadgets that already hold one carry no error path.
+    pub(super) fn append_affine_point(
+        &mut self,
+        affine: JubJubAffine,
+    ) -> WitnessPoint {
         let x = self.append_witness(affine.get_u());
         let y = self.append_witness(affine.get_v());
 
@@ -49,21 +89,33 @@ impl Composer {
     /// [`Error::JubJubPointNotTorsionFree`] instead of baking an invalid
     /// group element into the circuit description. This is the constant-point
     /// arm of the boundary rule documented on [`TorsionFreeWitnessPoint`].
-    pub fn append_constant_point<P: Into<JubJubAffine>>(
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::JubJubPointDegenerate`] if `point` is an extended
+    /// point with a zero `Z` coordinate, which denotes no affine point.
+    ///
+    /// Returns [`Error::JubJubPointNotTorsionFree`] if `point` is not an
+    /// on-curve member of the prime-order subgroup.
+    pub fn append_constant_point<P: Into<JubJubExtended>>(
         &mut self,
-        affine: P,
+        point: P,
     ) -> Result<TorsionFreeWitnessPoint, Error> {
-        let affine = affine.into();
+        let point = point.into();
+        reject_degenerate_z(&point)?;
 
         // `is_torsion_free` alone accepts some off-curve coordinate pairs
         // (e.g. `(0, 0)`, which the order-multiplication ladder collapses
         // onto the identity), so the curve equation is checked separately.
-        let is_member = affine.is_on_curve()
-            & JubJubExtended::from(affine).is_torsion_free();
+        // Checked on the extended point, `is_on_curve` also ties `T1 · T2` to
+        // the affine coordinates, rejecting an inconsistent extended
+        // representation of an otherwise honest point.
+        let is_member = point.is_on_curve() & point.is_torsion_free();
         if !bool::from(is_member) {
             return Err(Error::JubJubPointNotTorsionFree);
         }
 
+        let affine = JubJubAffine::from(point);
         let x = self.append_constant(affine.get_u());
         let y = self.append_constant(affine.get_v());
 
@@ -72,35 +124,44 @@ impl Composer {
         )))
     }
 
-    /// Appends a point in affine form as [`WitnessPoint`]
+    /// Appends a point as [`WitnessPoint`]
     ///
     /// Creates two public inputs as `(x, y)`
     ///
     /// The returned point is untyped: whether a public point is a prime-order
     /// subgroup element is established outside the circuit, as part of the
-    /// verifier's protocol. A caller whose protocol performs that check can
-    /// wrap the result with [`TorsionFreeWitnessPoint::new_unchecked`]; see
+    /// verifier's protocol, so no membership check is performed here. A caller
+    /// whose protocol performs that check can wrap the result with
+    /// [`TorsionFreeWitnessPoint::new_unchecked`]; see
     /// [`TorsionFreeWitnessPoint`] for the boundary rule.
-    pub fn append_public_point<P: Into<JubJubAffine>>(
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::JubJubPointDegenerate`] if `point` is an extended
+    /// point with a zero `Z` coordinate, which denotes no affine point.
+    pub fn append_public_point<P: Into<JubJubExtended>>(
         &mut self,
-        affine: P,
-    ) -> WitnessPoint {
-        let affine = affine.into();
-        let point = self.append_point(affine);
+        point: P,
+    ) -> Result<WitnessPoint, Error> {
+        let point = point.into();
+        reject_degenerate_z(&point)?;
+
+        let affine = JubJubAffine::from(point);
+        let witness = self.append_affine_point(affine);
 
         self.assert_equal_constant(
-            *point.x(),
+            *witness.x(),
             BlsScalar::zero(),
             Some(affine.get_u()),
         );
 
         self.assert_equal_constant(
-            *point.y(),
+            *witness.y(),
             BlsScalar::zero(),
             Some(affine.get_v()),
         );
 
-        point
+        Ok(witness)
     }
 
     /// Asserts that the coordinates of the two points `a` and `b` are the same
@@ -113,12 +174,27 @@ impl Composer {
     /// Asserts `point == public`.
     ///
     /// Will add `public` affine coordinates `(x,y)` as public inputs
-    pub fn assert_equal_public_point<P: Into<JubJubAffine>>(
+    ///
+    /// `public` is compared against rather than allocated, but it is still
+    /// projected to read the two coordinates the public inputs carry, so the
+    /// representability guard applies exactly as it does when allocating. It
+    /// establishes no membership, matching [`Self::append_public_point`]: for
+    /// a public point that is the verifier's protocol to settle, and this
+    /// gadget constrains `point` to a value that protocol already covers.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::JubJubPointDegenerate`] if `public` is an extended
+    /// point with a zero `Z` coordinate, which denotes no affine point.
+    pub fn assert_equal_public_point<P: Into<JubJubExtended>>(
         &mut self,
         point: WitnessPoint,
         public: P,
-    ) {
+    ) -> Result<(), Error> {
         let public = public.into();
+        reject_degenerate_z(&public)?;
+
+        let public = JubJubAffine::from(public);
 
         self.assert_equal_constant(
             *point.x(),
@@ -131,6 +207,8 @@ impl Composer {
             BlsScalar::zero(),
             Some(public.get_v()),
         );
+
+        Ok(())
     }
 
     /// Constrain `point` to lie in the prime-order subgroup of the embedded
@@ -191,7 +269,7 @@ impl Composer {
         point: WitnessPoint,
         q: JubJubAffine,
     ) {
-        let q = self.append_point(q);
+        let q = self.append_affine_point(q);
         let qu = *q.x();
         let qv = *q.y();
 

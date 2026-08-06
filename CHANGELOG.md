@@ -9,35 +9,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `Composer::assert_torsion_free_point` boundary check constraining a witness point into the prime-order subgroup, returning it as `TorsionFreeWitnessPoint` [#870]
-- Add `TorsionFreeWitnessPoint` encoding prime-order subgroup membership in the type system [#870]
-- Add `Error::JubJubPointNotTorsionFree` for constant points outside the prime-order subgroup [#870]
-- Add `Composer::component_truncate<N>` to extract the low `N` bits of a witness [#867]
+- Add `Composer::assert_torsion_free_point` [#870]
+- Add `TorsionFreeWitnessPoint` [#870]
+- Add `Error::JubJubPointNotTorsionFree` [#870]
+- Add `Error::JubJubPointDegenerate` [#889]
+- Add `Composer::component_truncate<N>` [#867]
 - Add `Composer::component_range_bits<BITS>` range check counting bits directly [#867]
 - Add the public `Error::JubJubGeneratorNotPrimeOrder` variant [#832]
-- Add the public `Error::CircuitUnsatisfied` variant, returned when proof
-  creation fails because the witness assignment does not satisfy the
-  constraint system [#877]
+- Add `Error::CircuitUnsatisfied` [#877]
 
 ### Changed
 
 - Mark `Error` as `#[non_exhaustive]` [#884]
 - Remove the `Copy` derive from `Error` [#884]
-- Change `component_add_point`, `component_sub_point` and `component_mul_point` to take and return `TorsionFreeWitnessPoint` [#870]
-- Change `component_neg_point` and `component_select_identity` to take and return `TorsionFreeWitnessPoint` [#870]
-- Change `component_select_identity` to constrain its `bit` to be boolean, consuming one additional gate. This changes the verifier key of circuits calling it directly; `component_mul_point` is unaffected [#870]
+- Change `component_add_point`, `component_sub_point` and `component_mul_point` to `TorsionFreeWitnessPoint` [#870]
+- Change `component_neg_point` and `component_select_identity` to `TorsionFreeWitnessPoint` [#870]
+- Change `component_select_identity` to constrain its `bit` to boolean [#870]
+- Change the verifier key of circuits calling `component_select_identity` [#870]
 - Change `Composer::IDENTITY` to a `TorsionFreeWitnessPoint` [#870]
-- Change `append_constant_point` to validate the constant natively and return `Result<TorsionFreeWitnessPoint, Error>` [#870]
-- Change `component_mul_generator` to return `Result<TorsionFreeWitnessPoint, Error>`, its generator being validated to exact prime order [#870]
-- Detect unsatisfied circuits during quotient computation and return
-  `Error::CircuitUnsatisfied` instead of the misleading
-  `Error::PolynomialDegreeTooLarge` [#877]
-- Report the first unsatisfied constraint — index, gate-identity family and
-  source location — on stderr when a prove attempt's assignment leaves a
-  constraint unsatisfied, under the `debug` feature [#877]
-- Cap logic gadget width at 254 bits; `BIT_PAIRS > 127` is now a compile-time error [#867]
-- Change the verifier key of circuits using the logic gadget [#867]
-- Increase the gate count of `append_logic_and`/`append_logic_xor` to bind their inputs [#867]
+- Change `append_constant_point` to validate natively and return `Result` [#870]
+- Change the point entry points to take `impl Into<JubJubExtended>` [#889]
+- Change the point entry points to return `Result` [#889]
+- Change `append_constant_point` to validate membership on the extended point [#889]
+- Change `component_mul_generator` to return `Result` [#870]
+- Change unsatisfied proving to return `Error::CircuitUnsatisfied` [#877]
+- Report the first unsatisfied constraint under the `debug` feature [#877]
+- Cap logic gadget width at 254 bits [#867]
+- Change the logic gadget's verifier key [#867]
+- Increase `append_logic_and`/`append_logic_xor` gate count to bind inputs [#867]
 - Make `Composer::append_evaluated_output` append exactly one active arithmetic
   row, including when the output selector is zero. This changes circuit layouts
   for direct callers, which must regenerate circuit-specific proving and
@@ -70,10 +69,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   then equalled public zero modulo `q`, while the same digits drove the point
   endpoint to the nonidentity point `[q]G`, allowing a proof of a false public
   scalar/point relation.
-- Wrap the debugger's rotated (`_w`) wire reads to row 0 past the last
-  constraint, matching the prover's cyclic domain rather than reading zero
-  there. No circuit built through the public API changes output, since row 0's
-  wires are always the zero witness.
+- Wrap the debugger's rotated (`_w`) wire reads to row 0
 
 ## [0.22.1] - 2026-06-12
 
@@ -733,6 +729,7 @@ is necessary since `rkyv/validation` was required as a bound.
 - Proof system module.
 
 <!-- ISSUES -->
+[#889]: https://github.com/dusk-network/plonk/issues/889
 [#884]: https://github.com/dusk-network/plonk/issues/884
 [#877]: https://github.com/dusk-network/plonk/issues/877
 [#870]: https://github.com/dusk-network/plonk/issues/870

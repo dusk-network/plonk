@@ -179,7 +179,7 @@ impl Circuit for FixedBaseCircuit {
                 digits,
             )?,
         };
-        composer.assert_equal_public_point(point, self.claimed_point);
+        composer.assert_equal_public_point(point, self.claimed_point)?;
         Ok(())
     }
 }

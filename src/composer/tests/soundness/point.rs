@@ -231,7 +231,7 @@ fn honest_on_curve_row(composer: &mut Composer, q: WitnessPoint) {
 
 impl Circuit for TorsionFreeCircuit {
     fn circuit(&self, composer: &mut Composer) -> Result<(), Error> {
-        let point = composer.append_point(self.point);
+        let point = composer.append_point(self.point)?;
         match &self.mode {
             Mode::Honest => {
                 composer.assert_torsion_free_point(point);
@@ -241,7 +241,7 @@ impl Circuit for TorsionFreeCircuit {
                 // Mirror `assert_torsion_free_gates` gate for gate, with the
                 // three `gate_mul` outputs replaced by attacker witnesses.
                 // `assert_rejected` pins this mirror to the production layout.
-                let q = composer.append_point(*q);
+                let q = composer.append_point(*q)?;
                 let qu = *q.x();
                 let qv = *q.y();
                 let u2 = forged_mul(composer, qu, qu, *u2);
@@ -266,7 +266,7 @@ impl Circuit for TorsionFreeCircuit {
                 // Mirror `assert_torsion_free_gates` with only the first
                 // doubling's output witnesses forged to `s`; the remaining
                 // doublings run honestly from the forged point.
-                let q = composer.append_point(*q);
+                let q = composer.append_point(*q)?;
                 honest_on_curve_row(composer, q);
                 let q2 = forged_double(composer, q, *s);
                 let q4 = composer.add_point_gates(q2, q2);
@@ -328,7 +328,9 @@ fn torsion_free_layout_matches_golden() {
     ];
 
     let mut composer = Composer::initialized();
-    let point = composer.append_point(prime_order_point());
+    let point = composer
+        .append_point(prime_order_point())
+        .expect("honest point");
     composer.assert_torsion_free_point(point);
     assert_eq!(
         gate_digest(&composer.constraints),
@@ -356,7 +358,9 @@ fn mul_point_layout_matches_golden() {
 
     let mut composer = Composer::initialized();
     let scalar = composer.append_witness(JubJubScalar::from(17u64));
-    let point = composer.append_point(prime_order_point());
+    let point = composer
+        .append_point(prime_order_point())
+        .expect("honest point");
     let point = TorsionFreeWitnessPoint::new_unchecked(point);
     composer.component_mul_point(scalar, point);
     assert_eq!(
@@ -691,8 +695,8 @@ impl CurveAdditionCircuit {
 
 impl Circuit for CurveAdditionCircuit {
     fn circuit(&self, composer: &mut Composer) -> Result<(), Error> {
-        let a = composer.append_public_point(self.a);
-        let b = composer.append_public_point(self.b);
+        let a = composer.append_public_point(self.a)?;
+        let b = composer.append_public_point(self.b)?;
 
         // The addends are the generator and its double: subgroup constants, so
         // membership is established rather than merely vouched for, which is
@@ -734,7 +738,7 @@ impl Circuit for CurveAdditionCircuit {
             }
         };
 
-        composer.assert_equal_public_point(sum, self.claimed_sum);
+        composer.assert_equal_public_point(sum, self.claimed_sum)?;
 
         Ok(())
     }
@@ -893,8 +897,12 @@ fn component_add_point_layout_matches_golden() {
     ];
 
     let mut composer = Composer::initialized();
-    let a = composer.append_point(GENERATOR_EXTENDED);
-    let b = composer.append_point(GENERATOR_EXTENDED.double());
+    let a = composer
+        .append_point(GENERATOR_EXTENDED)
+        .expect("honest point");
+    let b = composer
+        .append_point(GENERATOR_EXTENDED.double())
+        .expect("honest point");
     composer.component_add_point(
         TorsionFreeWitnessPoint::new_unchecked(a),
         TorsionFreeWitnessPoint::new_unchecked(b),
