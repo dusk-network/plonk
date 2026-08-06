@@ -22,6 +22,7 @@
 use alloc::vec::Vec;
 
 use dusk_bls12_381::BlsScalar;
+use dusk_jubjub::{GENERATOR_EXTENDED, JubJubAffine, JubJubScalar};
 use rand::rngs::StdRng;
 
 use crate::composer::bits::recompose_bits;
@@ -32,6 +33,28 @@ use crate::prelude::{Prover, Verifier};
 /// `2^num_bits` as a field element.
 pub(super) fn pow(num_bits: usize) -> BlsScalar {
     BlsScalar::pow_of_2(num_bits as u64)
+}
+
+/// The inverse of a value the forgery constructions require to be invertible.
+///
+/// Those constructions solve a gadget's output check for its coordinate, and
+/// the denominator is the coefficient that check carries on it. Where it
+/// vanishes the check degenerates and leaves the coordinate free — a case none
+/// of the forgeries mean to exercise, so this panics rather than returning a
+/// value that would silently stand in for one.
+pub(super) fn invert(value: BlsScalar) -> BlsScalar {
+    value.invert().expect("the denominator is invertible")
+}
+
+/// The point the steering forgeries aim at.
+///
+/// A gadget that leaves a helper wire unbound lets a prover choose one
+/// coordinate of the gadget's claimed output. Aiming that choice at a real
+/// curve point, rather than at an arbitrary field element, makes the stolen
+/// coordinate one that could legitimately have arisen — so a rejection cannot
+/// be attributed to the claim being obviously malformed.
+pub(super) fn steering_target() -> JubJubAffine {
+    JubJubAffine::from(GENERATOR_EXTENDED * JubJubScalar::from(7u64))
 }
 
 /// Truncation of `x` to its low `num_bits` bits, as a field element.

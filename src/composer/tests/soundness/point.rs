@@ -37,7 +37,7 @@
 //! the attacker's choosing. Those forgeries reproduce the production emission
 //! with only the wire falsified and the coordinates its own checks force;
 //! `forced_output` does that solving, so it is itself pinned against
-//! `compute_quotient_i`. That pin is the only reach from `composer` into
+//! `compute_quotient_i`. That pin is this module's only reach into
 //! `proof_system::widget`, and is deliberate: it exists to tie this module's
 //! `forced_output` to the widget's own identity, and building the `ProverKey`
 //! by struct literal makes a new field on it break the build here rather than
@@ -51,7 +51,9 @@ use ff::Field;
 use rand::SeedableRng;
 use rand::rngs::StdRng;
 
-use super::support::{assert_rejected, assert_verifies, gate_digest};
+use super::support::{
+    assert_rejected, assert_verifies, gate_digest, invert, steering_target,
+};
 use crate::composer::point::EIGHT_INV;
 use crate::composer::{
     Composer, Constraint, TorsionFreeWitnessPoint, Witness, WitnessPoint,
@@ -586,10 +588,6 @@ fn forged_doubling_chain_rejected() {
     );
 }
 
-fn invert(value: BlsScalar) -> BlsScalar {
-    Option::from(value.invert()).expect("the denominator is invertible")
-}
-
 /// The coordinates the widget's output checks force once the helper wire
 /// carries `x1_y2`. Each check is linear in its own coordinate, so each has one
 /// solution: `x_3 * (1 + D*x1_y2*y1_x2) = x1_y2 + y1_x2` and
@@ -626,12 +624,6 @@ fn wire_forcing_x3(
     let y1_x2 = y_1 * x_2;
 
     (y1_x2 - x_3) * invert(x_3 * EDWARDS_D * y1_x2 - BlsScalar::one())
-}
-
-/// The point the steering forgery aims at: a real curve point that is not the
-/// sum, so the stolen x-coordinate is one that could legitimately have arisen.
-fn steering_target() -> JubJubAffine {
-    JubJubAffine::from(GENERATOR_EXTENDED * JubJubScalar::from(7u64))
 }
 
 /// The forged wires, shared so the circuit-level forgeries and the widget-level
