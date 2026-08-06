@@ -17,8 +17,9 @@ use dusk_bytes::{DeserializableSlice, Serializable};
 use merlin::Transcript;
 #[cfg(feature = "rkyv-impl")]
 use rkyv::{
-    Archive, Deserialize, Serialize,
+    Archive, Deserialize, Fallible, Serialize,
     ser::{ScratchSpace, Serializer},
+    with::{ArchiveWith, DeserializeWith, SerializeWith},
 };
 
 use super::Commitment;
@@ -253,28 +254,152 @@ impl CommitKey {
 /// Opening Key is used to verify opening proofs made about a committed
 /// polynomial.
 #[derive(Clone, Debug)]
-#[cfg_attr(
-    feature = "rkyv-impl",
-    derive(Archive, Deserialize, Serialize),
-    archive(bound(serialize = "__S: Serializer + ScratchSpace")),
-    archive_attr(derive(CheckBytes))
-)]
 pub struct OpeningKey {
     /// The generator of G1.
-    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) g: G1Affine,
     /// The generator of G2.
-    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) h: G2Affine,
     /// 'x' times the above generator of G2.
-    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) x_h: G2Affine,
     /// The generator of G2, prepared for use in pairings.
-    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) prepared_h: G2Prepared,
     /// 'x' times the above generator of G2, prepared for use in pairings.
-    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) prepared_x_h: G2Prepared,
+}
+
+#[cfg(feature = "rkyv-impl")]
+#[derive(Archive, Serialize)]
+pub struct OpeningKeyArchive {
+    g: [u8; G1Affine::SIZE],
+    h: [u8; G2Affine::SIZE],
+    x_h: [u8; G2Affine::SIZE],
+}
+
+#[cfg(feature = "rkyv-impl")]
+impl From<&OpeningKey> for OpeningKeyArchive {
+    fn from(key: &OpeningKey) -> Self {
+        Self {
+            g: key.g.to_bytes(),
+            h: key.h.to_bytes(),
+            x_h: key.x_h.to_bytes(),
+        }
+    }
+}
+
+#[cfg(feature = "rkyv-impl")]
+fn archived_opening_key_points(
+    key: &ArchivedOpeningKeyArchive,
+) -> Result<(G1Affine, G2Affine, G2Affine), dusk_bytes::Error> {
+    // Checked decoding enforces canonical, on-curve, subgroup points. Opening
+    // keys additionally require every source point to be nonidentity.
+    let g = G1Affine::from_slice(&key.g)?;
+    let h = G2Affine::from_slice(&key.h)?;
+    let x_h = G2Affine::from_slice(&key.x_h)?;
+
+    if bool::from(g.is_identity())
+        || bool::from(h.is_identity())
+        || bool::from(x_h.is_identity())
+    {
+        return Err(dusk_bytes::Error::InvalidData);
+    }
+
+    Ok((g, h, x_h))
+}
+
+#[cfg(feature = "rkyv-impl")]
+fn decode_archived_opening_key(
+    key: &ArchivedOpeningKeyArchive,
+) -> Result<OpeningKey, dusk_bytes::Error> {
+    let (g, h, x_h) = archived_opening_key_points(key)?;
+    let prepared_h = G2Prepared::from(h);
+    let prepared_x_h = G2Prepared::from(x_h);
+
+    Ok(OpeningKey {
+        g,
+        h,
+        x_h,
+        prepared_h,
+        prepared_x_h,
+    })
+}
+
+#[cfg(feature = "rkyv-impl")]
+#[derive(Debug)]
+pub struct InvalidArchivedOpeningKey;
+
+#[cfg(feature = "rkyv-impl")]
+impl core::fmt::Display for InvalidArchivedOpeningKey {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.write_str("invalid archived KZG opening key")
+    }
+}
+
+#[cfg(feature = "rkyv-impl")]
+impl core::error::Error for InvalidArchivedOpeningKey {}
+
+#[cfg(feature = "rkyv-impl")]
+impl<C: ?Sized> CheckBytes<C> for ArchivedOpeningKeyArchive {
+    type Error = InvalidArchivedOpeningKey;
+
+    unsafe fn check_bytes<'a>(
+        value: *const Self,
+        _: &mut C,
+    ) -> Result<&'a Self, Self::Error> {
+        let value = unsafe { &*value };
+        archived_opening_key_points(value)
+            .map_err(|_| InvalidArchivedOpeningKey)?;
+        Ok(value)
+    }
+}
+
+#[cfg(feature = "rkyv-impl")]
+pub(crate) struct OpeningKeyRkyv;
+
+#[cfg(feature = "rkyv-impl")]
+impl ArchiveWith<OpeningKey> for OpeningKeyRkyv {
+    type Archived = ArchivedOpeningKeyArchive;
+    type Resolver = OpeningKeyArchiveResolver;
+
+    unsafe fn resolve_with(
+        field: &OpeningKey,
+        pos: usize,
+        resolver: Self::Resolver,
+        out: *mut Self::Archived,
+    ) {
+        unsafe {
+            OpeningKeyArchive::from(field).resolve(pos, resolver, out);
+        }
+    }
+}
+
+#[cfg(feature = "rkyv-impl")]
+impl<S> SerializeWith<OpeningKey, S> for OpeningKeyRkyv
+where
+    S: Serializer + ScratchSpace + ?Sized,
+{
+    fn serialize_with(
+        field: &OpeningKey,
+        serializer: &mut S,
+    ) -> Result<Self::Resolver, S::Error> {
+        OpeningKeyArchive::from(field).serialize(serializer)
+    }
+}
+
+#[cfg(feature = "rkyv-impl")]
+impl<D> DeserializeWith<ArchivedOpeningKeyArchive, OpeningKey, D>
+    for OpeningKeyRkyv
+where
+    D: Fallible + ?Sized,
+{
+    fn deserialize_with(
+        field: &ArchivedOpeningKeyArchive,
+        _: &mut D,
+    ) -> Result<OpeningKey, D::Error> {
+        // Safe deserialization validates the archive through `CheckBytes`
+        // before reaching this infallible reconstruction step.
+        Ok(decode_archived_opening_key(field)
+            .expect("opening key archive must be validated before use"))
+    }
 }
 
 fn batch_challenge(
@@ -354,14 +479,6 @@ impl OpeningKey {
             prepared_h,
             prepared_x_h,
         })
-    }
-
-    pub(crate) fn validated(&self) -> Result<OpeningKey, dusk_bytes::Error> {
-        let g = G1Affine::from_slice(&self.g.to_bytes())?;
-        let h = G2Affine::from_slice(&self.h.to_bytes())?;
-        let x_h = G2Affine::from_slice(&self.x_h.to_bytes())?;
-
-        Self::try_new(g, h, x_h)
     }
 
     /// Checks whether a batch of polynomials evaluated at different points
