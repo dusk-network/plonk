@@ -59,6 +59,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Reject degenerate KZG opening keys and rebuild archived prepared pairing
+  values from their validated affine points before use [#887]
 - Bind `append_logic_xor`/`append_logic_and` output to their inputs [#867]
 - Bind the witness returned by `append_evaluated_output` to its input
   polynomial. Previously the public helper only calculated and allocated the
@@ -730,6 +732,7 @@ is necessary since `rkyv/validation` was required as a bound.
 
 <!-- ISSUES -->
 [#889]: https://github.com/dusk-network/plonk/issues/889
+[#887]: https://github.com/dusk-network/plonk/issues/887
 [#884]: https://github.com/dusk-network/plonk/issues/884
 [#877]: https://github.com/dusk-network/plonk/issues/877
 [#870]: https://github.com/dusk-network/plonk/issues/870
