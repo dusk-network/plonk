@@ -153,10 +153,10 @@ impl Composer {
     /// Constrain a fixed-base multiplication for a supplied signed-digit
     /// witness assignment.
     ///
-    /// This is separated from honest wNAF generation so the soundness tests
-    /// can inject adversarial assignments into the exact production layout.
-    /// The constraints, not the provenance of `signed_digits`, must reject
-    /// noncanonical and field-wrapping representations.
+    /// Split from honest wNAF generation, and reachable from the `composer`
+    /// subtree for its unit tests. The constraints, not the provenance of
+    /// `signed_digits`, must reject noncanonical and field-wrapping
+    /// representations.
     pub(super) fn append_fixed_base_signed_digits(
         &mut self,
         jubjub: Witness,
@@ -312,7 +312,9 @@ impl Composer {
     /// `(r - 1) - scalar < 2^252`; if `scalar >= r`, that subtraction
     /// underflows modulo the much larger BLS scalar-field modulus and cannot
     /// satisfy the range check.
-    fn assert_canonical_jubjub_scalar(&mut self, scalar: Witness) {
+    ///
+    /// Reachable from the `composer` subtree for its unit tests.
+    pub(super) fn assert_canonical_jubjub_scalar(&mut self, scalar: Witness) {
         self.range_check(scalar, JUBJUB_SCALAR_BITS);
 
         let max_jubjub_scalar = BlsScalar::from(-JubJubScalar::one());
