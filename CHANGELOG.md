@@ -22,9 +22,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Change RKYV `PublicParameters` archives to store only canonical opening-key
-  source points and rebuild prepared pairing values during deserialization.
-  Existing RKYV parameter archives must be regenerated [#890]
+- Change RKYV `CommitKey` and `PublicParameters` archives to store canonical
+  compressed commitment- and opening-key source points and rebuild prepared
+  pairing values during deserialization. Existing RKYV parameter archives
+  must be regenerated [#890] [#903]
 - Mark `Error` as `#[non_exhaustive]` [#884]
 - Remove the `Copy` derive from `Error` [#884]
 - Change `component_add_point`, `component_sub_point` and `component_mul_point` to `TorsionFreeWitnessPoint` [#870]
@@ -66,6 +67,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Validate cached vanishing-coset evaluations during checked `Prover`
   deserialization [#902]
+- Validate nonempty, canonically encoded, on-curve, prime-order KZG commitment
+  keys during checked RKYV `PublicParameters` deserialization [#903]
 - Reject zero vanishing-coset evaluations during checked `Prover`
   deserialization [#898]
 - Reject empty commitment keys during checked `Prover` deserialization [#897]
@@ -742,6 +745,7 @@ is necessary since `rkyv/validation` was required as a bound.
 
 <!-- ISSUES -->
 [#902]: https://github.com/dusk-network/plonk/issues/902
+[#903]: https://github.com/dusk-network/plonk/issues/903
 [#898]: https://github.com/dusk-network/plonk/issues/898
 [#897]: https://github.com/dusk-network/plonk/issues/897
 [#895]: https://github.com/dusk-network/plonk/issues/895
