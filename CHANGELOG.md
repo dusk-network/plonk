@@ -64,6 +64,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Reject zero vanishing-coset evaluations during checked `Prover`
+  deserialization [#898]
 - Reject degenerate KZG opening keys and rebuild archived prepared pairing
   values from their validated affine points before use [#887]
 - Bind `append_logic_xor`/`append_logic_and` output to their inputs [#867]
@@ -736,6 +738,7 @@ is necessary since `rkyv/validation` was required as a bound.
 - Proof system module.
 
 <!-- ISSUES -->
+[#898]: https://github.com/dusk-network/plonk/issues/898
 [#895]: https://github.com/dusk-network/plonk/issues/895
 [#890]: https://github.com/dusk-network/plonk/issues/890
 [#889]: https://github.com/dusk-network/plonk/issues/889
