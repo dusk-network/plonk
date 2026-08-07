@@ -59,7 +59,7 @@ std = [
 ]
 alloc = ["dusk-bls12_381/alloc", "msgpacker", "miniz_oxide", "sha2"]
 debug = ["dusk-cdf", "backtrace"]
-rkyv-impl = ["dusk-bls12_381/rkyv-impl", "dusk-jubjub/rkyv-impl", "rkyv", "bytecheck"]
+rkyv-impl = ["dusk-bls12_381/rkyv-impl", "dusk-jubjub/rkyv-impl", "rkyv", "rkyv/validation", "bytecheck"]
 
 [profile.release]
 panic = "abort"

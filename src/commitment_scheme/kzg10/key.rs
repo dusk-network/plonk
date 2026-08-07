@@ -19,6 +19,8 @@ use merlin::Transcript;
 use rkyv::{
     Archive, Deserialize, Fallible, Serialize,
     ser::{ScratchSpace, Serializer},
+    validation::ArchiveContext,
+    vec::ArchivedVec,
     with::{ArchiveWith, DeserializeWith, SerializeWith},
 };
 
@@ -32,17 +34,163 @@ use crate::util;
 /// CommitKey is used to commit to a polynomial which is bounded by the
 /// max_degree.
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[cfg_attr(
-    feature = "rkyv-impl",
-    derive(Archive, Deserialize, Serialize),
-    archive(bound(serialize = "__S: Serializer + ScratchSpace")),
-    archive_attr(derive(CheckBytes))
-)]
 pub struct CommitKey {
     /// Group elements of the form `{ \beta^i G }`, where `i` ranges from 0 to
     /// `degree`.
-    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) powers_of_g: Vec<G1Affine>,
+}
+
+#[cfg(feature = "rkyv-impl")]
+#[derive(Archive, Serialize)]
+#[archive(bound(serialize = "__S: Serializer + ScratchSpace"))]
+#[doc(hidden)]
+pub struct CommitKeyArchive {
+    pub(crate) powers_of_g: Vec<[u8; G1Affine::SIZE]>,
+}
+
+#[cfg(feature = "rkyv-impl")]
+impl From<&CommitKey> for CommitKeyArchive {
+    fn from(key: &CommitKey) -> Self {
+        Self {
+            powers_of_g: key
+                .powers_of_g
+                .iter()
+                .map(G1Affine::to_bytes)
+                .collect(),
+        }
+    }
+}
+
+#[cfg(feature = "rkyv-impl")]
+#[derive(Debug)]
+pub struct InvalidArchivedCommitKey;
+
+#[cfg(feature = "rkyv-impl")]
+impl core::fmt::Display for InvalidArchivedCommitKey {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.write_str("invalid archived KZG commitment key")
+    }
+}
+
+#[cfg(feature = "rkyv-impl")]
+impl core::error::Error for InvalidArchivedCommitKey {}
+
+#[cfg(feature = "rkyv-impl")]
+fn archived_g1_is_valid(bytes: &[u8; G1Affine::SIZE]) -> bool {
+    G1Affine::from_slice(bytes).is_ok()
+}
+
+#[cfg(feature = "rkyv-impl")]
+fn decode_validated_archived_g1(bytes: &[u8; G1Affine::SIZE]) -> G1Affine {
+    // `CheckBytes` has already established subgroup membership. Rebuilding
+    // through the canonical encoding still checks its field and flag format,
+    // while avoiding a duplicate subgroup check.
+    Option::from(G1Affine::from_compressed_unchecked(bytes))
+        .expect("commitment key archive must be validated")
+}
+
+#[cfg(all(feature = "rkyv-impl", feature = "std"))]
+fn archived_commit_key_points_are_valid(
+    powers: &ArchivedVec<[u8; G1Affine::SIZE]>,
+) -> bool {
+    use rayon::prelude::*;
+
+    powers.par_iter().all(archived_g1_is_valid)
+}
+
+#[cfg(all(feature = "rkyv-impl", not(feature = "std")))]
+fn archived_commit_key_points_are_valid(
+    powers: &ArchivedVec<[u8; G1Affine::SIZE]>,
+) -> bool {
+    powers.iter().all(archived_g1_is_valid)
+}
+
+#[cfg(feature = "rkyv-impl")]
+impl<C> CheckBytes<C> for ArchivedCommitKeyArchive
+where
+    C: ArchiveContext + ?Sized,
+    C::Error: bytecheck::Error,
+{
+    type Error = InvalidArchivedCommitKey;
+
+    unsafe fn check_bytes<'a>(
+        value: *const Self,
+        context: &mut C,
+    ) -> Result<&'a Self, Self::Error> {
+        let powers = unsafe {
+            ArchivedVec::<[u8; G1Affine::SIZE]>::check_bytes(
+                core::ptr::addr_of!((*value).powers_of_g),
+                context,
+            )
+        }
+        .map_err(|_| InvalidArchivedCommitKey)?;
+
+        if powers.is_empty() {
+            return Err(InvalidArchivedCommitKey);
+        }
+
+        if !archived_commit_key_points_are_valid(powers) {
+            return Err(InvalidArchivedCommitKey);
+        }
+
+        Ok(unsafe { &*value })
+    }
+}
+
+#[cfg(feature = "rkyv-impl")]
+impl Archive for CommitKey {
+    type Archived = ArchivedCommitKeyArchive;
+    type Resolver = CommitKeyArchiveResolver;
+
+    unsafe fn resolve(
+        &self,
+        pos: usize,
+        resolver: Self::Resolver,
+        out: *mut Self::Archived,
+    ) {
+        unsafe {
+            CommitKeyArchive::from(self).resolve(pos, resolver, out);
+        }
+    }
+}
+
+#[cfg(feature = "rkyv-impl")]
+impl<S> Serialize<S> for CommitKey
+where
+    S: Serializer + ScratchSpace + ?Sized,
+{
+    fn serialize(
+        &self,
+        serializer: &mut S,
+    ) -> Result<Self::Resolver, S::Error> {
+        CommitKeyArchive::from(self).serialize(serializer)
+    }
+}
+
+#[cfg(feature = "rkyv-impl")]
+impl<D> Deserialize<CommitKey, D> for ArchivedCommitKeyArchive
+where
+    D: Fallible + ?Sized,
+{
+    fn deserialize(&self, _: &mut D) -> Result<CommitKey, D::Error> {
+        #[cfg(feature = "std")]
+        let powers_of_g = {
+            use rayon::prelude::*;
+
+            self.powers_of_g
+                .par_iter()
+                .map(decode_validated_archived_g1)
+                .collect()
+        };
+        #[cfg(not(feature = "std"))]
+        let powers_of_g = self
+            .powers_of_g
+            .iter()
+            .map(decode_validated_archived_g1)
+            .collect();
+
+        Ok(CommitKey { powers_of_g })
+    }
 }
 
 impl CommitKey {
@@ -862,6 +1010,47 @@ mod test {
 
         assert_eq!(commit_key.powers_of_g, ck_bytes_safe.powers_of_g);
         Ok(())
+    }
+
+    #[cfg(feature = "rkyv-impl")]
+    #[test]
+    fn commit_key_rkyv_round_trip_rejects_malformed_points() {
+        const BASE_FIELD_MODULUS: [u64; 6] = [
+            0xb9fe_ffff_ffff_aaab,
+            0x1eab_fffe_b153_ffff,
+            0x6730_d2a0_f6b0_f624,
+            0x6477_4b84_f385_12bf,
+            0x4b1b_a7b6_434b_acd7,
+            0x1a01_11ea_397f_e69a,
+        ];
+
+        let (commit_key, _) = setup_test(11).unwrap();
+        let mut bytes = rkyv::to_bytes::<_, 256>(&commit_key).unwrap();
+        let archived = unsafe { rkyv::archived_root::<CommitKey>(&bytes) };
+        let point = &archived.powers_of_g[0];
+        let point_offset = point as *const _ as usize - bytes.as_ptr() as usize;
+
+        let decoded = rkyv::from_bytes::<CommitKey>(&bytes).unwrap();
+        assert_eq!(decoded, commit_key);
+
+        bytes[point_offset] &= 0x7f;
+        let result =
+            std::panic::catch_unwind(|| rkyv::from_bytes::<CommitKey>(&bytes));
+        assert!(result.is_ok(), "checked deserialization must not panic");
+        assert!(result.expect("checked above").is_err());
+
+        let point = &mut bytes[point_offset..point_offset + G1Affine::SIZE];
+        for (chunk, limb) in point
+            .chunks_exact_mut(8)
+            .zip(BASE_FIELD_MODULUS.iter().rev())
+        {
+            chunk.copy_from_slice(&limb.to_be_bytes());
+        }
+        point[0] |= 0x80;
+        let result =
+            std::panic::catch_unwind(|| rkyv::from_bytes::<CommitKey>(&bytes));
+        assert!(result.is_ok(), "checked deserialization must not panic");
+        assert!(result.expect("checked above").is_err());
     }
 
     #[test]
