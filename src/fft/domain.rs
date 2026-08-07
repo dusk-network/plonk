@@ -295,21 +295,36 @@ pub(crate) mod alloc {
             &self,            // domain to evaluate over
             poly_degree: u64, // degree of the vanishing polynomial
         ) -> Evaluations {
-            assert!((self.size() as u64) > poly_degree);
-            let coset_gen = GENERATOR.pow(&[poly_degree, 0, 0, 0]);
-            let v_h: Vec<_> = (0..self.size())
-                .map(|i| {
-                    (coset_gen
-                        * self.group_gen.pow(&[
-                            poly_degree * i as u64,
-                            0,
-                            0,
-                            0,
-                        ]))
-                        - BlsScalar::one()
-                })
-                .collect();
+            let v_h = self.vanishing_poly_over_coset(poly_degree).collect();
             Evaluations::from_vec_and_domain(v_h, *self)
+        }
+
+        pub(crate) fn matches_vanishing_poly_over_coset(
+            &self,
+            poly_degree: u64,
+            evaluations: &[BlsScalar],
+        ) -> bool {
+            poly_degree < self.size() as u64
+                && evaluations.len() == self.size()
+                && evaluations
+                    .iter()
+                    .copied()
+                    .eq(self.vanishing_poly_over_coset(poly_degree))
+        }
+
+        fn vanishing_poly_over_coset(
+            &self,
+            poly_degree: u64,
+        ) -> impl Iterator<Item = BlsScalar> {
+            assert!((self.size() as u64) > poly_degree);
+            let mut point = GENERATOR.pow(&[poly_degree, 0, 0, 0]);
+            let step = self.group_gen.pow(&[poly_degree, 0, 0, 0]);
+
+            (0..self.size()).map(move |_| {
+                let evaluation = point - BlsScalar::one();
+                point *= step;
+                evaluation
+            })
         }
 
         /// Return an iterator over the elements of the domain.
@@ -402,6 +417,8 @@ pub(crate) mod alloc {
 #[cfg(test)]
 #[cfg(feature = "alloc")]
 mod tests {
+    use dusk_bls12_381::GENERATOR;
+
     use super::*;
 
     #[test]
@@ -423,6 +440,36 @@ mod tests {
                 assert_eq!(element, domain.group_gen.pow(&[i as u64, 0, 0, 0]));
             }
         }
+    }
+
+    #[test]
+    fn vanishing_coset_evaluations_match_closed_form() {
+        let domain = EvaluationDomain::new(1 << 8).unwrap();
+        let poly_degree = 1 << 5;
+        let evaluations = domain.compute_vanishing_poly_over_coset(poly_degree);
+        let coset_generator = GENERATOR.pow(&[poly_degree, 0, 0, 0]);
+
+        for (i, evaluation) in evaluations.evals.iter().enumerate() {
+            let expected = coset_generator
+                * domain.group_gen.pow(&[poly_degree * i as u64, 0, 0, 0])
+                - BlsScalar::one();
+            assert_eq!(*evaluation, expected);
+        }
+    }
+
+    #[test]
+    fn vanishing_coset_evaluations_reject_invalid_degree() {
+        let domain = EvaluationDomain::new(1 << 8).unwrap();
+        let evaluations = vec![BlsScalar::zero(); domain.size()];
+
+        assert!(!domain.matches_vanishing_poly_over_coset(
+            domain.size() as u64,
+            &evaluations,
+        ));
+        assert!(!domain.matches_vanishing_poly_over_coset(
+            domain.size() as u64 + 1,
+            &evaluations,
+        ));
     }
 
     #[test]
