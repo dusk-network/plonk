@@ -554,7 +554,12 @@ pub(crate) mod alloc {
             let perm_linear_evaluations = evals_from_reader(&mut buffer)?;
 
             let v_h_coset_8n = evals_from_reader(&mut buffer)?;
-            if v_h_coset_8n.evals.contains(&BlsScalar::zero()) {
+            let poly_degree =
+                u64::try_from(n).map_err(|_| dusk_bytes::Error::InvalidData)?;
+            if !evaluations_domain.matches_vanishing_poly_over_coset(
+                poly_degree,
+                &v_h_coset_8n.evals,
+            ) {
                 return Err(dusk_bytes::Error::InvalidData.into());
             }
 
@@ -661,7 +666,8 @@ mod test {
         let s_sigma_4 = poly_eval(n, evaluations_domain);
         let linear_evaluations = evaluations(evaluations_domain);
 
-        let v_h_coset_8n = evaluations(evaluations_domain);
+        let v_h_coset_8n =
+            evaluations_domain.compute_vanishing_poly_over_coset(n as u64);
 
         let arithmetic = arithmetic::ProverKey {
             q_m,
@@ -756,6 +762,38 @@ mod test {
             EvaluationDomain::new(8 * n).expect("8n domain should be valid");
         let mut prover_key = prover_key(n, evaluations_domain);
         prover_key.v_h_coset_8n.evals[0] = BlsScalar::zero();
+
+        assert!(matches!(
+            ProverKey::from_slice(&prover_key.to_var_bytes()),
+            Err(Error::BytesError(dusk_bytes::Error::InvalidData))
+        ));
+    }
+
+    #[test]
+    fn prover_key_rejects_incorrect_nonzero_vanishing_evaluation() {
+        let n = 1 << 3;
+        let evaluations_domain =
+            EvaluationDomain::new(8 * n).expect("8n domain should be valid");
+        let mut prover_key = prover_key(n, evaluations_domain);
+        prover_key.v_h_coset_8n.evals[0] = prover_key.v_h_coset_8n.evals[1];
+
+        assert!(matches!(
+            ProverKey::from_slice(&prover_key.to_var_bytes()),
+            Err(Error::BytesError(dusk_bytes::Error::InvalidData))
+        ));
+    }
+
+    #[test]
+    fn prover_key_rejects_scaled_vanishing_evaluations() {
+        let n = 1 << 3;
+        let evaluations_domain =
+            EvaluationDomain::new(8 * n).expect("8n domain should be valid");
+        let mut prover_key = prover_key(n, evaluations_domain);
+        prover_key
+            .v_h_coset_8n
+            .evals
+            .iter_mut()
+            .for_each(|evaluation| *evaluation *= BlsScalar::from(2u64));
 
         assert!(matches!(
             ProverKey::from_slice(&prover_key.to_var_bytes()),

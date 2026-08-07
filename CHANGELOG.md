@@ -64,6 +64,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Validate cached vanishing-coset evaluations during checked `Prover`
+  deserialization [#902]
 - Reject zero vanishing-coset evaluations during checked `Prover`
   deserialization [#898]
 - Reject empty commitment keys during checked `Prover` deserialization [#897]
@@ -739,6 +741,7 @@ is necessary since `rkyv/validation` was required as a bound.
 - Proof system module.
 
 <!-- ISSUES -->
+[#902]: https://github.com/dusk-network/plonk/issues/902
 [#898]: https://github.com/dusk-network/plonk/issues/898
 [#897]: https://github.com/dusk-network/plonk/issues/897
 [#895]: https://github.com/dusk-network/plonk/issues/895

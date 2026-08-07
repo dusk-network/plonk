@@ -821,6 +821,45 @@ mod tests {
     }
 
     #[test]
+    fn prover_try_from_bytes_rejects_incorrect_nonzero_vanishing_evaluation() {
+        let mut rng = StdRng::seed_from_u64(45);
+        let pp = PublicParameters::setup(1 << 10, &mut rng)
+            .expect("public parameters should build");
+        let (prover, _) = Compiler::compile::<MinimalCircuit>(&pp, b"p1.4-3")
+            .expect("circuit should compile");
+        let mut bytes = prover.to_bytes();
+
+        let label_len = u64::from_be_bytes(
+            bytes[..u64::SIZE].try_into().expect("header is complete"),
+        ) as usize;
+        let prover_key_len = u64::from_be_bytes(
+            bytes[u64::SIZE..2 * u64::SIZE]
+                .try_into()
+                .expect("header is complete"),
+        ) as usize;
+        let prover_key_offset = 6 * u64::SIZE + label_len;
+        let evaluations_size = u64::from_slice(
+            &bytes[prover_key_offset + u64::SIZE
+                ..prover_key_offset + 2 * u64::SIZE],
+        )
+        .expect("serialized evaluation size should decode")
+            as usize;
+        let first_vanishing_evaluation = prover_key_offset + prover_key_len
+            - evaluations_size
+            + EvaluationDomain::SIZE;
+        let second_vanishing_evaluation =
+            first_vanishing_evaluation + BlsScalar::SIZE;
+        let replacement = bytes[second_vanishing_evaluation
+            ..second_vanishing_evaluation + BlsScalar::SIZE]
+            .to_vec();
+        bytes[first_vanishing_evaluation
+            ..first_vanishing_evaluation + BlsScalar::SIZE]
+            .copy_from_slice(&replacement);
+
+        assert_deserialization_error_without_panic(&bytes);
+    }
+
+    #[test]
     fn prover_try_from_bytes_rejects_overflow_lengths_without_panicking() {
         let mut bytes = Vec::with_capacity(48);
         bytes.extend_from_slice(&0u64.to_be_bytes()); // label_len
