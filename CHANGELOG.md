@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `Composer::component_range_bits<BITS>` range check counting bits directly [#867]
 - Add the public `Error::JubJubGeneratorNotPrimeOrder` variant [#832]
 - Add `Error::CircuitUnsatisfied` [#877]
+- Add `Display` for `Error` to builds without the `std` feature [#895]
+- Add `core::error::Error` for `Error` to builds without the `std` feature [#895]
 
 ### Changed
 
@@ -734,6 +736,7 @@ is necessary since `rkyv/validation` was required as a bound.
 - Proof system module.
 
 <!-- ISSUES -->
+[#895]: https://github.com/dusk-network/plonk/issues/895
 [#890]: https://github.com/dusk-network/plonk/issues/890
 [#889]: https://github.com/dusk-network/plonk/issues/889
 [#887]: https://github.com/dusk-network/plonk/issues/887
