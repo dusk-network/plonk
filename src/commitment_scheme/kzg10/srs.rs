@@ -217,6 +217,21 @@ mod test {
     use super::*;
     #[cfg(feature = "rkyv-impl")]
     use crate::fft::Polynomial;
+    #[cfg(feature = "rkyv-impl")]
+    use crate::prelude::{Circuit, Compiler, Composer};
+
+    #[cfg(feature = "rkyv-impl")]
+    #[derive(Default)]
+    struct ArchivedParametersCircuit;
+
+    #[cfg(feature = "rkyv-impl")]
+    impl Circuit for ArchivedParametersCircuit {
+        fn circuit(&self, composer: &mut Composer) -> Result<(), Error> {
+            let bit = composer.append_witness(BlsScalar::one());
+            composer.component_boolean(bit);
+            Ok(())
+        }
+    }
 
     #[cfg(feature = "rkyv-impl")]
     #[derive(Archive, Serialize)]
@@ -245,6 +260,25 @@ mod test {
     }
 
     #[cfg(feature = "rkyv-impl")]
+    #[derive(Archive, Serialize)]
+    #[archive(bound(serialize = "__S: Serializer + ScratchSpace"))]
+    struct RawCommitKey {
+        #[omit_bounds]
+        powers_of_g: Vec<G1Affine>,
+    }
+
+    #[cfg(feature = "rkyv-impl")]
+    #[derive(Archive, Serialize)]
+    #[archive(bound(serialize = "__S: Serializer + ScratchSpace"))]
+    struct RawPublicParameters {
+        #[omit_bounds]
+        commit_key: RawCommitKey,
+        #[omit_bounds]
+        #[with(OpeningKeyRkyv)]
+        opening_key: OpeningKey,
+    }
+
+    #[cfg(feature = "rkyv-impl")]
     impl From<&PublicParameters> for LegacyPublicParameters {
         fn from(parameters: &PublicParameters) -> Self {
             let key = &parameters.opening_key;
@@ -257,6 +291,18 @@ mod test {
                     prepared_h: key.prepared_h.clone(),
                     prepared_x_h: key.prepared_x_h.clone(),
                 },
+            }
+        }
+    }
+
+    #[cfg(feature = "rkyv-impl")]
+    impl From<&PublicParameters> for RawPublicParameters {
+        fn from(parameters: &PublicParameters) -> Self {
+            Self {
+                commit_key: RawCommitKey {
+                    powers_of_g: parameters.commit_key.powers_of_g.clone(),
+                },
+                opening_key: parameters.opening_key.clone(),
             }
         }
     }
@@ -315,6 +361,87 @@ mod test {
 
         let bytes = rkyv::to_bytes::<_, 256>(&pp).unwrap();
         assert!(rkyv::from_bytes::<PublicParameters>(&bytes).is_err());
+    }
+
+    #[cfg(feature = "rkyv-impl")]
+    fn assert_archived_commit_key_rejected(
+        mutate: impl FnOnce(&mut CommitKey),
+    ) {
+        let mut pp = PublicParameters::setup(8, &mut OsRng).unwrap();
+        mutate(&mut pp.commit_key);
+
+        let bytes = rkyv::to_bytes::<_, 256>(&pp).unwrap();
+        assert_archived_parameters_rejected_without_panic(&bytes);
+    }
+
+    #[cfg(feature = "rkyv-impl")]
+    fn first_archived_commitment_point_offset(bytes: &[u8]) -> usize {
+        let parameters =
+            unsafe { rkyv::archived_root::<PublicParameters>(bytes) };
+        let point = &parameters.commit_key.powers_of_g[0];
+        point as *const _ as usize - bytes.as_ptr() as usize
+    }
+
+    #[cfg(feature = "rkyv-impl")]
+    fn first_raw_commitment_point_offset(bytes: &[u8]) -> usize {
+        let parameters =
+            unsafe { rkyv::archived_root::<RawPublicParameters>(bytes) };
+        let point = &parameters.commit_key.powers_of_g[0];
+        point as *const _ as usize - bytes.as_ptr() as usize
+    }
+
+    #[cfg(feature = "rkyv-impl")]
+    fn assert_archived_parameters_rejected_without_panic(bytes: &[u8]) {
+        let result = std::panic::catch_unwind(|| {
+            rkyv::from_bytes::<PublicParameters>(bytes)
+        });
+        assert!(result.is_ok(), "checked deserialization must not panic");
+        assert!(
+            result.expect("checked above").is_err(),
+            "malformed parameters must be rejected"
+        );
+    }
+
+    #[cfg(feature = "rkyv-impl")]
+    #[test]
+    fn rkyv_rejects_raw_archive_with_invalid_infinity_flag() {
+        let pp = PublicParameters::setup(8, &mut OsRng).unwrap();
+        let mut bytes =
+            rkyv::to_bytes::<_, 256>(&RawPublicParameters::from(&pp)).unwrap();
+        let point = first_raw_commitment_point_offset(&bytes);
+        bytes[point + 96] = 2;
+
+        assert_archived_parameters_rejected_without_panic(&bytes);
+    }
+
+    #[cfg(feature = "rkyv-impl")]
+    #[test]
+    fn rkyv_rejects_raw_archive_with_noncanonical_coordinate() {
+        const MODULUS: [u64; 6] = [
+            0xb9fe_ffff_ffff_aaab,
+            0x1eab_fffe_b153_ffff,
+            0x6730_d2a0_f6b0_f624,
+            0x6477_4b84_f385_12bf,
+            0x4b1b_a7b6_434b_acd7,
+            0x1a01_11ea_397f_e69a,
+        ];
+
+        let pp = PublicParameters::setup(8, &mut OsRng).unwrap();
+        let mut bytes =
+            rkyv::to_bytes::<_, 256>(&RawPublicParameters::from(&pp)).unwrap();
+        let point = first_raw_commitment_point_offset(&bytes);
+        let y = &mut bytes[point + 48..point + 96];
+        let mut carry = false;
+        for (limb, modulus) in y.chunks_exact_mut(8).zip(MODULUS) {
+            let value = u64::from_le_bytes(limb.try_into().unwrap());
+            let (sum, first_carry) = value.overflowing_add(modulus);
+            let (sum, second_carry) = sum.overflowing_add(u64::from(carry));
+            limb.copy_from_slice(&sum.to_le_bytes());
+            carry = first_carry || second_carry;
+        }
+        assert!(!carry, "coordinate plus modulus should fit in 384 bits");
+
+        assert_archived_parameters_rejected_without_panic(&bytes);
     }
 
     #[cfg(feature = "rkyv-impl")]
@@ -391,6 +518,41 @@ mod test {
         assert_eq!(pp.opening_key.g, pp_p.opening_key.g);
         assert_eq!(pp.opening_key.h, pp_p.opening_key.h);
         assert_eq!(pp.opening_key.x_h, pp_p.opening_key.x_h);
+    }
+
+    #[cfg(feature = "rkyv-impl")]
+    #[test]
+    fn rkyv_rejects_empty_archived_commit_key() {
+        assert_archived_commit_key_rejected(|key| key.powers_of_g.clear());
+    }
+
+    #[cfg(feature = "rkyv-impl")]
+    #[test]
+    fn rkyv_rejects_invalid_archived_commit_key_points() {
+        let pp = PublicParameters::setup(8, &mut OsRng).unwrap();
+        let mut bytes = rkyv::to_bytes::<_, 256>(&pp).unwrap();
+        let point = first_archived_commitment_point_offset(&bytes);
+        bytes[point] &= 0x7f;
+        assert_archived_parameters_rejected_without_panic(&bytes);
+
+        assert_archived_commit_key_rejected(|key| {
+            key.powers_of_g[0] = non_torsion_g1();
+        });
+    }
+
+    #[cfg(feature = "rkyv-impl")]
+    #[test]
+    fn rkyv_commit_key_round_trip_compiles_circuit() {
+        let pp = PublicParameters::setup(16, &mut OsRng).unwrap();
+        let bytes = rkyv::to_bytes::<_, 256>(&pp).unwrap();
+        let decoded = rkyv::from_bytes::<PublicParameters>(&bytes).unwrap();
+
+        assert_eq!(decoded.commit_key, pp.commit_key);
+        Compiler::compile::<ArchivedParametersCircuit>(
+            &decoded,
+            b"archived-commit-key",
+        )
+        .expect("validated public parameters must compile a circuit");
     }
 
     #[cfg(feature = "rkyv-impl")]
