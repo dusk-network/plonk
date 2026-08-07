@@ -651,6 +651,7 @@ mod tests {
 
     use super::Prover;
     use crate::error::Error;
+    use crate::fft::EvaluationDomain;
     use crate::prelude::{Circuit, Compiler, Composer, PublicParameters};
 
     #[derive(Default)]
@@ -749,6 +750,40 @@ mod tests {
             ..first_evaluations_offset + u64::SIZE + u32::SIZE]
             .copy_from_slice(&0u32.to_bytes());
         assert_deserialization_error_without_panic(&malformed_domain);
+    }
+
+    #[test]
+    fn prover_try_from_bytes_rejects_zero_vanishing_evaluation() {
+        let mut rng = StdRng::seed_from_u64(44);
+        let pp = PublicParameters::setup(1 << 10, &mut rng)
+            .expect("public parameters should build");
+        let (prover, _) = Compiler::compile::<MinimalCircuit>(&pp, b"p1.4-3")
+            .expect("circuit should compile");
+        let mut bytes = prover.to_bytes();
+
+        let label_len = u64::from_be_bytes(
+            bytes[..u64::SIZE].try_into().expect("header is complete"),
+        ) as usize;
+        let prover_key_len = u64::from_be_bytes(
+            bytes[u64::SIZE..2 * u64::SIZE]
+                .try_into()
+                .expect("header is complete"),
+        ) as usize;
+        let prover_key_offset = 6 * u64::SIZE + label_len;
+        let evaluations_size = u64::from_slice(
+            &bytes[prover_key_offset + u64::SIZE
+                ..prover_key_offset + 2 * u64::SIZE],
+        )
+        .expect("serialized evaluation size should decode")
+            as usize;
+        let first_vanishing_evaluation = prover_key_offset + prover_key_len
+            - evaluations_size
+            + EvaluationDomain::SIZE;
+        bytes[first_vanishing_evaluation
+            ..first_vanishing_evaluation + BlsScalar::SIZE]
+            .fill(0);
+
+        assert_deserialization_error_without_panic(&bytes);
     }
 
     #[test]

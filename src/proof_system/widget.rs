@@ -554,6 +554,9 @@ pub(crate) mod alloc {
             let perm_linear_evaluations = evals_from_reader(&mut buffer)?;
 
             let v_h_coset_8n = evals_from_reader(&mut buffer)?;
+            if v_h_coset_8n.evals.contains(&BlsScalar::zero()) {
+                return Err(dusk_bytes::Error::InvalidData.into());
+            }
 
             let arithmetic = arithmetic::ProverKey {
                 q_m,
@@ -743,6 +746,20 @@ mod test {
         assert!(matches!(
             ProverKey::from_slice(truncated),
             Err(Error::NotEnoughBytes)
+        ));
+    }
+
+    #[test]
+    fn prover_key_rejects_zero_vanishing_evaluation() {
+        let n = 1 << 3;
+        let evaluations_domain =
+            EvaluationDomain::new(8 * n).expect("8n domain should be valid");
+        let mut prover_key = prover_key(n, evaluations_domain);
+        prover_key.v_h_coset_8n.evals[0] = BlsScalar::zero();
+
+        assert!(matches!(
+            ProverKey::from_slice(&prover_key.to_var_bytes()),
+            Err(Error::BytesError(dusk_bytes::Error::InvalidData))
         ));
     }
 
