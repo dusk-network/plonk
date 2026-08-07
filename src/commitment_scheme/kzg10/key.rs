@@ -112,6 +112,10 @@ impl CommitKey {
         len.copy_from_slice(&bytes[..u64::SIZE]);
         let len = u64::from_le_bytes(len) as usize;
 
+        if len == 0 {
+            return Err(dusk_bytes::Error::InvalidData.into());
+        }
+
         let expected_len = u64::SIZE
             .checked_add(
                 len.checked_mul(G1Affine::RAW_SIZE)
@@ -905,6 +909,14 @@ mod test {
             Err(Error::NotEnoughBytes)
         ));
         Ok(())
+    }
+
+    #[test]
+    fn commit_key_bytes_raw_checked_rejects_empty() {
+        assert!(matches!(
+            CommitKey::from_raw_var_bytes(&0u64.to_le_bytes()),
+            Err(Error::BytesError(dusk_bytes::Error::InvalidData))
+        ));
     }
 
     #[test]

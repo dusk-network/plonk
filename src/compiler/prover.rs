@@ -689,6 +689,40 @@ mod tests {
     }
 
     #[test]
+    fn prover_try_from_bytes_rejects_empty_inner_commit_key() {
+        let mut rng = StdRng::seed_from_u64(44);
+        let pp = PublicParameters::setup(1 << 10, &mut rng)
+            .expect("public parameters should build");
+        let (prover, _) = Compiler::compile::<MinimalCircuit>(&pp, b"p1.4-3")
+            .expect("circuit should compile");
+        let bytes = prover.to_bytes();
+
+        let label_len = u64::from_be_bytes(
+            bytes[..u64::SIZE].try_into().expect("header is complete"),
+        ) as usize;
+        let prover_key_len = u64::from_be_bytes(
+            bytes[u64::SIZE..2 * u64::SIZE]
+                .try_into()
+                .expect("header is complete"),
+        ) as usize;
+        let commit_key_len = u64::from_be_bytes(
+            bytes[2 * u64::SIZE..3 * u64::SIZE]
+                .try_into()
+                .expect("header is complete"),
+        ) as usize;
+        let commit_key_offset = 6 * u64::SIZE + label_len + prover_key_len;
+        let verifier_key_offset = commit_key_offset + commit_key_len;
+
+        let mut malformed = bytes[..commit_key_offset].to_vec();
+        malformed.extend_from_slice(&0u64.to_le_bytes());
+        malformed.extend_from_slice(&bytes[verifier_key_offset..]);
+        malformed[2 * u64::SIZE..3 * u64::SIZE]
+            .copy_from_slice(&(u64::SIZE as u64).to_be_bytes());
+
+        assert_deserialization_error_without_panic(&malformed);
+    }
+
+    #[test]
     fn prover_try_from_bytes_rejects_malformed_inner_key_without_panicking() {
         let mut rng = StdRng::seed_from_u64(43);
         let pp = PublicParameters::setup(1 << 10, &mut rng)
