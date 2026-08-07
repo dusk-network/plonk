@@ -6,6 +6,9 @@
 
 //! A collection of all possible errors encountered in PLONK.
 
+use core::error::Error as CoreError;
+use core::fmt;
+
 use dusk_bytes::Error as DuskBytesError;
 
 /// Defines all possible errors that can be encountered in PLONK.
@@ -117,9 +120,8 @@ pub enum Error {
     UnsupportedProvingVersion,
 }
 
-#[cfg(feature = "std")]
-impl std::fmt::Display for Error {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::InvalidEvalDomainSize {
                 log_size_of_group,
@@ -228,11 +230,14 @@ impl From<DuskBytesError> for Error {
     }
 }
 
-#[cfg(feature = "std")]
-impl std::error::Error for Error {}
+impl CoreError for Error {}
 
-#[cfg(all(test, feature = "std"))]
+// The `Display` and `CoreError` impls above are unconditional; this module is
+// gated on `alloc` only because it renders through `to_string`.
+#[cfg(all(test, feature = "alloc"))]
 mod tests {
+    use alloc::string::ToString;
+
     use dusk_bls12_381::BlsScalar;
     use dusk_bytes::{DeserializableSlice, Serializable};
 
@@ -300,6 +305,12 @@ mod tests {
         );
 
         assert!(!bytes_error.to_string().is_empty());
+
+        let _as_core_error: &dyn CoreError = &Error::ProofVerificationError;
+        // Since Rust 1.81 `std::error::Error` is a re-export of
+        // `core::error::Error`, so the `core` impl is what a `std` consumer
+        // sees. This coercion fails to compile if that ever stops holding.
+        #[cfg(feature = "std")]
         let _as_std_error: &dyn std::error::Error =
             &Error::ProofVerificationError;
     }
