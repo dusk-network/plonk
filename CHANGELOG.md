@@ -20,6 +20,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Change RKYV `PublicParameters` archives to store only canonical opening-key
+  source points and rebuild prepared pairing values during deserialization.
+  Existing RKYV parameter archives must be regenerated [#890]
 - Mark `Error` as `#[non_exhaustive]` [#884]
 - Remove the `Copy` derive from `Error` [#884]
 - Change `component_add_point`, `component_sub_point` and `component_mul_point` to `TorsionFreeWitnessPoint` [#870]
@@ -731,6 +734,7 @@ is necessary since `rkyv/validation` was required as a bound.
 - Proof system module.
 
 <!-- ISSUES -->
+[#890]: https://github.com/dusk-network/plonk/issues/890
 [#889]: https://github.com/dusk-network/plonk/issues/889
 [#887]: https://github.com/dusk-network/plonk/issues/887
 [#884]: https://github.com/dusk-network/plonk/issues/884

@@ -19,6 +19,8 @@ use rkyv::{
     ser::{ScratchSpace, Serializer},
 };
 
+#[cfg(feature = "rkyv-impl")]
+use super::key::OpeningKeyRkyv;
 use super::key::{CommitKey, OpeningKey};
 use crate::error::Error;
 use crate::util;
@@ -40,6 +42,7 @@ pub struct PublicParameters {
     pub(crate) commit_key: CommitKey,
     /// Key used to verify proofs for composed circuits.
     #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
+    #[cfg_attr(feature = "rkyv-impl", with(OpeningKeyRkyv))]
     pub(crate) opening_key: OpeningKey,
 }
 
@@ -189,12 +192,7 @@ impl PublicParameters {
         let truncated_prover_key = self
             .commit_key
             .truncate(truncated_degree + Self::ADDED_BLINDING_DEGREE)?;
-        // `PublicParameters` can be reconstructed through rkyv, which archives
-        // affine and prepared G2 values independently. Revalidate the affine
-        // source values and rebuild the prepared caches before they become
-        // usable by a verifier.
-        let opening_key = self.opening_key.validated()?;
-        Ok((truncated_prover_key, opening_key))
+        Ok((truncated_prover_key, self.opening_key.clone()))
     }
 
     /// Max degree specifies the largest Polynomial
@@ -219,6 +217,49 @@ mod test {
     use super::*;
     #[cfg(feature = "rkyv-impl")]
     use crate::fft::Polynomial;
+
+    #[cfg(feature = "rkyv-impl")]
+    #[derive(Archive, Serialize)]
+    #[archive(bound(serialize = "__S: Serializer + ScratchSpace"))]
+    struct LegacyOpeningKey {
+        #[omit_bounds]
+        g: G1Affine,
+        #[omit_bounds]
+        h: G2Affine,
+        #[omit_bounds]
+        x_h: G2Affine,
+        #[omit_bounds]
+        prepared_h: G2Prepared,
+        #[omit_bounds]
+        prepared_x_h: G2Prepared,
+    }
+
+    #[cfg(feature = "rkyv-impl")]
+    #[derive(Archive, Serialize)]
+    #[archive(bound(serialize = "__S: Serializer + ScratchSpace"))]
+    struct LegacyPublicParameters {
+        #[omit_bounds]
+        commit_key: CommitKey,
+        #[omit_bounds]
+        opening_key: LegacyOpeningKey,
+    }
+
+    #[cfg(feature = "rkyv-impl")]
+    impl From<&PublicParameters> for LegacyPublicParameters {
+        fn from(parameters: &PublicParameters) -> Self {
+            let key = &parameters.opening_key;
+            Self {
+                commit_key: parameters.commit_key.clone(),
+                opening_key: LegacyOpeningKey {
+                    g: key.g,
+                    h: key.h,
+                    x_h: key.x_h,
+                    prepared_h: key.prepared_h.clone(),
+                    prepared_x_h: key.prepared_x_h.clone(),
+                },
+            }
+        }
+    }
 
     #[cfg(feature = "rkyv-impl")]
     fn off_curve_g1() -> G1Affine {
@@ -273,11 +314,7 @@ mod test {
         mutate(&mut pp.opening_key);
 
         let bytes = rkyv::to_bytes::<_, 256>(&pp).unwrap();
-        let decoded = rkyv::from_bytes::<PublicParameters>(&bytes).unwrap();
-        assert!(matches!(
-            decoded.trim(2),
-            Err(Error::BytesError(dusk_bytes::Error::InvalidData))
-        ));
+        assert!(rkyv::from_bytes::<PublicParameters>(&bytes).is_err());
     }
 
     #[cfg(feature = "rkyv-impl")]
@@ -303,15 +340,15 @@ mod test {
         mutate(&mut pp.opening_key);
         let bytes = rkyv::to_bytes::<_, 256>(&pp).unwrap();
         let decoded = rkyv::from_bytes::<PublicParameters>(&bytes).unwrap();
-        let (_, opening_key) = decoded.trim(2).unwrap();
 
-        opening_key
+        decoded
+            .opening_key
             .batch_check(
                 &[point],
                 &[proof],
                 &mut Transcript::new(b"archived-opening-key"),
             )
-            .expect("trim must rebuild the archived prepared point");
+            .expect("deserialization must rebuild the prepared point");
     }
 
     #[test]
@@ -358,23 +395,21 @@ mod test {
 
     #[cfg(feature = "rkyv-impl")]
     #[test]
-    fn trim_rejects_degenerate_archived_opening_key() {
-        let mut pp = PublicParameters::setup(8, &mut OsRng).unwrap();
-        pp.opening_key.h = G2Affine::identity();
-
-        let bytes = rkyv::to_bytes::<_, 256>(&pp).expect("archive parameters");
-        let decoded = rkyv::from_bytes::<PublicParameters>(&bytes)
-            .expect("validate and deserialize parameters");
-
-        assert!(matches!(
-            decoded.trim(2),
-            Err(Error::BytesError(dusk_bytes::Error::InvalidData))
-        ));
+    fn rkyv_rejects_degenerate_archived_opening_key() {
+        assert_archived_opening_key_rejected(|key| {
+            key.g = G1Affine::identity();
+        });
+        assert_archived_opening_key_rejected(|key| {
+            key.h = G2Affine::identity();
+        });
+        assert_archived_opening_key_rejected(|key| {
+            key.x_h = G2Affine::identity();
+        });
     }
 
     #[cfg(feature = "rkyv-impl")]
     #[test]
-    fn trim_rejects_invalid_archived_opening_key_points() {
+    fn rkyv_rejects_invalid_archived_opening_key_points() {
         assert_archived_opening_key_rejected(|key| key.g = off_curve_g1());
         assert_archived_opening_key_rejected(|key| key.g = non_torsion_g1());
         assert_archived_opening_key_rejected(|key| key.h = off_curve_g2());
@@ -383,12 +418,30 @@ mod test {
 
     #[cfg(feature = "rkyv-impl")]
     #[test]
-    fn trim_rebuilds_archived_prepared_points() {
+    fn rkyv_rebuilds_unarchived_prepared_points() {
         assert_archived_prepared_point_rebuilt(|key| {
             key.prepared_h = G2Prepared::from(G2Affine::identity());
         });
         assert_archived_prepared_point_rebuilt(|key| {
             key.prepared_x_h = G2Prepared::from(G2Affine::identity());
         });
+    }
+
+    #[cfg(feature = "rkyv-impl")]
+    #[test]
+    fn rkyv_archive_omits_prepared_points_and_rejects_legacy_layout() {
+        let pp = PublicParameters::setup(8, &mut OsRng).unwrap();
+        let bytes = rkyv::to_bytes::<_, 256>(&pp).unwrap();
+        let legacy =
+            rkyv::to_bytes::<_, 256>(&LegacyPublicParameters::from(&pp))
+                .unwrap();
+
+        let saved = legacy
+            .len()
+            .checked_sub(bytes.len())
+            .expect("new opening-key archive unexpectedly exceeds legacy size");
+        assert!(saved >= 39_000, "expected a ~39 KB saving, got {saved}");
+        assert!(rkyv::from_bytes::<PublicParameters>(&legacy).is_err());
+        assert!(rkyv::from_bytes::<PublicParameters>(&bytes).is_ok());
     }
 }

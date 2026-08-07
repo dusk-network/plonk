@@ -52,6 +52,7 @@ jobs:
       - uses: dsherret/rust-toolchain-file@v1
       - uses: Swatinem/rust-cache@v2
       - run: make no-std
+      - run: cargo check --target thumbv6m-none-eabi --no-default-features --features alloc,rkyv-impl,rkyv/size_32
 
   test:
     name: Tests
