@@ -202,7 +202,7 @@ impl CompressedCircuit {
         let compressed = miniz_oxide::inflate::decompress_to_vec(compressed)
             .map_err(|_| Error::InvalidCompressedCircuit)?;
         let (
-            _,
+            consumed,
             Self {
                 hades_optimization,
                 public_inputs,
@@ -213,6 +213,9 @@ impl CompressedCircuit {
             },
         ) = Self::unpack(&compressed)
             .map_err(|_| Error::InvalidCompressedCircuit)?;
+        if consumed != compressed.len() {
+            return Err(Error::InvalidCompressedCircuit);
+        }
 
         let scalar_map = scalar_map(hades_optimization);
         let mut version_scalars = vec![BlsScalar::zero(); scalar_map.len()];
