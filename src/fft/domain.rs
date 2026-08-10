@@ -299,6 +299,24 @@ pub(crate) mod alloc {
             Evaluations::from_vec_and_domain(v_h, *self)
         }
 
+        pub(crate) fn matches_linear_poly_over_coset(
+            &self,
+            evaluations: &[BlsScalar],
+        ) -> bool {
+            if evaluations.len() != self.size() {
+                return false;
+            }
+
+            let mut expected = GENERATOR;
+            for evaluation in evaluations {
+                if *evaluation != expected {
+                    return false;
+                }
+                expected *= self.group_gen;
+            }
+            true
+        }
+
         pub(crate) fn matches_vanishing_poly_over_coset(
             &self,
             poly_degree: u64,
@@ -440,6 +458,24 @@ mod tests {
                 assert_eq!(element, domain.group_gen.pow(&[i as u64, 0, 0, 0]));
             }
         }
+    }
+
+    #[test]
+    fn linear_coset_evaluations_match_closed_form() {
+        let domain = EvaluationDomain::new(1 << 8).unwrap();
+        let evaluations =
+            domain.coset_fft(&[BlsScalar::zero(), BlsScalar::one()]);
+
+        assert!(domain.matches_linear_poly_over_coset(&evaluations));
+        for (i, evaluation) in evaluations.iter().enumerate() {
+            let expected =
+                GENERATOR * domain.group_gen.pow(&[i as u64, 0, 0, 0]);
+            assert_eq!(*evaluation, expected);
+        }
+        let mut incorrect = evaluations.clone();
+        incorrect[0] = incorrect[1];
+        assert!(!domain.matches_linear_poly_over_coset(&incorrect));
+        assert!(!domain.matches_linear_poly_over_coset(&evaluations[..255]));
     }
 
     #[test]
