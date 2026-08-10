@@ -372,7 +372,15 @@ impl Composer {
         let p1 = JubJubAffine::from_raw_unchecked(self[x_1], self[y_1]);
         let p2 = JubJubAffine::from_raw_unchecked(self[x_2], self[y_2]);
 
-        let point: JubJubAffine = (JubJubExtended::from(p1) + p2).into();
+        let sum = JubJubExtended::from(p1) + p2;
+        // Malformed witness coordinates can produce an extended sum with no
+        // affine image. Keep witness generation total and let the gates reject
+        // the assignment. Honest curve additions always take the other arm.
+        let point = if sum.get_z() == BlsScalar::zero() {
+            JubJubAffine::identity()
+        } else {
+            sum.into()
+        };
 
         let x_3 = point.get_u();
         let y_3 = point.get_v();
