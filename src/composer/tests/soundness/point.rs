@@ -342,6 +342,69 @@ fn torsion_free_layout_matches_golden() {
     );
 }
 
+struct MulPointCircuit {
+    scalar: JubJubScalar,
+    point: JubJubAffine,
+}
+
+impl Default for MulPointCircuit {
+    fn default() -> Self {
+        Self {
+            scalar: JubJubScalar::from(3u64),
+            point: prime_order_point(),
+        }
+    }
+}
+
+impl Circuit for MulPointCircuit {
+    fn circuit(&self, composer: &mut Composer) -> Result<(), Error> {
+        let scalar = composer.append_witness(self.scalar);
+        let point = composer.append_point(self.point)?;
+        let point = composer.assert_torsion_free_point(point);
+        composer.component_mul_point(scalar, point);
+
+        Ok(())
+    }
+}
+
+#[test]
+fn mul_point_rejects_malformed_base_without_panicking() {
+    let mut rng = StdRng::seed_from_u64(0x906);
+    let pp = PublicParameters::setup(1 << 11, &mut rng).expect("setup");
+    let (prover, verifier) =
+        Compiler::compile::<MulPointCircuit>(&pp, b"mul-point-malformed-base")
+            .expect("compile");
+
+    let accepted = MulPointCircuit::default();
+    assert_verifies(&prover, &verifier, &mut rng, &accepted);
+
+    let x = BlsScalar::from_raw([
+        0x3218_5d43_5879_5954,
+        0x018f_1597_d916_ddf5,
+        0xf49c_53d3_e92b_3582,
+        0x3c71_775e_c64c_fc69,
+    ]);
+    let rejected = MulPointCircuit {
+        scalar: JubJubScalar::from(3u64),
+        point: JubJubAffine::from_raw_unchecked(x, BlsScalar::one()),
+    };
+
+    // Pin the fixture to the affine-projection failure: doubling remains
+    // projectable, while the final 2P + P addition has no affine image.
+    let point = JubJubExtended::from(rejected.point);
+    let doubled = point + rejected.point;
+    assert_ne!(doubled.get_z(), BlsScalar::zero());
+    assert_eq!((doubled + rejected.point).get_z(), BlsScalar::zero());
+
+    assert_rejected(
+        &prover,
+        &mut rng,
+        &accepted,
+        &rejected,
+        "malformed variable-base scalar-multiplication base",
+    );
+}
+
 // `component_mul_point` promises consumers an unchanged layout now that
 // `component_select_identity` constrains its bit: the loop must keep calling
 // the raw `select_identity_gates` seam. Routing it through the public method

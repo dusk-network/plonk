@@ -69,6 +69,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   deserialization [#902]
 - Validate nonempty, canonically encoded, on-curve, prime-order KZG commitment
   keys during checked RKYV `PublicParameters` deserialization [#903]
+- Prevent malformed variable-base point witnesses from panicking during affine
+  projection; the circuit now rejects them as unsatisfied [#906]
 - Reject zero vanishing-coset evaluations during checked `Prover`
   deserialization [#898]
 - Reject empty commitment keys during checked `Prover` deserialization [#897]
@@ -746,6 +748,7 @@ is necessary since `rkyv/validation` was required as a bound.
 <!-- ISSUES -->
 [#902]: https://github.com/dusk-network/plonk/issues/902
 [#903]: https://github.com/dusk-network/plonk/issues/903
+[#906]: https://github.com/dusk-network/plonk/issues/906
 [#898]: https://github.com/dusk-network/plonk/issues/898
 [#897]: https://github.com/dusk-network/plonk/issues/897
 [#895]: https://github.com/dusk-network/plonk/issues/895
