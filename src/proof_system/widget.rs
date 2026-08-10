@@ -552,6 +552,11 @@ pub(crate) mod alloc {
             let s_sigma_4 = (s_sigma_4_poly, s_sigma_4_evals);
 
             let perm_linear_evaluations = evals_from_reader(&mut buffer)?;
+            if !evaluations_domain
+                .matches_linear_poly_over_coset(&perm_linear_evaluations.evals)
+            {
+                return Err(dusk_bytes::Error::InvalidData.into());
+            }
 
             let v_h_coset_8n = evals_from_reader(&mut buffer)?;
             let poly_degree =
@@ -664,7 +669,11 @@ mod test {
         let s_sigma_2 = poly_eval(n, evaluations_domain);
         let s_sigma_3 = poly_eval(n, evaluations_domain);
         let s_sigma_4 = poly_eval(n, evaluations_domain);
-        let linear_evaluations = evaluations(evaluations_domain);
+        let linear_evaluations = Evaluations::from_vec_and_domain(
+            evaluations_domain
+                .coset_fft(&[BlsScalar::zero(), BlsScalar::one()]),
+            evaluations_domain,
+        );
 
         let v_h_coset_8n =
             evaluations_domain.compute_vanishing_poly_over_coset(n as u64);
@@ -752,6 +761,21 @@ mod test {
         assert!(matches!(
             ProverKey::from_slice(truncated),
             Err(Error::NotEnoughBytes)
+        ));
+    }
+
+    #[test]
+    fn prover_key_rejects_incorrect_nonzero_linear_evaluation() {
+        let n = 1 << 3;
+        let evaluations_domain =
+            EvaluationDomain::new(8 * n).expect("8n domain should be valid");
+        let mut prover_key = prover_key(n, evaluations_domain);
+        prover_key.permutation.linear_evaluations.evals[0] =
+            prover_key.permutation.linear_evaluations.evals[1];
+
+        assert!(matches!(
+            ProverKey::from_slice(&prover_key.to_var_bytes()),
+            Err(Error::BytesError(dusk_bytes::Error::InvalidData))
         ));
     }
 
