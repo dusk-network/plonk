@@ -65,6 +65,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Reject trailing data when deserializing compressed circuits [#913]
 - Validate cached permutation linear evaluations during checked `Prover`
   deserialization [#908]
 - Validate cached vanishing-coset evaluations during checked `Prover`
@@ -748,6 +749,7 @@ is necessary since `rkyv/validation` was required as a bound.
 - Proof system module.
 
 <!-- ISSUES -->
+[#913]: https://github.com/dusk-network/plonk/issues/913
 [#908]: https://github.com/dusk-network/plonk/issues/908
 [#902]: https://github.com/dusk-network/plonk/issues/902
 [#903]: https://github.com/dusk-network/plonk/issues/903
