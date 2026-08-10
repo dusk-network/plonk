@@ -33,7 +33,9 @@ use dusk_bls12_381::{BlsScalar, G1Affine, G1Projective};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
 
-use super::support::{assert_rejected, assert_verifies, fits, truncate};
+use super::support::{
+    assert_rejected, assert_verifies, fits, gate_digest, truncate,
+};
 use crate::bit_iterator::BitIterator8;
 use crate::commitment_scheme::Commitment;
 use crate::composer::{Composer, Constraint, WiredWitness, Witness};
@@ -916,4 +918,74 @@ fn append_logic_xor_wires_its_inputs() {
         b_wired,
         "append_logic_xor must wire input `b` into a gate (output binding)",
     );
+}
+
+/// Pins the gadget's emitted gate layout on its own.
+///
+/// The forgery tests hand-copy the gadget's emission into
+/// [`forge_logic_loop`], and `assert_rejected` only compares the two against
+/// each other — an edit applied to both stays green while the layout the gadget
+/// emits, and every verifier key built on it, moves underneath. This is the
+/// assertion that does not compare the gadget to a copy of itself.
+///
+/// Captured at `BIT_PAIRS = 125` (250 bits), not at the `BIT_PAIRS = 16` the
+/// forgery tests above use. 250 is the width the gadget is actually compiled at
+/// by its callers: `dusk-poseidon`'s hash gadget truncates each of its outputs
+/// through `append_logic_xor::<125>(_, ZERO)`, which is the shape reproduced
+/// here. A golden at a width nobody downstream compiles would pin nothing
+/// anyone ships.
+///
+/// **This is a drift pin, not yet a compatibility pin.** The gates binding the
+/// gadget's accumulators to its inputs are unreleased — `v0.22.1` carries no
+/// such binding at all — and they changed the layout, and so the verifier key,
+/// of every caller. The digests below therefore stand for no deployed key; they
+/// become a compatibility pin at the release that ships the binding. The
+/// `BIT_PAIRS <= 127` cap is not part of that despite landing in the same
+/// window: it is a `const` assertion that emits no gate, and `v0.22.1` derived
+/// the same quad count at every width the cap still admits. The suite's other
+/// goldens are a mix of the two kinds — which one a golden is depends on
+/// whether the gadget it was captured from has shipped, so read each one's own
+/// note rather than assuming.
+///
+/// Both entry points are pinned. They share the emission body, so a drift there
+/// moves both digests and either would catch it; the second is what catches a
+/// change to `Constraint::logic`'s selector values alone, which the XOR digest
+/// never sees.
+///
+/// The layout does not depend on the witness values — nothing in the emission
+/// or in its closing truncation binding branches on one, which is also what
+/// lets [`assert_rejected`] compare an honest circuit against a forged one.
+#[test]
+fn append_logic_component_layout_matches_golden() {
+    // `gate_digest`s captured from the gadget as it stands with the unreleased
+    // width cap and input-binding gates.
+    const GOLDEN_XOR: [u8; 32] = [
+        32, 161, 124, 154, 171, 19, 190, 198, 173, 78, 161, 187, 34, 114, 227,
+        147, 171, 13, 126, 114, 18, 25, 221, 142, 1, 219, 8, 111, 203, 199,
+        216, 57,
+    ];
+    const GOLDEN_AND: [u8; 32] = [
+        155, 86, 135, 38, 200, 186, 164, 136, 179, 4, 230, 133, 119, 57, 60,
+        185, 191, 172, 130, 234, 223, 96, 62, 50, 62, 203, 224, 5, 39, 207,
+        143, 32,
+    ];
+
+    macro_rules! assert_golden_eq {
+        ($entry:ident, $expected:expr) => {{
+            let mut composer = Composer::initialized();
+            let input = composer.append_witness(-BlsScalar::one());
+            composer.$entry::<125>(input, Composer::ZERO);
+            assert_eq!(
+                gate_digest(&composer.constraints),
+                $expected,
+                concat!(
+                    stringify!($entry),
+                    "::<125>'s gate layout drifted from the pinned one",
+                ),
+            );
+        }};
+    }
+
+    assert_golden_eq!(append_logic_xor, GOLDEN_XOR);
+    assert_golden_eq!(append_logic_and, GOLDEN_AND);
 }
