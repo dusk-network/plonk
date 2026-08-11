@@ -21,6 +21,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `core::error::Error` for `Error` to builds without the `std` feature [#895]
 - Cover curve-addition poles directly in point soundness regressions and update
   their module documentation [#910]
+- Isolate the collapsed curve-addition pole residual in a point soundness
+  regression [#914]
 
 ### Changed
 
@@ -751,6 +753,7 @@ is necessary since `rkyv/validation` was required as a bound.
 - Proof system module.
 
 <!-- ISSUES -->
+[#914]: https://github.com/dusk-network/plonk/issues/914
 [#913]: https://github.com/dusk-network/plonk/issues/913
 [#910]: https://github.com/dusk-network/plonk/issues/910
 [#908]: https://github.com/dusk-network/plonk/issues/908
