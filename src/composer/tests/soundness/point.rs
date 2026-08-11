@@ -23,13 +23,18 @@
 //! for a matching `(x_3, y_3)` at every wire value but the two poles
 //! `±1/(D*y_1*x_2)`, where one check degenerates: at `+` the `y_3` check
 //! collapses to `y_1*y_2 + x_1*x_2 = 0` and leaves `y_3` free, at `-` the `x_3`
-//! check collapses to `x1_y2 + y1_x2 = 0` and leaves `x_3` free. **No case
-//! below exercises either** — `forced_output` inverts both denominators, so it
-//! panics on a pole rather than constructing one. Neither is an escape hatch,
-//! but that is an argument rather than a test: with `a = -1` a square and `d` a
-//! non-square (asserted in [`subgroup_parameters_hold`]) the addition law is
-//! complete, so no on-curve addends put the *honest* wire on a pole, and a
-//! forged pole wire still carries a nonzero binding residual.
+//! check collapses to `x1_y2 + y1_x2 = 0` and leaves `x_3` free. The
+//! helper-wire forgeries below avoid both poles — `forced_output` inverts both
+//! denominators — but the malformed scalar-multiplication fixture constructs
+//! off-curve addends whose extended sum has `Z = 0`. The isolated pole
+//! regression emits only `add_point_gates` for that pair; disabling its sole
+//! curve-addition selector makes the same assignment prove, pinning rejection
+//! to the pole gate. Neither pole is an escape hatch: with `a = -1` a square
+//! and `d` a non-square (asserted in [`subgroup_parameters_hold`]) the addition
+//! law is complete, so no on-curve addends put the *honest* wire on a pole. For
+//! off-curve addends at an honest-wire pole, the collapsed output numerator
+//! cannot also vanish without making `d` a square; a helper wire forged to a
+//! pole instead carries a nonzero binding residual.
 //!
 //! So without that term a prover picks the wire freely and still satisfies
 //! every other constraint — including, as the steering case shows, picking it
@@ -52,7 +57,8 @@ use rand::SeedableRng;
 use rand::rngs::StdRng;
 
 use super::support::{
-    assert_rejected, assert_verifies, gate_digest, invert, steering_target,
+    assert_rejected, assert_verifies, gate_digest, gate_layout, invert,
+    steering_target,
 };
 use crate::composer::point::EIGHT_INV;
 use crate::composer::{
@@ -342,6 +348,24 @@ fn torsion_free_layout_matches_golden() {
     );
 }
 
+fn z_vanishing_base() -> JubJubAffine {
+    let x = BlsScalar::from_raw([
+        0x3218_5d43_5879_5954,
+        0x018f_1597_d916_ddf5,
+        0xf49c_53d3_e92b_3582,
+        0x3c71_775e_c64c_fc69,
+    ]);
+
+    JubJubAffine::from_raw_unchecked(x, BlsScalar::one())
+}
+
+fn z_vanishing_addends() -> (JubJubAffine, JubJubAffine) {
+    let b = z_vanishing_base();
+    let a = JubJubAffine::from(JubJubExtended::from(b) + b);
+
+    (a, b)
+}
+
 struct MulPointCircuit {
     scalar: JubJubScalar,
     point: JubJubAffine,
@@ -378,15 +402,9 @@ fn mul_point_rejects_malformed_base_without_panicking() {
     let accepted = MulPointCircuit::default();
     assert_verifies(&prover, &verifier, &mut rng, &accepted);
 
-    let x = BlsScalar::from_raw([
-        0x3218_5d43_5879_5954,
-        0x018f_1597_d916_ddf5,
-        0xf49c_53d3_e92b_3582,
-        0x3c71_775e_c64c_fc69,
-    ]);
     let rejected = MulPointCircuit {
         scalar: JubJubScalar::from(3u64),
-        point: JubJubAffine::from_raw_unchecked(x, BlsScalar::one()),
+        point: z_vanishing_base(),
     };
 
     // Pin the fixture to the affine-projection failure: doubling remains
@@ -403,6 +421,104 @@ fn mul_point_rejects_malformed_base_without_panicking() {
         &rejected,
         "malformed variable-base scalar-multiplication base",
     );
+}
+
+/// An addition-only circuit. With `ENABLED = false`, it retains the seam's
+/// witness allocation and wiring but clears its one active selector, providing
+/// a negative control for unrelated constraints.
+struct IsolatedCurveAdditionCircuit<const ENABLED: bool> {
+    a: JubJubAffine,
+    b: JubJubAffine,
+}
+
+impl<const ENABLED: bool> Default for IsolatedCurveAdditionCircuit<ENABLED> {
+    fn default() -> Self {
+        Self {
+            a: GENERATOR_EXTENDED.into(),
+            b: GENERATOR_EXTENDED.double().into(),
+        }
+    }
+}
+
+impl<const ENABLED: bool> IsolatedCurveAdditionCircuit<ENABLED> {
+    fn pole() -> Self {
+        let (a, b) = z_vanishing_addends();
+        Self { a, b }
+    }
+}
+
+impl<const ENABLED: bool> Circuit for IsolatedCurveAdditionCircuit<ENABLED> {
+    fn circuit(&self, composer: &mut Composer) -> Result<(), Error> {
+        let a = composer.append_point(self.a)?;
+        let b = composer.append_point(self.b)?;
+        let addition_row = composer.constraints.len();
+        composer.add_point_gates(a, b);
+
+        if !ENABLED {
+            // The debugger retains the row as appended, so its diagnostic can
+            // show the stale active selector even though the circuit clears it.
+            let selector =
+                &mut composer.constraints[addition_row].q_variable_group_add;
+            assert_eq!(*selector, BlsScalar::one());
+            *selector = BlsScalar::zero();
+        }
+
+        Ok(())
+    }
+}
+
+#[test]
+fn curve_addition_pole_rejected_in_isolation() {
+    let mut rng = StdRng::seed_from_u64(0x910);
+    let pp = PublicParameters::setup(1 << 8, &mut rng).expect("setup");
+
+    let accepted = IsolatedCurveAdditionCircuit::<true>::default();
+    let rejected = IsolatedCurveAdditionCircuit::<true>::pole();
+    assert!(
+        !bool::from(rejected.a.is_on_curve())
+            && !bool::from(rejected.b.is_on_curve()),
+        "the pole fixture must use off-curve addends",
+    );
+    assert_eq!(
+        (JubJubExtended::from(rejected.a) + rejected.b).get_z(),
+        BlsScalar::zero(),
+        "the malformed addends must hit a curve-addition pole",
+    );
+    assert_eq!(
+        gate_layout(&rejected)
+            .iter()
+            .filter(|gate| { gate.q_variable_group_add != BlsScalar::zero() })
+            .count(),
+        1,
+        "the isolated circuit must emit exactly one curve-addition constraint",
+    );
+
+    let (prover, verifier) = Compiler::compile::<
+        IsolatedCurveAdditionCircuit<true>,
+    >(&pp, b"isolated-curve-addition-pole")
+    .expect("compile isolated curve addition");
+    assert_verifies(&prover, &verifier, &mut rng, &accepted);
+    assert_rejected(
+        &prover,
+        &mut rng,
+        &accepted,
+        &rejected,
+        "Z-vanishing curve addition",
+    );
+
+    // With the addition selector disabled, the same malformed witnesses prove:
+    // no membership, arithmetic, or other widget constraint rejects them.
+    let negative_control = IsolatedCurveAdditionCircuit::<false>::pole();
+    assert!(
+        gate_layout(&negative_control)
+            .iter()
+            .all(|gate| gate.q_variable_group_add == BlsScalar::zero())
+    );
+    let (prover, verifier) = Compiler::compile::<
+        IsolatedCurveAdditionCircuit<false>,
+    >(&pp, b"disabled-curve-addition-pole")
+    .expect("compile selector-disabled control");
+    assert_verifies(&prover, &verifier, &mut rng, &negative_control);
 }
 
 // `component_mul_point` promises consumers an unchanged layout now that
