@@ -23,6 +23,7 @@ use crate::proof_system::{
     ProverKey, VerifierKey, linearization_poly, quotient_poly,
 };
 use crate::transcript::TranscriptProtocol;
+use crate::util::batch_inversion;
 
 /// Turbo Prover with processed keys
 #[derive(Clone)]
@@ -33,6 +34,9 @@ pub struct Prover {
     pub(crate) verifier_key: VerifierKey,
     pub(crate) transcript: Transcript,
     sigma_evaluations: [Vec<BlsScalar>; 4],
+    domain: EvaluationDomain,
+    quotient_domain: EvaluationDomain,
+    vanishing_coset_inverses: [BlsScalar; 8],
     pub(crate) size: usize,
     pub(crate) constraints: usize,
 }
@@ -54,9 +58,40 @@ impl Prover {
         size: usize,
         constraints: usize,
     ) -> Result<Self, Error> {
+        if constraints.checked_next_power_of_two() != Some(size)
+            || prover_key.n != size
+        {
+            return Err(dusk_bytes::Error::InvalidData.into());
+        }
+
+        let domain = EvaluationDomain::new(constraints)?;
+        let quotient_size = domain
+            .size()
+            .checked_mul(8)
+            .ok_or(dusk_bytes::Error::InvalidData)?;
+        let quotient_domain = EvaluationDomain::new(quotient_size)?;
+
+        // Compilation constructs these evaluations for this exact quotient
+        // domain, while checked decoding validates their domain, length, and
+        // values before construction reaches here. Keep the checks local too,
+        // so malformed source data can never become cached proving state.
+        let vanishing_evaluations = &prover_key.v_h_coset_8n().evals;
+        if vanishing_evaluations.len() != quotient_domain.size()
+            || vanishing_evaluations
+                .iter()
+                .any(|evaluation| *evaluation == BlsScalar::zero())
+        {
+            return Err(dusk_bytes::Error::InvalidData.into());
+        }
+        let first_period = vanishing_evaluations
+            .get(..8)
+            .ok_or(dusk_bytes::Error::InvalidData)?;
+        let mut vanishing_coset_inverses = [BlsScalar::zero(); 8];
+        vanishing_coset_inverses.copy_from_slice(first_period);
+        batch_inversion(&mut vanishing_coset_inverses);
+
         let transcript =
             Transcript::base(label.as_slice(), &verifier_key, constraints);
-        let domain = EvaluationDomain::new(constraints)?;
         let sigma_evaluations = [
             domain.fft(&prover_key.permutation.s_sigma_1.0),
             domain.fft(&prover_key.permutation.s_sigma_2.0),
@@ -71,6 +106,9 @@ impl Prover {
             verifier_key,
             transcript,
             sigma_evaluations,
+            domain,
+            quotient_domain,
+            vanishing_coset_inverses,
             size,
             constraints,
         })
@@ -174,6 +212,8 @@ impl Prover {
     fn prepare_serialize(
         &self,
     ) -> (usize, Vec<u8>, Vec<u8>, [u8; VerifierKey::SIZE]) {
+        // Quotient caches are derived state. Omitting them preserves the
+        // format and ensures checked decoding always rebuilds fresh values.
         let prover_key = self.prover_key.to_var_bytes();
         let commit_key = self.commit_key.to_raw_var_bytes();
         let verifier_key = self.verifier_key.to_bytes();
@@ -384,10 +424,8 @@ impl Prover {
     {
         let prover = Composer::prove(self.constraints, circuit)?;
 
-        let constraints = self.constraints;
         let size = self.size;
-
-        let domain = EvaluationDomain::new(constraints)?;
+        let domain = self.domain;
 
         let mut transcript = self.transcript_for_version(version);
 
@@ -494,11 +532,12 @@ impl Prover {
             var_base_sep_challenge,
         );
         let t_poly = quotient_poly::compute(
-            &domain,
+            &self.quotient_domain,
             &self.prover_key,
             &z_poly,
             wires,
             &pi_poly,
+            &self.vanishing_coset_inverses,
             args,
         )?;
 
@@ -752,6 +791,95 @@ mod tests {
             result.expect("checked above").is_err(),
             "malformed input must be rejected"
         );
+    }
+
+    #[test]
+    fn prover_rebuilds_quotient_cache_after_checked_round_trip() {
+        let mut setup_rng = StdRng::seed_from_u64(47);
+        let pp = PublicParameters::setup(1 << 10, &mut setup_rng)
+            .expect("public parameters should build");
+        let (prover, _) = Compiler::compile::<MinimalCircuit>(&pp, b"p1.4-3")
+            .expect("circuit should compile");
+
+        let bytes = prover.to_bytes();
+        let decoded = Prover::try_from_bytes(&bytes)
+            .expect("checked prover bytes should decode");
+
+        assert_eq!(decoded.to_bytes(), bytes);
+        assert_eq!(decoded.domain, prover.domain);
+        assert_eq!(decoded.quotient_domain, prover.quotient_domain);
+        assert_eq!(
+            decoded.vanishing_coset_inverses,
+            prover.vanishing_coset_inverses
+        );
+        assert_eq!(decoded.vanishing_coset_inverses.len(), 8);
+
+        for (i, evaluation) in
+            decoded.prover_key.v_h_coset_8n().evals.iter().enumerate()
+        {
+            assert_eq!(
+                decoded.vanishing_coset_inverses[i & 7],
+                evaluation.invert().unwrap()
+            );
+        }
+
+        let mut original_rng = StdRng::seed_from_u64(48);
+        let mut decoded_rng = StdRng::seed_from_u64(48);
+        let original_proof = prover
+            .prove(&mut original_rng, &MinimalCircuit)
+            .expect("compiled prover should prove");
+        let decoded_proof = decoded
+            .prove(&mut decoded_rng, &MinimalCircuit)
+            .expect("decoded prover should prove");
+        assert_eq!(decoded_proof, original_proof);
+    }
+
+    #[test]
+    fn prover_rejects_malformed_derived_cache_inputs() {
+        let mut setup_rng = StdRng::seed_from_u64(49);
+        let pp = PublicParameters::setup(1 << 10, &mut setup_rng)
+            .expect("public parameters should build");
+        let (prover, _) = Compiler::compile::<MinimalCircuit>(&pp, b"p1.4-4")
+            .expect("circuit should compile");
+
+        let rebuild = |prover_key, size, constraints| {
+            Prover::new(
+                prover.label.clone(),
+                prover_key,
+                prover.commit_key.clone(),
+                prover.verifier_key,
+                size,
+                constraints,
+            )
+        };
+        let assert_invalid_data = |result| {
+            assert!(matches!(
+                result,
+                Err(Error::BytesError(dusk_bytes::Error::InvalidData))
+            ));
+        };
+
+        let mut short_evaluations = prover.prover_key.clone();
+        short_evaluations.v_h_coset_8n.evals.pop();
+        assert_invalid_data(rebuild(
+            short_evaluations,
+            prover.size,
+            prover.constraints,
+        ));
+
+        let mut zero_evaluation = prover.prover_key.clone();
+        zero_evaluation.v_h_coset_8n.evals[0] = BlsScalar::zero();
+        assert_invalid_data(rebuild(
+            zero_evaluation,
+            prover.size,
+            prover.constraints,
+        ));
+
+        assert_invalid_data(rebuild(
+            prover.prover_key.clone(),
+            prover.size,
+            prover.size + 1,
+        ));
     }
 
     #[test]
