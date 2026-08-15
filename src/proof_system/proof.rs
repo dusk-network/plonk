@@ -220,11 +220,10 @@ pub(crate) mod alloc {
             verifier_key: &VerifierKey,
             transcript: &mut Transcript,
             opening_key: &OpeningKey,
-            public_input_indexes: &[usize],
+            domain: &EvaluationDomain,
+            public_input_roots: &[BlsScalar],
             pub_inputs: &[BlsScalar],
         ) -> Result<(), Error> {
-            let domain = EvaluationDomain::new(verifier_key.n)?;
-
             // Subgroup checks are done when the proof is deserialized.
 
             // In order for the Verifier and Prover to have the same view in the
@@ -314,20 +313,17 @@ pub(crate) mod alloc {
             // Compute zero polynomial evaluated at challenge `z`
             let z_h_eval = domain.evaluate_vanishing_polynomial(&z_challenge);
 
-            // Compute first lagrange polynomial evaluated at challenge `z`
-            let l1_eval = compute_first_lagrange_evaluation(
-                &domain,
-                &z_h_eval,
-                &z_challenge,
-            );
-
-            // Evaluate public inputs
-            let pi_eval = compute_barycentric_eval_sparse(
-                public_input_indexes,
-                pub_inputs,
-                &z_challenge,
-                &domain,
-            );
+            // Evaluate the first Lagrange polynomial and public inputs with a
+            // single batch inversion. The public-input roots are fixed for a
+            // verifier and are precomputed when it is constructed.
+            let (l1_eval, pi_eval) =
+                compute_lagrange_and_barycentric_evaluations(
+                    public_input_roots,
+                    pub_inputs,
+                    &z_challenge,
+                    &z_h_eval,
+                    domain,
+                )?;
 
             // Compute r_0
             let r_0_eval = pi_eval
@@ -527,11 +523,10 @@ pub(crate) mod alloc {
             verifier_key: &VerifierKey,
             transcript: &mut Transcript,
             opening_key: &OpeningKey,
-            public_input_indexes: &[usize],
+            domain: &EvaluationDomain,
+            public_input_roots: &[BlsScalar],
             pub_inputs: &[BlsScalar],
         ) -> Result<(), Error> {
-            let domain = EvaluationDomain::new(verifier_key.n)?;
-
             // Subgroup checks are done when the proof is deserialized.
 
             // In order for the Verifier and Prover to have the same view in the
@@ -621,20 +616,17 @@ pub(crate) mod alloc {
             // Compute zero polynomial evaluated at challenge `z`
             let z_h_eval = domain.evaluate_vanishing_polynomial(&z_challenge);
 
-            // Compute first lagrange polynomial evaluated at challenge `z`
-            let l1_eval = compute_first_lagrange_evaluation(
-                &domain,
-                &z_h_eval,
-                &z_challenge,
-            );
-
-            // Evaluate public inputs
-            let pi_eval = compute_barycentric_eval_sparse(
-                public_input_indexes,
-                pub_inputs,
-                &z_challenge,
-                &domain,
-            );
+            // Evaluate the first Lagrange polynomial and public inputs with a
+            // single batch inversion. The public-input roots are fixed for a
+            // verifier and are precomputed when it is constructed.
+            let (l1_eval, pi_eval) =
+                compute_lagrange_and_barycentric_evaluations(
+                    public_input_roots,
+                    pub_inputs,
+                    &z_challenge,
+                    &z_h_eval,
+                    domain,
+                )?;
 
             // Compute r_0
             let r_0_eval = pi_eval
@@ -1002,14 +994,49 @@ pub(crate) mod alloc {
         assert_eq!(*grouped, expected);
     }
 
-    fn compute_first_lagrange_evaluation(
-        domain: &EvaluationDomain,
+    fn compute_lagrange_and_barycentric_evaluations(
+        public_input_roots: &[BlsScalar],
+        evaluations: &[BlsScalar],
+        point: &BlsScalar,
         z_h_eval: &BlsScalar,
-        z_challenge: &BlsScalar,
-    ) -> BlsScalar {
-        let n_fr = BlsScalar::from(domain.size() as u64);
-        let denom = n_fr * (z_challenge - BlsScalar::one());
-        z_h_eval * denom.invert().unwrap()
+        domain: &EvaluationDomain,
+    ) -> Result<(BlsScalar, BlsScalar), Error> {
+        let non_zero_inputs: Vec<_> = public_input_roots
+            .iter()
+            .copied()
+            .zip(evaluations.iter().copied())
+            .filter(|(_, evaluation)| *evaluation != BlsScalar::zero())
+            .collect();
+
+        let mut denominators = Vec::with_capacity(non_zero_inputs.len() + 1);
+        denominators
+            .push(domain.size_as_field_element * (point - BlsScalar::one()));
+
+        denominators.extend(
+            non_zero_inputs
+                .iter()
+                .map(|(root, _)| (*root * point) - BlsScalar::one()),
+        );
+
+        if denominators
+            .iter()
+            .any(|denominator| denominator == &BlsScalar::zero())
+        {
+            return Err(Error::ProofVerificationError);
+        }
+
+        batch_inversion(&mut denominators);
+
+        let l1_eval = z_h_eval * denominators[0];
+        let pi_eval: BlsScalar = non_zero_inputs
+            .iter()
+            .zip(&denominators[1..])
+            .map(|((_, evaluation), inverse)| *inverse * *evaluation)
+            .sum::<BlsScalar>()
+            * z_h_eval
+            * domain.size_inv;
+
+        Ok((l1_eval, pi_eval))
     }
 
     pub(crate) fn compute_barycentric_eval(
@@ -1066,7 +1093,8 @@ pub(crate) mod alloc {
         result * numerator
     }
 
-    pub(crate) fn compute_barycentric_eval_sparse(
+    #[cfg(test)]
+    fn compute_barycentric_eval_sparse(
         indexes: &[usize],
         evaluations: &[BlsScalar],
         point: &BlsScalar,
@@ -1107,6 +1135,85 @@ pub(crate) mod alloc {
             .sum();
 
         result * numerator
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+
+        #[test]
+        fn fused_lagrange_and_sparse_evaluation_matches_separate_formulas() {
+            let domain = EvaluationDomain::new(1 << 5).unwrap();
+            let indexes = [0usize, 3, 17, 31];
+            let evaluations = [
+                BlsScalar::from(2u64),
+                BlsScalar::zero(),
+                BlsScalar::from(5u64),
+                BlsScalar::from(9u64),
+            ];
+            let roots: Vec<_> = indexes
+                .iter()
+                .map(|index| {
+                    domain.group_gen_inv.pow(&[*index as u64, 0, 0, 0])
+                })
+                .collect();
+            let point = BlsScalar::from(7u64);
+            let z_h_eval = domain.evaluate_vanishing_polynomial(&point);
+
+            let (l1_eval, pi_eval) =
+                compute_lagrange_and_barycentric_evaluations(
+                    &roots,
+                    &evaluations,
+                    &point,
+                    &z_h_eval,
+                    &domain,
+                )
+                .unwrap();
+
+            let l1_denominator =
+                domain.size_as_field_element * (point - BlsScalar::one());
+            let expected_l1 = z_h_eval * l1_denominator.invert().unwrap();
+            let expected_pi = compute_barycentric_eval_sparse(
+                &indexes,
+                &evaluations,
+                &point,
+                &domain,
+            );
+
+            assert_eq!(l1_eval, expected_l1);
+            assert_eq!(pi_eval, expected_pi);
+        }
+
+        #[test]
+        fn fused_evaluation_rejects_a_domain_point() {
+            let domain = EvaluationDomain::new(1 << 5).unwrap();
+            let result = compute_lagrange_and_barycentric_evaluations(
+                &[],
+                &[],
+                &BlsScalar::one(),
+                &BlsScalar::zero(),
+                &domain,
+            );
+
+            assert!(matches!(result, Err(Error::ProofVerificationError)));
+        }
+
+        #[test]
+        fn fused_evaluation_rejects_a_public_input_domain_point() {
+            let domain = EvaluationDomain::new(1 << 5).unwrap();
+            let index = 3u64;
+            let point = domain.group_gen.pow(&[index, 0, 0, 0]);
+            let root = domain.group_gen_inv.pow(&[index, 0, 0, 0]);
+            let result = compute_lagrange_and_barycentric_evaluations(
+                &[root],
+                &[BlsScalar::one()],
+                &point,
+                &BlsScalar::zero(),
+                &domain,
+            );
+
+            assert!(matches!(result, Err(Error::ProofVerificationError)));
+        }
     }
 }
 
