@@ -26,18 +26,20 @@
 //! check collapses to `x1_y2 + y1_x2 = 0` and leaves `x_3` free. The
 //! helper-wire forgeries below avoid both poles — `forced_output` inverts both
 //! denominators — but the malformed scalar-multiplication fixture constructs
-//! off-curve addends whose extended sum has `Z = 0`. The isolated pole
-//! regressions emit only `add_point_gates` for that pair; disabling its sole
-//! curve-addition selector makes the malformed fallback assignment prove,
-//! pinning rejection to the pole gate. A focused witness keeps the helper wire
-//! honest, chooses the x-coordinate the pole frees independently, and solves
-//! the still-binding y-coordinate check, leaving only the collapsed nonzero
-//! x-coordinate numerator. Neither pole is an escape hatch: with `a = -1` a
-//! square and `d` a non-square (asserted in [`subgroup_parameters_hold`]) the
+//! off-curve addends whose extended sum has `Z = 0`. The negative-pole
+//! regressions emit only `add_point_gates` for that pair, while the
+//! positive-pole regression constructs its own honest-wire pole pair.
+//! Disabling the sole curve-addition selector makes each malformed assignment
+//! prove, pinning rejection to the pole gate. Focused witnesses keep the helper
+//! wire honest, choose the coordinate each pole frees independently, and solve
+//! the other coordinate's still-binding check, leaving only the corresponding
+//! collapsed nonzero numerator. Neither pole is an escape hatch: with `a = -1`
+//! a square and `d` a non-square (asserted in [`subgroup_parameters_hold`]) the
 //! addition law is complete, so no on-curve addends put the *honest* wire on a
-//! pole. For off-curve addends at an honest-wire pole, the collapsed output
-//! numerator cannot also vanish without making `d` a square; a helper wire
-//! forged to a pole instead carries a nonzero binding residual.
+//! pole. At the negative pole, a vanishing collapsed numerator would make `d`
+//! a square directly. At the positive pole it would make `d` equal to `-1`
+//! times a square, which is also a square because `-1` is a square. A helper
+//! wire forged to either pole instead carries a nonzero binding residual.
 //!
 //! So without that term a prover picks the wire freely and still satisfies
 //! every other constraint — including, as the steering case shows, picking it
@@ -45,12 +47,12 @@
 //! the attacker's choosing. Those forgeries reproduce the production emission
 //! with only the wire falsified and the coordinates its own checks force;
 //! `forced_output` does that solving, so it is itself pinned against
-//! `compute_quotient_i`. The focused pole fixture separately pins its collapsed
-//! residual against the same production identity. Those pins are this module's
-//! only reaches into `proof_system::widget`, and are deliberate: they tie the
-//! local residual constructions to the widget's own identity, while building
-//! the `ProverKey` by struct literal makes a new field on it break the build
-//! here rather than silently weaken either pin.
+//! `compute_quotient_i`. The focused pole fixtures separately pin their
+//! collapsed residuals against the same production identity. Those pins are
+//! this module's only reaches into `proof_system::widget`, and are deliberate:
+//! they tie the local residual constructions to the widget's own identity,
+//! while building the `ProverKey` by struct literal makes a new field on it
+//! break the build here rather than silently weaken either pin.
 
 use dusk_bls12_381::BlsScalar;
 use dusk_jubjub::{
@@ -382,6 +384,20 @@ fn z_vanishing_addends() -> (JubJubAffine, JubJubAffine) {
     (a, b)
 }
 
+/// Off-curve addends whose honest helper wire makes the curve-addition skew
+/// `+1`, so the production y-coordinate check loses its `y_3` term.
+fn positive_pole_addends() -> (JubJubAffine, JubJubAffine) {
+    let x_1 = BlsScalar::from(2u64);
+    let y_1 = BlsScalar::from(3u64);
+    let x_2 = BlsScalar::from(5u64);
+    let y_2 = invert(BlsScalar::from(30u64) * EDWARDS_D);
+
+    (
+        JubJubAffine::from_raw_unchecked(x_1, y_1),
+        JubJubAffine::from_raw_unchecked(x_2, y_2),
+    )
+}
+
 /// The three unweighted residuals in the production curve-addition identity:
 /// helper consistency, x-coordinate consistency, y-coordinate consistency.
 fn curve_addition_residuals(
@@ -415,6 +431,20 @@ fn output_with_solved_y3(
     let skew = EDWARDS_D * x1_y2 * a.get_v() * b.get_u();
     let y_3 = (a.get_v() * b.get_v() + a.get_u() * b.get_u())
         * invert(BlsScalar::one() - skew);
+
+    JubJubAffine::from_raw_unchecked(x_3, y_3)
+}
+
+/// Solve only the x-coordinate output check. This remains defined at the
+/// positive pole, where the y-coordinate coefficient vanishes.
+fn output_with_solved_x3(
+    a: JubJubAffine,
+    b: JubJubAffine,
+    x1_y2: BlsScalar,
+    y_3: BlsScalar,
+) -> JubJubAffine {
+    let skew = EDWARDS_D * x1_y2 * a.get_v() * b.get_u();
+    let x_3 = (x1_y2 + a.get_v() * b.get_u()) * invert(BlsScalar::one() + skew);
 
     JubJubAffine::from_raw_unchecked(x_3, y_3)
 }
@@ -526,6 +556,15 @@ impl<const ENABLED: bool> IsolatedCurveAdditionCircuit<ENABLED> {
 
         Self::with_assigned_witnesses(a, b, x1_y2, output)
     }
+
+    fn positive_pole_with_solved_x3() -> Self {
+        let (a, b) = positive_pole_addends();
+        let x1_y2 = a.get_u() * b.get_v();
+        let output =
+            output_with_solved_x3(a, b, x1_y2, steering_target().get_v());
+
+        Self::with_assigned_witnesses(a, b, x1_y2, output)
+    }
 }
 
 impl<const ENABLED: bool> Circuit for IsolatedCurveAdditionCircuit<ENABLED> {
@@ -555,6 +594,42 @@ impl<const ENABLED: bool> Circuit for IsolatedCurveAdditionCircuit<ENABLED> {
 
         Ok(())
     }
+}
+
+fn assert_off_curve_non_pole_control(
+    prover: &Prover,
+    verifier: &Verifier,
+    rng: &mut StdRng,
+) {
+    let a = JubJubAffine::from_raw_unchecked(
+        BlsScalar::from(2u64),
+        BlsScalar::from(3u64),
+    );
+    let b = JubJubAffine::from_raw_unchecked(
+        BlsScalar::from(5u64),
+        BlsScalar::from(7u64),
+    );
+    let x1_y2 = a.get_u() * b.get_v();
+    let (x_3, y_3) =
+        forced_output(a.get_u(), a.get_v(), b.get_u(), b.get_v(), x1_y2);
+    let output = JubJubAffine::from_raw_unchecked(x_3, y_3);
+    let control = IsolatedCurveAdditionCircuit::<true>::with_assigned_witnesses(
+        a, b, x1_y2, output,
+    );
+
+    assert!(
+        !bool::from(a.is_on_curve()) && !bool::from(b.is_on_curve()),
+        "the positive control must use off-curve addends",
+    );
+    let skew = EDWARDS_D * x1_y2 * a.get_v() * b.get_u();
+    assert_ne!(skew, BlsScalar::one());
+    assert_ne!(skew, -BlsScalar::one());
+    assert_eq!(
+        curve_addition_residuals(a, b, x1_y2, output),
+        [BlsScalar::zero(); 3],
+        "every raw-gate residual must vanish away from the pole",
+    );
+    assert_verifies(prover, verifier, rng, &control);
 }
 
 #[test]
@@ -729,9 +804,25 @@ fn collapsed_curve_addition_pole_residual_rejected() {
             assert_eq!(
                 widget_identity, expected,
                 "{case}: the production identity must contain only the \
-                 collapsed x3 residual",
+                collapsed x3 residual",
             );
         }
+
+        let perturbed_y3 = prover_key.compute_quotient_i(
+            0,
+            &challenge,
+            &x_1,
+            &output.get_u(),
+            &y_1,
+            &(output.get_v() + BlsScalar::one()),
+            &x_2,
+            &y_2,
+            &x1_y2,
+        );
+        assert_ne!(
+            perturbed_y3, expected,
+            "the production identity must retain the binding y3 check",
+        );
     }
 
     let mut rng = StdRng::seed_from_u64(0x914);
@@ -745,51 +836,7 @@ fn collapsed_curve_addition_pole_residual_rejected() {
 
     // An off-curve pair away from either pole satisfies and verifies through
     // the same raw gate, so off-curveness alone is not the rejection source.
-    let off_curve_a = JubJubAffine::from_raw_unchecked(
-        BlsScalar::from(2u64),
-        BlsScalar::from(3u64),
-    );
-    let off_curve_b = JubJubAffine::from_raw_unchecked(
-        BlsScalar::from(5u64),
-        BlsScalar::from(7u64),
-    );
-    let off_curve_wire = off_curve_a.get_u() * off_curve_b.get_v();
-    let (off_curve_x3, off_curve_y3) = forced_output(
-        off_curve_a.get_u(),
-        off_curve_a.get_v(),
-        off_curve_b.get_u(),
-        off_curve_b.get_v(),
-        off_curve_wire,
-    );
-    let off_curve_output =
-        JubJubAffine::from_raw_unchecked(off_curve_x3, off_curve_y3);
-    let off_curve_control =
-        IsolatedCurveAdditionCircuit::<true>::with_assigned_witnesses(
-            off_curve_a,
-            off_curve_b,
-            off_curve_wire,
-            off_curve_output,
-        );
-    assert!(
-        !bool::from(off_curve_a.is_on_curve())
-            && !bool::from(off_curve_b.is_on_curve()),
-        "the positive control must use off-curve addends",
-    );
-    let off_curve_skew =
-        EDWARDS_D * off_curve_wire * off_curve_a.get_v() * off_curve_b.get_u();
-    assert_ne!(off_curve_skew, BlsScalar::one());
-    assert_ne!(off_curve_skew, -BlsScalar::one());
-    assert_eq!(
-        curve_addition_residuals(
-            off_curve_a,
-            off_curve_b,
-            off_curve_wire,
-            off_curve_output,
-        ),
-        [BlsScalar::zero(); 3],
-        "every raw-gate residual must vanish away from the pole",
-    );
-    assert_verifies(&prover, &verifier, &mut rng, &off_curve_control);
+    assert_off_curve_non_pole_control(&prover, &verifier, &mut rng);
 
     // Clearing the curve-addition selector must make this exact focused
     // assignment prove, attributing its rejection to that gate rather than to
@@ -821,6 +868,200 @@ fn collapsed_curve_addition_pole_residual_rejected() {
         &accepted,
         &rejected,
         "collapsed curve-addition pole residual",
+    );
+}
+
+#[test]
+fn positive_curve_addition_pole_residual_rejected() {
+    let rejected =
+        IsolatedCurveAdditionCircuit::<true>::positive_pole_with_solved_x3();
+    let (x1_y2, output) = rejected
+        .assigned_witnesses
+        .expect("the positive-pole fixture assigns its witnesses");
+    let x_1 = rejected.a.get_u();
+    let y_1 = rejected.a.get_v();
+    let x_2 = rejected.b.get_u();
+    let y_2 = rejected.b.get_v();
+    let skew = EDWARDS_D * x1_y2 * y_1 * x_2;
+
+    assert!(
+        !bool::from(rejected.a.is_on_curve())
+            && !bool::from(rejected.b.is_on_curve()),
+        "the positive-pole fixture must use off-curve addends",
+    );
+    assert_eq!(
+        (JubJubExtended::from(rejected.a) + rejected.b).get_z(),
+        BlsScalar::zero(),
+        "the positive-pole addends must have a vanishing sum denominator",
+    );
+    assert_eq!(
+        x1_y2,
+        x_1 * y_2,
+        "the helper wire must carry the honest x1*y2 product",
+    );
+    assert!(
+        [x_1, y_1, x_2, y_2]
+            .into_iter()
+            .all(|coordinate| coordinate != BlsScalar::one()),
+        "the positive-pole fixture must not use coordinate one",
+    );
+    let x_3_numerator = x1_y2 + y_1 * x_2;
+    let y_3_numerator = y_1 * y_2 + x_1 * x_2;
+    assert!(
+        x_3_numerator != BlsScalar::zero()
+            && y_3_numerator != BlsScalar::zero()
+            && x_3_numerator != y_3_numerator,
+        "the output numerators must be nonzero and distinct",
+    );
+    assert_eq!(
+        skew,
+        BlsScalar::one(),
+        "the honest helper must hit the pole that frees y3",
+    );
+    assert_eq!(
+        BlsScalar::one() + skew,
+        BlsScalar::from(2u64),
+        "the x3 check must remain binding with coefficient two",
+    );
+    assert_eq!(
+        output.get_v(),
+        steering_target().get_v(),
+        "y3 must be assigned independently",
+    );
+    assert_eq!(
+        output.get_u() * (BlsScalar::one() + skew),
+        x_3_numerator,
+        "x3 must solve the production check with its exact sign",
+    );
+
+    let residuals =
+        curve_addition_residuals(rejected.a, rejected.b, x1_y2, output);
+    assert_eq!(
+        residuals[0],
+        BlsScalar::zero(),
+        "the helper consistency residual must vanish",
+    );
+    assert_eq!(
+        residuals[1],
+        BlsScalar::zero(),
+        "the solved x3 residual must vanish",
+    );
+    assert_ne!(
+        residuals[2],
+        BlsScalar::zero(),
+        "the collapsed y3 numerator must remain nonzero",
+    );
+    assert_eq!(
+        residuals[2], y_3_numerator,
+        "the y3 residual must collapse to its numerator",
+    );
+
+    let moved_y3 = JubJubAffine::from_raw_unchecked(
+        output.get_u(),
+        output.get_v() + BlsScalar::one(),
+    );
+    assert_eq!(
+        curve_addition_residuals(rejected.a, rejected.b, x1_y2, moved_y3),
+        residuals,
+        "y3 must be free: changing it cannot alter any residual at the pole",
+    );
+
+    // Pin the isolated residual to the production widget at two independent
+    // separation challenges. At the positive pole only the y3 residual and
+    // its separation weight remain.
+    let prover_key = curve_addition_prover_key();
+    let challenges =
+        [BlsScalar::from(0x916u64), BlsScalar::from(0x916_0001u64)];
+    let y3_weights =
+        challenges.map(|challenge| challenge.square().square() * challenge);
+    assert_ne!(
+        y3_weights[0], y3_weights[1],
+        "the two challenges must independently pin the surviving y3 weight",
+    );
+    for (challenge, y3_weight) in challenges.into_iter().zip(y3_weights) {
+        let expected = residuals[2] * y3_weight;
+        for (case, y_3) in [
+            ("focused output", output.get_v()),
+            ("perturbed y3", moved_y3.get_v()),
+        ] {
+            let widget_identity = prover_key.compute_quotient_i(
+                0,
+                &challenge,
+                &x_1,
+                &output.get_u(),
+                &y_1,
+                &y_3,
+                &x_2,
+                &y_2,
+                &x1_y2,
+            );
+            assert_eq!(
+                widget_identity, expected,
+                "{case}: the production identity must contain only the \
+                 collapsed y3 residual",
+            );
+        }
+
+        let perturbed_x3 = prover_key.compute_quotient_i(
+            0,
+            &challenge,
+            &x_1,
+            &(output.get_u() + BlsScalar::one()),
+            &y_1,
+            &output.get_v(),
+            &x_2,
+            &y_2,
+            &x1_y2,
+        );
+        assert_ne!(
+            perturbed_x3, expected,
+            "the production identity must retain the binding x3 check",
+        );
+    }
+
+    let mut rng = StdRng::seed_from_u64(0x916);
+    let pp = PublicParameters::setup(1 << 8, &mut rng).expect("setup");
+    let accepted = IsolatedCurveAdditionCircuit::<true>::default();
+    let (prover, verifier) = Compiler::compile::<
+        IsolatedCurveAdditionCircuit<true>,
+    >(&pp, b"positive-curve-addition-pole")
+    .expect("compile positive-pole curve addition");
+    assert_verifies(&prover, &verifier, &mut rng, &accepted);
+
+    // An off-curve pair away from either pole satisfies and verifies through
+    // this enabled raw gate, so off-curveness alone is not the rejection
+    // source.
+    assert_off_curve_non_pole_control(&prover, &verifier, &mut rng);
+
+    // Disabling the selector proves that this exact positive-pole witness is
+    // rejected by no surrounding constraint.
+    let selector_disabled =
+        IsolatedCurveAdditionCircuit::<false>::positive_pole_with_solved_x3();
+    assert!(
+        gate_layout(&selector_disabled)
+            .iter()
+            .all(|gate| gate.q_variable_group_add == BlsScalar::zero()),
+        "the control must disable every curve-addition selector",
+    );
+    let (disabled_prover, disabled_verifier) =
+        Compiler::compile::<IsolatedCurveAdditionCircuit<false>>(
+            &pp,
+            b"disabled-positive-curve-addition-pole",
+        )
+        .expect("compile selector-disabled positive-pole control");
+    assert_verifies(
+        &disabled_prover,
+        &disabled_verifier,
+        &mut rng,
+        &selector_disabled,
+    );
+
+    assert_rejected(
+        &prover,
+        &mut rng,
+        &accepted,
+        &rejected,
+        "positive curve-addition pole residual",
     );
 }
 
