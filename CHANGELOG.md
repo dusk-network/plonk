@@ -23,6 +23,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   their module documentation [#910]
 - Isolate the collapsed curve-addition pole residual in a point soundness
   regression [#914]
+- Cover the positive curve-addition pole with an isolated soundness regression
+  [#916]
 
 ### Changed
 
@@ -766,6 +768,7 @@ is necessary since `rkyv/validation` was required as a bound.
 [#925]: https://github.com/dusk-network/plonk/issues/925
 [#921]: https://github.com/dusk-network/plonk/issues/921
 [#920]: https://github.com/dusk-network/plonk/issues/920
+[#916]: https://github.com/dusk-network/plonk/issues/916
 [#914]: https://github.com/dusk-network/plonk/issues/914
 [#913]: https://github.com/dusk-network/plonk/issues/913
 [#910]: https://github.com/dusk-network/plonk/issues/910
