@@ -458,16 +458,20 @@ pub(crate) mod alloc {
                 |buf: &mut &[u8]| -> Result<Polynomial, Error> {
                     let serialized_poly_len =
                         usize::try_from(u64::from_reader(buf)?)
-                            .ok()
-                            .and_then(|len| len.checked_mul(BlsScalar::SIZE))
-                            .ok_or(Error::NotEnoughBytes)?;
+                            .map_err(|_| Error::NotEnoughBytes)?;
+                    if serialized_poly_len > n {
+                        return Err(dusk_bytes::Error::InvalidData.into());
+                    }
+                    let serialized_poly_size = serialized_poly_len
+                        .checked_mul(BlsScalar::SIZE)
+                        .ok_or(Error::NotEnoughBytes)?;
                     // If the announced len is zero, simply return an empty poly
                     // and leave the buffer intact.
-                    if serialized_poly_len == 0 {
+                    if serialized_poly_size == 0 {
                         return Ok(Polynomial::zero());
                     }
                     let (a, b) = buf
-                        .split_at_checked(serialized_poly_len)
+                        .split_at_checked(serialized_poly_size)
                         .ok_or(Error::NotEnoughBytes)?;
                     let poly = Polynomial::from_slice(a)?;
                     *buf = b;
@@ -762,6 +766,44 @@ mod test {
             ProverKey::from_slice(truncated),
             Err(Error::NotEnoughBytes)
         ));
+    }
+
+    #[test]
+    fn prover_key_rejects_over_degree_fixed_polynomials() {
+        let n = 1 << 3;
+        let evaluations_domain =
+            EvaluationDomain::new(8 * n).expect("8n domain should be valid");
+        let bytes = prover_key(n, evaluations_domain).to_var_bytes();
+        let evaluations_size =
+            u64::from_reader(&mut &bytes[u64::SIZE..2 * u64::SIZE]).unwrap()
+                as usize;
+        let mut polynomial_header = 2 * u64::SIZE;
+
+        for _ in 0..15 {
+            let polynomial_len = u64::from_reader(
+                &mut &bytes[polynomial_header..polynomial_header + u64::SIZE],
+            )
+            .unwrap() as usize;
+            assert_eq!(polynomial_len, n);
+            let coefficient_end = polynomial_header
+                + u64::SIZE
+                + polynomial_len * BlsScalar::SIZE;
+
+            let mut over_degree = bytes.clone();
+            over_degree[polynomial_header..polynomial_header + u64::SIZE]
+                .copy_from_slice(&((n + 1) as u64).to_bytes());
+            over_degree.splice(
+                coefficient_end..coefficient_end,
+                BlsScalar::one().to_bytes(),
+            );
+
+            assert!(matches!(
+                ProverKey::from_slice(&over_degree),
+                Err(Error::BytesError(dusk_bytes::Error::InvalidData))
+            ));
+
+            polynomial_header = coefficient_end + evaluations_size;
+        }
     }
 
     #[test]

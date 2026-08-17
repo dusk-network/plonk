@@ -83,6 +83,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Reject unrepresentable evaluation domain sizes during verifier construction
   and checked deserialization [#927]
+- Reject fixed polynomials with degree at least the circuit domain size during
+  checked `ProverKey` deserialization [#935]
 - Reject invalid witness, polynomial, selector and public-input indices when
   deserializing compressed circuits [#930]
 - Reject trailing data when deserializing compressed circuits [#913]
@@ -769,6 +771,7 @@ is necessary since `rkyv/validation` was required as a bound.
 - Proof system module.
 
 <!-- ISSUES -->
+[#935]: https://github.com/dusk-network/plonk/issues/935
 [#930]: https://github.com/dusk-network/plonk/issues/930
 [#925]: https://github.com/dusk-network/plonk/issues/925
 [#921]: https://github.com/dusk-network/plonk/issues/921
