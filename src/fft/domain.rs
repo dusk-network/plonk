@@ -355,8 +355,49 @@ pub(crate) mod alloc {
         }
     }
 
+    #[cfg(not(feature = "std"))]
     fn best_fft(a: &mut [BlsScalar], omega: BlsScalar, log_n: u32) {
         serial_fft(a, omega, log_n)
+    }
+
+    #[cfg(feature = "std")]
+    fn best_fft(a: &mut [BlsScalar], omega: BlsScalar, log_n: u32) {
+        const PARALLEL_FFT_MIN_LEN: usize = 1 << 12;
+        const PARALLEL_FFT_MIN_CHUNKS: usize = 4;
+
+        let n = a.len();
+        if n < PARALLEL_FFT_MIN_LEN {
+            serial_fft(a, omega, log_n);
+            return;
+        }
+
+        let n_u32 = n as u32;
+        assert_eq!(n_u32, 1 << log_n);
+
+        for k in 0..n_u32 {
+            let rk = bitreverse(k, log_n);
+            if k < rk {
+                a.swap(rk as usize, k as usize);
+            }
+        }
+
+        let mut m = 1usize;
+        for _ in 0..log_n {
+            let w_m = omega.pow(&[(n_u32 / (2 * m as u32)) as u64, 0, 0, 0]);
+            let chunk_len = 2 * m;
+            let chunk_count = n / chunk_len;
+
+            if chunk_count >= PARALLEL_FFT_MIN_CHUNKS {
+                a.par_chunks_mut(chunk_len)
+                    .for_each(|chunk| butterfly_chunk(chunk, m, w_m));
+            } else {
+                for chunk in a.chunks_mut(chunk_len) {
+                    butterfly_chunk(chunk, m, w_m);
+                }
+            }
+
+            m *= 2;
+        }
     }
 
     #[inline]
@@ -405,6 +446,23 @@ pub(crate) mod alloc {
             }
 
             m *= 2;
+        }
+    }
+
+    #[cfg(feature = "std")]
+    #[inline]
+    fn butterfly_chunk(chunk: &mut [BlsScalar], m: usize, w_m: BlsScalar) {
+        let (left, right) = chunk.split_at_mut(m);
+        let mut w = BlsScalar::one();
+
+        for j in 0..m {
+            let mut t = right[j];
+            t *= &w;
+            let mut tmp = left[j];
+            tmp -= &t;
+            right[j] = tmp;
+            left[j] += &t;
+            w.mul_assign(&w_m);
         }
     }
 
@@ -458,6 +516,25 @@ mod tests {
                 assert_eq!(element, domain.group_gen.pow(&[i as u64, 0, 0, 0]));
             }
         }
+    }
+
+    #[cfg(feature = "std")]
+    #[test]
+    fn parallel_fft_matches_serial_fft_for_large_domain() {
+        let domain = EvaluationDomain::new(1 << 12).unwrap();
+        let parallel = (0..domain.size())
+            .map(|i| BlsScalar::from((i as u64) + 1))
+            .collect::<Vec<_>>();
+        let mut serial = parallel.clone();
+
+        let parallel = domain.fft(&parallel);
+        crate::fft::domain::alloc::serial_fft(
+            &mut serial,
+            domain.group_gen,
+            domain.log_size_of_group,
+        );
+
+        assert_eq!(parallel, serial);
     }
 
     #[test]
