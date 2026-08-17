@@ -42,6 +42,24 @@ pub struct CompressedPolynomial {
     pub q_variable_group_add: usize,
 }
 
+impl CompressedPolynomial {
+    fn scalar_indices(&self) -> [usize; 11] {
+        [
+            self.q_m,
+            self.q_l,
+            self.q_r,
+            self.q_o,
+            self.q_f,
+            self.q_c,
+            self.q_arith,
+            self.q_range,
+            self.q_logic,
+            self.q_fixed_group_add,
+            self.q_variable_group_add,
+        ]
+    }
+}
+
 fn scalar_map(hades_optimization: bool) -> HashMap<BlsScalar, usize> {
     let mut scalars: HashMap<BlsScalar, usize> = {
         [BlsScalar::zero(), BlsScalar::one(), -BlsScalar::one()]
@@ -77,6 +95,35 @@ pub struct CompressedCircuit {
 }
 
 impl CompressedCircuit {
+    fn validate_indices(&self, base_scalars: usize) -> Result<(), Error> {
+        let scalar_count = base_scalars
+            .checked_add(self.scalars.len())
+            .ok_or(Error::InvalidCompressedCircuit)?;
+
+        if self
+            .public_inputs
+            .iter()
+            .any(|&i| i >= self.constraints.len())
+            || self.public_inputs.windows(2).any(|w| w[0] >= w[1])
+            || self.polynomials.iter().any(|polynomial| {
+                polynomial
+                    .scalar_indices()
+                    .into_iter()
+                    .any(|i| i >= scalar_count)
+            })
+            || self.constraints.iter().any(|constraint| {
+                constraint.polynomial >= self.polynomials.len()
+                    || [constraint.a, constraint.b, constraint.c, constraint.d]
+                        .into_iter()
+                        .any(|i| i >= self.witnesses)
+            })
+        {
+            return Err(Error::InvalidCompressedCircuit);
+        }
+
+        Ok(())
+    }
+
     pub fn from_composer(
         hades_optimization: bool,
         composer: Composer,
@@ -201,23 +248,24 @@ impl CompressedCircuit {
     pub fn from_bytes(compressed: &[u8]) -> Result<Composer, Error> {
         let compressed = miniz_oxide::inflate::decompress_to_vec(compressed)
             .map_err(|_| Error::InvalidCompressedCircuit)?;
-        let (
-            consumed,
-            Self {
-                hades_optimization,
-                public_inputs,
-                witnesses,
-                scalars,
-                polynomials,
-                constraints,
-            },
-        ) = Self::unpack(&compressed)
+        let (consumed, circuit) = Self::unpack(&compressed)
             .map_err(|_| Error::InvalidCompressedCircuit)?;
         if consumed != compressed.len() {
             return Err(Error::InvalidCompressedCircuit);
         }
 
-        let scalar_map = scalar_map(hades_optimization);
+        let scalar_map = scalar_map(circuit.hades_optimization);
+        circuit.validate_indices(scalar_map.len())?;
+
+        let Self {
+            hades_optimization: _,
+            public_inputs,
+            witnesses,
+            scalars,
+            polynomials,
+            constraints,
+        } = circuit;
+
         let mut version_scalars = vec![BlsScalar::zero(); scalar_map.len()];
         scalar_map
             .into_iter()
@@ -346,5 +394,112 @@ impl CompressedCircuit {
         }
 
         Ok(composer)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::panic::catch_unwind;
+
+    use super::*;
+
+    fn circuit() -> CompressedCircuit {
+        CompressedCircuit {
+            hades_optimization: false,
+            public_inputs: vec![0],
+            witnesses: 1,
+            scalars: Vec::new(),
+            polynomials: vec![CompressedPolynomial::default()],
+            constraints: vec![CompressedConstraint::default()],
+        }
+    }
+
+    fn encode(circuit: &CompressedCircuit) -> Vec<u8> {
+        let mut packed = Vec::new();
+        circuit.pack(&mut packed);
+        miniz_oxide::deflate::compress_to_vec(&packed, 10)
+    }
+
+    fn assert_invalid_without_panicking(circuit: &CompressedCircuit) {
+        let base_scalars = scalar_map(circuit.hades_optimization).len();
+        assert_eq!(
+            circuit.validate_indices(base_scalars),
+            Err(Error::InvalidCompressedCircuit),
+            "semantic index validation must reject the circuit",
+        );
+
+        let encoded = encode(circuit);
+        let result = catch_unwind(|| CompressedCircuit::from_bytes(&encoded));
+        assert!(result.is_ok(), "checked decoding must not panic");
+        assert!(matches!(
+            result.unwrap(),
+            Err(Error::InvalidCompressedCircuit)
+        ));
+    }
+
+    #[test]
+    fn valid_indices_are_accepted() {
+        assert!(CompressedCircuit::from_bytes(&encode(&circuit())).is_ok());
+    }
+
+    #[test]
+    fn invalid_witness_indices_are_rejected_without_panicking() {
+        let setters: [fn(&mut CompressedConstraint, usize); 4] = [
+            |constraint, invalid| constraint.a = invalid,
+            |constraint, invalid| constraint.b = invalid,
+            |constraint, invalid| constraint.c = invalid,
+            |constraint, invalid| constraint.d = invalid,
+        ];
+
+        for set_invalid in setters {
+            let mut circuit = circuit();
+            set_invalid(&mut circuit.constraints[0], circuit.witnesses);
+            assert_invalid_without_panicking(&circuit);
+        }
+    }
+
+    #[test]
+    fn invalid_polynomial_index_is_rejected_without_panicking() {
+        let mut circuit = circuit();
+        circuit.constraints[0].polynomial = circuit.polynomials.len();
+        assert_invalid_without_panicking(&circuit);
+    }
+
+    #[test]
+    fn invalid_scalar_indices_are_rejected_without_panicking() {
+        let setters: [fn(&mut CompressedPolynomial, usize); 11] = [
+            |polynomial, invalid| polynomial.q_m = invalid,
+            |polynomial, invalid| polynomial.q_l = invalid,
+            |polynomial, invalid| polynomial.q_r = invalid,
+            |polynomial, invalid| polynomial.q_o = invalid,
+            |polynomial, invalid| polynomial.q_f = invalid,
+            |polynomial, invalid| polynomial.q_c = invalid,
+            |polynomial, invalid| polynomial.q_arith = invalid,
+            |polynomial, invalid| polynomial.q_range = invalid,
+            |polynomial, invalid| polynomial.q_logic = invalid,
+            |polynomial, invalid| polynomial.q_fixed_group_add = invalid,
+            |polynomial, invalid| polynomial.q_variable_group_add = invalid,
+        ];
+
+        for set_invalid in setters {
+            let mut circuit = circuit();
+            let invalid = scalar_map(false).len();
+            set_invalid(&mut circuit.polynomials[0], invalid);
+            assert_invalid_without_panicking(&circuit);
+        }
+    }
+
+    #[test]
+    fn invalid_public_input_indices_are_rejected_without_panicking() {
+        let mut out_of_range = circuit();
+        out_of_range.public_inputs = vec![1];
+        assert_invalid_without_panicking(&out_of_range);
+
+        for public_inputs in [vec![0, 0], vec![1, 0]] {
+            let mut circuit = circuit();
+            circuit.constraints.push(CompressedConstraint::default());
+            circuit.public_inputs = public_inputs;
+            assert_invalid_without_panicking(&circuit);
+        }
     }
 }
