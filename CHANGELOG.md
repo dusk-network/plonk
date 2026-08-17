@@ -69,6 +69,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Reject invalid witness, polynomial, selector and public-input indices when
+  deserializing compressed circuits [#930]
 - Reject trailing data when deserializing compressed circuits [#913]
 - Validate cached permutation linear evaluations during checked `Prover`
   deserialization [#908]
@@ -753,6 +755,7 @@ is necessary since `rkyv/validation` was required as a bound.
 - Proof system module.
 
 <!-- ISSUES -->
+[#930]: https://github.com/dusk-network/plonk/issues/930
 [#914]: https://github.com/dusk-network/plonk/issues/914
 [#913]: https://github.com/dusk-network/plonk/issues/913
 [#910]: https://github.com/dusk-network/plonk/issues/910
