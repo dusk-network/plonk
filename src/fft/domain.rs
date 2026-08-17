@@ -366,6 +366,20 @@ pub(crate) mod alloc {
     }
 
     #[cfg(feature = "std")]
+    pub(super) const PARALLEL_FINAL_FFT_MIN_LEN: usize = 1 << 12;
+    #[cfg(feature = "std")]
+    pub(super) const PARALLEL_FINAL_FFT_MIN_THREADS: usize = 4;
+
+    #[cfg(feature = "std")]
+    pub(super) fn should_parallelize_final_fft_stages(
+        len: usize,
+        threads: usize,
+    ) -> bool {
+        len >= PARALLEL_FINAL_FFT_MIN_LEN
+            && threads >= PARALLEL_FINAL_FFT_MIN_THREADS
+    }
+
+    #[cfg(feature = "std")]
     fn best_fft(a: &mut [BlsScalar], omega: BlsScalar, log_n: u32) {
         const PARALLEL_FFT_MIN_LEN: usize = 1 << 12;
         const PARALLEL_FFT_MIN_CHUNKS: usize = 4;
@@ -379,12 +393,7 @@ pub(crate) mod alloc {
         let n_u32 = n as u32;
         assert_eq!(n_u32, 1 << log_n);
 
-        for k in 0..n_u32 {
-            let rk = bitreverse(k, log_n);
-            if k < rk {
-                a.swap(rk as usize, k as usize);
-            }
-        }
+        bitreverse_permute(a, log_n);
 
         let mut m = 1usize;
         for _ in 0..log_n {
@@ -395,6 +404,13 @@ pub(crate) mod alloc {
             if chunk_count >= PARALLEL_FFT_MIN_CHUNKS {
                 a.par_chunks_mut(chunk_len)
                     .for_each(|chunk| butterfly_chunk(chunk, m, w_m));
+            } else if should_parallelize_final_fft_stages(
+                n,
+                rayon::current_num_threads(),
+            ) {
+                for chunk in a.chunks_mut(chunk_len) {
+                    parallel_butterfly_chunk(chunk, m, w_m);
+                }
             } else {
                 for chunk in a.chunks_mut(chunk_len) {
                     butterfly_chunk(chunk, m, w_m);
@@ -415,6 +431,15 @@ pub(crate) mod alloc {
         r
     }
 
+    fn bitreverse_permute(a: &mut [BlsScalar], log_n: u32) {
+        for k in 0..a.len() as u32 {
+            let rk = bitreverse(k, log_n);
+            if k < rk {
+                a.swap(rk as usize, k as usize);
+            }
+        }
+    }
+
     pub(crate) fn serial_fft(
         a: &mut [BlsScalar],
         omega: BlsScalar,
@@ -423,52 +448,71 @@ pub(crate) mod alloc {
         let n = a.len() as u32;
         assert_eq!(n, 1 << log_n);
 
-        for k in 0..n {
-            let rk = bitreverse(k, log_n);
-            if k < rk {
-                a.swap(rk as usize, k as usize);
-            }
-        }
+        bitreverse_permute(a, log_n);
 
         let mut m = 1;
         for _ in 0..log_n {
             let w_m = omega.pow(&[(n / (2 * m)) as u64, 0, 0, 0]);
 
-            let mut k = 0;
-            while k < n {
-                let mut w = BlsScalar::one();
-                for j in 0..m {
-                    let mut t = a[(k + j + m) as usize];
-                    t *= &w;
-                    let mut tmp = a[(k + j) as usize];
-                    tmp -= &t;
-                    a[(k + j + m) as usize] = tmp;
-                    a[(k + j) as usize] += &t;
-                    w.mul_assign(&w_m);
-                }
-
-                k += 2 * m;
+            for chunk in a.chunks_mut((2 * m) as usize) {
+                butterfly_chunk(chunk, m as usize, w_m);
             }
 
             m *= 2;
         }
     }
 
-    #[cfg(feature = "std")]
     #[inline]
     fn butterfly_chunk(chunk: &mut [BlsScalar], m: usize, w_m: BlsScalar) {
         let (left, right) = chunk.split_at_mut(m);
-        let mut w = BlsScalar::one();
+        butterfly_range(left, right, w_m, BlsScalar::one());
+    }
 
-        for j in 0..m {
-            let mut t = right[j];
+    #[inline]
+    fn butterfly_range(
+        left: &mut [BlsScalar],
+        right: &mut [BlsScalar],
+        w_m: BlsScalar,
+        mut w: BlsScalar,
+    ) {
+        debug_assert_eq!(left.len(), right.len());
+
+        for (left, right) in left.iter_mut().zip(right) {
+            let mut t = *right;
             t *= &w;
-            let mut tmp = left[j];
+            let mut tmp = *left;
             tmp -= &t;
-            right[j] = tmp;
-            left[j] += &t;
+            *right = tmp;
+            *left += &t;
             w.mul_assign(&w_m);
         }
+    }
+
+    #[cfg(feature = "std")]
+    fn parallel_butterfly_chunk(
+        chunk: &mut [BlsScalar],
+        m: usize,
+        w_m: BlsScalar,
+    ) {
+        let (left, right) = chunk.split_at_mut(m);
+        let range_len = m.div_ceil(rayon::current_num_threads());
+        let range_count = m.div_ceil(range_len);
+        let seed_step = w_m.pow_vartime(&[range_len as u64, 0, 0, 0]);
+        let mut seed = BlsScalar::one();
+        let seeds = (0..range_count)
+            .map(|_| {
+                let current = seed;
+                seed *= &seed_step;
+                current
+            })
+            .collect::<Vec<_>>();
+
+        left.par_chunks_mut(range_len)
+            .zip(right.par_chunks_mut(range_len))
+            .zip(seeds)
+            .for_each(|((left, right), seed)| {
+                butterfly_range(left, right, w_m, seed)
+            });
     }
 
     /// An iterator over the elements of the domain.
@@ -527,19 +571,50 @@ mod tests {
     #[test]
     fn parallel_fft_matches_serial_fft_for_large_domain() {
         let domain = EvaluationDomain::new(1 << 12).unwrap();
-        let parallel = (0..domain.size())
+        let input = (0..domain.size())
             .map(|i| BlsScalar::from((i as u64) + 1))
             .collect::<Vec<_>>();
-        let mut serial = parallel.clone();
-
-        let parallel = domain.fft(&parallel);
+        let mut serial = input.clone();
         crate::fft::domain::alloc::serial_fft(
             &mut serial,
             domain.group_gen,
             domain.log_size_of_group,
         );
 
-        assert_eq!(parallel, serial);
+        assert!(
+            !crate::fft::domain::alloc::should_parallelize_final_fft_stages(
+                1 << 11,
+                8
+            )
+        );
+        assert!(
+            !crate::fft::domain::alloc::should_parallelize_final_fft_stages(
+                1 << 12,
+                3
+            )
+        );
+        assert!(
+            crate::fft::domain::alloc::should_parallelize_final_fft_stages(
+                1 << 12,
+                4
+            )
+        );
+
+        for threads in [3, 4, 9] {
+            let pool = rayon::ThreadPoolBuilder::new()
+                .num_threads(threads)
+                .build()
+                .unwrap();
+            let parallel = pool.install(|| domain.fft(&input));
+
+            assert_eq!(parallel, serial, "failed with {threads} threads");
+
+            let roundtrip = pool.install(|| domain.ifft(&parallel));
+            assert_eq!(
+                roundtrip, input,
+                "roundtrip failed with {threads} threads"
+            );
+        }
     }
 
     #[test]
