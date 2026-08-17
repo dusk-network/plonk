@@ -9,10 +9,12 @@ use alloc::vec::Vec;
 use constants::{K1, K2, K3};
 use dusk_bls12_381::BlsScalar;
 use hashbrown::HashMap;
-use itertools::izip;
+#[cfg(feature = "std")]
+use rayon::prelude::*;
 
 use crate::composer::{WireData, Witness};
 use crate::fft::{EvaluationDomain, Polynomial};
+use crate::util::batch_inversion;
 
 pub(crate) mod constants;
 
@@ -208,94 +210,87 @@ impl Permutation {
         ]
     }
 
-    // Uses a rayon multizip to allow more code flexibility while remaining
-    // parallelizable. This can be adapted into a general product argument
-    // for any number of wires.
     pub(crate) fn compute_permutation_vec(
         &self,
         domain: &EvaluationDomain,
         wires: [&[BlsScalar]; 4],
         beta: &BlsScalar,
         gamma: &BlsScalar,
-        sigma_polys: [&Polynomial; 4],
+        sigma_evaluations: [&[BlsScalar]; 4],
     ) -> Vec<BlsScalar> {
         let n = domain.size();
+        let roots: Vec<_> = domain.elements().collect();
+        let numerators =
+            Self::permutation_numerators(&roots, wires, beta, gamma);
+        let mut denominators = Self::permutation_denominators(
+            wires,
+            sigma_evaluations,
+            beta,
+            gamma,
+        );
 
-        // Constants defining cosets H, k1H, k2H, etc
-        let ks = vec![BlsScalar::one(), K1, K2, K3];
+        assert!(
+            denominators.iter().all(|value| *value != BlsScalar::zero()),
+            "permutation denominator must be nonzero"
+        );
+        batch_inversion(&mut denominators);
 
-        // Transpose wires and sigma values to get "rows" in the form [a_i,
-        // b_i, c_i, d_i] where each row contains the wire and sigma
-        // values for a single gate
-        let gatewise_wires = izip!(wires[0], wires[1], wires[2], wires[3])
-            .map(|(w0, w1, w2, w3)| vec![w0, w1, w2, w3]);
+        let mut permutation = Vec::with_capacity(n);
+        let mut product = BlsScalar::one();
 
-        let gatewise_sigmas: Vec<Vec<BlsScalar>> =
-            sigma_polys.iter().map(|sigma| domain.fft(sigma)).collect();
-        let gatewise_sigmas = izip!(
-            &gatewise_sigmas[0],
-            &gatewise_sigmas[1],
-            &gatewise_sigmas[2],
-            &gatewise_sigmas[3]
-        )
-        .map(|(s0, s1, s2, s3)| vec![s0, s1, s2, s3]);
-
-        // Compute all roots
-        // Non-parallelizable?
-        let roots: Vec<BlsScalar> = domain.elements().collect();
-
-        let product_argument = izip!(roots, gatewise_sigmas, gatewise_wires)
-            // Associate each wire value in a gate with the k defining its coset
-            .map(|(gate_root, gate_sigmas, gate_wires)| {
-                (gate_root, izip!(gate_sigmas, gate_wires, &ks))
-            })
-            // Now the ith element represents gate i and will have the form:
-            //   (root_i, ((w0_i, s0_i, k0), (w1_i, s1_i, k1), ..., (wm_i, sm_i,
-            // km)))   for m different wires, which is all the
-            // information   needed for a single product coefficient
-            // for a single gate Multiply up the numerator and
-            // denominator irreducibles for each gate   and pair the
-            // results
-            .map(|(gate_root, wire_params)| {
-                (
-                    // Numerator product
-                    wire_params
-                        .clone()
-                        .map(|(_sigma, wire, k)| {
-                            wire + beta * k * gate_root + gamma
-                        })
-                        .product::<BlsScalar>(),
-                    // Denominator product
-                    wire_params
-                        .map(|(sigma, wire, _k)| wire + beta * sigma + gamma)
-                        .product::<BlsScalar>(),
-                )
-            })
-            // Divide each pair to get the single scalar representing each gate
-            .map(|(n, d)| n * d.invert().unwrap())
-            // Collect into vector intermediary since rayon does not support
-            // `scan`
-            .collect::<Vec<BlsScalar>>();
-
-        let mut z = Vec::with_capacity(n);
-
-        // First element is one
-        let mut state = BlsScalar::one();
-        z.push(state);
-
-        // Accumulate by successively multiplying the scalars
-        // Non-parallelizable?
-        for s in product_argument {
-            state *= s;
-            z.push(state);
+        for i in 0..n {
+            permutation.push(product);
+            if i + 1 < n {
+                product *= numerators[i] * denominators[i];
+            }
         }
 
-        // Remove the last(n+1'th) element
-        z.remove(n);
+        permutation
+    }
 
-        assert_eq!(n, z.len());
+    fn permutation_numerators(
+        roots: &[BlsScalar],
+        wires: [&[BlsScalar]; 4],
+        beta: &BlsScalar,
+        gamma: &BlsScalar,
+    ) -> Vec<BlsScalar> {
+        #[cfg(not(feature = "std"))]
+        let range = 0..roots.len();
+        #[cfg(feature = "std")]
+        let range = (0..roots.len()).into_par_iter();
 
-        z
+        range
+            .map(|i| {
+                let beta_root = beta * roots[i];
+                let a = wires[0][i] + beta_root + gamma;
+                let b = wires[1][i] + beta_root * K1 + gamma;
+                let c = wires[2][i] + beta_root * K2 + gamma;
+                let d = wires[3][i] + beta_root * K3 + gamma;
+                a * b * c * d
+            })
+            .collect()
+    }
+
+    fn permutation_denominators(
+        wires: [&[BlsScalar]; 4],
+        sigma_evaluations: [&[BlsScalar]; 4],
+        beta: &BlsScalar,
+        gamma: &BlsScalar,
+    ) -> Vec<BlsScalar> {
+        #[cfg(not(feature = "std"))]
+        let range = 0..wires[0].len();
+        #[cfg(feature = "std")]
+        let range = (0..wires[0].len()).into_par_iter();
+
+        range
+            .map(|i| {
+                let a = wires[0][i] + beta * sigma_evaluations[0][i] + gamma;
+                let b = wires[1][i] + beta * sigma_evaluations[1][i] + gamma;
+                let c = wires[2][i] + beta * sigma_evaluations[2][i] + gamma;
+                let d = wires[3][i] + beta * sigma_evaluations[3][i] + gamma;
+                a * b * c * d
+            })
+            .collect()
     }
 }
 
@@ -304,6 +299,7 @@ impl Permutation {
 mod test {
     use dusk_bls12_381::BlsScalar;
     use ff::Field;
+    use itertools::izip;
     use rand_core::OsRng;
 
     use super::*;
@@ -1035,6 +1031,26 @@ mod test {
             ),
         );
         assert_eq!(fast_z_vec, z_vec);
+
+        let sigma_evaluations = [
+            domain.fft(&s_sigma_1_poly),
+            domain.fft(&s_sigma_2_poly),
+            domain.fft(&s_sigma_3_poly),
+            domain.fft(&s_sigma_4_poly),
+        ];
+        let batched_z_vec = perm.compute_permutation_vec(
+            domain,
+            [&a, &b, &c, &d],
+            &beta,
+            &gamma,
+            [
+                &sigma_evaluations[0],
+                &sigma_evaluations[1],
+                &sigma_evaluations[2],
+                &sigma_evaluations[3],
+            ],
+        );
+        assert_eq!(batched_z_vec, z_vec);
 
         // 2. First we perform basic tests on the permutation vector
         //

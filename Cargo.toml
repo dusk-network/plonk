@@ -23,7 +23,6 @@ dusk-bytes = "0.1"
 dusk-bls12_381 = {version = "0.14", default-features = false, features = ["groups", "pairings"]}
 dusk-jubjub = {version = "0.15", default-features = false}
 ff = {version = "0.13", default-features = false}
-itertools = {version = "0.9", default-features = false}
 hashbrown = {version = "0.9", default-features=false, features = ["ahash"]}
 msgpacker = {version = "=0.4.8", default-features=false, features = ["alloc", "derive"], optional=true}
 miniz_oxide = {version = "0.7", default-features=false, features = ["with-alloc"], optional = true}
@@ -41,6 +40,7 @@ zeroize = { version = "1", optional = true }
 criterion = "0.5"
 tempdir = "0.3"
 rand = "0.8"
+itertools = {version = "0.9", default-features = false}
 rkyv = {version = "0.7", default-features = false, features = ["size_32", "validation"]}
 
 [features]
@@ -50,7 +50,6 @@ std = [
     "rand_core/std",
     "dusk-bls12_381/default",  # Includes `parallel`
     "dusk-jubjub/default",
-    "itertools/default",
     "hashbrown/default",
     "msgpacker/std",
     "miniz_oxide/std",

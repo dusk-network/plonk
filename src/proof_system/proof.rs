@@ -1529,14 +1529,14 @@ mod soundness_tests {
 
         let aggregate_witness = CommitKey::compute_aggregate_witness(
             &[
-                r_poly,
-                a_poly.clone(),
-                b_poly.clone(),
-                c_poly.clone(),
-                d_poly.clone(),
-                prover.prover_key.permutation.s_sigma_1.0.clone(),
-                prover.prover_key.permutation.s_sigma_2.0.clone(),
-                prover.prover_key.permutation.s_sigma_3.0.clone(),
+                &r_poly,
+                &a_poly,
+                &b_poly,
+                &c_poly,
+                &d_poly,
+                &prover.prover_key.permutation.s_sigma_1.0,
+                &prover.prover_key.permutation.s_sigma_2.0,
+                &prover.prover_key.permutation.s_sigma_3.0,
             ],
             &z_challenge,
             &v_challenge,
@@ -1547,7 +1547,7 @@ mod soundness_tests {
         let v_w_challenge = transcript.challenge_scalar(b"v_w_challenge");
 
         let shifted_aggregate_witness = CommitKey::compute_aggregate_witness(
-            &[z_poly, a_poly, b_poly, d_poly],
+            &[&z_poly, &a_poly, &b_poly, &d_poly],
             &(z_challenge * domain.group_gen),
             &v_w_challenge,
         );

@@ -14,7 +14,7 @@ use merlin::Transcript;
 use rand_core::{CryptoRng, RngCore};
 
 use super::{Circuit, Composer, PlonkVersion};
-use crate::commitment_scheme::CommitKey;
+use crate::commitment_scheme::{CommitKey, Commitment};
 use crate::compiler::prover::linearization_poly::ProofEvaluations;
 use crate::error::Error;
 use crate::fft::{EvaluationDomain, Polynomial};
@@ -32,6 +32,7 @@ pub struct Prover {
     pub(crate) commit_key: CommitKey,
     pub(crate) verifier_key: VerifierKey,
     pub(crate) transcript: Transcript,
+    sigma_evaluations: [Vec<BlsScalar>; 4],
     pub(crate) size: usize,
     pub(crate) constraints: usize,
 }
@@ -52,19 +53,27 @@ impl Prover {
         verifier_key: VerifierKey,
         size: usize,
         constraints: usize,
-    ) -> Self {
+    ) -> Result<Self, Error> {
         let transcript =
             Transcript::base(label.as_slice(), &verifier_key, constraints);
+        let domain = EvaluationDomain::new(constraints)?;
+        let sigma_evaluations = [
+            domain.fft(&prover_key.permutation.s_sigma_1.0),
+            domain.fft(&prover_key.permutation.s_sigma_2.0),
+            domain.fft(&prover_key.permutation.s_sigma_3.0),
+            domain.fft(&prover_key.permutation.s_sigma_4.0),
+        ];
 
-        Self {
+        Ok(Self {
             label,
             prover_key,
             commit_key,
             verifier_key,
             transcript,
+            sigma_evaluations,
             size,
             constraints,
-        }
+        })
     }
 
     /// adds blinding scalars to a witness vector
@@ -83,16 +92,83 @@ impl Prover {
     where
         R: RngCore + CryptoRng,
     {
-        let mut w_vec_inverse = domain.ifft(witnesses);
+        let blinders: Vec<_> = (0..=hiding_degree)
+            .map(|_| BlsScalar::random(&mut *rng))
+            .collect();
+        Self::blind_poly_with_blinders(witnesses, &blinders, domain)
+    }
 
-        for i in 0..hiding_degree + 1 {
-            let blinding_scalar = BlsScalar::random(&mut *rng);
+    fn blind_poly_with_blinders(
+        witnesses: &[BlsScalar],
+        blinders: &[BlsScalar],
+        domain: &EvaluationDomain,
+    ) -> Polynomial {
+        let mut coefficients = domain.ifft(witnesses);
 
-            w_vec_inverse[i] -= blinding_scalar;
-            w_vec_inverse.push(blinding_scalar);
+        for (i, blinding_scalar) in blinders.iter().copied().enumerate() {
+            coefficients[i] -= blinding_scalar;
+            coefficients.push(blinding_scalar);
         }
 
-        Polynomial::from_coefficients_vec(w_vec_inverse)
+        Polynomial::from_coefficients_vec(coefficients)
+    }
+
+    fn sample_wire_blinders<R>(rng: &mut R) -> [[BlsScalar; 2]; 4]
+    where
+        R: RngCore + CryptoRng,
+    {
+        core::array::from_fn(|_| {
+            core::array::from_fn(|_| BlsScalar::random(&mut *rng))
+        })
+    }
+
+    fn blind_wire_polynomials(
+        witnesses: [&[BlsScalar]; 4],
+        blinders: &[[BlsScalar; 2]; 4],
+        domain: &EvaluationDomain,
+    ) -> [Polynomial; 4] {
+        let blind = |i: usize| {
+            let blinders = blinders[i].as_slice();
+            Self::blind_poly_with_blinders(witnesses[i], blinders, domain)
+        };
+        #[cfg(feature = "std")]
+        {
+            let ((a, b), (c, d)) = rayon::join(
+                || rayon::join(|| blind(0), || blind(1)),
+                || rayon::join(|| blind(2), || blind(3)),
+            );
+            [a, b, c, d]
+        }
+
+        #[cfg(not(feature = "std"))]
+        {
+            [blind(0), blind(1), blind(2), blind(3)]
+        }
+    }
+
+    fn commit_polynomials(
+        &self,
+        polynomials: [&Polynomial; 4],
+    ) -> Result<[Commitment; 4], Error> {
+        #[cfg(feature = "std")]
+        {
+            let commit = |i: usize| self.commit_key.commit(polynomials[i]);
+            let ((a, b), (c, d)) = rayon::join(
+                || rayon::join(|| commit(0), || commit(1)),
+                || rayon::join(|| commit(2), || commit(3)),
+            );
+            Ok([a?, b?, c?, d?])
+        }
+
+        #[cfg(not(feature = "std"))]
+        {
+            Ok([
+                self.commit_key.commit(polynomials[0])?,
+                self.commit_key.commit(polynomials[1])?,
+                self.commit_key.commit(polynomials[2])?,
+                self.commit_key.commit(polynomials[3])?,
+            ])
+        }
     }
 
     fn prepare_serialize(
@@ -222,14 +298,14 @@ impl Prover {
 
         let verifier_key = VerifierKey::from_slice(verifier_key)?;
 
-        Ok(Self::new(
+        Self::new(
             label,
             prover_key,
             commit_key,
             verifier_key,
             size,
             constraints,
-        ))
+        )
     }
 
     /// Prove the circuit using the current (latest) proving behavior.
@@ -345,17 +421,18 @@ impl Prover {
                 d_scalars[i] = prover[constraint.d];
             });
 
-        let a_poly = Self::blind_poly(rng, &a_scalars, 1, &domain);
-        let b_poly = Self::blind_poly(rng, &b_scalars, 1, &domain);
-        let c_poly = Self::blind_poly(rng, &c_scalars, 1, &domain);
-        let d_poly = Self::blind_poly(rng, &d_scalars, 1, &domain);
+        let wire_blinders = Self::sample_wire_blinders(rng);
+
+        let [a_poly, b_poly, c_poly, d_poly] = Self::blind_wire_polynomials(
+            [&a_scalars, &b_scalars, &c_scalars, &d_scalars],
+            &wire_blinders,
+            &domain,
+        );
 
         // commit to wire polynomials
         // ([a(x)]_1, [b(x)]_1, [c(x)]_1, [d(x)]_1)
-        let a_comm = self.commit_key.commit(&a_poly)?;
-        let b_comm = self.commit_key.commit(&b_poly)?;
-        let c_comm = self.commit_key.commit(&c_poly)?;
-        let d_comm = self.commit_key.commit(&d_poly)?;
+        let [a_comm, b_comm, c_comm, d_comm] =
+            self.commit_polynomials([&a_poly, &b_poly, &c_poly, &d_poly])?;
 
         // Add wire polynomial commitments to transcript
         transcript.append_commitment(b"a_comm", &a_comm);
@@ -370,10 +447,10 @@ impl Prover {
 
         let gamma = transcript.challenge_scalar(b"gamma");
         let sigma = [
-            &self.prover_key.permutation.s_sigma_1.0,
-            &self.prover_key.permutation.s_sigma_2.0,
-            &self.prover_key.permutation.s_sigma_3.0,
-            &self.prover_key.permutation.s_sigma_4.0,
+            self.sigma_evaluations[0].as_slice(),
+            self.sigma_evaluations[1].as_slice(),
+            self.sigma_evaluations[2].as_slice(),
+            self.sigma_evaluations[3].as_slice(),
         ];
         let wires = [
             a_scalars.as_slice(),
@@ -458,10 +535,13 @@ impl Prover {
         let t_fourth_poly = Polynomial::from_coefficients_vec(t_fourth_vec);
 
         // commit to split quotient polynomial
-        let t_low_comm = self.commit_key.commit(&t_low_poly)?;
-        let t_mid_comm = self.commit_key.commit(&t_mid_poly)?;
-        let t_high_comm = self.commit_key.commit(&t_high_poly)?;
-        let t_fourth_comm = self.commit_key.commit(&t_fourth_poly)?;
+        let [t_low_comm, t_mid_comm, t_high_comm, t_fourth_comm] = self
+            .commit_polynomials([
+                &t_low_poly,
+                &t_mid_poly,
+                &t_high_poly,
+                &t_fourth_poly,
+            ])?;
 
         // add quotient polynomial commitments to transcript
         transcript.append_commitment(b"t_low_comm", &t_low_comm);
@@ -586,21 +666,21 @@ impl Prover {
         // compute the opening proof polynomial 'W_z(X)'
         let aggregate_witness = CommitKey::compute_aggregate_witness(
             &[
-                r_poly,
-                a_poly.clone(),
-                b_poly.clone(),
-                c_poly,
-                d_poly.clone(),
-                self.prover_key.permutation.s_sigma_1.0.clone(),
-                self.prover_key.permutation.s_sigma_2.0.clone(),
-                self.prover_key.permutation.s_sigma_3.0.clone(),
+                &r_poly,
+                &a_poly,
+                &b_poly,
+                &c_poly,
+                &d_poly,
+                &self.prover_key.permutation.s_sigma_1.0,
+                &self.prover_key.permutation.s_sigma_2.0,
+                &self.prover_key.permutation.s_sigma_3.0,
                 // Bind selector evaluations (q_*) used inside the verifier
                 // linearization commitment to their committed polynomials
                 // by including them in the same batched opening at `z`.
-                self.prover_key.arithmetic.q_arith.0.clone(),
-                self.prover_key.arithmetic.q_c.0.clone(),
-                self.prover_key.arithmetic.q_l.0.clone(),
-                self.prover_key.arithmetic.q_r.0.clone(),
+                &self.prover_key.arithmetic.q_arith.0,
+                &self.prover_key.arithmetic.q_c.0,
+                &self.prover_key.arithmetic.q_l.0,
+                &self.prover_key.arithmetic.q_r.0,
             ],
             &z_challenge,
             &v_challenge,
@@ -612,7 +692,7 @@ impl Prover {
 
         // compute the shifted opening proof polynomial 'W_zw(X)'
         let shifted_aggregate_witness = CommitKey::compute_aggregate_witness(
-            &[z_poly, a_poly, b_poly, d_poly],
+            &[&z_poly, &a_poly, &b_poly, &d_poly],
             &(z_challenge * domain.group_gen),
             &v_w_challenge,
         );
@@ -896,6 +976,84 @@ mod tests {
             .copy_from_slice(&replacement);
 
         assert_deserialization_error_without_panic(&bytes);
+    }
+
+    #[test]
+    fn precomputed_wire_blinders_preserve_rng_order() {
+        let domain = EvaluationDomain::new(8).unwrap();
+        let witnesses: Vec<_> = (0..domain.size())
+            .map(|i| BlsScalar::from(i as u64))
+            .collect();
+        let mut sequential_rng = StdRng::seed_from_u64(0x51_6d_a);
+        let mut precomputed_rng = sequential_rng.clone();
+
+        let sequential = [
+            Prover::blind_poly(&mut sequential_rng, &witnesses, 1, &domain),
+            Prover::blind_poly(&mut sequential_rng, &witnesses, 1, &domain),
+            Prover::blind_poly(&mut sequential_rng, &witnesses, 1, &domain),
+            Prover::blind_poly(&mut sequential_rng, &witnesses, 1, &domain),
+        ];
+        let blinders = Prover::sample_wire_blinders(&mut precomputed_rng);
+        let precomputed = blinders.map(|blinders| {
+            Prover::blind_poly_with_blinders(&witnesses, &blinders, &domain)
+        });
+
+        assert_eq!(precomputed, sequential);
+    }
+
+    #[test]
+    fn deterministic_v3_proof_matches_base_digest() {
+        let mut setup_rng = StdRng::seed_from_u64(0x9235_e700);
+        let pp = PublicParameters::setup(1 << 10, &mut setup_rng)
+            .expect("public parameters should build");
+        let (prover, _) =
+            Compiler::compile::<MinimalCircuit>(&pp, b"proof-compatibility")
+                .expect("circuit should compile");
+        let mut proving_rng = StdRng::seed_from_u64(0x9235_e701);
+        let (proof, _) = prover
+            .prove_with_version(
+                &mut proving_rng,
+                &MinimalCircuit,
+                crate::compiler::PlonkVersion::V3,
+            )
+            .expect("V3 proof should build");
+
+        // Generated at the PR's base revision, 768cf849. This pins proof
+        // bytes, including transcript challenges and proving RNG order.
+        let expected = [
+            0xe8, 0x56, 0x4e, 0xc2, 0x2d, 0x8c, 0xc0, 0xba, 0x60, 0x36, 0x26,
+            0x02, 0x5d, 0xa3, 0x75, 0x50, 0x77, 0xaa, 0xf0, 0x32, 0x32, 0x61,
+            0x90, 0x8d, 0xab, 0x68, 0xd6, 0x94, 0x73, 0x6f, 0xc2, 0x73, 0xd3,
+            0x1e, 0x25, 0x6c, 0xbd, 0x3a, 0x6a, 0x21, 0xe7, 0xad, 0xe6, 0x31,
+            0x91, 0xac, 0x5c, 0x9d, 0x44, 0xa1, 0x13, 0xac, 0x49, 0x89, 0xa5,
+            0x2e, 0x4b, 0xe3, 0xab, 0xeb, 0x1d, 0x33, 0x32, 0x37,
+        ];
+        let digest = blake2b_simd::blake2b(&proof.to_bytes());
+
+        assert_eq!(digest.as_array(), &expected);
+    }
+
+    #[test]
+    fn prover_roundtrip_reconstructs_sigma_evaluations() {
+        let mut rng = StdRng::seed_from_u64(47);
+        let pp = PublicParameters::setup(1 << 10, &mut rng)
+            .expect("public parameters should build");
+        let (prover, verifier) =
+            Compiler::compile::<MinimalCircuit>(&pp, b"sigma-cache")
+                .expect("circuit should compile");
+        let bytes = prover.to_bytes();
+
+        let decoded = Prover::try_from_bytes(&bytes)
+            .expect("serialized prover should decode");
+        assert_eq!(decoded.sigma_evaluations, prover.sigma_evaluations);
+        assert_eq!(decoded.to_bytes(), bytes);
+
+        let (proof, public_inputs) = decoded
+            .prove(&mut rng, &MinimalCircuit)
+            .expect("decoded prover should prove");
+        verifier
+            .verify(&proof, &public_inputs)
+            .expect("proof from decoded prover should verify");
     }
 
     #[test]
