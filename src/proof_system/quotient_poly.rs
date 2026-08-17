@@ -13,11 +13,12 @@ use rayon::prelude::*;
 use crate::error::Error;
 use crate::fft::{EvaluationDomain, Polynomial};
 use crate::proof_system::ProverKey;
+use crate::util::batch_inversion;
 
 /// Computes the Quotient [`Polynomial`] given the [`EvaluationDomain`], a
 /// [`ProverKey`] and some other info.
 pub(crate) fn compute(
-    domain: &EvaluationDomain,
+    quotient_domain: &EvaluationDomain,
     prover_key: &ProverKey,
     z_poly: &Polynomial,
     (a_poly, b_poly, c_poly, d_poly): (
@@ -27,6 +28,7 @@ pub(crate) fn compute(
         &Polynomial,
     ),
     public_inputs_poly: &Polynomial,
+    vanishing_coset_inverses: &[BlsScalar; 8],
     (
         alpha,
         beta,
@@ -45,9 +47,6 @@ pub(crate) fn compute(
         BlsScalar,
     ),
 ) -> Result<Polynomial, Error> {
-    // Compute 8n evals
-    let domain_8n = EvaluationDomain::new(8 * domain.size())?;
-
     let [
         mut z_eval_8n,
         mut a_eval_8n,
@@ -55,7 +54,7 @@ pub(crate) fn compute(
         c_eval_8n,
         mut d_eval_8n,
     ] = compute_coset_evaluations(
-        &domain_8n,
+        quotient_domain,
         [z_poly, a_poly, b_poly, c_poly, d_poly],
     );
 
@@ -68,7 +67,7 @@ pub(crate) fn compute(
     }
 
     let t_1 = compute_circuit_satisfiability_equation(
-        domain,
+        quotient_domain,
         (
             range_challenge,
             logic_challenge,
@@ -81,7 +80,7 @@ pub(crate) fn compute(
     );
 
     let t_2 = compute_permutation_checks(
-        domain,
+        quotient_domain,
         prover_key,
         (&a_eval_8n, &b_eval_8n, &c_eval_8n, &d_eval_8n),
         &z_eval_8n,
@@ -89,20 +88,19 @@ pub(crate) fn compute(
     );
 
     #[cfg(not(feature = "std"))]
-    let range = (0..domain_8n.size()).into_iter();
+    let range = (0..quotient_domain.size()).into_iter();
 
     #[cfg(feature = "std")]
-    let range = (0..domain_8n.size()).into_par_iter();
+    let range = (0..quotient_domain.size()).into_par_iter();
 
     let quotient: Vec<_> = range
         .map(|i| {
             let numerator = t_1[i] + t_2[i];
-            let denominator = prover_key.v_h_coset_8n()[i];
-            numerator * denominator.invert().unwrap()
+            numerator * vanishing_coset_inverses[i & 7]
         })
         .collect();
 
-    let coset = domain_8n.coset_ifft(&quotient);
+    let coset = quotient_domain.coset_ifft(&quotient);
     let quotient_poly = Polynomial::from_coefficients_vec(coset);
 
     // A satisfied assignment yields a numerator divisible by the vanishing
@@ -131,7 +129,7 @@ pub(crate) fn compute(
     // degree in constant time instead of rescanning the coefficients, and
     // `degree() >= 7n` becomes `len() > 7n` (the empty polynomial passes
     // either way).
-    if quotient_poly.len() > 7 * domain.size() {
+    if quotient_poly.len() > 7 * (quotient_domain.size() / 8) {
         return Err(Error::CircuitUnsatisfied);
     }
 
@@ -160,7 +158,7 @@ fn compute_coset_evaluations(
 
 // Ensures that the circuit is satisfied
 fn compute_circuit_satisfiability_equation(
-    domain: &EvaluationDomain,
+    quotient_domain: &EvaluationDomain,
     (
         range_challenge,
         logic_challenge,
@@ -176,14 +174,13 @@ fn compute_circuit_satisfiability_equation(
     ),
     pi_poly: &Polynomial,
 ) -> Vec<BlsScalar> {
-    let domain_8n = EvaluationDomain::new(8 * domain.size()).unwrap();
-    let public_eval_8n = domain_8n.coset_fft(pi_poly);
+    let public_eval_8n = quotient_domain.coset_fft(pi_poly);
 
     #[cfg(not(feature = "std"))]
-    let range = (0..domain_8n.size()).into_iter();
+    let range = (0..quotient_domain.size()).into_iter();
 
     #[cfg(feature = "std")]
-    let range = (0..domain_8n.size()).into_par_iter();
+    let range = (0..quotient_domain.size()).into_par_iter();
 
     let t: Vec<_> = range
         .map(|i| {
@@ -254,7 +251,7 @@ fn compute_circuit_satisfiability_equation(
 }
 
 fn compute_permutation_checks(
-    domain: &EvaluationDomain,
+    quotient_domain: &EvaluationDomain,
     prover_key: &ProverKey,
     (a_eval_8n, b_eval_8n, c_eval_8n, d_eval_8n): (
         &[BlsScalar],
@@ -265,16 +262,32 @@ fn compute_permutation_checks(
     z_eval_8n: &[BlsScalar],
     (alpha, beta, gamma): (&BlsScalar, &BlsScalar, &BlsScalar),
 ) -> Vec<BlsScalar> {
-    let domain_8n = EvaluationDomain::new(8 * domain.size()).unwrap();
-    let l1_poly_alpha =
-        compute_first_lagrange_poly_scaled(domain, alpha.square());
-    let l1_alpha_sq_evals = domain_8n.coset_fft(&l1_poly_alpha);
+    let l1_alpha_sq = alpha.square();
+    let mut first_lagrange_coset_evaluations: Vec<_> = prover_key
+        .permutation
+        .linear_evaluations
+        .evals
+        .iter()
+        .map(|evaluation| *evaluation - BlsScalar::one())
+        .collect();
+    batch_inversion(&mut first_lagrange_coset_evaluations);
+
+    // The quotient domain has size 8n, while L1 is defined over the n-sized
+    // proving domain: L1(x) = (x^n - 1) / (n * (x - 1)).
+    let proving_domain_size_inv =
+        quotient_domain.size_inv * BlsScalar::from(8u64);
+    first_lagrange_coset_evaluations
+        .iter_mut()
+        .zip(&prover_key.v_h_coset_8n().evals)
+        .for_each(|(denominator_inv, vanishing)| {
+            *denominator_inv *= vanishing * proving_domain_size_inv;
+        });
 
     #[cfg(not(feature = "std"))]
-    let range = (0..domain_8n.size()).into_iter();
+    let range = (0..quotient_domain.size()).into_iter();
 
     #[cfg(feature = "std")]
-    let range = (0..domain_8n.size()).into_par_iter();
+    let range = (0..quotient_domain.size()).into_par_iter();
 
     let t: Vec<_> = range
         .map(|i| {
@@ -287,7 +300,7 @@ fn compute_permutation_checks(
                 &z_eval_8n[i],
                 &z_eval_8n[i + 8],
                 alpha,
-                &l1_alpha_sq_evals[i],
+                &(first_lagrange_coset_evaluations[i] * l1_alpha_sq),
                 beta,
                 gamma,
             )
@@ -295,16 +308,6 @@ fn compute_permutation_checks(
         .collect();
     t
 }
-fn compute_first_lagrange_poly_scaled(
-    domain: &EvaluationDomain,
-    scale: BlsScalar,
-) -> Polynomial {
-    let mut x_evals = vec![BlsScalar::zero(); domain.size()];
-    x_evals[0] = scale;
-    domain.ifft_in_place(&mut x_evals);
-    Polynomial::from_coefficients_vec(x_evals)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
