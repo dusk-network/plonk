@@ -321,26 +321,6 @@ pub(crate) mod alloc {
                 &z_challenge,
             );
 
-            // Compute '[D]_1'
-            let D = self
-                .compute_linearization_commitment(
-                    &alpha,
-                    &beta,
-                    &gamma,
-                    (
-                        &range_sep_challenge,
-                        &logic_sep_challenge,
-                        &fixed_base_sep_challenge,
-                        &var_base_sep_challenge,
-                    ),
-                    &z_challenge,
-                    &u_challenge,
-                    l1_eval,
-                    verifier_key,
-                    &domain,
-                )
-                .0;
-
             // Evaluate public inputs
             let pi_eval = compute_barycentric_eval_sparse(
                 public_input_indexes,
@@ -417,8 +397,30 @@ pub(crate) mod alloc {
                 .sum();
             E_scalar += -r_0_eval + (u_challenge * self.evaluations.z_eval);
 
+            // Fold all terms of [F]_1 - [E]_1 and the opening-witness
+            // terms for the right pairing input into the linearization MSM.
+            let mut scalarmuls_points = Vec::with_capacity(32);
+            let mut scalarmuls_scalars = Vec::with_capacity(32);
+            self.append_linearization_commitment_terms(
+                &mut scalarmuls_scalars,
+                &mut scalarmuls_points,
+                &alpha,
+                &beta,
+                &gamma,
+                (
+                    &range_sep_challenge,
+                    &logic_sep_challenge,
+                    &fixed_base_sep_challenge,
+                    &var_base_sep_challenge,
+                ),
+                &z_challenge,
+                z_h_eval,
+                &u_challenge,
+                l1_eval,
+                verifier_key,
+            );
             let mut f_scalars = [BlsScalar::zero(); V_MAX_DEGREE];
-            f_scalars.clone_from_slice(&v_coeffs_E[..V_MAX_DEGREE]);
+            f_scalars.copy_from_slice(&v_coeffs_E[..V_MAX_DEGREE]);
 
             // As we include the shifted coefficients when computing [F]_1,
             // we group them to save scalar multiplications when multiplying
@@ -443,40 +445,68 @@ pub(crate) mod alloc {
                 verifier_key.arithmetic.q_l.0,
                 verifier_key.arithmetic.q_r.0,
             ];
+            scalarmuls_points.extend_from_slice(&f_points);
+            scalarmuls_scalars.extend_from_slice(&f_scalars);
 
-            // [F]_1 = [D]_1 + (v)[a]_1 + (v^2)[b]_1 + (v^3)[c]_1 + (v^4)[d]_1 +
-            // + (v^5)[s_sigma_1]_1 + (v^6)[s_sigma_2]_1 + (v^7)[s_sigma_3]_1 +
-            // + (u * v_w)[a]_1 + (u * v_w^2)[b]_1 + (u * v_w^3)[d]_1
-            let mut F = msm_variable_base(&f_points, &f_scalars);
-            F += D;
-
-            // [E]_1 = E * G
-            let E = opening_key.g * E_scalar;
+            scalarmuls_points.push(opening_key.g);
+            scalarmuls_scalars.push(-E_scalar);
+            scalarmuls_points.push(self.w_z_chall_comm.0);
+            scalarmuls_scalars.push(z_challenge);
+            let shifted_witness_scalar =
+                u_challenge * z_challenge * domain.group_gen;
+            scalarmuls_points.push(self.w_z_chall_w_comm.0);
+            scalarmuls_scalars.push(shifted_witness_scalar);
 
             // Compute the G_1 element of the first pairing:
             // [W_z]_1 + u * [W_zw]_1
             //
             // Note that we negate this value to be able to subtract
-            // the pairings later on, using the multi Miller loop
-            let left = G1Affine::from(
-                -(self.w_z_chall_comm.0
-                    + (self.w_z_chall_w_comm.0 * u_challenge)),
-            );
+            // the pairings later on, using the multi Miller loop.
+            let left_projective = -(self.w_z_chall_comm.0
+                + (self.w_z_chall_w_comm.0 * u_challenge));
 
             // Compute the G_1 element of the second pairing:
             // z * [W_z]_1 + (u * z * w) * [W_zw]_1 + [F]_1 - [E]_1
-            let right = G1Affine::from(
-                (self.w_z_chall_comm.0 * z_challenge)
-                    + (self.w_z_chall_w_comm.0
-                        * (u_challenge * z_challenge * domain.group_gen))
-                    + F
-                    - E,
+            let right_projective =
+                msm_variable_base(&scalarmuls_points, &scalarmuls_scalars);
+
+            #[cfg(test)]
+            assert_grouped_msm_equivalence(
+                &right_projective,
+                self.compute_reference_linearization_commitment(
+                    &alpha,
+                    &beta,
+                    &gamma,
+                    (
+                        &range_sep_challenge,
+                        &logic_sep_challenge,
+                        &fixed_base_sep_challenge,
+                        &var_base_sep_challenge,
+                    ),
+                    &z_challenge,
+                    &u_challenge,
+                    l1_eval,
+                    verifier_key,
+                    &domain,
+                ),
+                &f_points,
+                &f_scalars,
+                opening_key.g,
+                E_scalar,
+                self.w_z_chall_comm.0,
+                z_challenge,
+                self.w_z_chall_w_comm.0,
+                shifted_witness_scalar,
             );
+
+            let projectives = [left_projective, right_projective];
+            let mut affines = [G1Affine::identity(); 2];
+            G1Projective::batch_normalize(&projectives, &mut affines);
 
             // Compute the two pairings and subtract them
             let pairing = dusk_bls12_381::multi_miller_loop(&[
-                (&left, &opening_key.prepared_x_h),
-                (&right, &opening_key.prepared_h),
+                (&affines[0], &opening_key.prepared_x_h),
+                (&affines[1], &opening_key.prepared_h),
             ])
             .final_exponentiation();
 
@@ -598,26 +628,6 @@ pub(crate) mod alloc {
                 &z_challenge,
             );
 
-            // Compute '[D]_1'
-            let D = self
-                .compute_linearization_commitment(
-                    &alpha,
-                    &beta,
-                    &gamma,
-                    (
-                        &range_sep_challenge,
-                        &logic_sep_challenge,
-                        &fixed_base_sep_challenge,
-                        &var_base_sep_challenge,
-                    ),
-                    &z_challenge,
-                    &u_challenge,
-                    l1_eval,
-                    verifier_key,
-                    &domain,
-                )
-                .0;
-
             // Evaluate public inputs
             let pi_eval = compute_barycentric_eval_sparse(
                 public_input_indexes,
@@ -686,8 +696,30 @@ pub(crate) mod alloc {
                 .sum();
             E_scalar += -r_0_eval + (u_challenge * self.evaluations.z_eval);
 
+            // Fold all terms of [F]_1 - [E]_1 and the opening-witness
+            // terms for the right pairing input into the linearization MSM.
+            let mut scalarmuls_points = Vec::with_capacity(28);
+            let mut scalarmuls_scalars = Vec::with_capacity(28);
+            self.append_linearization_commitment_terms(
+                &mut scalarmuls_scalars,
+                &mut scalarmuls_points,
+                &alpha,
+                &beta,
+                &gamma,
+                (
+                    &range_sep_challenge,
+                    &logic_sep_challenge,
+                    &fixed_base_sep_challenge,
+                    &var_base_sep_challenge,
+                ),
+                &z_challenge,
+                z_h_eval,
+                &u_challenge,
+                l1_eval,
+                verifier_key,
+            );
             let mut f_scalars = [BlsScalar::zero(); V_MAX_DEGREE_LEGACY];
-            f_scalars.clone_from_slice(&v_coeffs_E[..V_MAX_DEGREE_LEGACY]);
+            f_scalars.copy_from_slice(&v_coeffs_E[..V_MAX_DEGREE_LEGACY]);
 
             // As we include the shifted coefficients when computing [F]_1,
             // we group them to save scalar multiplications when multiplying
@@ -705,40 +737,68 @@ pub(crate) mod alloc {
                 verifier_key.permutation.s_sigma_2.0,
                 verifier_key.permutation.s_sigma_3.0,
             ];
+            scalarmuls_points.extend_from_slice(&f_points);
+            scalarmuls_scalars.extend_from_slice(&f_scalars);
 
-            // [F]_1 = [D]_1 + (v)[a]_1 + (v^2)[b]_1 + (v^3)[c]_1 + (v^4)[d]_1 +
-            // + (v^5)[s_sigma_1]_1 + (v^6)[s_sigma_2]_1 + (v^7)[s_sigma_3]_1 +
-            // + (u * v_w)[a]_1 + (u * v_w^2)[b]_1 + (u * v_w^3)[d]_1
-            let mut F = msm_variable_base(&f_points, &f_scalars);
-            F += D;
-
-            // [E]_1 = E * G
-            let E = opening_key.g * E_scalar;
+            scalarmuls_points.push(opening_key.g);
+            scalarmuls_scalars.push(-E_scalar);
+            scalarmuls_points.push(self.w_z_chall_comm.0);
+            scalarmuls_scalars.push(z_challenge);
+            let shifted_witness_scalar =
+                u_challenge * z_challenge * domain.group_gen;
+            scalarmuls_points.push(self.w_z_chall_w_comm.0);
+            scalarmuls_scalars.push(shifted_witness_scalar);
 
             // Compute the G_1 element of the first pairing:
             // [W_z]_1 + u * [W_zw]_1
             //
             // Note that we negate this value to be able to subtract
-            // the pairings later on, using the multi Miller loop
-            let left = G1Affine::from(
-                -(self.w_z_chall_comm.0
-                    + (self.w_z_chall_w_comm.0 * u_challenge)),
-            );
+            // the pairings later on, using the multi Miller loop.
+            let left_projective = -(self.w_z_chall_comm.0
+                + (self.w_z_chall_w_comm.0 * u_challenge));
 
             // Compute the G_1 element of the second pairing:
             // z * [W_z]_1 + (u * z * w) * [W_zw]_1 + [F]_1 - [E]_1
-            let right = G1Affine::from(
-                (self.w_z_chall_comm.0 * z_challenge)
-                    + (self.w_z_chall_w_comm.0
-                        * (u_challenge * z_challenge * domain.group_gen))
-                    + F
-                    - E,
+            let right_projective =
+                msm_variable_base(&scalarmuls_points, &scalarmuls_scalars);
+
+            #[cfg(test)]
+            assert_grouped_msm_equivalence(
+                &right_projective,
+                self.compute_reference_linearization_commitment(
+                    &alpha,
+                    &beta,
+                    &gamma,
+                    (
+                        &range_sep_challenge,
+                        &logic_sep_challenge,
+                        &fixed_base_sep_challenge,
+                        &var_base_sep_challenge,
+                    ),
+                    &z_challenge,
+                    &u_challenge,
+                    l1_eval,
+                    verifier_key,
+                    &domain,
+                ),
+                &f_points,
+                &f_scalars,
+                opening_key.g,
+                E_scalar,
+                self.w_z_chall_comm.0,
+                z_challenge,
+                self.w_z_chall_w_comm.0,
+                shifted_witness_scalar,
             );
+
+            let projectives = [left_projective, right_projective];
+            let mut affines = [G1Affine::identity(); 2];
+            G1Projective::batch_normalize(&projectives, &mut affines);
 
             // Compute the two pairings and subtract them
             let pairing = dusk_bls12_381::multi_miller_loop(&[
-                (&left, &opening_key.prepared_x_h),
-                (&right, &opening_key.prepared_h),
+                (&affines[0], &opening_key.prepared_x_h),
+                (&affines[1], &opening_key.prepared_h),
             ])
             .final_exponentiation();
 
@@ -751,9 +811,98 @@ pub(crate) mod alloc {
             Ok(())
         }
 
-        // Commitment to [r]_1
+        // Append the [D]_1 linearization terms to the grouped verifier MSM.
         #[allow(clippy::too_many_arguments)]
-        fn compute_linearization_commitment(
+        fn append_linearization_commitment_terms(
+            &self,
+            scalars: &mut Vec<BlsScalar>,
+            points: &mut Vec<G1Affine>,
+            alpha: &BlsScalar,
+            beta: &BlsScalar,
+            gamma: &BlsScalar,
+            (
+                range_sep_challenge,
+                logic_sep_challenge,
+                fixed_base_sep_challenge,
+                var_base_sep_challenge,
+            ): (&BlsScalar, &BlsScalar, &BlsScalar, &BlsScalar),
+            z_challenge: &BlsScalar,
+            z_h_eval: BlsScalar,
+            u_challenge: &BlsScalar,
+            l1_eval: BlsScalar,
+            verifier_key: &VerifierKey,
+        ) {
+            verifier_key.arithmetic.compute_linearization_commitment(
+                scalars,
+                points,
+                &self.evaluations,
+            );
+
+            verifier_key.range.compute_linearization_commitment(
+                range_sep_challenge,
+                scalars,
+                points,
+                &self.evaluations,
+            );
+
+            verifier_key.logic.compute_linearization_commitment(
+                logic_sep_challenge,
+                scalars,
+                points,
+                &self.evaluations,
+            );
+
+            verifier_key.fixed_base.compute_linearization_commitment(
+                fixed_base_sep_challenge,
+                scalars,
+                points,
+                &self.evaluations,
+            );
+
+            verifier_key.variable_base.compute_linearization_commitment(
+                var_base_sep_challenge,
+                scalars,
+                points,
+                &self.evaluations,
+            );
+
+            verifier_key.permutation.compute_linearization_commitment(
+                scalars,
+                points,
+                &self.evaluations,
+                z_challenge,
+                u_challenge,
+                (alpha, beta, gamma),
+                &l1_eval,
+                self.z_comm.0,
+            );
+
+            let z_h_eval_neg = -z_h_eval;
+            let z_pow_n = z_h_eval + BlsScalar::one();
+            let z_n = z_pow_n * z_h_eval_neg;
+            let z_two_n = z_pow_n.square() * z_h_eval_neg;
+            let z_three_n = z_two_n * z_pow_n;
+
+            scalars.push(z_h_eval_neg);
+            points.push(self.t_low_comm.0);
+
+            scalars.push(z_n);
+            points.push(self.t_mid_comm.0);
+
+            scalars.push(z_two_n);
+            points.push(self.t_high_comm.0);
+
+            scalars.push(z_three_n);
+            points.push(self.t_fourth_comm.0);
+        }
+
+        /// Reconstruct the pre-regrouping linearization commitment without
+        /// using [`Self::append_linearization_commitment_terms`].
+        ///
+        /// Keeping the direct powers and the separate MSM here makes the
+        /// equivalence assertion independent of the optimized helper.
+        #[cfg(test)]
+        fn compute_reference_linearization_commitment(
             &self,
             alpha: &BlsScalar,
             beta: &BlsScalar,
@@ -769,44 +918,39 @@ pub(crate) mod alloc {
             l1_eval: BlsScalar,
             verifier_key: &VerifierKey,
             domain: &EvaluationDomain,
-        ) -> Commitment {
-            let mut scalars: Vec<_> = Vec::with_capacity(6);
-            let mut points: Vec<G1Affine> = Vec::with_capacity(6);
+        ) -> G1Projective {
+            let mut scalars = Vec::with_capacity(10);
+            let mut points = Vec::with_capacity(10);
 
             verifier_key.arithmetic.compute_linearization_commitment(
                 &mut scalars,
                 &mut points,
                 &self.evaluations,
             );
-
             verifier_key.range.compute_linearization_commitment(
                 range_sep_challenge,
                 &mut scalars,
                 &mut points,
                 &self.evaluations,
             );
-
             verifier_key.logic.compute_linearization_commitment(
                 logic_sep_challenge,
                 &mut scalars,
                 &mut points,
                 &self.evaluations,
             );
-
             verifier_key.fixed_base.compute_linearization_commitment(
                 fixed_base_sep_challenge,
                 &mut scalars,
                 &mut points,
                 &self.evaluations,
             );
-
             verifier_key.variable_base.compute_linearization_commitment(
                 var_base_sep_challenge,
                 &mut scalars,
                 &mut points,
                 &self.evaluations,
             );
-
             verifier_key.permutation.compute_linearization_commitment(
                 &mut scalars,
                 &mut points,
@@ -818,30 +962,44 @@ pub(crate) mod alloc {
                 self.z_comm.0,
             );
 
-            let domain_size = domain.size();
+            let domain_size = domain.size() as u64;
             let z_h_eval = -domain.evaluate_vanishing_polynomial(z_challenge);
-
-            let z_n =
-                z_challenge.pow(&[domain_size as u64, 0, 0, 0]) * z_h_eval;
-            let z_two_n =
-                z_challenge.pow(&[2 * domain_size as u64, 0, 0, 0]) * z_h_eval;
-            let z_three_n =
-                z_challenge.pow(&[3 * domain_size as u64, 0, 0, 0]) * z_h_eval;
 
             scalars.push(z_h_eval);
             points.push(self.t_low_comm.0);
-
-            scalars.push(z_n);
+            scalars.push(z_challenge.pow(&[domain_size, 0, 0, 0]) * z_h_eval);
             points.push(self.t_mid_comm.0);
-
-            scalars.push(z_two_n);
+            scalars
+                .push(z_challenge.pow(&[2 * domain_size, 0, 0, 0]) * z_h_eval);
             points.push(self.t_high_comm.0);
-
-            scalars.push(z_three_n);
+            scalars
+                .push(z_challenge.pow(&[3 * domain_size, 0, 0, 0]) * z_h_eval);
             points.push(self.t_fourth_comm.0);
 
-            Commitment::from(msm_variable_base(&points, &scalars))
+            msm_variable_base(&points, &scalars)
         }
+    }
+
+    #[cfg(test)]
+    fn assert_grouped_msm_equivalence(
+        grouped: &G1Projective,
+        reference_linearization: G1Projective,
+        f_points: &[G1Affine],
+        f_scalars: &[BlsScalar],
+        generator: G1Affine,
+        e_scalar: BlsScalar,
+        witness: G1Affine,
+        z_challenge: BlsScalar,
+        shifted_witness: G1Affine,
+        shifted_witness_scalar: BlsScalar,
+    ) {
+        let expected = reference_linearization
+            + msm_variable_base(f_points, f_scalars)
+            - generator * e_scalar
+            + witness * z_challenge
+            + shifted_witness * shifted_witness_scalar;
+
+        assert_eq!(*grouped, expected);
     }
 
     fn compute_first_lagrange_evaluation(
@@ -1021,7 +1179,7 @@ mod soundness_tests {
     use rand_core::{CryptoRng, RngCore};
 
     use crate::commitment_scheme::{CommitKey, PublicParameters};
-    use crate::compiler::{Compiler, Prover, Verifier};
+    use crate::compiler::{Compiler, PlonkVersion, Prover, Verifier};
     use crate::composer::{Circuit, Composer, Constraint};
     use crate::error::Error;
     use crate::fft::{EvaluationDomain, Polynomial};
@@ -1454,6 +1612,14 @@ mod soundness_tests {
         verifier
             .verify(&honest_proof, &honest_pi)
             .expect("honest proof should verify");
+        assert!(matches!(
+            verifier.verify_with_version(
+                &honest_proof,
+                &honest_pi,
+                PlonkVersion::V1,
+            ),
+            Err(Error::ProofVerificationError)
+        ));
 
         // Forged proof must NOT pass
         let (forged_proof, forged_pi) =

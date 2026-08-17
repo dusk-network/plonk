@@ -32,6 +32,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   must be regenerated [#890] [#903]
 - Mark `Error` as `#[non_exhaustive]` [#884]
 - Remove the `Copy` derive from `Error` [#884]
+- Speed up proof verification by grouping the final pairing-input MSM terms
+  and batch-normalizing its G1 inputs [#920]
 - Change `component_add_point`, `component_sub_point` and `component_mul_point` to `TorsionFreeWitnessPoint` [#870]
 - Change `component_neg_point` and `component_select_identity` to `TorsionFreeWitnessPoint` [#870]
 - Change `component_select_identity` to constrain its `bit` to boolean [#870]
@@ -756,6 +758,7 @@ is necessary since `rkyv/validation` was required as a bound.
 
 <!-- ISSUES -->
 [#930]: https://github.com/dusk-network/plonk/issues/930
+[#920]: https://github.com/dusk-network/plonk/issues/920
 [#914]: https://github.com/dusk-network/plonk/issues/914
 [#913]: https://github.com/dusk-network/plonk/issues/913
 [#910]: https://github.com/dusk-network/plonk/issues/910
