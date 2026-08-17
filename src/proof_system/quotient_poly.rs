@@ -48,12 +48,16 @@ pub(crate) fn compute(
     // Compute 8n evals
     let domain_8n = EvaluationDomain::new(8 * domain.size())?;
 
-    let mut z_eval_8n = domain_8n.coset_fft(z_poly);
-
-    let mut a_eval_8n = domain_8n.coset_fft(a_poly);
-    let mut b_eval_8n = domain_8n.coset_fft(b_poly);
-    let c_eval_8n = domain_8n.coset_fft(c_poly);
-    let mut d_eval_8n = domain_8n.coset_fft(d_poly);
+    let [
+        mut z_eval_8n,
+        mut a_eval_8n,
+        mut b_eval_8n,
+        c_eval_8n,
+        mut d_eval_8n,
+    ] = compute_coset_evaluations(
+        &domain_8n,
+        [z_poly, a_poly, b_poly, c_poly, d_poly],
+    );
 
     for i in 0..8 {
         z_eval_8n.push(z_eval_8n[i]);
@@ -132,6 +136,26 @@ pub(crate) fn compute(
     }
 
     Ok(quotient_poly)
+}
+
+fn compute_coset_evaluations(
+    domain: &EvaluationDomain,
+    polynomials: [&Polynomial; 5],
+) -> [Vec<BlsScalar>; 5] {
+    #[cfg(not(feature = "std"))]
+    let evaluations = polynomials.map(|poly| domain.coset_fft(poly));
+
+    #[cfg(feature = "std")]
+    let evaluations = {
+        let mut evaluations: [Vec<BlsScalar>; 5] = Default::default();
+        evaluations
+            .par_iter_mut()
+            .zip(&polynomials[..])
+            .for_each(|(slot, poly)| *slot = domain.coset_fft(poly));
+        evaluations
+    };
+
+    evaluations
 }
 
 // Ensures that the circuit is satisfied
@@ -279,4 +303,26 @@ fn compute_first_lagrange_poly_scaled(
     x_evals[0] = scale;
     domain.ifft_in_place(&mut x_evals);
     Polynomial::from_coefficients_vec(x_evals)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn coset_evaluations_preserve_input_order() {
+        let domain = EvaluationDomain::new(8).unwrap();
+        let polynomials = core::array::from_fn(|index| {
+            Polynomial::from_coefficients_vec(vec![
+                BlsScalar::from(index as u64 + 1),
+                BlsScalar::from(index as u64 + 6),
+            ])
+        });
+        let expected =
+            polynomials.each_ref().map(|poly| domain.coset_fft(poly));
+
+        let actual = compute_coset_evaluations(&domain, polynomials.each_ref());
+
+        assert_eq!(actual, expected);
+    }
 }

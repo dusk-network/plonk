@@ -29,6 +29,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Improve prover hot-path performance by reusing sigma evaluations, batching
   permutation inversions, reducing opening-polynomial allocations, and
   parallelizing large FFT stages and independent work [#921]
+- Parallelize independent quotient coset FFTs when `std` is enabled while
+  retaining the serial `no_std` path [#925]
 - Change RKYV `CommitKey` and `PublicParameters` archives to store canonical
   compressed commitment- and opening-key source points and rebuild prepared
   pairing values during deserialization. Existing RKYV parameter archives
@@ -761,6 +763,7 @@ is necessary since `rkyv/validation` was required as a bound.
 
 <!-- ISSUES -->
 [#930]: https://github.com/dusk-network/plonk/issues/930
+[#925]: https://github.com/dusk-network/plonk/issues/925
 [#921]: https://github.com/dusk-network/plonk/issues/921
 [#920]: https://github.com/dusk-network/plonk/issues/920
 [#914]: https://github.com/dusk-network/plonk/issues/914
