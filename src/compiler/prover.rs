@@ -595,21 +595,21 @@ impl Prover {
         // compute the opening proof polynomial 'W_z(X)'
         let aggregate_witness = CommitKey::compute_aggregate_witness(
             &[
-                r_poly,
-                a_poly.clone(),
-                b_poly.clone(),
-                c_poly,
-                d_poly.clone(),
-                self.prover_key.permutation.s_sigma_1.0.clone(),
-                self.prover_key.permutation.s_sigma_2.0.clone(),
-                self.prover_key.permutation.s_sigma_3.0.clone(),
+                &r_poly,
+                &a_poly,
+                &b_poly,
+                &c_poly,
+                &d_poly,
+                &self.prover_key.permutation.s_sigma_1.0,
+                &self.prover_key.permutation.s_sigma_2.0,
+                &self.prover_key.permutation.s_sigma_3.0,
                 // Bind selector evaluations (q_*) used inside the verifier
                 // linearization commitment to their committed polynomials
                 // by including them in the same batched opening at `z`.
-                self.prover_key.arithmetic.q_arith.0.clone(),
-                self.prover_key.arithmetic.q_c.0.clone(),
-                self.prover_key.arithmetic.q_l.0.clone(),
-                self.prover_key.arithmetic.q_r.0.clone(),
+                &self.prover_key.arithmetic.q_arith.0,
+                &self.prover_key.arithmetic.q_c.0,
+                &self.prover_key.arithmetic.q_l.0,
+                &self.prover_key.arithmetic.q_r.0,
             ],
             &z_challenge,
             &v_challenge,
@@ -621,7 +621,7 @@ impl Prover {
 
         // compute the shifted opening proof polynomial 'W_zw(X)'
         let shifted_aggregate_witness = CommitKey::compute_aggregate_witness(
-            &[z_poly, a_poly, b_poly, d_poly],
+            &[&z_poly, &a_poly, &b_poly, &d_poly],
             &(z_challenge * domain.group_gen),
             &v_w_challenge,
         );

@@ -392,20 +392,28 @@ impl CommitKey {
     /// We apply the same optimization mentioned in when computing each witness;
     /// removing f(z).
     pub(crate) fn compute_aggregate_witness(
-        polynomials: &[Polynomial],
+        polynomials: &[&Polynomial],
         point: &BlsScalar,
         v_challenge: &BlsScalar,
     ) -> Polynomial {
-        let powers = util::powers_of(v_challenge, polynomials.len() - 1);
+        if polynomials.is_empty() {
+            return Polynomial::zero();
+        }
 
-        assert_eq!(powers.len(), polynomials.len());
+        let max_len = polynomials.iter().map(|poly| poly.len()).max().unwrap();
+        let mut coefficients = vec![BlsScalar::zero(); max_len];
+        let mut power = BlsScalar::one();
 
-        let numerator: Polynomial = polynomials
-            .iter()
-            .zip(powers.iter())
-            .map(|(poly, v_challenge)| poly * v_challenge)
-            .sum();
-        numerator.ruffini(*point)
+        for polynomial in polynomials {
+            for (coefficient, term) in
+                coefficients.iter_mut().zip(polynomial.iter())
+            {
+                *coefficient += *term * power;
+            }
+            power *= v_challenge;
+        }
+
+        Polynomial::from_coefficients_vec(coefficients).ruffini(*point)
     }
 }
 
@@ -767,8 +775,9 @@ mod test {
         let v_challenge = transcript.challenge_scalar(b"v_challenge");
 
         // Compute the aggregate witness for polynomials
+        let polynomial_refs: Vec<_> = polynomials.iter().collect();
         let witness_poly = CommitKey::compute_aggregate_witness(
-            polynomials,
+            &polynomial_refs,
             point,
             &v_challenge,
         );
