@@ -425,7 +425,7 @@ impl Compiler {
             verifier_key,
             size,
             constraints,
-        );
+        )?;
 
         let verifier = Verifier::new(
             label,

@@ -32,6 +32,7 @@ pub struct Prover {
     pub(crate) commit_key: CommitKey,
     pub(crate) verifier_key: VerifierKey,
     pub(crate) transcript: Transcript,
+    sigma_evaluations: [Vec<BlsScalar>; 4],
     pub(crate) size: usize,
     pub(crate) constraints: usize,
 }
@@ -52,19 +53,27 @@ impl Prover {
         verifier_key: VerifierKey,
         size: usize,
         constraints: usize,
-    ) -> Self {
+    ) -> Result<Self, Error> {
         let transcript =
             Transcript::base(label.as_slice(), &verifier_key, constraints);
+        let domain = EvaluationDomain::new(constraints)?;
+        let sigma_evaluations = [
+            domain.fft(&prover_key.permutation.s_sigma_1.0),
+            domain.fft(&prover_key.permutation.s_sigma_2.0),
+            domain.fft(&prover_key.permutation.s_sigma_3.0),
+            domain.fft(&prover_key.permutation.s_sigma_4.0),
+        ];
 
-        Self {
+        Ok(Self {
             label,
             prover_key,
             commit_key,
             verifier_key,
             transcript,
+            sigma_evaluations,
             size,
             constraints,
-        }
+        })
     }
 
     /// adds blinding scalars to a witness vector
@@ -222,14 +231,14 @@ impl Prover {
 
         let verifier_key = VerifierKey::from_slice(verifier_key)?;
 
-        Ok(Self::new(
+        Self::new(
             label,
             prover_key,
             commit_key,
             verifier_key,
             size,
             constraints,
-        ))
+        )
     }
 
     /// Prove the circuit using the current (latest) proving behavior.
@@ -370,10 +379,10 @@ impl Prover {
 
         let gamma = transcript.challenge_scalar(b"gamma");
         let sigma = [
-            &self.prover_key.permutation.s_sigma_1.0,
-            &self.prover_key.permutation.s_sigma_2.0,
-            &self.prover_key.permutation.s_sigma_3.0,
-            &self.prover_key.permutation.s_sigma_4.0,
+            self.sigma_evaluations[0].as_slice(),
+            self.sigma_evaluations[1].as_slice(),
+            self.sigma_evaluations[2].as_slice(),
+            self.sigma_evaluations[3].as_slice(),
         ];
         let wires = [
             a_scalars.as_slice(),
