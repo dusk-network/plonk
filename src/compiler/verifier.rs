@@ -13,6 +13,7 @@ use merlin::Transcript;
 use super::PlonkVersion;
 use crate::commitment_scheme::OpeningKey;
 use crate::error::Error;
+use crate::fft::EvaluationDomain;
 use crate::proof_system::{Proof, VerifierKey};
 use crate::transcript::TranscriptProtocol;
 /// Verify proofs of a given circuit
@@ -21,6 +22,8 @@ pub struct Verifier {
     verifier_key: VerifierKey,
     opening_key: OpeningKey,
     public_input_indexes: Vec<usize>,
+    public_input_roots: Vec<BlsScalar>,
+    domain: EvaluationDomain,
     transcript: Transcript,
     size: usize,
     constraints: usize,
@@ -34,19 +37,26 @@ impl Verifier {
         public_input_indexes: Vec<usize>,
         size: usize,
         constraints: usize,
-    ) -> Self {
+    ) -> Result<Self, Error> {
+        let domain = EvaluationDomain::new(verifier_key.n)?;
+        let public_input_roots = public_input_indexes
+            .iter()
+            .map(|index| domain.group_gen_inv.pow(&[*index as u64, 0, 0, 0]))
+            .collect();
         let transcript =
             Transcript::base(label.as_slice(), &verifier_key, constraints);
 
-        Self {
+        Ok(Self {
             label,
             verifier_key,
             opening_key,
             public_input_indexes,
+            public_input_roots,
+            domain,
             transcript,
             size,
             constraints,
-        }
+        })
     }
 
     fn prepare_serialize(
@@ -181,14 +191,14 @@ impl Verifier {
             .map(|n| n as usize)
             .collect();
 
-        Ok(Self::new(
+        Self::new(
             label,
             verifier_key,
             opening_key,
             public_input_indexes,
             size,
             constraints,
-        ))
+        )
     }
 
     /// Verify a generated proof using the current (latest) verification
@@ -226,14 +236,16 @@ impl Verifier {
                 &self.verifier_key,
                 &mut transcript,
                 &self.opening_key,
-                &self.public_input_indexes,
+                &self.domain,
+                &self.public_input_roots,
                 public_inputs,
             ),
             PlonkVersion::V2 | PlonkVersion::V3 => proof.verify(
                 &self.verifier_key,
                 &mut transcript,
                 &self.opening_key,
-                &self.public_input_indexes,
+                &self.domain,
+                &self.public_input_roots,
                 public_inputs,
             ),
         }
@@ -253,7 +265,27 @@ impl Verifier {
 
 #[cfg(test)]
 mod tests {
+    use dusk_bls12_381::BlsScalar;
+    use rand::SeedableRng;
+    use rand::rngs::StdRng;
+
     use super::*;
+    use crate::prelude::{Circuit, Compiler, Composer, PublicParameters};
+
+    #[derive(Default)]
+    struct MinimalCircuit;
+
+    impl Circuit for MinimalCircuit {
+        fn circuit(&self, composer: &mut Composer) -> Result<(), Error> {
+            let witness = composer.append_witness(BlsScalar::from(7u64));
+            composer.assert_equal_constant(
+                witness,
+                BlsScalar::from(7u64),
+                None,
+            );
+            Ok(())
+        }
+    }
 
     #[test]
     fn verifier_try_from_bytes_rejects_overflow_lengths_without_panicking() {
@@ -272,5 +304,30 @@ mod tests {
             "try_from_bytes panicked on overflow lengths"
         );
         assert!(matches!(result.unwrap(), Err(Error::NotEnoughBytes)));
+    }
+
+    #[test]
+    fn verifier_try_from_bytes_rejects_oversized_domain_without_panicking() {
+        let mut rng = StdRng::seed_from_u64(42);
+        let pp = PublicParameters::setup(1 << 5, &mut rng)
+            .expect("public parameters should build");
+        let (_, verifier) =
+            Compiler::compile::<MinimalCircuit>(&pp, b"oversized-domain")
+                .expect("circuit should compile");
+
+        let mut bytes = verifier.to_bytes();
+        let label_len = u64::from_be_bytes(
+            bytes[..u64::SIZE].try_into().expect("header is complete"),
+        ) as usize;
+        let verifier_key_offset = 48 + label_len;
+        bytes[verifier_key_offset..verifier_key_offset + u64::SIZE].fill(0xff);
+
+        let result =
+            std::panic::catch_unwind(|| Verifier::try_from_bytes(&bytes));
+        assert!(result.is_ok(), "deserializer should never panic");
+        assert!(matches!(
+            result.expect("checked above"),
+            Err(Error::InvalidEvalDomainSize { .. })
+        ));
     }
 }

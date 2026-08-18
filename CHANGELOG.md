@@ -42,6 +42,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Remove the `Copy` derive from `Error` [#884]
 - Speed up proof verification by grouping the final pairing-input MSM terms
   and batch-normalizing its G1 inputs [#920]
+- Cache verifier domains and public-input roots and batch their denominator
+  inversions during proof verification [#927]
 - Change `component_add_point`, `component_sub_point` and `component_mul_point` to `TorsionFreeWitnessPoint` [#870]
 - Change `component_neg_point` and `component_select_identity` to `TorsionFreeWitnessPoint` [#870]
 - Change `component_select_identity` to constrain its `bit` to boolean [#870]
@@ -79,6 +81,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Reject unrepresentable evaluation domain sizes during verifier construction
+  and checked deserialization [#927]
 - Reject invalid witness, polynomial, selector and public-input indices when
   deserializing compressed circuits [#930]
 - Reject trailing data when deserializing compressed circuits [#913]
@@ -768,6 +772,7 @@ is necessary since `rkyv/validation` was required as a bound.
 [#930]: https://github.com/dusk-network/plonk/issues/930
 [#925]: https://github.com/dusk-network/plonk/issues/925
 [#921]: https://github.com/dusk-network/plonk/issues/921
+[#927]: https://github.com/dusk-network/plonk/issues/927
 [#920]: https://github.com/dusk-network/plonk/issues/920
 [#919]: https://github.com/dusk-network/plonk/issues/919
 [#916]: https://github.com/dusk-network/plonk/issues/916

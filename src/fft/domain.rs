@@ -121,7 +121,12 @@ pub(crate) mod alloc {
         /// polynomial having `num_coeffs` coefficients.
         pub(crate) fn new(num_coeffs: usize) -> Result<Self, Error> {
             // Compute the size of our evaluation domain
-            let size = num_coeffs.next_power_of_two() as u64;
+            let size = num_coeffs.checked_next_power_of_two().ok_or(
+                Error::InvalidEvalDomainSize {
+                    log_size_of_group: usize::BITS,
+                    adacity: TWO_ADACITY,
+                },
+            )? as u64;
             let log_size_of_group = size.trailing_zeros();
 
             if log_size_of_group >= TWO_ADACITY {

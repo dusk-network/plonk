@@ -434,7 +434,7 @@ impl Compiler {
             public_input_indexes,
             size,
             constraints,
-        );
+        )?;
 
         Ok((prover, verifier))
     }
