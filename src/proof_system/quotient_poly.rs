@@ -312,20 +312,39 @@ fn compute_permutation_checks(
 mod tests {
     use super::*;
 
+    #[cfg(feature = "std")]
     #[test]
-    fn coset_evaluations_preserve_input_order() {
-        let domain = EvaluationDomain::new(8).unwrap();
+    fn coset_evaluations_preserve_input_order_across_nested_rayon_pools() {
+        let domain = EvaluationDomain::new(1 << 12).unwrap();
         let polynomials = core::array::from_fn(|index| {
-            Polynomial::from_coefficients_vec(vec![
-                BlsScalar::from(index as u64 + 1),
-                BlsScalar::from(index as u64 + 6),
-            ])
+            Polynomial::from_coefficients_vec(
+                (0..domain.size())
+                    .map(|coefficient| {
+                        BlsScalar::from(
+                            (index * domain.size() + coefficient + 1) as u64,
+                        )
+                    })
+                    .collect(),
+            )
         });
-        let expected =
-            polynomials.each_ref().map(|poly| domain.coset_fft(poly));
+        let reference_pool = rayon::ThreadPoolBuilder::new()
+            .num_threads(1)
+            .build()
+            .unwrap();
+        let expected = reference_pool.install(|| {
+            polynomials.each_ref().map(|poly| domain.coset_fft(poly))
+        });
 
-        let actual = compute_coset_evaluations(&domain, polynomials.each_ref());
+        for threads in [8, 9] {
+            let pool = rayon::ThreadPoolBuilder::new()
+                .num_threads(threads)
+                .build()
+                .unwrap();
+            let actual = pool.install(|| {
+                compute_coset_evaluations(&domain, polynomials.each_ref())
+            });
 
-        assert_eq!(actual, expected);
+            assert_eq!(actual, expected, "failed with {threads} threads");
+        }
     }
 }

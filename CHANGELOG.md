@@ -34,6 +34,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Parallelize independent quotient coset FFTs when `std` is enabled while
   retaining the serial `no_std` path [#925]
 - Cache deterministic quotient-domain prover data across proofs [#919]
+- Parallelize the final large-domain FFT stages across Rayon pools with at
+  least four workers [#933]
 - Change RKYV `CommitKey` and `PublicParameters` archives to store canonical
   compressed commitment- and opening-key source points and rebuild prepared
   pairing values during deserialization. Existing RKYV parameter archives
@@ -772,6 +774,7 @@ is necessary since `rkyv/validation` was required as a bound.
 
 <!-- ISSUES -->
 [#935]: https://github.com/dusk-network/plonk/issues/935
+[#933]: https://github.com/dusk-network/plonk/issues/933
 [#930]: https://github.com/dusk-network/plonk/issues/930
 [#925]: https://github.com/dusk-network/plonk/issues/925
 [#921]: https://github.com/dusk-network/plonk/issues/921
