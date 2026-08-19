@@ -51,7 +51,7 @@ impl PublicParameters {
     /// because adding the blinding factors requires some extra elements
     /// for the SRS: +1 per each wire (we have 4 wires), plus +2 for the
     /// permutation polynomial
-    const ADDED_BLINDING_DEGREE: usize = 6;
+    pub(crate) const ADDED_BLINDING_DEGREE: usize = 6;
 
     /// Setup generates the public parameters using a random number generator.
     /// This method will in most cases be used for testing and exploration.

@@ -45,6 +45,8 @@ impl PlonkVersion {
 pub struct Compiler;
 
 impl Compiler {
+    const CIRCUIT_SIZE_PADDING: usize = 6;
+
     /// Create a new arguments set from a given circuit instance
     ///
     /// Use the default implementation of the circuit
@@ -80,14 +82,32 @@ impl Compiler {
 
     /// Generates a [Prover] and [Verifier] from a buffer created by
     /// [Circuit::compress].
+    ///
+    /// The supplied public parameters bound decompression and circuit
+    /// reconstruction. Compressed descriptions containing more data than can
+    /// be compiled with `pp` are rejected as malformed.
     pub fn compile_with_compressed(
         pp: &PublicParameters,
         label: &[u8],
         compressed: &[u8],
     ) -> Result<(Prover, Verifier), Error> {
-        let composer = Composer::from_bytes(compressed)?;
+        let max_constraints = Self::max_constraints(pp);
+        let composer = Composer::from_bytes(compressed, max_constraints)?;
 
         Self::compile_with_composer(pp, label, &composer)
+    }
+
+    fn max_constraints(pp: &PublicParameters) -> usize {
+        let available = pp
+            .max_degree()
+            .saturating_sub(PublicParameters::ADDED_BLINDING_DEGREE);
+        let max_domain_size = if available == 0 {
+            0
+        } else {
+            1usize << (usize::BITS - available.leading_zeros() - 1)
+        };
+
+        max_domain_size.saturating_sub(Self::CIRCUIT_SIZE_PADDING)
     }
 
     /// Create a new arguments set from a given circuit instance
@@ -98,7 +118,8 @@ impl Compiler {
         label: &[u8],
         composer: &Composer,
     ) -> Result<(Prover, Verifier), Error> {
-        let n = (composer.constraints() + 6).next_power_of_two();
+        let n = (composer.constraints() + Self::CIRCUIT_SIZE_PADDING)
+            .next_power_of_two();
 
         let (commit, opening) = pp.trim(n)?;
 

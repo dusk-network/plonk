@@ -85,6 +85,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Normalize unrepresentable serialized prover-key lengths as invalid data
   [#937]
+- Bound compressed-circuit decompression and reconstruction allocation by the
+  supplied public parameters and referenced gate data [#931]
 - Reject unrepresentable evaluation domain sizes during verifier construction
   and checked deserialization [#927]
 - Reject fixed polynomials with degree at least the circuit domain size during
@@ -777,6 +779,7 @@ is necessary since `rkyv/validation` was required as a bound.
 <!-- ISSUES -->
 [#937]: https://github.com/dusk-network/plonk/issues/937
 [#935]: https://github.com/dusk-network/plonk/issues/935
+[#931]: https://github.com/dusk-network/plonk/issues/931
 [#933]: https://github.com/dusk-network/plonk/issues/933
 [#930]: https://github.com/dusk-network/plonk/issues/930
 [#925]: https://github.com/dusk-network/plonk/issues/925
