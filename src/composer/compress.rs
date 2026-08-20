@@ -95,6 +95,15 @@ pub struct CompressedCircuit {
 }
 
 impl CompressedCircuit {
+    // Canonical MessagePack uses at most nine bytes per usize, two per u8,
+    // and five for each vector header. For every constraint, the encoder can
+    // add one public-input index, eleven 32-byte scalars, one polynomial with
+    // eleven indices, and one constraint with five indices.
+    const PACKED_FIXED_BYTES: usize = 30;
+    const PACKED_BYTES_PER_CONSTRAINT: usize = 857;
+
+    const SELECTORS_PER_POLYNOMIAL: usize = 11;
+
     fn validate_indices(&self, base_scalars: usize) -> Result<(), Error> {
         let scalar_count = base_scalars
             .checked_add(self.scalars.len())
@@ -245,14 +254,62 @@ impl CompressedCircuit {
         miniz_oxide::deflate::compress_to_vec(&buf, 10)
     }
 
-    pub fn from_bytes(compressed: &[u8]) -> Result<Composer, Error> {
-        let compressed = miniz_oxide::inflate::decompress_to_vec(compressed)
-            .map_err(|_| Error::InvalidCompressedCircuit)?;
-        let (consumed, circuit) = Self::unpack(&compressed)
-            .map_err(|_| Error::InvalidCompressedCircuit)?;
-        if consumed != compressed.len() {
+    fn packed_size_limit(max_constraints: usize) -> Result<usize, Error> {
+        max_constraints
+            .checked_mul(Self::PACKED_BYTES_PER_CONSTRAINT)
+            .and_then(|size| size.checked_add(Self::PACKED_FIXED_BYTES))
+            .ok_or(Error::InvalidCompressedCircuit)
+    }
+
+    fn unpack_bounded(
+        packed: &[u8],
+        max_constraints: usize,
+    ) -> Result<Self, Error> {
+        let mut reader = PackedCircuitReader::new(packed);
+        let max_scalars = max_constraints
+            .checked_mul(Self::SELECTORS_PER_POLYNOMIAL)
+            .ok_or(Error::InvalidCompressedCircuit)?;
+
+        let circuit = Self {
+            hades_optimization: reader.unpack()?,
+            public_inputs: reader.unpack_vec(max_constraints)?,
+            witnesses: reader.unpack()?,
+            scalars: reader.unpack_vec(max_scalars)?,
+            polynomials: reader.unpack_vec(max_constraints)?,
+            constraints: reader.unpack_vec(max_constraints)?,
+        };
+
+        if !reader.is_empty() {
             return Err(Error::InvalidCompressedCircuit);
         }
+
+        Ok(circuit)
+    }
+
+    fn remap_witness(
+        composer: &mut Composer,
+        witness_map: &mut HashMap<usize, Witness>,
+        serialized: usize,
+    ) -> Witness {
+        if let Some(witness) = witness_map.get(&serialized) {
+            *witness
+        } else {
+            let witness = composer.append_witness(BlsScalar::zero());
+            witness_map.insert(serialized, witness);
+            witness
+        }
+    }
+
+    pub fn from_bytes(
+        compressed: &[u8],
+        max_constraints: usize,
+    ) -> Result<Composer, Error> {
+        let max_size = Self::packed_size_limit(max_constraints)?;
+        let compressed = miniz_oxide::inflate::decompress_to_vec_with_limit(
+            compressed, max_size,
+        )
+        .map_err(|_| Error::InvalidCompressedCircuit)?;
+        let circuit = Self::unpack_bounded(&compressed, max_constraints)?;
 
         let scalar_map = scalar_map(circuit.hades_optimization);
         circuit.validate_indices(scalar_map.len())?;
@@ -260,7 +317,7 @@ impl CompressedCircuit {
         let Self {
             hades_optimization: _,
             public_inputs,
-            witnesses,
+            witnesses: _,
             scalars,
             polynomials,
             constraints,
@@ -282,11 +339,12 @@ impl CompressedCircuit {
         // we use `uninitialized` because the decompressor will also contain the
         // dummy constraints, if they were part of the prover when encoding.
         let mut composer = Composer::uninitialized();
-
         let mut pi = 0;
-        (0..witnesses).for_each(|_| {
-            composer.append_witness(BlsScalar::zero());
-        });
+        // Serialized witness indices are labels for wire-equality classes.
+        // Allocate only labels referenced by gates so sparse or unused labels
+        // cannot drive reconstruction work.
+        let mut witness_map =
+            HashMap::with_capacity(constraints.len().saturating_mul(4));
 
         for (
             i,
@@ -361,10 +419,10 @@ impl CompressedCircuit {
                 .copied()
                 .ok_or(Error::InvalidCompressedCircuit)?;
 
-            let a = Witness::new(a);
-            let b = Witness::new(b);
-            let c = Witness::new(c);
-            let d = Witness::new(d);
+            let a = Self::remap_witness(&mut composer, &mut witness_map, a);
+            let b = Self::remap_witness(&mut composer, &mut witness_map, b);
+            let c = Self::remap_witness(&mut composer, &mut witness_map, c);
+            let d = Self::remap_witness(&mut composer, &mut witness_map, d);
 
             let mut constraint = Constraint::default()
                 .set(Selector::Multiplication, q_m)
@@ -397,11 +455,83 @@ impl CompressedCircuit {
     }
 }
 
+struct PackedCircuitReader<'a> {
+    remaining: &'a [u8],
+}
+
+impl<'a> PackedCircuitReader<'a> {
+    fn new(packed: &'a [u8]) -> Self {
+        Self { remaining: packed }
+    }
+
+    fn is_empty(&self) -> bool {
+        self.remaining.is_empty()
+    }
+
+    fn unpack<T>(&mut self) -> Result<T, Error>
+    where
+        T: Unpackable<Error = msgpacker::Error>,
+    {
+        let (consumed, value) = T::unpack(self.remaining)
+            .map_err(|_| Error::InvalidCompressedCircuit)?;
+        self.remaining = self
+            .remaining
+            .get(consumed..)
+            .ok_or(Error::InvalidCompressedCircuit)?;
+        Ok(value)
+    }
+
+    fn unpack_vec<T>(&mut self, max_len: usize) -> Result<Vec<T>, Error>
+    where
+        T: Unpackable<Error = msgpacker::Error>,
+    {
+        let len = self.unpack_array_len()?;
+        if len > max_len {
+            return Err(Error::InvalidCompressedCircuit);
+        }
+
+        (0..len).map(|_| self.unpack()).collect()
+    }
+
+    fn unpack_array_len(&mut self) -> Result<usize, Error> {
+        let tag = self.take(1)?[0];
+        match tag {
+            0x90..=0x9f => Ok((tag & 0x0f) as usize),
+            0xdc => {
+                let bytes = self.take(2)?;
+                Ok(u16::from_be_bytes([bytes[0], bytes[1]]) as usize)
+            }
+            0xdd => {
+                let bytes = self.take(4)?;
+                usize::try_from(u32::from_be_bytes([
+                    bytes[0], bytes[1], bytes[2], bytes[3],
+                ]))
+                .map_err(|_| Error::InvalidCompressedCircuit)
+            }
+            _ => Err(Error::InvalidCompressedCircuit),
+        }
+    }
+
+    fn take(&mut self, len: usize) -> Result<&'a [u8], Error> {
+        let (value, remaining) = self
+            .remaining
+            .split_at_checked(len)
+            .ok_or(Error::InvalidCompressedCircuit)?;
+        self.remaining = remaining;
+        Ok(value)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::panic::catch_unwind;
 
+    use rand_core::OsRng;
+
     use super::*;
+    use crate::prelude::{Circuit, Compiler, PublicParameters};
+
+    const MAX_CONSTRAINTS: usize = 2;
 
     fn circuit() -> CompressedCircuit {
         CompressedCircuit {
@@ -429,7 +559,9 @@ mod tests {
         );
 
         let encoded = encode(circuit);
-        let result = catch_unwind(|| CompressedCircuit::from_bytes(&encoded));
+        let result = catch_unwind(|| {
+            CompressedCircuit::from_bytes(&encoded, MAX_CONSTRAINTS)
+        });
         assert!(result.is_ok(), "checked decoding must not panic");
         assert!(matches!(
             result.unwrap(),
@@ -439,7 +571,134 @@ mod tests {
 
     #[test]
     fn valid_indices_are_accepted() {
-        assert!(CompressedCircuit::from_bytes(&encode(&circuit())).is_ok());
+        assert!(
+            CompressedCircuit::from_bytes(&encode(&circuit()), MAX_CONSTRAINTS)
+                .is_ok()
+        );
+    }
+
+    fn assert_bounded_invalid_without_panicking(circuit: CompressedCircuit) {
+        let encoded = encode(&circuit);
+        let result = catch_unwind(|| {
+            CompressedCircuit::from_bytes(&encoded, MAX_CONSTRAINTS)
+        });
+        assert!(result.is_ok(), "bounded decoding must not panic");
+        assert!(matches!(
+            result.unwrap(),
+            Err(Error::InvalidCompressedCircuit)
+        ));
+    }
+
+    #[test]
+    fn capacity_limits_are_inclusive() {
+        let mut circuit = circuit();
+        circuit.public_inputs = vec![0, 1];
+        circuit.constraints.push(CompressedConstraint::default());
+
+        assert!(
+            CompressedCircuit::from_bytes(&encode(&circuit), MAX_CONSTRAINTS)
+                .is_ok()
+        );
+    }
+
+    #[derive(Default)]
+    struct SparseWitnessCircuit;
+
+    impl Circuit for SparseWitnessCircuit {
+        fn circuit(&self, composer: &mut Composer) -> Result<(), Error> {
+            for _ in 0..37 {
+                composer.append_witness(BlsScalar::zero());
+            }
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn canonical_unused_witnesses_remain_compilable() {
+        let pp = PublicParameters::setup(16, &mut OsRng).unwrap();
+
+        let (direct_prover, direct_verifier) =
+            Compiler::compile::<SparseWitnessCircuit>(&pp, b"sparse").unwrap();
+
+        let compressed = SparseWitnessCircuit::compress().unwrap();
+        let (compressed_prover, compressed_verifier) =
+            Compiler::compile_with_compressed(&pp, b"sparse", &compressed)
+                .unwrap();
+
+        assert_eq!(direct_prover.to_bytes(), compressed_prover.to_bytes());
+        assert_eq!(direct_verifier.to_bytes(), compressed_verifier.to_bytes());
+    }
+
+    #[test]
+    fn sparse_witness_labels_do_not_drive_allocation() {
+        let mut circuit = circuit();
+        circuit.witnesses = 1_000_000;
+        circuit.constraints[0].d = circuit.witnesses - 1;
+
+        let composer =
+            CompressedCircuit::from_bytes(&encode(&circuit), MAX_CONSTRAINTS)
+                .unwrap();
+
+        assert_eq!(composer.constraints.len(), 1);
+        assert_eq!(composer.witnesses.len(), 2);
+    }
+
+    #[test]
+    fn compiler_accepts_sparse_witness_labels() {
+        let pp = PublicParameters::setup(8, &mut OsRng).unwrap();
+        let mut circuit = circuit();
+        circuit.witnesses = 1_000_000;
+        circuit.constraints[0].d = circuit.witnesses - 1;
+        let encoded = encode(&circuit);
+
+        let result = catch_unwind(|| {
+            Compiler::compile_with_compressed(&pp, b"bounded-circuit", &encoded)
+        });
+        assert!(result.is_ok(), "public compilation must not panic");
+        assert!(result.unwrap().is_ok());
+    }
+
+    #[test]
+    fn excessive_collection_counts_are_rejected_without_panicking() {
+        let mut public_inputs = circuit();
+        public_inputs.public_inputs = vec![0; MAX_CONSTRAINTS + 1];
+        assert_bounded_invalid_without_panicking(public_inputs);
+
+        let mut scalars = circuit();
+        scalars.scalars = vec![
+            [0; BlsScalar::SIZE];
+            MAX_CONSTRAINTS
+                * CompressedCircuit::SELECTORS_PER_POLYNOMIAL
+                + 1
+        ];
+        assert_bounded_invalid_without_panicking(scalars);
+
+        let mut polynomials = circuit();
+        polynomials.polynomials =
+            vec![CompressedPolynomial::default(); MAX_CONSTRAINTS + 1];
+        assert_bounded_invalid_without_panicking(polynomials);
+
+        let mut constraints = circuit();
+        constraints.constraints =
+            vec![CompressedConstraint::default(); MAX_CONSTRAINTS + 1];
+        assert_bounded_invalid_without_panicking(constraints);
+    }
+
+    #[test]
+    fn inflated_size_is_rejected_without_panicking() {
+        let max_size =
+            CompressedCircuit::packed_size_limit(MAX_CONSTRAINTS).unwrap();
+        let compressed =
+            miniz_oxide::deflate::compress_to_vec(&vec![0; max_size + 1], 10);
+
+        let result = catch_unwind(|| {
+            CompressedCircuit::from_bytes(&compressed, MAX_CONSTRAINTS)
+        });
+        assert!(result.is_ok(), "bounded decompression must not panic");
+        assert!(matches!(
+            result.unwrap(),
+            Err(Error::InvalidCompressedCircuit)
+        ));
     }
 
     #[test]

@@ -95,8 +95,11 @@ impl Composer {
     }
 
     /// Create a [`Composer`] instance from a compressed circuit
-    pub(crate) fn from_bytes(compressed: &[u8]) -> Result<Self, Error> {
-        compress::CompressedCircuit::from_bytes(compressed)
+    pub(crate) fn from_bytes(
+        compressed: &[u8],
+        max_constraints: usize,
+    ) -> Result<Self, Error> {
+        compress::CompressedCircuit::from_bytes(compressed, max_constraints)
     }
 
     /// Allocate a witness value into the composer and return its index.
