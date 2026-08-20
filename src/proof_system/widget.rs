@@ -207,6 +207,13 @@ pub(crate) mod alloc {
     use dusk_bls12_381::BlsScalar;
     use merlin::Transcript;
 
+    pub(super) fn serialized_len_from_u64<T>(len: u64) -> Result<T, Error>
+    where
+        T: TryFrom<u64>,
+    {
+        T::try_from(len).map_err(|_| dusk_bytes::Error::InvalidData.into())
+    }
+
     impl VerifierKey {
         fn seed_transcript_inner(
             &self,
@@ -439,11 +446,12 @@ pub(crate) mod alloc {
         /// Deserializes a slice of bytes into a [`ProverKey`].
         pub fn from_slice(bytes: &[u8]) -> Result<ProverKey, Error> {
             let mut buffer = bytes;
-            let n = usize::try_from(u64::from_reader(&mut buffer)?)
-                .map_err(|_| dusk_bytes::Error::InvalidData)?;
-            let evaluations_size =
-                usize::try_from(u64::from_reader(&mut buffer)?)
-                    .map_err(|_| dusk_bytes::Error::InvalidData)?;
+            let n = serialized_len_from_u64::<usize>(u64::from_reader(
+                &mut buffer,
+            )?)?;
+            let evaluations_size = serialized_len_from_u64::<usize>(
+                u64::from_reader(&mut buffer)?,
+            )?;
             let evaluations_domain_size =
                 n.checked_mul(8).ok_or(dusk_bytes::Error::InvalidData)?;
             if evaluations_domain_size.checked_next_power_of_two()
@@ -456,9 +464,9 @@ pub(crate) mod alloc {
 
             let poly_from_reader =
                 |buf: &mut &[u8]| -> Result<Polynomial, Error> {
-                    let serialized_poly_len =
-                        usize::try_from(u64::from_reader(buf)?)
-                            .map_err(|_| Error::NotEnoughBytes)?;
+                    let serialized_poly_len = serialized_len_from_u64::<usize>(
+                        u64::from_reader(buf)?,
+                    )?;
                     if serialized_poly_len > n {
                         return Err(dusk_bytes::Error::InvalidData.into());
                     }
@@ -633,7 +641,7 @@ pub(crate) mod alloc {
 mod test {
     use dusk_bls12_381::BlsScalar;
 
-    use super::alloc::ProverKey;
+    use super::alloc::{ProverKey, serialized_len_from_u64};
     use super::*;
     use crate::error::Error;
     use crate::fft::{EvaluationDomain, Evaluations, Polynomial};
@@ -759,12 +767,24 @@ mod test {
         let mut oversized_polynomial = bytes.clone();
         oversized_polynomial[2 * u64::SIZE..3 * u64::SIZE]
             .copy_from_slice(&u64::MAX.to_bytes());
-        assert!(ProverKey::from_slice(&oversized_polynomial).is_err());
-
-        let truncated = &bytes[..bytes.len() - 1];
         assert!(matches!(
-            ProverKey::from_slice(truncated),
+            ProverKey::from_slice(&oversized_polynomial),
+            Err(Error::BytesError(dusk_bytes::Error::InvalidData))
+        ));
+
+        let first_poly_end = 3 * u64::SIZE + n * BlsScalar::SIZE;
+        let truncated_coefficients = &bytes[..first_poly_end - 1];
+        assert!(matches!(
+            ProverKey::from_slice(truncated_coefficients),
             Err(Error::NotEnoughBytes)
+        ));
+    }
+
+    #[test]
+    fn serialized_length_conversion_failure_is_invalid_data() {
+        assert!(matches!(
+            serialized_len_from_u64::<u8>(u64::from(u8::MAX) + 1),
+            Err(Error::BytesError(dusk_bytes::Error::InvalidData))
         ));
     }
 
