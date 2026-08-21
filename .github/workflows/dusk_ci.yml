@@ -5,6 +5,10 @@ on:
 
 name: Continuous integration
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   analyze:
     name: Code Analysis
@@ -62,20 +66,3 @@ jobs:
       - uses: dsherret/rust-toolchain-file@v1
       - uses: Swatinem/rust-cache@v2
       - run: make test
-
-  coverage:
-    name: Coverage
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v4
-      - uses: Swatinem/rust-cache@v2
-      - run: sudo apt install -y kcov
-      - run: RUSTFLAGS='-Cdebuginfo=2 -Cllvm-args=--inline-threshold=0 -Clink-dead-code' cargo test --release --no-run --all-features
-      - name: Collect coverage
-        run: >
-          find target/release/deps -type f -executable ! -name "*.*" |
-          xargs -n1 kcov --exclude-pattern=/.cargo,/usr/lib --verify target/cov
-      - name: Upload coverage
-        uses: codecov/codecov-action@v4
-        with:
-          token: ${{secrets.CODECOV_TOKEN}}
