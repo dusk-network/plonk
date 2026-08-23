@@ -31,6 +31,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Update `blake2b_simd` to 1.0.5 [#950]
 - Replace the deprecated `tempdir` development dependency with `tempfile`
   [#949]
+- Update `miniz_oxide` to 0.9 and replace the unmaintained `adler` dependency
+  with `adler2` [#948]
 - Align `hashbrown` with the version used by the optional RKYV dependency graph
   [#943]
 - Improve prover hot-path performance by reusing sigma evaluations, batching
@@ -784,6 +786,7 @@ is necessary since `rkyv/validation` was required as a bound.
 <!-- ISSUES -->
 [#950]: https://github.com/dusk-network/plonk/issues/950
 [#949]: https://github.com/dusk-network/plonk/issues/949
+[#948]: https://github.com/dusk-network/plonk/issues/948
 [#943]: https://github.com/dusk-network/plonk/issues/943
 [#937]: https://github.com/dusk-network/plonk/issues/937
 [#935]: https://github.com/dusk-network/plonk/issues/935
