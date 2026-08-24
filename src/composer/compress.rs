@@ -441,11 +441,11 @@ impl CompressedCircuit {
                 .c(c)
                 .d(d);
 
-            if let Some(idx) = public_inputs.get(pi) {
-                if idx == &i {
-                    pi += 1;
-                    constraint = constraint.public(BlsScalar::zero());
-                }
+            if let Some(idx) = public_inputs.get(pi)
+                && idx == &i
+            {
+                pi += 1;
+                constraint = constraint.public(BlsScalar::zero());
             }
 
             composer.append_custom_gate(constraint);
