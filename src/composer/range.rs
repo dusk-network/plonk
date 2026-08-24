@@ -86,7 +86,7 @@ impl Composer {
     /// off the most-significant bit as a boolean and quad-checks the even
     /// remainder, so the cost is essentially that of the even check.
     pub(super) fn range_check(&mut self, value: Witness, num_bits: usize) {
-        if num_bits % 2 == 0 {
+        if num_bits.is_multiple_of(2) {
             self.range_check_even(value, num_bits);
             return;
         }
@@ -135,7 +135,7 @@ impl Composer {
 
         // each gate holds 4 quads (2 bits each), so one gate accumulates 8 bits
         let mut num_gates = num_bits >> 3;
-        if num_bits % 8 != 0 {
+        if !num_bits.is_multiple_of(8) {
             num_gates += 1;
         }
 
@@ -187,10 +187,10 @@ impl Composer {
             *c = Constraint::new();
         }
 
-        if let Some(accumulator) = accumulators.last() {
-            if let Some(c) = constraints.last_mut() {
-                c.set_witness(WiredWitness::D, *accumulator);
-            }
+        if let Some(accumulator) = accumulators.last()
+            && let Some(c) = constraints.last_mut()
+        {
+            c.set_witness(WiredWitness::D, *accumulator);
         }
 
         constraints
