@@ -28,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Update Criterion to 0.8 and align the dev-only `itertools` dependency [#953]
 - Raise the MSRV to Rust 1.96.1 [#951]
 - Update `blake2b_simd` to 1.0.5 [#950]
 - Replace the deprecated `tempdir` development dependency with `tempfile`
@@ -785,6 +786,7 @@ is necessary since `rkyv/validation` was required as a bound.
 - Proof system module.
 
 <!-- ISSUES -->
+[#953]: https://github.com/dusk-network/plonk/issues/953
 [#951]: https://github.com/dusk-network/plonk/issues/951
 [#950]: https://github.com/dusk-network/plonk/issues/950
 [#949]: https://github.com/dusk-network/plonk/issues/949

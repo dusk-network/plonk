@@ -6,7 +6,9 @@
 
 #![allow(clippy::many_single_char_names)]
 
-use criterion::{Criterion, black_box, criterion_group, criterion_main};
+use std::hint::black_box;
+
+use criterion::{Criterion, criterion_group, criterion_main};
 use dusk_plonk::prelude::*;
 
 #[derive(Debug, Clone, Copy)]
