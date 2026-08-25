@@ -1,5 +1,8 @@
 [advisories]
-ignore = []
+unused-ignored-advisory = "deny"
+ignore = [
+  { id = "RUSTSEC-2026-0235", reason = "Repository-owned dusk-plonk archive roots contain no Rc, Arc, or Weak fields, so the affected shared-pointer validation path is unreachable here. This does not cover downstream archive roots that wrap Plonk types in shared pointers. Remove after the coordinated rkyv 0.8.17+ migration." },
+]
 
 [licenses]
 allow = [
