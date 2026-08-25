@@ -1,0 +1,33 @@
+[advisories]
+unused-ignored-advisory = "deny"
+ignore = [
+  { id = "RUSTSEC-2026-0235", reason = "Repository-owned dusk-plonk archive roots contain no Rc, Arc, or Weak fields, so the affected shared-pointer validation path is unreachable here. This does not cover downstream archive roots that wrap Plonk types in shared pointers. Remove after the coordinated rkyv 0.8.17+ migration." },
+]
+
+[licenses]
+allow = [
+  "MPL-2.0",
+  "MIT",
+  "Apache-2.0",
+  "Apache-2.0 WITH LLVM-exception",
+  "BSD-2-Clause",
+  "BSD-3-Clause",
+  "Unicode-3.0",
+]
+confidence-threshold = 0.8
+
+[licenses.private]
+ignore = false
+
+[bans]
+multiple-versions = "warn"
+wildcards = "allow"
+skip = [
+  { crate = "syn@1.0.109", reason = "Unavoidable transitive split between rkyv 0.7.x proc-macro dependencies (syn 1.x) and newer proc-macro dependencies (syn 2.x)" },
+]
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+allow-git = []
