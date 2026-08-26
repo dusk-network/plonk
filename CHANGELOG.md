@@ -92,6 +92,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Size serialized `ProverKey` buffers from each polynomial's actual length
+  [#959]
 - Normalize unrepresentable serialized prover-key lengths as invalid data
   [#937]
 - Bound compressed-circuit decompression and reconstruction allocation by the
@@ -786,6 +788,7 @@ is necessary since `rkyv/validation` was required as a bound.
 - Proof system module.
 
 <!-- ISSUES -->
+[#959]: https://github.com/dusk-network/plonk/issues/959
 [#953]: https://github.com/dusk-network/plonk/issues/953
 [#951]: https://github.com/dusk-network/plonk/issues/951
 [#950]: https://github.com/dusk-network/plonk/issues/950

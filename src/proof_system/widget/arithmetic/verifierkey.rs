@@ -13,6 +13,7 @@ use rkyv::{
     ser::{ScratchSpace, Serializer},
 };
 
+use crate::BufferWriter;
 use crate::commitment_scheme::Commitment;
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
@@ -42,11 +43,9 @@ pub(crate) struct VerifierKey {
 impl Serializable<{ 7 * Commitment::SIZE }> for VerifierKey {
     type Error = dusk_bytes::Error;
 
-    #[allow(unused_must_use)]
     fn to_bytes(&self) -> [u8; Self::SIZE] {
-        use dusk_bytes::Write;
         let mut buff = [0u8; Self::SIZE];
-        let mut writer = &mut buff[..];
+        let mut writer = BufferWriter::new(&mut buff);
         writer.write(&self.q_m.to_bytes());
         writer.write(&self.q_l.to_bytes());
         writer.write(&self.q_r.to_bytes());
@@ -54,6 +53,7 @@ impl Serializable<{ 7 * Commitment::SIZE }> for VerifierKey {
         writer.write(&self.q_f.to_bytes());
         writer.write(&self.q_c.to_bytes());
         writer.write(&self.q_arith.to_bytes());
+        writer.finish();
 
         buff
     }

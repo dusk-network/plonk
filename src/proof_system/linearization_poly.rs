@@ -14,6 +14,7 @@ use rkyv::{
     ser::{ScratchSpace, Serializer},
 };
 
+use crate::BufferWriter;
 #[cfg(feature = "alloc")]
 use crate::{
     fft::{EvaluationDomain, Polynomial},
@@ -98,12 +99,9 @@ pub(crate) struct LinearizationChallenges {
 impl Serializable<{ 15 * BlsScalar::SIZE }> for ProofEvaluations {
     type Error = dusk_bytes::Error;
 
-    #[allow(unused_must_use)]
     fn to_bytes(&self) -> [u8; Self::SIZE] {
-        use dusk_bytes::Write;
-
         let mut buf = [0u8; Self::SIZE];
-        let mut writer = &mut buf[..];
+        let mut writer = BufferWriter::new(&mut buf);
         writer.write(&self.a_eval.to_bytes());
         writer.write(&self.b_eval.to_bytes());
         writer.write(&self.c_eval.to_bytes());
@@ -119,6 +117,7 @@ impl Serializable<{ 15 * BlsScalar::SIZE }> for ProofEvaluations {
         writer.write(&self.s_sigma_2_eval.to_bytes());
         writer.write(&self.s_sigma_3_eval.to_bytes());
         writer.write(&self.z_eval.to_bytes());
+        writer.finish();
 
         buf
     }

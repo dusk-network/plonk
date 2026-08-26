@@ -29,7 +29,7 @@ use super::proof::Proof;
 use crate::error::Error;
 use crate::fft::Polynomial;
 use crate::transcript::TranscriptProtocol;
-use crate::util;
+use crate::{BufferWriter, util};
 
 /// CommitKey is used to commit to a polynomial which is bounded by the
 /// max_degree.
@@ -593,15 +593,13 @@ fn batch_challenge(
 impl Serializable<{ G1Affine::SIZE + G2Affine::SIZE * 2 }> for OpeningKey {
     type Error = dusk_bytes::Error;
 
-    #[allow(unused_must_use)]
     fn to_bytes(&self) -> [u8; Self::SIZE] {
-        use dusk_bytes::Write;
         let mut buf = [0u8; Self::SIZE];
-        let mut writer = &mut buf[..];
-        // This can't fail therefore we don't care about the Result nor use it.
+        let mut writer = BufferWriter::new(&mut buf);
         writer.write(&self.g.to_bytes());
         writer.write(&self.h.to_bytes());
         writer.write(&self.x_h.to_bytes());
+        writer.finish();
 
         buf
     }

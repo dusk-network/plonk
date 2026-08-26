@@ -50,6 +50,8 @@
 #![deny(missing_docs)]
 #![cfg_attr(not(feature = "std"), no_std)]
 
+pub(crate) use buffer_writer::BufferWriter;
+
 cfg_if::cfg_if!(
 if #[cfg(feature = "alloc")] {
     /// `macro_use` will declare `vec!`. However, if `libstd` is present, then this
@@ -72,6 +74,7 @@ if #[cfg(feature = "alloc")] {
 #[cfg(feature = "debug")]
 pub(crate) mod debugger;
 
+mod buffer_writer;
 mod commitment_scheme;
 mod error;
 mod fft;
