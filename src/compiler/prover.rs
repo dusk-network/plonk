@@ -39,7 +39,13 @@ pub struct Prover {
     vanishing_coset_inverses: [BlsScalar; 8],
     pub(crate) size: usize,
     pub(crate) constraints: usize,
+    public_input_indexes: Vec<usize>,
 }
+
+// The low 32 bits are deliberately all ones. Previous 32-bit decoders read
+// this as the label length and must reject new-format provers instead of
+// truncating away a version bit and silently dropping the row layout.
+const PROVER_FORMAT_V2_MAGIC: u64 = 0x5052_5632_FFFF_FFFF;
 
 impl ops::Deref for Prover {
     type Target = ProverKey;
@@ -57,9 +63,16 @@ impl Prover {
         verifier_key: VerifierKey,
         size: usize,
         constraints: usize,
+        public_input_indexes: Vec<usize>,
     ) -> Result<Self, Error> {
         if constraints.checked_next_power_of_two() != Some(size)
             || prover_key.n != size
+            || public_input_indexes
+                .iter()
+                .any(|index| *index >= constraints)
+            || public_input_indexes
+                .windows(2)
+                .any(|indexes| indexes[0] >= indexes[1])
         {
             return Err(dusk_bytes::Error::InvalidData.into());
         }
@@ -111,6 +124,7 @@ impl Prover {
             vanishing_coset_inverses,
             size,
             constraints,
+            public_input_indexes,
         })
     }
 
@@ -223,8 +237,14 @@ impl Prover {
         let commit_key_len = commit_key.len();
         let verifier_key_len = verifier_key.len();
 
-        let size =
-            48 + label_len + prover_key_len + commit_key_len + verifier_key_len;
+        let public_input_indexes_len =
+            self.public_input_indexes.len() * u64::SIZE;
+        let size = 8 * u64::SIZE
+            + label_len
+            + prover_key_len
+            + commit_key_len
+            + verifier_key_len
+            + public_input_indexes_len;
 
         (size, prover_key, commit_key, verifier_key)
     }
@@ -247,6 +267,7 @@ impl Prover {
         let size = self.size as u64;
         let constraints = self.constraints as u64;
 
+        bytes.extend(PROVER_FORMAT_V2_MAGIC.to_be_bytes());
         bytes.extend(label_len.to_be_bytes());
         bytes.extend(prover_key_len.to_be_bytes());
         bytes.extend(commit_key_len.to_be_bytes());
@@ -258,6 +279,10 @@ impl Prover {
         bytes.extend(prover_key);
         bytes.extend(commit_key);
         bytes.extend(verifier_key);
+        bytes.extend((self.public_input_indexes.len() as u64).to_be_bytes());
+        for index in &self.public_input_indexes {
+            bytes.extend((*index as u64).to_be_bytes());
+        }
 
         bytes
     }
@@ -270,36 +295,51 @@ impl Prover {
     {
         let mut bytes = bytes.as_ref();
 
-        if bytes.len() < 48 {
+        if bytes.len() < 56 {
             return Err(Error::NotEnoughBytes);
         }
 
+        let magic = <[u8; 8]>::try_from(&bytes[..8]).expect("checked len");
+        if u64::from_be_bytes(magic) != PROVER_FORMAT_V2_MAGIC {
+            return Err(dusk_bytes::Error::InvalidData.into());
+        }
+        bytes = &bytes[8..];
+
         let label_len = <[u8; 8]>::try_from(&bytes[..8]).expect("checked len");
-        let label_len = u64::from_be_bytes(label_len) as usize;
+        let label_len = usize::try_from(u64::from_be_bytes(label_len))
+            .map_err(|_| dusk_bytes::Error::InvalidData)?;
         bytes = &bytes[8..];
 
         let prover_key_len =
             <[u8; 8]>::try_from(&bytes[..8]).expect("checked len");
-        let prover_key_len = u64::from_be_bytes(prover_key_len) as usize;
+        let prover_key_len =
+            usize::try_from(u64::from_be_bytes(prover_key_len))
+                .map_err(|_| dusk_bytes::Error::InvalidData)?;
         bytes = &bytes[8..];
 
         let commit_key_len =
             <[u8; 8]>::try_from(&bytes[..8]).expect("checked len");
-        let commit_key_len = u64::from_be_bytes(commit_key_len) as usize;
+        let commit_key_len =
+            usize::try_from(u64::from_be_bytes(commit_key_len))
+                .map_err(|_| dusk_bytes::Error::InvalidData)?;
         bytes = &bytes[8..];
 
         let verifier_key_len =
             <[u8; 8]>::try_from(&bytes[..8]).expect("checked len");
-        let verifier_key_len = u64::from_be_bytes(verifier_key_len) as usize;
+        let verifier_key_len =
+            usize::try_from(u64::from_be_bytes(verifier_key_len))
+                .map_err(|_| dusk_bytes::Error::InvalidData)?;
         bytes = &bytes[8..];
 
         let size = <[u8; 8]>::try_from(&bytes[..8]).expect("checked len");
-        let size = u64::from_be_bytes(size) as usize;
+        let size = usize::try_from(u64::from_be_bytes(size))
+            .map_err(|_| dusk_bytes::Error::InvalidData)?;
         bytes = &bytes[8..];
 
         let constraints =
             <[u8; 8]>::try_from(&bytes[..8]).expect("checked len");
-        let constraints = u64::from_be_bytes(constraints) as usize;
+        let constraints = usize::try_from(u64::from_be_bytes(constraints))
+            .map_err(|_| dusk_bytes::Error::InvalidData)?;
         bytes = &bytes[8..];
 
         let required_len = label_len
@@ -326,6 +366,37 @@ impl Prover {
         bytes = &bytes[commit_key_len..];
 
         let verifier_key = &bytes[..verifier_key_len];
+        bytes = &bytes[verifier_key_len..];
+
+        if bytes.len() < u64::SIZE {
+            return Err(Error::NotEnoughBytes);
+        }
+        let public_input_indexes_len =
+            u64::from_be_bytes(bytes[..u64::SIZE].try_into().expect("checked"));
+        let public_input_indexes_len =
+            usize::try_from(public_input_indexes_len)
+                .map_err(|_| dusk_bytes::Error::InvalidData)?;
+        bytes = &bytes[u64::SIZE..];
+
+        if public_input_indexes_len > constraints {
+            return Err(dusk_bytes::Error::InvalidData.into());
+        }
+        let indexes_bytes_len = public_input_indexes_len
+            .checked_mul(u64::SIZE)
+            .ok_or(dusk_bytes::Error::InvalidData)?;
+        if bytes.len() != indexes_bytes_len {
+            return Err(dusk_bytes::Error::InvalidData.into());
+        }
+        let public_input_indexes = bytes
+            .as_chunks::<{ u64::SIZE }>()
+            .0
+            .iter()
+            .map(|bytes| {
+                let index = u64::from_be_bytes(*bytes);
+                usize::try_from(index)
+                    .map_err(|_| dusk_bytes::Error::InvalidData)
+            })
+            .collect::<Result<Vec<_>, _>>()?;
 
         let label = label.to_vec();
         let prover_key = ProverKey::from_slice(prover_key)?;
@@ -345,6 +416,7 @@ impl Prover {
             verifier_key,
             size,
             constraints,
+            public_input_indexes,
         )
     }
 
@@ -429,10 +501,26 @@ impl Prover {
 
         let mut transcript = self.transcript_for_version(version);
 
-        let public_inputs = prover.public_inputs();
-        let public_input_indexes = prover.public_input_indexes();
+        let public_inputs_len = prover.public_inputs.len();
+        if public_inputs_len != self.public_input_indexes.len() {
+            return Err(Error::InconsistentPublicInputsLen {
+                expected: self.public_input_indexes.len(),
+                provided: public_inputs_len,
+            });
+        }
+        let public_inputs = self
+            .public_input_indexes
+            .iter()
+            .map(|index| {
+                prover
+                    .public_inputs
+                    .get(index)
+                    .copied()
+                    .ok_or(Error::PublicInputNotFound { index: *index })
+            })
+            .collect::<Result<Vec<_>, _>>()?;
         let dense_public_inputs = Composer::dense_public_inputs(
-            &public_input_indexes,
+            &self.public_input_indexes,
             &public_inputs,
             self.size,
         );
@@ -771,7 +859,9 @@ mod tests {
     use super::Prover;
     use crate::error::Error;
     use crate::fft::EvaluationDomain;
-    use crate::prelude::{Circuit, Compiler, Composer, PublicParameters};
+    use crate::prelude::{
+        Circuit, Compiler, Composer, Constraint, PublicParameters,
+    };
 
     #[derive(Default)]
     struct MinimalCircuit;
@@ -784,6 +874,39 @@ mod tests {
         }
     }
 
+    struct PublicInputRows {
+        rows: [bool; 2],
+        value: BlsScalar,
+    }
+
+    impl Default for PublicInputRows {
+        fn default() -> Self {
+            Self {
+                rows: [true, false],
+                value: BlsScalar::zero(),
+            }
+        }
+    }
+
+    impl Circuit for PublicInputRows {
+        fn circuit(&self, composer: &mut Composer) -> Result<(), Error> {
+            for include_public_input in self.rows {
+                let constraint = Constraint::new()
+                    .left(1)
+                    .a(Composer::ONE)
+                    .right(1)
+                    .b(Composer::ZERO);
+                let constraint = if include_public_input {
+                    constraint.public(self.value)
+                } else {
+                    constraint
+                };
+                composer.gate_add(constraint);
+            }
+            Ok(())
+        }
+    }
+
     fn assert_deserialization_error_without_panic(bytes: &[u8]) {
         let result = std::panic::catch_unwind(|| Prover::try_from_bytes(bytes));
         assert!(result.is_ok(), "deserializer should never panic");
@@ -791,6 +914,15 @@ mod tests {
             result.expect("checked above").is_err(),
             "malformed input must be rejected"
         );
+    }
+
+    fn serialized_label_len(bytes: &[u8]) -> usize {
+        let encoded = u64::from_be_bytes(
+            bytes[u64::SIZE..2 * u64::SIZE]
+                .try_into()
+                .expect("header is complete"),
+        );
+        encoded as usize
     }
 
     #[test]
@@ -835,6 +967,137 @@ mod tests {
     }
 
     #[test]
+    fn prover_rejects_public_inputs_moved_from_compiled_rows() {
+        let mut setup_rng = StdRng::seed_from_u64(50);
+        let pp = PublicParameters::setup(1 << 10, &mut setup_rng)
+            .expect("public parameters should build");
+        let (prover, _) = Compiler::compile::<PublicInputRows>(&pp, b"pi-rows")
+            .expect("circuit should compile");
+        let compiled_row = Composer::initialized().constraints();
+
+        for value in [BlsScalar::zero(), BlsScalar::one()] {
+            let circuit = PublicInputRows {
+                rows: [false, true],
+                value,
+            };
+            let mut rng = StdRng::seed_from_u64(51);
+            assert_eq!(
+                prover.prove(&mut rng, &circuit),
+                Err(Error::PublicInputNotFound {
+                    index: compiled_row
+                })
+            );
+        }
+    }
+
+    #[test]
+    fn decoded_prover_preserves_public_input_rows() {
+        let mut setup_rng = StdRng::seed_from_u64(52);
+        let pp = PublicParameters::setup(1 << 10, &mut setup_rng)
+            .expect("public parameters should build");
+        let (prover, _) = Compiler::compile::<PublicInputRows>(&pp, b"pi-rows")
+            .expect("circuit should compile");
+        let bytes = prover.to_bytes();
+        let decoded = Prover::try_from_bytes(&bytes)
+            .expect("serialized prover should decode");
+        assert_eq!(decoded.to_bytes(), bytes);
+
+        let moved = PublicInputRows {
+            rows: [false, true],
+            value: BlsScalar::one(),
+        };
+        let mut rng = StdRng::seed_from_u64(53);
+        assert!(matches!(
+            decoded.prove(&mut rng, &moved),
+            Err(Error::PublicInputNotFound { .. })
+        ));
+    }
+
+    #[test]
+    fn prover_rejects_public_input_count_mismatch() {
+        let mut setup_rng = StdRng::seed_from_u64(54);
+        let pp = PublicParameters::setup(1 << 10, &mut setup_rng)
+            .expect("public parameters should build");
+        let (prover, _) = Compiler::compile::<PublicInputRows>(&pp, b"pi-rows")
+            .expect("circuit should compile");
+
+        for (rows, provided) in [([false, false], 0), ([true, true], 2)] {
+            let circuit = PublicInputRows {
+                rows,
+                value: BlsScalar::one(),
+            };
+            let mut rng = StdRng::seed_from_u64(55);
+            assert_eq!(
+                prover.prove(&mut rng, &circuit),
+                Err(Error::InconsistentPublicInputsLen {
+                    expected: 1,
+                    provided,
+                })
+            );
+        }
+    }
+
+    #[test]
+    fn prover_serialization_requires_valid_public_input_layout() {
+        let mut setup_rng = StdRng::seed_from_u64(56);
+        let pp = PublicParameters::setup(1 << 10, &mut setup_rng)
+            .expect("public parameters should build");
+        let (prover, _) = Compiler::compile::<PublicInputRows>(&pp, b"pi-rows")
+            .expect("circuit should compile");
+
+        let mut legacy = prover.to_bytes();
+        legacy[..u64::SIZE].copy_from_slice(&0u64.to_be_bytes());
+        assert_deserialization_error_without_panic(&legacy);
+
+        let mut out_of_range = prover.to_bytes();
+        let last = out_of_range.len() - u64::SIZE;
+        out_of_range[last..]
+            .copy_from_slice(&(prover.constraints as u64).to_be_bytes());
+        assert_deserialization_error_without_panic(&out_of_range);
+
+        let mut trailing = prover.to_bytes();
+        trailing.push(0);
+        assert_deserialization_error_without_panic(&trailing);
+    }
+
+    #[test]
+    fn new_prover_format_is_rejected_by_old_32_bit_header_logic() {
+        let mut setup_rng = StdRng::seed_from_u64(57);
+        let pp = PublicParameters::setup(1 << 10, &mut setup_rng)
+            .expect("public parameters should build");
+        let (prover, _) = Compiler::compile::<PublicInputRows>(&pp, b"pi-rows")
+            .expect("circuit should compile");
+        let bytes = prover.to_bytes();
+
+        // The previous decoder interpreted the first six words as lengths
+        // and used truncating u64-to-usize casts. Simulate that logic with
+        // u32 so this regression is exercised on every CI target.
+        let old_label_len = u64::from_be_bytes(
+            bytes[..u64::SIZE].try_into().expect("header is complete"),
+        ) as u32;
+        let old_prover_key_len = u64::from_be_bytes(
+            bytes[u64::SIZE..2 * u64::SIZE]
+                .try_into()
+                .expect("header is complete"),
+        ) as u32;
+
+        assert_eq!(old_label_len, u32::MAX);
+        assert!(old_label_len.checked_add(old_prover_key_len).is_none());
+    }
+
+    #[cfg(target_pointer_width = "32")]
+    #[test]
+    fn prover_rejects_header_lengths_that_do_not_fit_usize() {
+        let mut bytes = vec![0u8; 56];
+        bytes[..u64::SIZE]
+            .copy_from_slice(&super::PROVER_FORMAT_V2_MAGIC.to_be_bytes());
+        bytes[u64::SIZE..2 * u64::SIZE]
+            .copy_from_slice(&(u32::MAX as u64 + 1).to_be_bytes());
+
+        assert_deserialization_error_without_panic(&bytes);
+    }
+
+    #[test]
     fn prover_rejects_malformed_derived_cache_inputs() {
         let mut setup_rng = StdRng::seed_from_u64(49);
         let pp = PublicParameters::setup(1 << 10, &mut setup_rng)
@@ -850,6 +1113,7 @@ mod tests {
                 prover.verifier_key,
                 size,
                 constraints,
+                prover.public_input_indexes.clone(),
             )
         };
         let assert_invalid_data = |result| {
@@ -891,7 +1155,7 @@ mod tests {
             .expect("circuit should compile");
 
         let mut bytes = prover.to_bytes();
-        bytes[16..24].copy_from_slice(&(0u64).to_be_bytes()); // commit-key length
+        bytes[24..32].copy_from_slice(&(0u64).to_be_bytes()); // commit-key length
 
         assert_deserialization_error_without_panic(&bytes);
     }
@@ -905,26 +1169,24 @@ mod tests {
             .expect("circuit should compile");
         let bytes = prover.to_bytes();
 
-        let label_len = u64::from_be_bytes(
-            bytes[..u64::SIZE].try_into().expect("header is complete"),
-        ) as usize;
+        let label_len = serialized_label_len(&bytes);
         let prover_key_len = u64::from_be_bytes(
-            bytes[u64::SIZE..2 * u64::SIZE]
-                .try_into()
-                .expect("header is complete"),
-        ) as usize;
-        let commit_key_len = u64::from_be_bytes(
             bytes[2 * u64::SIZE..3 * u64::SIZE]
                 .try_into()
                 .expect("header is complete"),
         ) as usize;
-        let commit_key_offset = 6 * u64::SIZE + label_len + prover_key_len;
+        let commit_key_len = u64::from_be_bytes(
+            bytes[3 * u64::SIZE..4 * u64::SIZE]
+                .try_into()
+                .expect("header is complete"),
+        ) as usize;
+        let commit_key_offset = 7 * u64::SIZE + label_len + prover_key_len;
         let verifier_key_offset = commit_key_offset + commit_key_len;
 
         let mut malformed = bytes[..commit_key_offset].to_vec();
         malformed.extend_from_slice(&0u64.to_le_bytes());
         malformed.extend_from_slice(&bytes[verifier_key_offset..]);
-        malformed[2 * u64::SIZE..3 * u64::SIZE]
+        malformed[3 * u64::SIZE..4 * u64::SIZE]
             .copy_from_slice(&(u64::SIZE as u64).to_be_bytes());
 
         assert_deserialization_error_without_panic(&malformed);
@@ -939,24 +1201,22 @@ mod tests {
             .expect("circuit should compile");
         let bytes = prover.to_bytes();
 
-        let label_len = u64::from_be_bytes(
-            bytes[..u64::SIZE].try_into().expect("header is complete"),
-        ) as usize;
-        let prover_key_offset = 6 * u64::SIZE + label_len;
+        let label_len = serialized_label_len(&bytes);
+        let prover_key_offset = 7 * u64::SIZE + label_len;
         let evaluations_size_offset = prover_key_offset + u64::SIZE;
         let first_polynomial_len_offset = prover_key_offset + 2 * u64::SIZE;
 
         let mut zero_size = bytes.clone();
-        zero_size[4 * u64::SIZE..5 * u64::SIZE]
+        zero_size[5 * u64::SIZE..6 * u64::SIZE]
             .copy_from_slice(&0u64.to_bytes());
         assert_deserialization_error_without_panic(&zero_size);
 
-        let size = u64::from_slice(&bytes[4 * u64::SIZE..5 * u64::SIZE])
+        let size = u64::from_slice(&bytes[5 * u64::SIZE..6 * u64::SIZE])
             .expect("serialized circuit size should decode");
         let mut mismatched_prover_key_size = bytes.clone();
-        mismatched_prover_key_size[4 * u64::SIZE..5 * u64::SIZE]
-            .copy_from_slice(&(size * 2).to_bytes());
         mismatched_prover_key_size[5 * u64::SIZE..6 * u64::SIZE]
+            .copy_from_slice(&(size * 2).to_bytes());
+        mismatched_prover_key_size[6 * u64::SIZE..7 * u64::SIZE]
             .copy_from_slice(&(size + 1).to_bytes());
         assert_deserialization_error_without_panic(&mismatched_prover_key_size);
 
@@ -1003,15 +1263,13 @@ mod tests {
             .expect("circuit should compile");
         let mut bytes = prover.to_bytes();
 
-        let label_len = u64::from_be_bytes(
-            bytes[..u64::SIZE].try_into().expect("header is complete"),
-        ) as usize;
+        let label_len = serialized_label_len(&bytes);
         let prover_key_len = u64::from_be_bytes(
-            bytes[u64::SIZE..2 * u64::SIZE]
+            bytes[2 * u64::SIZE..3 * u64::SIZE]
                 .try_into()
                 .expect("header is complete"),
         ) as usize;
-        let prover_key_offset = 6 * u64::SIZE + label_len;
+        let prover_key_offset = 7 * u64::SIZE + label_len;
         let evaluations_size = u64::from_slice(
             &bytes[prover_key_offset + u64::SIZE
                 ..prover_key_offset + 2 * u64::SIZE],
@@ -1042,15 +1300,13 @@ mod tests {
             .expect("circuit should compile");
         let mut bytes = prover.to_bytes();
 
-        let label_len = u64::from_be_bytes(
-            bytes[..u64::SIZE].try_into().expect("header is complete"),
-        ) as usize;
+        let label_len = serialized_label_len(&bytes);
         let prover_key_len = u64::from_be_bytes(
-            bytes[u64::SIZE..2 * u64::SIZE]
+            bytes[2 * u64::SIZE..3 * u64::SIZE]
                 .try_into()
                 .expect("header is complete"),
         ) as usize;
-        let prover_key_offset = 6 * u64::SIZE + label_len;
+        let prover_key_offset = 7 * u64::SIZE + label_len;
         let evaluations_size = u64::from_slice(
             &bytes[prover_key_offset + u64::SIZE
                 ..prover_key_offset + 2 * u64::SIZE],
@@ -1076,15 +1332,13 @@ mod tests {
             .expect("circuit should compile");
         let mut bytes = prover.to_bytes();
 
-        let label_len = u64::from_be_bytes(
-            bytes[..u64::SIZE].try_into().expect("header is complete"),
-        ) as usize;
+        let label_len = serialized_label_len(&bytes);
         let prover_key_len = u64::from_be_bytes(
-            bytes[u64::SIZE..2 * u64::SIZE]
+            bytes[2 * u64::SIZE..3 * u64::SIZE]
                 .try_into()
                 .expect("header is complete"),
         ) as usize;
-        let prover_key_offset = 6 * u64::SIZE + label_len;
+        let prover_key_offset = 7 * u64::SIZE + label_len;
         let evaluations_size = u64::from_slice(
             &bytes[prover_key_offset + u64::SIZE
                 ..prover_key_offset + 2 * u64::SIZE],
@@ -1186,7 +1440,8 @@ mod tests {
 
     #[test]
     fn prover_try_from_bytes_rejects_overflow_lengths_without_panicking() {
-        let mut bytes = Vec::with_capacity(48);
+        let mut bytes = Vec::with_capacity(56);
+        bytes.extend_from_slice(&super::PROVER_FORMAT_V2_MAGIC.to_be_bytes());
         bytes.extend_from_slice(&0u64.to_be_bytes()); // label_len
         bytes.extend_from_slice(&u64::MAX.to_be_bytes()); // prover_key_len
         bytes.extend_from_slice(&u64::MAX.to_be_bytes()); // commit_key_len

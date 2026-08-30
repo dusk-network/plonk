@@ -92,6 +92,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Bind proving-time public inputs to the rows recorded at circuit compilation.
+  Serialized provers must be regenerated because the format now includes that
+  row layout.
 - Normalize unrepresentable serialized prover-key lengths as invalid data
   [#937]
 - Bound compressed-circuit decompression and reconstruction allocation by the

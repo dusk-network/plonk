@@ -11,7 +11,7 @@ use rand::rngs::StdRng;
 
 mod common;
 use common::{
-    check_satisfied_circuit, check_satisfied_circuit_fails,
+    check_public_input_count_mismatch, check_satisfied_circuit,
     check_unsatisfied_circuit,
 };
 
@@ -163,9 +163,7 @@ fn assert_equal_constant() {
     let public = Some(public_value);
     let pi = vec![public_value];
     let circuit = TestCircuit::new(scalar, constant, public);
-    check_satisfied_circuit_fails(
-        &prover, &verifier, &pi, &circuit, &mut rng, &msg,
-    );
+    check_public_input_count_mismatch(&prover, &pi, &circuit, &mut rng, &msg);
 
     // Test constant doesn't match
     let msg = "Proof creation should not be possible with different constant than in circuit description";
@@ -210,9 +208,7 @@ fn assert_equal_constant() {
     let public = None;
     let pi = vec![];
     let circuit = TestCircuit::new(scalar, constant, public);
-    check_satisfied_circuit_fails(
-        &prover, &verifier, &pi, &circuit, &mut rng, &msg,
-    );
+    check_public_input_count_mismatch(&prover, &pi, &circuit, &mut rng, &msg);
 
     // Test constant doesn't match
     let msg = "Proof creation should not be possible with different constant than in circuit description";
@@ -245,9 +241,7 @@ fn assert_equal_constant() {
     let public = Some(public_value);
     let pi = vec![public_value];
     let circuit = TestCircuit::new(scalar, constant, public);
-    check_satisfied_circuit_fails(
-        &prover, &verifier, &pi, &circuit, &mut rng, &msg,
-    );
+    check_public_input_count_mismatch(&prover, &pi, &circuit, &mut rng, &msg);
 
     // Test constant doesn't match
     let msg = "Proof creation should not be possible with different constant than in circuit description";
@@ -290,9 +284,7 @@ fn assert_equal_constant() {
     let public = None;
     let pi = vec![];
     let circuit = TestCircuit::new(scalar, constant, public);
-    check_satisfied_circuit_fails(
-        &prover, &verifier, &pi, &circuit, &mut rng, &msg,
-    );
+    check_public_input_count_mismatch(&prover, &pi, &circuit, &mut rng, &msg);
 
     // Test constant doesn't match
     let msg = "Proof creation should not be possible with different constant than in circuit description";

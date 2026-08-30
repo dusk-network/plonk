@@ -31,15 +31,13 @@ pub(crate) fn check_satisfied_circuit<C, R>(
     verifier.verify(&proof, &pi_expected).expect(msg);
 }
 
-// Check that proof creation and verification of a satisfied circuit fails
-// when the public inputs from the test circuit does not match the ones from
-// the verifier circuit description
+// Check that proving rejects a satisfied circuit whose public-input count does
+// not match the compiled circuit.
 // As this is a very specific test case, this function will not be used by all
 // tests.
 #[allow(dead_code)]
-pub(crate) fn check_satisfied_circuit_fails<C, R>(
+pub(crate) fn check_public_input_count_mismatch<C, R>(
     prover: &Prover,
-    verifier: &Verifier,
     pi_expected: &Vec<BlsScalar>,
     circuit: &C,
     rng: &mut R,
@@ -48,13 +46,13 @@ pub(crate) fn check_satisfied_circuit_fails<C, R>(
     C: Circuit,
     R: RngCore + CryptoRng,
 {
-    let (proof, pi_circuit) = prover
+    let error = prover
         .prove(rng, circuit)
-        .expect("Prover for valid circuit shouldn't fail");
-
-    assert_eq!(*pi_expected, pi_circuit);
-
-    verifier.verify(&proof, &pi_expected).expect_err(msg);
+        .expect_err("proving should reject a mismatched public-input count");
+    assert!(
+        matches!(error, Error::InconsistentPublicInputsLen { .. }),
+        "{msg}: got {error:?} for public inputs {pi_expected:?}"
+    );
 }
 
 // Check that proof creation of an unsatisfied circuit fails with the error

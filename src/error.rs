@@ -208,7 +208,7 @@ impl fmt::Display for Error {
             ),
             Self::InconsistentPublicInputsLen { expected, provided } => write!(
                 f,
-                "The provided public inputs set of length {} doesn't match the processed verifier: {}",
+                "The provided public inputs set of length {} doesn't match the compiled circuit: {}",
                 provided, expected
             ),
             Self::InvalidCompressedCircuit => {
