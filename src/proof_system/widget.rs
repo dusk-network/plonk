@@ -6,6 +6,7 @@
 
 use dusk_bytes::{DeserializableSlice, Serializable};
 
+use crate::BufferWriter;
 use crate::commitment_scheme::Commitment;
 
 pub mod arithmetic;
@@ -84,11 +85,9 @@ impl<C> CheckBytes<C> for ArchivedVerifierKey {
 impl Serializable<{ 20 * Commitment::SIZE + u64::SIZE }> for VerifierKey {
     type Error = dusk_bytes::Error;
 
-    #[allow(unused_must_use)]
     fn to_bytes(&self) -> [u8; Self::SIZE] {
-        use dusk_bytes::Write;
         let mut buff = [0u8; Self::SIZE];
-        let mut writer = &mut buff[..];
+        let mut writer = BufferWriter::new(&mut buff);
 
         writer.write(&(self.n as u64).to_bytes());
         writer.write(&self.arithmetic.q_m.to_bytes());
@@ -106,6 +105,9 @@ impl Serializable<{ 20 * Commitment::SIZE + u64::SIZE }> for VerifierKey {
         writer.write(&self.permutation.s_sigma_2.to_bytes());
         writer.write(&self.permutation.s_sigma_3.to_bytes());
         writer.write(&self.permutation.s_sigma_4.to_bytes());
+        // Preserve the five legacy lookup-commitment slots as zero padding.
+        writer.write(&[0u8; 5 * Commitment::SIZE]);
+        writer.finish();
 
         buff
     }
@@ -313,22 +315,40 @@ pub(crate) mod alloc {
     }
 
     impl ProverKey {
+        fn evaluations_serialization_size(&self) -> usize {
+            self.arithmetic.q_m.1.evals.len() * BlsScalar::SIZE
+                + EvaluationDomain::SIZE
+        }
+
         /// Returns the size of the ProverKey for serialization.
         ///
         /// Note:
         /// Duplicate polynomials of the ProverKey (e.g. `q_L`, `q_R` and `q_C`)
         /// are only counted once.
         fn serialization_size(&self) -> usize {
-            // Fetch size in bytes of each Polynomial
-            let poly_size = self.arithmetic.q_m.0.len() * BlsScalar::SIZE;
+            let polynomial_lengths = [
+                self.arithmetic.q_m.0.len(),
+                self.arithmetic.q_l.0.len(),
+                self.arithmetic.q_r.0.len(),
+                self.arithmetic.q_o.0.len(),
+                self.arithmetic.q_f.0.len(),
+                self.arithmetic.q_c.0.len(),
+                self.arithmetic.q_arith.0.len(),
+                self.logic.q_logic.0.len(),
+                self.range.q_range.0.len(),
+                self.fixed_base.q_fixed_group_add.0.len(),
+                self.variable_base.q_variable_group_add.0.len(),
+                self.permutation.s_sigma_1.0.len(),
+                self.permutation.s_sigma_2.0.len(),
+                self.permutation.s_sigma_3.0.len(),
+                self.permutation.s_sigma_4.0.len(),
+            ];
+            let poly_size =
+                polynomial_lengths.into_iter().sum::<usize>() * BlsScalar::SIZE;
             // Fetch size in bytes of each Evaluations
-            let eval_size = self.arithmetic.q_m.1.evals.len() * BlsScalar::SIZE
-                + EvaluationDomain::SIZE;
+            let eval_size = self.evaluations_serialization_size();
 
-            // The amount of distinct polynomials in `ProverKey`
-            // 7 (arithmetic) + 1 (logic) + 1 (range) + 1 (fixed_base)
-            // + 1 (variable_base) + 4 (permutation)
-            let poly_num = 15;
+            let poly_num = polynomial_lengths.len();
 
             // The amount of distinct evaluations in `ProverKey`
             // poly_num + 1 (permutation) + 1 (v_h_coset_8n)
@@ -339,20 +359,17 @@ pub(crate) mod alloc {
             let i64_num = poly_num + 2;
 
             // Calculate the amount of bytes needed to serialize `ProverKey`
-            poly_size * poly_num + eval_size * eval_num + u64::SIZE * i64_num
+            poly_size + eval_size * eval_num + u64::SIZE * i64_num
         }
 
         /// Serializes a [`ProverKey`] struct into a Vec of bytes.
-        #[allow(unused_must_use)]
         pub fn to_var_bytes(&self) -> Vec<u8> {
-            use dusk_bytes::Write;
             let size = self.serialization_size();
-            let eval_size = self.arithmetic.q_m.1.evals.len() * BlsScalar::SIZE
-                + EvaluationDomain::SIZE;
+            let eval_size = self.evaluations_serialization_size();
 
             let mut bytes = vec![0u8; size];
 
-            let mut writer = &mut bytes[..];
+            let mut writer = BufferWriter::new(&mut bytes);
             writer.write(&(self.n as u64).to_bytes());
             // Write Evaluation len in bytes.
             writer.write(&(eval_size as u64).to_bytes());
@@ -439,6 +456,7 @@ pub(crate) mod alloc {
             writer.write(&self.permutation.linear_evaluations.to_var_bytes());
 
             writer.write(&self.v_h_coset_8n.to_var_bytes());
+            writer.finish();
 
             bytes
         }
@@ -753,6 +771,18 @@ mod test {
     }
 
     #[test]
+    #[should_panic(expected = "serialization buffer was not fully written")]
+    fn prover_key_serialization_rejects_short_evaluations() {
+        let n = 1 << 3;
+        let evaluations_domain =
+            EvaluationDomain::new(8 * n).expect("8n domain should be valid");
+        let mut prover_key = prover_key(n, evaluations_domain);
+        prover_key.arithmetic.q_l.1.evals.pop();
+
+        prover_key.to_var_bytes();
+    }
+
+    #[test]
     fn prover_key_rejects_malformed_serialized_lengths() {
         let n = 1 << 3;
         let evaluations_domain =
@@ -971,6 +1001,12 @@ mod test {
         let verifier_key_bytes = verifier_key.to_bytes();
         let got = VerifierKey::from_bytes(&verifier_key_bytes).unwrap();
 
+        let padding_start = u64::SIZE + 15 * Commitment::SIZE;
+        assert!(
+            verifier_key_bytes[padding_start..]
+                .iter()
+                .all(|byte| *byte == 0)
+        );
         assert_eq!(got, verifier_key);
     }
 

@@ -12,6 +12,7 @@ use dusk_bytes::{DeserializableSlice, Serializable};
 use rayon::prelude::*;
 
 use super::linearization_poly::ProofEvaluations;
+use crate::BufferWriter;
 use crate::commitment_scheme::Commitment;
 
 // Number of (unshifted) polynomials opened at `z`, excluding the linearization
@@ -139,12 +140,9 @@ impl Serializable<{ 11 * Commitment::SIZE + ProofEvaluations::SIZE }>
 {
     type Error = dusk_bytes::Error;
 
-    #[allow(unused_must_use)]
     fn to_bytes(&self) -> [u8; Self::SIZE] {
-        use dusk_bytes::Write;
-
         let mut buf = [0u8; Self::SIZE];
-        let mut writer = &mut buf[..];
+        let mut writer = BufferWriter::new(&mut buf);
         writer.write(&self.a_comm.to_bytes());
         writer.write(&self.b_comm.to_bytes());
         writer.write(&self.c_comm.to_bytes());
@@ -157,6 +155,7 @@ impl Serializable<{ 11 * Commitment::SIZE + ProofEvaluations::SIZE }>
         writer.write(&self.w_z_chall_comm.to_bytes());
         writer.write(&self.w_z_chall_w_comm.to_bytes());
         writer.write(&self.evaluations.to_bytes());
+        writer.finish();
 
         buf
     }

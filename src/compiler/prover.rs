@@ -1185,6 +1185,44 @@ mod tests {
     }
 
     #[test]
+    fn prover_roundtrip_accepts_uneven_polynomial_lengths() {
+        let mut rng = StdRng::seed_from_u64(50);
+        let pp = PublicParameters::setup(1 << 10, &mut rng)
+            .expect("public parameters should build");
+        let (prover, _) = Compiler::compile::<MinimalCircuit>(&pp, b"p1.4-5")
+            .expect("circuit should compile");
+        let mut bytes = prover.to_bytes();
+
+        let label_len = u64::from_be_bytes(
+            bytes[..u64::SIZE].try_into().expect("header is complete"),
+        ) as usize;
+        let prover_key_len = u64::from_be_bytes(
+            bytes[u64::SIZE..2 * u64::SIZE]
+                .try_into()
+                .expect("header is complete"),
+        ) as usize;
+        let q_m_len_offset = 6 * u64::SIZE + label_len + 2 * u64::SIZE;
+        let q_m_len =
+            u64::from_slice(&bytes[q_m_len_offset..q_m_len_offset + u64::SIZE])
+                .expect("q_m length should decode") as usize;
+        assert!(q_m_len > 1);
+
+        bytes[q_m_len_offset..q_m_len_offset + u64::SIZE]
+            .copy_from_slice(&((q_m_len - 1) as u64).to_bytes());
+        let first_q_m_coefficient = q_m_len_offset + u64::SIZE;
+        bytes.drain(
+            first_q_m_coefficient..first_q_m_coefficient + BlsScalar::SIZE,
+        );
+        bytes[u64::SIZE..2 * u64::SIZE].copy_from_slice(
+            &((prover_key_len - BlsScalar::SIZE) as u64).to_be_bytes(),
+        );
+
+        let decoded = Prover::try_from_bytes(&bytes)
+            .expect("prover with uneven polynomial lengths should decode");
+        assert_eq!(decoded.to_bytes(), bytes);
+    }
+
+    #[test]
     fn prover_try_from_bytes_rejects_overflow_lengths_without_panicking() {
         let mut bytes = Vec::with_capacity(48);
         bytes.extend_from_slice(&0u64.to_be_bytes()); // label_len

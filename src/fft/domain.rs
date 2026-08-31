@@ -22,6 +22,8 @@ use rkyv::{
     ser::{ScratchSpace, Serializer},
 };
 
+use crate::BufferWriter;
+
 /// Defines a domain over which finite field (I)FFTs can be performed. Works
 /// only for fields that have a large multiplicative subgroup of size that is
 /// a power-of-2.
@@ -61,12 +63,9 @@ impl Serializable<{ u64::SIZE + u32::SIZE + 5 * BlsScalar::SIZE }>
 {
     type Error = dusk_bytes::Error;
 
-    #[allow(unused_must_use)]
     fn to_bytes(&self) -> [u8; Self::SIZE] {
-        use dusk_bytes::Write;
-
         let mut buf = [0u8; Self::SIZE];
-        let mut writer = &mut buf[..];
+        let mut writer = BufferWriter::new(&mut buf);
         writer.write(&self.size.to_bytes());
         writer.write(&self.log_size_of_group.to_bytes());
         writer.write(&self.size_as_field_element.to_bytes());
@@ -74,6 +73,7 @@ impl Serializable<{ u64::SIZE + u32::SIZE + 5 * BlsScalar::SIZE }>
         writer.write(&self.group_gen.to_bytes());
         writer.write(&self.group_gen_inv.to_bytes());
         writer.write(&self.generator_inv.to_bytes());
+        writer.finish();
 
         buf
     }
