@@ -39,6 +39,19 @@ impl Verifier {
         constraints: usize,
     ) -> Result<Self, Error> {
         let domain = EvaluationDomain::new(verifier_key.n)?;
+
+        if constraints.checked_next_power_of_two() != Some(size)
+            || verifier_key.n != constraints
+            || public_input_indexes.len() > constraints
+            || public_input_indexes
+                .iter()
+                .any(|index| *index >= constraints)
+            || public_input_indexes
+                .windows(2)
+                .any(|indexes| indexes[0] >= indexes[1])
+        {
+            return Err(dusk_bytes::Error::InvalidData.into());
+        }
         let public_input_roots = public_input_indexes
             .iter()
             .map(|index| domain.group_gen_inv.pow(&[*index as u64, 0, 0, 0]))
@@ -160,6 +173,10 @@ impl Verifier {
         let constraints = u64::from_be_bytes(constraints) as usize;
         bytes = &bytes[8..];
 
+        if public_input_indexes_len > constraints {
+            return Err(dusk_bytes::Error::InvalidData.into());
+        }
+
         let required_len = label_len
             .checked_add(verifier_key_len)
             .and_then(|len| len.checked_add(opening_key_len))
@@ -168,6 +185,9 @@ impl Verifier {
 
         if bytes.len() < required_len {
             return Err(Error::NotEnoughBytes);
+        }
+        if bytes.len() > required_len {
+            return Err(dusk_bytes::Error::InvalidData.into());
         }
 
         let label = &bytes[..label_len];
@@ -287,6 +307,36 @@ mod tests {
         }
     }
 
+    #[derive(Default)]
+    struct PublicInputCircuit;
+
+    impl Circuit for PublicInputCircuit {
+        fn circuit(&self, composer: &mut Composer) -> Result<(), Error> {
+            for value in [7u64, 11] {
+                let value = BlsScalar::from(value);
+                let witness = composer.append_witness(value);
+                composer.assert_equal_constant(witness, 0u64, Some(value));
+            }
+            Ok(())
+        }
+    }
+
+    fn header_word(bytes: &[u8], index: usize) -> usize {
+        let offset = index * u64::SIZE;
+        u64::from_be_bytes(
+            bytes[offset..offset + u64::SIZE]
+                .try_into()
+                .expect("header is complete"),
+        ) as usize
+    }
+
+    fn assert_invalid_verifier(bytes: &[u8]) {
+        assert!(matches!(
+            Verifier::try_from_bytes(bytes),
+            Err(Error::BytesError(dusk_bytes::Error::InvalidData))
+        ));
+    }
+
     #[test]
     fn verifier_try_from_bytes_rejects_overflow_lengths_without_panicking() {
         let mut bytes = Vec::with_capacity(48);
@@ -351,5 +401,92 @@ mod tests {
                 provided: 1,
             })
         );
+    }
+
+    #[test]
+    fn verifier_serialization_requires_valid_public_input_layout() {
+        let mut rng = StdRng::seed_from_u64(44);
+        let pp = PublicParameters::setup(1 << 5, &mut rng)
+            .expect("public parameters should build");
+        let (_, verifier) =
+            Compiler::compile::<PublicInputCircuit>(&pp, b"verifier-layout")
+                .expect("circuit should compile");
+        let bytes = verifier.to_bytes();
+        let index_offset = 6 * u64::SIZE
+            + header_word(&bytes, 0)
+            + header_word(&bytes, 1)
+            + header_word(&bytes, 2);
+        let first: [u8; u64::SIZE] = bytes
+            [index_offset..index_offset + u64::SIZE]
+            .try_into()
+            .expect("first index is complete");
+        let second: [u8; u64::SIZE] = bytes
+            [index_offset + u64::SIZE..index_offset + 2 * u64::SIZE]
+            .try_into()
+            .expect("second index is complete");
+
+        let mut duplicate = bytes.clone();
+        duplicate[index_offset + u64::SIZE..index_offset + 2 * u64::SIZE]
+            .copy_from_slice(&first);
+
+        let mut descending = bytes.clone();
+        descending[index_offset..index_offset + u64::SIZE]
+            .copy_from_slice(&second);
+        descending[index_offset + u64::SIZE..index_offset + 2 * u64::SIZE]
+            .copy_from_slice(&first);
+
+        let mut out_of_range = bytes.clone();
+        out_of_range[index_offset..index_offset + u64::SIZE]
+            .copy_from_slice(&(verifier.constraints as u64).to_be_bytes());
+
+        let mut excessive_count = bytes.clone();
+        excessive_count[3 * u64::SIZE..4 * u64::SIZE].copy_from_slice(
+            &((verifier.constraints + 1) as u64).to_be_bytes(),
+        );
+
+        let mut incoherent_size = bytes.clone();
+        incoherent_size[4 * u64::SIZE..5 * u64::SIZE]
+            .copy_from_slice(&((verifier.size + 1) as u64).to_be_bytes());
+
+        let mut incoherent_key = bytes.clone();
+        let verifier_key_offset = 6 * u64::SIZE + header_word(&bytes, 0);
+        incoherent_key[verifier_key_offset..verifier_key_offset + u64::SIZE]
+            .copy_from_slice(&((verifier.constraints + 1) as u64).to_bytes());
+
+        let mut trailing = bytes;
+        trailing.push(0);
+
+        for malformed in [
+            duplicate,
+            descending,
+            out_of_range,
+            excessive_count,
+            incoherent_size,
+            incoherent_key,
+            trailing,
+        ] {
+            assert_invalid_verifier(&malformed);
+        }
+    }
+
+    #[test]
+    fn decoded_verifier_preserves_public_input_layout() {
+        let mut rng = StdRng::seed_from_u64(45);
+        let pp = PublicParameters::setup(1 << 5, &mut rng)
+            .expect("public parameters should build");
+        let (prover, verifier) =
+            Compiler::compile::<PublicInputCircuit>(&pp, b"verifier-roundtrip")
+                .expect("circuit should compile");
+        let bytes = verifier.to_bytes();
+        let decoded = Verifier::try_from_bytes(&bytes)
+            .expect("serialized verifier should decode");
+        let (proof, public_inputs) = prover
+            .prove(&mut rng, &PublicInputCircuit)
+            .expect("proof should build");
+
+        assert_eq!(decoded.to_bytes(), bytes);
+        decoded
+            .verify(&proof, &public_inputs)
+            .expect("decoded verifier should verify the proof");
     }
 }
