@@ -788,7 +788,11 @@ is necessary since `rkyv/validation` was required as a bound.
 - Proof system module.
 
 <!-- ISSUES -->
+<<<<<<< HEAD
 [#959]: https://github.com/dusk-network/plonk/issues/959
+=======
+[#957]: https://github.com/dusk-network/plonk/issues/957
+>>>>>>> 7fdedc29 (Bind proofs to compiled public-input rows)
 [#953]: https://github.com/dusk-network/plonk/issues/953
 [#951]: https://github.com/dusk-network/plonk/issues/951
 [#950]: https://github.com/dusk-network/plonk/issues/950

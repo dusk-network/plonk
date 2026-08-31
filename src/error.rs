@@ -105,7 +105,7 @@ pub enum Error {
         /// Expected public input wasn't found
         index: usize,
     },
-    /// The provided public inputs length doesn't match the processed verifier
+    /// The provided public inputs length doesn't match the compiled circuit
     InconsistentPublicInputsLen {
         /// Expected value
         expected: usize,
@@ -208,7 +208,7 @@ impl fmt::Display for Error {
             ),
             Self::InconsistentPublicInputsLen { expected, provided } => write!(
                 f,
-                "The provided public inputs set of length {} doesn't match the processed verifier: {}",
+                "The provided public inputs set of length {} doesn't match the compiled circuit: {}",
                 provided, expected
             ),
             Self::InvalidCompressedCircuit => {

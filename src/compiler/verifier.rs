@@ -330,4 +330,26 @@ mod tests {
             Err(Error::InvalidEvalDomainSize { .. })
         ));
     }
+
+    #[test]
+    fn verifier_rejects_public_input_count_mismatch() {
+        let mut rng = StdRng::seed_from_u64(43);
+        let pp = PublicParameters::setup(1 << 5, &mut rng)
+            .expect("public parameters should build");
+        let (prover, verifier) =
+            Compiler::compile::<MinimalCircuit>(&pp, b"pi-count")
+                .expect("circuit should compile");
+        let (proof, public_inputs) = prover
+            .prove(&mut rng, &MinimalCircuit)
+            .expect("proof should build");
+
+        assert!(public_inputs.is_empty());
+        assert_eq!(
+            verifier.verify(&proof, &[BlsScalar::from(1u64)]),
+            Err(Error::InconsistentPublicInputsLen {
+                expected: 0,
+                provided: 1,
+            })
+        );
+    }
 }

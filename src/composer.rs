@@ -471,6 +471,7 @@ impl Composer {
         public_input_indexes
     }
 
+    #[cfg(test)]
     pub(crate) fn public_inputs(&self) -> Vec<BlsScalar> {
         self.public_input_indexes()
             .iter()

@@ -11,7 +11,7 @@ use rand::rngs::StdRng;
 
 mod common;
 use common::{
-    check_satisfied_circuit, check_satisfied_circuit_fails,
+    check_public_input_count_mismatch, check_satisfied_circuit,
     check_unsatisfied_circuit,
 };
 
@@ -156,16 +156,13 @@ fn assert_equal_constant() {
     check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
 
     // Test public input doesn't match
-    let msg = "Satisfied circuit should not verify because pi length is not the same as in circuit description";
+    let msg = "Proving should reject an unexpected public input";
     let scalar = BlsScalar::zero();
     let constant = BlsScalar::zero();
     let public_value = BlsScalar::zero();
     let public = Some(public_value);
-    let pi = vec![public_value];
     let circuit = TestCircuit::new(scalar, constant, public);
-    check_satisfied_circuit_fails(
-        &prover, &verifier, &pi, &circuit, &mut rng, &msg,
-    );
+    check_public_input_count_mismatch(&prover, 0, 1, &circuit, &mut rng, &msg);
 
     // Test constant doesn't match
     let msg = "Proof creation should not be possible with different constant than in circuit description";
@@ -204,15 +201,12 @@ fn assert_equal_constant() {
     check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
 
     // Test public input doesn't match
-    let msg = "Satisfied circuit should not verify because pi length is not the same as in circuit description";
+    let msg = "Proving should reject a missing public input";
     let scalar = BlsScalar::zero();
     let constant = BlsScalar::zero();
     let public = None;
-    let pi = vec![];
     let circuit = TestCircuit::new(scalar, constant, public);
-    check_satisfied_circuit_fails(
-        &prover, &verifier, &pi, &circuit, &mut rng, &msg,
-    );
+    check_public_input_count_mismatch(&prover, 1, 0, &circuit, &mut rng, &msg);
 
     // Test constant doesn't match
     let msg = "Proof creation should not be possible with different constant than in circuit description";
@@ -240,14 +234,11 @@ fn assert_equal_constant() {
     check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
 
     // Test public input doesn't match
-    let msg = "Satisfied circuit should not verify because pi length is not the same as in circuit description";
+    let msg = "Proving should reject an unexpected public input";
     let public_value = BlsScalar::zero();
     let public = Some(public_value);
-    let pi = vec![public_value];
     let circuit = TestCircuit::new(scalar, constant, public);
-    check_satisfied_circuit_fails(
-        &prover, &verifier, &pi, &circuit, &mut rng, &msg,
-    );
+    check_public_input_count_mismatch(&prover, 0, 1, &circuit, &mut rng, &msg);
 
     // Test constant doesn't match
     let msg = "Proof creation should not be possible with different constant than in circuit description";
@@ -285,14 +276,11 @@ fn assert_equal_constant() {
     check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
 
     // Test public input doesn't match
-    let msg = "Satisfied circuit should not verify because pi length is not the same as in circuit description";
+    let msg = "Proving should reject a missing public input";
     let scalar = constant.clone();
     let public = None;
-    let pi = vec![];
     let circuit = TestCircuit::new(scalar, constant, public);
-    check_satisfied_circuit_fails(
-        &prover, &verifier, &pi, &circuit, &mut rng, &msg,
-    );
+    check_public_input_count_mismatch(&prover, 1, 0, &circuit, &mut rng, &msg);
 
     // Test constant doesn't match
     let msg = "Proof creation should not be possible with different constant than in circuit description";
