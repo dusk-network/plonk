@@ -6,30 +6,21 @@
 
 //! Code taken from zcash repo and generalized as we do not have access to the
 //! limbs
-use core::mem;
 
 #[derive(Debug, Clone, Copy)]
 pub struct BitIterator8<E> {
-    // scalar is the slice of integers that wish to iterate over
+    // scalar is the byte slice that we wish to iterate over
     scalar: E,
-    // num_of_total_bits represents the sum of all of the bits of each
-    // integer If we have 2 u32s then the total number of bits will
-    // be 32 * 2 = 64 bits
+    // num_of_total_bits represents the sum of all of the bits of each byte
     num_of_total_bits: usize,
-    // bit_len represents the bit length of each integer.
-    // If we have a slice of u32s, then bit_len will be 32
-    bit_len: usize,
 }
 
 impl<E: AsRef<[u8]>> BitIterator8<E> {
     pub fn new(t: E) -> Self {
-        let num_of_integers = t.as_ref().len();
-        let num_of_total_bits = mem::size_of::<E>() * 8;
-        let bit_len_of_each_integer = num_of_total_bits / num_of_integers;
+        let num_of_total_bits = t.as_ref().len() * 8;
         BitIterator8 {
             scalar: t,
             num_of_total_bits,
-            bit_len: bit_len_of_each_integer,
         }
     }
 }
@@ -41,8 +32,8 @@ impl<E: AsRef<[u8]>> Iterator for BitIterator8<E> {
             None
         } else {
             self.num_of_total_bits -= 1;
-            let element_index = self.num_of_total_bits / self.bit_len;
-            let elements_bit = self.num_of_total_bits % self.bit_len;
+            let element_index = self.num_of_total_bits / 8;
+            let elements_bit = self.num_of_total_bits % 8;
             let number = self.scalar.as_ref()[element_index];
 
             let bit = (number >> elements_bit) & 1;
@@ -68,5 +59,15 @@ mod test {
             assert_eq!(a.next().unwrap(), (e == '1'));
         }
         let _a_vec: Vec<_> = a.collect();
+    }
+
+    #[test]
+    fn test_bit_iterator8_vec() {
+        let bits: Vec<_> = BitIterator8::new(Vec::from([0x01, 0x80])).collect();
+
+        assert_eq!(bits.len(), 16);
+        assert!(bits[0]);
+        assert!(bits[15]);
+        assert_eq!(bits.iter().filter(|bit| **bit).count(), 2);
     }
 }
