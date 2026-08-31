@@ -446,6 +446,7 @@ impl Compiler {
             verifier_key,
             size,
             constraints,
+            public_input_indexes.clone(),
         )?;
 
         let verifier = Verifier::new(
