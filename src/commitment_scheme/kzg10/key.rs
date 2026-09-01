@@ -404,13 +404,15 @@ impl CommitKey {
         let mut coefficients = vec![BlsScalar::zero(); max_len];
         let mut power = BlsScalar::one();
 
-        for polynomial in polynomials {
+        for (index, polynomial) in polynomials.iter().enumerate() {
+            if index != 0 {
+                power *= v_challenge;
+            }
             for (coefficient, term) in
                 coefficients.iter_mut().zip(polynomial.iter())
             {
                 *coefficient += *term * power;
             }
-            power *= v_challenge;
         }
 
         Polynomial::from_coefficients_vec(coefficients).ruffini(*point)
@@ -925,6 +927,32 @@ mod test {
         );
 
         Ok(())
+    }
+
+    #[test]
+    fn aggregate_witness_matches_expected_linear_combination() {
+        let first = Polynomial::from_coefficients_vec(vec![
+            BlsScalar::from(1),
+            BlsScalar::from(2),
+        ]);
+        let second = Polynomial::from_coefficients_vec(vec![
+            BlsScalar::from(3),
+            BlsScalar::from(4),
+        ]);
+        let third = Polynomial::from_coefficients_vec(vec![
+            BlsScalar::from(5),
+            BlsScalar::from(6),
+        ]);
+
+        let witness = CommitKey::compute_aggregate_witness(
+            &[&first, &second, &third],
+            &BlsScalar::from(3),
+            &BlsScalar::from(2),
+        );
+        let expected =
+            Polynomial::from_coefficients_vec(vec![BlsScalar::from(34)]);
+
+        assert_eq!(witness, expected);
     }
 
     #[test]

@@ -28,6 +28,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Avoid redundant polynomial and KZG computations when evaluating, dividing,
+  multiplying, and constructing aggregate witnesses
 - Update Criterion to 0.8 and align the dev-only `itertools` dependency [#953]
 - Raise the MSRV to Rust 1.96.1 [#951]
 - Update `blake2b_simd` to 1.0.5 [#950]

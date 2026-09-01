@@ -123,7 +123,7 @@ impl Polynomial {
         }
 
         // Compute powers of the value
-        let powers = util::powers_of(value, self.len());
+        let powers = util::powers_of(value, self.len() - 1);
 
         // Multiply the powers of the value by the coefficients
         let mul_coeff = self.iter().zip(powers).map(|(c, p)| p * c);
@@ -343,23 +343,23 @@ impl Polynomial {
 
     /// Divides a [`Polynomial`] by x-z using Ruffinis method.
     pub fn ruffini(&self, z: BlsScalar) -> Polynomial {
-        let mut quotient: Vec<BlsScalar> = Vec::with_capacity(self.degree());
-        let mut k = BlsScalar::zero();
+        let quotient_len = self.coeffs.len().saturating_sub(1);
+        let mut quotient = Vec::with_capacity(quotient_len);
+        let mut coefficients = self.coeffs.iter().rev().take(quotient_len);
 
         // Reverse the results and use Ruffini's method to compute the quotient
         // The coefficients must be reversed as Ruffini's method
         // starts with the leading coefficient, while Polynomials
         // are stored in increasing order i.e. the leading coefficient is the
         // last element
-        for coeff in self.coeffs.iter().rev() {
-            let t = coeff + k;
-            quotient.push(t);
-            k = z * t;
+        if let Some(coefficient) = coefficients.next() {
+            let mut value = *coefficient;
+            quotient.push(value);
+            for coefficient in coefficients {
+                value = coefficient + z * value;
+                quotient.push(value);
+            }
         }
-
-        // Pop off the last element, it is the remainder term
-        // For PLONK, we only care about perfect factors
-        quotient.pop();
 
         // Reverse the results for storage in the Polynomial struct
         quotient.reverse();
@@ -376,9 +376,8 @@ impl<'a> Mul<&'a Polynomial> for &Polynomial {
         if self.is_zero() || other.is_zero() {
             Polynomial::zero()
         } else {
-            let domain =
-                EvaluationDomain::new(self.coeffs.len() + other.coeffs.len())
-                    .expect("field is not smooth enough to construct domain");
+            let domain = EvaluationDomain::new(self.len() + other.len() - 1)
+                .expect("field is not smooth enough to construct domain");
             let mut self_evals = Evaluations::from_vec_and_domain(
                 domain.fft(&self.coeffs),
                 domain,
@@ -467,21 +466,26 @@ mod test {
     }
 
     #[test]
-    fn test_ruffini() {
-        // X^2 + 4X + 4
-        let quadratic = Polynomial::from_coefficients_vec(vec![
-            BlsScalar::from(4),
-            BlsScalar::from(4),
-            BlsScalar::one(),
-        ]);
-        // Divides X^2 + 4X + 4 by X+2
-        let quotient = quadratic.ruffini(-BlsScalar::from(2));
-        // X+2
-        let expected_quotient = Polynomial::from_coefficients_vec(vec![
+    fn test_evaluate_constant() {
+        let constant =
+            Polynomial::from_coefficients_vec(vec![BlsScalar::from(7)]);
+        assert_eq!(constant.evaluate(&BlsScalar::from(5)), BlsScalar::from(7));
+    }
+
+    #[test]
+    fn test_ruffini_ignores_nonzero_remainder() {
+        let polynomial = Polynomial::from_coefficients_vec(vec![
+            BlsScalar::from(1),
             BlsScalar::from(2),
-            BlsScalar::one(),
+            BlsScalar::from(3),
         ]);
-        assert_eq!(quotient, expected_quotient);
+        let quotient = polynomial.ruffini(BlsScalar::from(2));
+        let expected = Polynomial::from_coefficients_vec(vec![
+            BlsScalar::from(8),
+            BlsScalar::from(3),
+        ]);
+
+        assert_eq!(quotient, expected);
     }
 
     #[test]
@@ -621,17 +625,37 @@ mod test {
     }
 
     #[test]
-    fn test_mul_poly() {
-        let p = Polynomial::from_coefficients_vec(vec![
+    fn test_mul_poly_constants() {
+        let left = Polynomial::from_coefficients_vec(vec![BlsScalar::from(2)]);
+        let right = Polynomial::from_coefficients_vec(vec![BlsScalar::from(3)]);
+
+        assert_eq!(
+            &left * &right,
+            Polynomial::from_coefficients_vec(vec![BlsScalar::from(6)])
+        );
+    }
+
+    #[test]
+    fn test_mul_poly_at_power_of_two_coefficient_count() {
+        let left = Polynomial::from_coefficients_vec(vec![
             BlsScalar::one(),
             -BlsScalar::one(),
         ]);
-        let result = &p * &p;
+        let right = Polynomial::from_coefficients_vec(vec![
+            BlsScalar::one(),
+            BlsScalar::from(2),
+            BlsScalar::from(3),
+        ]);
+
+        // Four product coefficients fit a size-four domain; the old extra
+        // element rounded this case up to a size-eight domain.
+        let result = &left * &right;
 
         let expected = Polynomial::from_coefficients_vec(vec![
             BlsScalar::one(),
-            -BlsScalar::from(2),
             BlsScalar::one(),
+            BlsScalar::one(),
+            -BlsScalar::from(3),
         ]);
         assert_eq!(result, expected);
     }
