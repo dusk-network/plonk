@@ -30,6 +30,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Avoid per-element allocations when serializing polynomials, evaluations,
   and commitment keys [#964]
+- Bind proof construction to the public-input rows recorded at compile time [#957]
+- Reject serialized provers that predate the compiled public-input row layout [#957]
 - Update Criterion to 0.8 and align the dev-only `itertools` dependency [#953]
 - Raise the MSRV to Rust 1.96.1 [#951]
 - Update `blake2b_simd` to 1.0.5 [#950]
