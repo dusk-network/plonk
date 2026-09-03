@@ -301,10 +301,12 @@ impl CommitKey {
 
     /// Serializes the [`CommitKey`] into a byte slice.
     pub fn to_var_bytes(&self) -> Vec<u8> {
-        self.powers_of_g
-            .iter()
-            .flat_map(|item| item.to_bytes().to_vec())
-            .collect()
+        let mut bytes =
+            Vec::with_capacity(self.powers_of_g.len() * G1Affine::SIZE);
+        for point in &self.powers_of_g {
+            bytes.extend_from_slice(&point.to_bytes());
+        }
+        bytes
     }
 
     /// Deserialize a slice of bytes into a [`CommitKey`] struct performing

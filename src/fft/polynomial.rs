@@ -139,13 +139,12 @@ impl Polynomial {
     /// Given a [`Polynomial`], return it in it's bytes representation
     /// coefficient by coefficient.
     pub fn to_var_bytes(&self) -> Vec<u8> {
-        let degree = self.degree();
-        self.coeffs
-            .iter()
-            .enumerate()
-            .filter(|(i, _)| *i <= degree)
-            .flat_map(|(_, item)| item.to_bytes().to_vec())
-            .collect()
+        let len = self.coeffs.len().min(self.degree() + 1);
+        let mut bytes = Vec::with_capacity(len * BlsScalar::SIZE);
+        for scalar in &self.coeffs[..len] {
+            bytes.extend_from_slice(&scalar.to_bytes());
+        }
+        bytes
     }
 
     /// Generate a Polynomial from a slice of bytes.

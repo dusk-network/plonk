@@ -28,6 +28,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Avoid per-element allocations when serializing polynomials, evaluations,
+  and commitment keys [#964]
+- Bind proof construction to the public-input rows recorded at compile time [#957]
+- Reject serialized provers that predate the compiled public-input row layout [#957]
 - Update Criterion to 0.8 and align the dev-only `itertools` dependency [#953]
 - Raise the MSRV to Rust 1.96.1 [#951]
 - Update `blake2b_simd` to 1.0.5 [#950]
@@ -788,11 +792,9 @@ is necessary since `rkyv/validation` was required as a bound.
 - Proof system module.
 
 <!-- ISSUES -->
-<<<<<<< HEAD
+[#964]: https://github.com/dusk-network/plonk/issues/964
 [#959]: https://github.com/dusk-network/plonk/issues/959
-=======
 [#957]: https://github.com/dusk-network/plonk/issues/957
->>>>>>> 7fdedc29 (Bind proofs to compiled public-input rows)
 [#953]: https://github.com/dusk-network/plonk/issues/953
 [#951]: https://github.com/dusk-network/plonk/issues/951
 [#950]: https://github.com/dusk-network/plonk/issues/950
