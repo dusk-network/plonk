@@ -42,7 +42,6 @@ impl Verifier {
 
         if constraints.checked_next_power_of_two() != Some(size)
             || verifier_key.n != constraints
-            || public_input_indexes.len() > constraints
             || public_input_indexes
                 .iter()
                 .any(|index| *index >= constraints)
