@@ -50,12 +50,13 @@ pub(crate) struct Evaluations {
 impl Evaluations {
     /// Given an `Evaluations` struct, return it in it's byte representation.
     pub fn to_var_bytes(&self) -> Vec<u8> {
-        let mut bytes: Vec<u8> = self.domain.to_bytes().to_vec();
-        bytes.extend(
-            self.evals
-                .iter()
-                .flat_map(|scalar| scalar.to_bytes().to_vec()),
+        let mut bytes = Vec::with_capacity(
+            EvaluationDomain::SIZE + self.evals.len() * BlsScalar::SIZE,
         );
+        bytes.extend_from_slice(&self.domain.to_bytes());
+        for scalar in &self.evals {
+            bytes.extend_from_slice(&scalar.to_bytes());
+        }
 
         bytes
     }
