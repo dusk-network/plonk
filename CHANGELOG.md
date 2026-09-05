@@ -92,6 +92,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Validate verifier size metadata and public-input row layouts on construction
+  and deserialization, and reject trailing serialized data [#960]
 - Size serialized `ProverKey` buffers from each polynomial's actual length
   [#959]
 - Normalize unrepresentable serialized prover-key lengths as invalid data
@@ -788,11 +790,9 @@ is necessary since `rkyv/validation` was required as a bound.
 - Proof system module.
 
 <!-- ISSUES -->
-<<<<<<< HEAD
+[#960]: https://github.com/dusk-network/plonk/issues/960
 [#959]: https://github.com/dusk-network/plonk/issues/959
-=======
 [#957]: https://github.com/dusk-network/plonk/issues/957
->>>>>>> 7fdedc29 (Bind proofs to compiled public-input rows)
 [#953]: https://github.com/dusk-network/plonk/issues/953
 [#951]: https://github.com/dusk-network/plonk/issues/951
 [#950]: https://github.com/dusk-network/plonk/issues/950
