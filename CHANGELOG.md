@@ -28,6 +28,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Replace upstream Merlin 3.0 with `dusk-merlin` 4.0.0 [#966]
+- Remove static transcript-label caching and leaked label allocations [#966]
+- Restrict supported targets to little-endian architectures [#966]
 - Avoid per-element allocations when serializing polynomials, evaluations,
   and commitment keys [#964]
 - Bind proof construction to the public-input rows recorded at compile time [#957]
@@ -794,6 +797,7 @@ is necessary since `rkyv/validation` was required as a bound.
 - Proof system module.
 
 <!-- ISSUES -->
+[#966]: https://github.com/dusk-network/plonk/issues/966
 [#964]: https://github.com/dusk-network/plonk/issues/964
 [#960]: https://github.com/dusk-network/plonk/issues/960
 [#959]: https://github.com/dusk-network/plonk/issues/959

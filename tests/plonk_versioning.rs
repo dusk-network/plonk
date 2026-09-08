@@ -4,6 +4,7 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
+use dusk_bytes::DeserializableSlice;
 use dusk_plonk::prelude::*;
 use rand::SeedableRng;
 use rand::rngs::StdRng;
@@ -21,6 +22,37 @@ impl Circuit for MulCircuit {
         composer.assert_equal(out, expected);
 
         Ok(())
+    }
+}
+
+#[test]
+fn upstream_merlin_3_proofs_remain_valid() {
+    let verifier = Verifier::try_from_bytes(include_bytes!(
+        "fixtures/merlin-3/verifier.bin"
+    ))
+    .expect("upstream verifier must deserialize");
+
+    for (version, bytes) in [
+        (
+            PlonkVersion::V2,
+            include_bytes!("fixtures/merlin-3/v2.proof"),
+        ),
+        (
+            PlonkVersion::V3,
+            include_bytes!("fixtures/merlin-3/v3.proof"),
+        ),
+    ] {
+        let proof =
+            Proof::from_slice(bytes).expect("upstream proof must decode");
+        verifier
+            .verify_with_version(&proof, &[BlsScalar::from(12u64)], version)
+            .expect("upstream proof must verify with the matching version");
+        assert!(
+            verifier
+                .verify_with_version(&proof, &[BlsScalar::from(13u64)], version)
+                .is_err(),
+            "altered public input must be rejected"
+        );
     }
 }
 
