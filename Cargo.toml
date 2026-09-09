@@ -17,7 +17,7 @@ exclude = [
 
 [dependencies]
 blake2b_simd = { version = "=1.0.5", default-features = false }
-merlin = {version = "3.0", default-features = false}
+merlin = {package = "dusk-merlin", version = "4.0.0", default-features = false}
 rand_core = {version="0.6", default-features=false}
 dusk-bytes = "0.1"
 dusk-bls12_381 = {version = "0.14", default-features = false, features = ["groups", "pairings"]}
