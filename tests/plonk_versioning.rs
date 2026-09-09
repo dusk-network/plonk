@@ -26,6 +26,88 @@ impl Circuit for MulCircuit {
 }
 
 #[test]
+fn verifier_length_errors_distinguish_overflow_from_truncation() {
+    let bytes = include_bytes!("fixtures/merlin-3/verifier.bin");
+    assert_eq!(Verifier::try_from_bytes(bytes).unwrap().to_bytes(), bytes);
+    for end in 0..bytes.len() {
+        assert!(matches!(
+            Verifier::try_from_bytes(&bytes[..end]),
+            Err(Error::NotEnoughBytes)
+        ));
+    }
+
+    // Each word fits usize on both 32- and 64-bit targets. Only the
+    // byte-length multiplication or one of the three additions overflows.
+    let max = usize::MAX as u64;
+    for (header, overflows) in [
+        ([0, 0, 0, max / 8 + 1, 0, max], true),
+        ([max, 1, 0, 0, 0, 0], true),
+        ([0, max, 1, 0, 0, 0], true),
+        ([0, 0, max, 1, 0, 1], true),
+        // At the representable boundary the missing payload is a short read.
+        ([0, 0, 0, max / 8, 0, max], false),
+        ([max, 0, 0, 0, 0, 0], false),
+        ([0, max, 0, 0, 0, 0], false),
+        ([0, 0, max - 8, 1, 0, 1], false),
+    ] {
+        let bytes: Vec<_> =
+            header.into_iter().flat_map(u64::to_be_bytes).collect();
+        let expected = if overflows {
+            Error::BytesError(dusk_bytes::Error::InvalidData)
+        } else {
+            Error::NotEnoughBytes
+        };
+        assert_eq!(
+            Verifier::try_from_bytes(bytes).err(),
+            Some(expected),
+            "header: {header:?}"
+        );
+    }
+}
+
+#[cfg(target_pointer_width = "32")]
+#[test]
+fn verifier_rejects_truncated_high_bits() {
+    let bytes = include_bytes!("fixtures/merlin-3/verifier.bin");
+    Verifier::try_from_bytes(bytes).unwrap();
+    let word = |offset| {
+        u64::from_be_bytes(bytes[offset..offset + 8].try_into().unwrap())
+    };
+    // Six big-endian outer words, a little-endian inner key size, and
+    // a big-endian public-input index must all reject discarded high bits.
+    let key_start = 48 + word(0) as usize;
+    let index_start = key_start + word(8) as usize + word(16) as usize;
+    for offset in [3, 11, 19, 27, 35, 43, key_start + 4, index_start + 3] {
+        let mut mutated = bytes.to_vec();
+        mutated[offset] |= 1;
+        assert!(matches!(
+            Verifier::try_from_bytes(mutated),
+            Err(Error::BytesError(dusk_bytes::Error::InvalidData))
+        ));
+    }
+}
+
+#[cfg(target_pointer_width = "32")]
+#[test]
+fn prover_rejects_truncated_commit_key_length_high_bits() {
+    let mut rng = StdRng::seed_from_u64(63);
+    let pp = PublicParameters::setup(1 << 5, &mut rng).unwrap();
+    let (prover, _) = Compiler::compile::<MulCircuit>(&pp, b"length").unwrap();
+    let mut bytes = prover.to_bytes();
+    assert_eq!(Prover::try_from_bytes(&bytes).unwrap().to_bytes(), bytes);
+    let word = |offset| {
+        u64::from_be_bytes(bytes[offset..offset + 8].try_into().unwrap())
+            as usize
+    };
+    let commit_start = 56 + word(8) + word(16);
+    bytes[commit_start + 4] |= 1;
+    assert!(matches!(
+        Prover::try_from_bytes(bytes),
+        Err(Error::BytesError(dusk_bytes::Error::InvalidData))
+    ));
+}
+
+#[test]
 fn upstream_merlin_3_proofs_remain_valid() {
     let verifier = Verifier::try_from_bytes(include_bytes!(
         "fixtures/merlin-3/verifier.bin"

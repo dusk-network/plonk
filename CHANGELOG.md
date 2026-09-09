@@ -99,6 +99,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Reject serialized lengths and indexes that exceed the target pointer width [#940]
+- Report verifier byte-length arithmetic overflow as `BytesError(InvalidData)`
+  instead of `NotEnoughBytes` [#940]
 - Validate verifier size metadata and public-input row layouts on construction
   and deserialization, and reject trailing serialized data [#960]
 - Size serialized `ProverKey` buffers from each polynomial's actual length
@@ -808,6 +811,7 @@ is necessary since `rkyv/validation` was required as a bound.
 [#949]: https://github.com/dusk-network/plonk/issues/949
 [#948]: https://github.com/dusk-network/plonk/issues/948
 [#943]: https://github.com/dusk-network/plonk/issues/943
+[#940]: https://github.com/dusk-network/plonk/issues/940
 [#937]: https://github.com/dusk-network/plonk/issues/937
 [#935]: https://github.com/dusk-network/plonk/issues/935
 [#931]: https://github.com/dusk-network/plonk/issues/931
