@@ -26,6 +26,60 @@ impl Circuit for MulCircuit {
 }
 
 #[test]
+fn verifier_truncation_preserves_top_level_error() {
+    let bytes = include_bytes!("fixtures/merlin-3/verifier.bin");
+    assert_eq!(Verifier::try_from_bytes(bytes).unwrap().to_bytes(), bytes);
+    for end in 0..bytes.len() {
+        assert!(matches!(
+            Verifier::try_from_bytes(&bytes[..end]),
+            Err(Error::NotEnoughBytes)
+        ));
+    }
+}
+
+#[cfg(target_pointer_width = "32")]
+#[test]
+fn verifier_rejects_truncated_high_bits() {
+    let bytes = include_bytes!("fixtures/merlin-3/verifier.bin");
+    Verifier::try_from_bytes(bytes).unwrap();
+    let word = |offset| {
+        u64::from_be_bytes(bytes[offset..offset + 8].try_into().unwrap())
+    };
+    // Six big-endian outer words, a little-endian inner key size, and
+    // a big-endian public-input index must all reject discarded high bits.
+    let key_start = 48 + word(0) as usize;
+    let index_start = key_start + word(8) as usize + word(16) as usize;
+    for offset in [3, 11, 19, 27, 35, 43, key_start + 4, index_start + 3] {
+        let mut mutated = bytes.to_vec();
+        mutated[offset] |= 1;
+        assert!(matches!(
+            Verifier::try_from_bytes(mutated),
+            Err(Error::BytesError(dusk_bytes::Error::InvalidData))
+        ));
+    }
+}
+
+#[cfg(target_pointer_width = "32")]
+#[test]
+fn prover_rejects_truncated_commit_key_length_high_bits() {
+    let mut rng = StdRng::seed_from_u64(63);
+    let pp = PublicParameters::setup(1 << 5, &mut rng).unwrap();
+    let (prover, _) = Compiler::compile::<MulCircuit>(&pp, b"length").unwrap();
+    let mut bytes = prover.to_bytes();
+    assert_eq!(Prover::try_from_bytes(&bytes).unwrap().to_bytes(), bytes);
+    let word = |offset| {
+        u64::from_be_bytes(bytes[offset..offset + 8].try_into().unwrap())
+            as usize
+    };
+    let commit_start = 56 + word(8) + word(16);
+    bytes[commit_start + 4] |= 1;
+    assert!(matches!(
+        Prover::try_from_bytes(bytes),
+        Err(Error::BytesError(dusk_bytes::Error::InvalidData))
+    ));
+}
+
+#[test]
 fn upstream_merlin_3_proofs_remain_valid() {
     let verifier = Verifier::try_from_bytes(include_bytes!(
         "fixtures/merlin-3/verifier.bin"

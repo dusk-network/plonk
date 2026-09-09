@@ -128,7 +128,7 @@ impl Verifier {
         bytes
     }
 
-    /// Attempt to deserialize the prover from bytes generated via
+    /// Attempt to deserialize the verifier from bytes generated via
     /// [`Self::to_bytes`]
     pub fn try_from_bytes<B>(bytes: B) -> Result<Self, Error>
     where
@@ -141,35 +141,43 @@ impl Verifier {
         }
 
         let label_len = <[u8; 8]>::try_from(&bytes[..8]).expect("checked len");
-        let label_len = u64::from_be_bytes(label_len) as usize;
+        let label_len = usize::try_from(u64::from_be_bytes(label_len))
+            .map_err(|_| dusk_bytes::Error::InvalidData)?;
         bytes = &bytes[8..];
 
         let verifier_key_len =
             <[u8; 8]>::try_from(&bytes[..8]).expect("checked len");
-        let verifier_key_len = u64::from_be_bytes(verifier_key_len) as usize;
+        let verifier_key_len =
+            usize::try_from(u64::from_be_bytes(verifier_key_len))
+                .map_err(|_| dusk_bytes::Error::InvalidData)?;
         bytes = &bytes[8..];
 
         let opening_key_len =
             <[u8; 8]>::try_from(&bytes[..8]).expect("checked len");
-        let opening_key_len = u64::from_be_bytes(opening_key_len) as usize;
+        let opening_key_len =
+            usize::try_from(u64::from_be_bytes(opening_key_len))
+                .map_err(|_| dusk_bytes::Error::InvalidData)?;
         bytes = &bytes[8..];
 
         let public_input_indexes_len =
             <[u8; 8]>::try_from(&bytes[..8]).expect("checked len");
         let public_input_indexes_len =
-            u64::from_be_bytes(public_input_indexes_len) as usize;
+            usize::try_from(u64::from_be_bytes(public_input_indexes_len))
+                .map_err(|_| dusk_bytes::Error::InvalidData)?;
         bytes = &bytes[8..];
         let public_input_indexes_bytes_len = public_input_indexes_len
             .checked_mul(8)
             .ok_or(Error::NotEnoughBytes)?;
 
         let size = <[u8; 8]>::try_from(&bytes[..8]).expect("checked len");
-        let size = u64::from_be_bytes(size) as usize;
+        let size = usize::try_from(u64::from_be_bytes(size))
+            .map_err(|_| dusk_bytes::Error::InvalidData)?;
         bytes = &bytes[8..];
 
         let constraints =
             <[u8; 8]>::try_from(&bytes[..8]).expect("checked len");
-        let constraints = u64::from_be_bytes(constraints) as usize;
+        let constraints = usize::try_from(u64::from_be_bytes(constraints))
+            .map_err(|_| dusk_bytes::Error::InvalidData)?;
         bytes = &bytes[8..];
 
         if public_input_indexes_len > constraints {
@@ -204,11 +212,15 @@ impl Verifier {
         let verifier_key = VerifierKey::from_slice(verifier_key)?;
         let opening_key = OpeningKey::from_slice(opening_key)?;
         let public_input_indexes = public_input_indexes
-            .chunks_exact(8)
-            .map(|c| <[u8; 8]>::try_from(c).expect("checked len"))
-            .map(u64::from_be_bytes)
-            .map(|n| n as usize)
-            .collect();
+            .as_chunks::<{ u64::SIZE }>()
+            .0
+            .iter()
+            .map(|bytes| {
+                let index = u64::from_be_bytes(*bytes);
+                usize::try_from(index)
+                    .map_err(|_| dusk_bytes::Error::InvalidData)
+            })
+            .collect::<Result<Vec<_>, _>>()?;
 
         Self::new(
             label,
@@ -352,7 +364,14 @@ mod tests {
             result.is_ok(),
             "try_from_bytes panicked on overflow lengths"
         );
-        assert!(matches!(result.unwrap(), Err(Error::NotEnoughBytes)));
+        if usize::BITS == 32 {
+            assert!(matches!(
+                result.unwrap(),
+                Err(Error::BytesError(dusk_bytes::Error::InvalidData))
+            ));
+        } else {
+            assert!(matches!(result.unwrap(), Err(Error::NotEnoughBytes)));
+        }
     }
 
     #[test]
@@ -374,10 +393,15 @@ mod tests {
         let result =
             std::panic::catch_unwind(|| Verifier::try_from_bytes(&bytes));
         assert!(result.is_ok(), "deserializer should never panic");
-        assert!(matches!(
-            result.expect("checked above"),
-            Err(Error::InvalidEvalDomainSize { .. })
-        ));
+        let result = result.expect("checked above");
+        if usize::BITS == 32 {
+            assert!(matches!(
+                result,
+                Err(Error::BytesError(dusk_bytes::Error::InvalidData))
+            ));
+        } else {
+            assert!(matches!(result, Err(Error::InvalidEvalDomainSize { .. })));
+        }
     }
 
     #[test]

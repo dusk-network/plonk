@@ -264,7 +264,8 @@ impl CommitKey {
 
         let mut len = [0u8; u64::SIZE];
         len.copy_from_slice(&bytes[..u64::SIZE]);
-        let len = u64::from_le_bytes(len) as usize;
+        let len = usize::try_from(u64::from_le_bytes(len))
+            .map_err(|_| dusk_bytes::Error::InvalidData)?;
 
         if len == 0 {
             return Err(dusk_bytes::Error::InvalidData.into());

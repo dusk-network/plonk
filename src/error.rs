@@ -74,7 +74,9 @@ pub enum Error {
     PairingCheckFailure,
 
     // Serialization errors
-    /// Dusk-bytes serialization error
+    /// Dusk-bytes serialization error. Reads through dusk-bytes readers
+    /// retain `BadLength { found, expected }` diagnostics. Slice-length checks
+    /// in this crate return [`Error::NotEnoughBytes`] at any nesting depth.
     BytesError(DuskBytesError),
     /// This error occurs when there are not enough bytes to read out of a
     /// slice during deserialization.

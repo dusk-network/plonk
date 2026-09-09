@@ -116,7 +116,8 @@ impl Serializable<{ 20 * Commitment::SIZE + u64::SIZE }> for VerifierKey {
         let mut buffer = &buf[..];
 
         Ok(Self::from_polynomial_commitments(
-            u64::from_reader(&mut buffer)? as usize,
+            usize::try_from(u64::from_reader(&mut buffer)?)
+                .map_err(|_| dusk_bytes::Error::InvalidData)?,
             Commitment::from_reader(&mut buffer)?,
             Commitment::from_reader(&mut buffer)?,
             Commitment::from_reader(&mut buffer)?,
@@ -788,6 +789,15 @@ mod test {
         let evaluations_domain =
             EvaluationDomain::new(8 * n).expect("8n domain should be valid");
         let bytes = prover_key(n, evaluations_domain).to_var_bytes();
+
+        // The three initial u64 headers retain the byte reader's diagnostic.
+        for end in 0..3 * u64::SIZE {
+            assert!(matches!(
+                ProverKey::from_slice(&bytes[..end]),
+                Err(Error::BytesError(dusk_bytes::Error::BadLength { found, expected }))
+                    if found == end % u64::SIZE && expected == u64::SIZE
+            ));
+        }
 
         let mut oversized_evaluations = bytes.clone();
         oversized_evaluations[u64::SIZE..2 * u64::SIZE]
