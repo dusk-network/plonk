@@ -26,7 +26,7 @@ impl Circuit for MulCircuit {
 }
 
 #[test]
-fn verifier_truncation_preserves_top_level_error() {
+fn verifier_length_errors_distinguish_overflow_from_truncation() {
     let bytes = include_bytes!("fixtures/merlin-3/verifier.bin");
     assert_eq!(Verifier::try_from_bytes(bytes).unwrap().to_bytes(), bytes);
     for end in 0..bytes.len() {
@@ -34,6 +34,34 @@ fn verifier_truncation_preserves_top_level_error() {
             Verifier::try_from_bytes(&bytes[..end]),
             Err(Error::NotEnoughBytes)
         ));
+    }
+
+    // Each word fits usize on both 32- and 64-bit targets. Only the
+    // byte-length multiplication or one of the three additions overflows.
+    let max = usize::MAX as u64;
+    for (header, overflows) in [
+        ([0, 0, 0, max / 8 + 1, 0, max], true),
+        ([max, 1, 0, 0, 0, 0], true),
+        ([0, max, 1, 0, 0, 0], true),
+        ([0, 0, max, 1, 0, 1], true),
+        // At the representable boundary the missing payload is a short read.
+        ([0, 0, 0, max / 8, 0, max], false),
+        ([max, 0, 0, 0, 0, 0], false),
+        ([0, max, 0, 0, 0, 0], false),
+        ([0, 0, max - 8, 1, 0, 1], false),
+    ] {
+        let bytes: Vec<_> =
+            header.into_iter().flat_map(u64::to_be_bytes).collect();
+        let expected = if overflows {
+            Error::BytesError(dusk_bytes::Error::InvalidData)
+        } else {
+            Error::NotEnoughBytes
+        };
+        assert_eq!(
+            Verifier::try_from_bytes(bytes).err(),
+            Some(expected),
+            "header: {header:?}"
+        );
     }
 }
 

@@ -100,6 +100,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Reject serialized lengths and indexes that exceed the target pointer width [#940]
+- Report verifier byte-length arithmetic overflow as `BytesError(InvalidData)`
+  instead of `NotEnoughBytes` [#940]
 - Validate verifier size metadata and public-input row layouts on construction
   and deserialization, and reject trailing serialized data [#960]
 - Size serialized `ProverKey` buffers from each polynomial's actual length

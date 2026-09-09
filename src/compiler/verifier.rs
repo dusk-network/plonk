@@ -129,7 +129,12 @@ impl Verifier {
     }
 
     /// Attempt to deserialize the verifier from bytes generated via
-    /// [`Self::to_bytes`]
+    /// [`Self::to_bytes`].
+    ///
+    /// Serialized values and byte-length arithmetic that overflow `usize`
+    /// return [`Error::BytesError`] containing
+    /// [`dusk_bytes::Error::InvalidData`]. Short reads retain
+    /// [`Error::NotEnoughBytes`] or nested [`dusk_bytes::Error::BadLength`].
     pub fn try_from_bytes<B>(bytes: B) -> Result<Self, Error>
     where
         B: AsRef<[u8]>,
@@ -167,7 +172,7 @@ impl Verifier {
         bytes = &bytes[8..];
         let public_input_indexes_bytes_len = public_input_indexes_len
             .checked_mul(8)
-            .ok_or(Error::NotEnoughBytes)?;
+            .ok_or(dusk_bytes::Error::InvalidData)?;
 
         let size = <[u8; 8]>::try_from(&bytes[..8]).expect("checked len");
         let size = usize::try_from(u64::from_be_bytes(size))
@@ -188,7 +193,7 @@ impl Verifier {
             .checked_add(verifier_key_len)
             .and_then(|len| len.checked_add(opening_key_len))
             .and_then(|len| len.checked_add(public_input_indexes_bytes_len))
-            .ok_or(Error::NotEnoughBytes)?;
+            .ok_or(dusk_bytes::Error::InvalidData)?;
 
         if bytes.len() < required_len {
             return Err(Error::NotEnoughBytes);
@@ -364,14 +369,10 @@ mod tests {
             result.is_ok(),
             "try_from_bytes panicked on overflow lengths"
         );
-        if usize::BITS == 32 {
-            assert!(matches!(
-                result.unwrap(),
-                Err(Error::BytesError(dusk_bytes::Error::InvalidData))
-            ));
-        } else {
-            assert!(matches!(result.unwrap(), Err(Error::NotEnoughBytes)));
-        }
+        assert!(matches!(
+            result.unwrap(),
+            Err(Error::BytesError(dusk_bytes::Error::InvalidData))
+        ));
     }
 
     #[test]
