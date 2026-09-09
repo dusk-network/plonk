@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Cover compressed-circuit encoding and compilation-capacity bounds [#942]
 - Add `Composer::assert_torsion_free_point` [#870]
 - Add `TorsionFreeWitnessPoint` [#870]
 - Add `Error::JubJubPointNotTorsionFree` [#870]
@@ -811,6 +812,7 @@ is necessary since `rkyv/validation` was required as a bound.
 [#949]: https://github.com/dusk-network/plonk/issues/949
 [#948]: https://github.com/dusk-network/plonk/issues/948
 [#943]: https://github.com/dusk-network/plonk/issues/943
+[#942]: https://github.com/dusk-network/plonk/issues/942
 [#940]: https://github.com/dusk-network/plonk/issues/940
 [#937]: https://github.com/dusk-network/plonk/issues/937
 [#935]: https://github.com/dusk-network/plonk/issues/935
