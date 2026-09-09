@@ -43,7 +43,9 @@ pub struct CompressedPolynomial {
 }
 
 impl CompressedPolynomial {
-    fn scalar_indices(&self) -> [usize; 11] {
+    fn scalar_indices(
+        &self,
+    ) -> [usize; CompressedCircuit::SELECTORS_PER_POLYNOMIAL] {
         [
             self.q_m,
             self.q_l,
@@ -95,14 +97,21 @@ pub struct CompressedCircuit {
 }
 
 impl CompressedCircuit {
-    // Canonical MessagePack uses at most nine bytes per usize, two per u8,
-    // and five for each vector header. For every constraint, the encoder can
-    // add one public-input index, eleven 32-byte scalars, one polynomial with
-    // eleven indices, and one constraint with five indices.
-    const PACKED_FIXED_BYTES: usize = 30;
-    const PACKED_BYTES_PER_CONSTRAINT: usize = 857;
-
+    // Bounds for the pinned msgpacker encoding. Structs and fixed arrays
+    // concatenate fields; only Vec adds an array header.
+    const PACKED_USIZE_BYTES: usize = 1 + u64::SIZE;
+    const PACKED_U8_BYTES: usize = 2;
+    const PACKED_VECTOR_HEADER_BYTES: usize = 1 + u32::SIZE;
     const SELECTORS_PER_POLYNOMIAL: usize = 11;
+    const INDICES_PER_CONSTRAINT: usize = 5;
+    const PACKED_FIXED_BYTES: usize =
+        1 + Self::PACKED_USIZE_BYTES + 4 * Self::PACKED_VECTOR_HEADER_BYTES;
+    const PACKED_BYTES_PER_CONSTRAINT: usize = Self::PACKED_USIZE_BYTES
+        + Self::SELECTORS_PER_POLYNOMIAL
+            * BlsScalar::SIZE
+            * Self::PACKED_U8_BYTES
+        + Self::SELECTORS_PER_POLYNOMIAL * Self::PACKED_USIZE_BYTES
+        + Self::INDICES_PER_CONSTRAINT * Self::PACKED_USIZE_BYTES;
 
     fn validate_indices(&self, base_scalars: usize) -> Result<(), Error> {
         let scalar_count = base_scalars
@@ -590,6 +599,79 @@ mod tests {
     }
 
     #[test]
+    fn packed_constraint_fits_derived_bound() {
+        let polynomial = CompressedPolynomial {
+            q_m: usize::MAX,
+            q_l: usize::MAX,
+            q_r: usize::MAX,
+            q_o: usize::MAX,
+            q_f: usize::MAX,
+            q_c: usize::MAX,
+            q_arith: usize::MAX,
+            q_range: usize::MAX,
+            q_logic: usize::MAX,
+            q_fixed_group_add: usize::MAX,
+            q_variable_group_add: usize::MAX,
+        };
+        let constraint = CompressedConstraint {
+            polynomial: usize::MAX,
+            a: usize::MAX,
+            b: usize::MAX,
+            c: usize::MAX,
+            d: usize::MAX,
+        };
+        let mut packed = Vec::new();
+        usize::MAX.pack(&mut packed);
+        for _ in 0..CompressedCircuit::SELECTORS_PER_POLYNOMIAL {
+            [u8::MAX; BlsScalar::SIZE].pack(&mut packed);
+        }
+        polynomial.pack(&mut packed);
+        constraint.pack(&mut packed);
+        assert!(packed.len() <= CompressedCircuit::PACKED_BYTES_PER_CONSTRAINT);
+        let worst = CompressedCircuit {
+            hades_optimization: true,
+            public_inputs: vec![usize::MAX],
+            witnesses: usize::MAX,
+            scalars: vec![
+                [u8::MAX; BlsScalar::SIZE];
+                CompressedCircuit::SELECTORS_PER_POLYNOMIAL
+            ],
+            polynomials: vec![polynomial],
+            constraints: vec![constraint],
+        };
+        packed.clear();
+        worst.pack(&mut packed);
+        assert!(
+            packed.len() <= CompressedCircuit::packed_size_limit(1).unwrap()
+        );
+        #[cfg(target_pointer_width = "64")]
+        assert_eq!(
+            packed.len()
+                + 4 * (CompressedCircuit::PACKED_VECTOR_HEADER_BYTES - 1),
+            CompressedCircuit::packed_size_limit(1).unwrap()
+        );
+
+        // Unit values emit no payload, isolating the array32 header.
+        packed.clear();
+        msgpacker::pack_array(&mut packed, vec![(); usize::from(u16::MAX) + 1]);
+        assert_eq!(packed, [0xdd, 0, 1, 0, 0]);
+        assert_eq!(packed.len(), CompressedCircuit::PACKED_VECTOR_HEADER_BYTES);
+    }
+
+    #[test]
+    fn raw_array_headers_are_bounded() {
+        for bytes in [&[0xc0][..], &[], &[0xdc], &[0xdc, 0], &[0xdd, 0, 0, 0]] {
+            assert!(matches!(
+                PackedCircuitReader::new(bytes).unpack_vec::<usize>(2),
+                Err(Error::InvalidCompressedCircuit)
+            ));
+        }
+        let mut reader = PackedCircuitReader::new(&[0xdd, 0, 0, 0, 2, 0, 1]);
+        assert_eq!(reader.unpack_vec::<usize>(2).unwrap(), vec![0, 1]);
+        assert!(reader.is_empty());
+    }
+
+    #[test]
     fn capacity_limits_are_inclusive() {
         let mut circuit = circuit();
         circuit.public_inputs = vec![0, 1];
@@ -726,7 +808,8 @@ mod tests {
 
     #[test]
     fn invalid_scalar_indices_are_rejected_without_panicking() {
-        let setters: [fn(&mut CompressedPolynomial, usize); 11] = [
+        let setters: [fn(&mut CompressedPolynomial, usize);
+            CompressedCircuit::SELECTORS_PER_POLYNOMIAL] = [
             |polynomial, invalid| polynomial.q_m = invalid,
             |polynomial, invalid| polynomial.q_l = invalid,
             |polynomial, invalid| polynomial.q_r = invalid,

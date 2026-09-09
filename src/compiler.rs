@@ -461,3 +461,51 @@ impl Compiler {
         Ok((prover, verifier))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use rand::SeedableRng;
+    use rand::rngs::StdRng;
+
+    use super::*;
+    use crate::prelude::Constraint;
+
+    #[derive(Default)]
+    struct FilledCircuit<const N: usize>;
+
+    impl<const N: usize> Circuit for FilledCircuit<N> {
+        fn circuit(&self, composer: &mut Composer) -> Result<(), Error> {
+            while composer.constraints() < N {
+                composer.gate_add(Constraint::new().left(1).a(Composer::ONE));
+            }
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn compressed_compilation_uses_exact_parameter_capacity() {
+        const CAPACITY: usize = 32;
+        const LIMIT: usize = CAPACITY - Compiler::CIRCUIT_SIZE_PADDING;
+        let mut rng = StdRng::seed_from_u64(942);
+        let exact = FilledCircuit::<LIMIT>::compress().unwrap();
+        let excessive = FilledCircuit::<{ LIMIT + 1 }>::compress().unwrap();
+        // Non-power-of-two budgets must round down, including the last
+        // degree before the next domain becomes available.
+        for degree in [CAPACITY, CAPACITY + 1, 2 * CAPACITY - 1] {
+            let pp = PublicParameters::setup(degree, &mut rng).unwrap();
+            assert_eq!(
+                pp.max_degree() - PublicParameters::ADDED_BLINDING_DEGREE,
+                degree
+            );
+            assert!(pp.trim(CAPACITY).is_ok());
+            assert!(pp.trim(2 * CAPACITY).is_err());
+            assert_eq!(Compiler::max_constraints(&pp), LIMIT);
+            Compiler::compile_with_compressed(&pp, b"capacity", &exact)
+                .unwrap();
+            assert!(matches!(
+                Compiler::compile_with_compressed(&pp, b"capacity", &excessive),
+                Err(Error::InvalidCompressedCircuit)
+            ));
+        }
+    }
+}
