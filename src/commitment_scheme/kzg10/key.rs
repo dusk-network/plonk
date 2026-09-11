@@ -105,6 +105,8 @@ fn archived_commit_key_points_are_valid(
     powers.iter().all(archived_g1_is_valid)
 }
 
+// bytecheck 0.6 derives only structural checks. Keep this custom validator
+// to reject empty keys and invalid subgroup points before deserialization.
 #[cfg(feature = "rkyv-impl")]
 impl<C> CheckBytes<C> for ArchivedCommitKeyArchive
 where
@@ -506,6 +508,8 @@ impl core::fmt::Display for InvalidArchivedOpeningKey {
 #[cfg(feature = "rkyv-impl")]
 impl core::error::Error for InvalidArchivedOpeningKey {}
 
+// bytecheck 0.6 has no derive hook for the curve, subgroup and nonidentity
+// checks required here. Structural validation alone would accept invalid keys.
 #[cfg(feature = "rkyv-impl")]
 impl<C: ?Sized> CheckBytes<C> for ArchivedOpeningKeyArchive {
     type Error = InvalidArchivedOpeningKey;
@@ -1042,7 +1046,7 @@ mod test {
 
         let (commit_key, _) = setup_test(11).unwrap();
         let mut bytes = rkyv::to_bytes::<_, 256>(&commit_key).unwrap();
-        let archived = unsafe { rkyv::archived_root::<CommitKey>(&bytes) };
+        let archived = rkyv::check_archived_root::<CommitKey>(&bytes).unwrap();
         let point = &archived.powers_of_g[0];
         let point_offset = point as *const _ as usize - bytes.as_ptr() as usize;
 

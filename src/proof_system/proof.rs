@@ -4,6 +4,8 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
+#![forbid(unsafe_code)]
+
 //! A Proof stores the commitments to all of the elements that
 //! are needed to univocally identify a prove of some statement.
 
@@ -30,15 +32,12 @@ const V_MAX_DEGREE: usize = 11;
 const V_MAX_DEGREE_LEGACY: usize = 7;
 
 #[cfg(feature = "rkyv-impl")]
-use bytecheck::{CheckBytes, StructCheckError};
+use bytecheck::CheckBytes;
 #[cfg(feature = "rkyv-impl")]
 use rkyv::{
     Archive, Deserialize, Serialize,
     ser::{ScratchSpace, Serializer},
 };
-
-#[cfg(feature = "rkyv-impl")]
-use crate::util::check_field;
 
 /// A Proof is a composition of `Commitment`s to the Witness, Permutation,
 /// Quotient, Shifted and Opening polynomials as well as the
@@ -56,7 +55,8 @@ use crate::util::check_field;
 #[cfg_attr(
     feature = "rkyv-impl",
     derive(Archive, Deserialize, Serialize),
-    archive(bound(serialize = "__S: Serializer + ScratchSpace"))
+    archive(bound(serialize = "__S: Serializer + ScratchSpace")),
+    archive_attr(derive(CheckBytes))
 )]
 pub struct Proof {
     /// Commitment to the witness polynomial for the left wires.
@@ -98,40 +98,6 @@ pub struct Proof {
     /// Subset of all of the evaluations added to the proof.
     #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) evaluations: ProofEvaluations,
-}
-
-#[cfg(feature = "rkyv-impl")]
-impl<C> CheckBytes<C> for ArchivedProof {
-    type Error = StructCheckError;
-
-    unsafe fn check_bytes<'a>(
-        value: *const Self,
-        context: &mut C,
-    ) -> Result<&'a Self, Self::Error> {
-        unsafe {
-            check_field(&(*value).a_comm, context, "a_comm")?;
-            check_field(&(*value).b_comm, context, "b_comm")?;
-            check_field(&(*value).c_comm, context, "c_comm")?;
-            check_field(&(*value).d_comm, context, "d_comm")?;
-
-            check_field(&(*value).z_comm, context, "z_comm")?;
-
-            check_field(&(*value).t_low_comm, context, "t_low_comm")?;
-            check_field(&(*value).t_mid_comm, context, "t_mid_comm")?;
-            check_field(&(*value).t_high_comm, context, "t_high_comm")?;
-            check_field(&(*value).t_fourth_comm, context, "t_fourth_comm")?;
-
-            check_field(&(*value).w_z_chall_comm, context, "w_z_chall_comm")?;
-            check_field(
-                &(*value).w_z_chall_w_comm,
-                context,
-                "w_z_chall_w_comm",
-            )?;
-            check_field(&(*value).evaluations, context, "evaluations")?;
-
-            Ok(&*value)
-        }
-    }
 }
 
 // The struct Proof has 11 commitments + 1 ProofEvaluations
@@ -1260,6 +1226,20 @@ mod proof_tests {
         let proof_bytes = proof.to_bytes();
         let got_proof = Proof::from_bytes(&proof_bytes).unwrap();
         assert_eq!(got_proof, proof);
+
+        #[cfg(feature = "rkyv-impl")]
+        {
+            let bytes = rkyv::to_bytes::<_, 256>(&proof).unwrap();
+            let decoded = rkyv::from_bytes::<Proof>(&bytes).unwrap();
+            assert_eq!(decoded, proof);
+            assert_eq!(
+                rkyv::to_bytes::<_, 256>(&decoded).unwrap().as_slice(),
+                bytes.as_slice()
+            );
+            assert!(
+                rkyv::from_bytes::<Proof>(&bytes[..bytes.len() - 1]).is_err()
+            );
+        }
     }
 }
 
