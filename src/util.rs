@@ -4,6 +4,8 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
+#![forbid(unsafe_code)]
+
 use alloc::vec::Vec;
 
 use dusk_bls12_381::{
@@ -11,27 +13,6 @@ use dusk_bls12_381::{
 };
 use ff::Field;
 use rand_core::{CryptoRng, RngCore};
-
-#[cfg(feature = "rkyv-impl")]
-#[inline(always)]
-pub unsafe fn check_field<F, C>(
-    field: *const F,
-    context: &mut C,
-    field_name: &'static str,
-) -> Result<(), bytecheck::StructCheckError>
-where
-    F: bytecheck::CheckBytes<C>,
-{
-    unsafe {
-        F::check_bytes(field, context).map_err(|e| {
-            bytecheck::StructCheckError {
-                field_name,
-                inner: bytecheck::ErrorBox::new(e),
-            }
-        })?;
-    }
-    Ok(())
-}
 
 /// Returns a vector of BlsScalars of increasing powers of x from x^0 to x^d.
 pub(crate) fn powers_of(

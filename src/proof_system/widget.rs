@@ -4,6 +4,8 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
+#![forbid(unsafe_code)]
+
 use dusk_bytes::{DeserializableSlice, Serializable};
 
 use crate::BufferWriter;
@@ -16,15 +18,12 @@ pub mod permutation;
 pub mod range;
 
 #[cfg(feature = "rkyv-impl")]
-use bytecheck::{CheckBytes, StructCheckError};
+use bytecheck::CheckBytes;
 #[cfg(feature = "rkyv-impl")]
 use rkyv::{
     Archive, Deserialize, Serialize,
     ser::{ScratchSpace, Serializer},
 };
-
-#[cfg(feature = "rkyv-impl")]
-use crate::util::check_field;
 
 /// PLONK circuit Verification Key.
 ///
@@ -34,7 +33,8 @@ use crate::util::check_field;
 #[cfg_attr(
     feature = "rkyv-impl",
     derive(Archive, Deserialize, Serialize),
-    archive(bound(serialize = "__S: Serializer + ScratchSpace"))
+    archive(bound(serialize = "__S: Serializer + ScratchSpace")),
+    archive_attr(derive(CheckBytes))
 )]
 pub struct VerifierKey {
     /// Circuit size (not padded to a power of two).
@@ -58,28 +58,6 @@ pub struct VerifierKey {
     /// VerifierKey for permutation checks
     #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) permutation: permutation::VerifierKey,
-}
-
-#[cfg(feature = "rkyv-impl")]
-impl<C> CheckBytes<C> for ArchivedVerifierKey {
-    type Error = StructCheckError;
-
-    unsafe fn check_bytes<'a>(
-        value: *const Self,
-        context: &mut C,
-    ) -> Result<&'a Self, Self::Error> {
-        unsafe {
-            check_field(&(*value).n, context, "n")?;
-            check_field(&(*value).arithmetic, context, "arithmetic")?;
-            check_field(&(*value).logic, context, "logic")?;
-            check_field(&(*value).range, context, "range")?;
-            check_field(&(*value).fixed_base, context, "fixed_base")?;
-            check_field(&(*value).variable_base, context, "variable_base")?;
-            check_field(&(*value).permutation, context, "permutation")?;
-
-            Ok(&*value)
-        }
-    }
 }
 
 impl Serializable<{ 20 * Commitment::SIZE + u64::SIZE }> for VerifierKey {
@@ -1018,6 +996,21 @@ mod test {
                 .all(|byte| *byte == 0)
         );
         assert_eq!(got, verifier_key);
+
+        #[cfg(feature = "rkyv-impl")]
+        {
+            let bytes = rkyv::to_bytes::<_, 256>(&verifier_key).unwrap();
+            let decoded = rkyv::from_bytes::<VerifierKey>(&bytes).unwrap();
+            assert_eq!(decoded, verifier_key);
+            assert_eq!(
+                rkyv::to_bytes::<_, 256>(&decoded).unwrap().as_slice(),
+                bytes.as_slice()
+            );
+            assert!(
+                rkyv::from_bytes::<VerifierKey>(&bytes[..bytes.len() - 1])
+                    .is_err()
+            );
+        }
     }
 
     #[test]

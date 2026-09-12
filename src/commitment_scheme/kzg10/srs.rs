@@ -377,7 +377,7 @@ mod test {
     #[cfg(feature = "rkyv-impl")]
     fn first_archived_commitment_point_offset(bytes: &[u8]) -> usize {
         let parameters =
-            unsafe { rkyv::archived_root::<PublicParameters>(bytes) };
+            rkyv::check_archived_root::<PublicParameters>(bytes).unwrap();
         let point = &parameters.commit_key.powers_of_g[0];
         point as *const _ as usize - bytes.as_ptr() as usize
     }
