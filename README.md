@@ -1,11 +1,20 @@
-# PLONK 
+<div align="center">
+
+# `🔐 PLONK`
+
+> **P**ermutations over **L**agrange-bases for **O**ecumenical **N**oninteractive arguments of **K**nowledge
+
 ![Build Status](https://github.com/dusk-network/plonk/workflows/Continuous%20integration/badge.svg)
 [![Repository](https://img.shields.io/badge/github-plonk-blueviolet?logo=github)](https://github.com/dusk-network/plonk)
 [![Documentation](https://img.shields.io/badge/docs-plonk-blue?logo=rust)](https://docs.rs/dusk-plonk/latest/)
 
-_This is a pure Rust implementation of the PLONK proving system over BLS12-381._
+</div>
 
-This library contains a modular implementation of KZG10 as the default polynomial commitment scheme. Moreover, it includes custom gates for efficiency purposes. The details on our specific implementation can be found [here](docs/dusk-plonk-specs.pdf). An audit can be found [here](https://github.com/dusk-network/audits).
+## Overview
+
+`dusk-plonk` is a pure Rust implementation of the PLONK zero-knowledge proving system over the BLS12-381 elliptic curve.
+
+It uses KZG10 as its default polynomial commitment scheme and includes custom gates for efficient circuit construction. Details of Dusk's implementation are available in the [PLONK specification](docs/dusk-plonk-specs.pdf). Security audits are available in the [Dusk audits repository](https://github.com/dusk-network/audits).
 
 **DISCLAIMER**: This library is currently unstable. A security audit has been completed, though further in-depth analysis and testing are encouraged. Use at your own risk.
 
