@@ -45,8 +45,6 @@ impl PlonkVersion {
 pub struct Compiler;
 
 impl Compiler {
-    const CIRCUIT_SIZE_PADDING: usize = 6;
-
     /// Create a new arguments set from a given circuit instance
     ///
     /// Use the default implementation of the circuit
@@ -101,13 +99,11 @@ impl Compiler {
         let available = pp
             .max_degree()
             .saturating_sub(PublicParameters::ADDED_BLINDING_DEGREE);
-        let max_domain_size = if available == 0 {
+        if available == 0 {
             0
         } else {
             1usize << (usize::BITS - available.leading_zeros() - 1)
-        };
-
-        max_domain_size.saturating_sub(Self::CIRCUIT_SIZE_PADDING)
+        }
     }
 
     /// Create a new arguments set from a given circuit instance
@@ -118,8 +114,10 @@ impl Compiler {
         label: &[u8],
         composer: &Composer,
     ) -> Result<(Prover, Verifier), Error> {
-        let n = (composer.constraints() + Self::CIRCUIT_SIZE_PADDING)
-            .next_power_of_two();
+        // Match the evaluation domain used by preprocessing and proving.
+        // Trimming adds the blinding allowance after rounding; adding it
+        // here as well can unnecessarily double the required setup size.
+        let n = composer.constraints().next_power_of_two();
 
         let (commit, opening) = pp.trim(n)?;
 
@@ -485,7 +483,7 @@ mod tests {
     #[test]
     fn compressed_compilation_uses_exact_parameter_capacity() {
         const CAPACITY: usize = 32;
-        const LIMIT: usize = CAPACITY - Compiler::CIRCUIT_SIZE_PADDING;
+        const LIMIT: usize = CAPACITY;
         let mut rng = StdRng::seed_from_u64(942);
         let exact = FilledCircuit::<LIMIT>::compress().unwrap();
         let excessive = FilledCircuit::<{ LIMIT + 1 }>::compress().unwrap();

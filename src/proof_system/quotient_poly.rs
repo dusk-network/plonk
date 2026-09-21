@@ -106,9 +106,9 @@ pub(crate) fn compute(
     // A satisfied assignment yields a numerator divisible by the vanishing
     // polynomial of the domain, and the quotient's degree is bounded by the
     // numerator's: the permutation product z(x) (degree n + 2, with hiding
-    // degree 2) times the four wire factors (degree n + 1 each, with hiding
-    // degree 1) has degree 5n + 6, and every gate identity stays below that.
-    // Dividing by the vanishing polynomial (degree n) leaves at most 4n + 6.
+    // degree 2) times the four wire factors (degree n + 2 for a, b and d,
+    // and n + 1 for c) has degree 5n + 9, and every gate identity stays below
+    // that. Dividing by the vanishing polynomial leaves at most 4n + 9.
     //
     // An unsatisfied assignment leaves a nonzero remainder r(x) with
     // deg r < n. On the 8n-sized coset the pointwise division then computes
@@ -117,7 +117,7 @@ pub(crate) fn compute(
     // distinct values there), pushing the interpolated result to a degree of
     // at least 7n. The check is anchored on that detection floor rather than
     // the honest ceiling, so it stays correct should blinding or a new gate
-    // ever push the honest quotient past 4n + 6 — up to 7n of headroom.
+    // ever push the honest quotient past 4n + 9 — strictly below 7n.
     // Unsatisfied assignments are caught even when the commit key is roomy
     // enough (small circuits, deserialized oversized keys) that the split
     // quotient chunks would have committed fine and only failed at
