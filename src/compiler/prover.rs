@@ -128,7 +128,8 @@ impl Prover {
         })
     }
 
-    /// adds blinding scalars to a witness vector
+    /// Adds `hiding_degree + 1` random coefficients times `X^n - 1` to
+    /// the interpolated witnesses, preserving every evaluation on the domain.
     ///
     /// appends:
     ///
@@ -165,23 +166,29 @@ impl Prover {
         Polynomial::from_coefficients_vec(coefficients)
     }
 
-    fn sample_wire_blinders<R>(rng: &mut R) -> [[BlsScalar; 2]; 4]
+    fn sample_wire_blinders<R>(rng: &mut R) -> [BlsScalar; 11]
     where
         R: RngCore + CryptoRng,
     {
-        core::array::from_fn(|_| {
-            core::array::from_fn(|_| BlsScalar::random(&mut *rng))
-        })
+        core::array::from_fn(|_| BlsScalar::random(&mut *rng))
     }
 
     fn blind_wire_polynomials(
         witnesses: [&[BlsScalar]; 4],
-        blinders: &[[BlsScalar; 2]; 4],
+        blinders: &[BlsScalar; 11],
         domain: &EvaluationDomain,
     ) -> [Polynomial; 4] {
+        // The shifted wires a, b and d are opened at both z and z * omega.
+        // Quadratic masks leave one random coefficient after those two
+        // evaluations to hide the commitment. The c wire needs a linear mask.
+        let blinders = [
+            &blinders[..3],
+            &blinders[3..6],
+            &blinders[6..8],
+            &blinders[8..],
+        ];
         let blind = |i: usize| {
-            let blinders = blinders[i].as_slice();
-            Self::blind_poly_with_blinders(witnesses[i], blinders, domain)
+            Self::blind_poly_with_blinders(witnesses[i], blinders[i], domain)
         };
         #[cfg(feature = "std")]
         {
@@ -634,7 +641,8 @@ impl Prover {
             args,
         )?;
 
-        // split quotient polynomial into 4 degree `n` polynomials
+        // Split at multiples of n. The first three chunks have degree at
+        // most n after blinding; the fourth can have degree n + 9.
         let domain_size = domain.size();
 
         let mut t_low_vec = t_poly[0..domain_size].to_vec();
@@ -853,6 +861,9 @@ impl Prover {
         Ok((proof, public_inputs))
     }
 }
+
+#[cfg(test)]
+mod blinding_tests;
 
 #[cfg(test)]
 mod tests {
@@ -1415,29 +1426,28 @@ mod tests {
         let mut precomputed_rng = sequential_rng.clone();
 
         let sequential = [
+            Prover::blind_poly(&mut sequential_rng, &witnesses, 2, &domain),
+            Prover::blind_poly(&mut sequential_rng, &witnesses, 2, &domain),
             Prover::blind_poly(&mut sequential_rng, &witnesses, 1, &domain),
-            Prover::blind_poly(&mut sequential_rng, &witnesses, 1, &domain),
-            Prover::blind_poly(&mut sequential_rng, &witnesses, 1, &domain),
-            Prover::blind_poly(&mut sequential_rng, &witnesses, 1, &domain),
+            Prover::blind_poly(&mut sequential_rng, &witnesses, 2, &domain),
         ];
         let blinders = Prover::sample_wire_blinders(&mut precomputed_rng);
-        let precomputed = blinders.map(|blinders| {
-            Prover::blind_poly_with_blinders(&witnesses, &blinders, &domain)
-        });
+        let precomputed =
+            Prover::blind_wire_polynomials([&witnesses; 4], &blinders, &domain);
 
         assert_eq!(precomputed, sequential);
     }
 
     #[test]
-    fn deterministic_v3_proof_matches_base_digest() {
+    fn deterministic_v3_proof_matches_blinding_digest() {
         let mut setup_rng = StdRng::seed_from_u64(0x9235_e700);
         let pp = PublicParameters::setup(1 << 10, &mut setup_rng)
             .expect("public parameters should build");
-        let (prover, _) =
+        let (prover, verifier) =
             Compiler::compile::<MinimalCircuit>(&pp, b"proof-compatibility")
                 .expect("circuit should compile");
         let mut proving_rng = StdRng::seed_from_u64(0x9235_e701);
-        let (proof, _) = prover
+        let (proof, inputs) = prover
             .prove_with_version(
                 &mut proving_rng,
                 &MinimalCircuit,
@@ -1445,15 +1455,16 @@ mod tests {
             )
             .expect("V3 proof should build");
 
-        // Generated at the PR's base revision, 768cf849. This pins proof
-        // bytes, including transcript challenges and proving RNG order.
+        // Pins proof bytes after the shifted-wire blinding fix, including
+        // transcript challenges and the additional proving RNG draws.
+        verifier.verify(&proof, &inputs).unwrap();
         let expected = [
-            0xe8, 0x56, 0x4e, 0xc2, 0x2d, 0x8c, 0xc0, 0xba, 0x60, 0x36, 0x26,
-            0x02, 0x5d, 0xa3, 0x75, 0x50, 0x77, 0xaa, 0xf0, 0x32, 0x32, 0x61,
-            0x90, 0x8d, 0xab, 0x68, 0xd6, 0x94, 0x73, 0x6f, 0xc2, 0x73, 0xd3,
-            0x1e, 0x25, 0x6c, 0xbd, 0x3a, 0x6a, 0x21, 0xe7, 0xad, 0xe6, 0x31,
-            0x91, 0xac, 0x5c, 0x9d, 0x44, 0xa1, 0x13, 0xac, 0x49, 0x89, 0xa5,
-            0x2e, 0x4b, 0xe3, 0xab, 0xeb, 0x1d, 0x33, 0x32, 0x37,
+            0x4f, 0xaf, 0xf9, 0xf9, 0x78, 0xfe, 0x95, 0x28, 0xab, 0xb9, 0x42,
+            0xd0, 0x8d, 0x07, 0x02, 0x69, 0x6b, 0xb4, 0xa3, 0x9f, 0xfa, 0x86,
+            0xa9, 0x53, 0x1f, 0xbd, 0x56, 0xcd, 0x17, 0x29, 0x7f, 0x4f, 0xaf,
+            0x83, 0xce, 0xf5, 0x26, 0xe8, 0xc6, 0xfb, 0x45, 0x4f, 0x39, 0x2f,
+            0x9f, 0x8a, 0xda, 0x53, 0x09, 0x62, 0x47, 0xbd, 0x36, 0x35, 0xb5,
+            0x19, 0x75, 0xf0, 0xf4, 0xfc, 0x04, 0xcc, 0x83, 0x82,
         ];
         let digest = blake2b_simd::blake2b(&proof.to_bytes());
 

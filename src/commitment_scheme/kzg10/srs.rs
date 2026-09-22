@@ -47,11 +47,11 @@ pub struct PublicParameters {
 }
 
 impl PublicParameters {
-    /// The maximum degree is the degree of the constraint system + 6,
-    /// because adding the blinding factors requires some extra elements
-    /// for the SRS: +1 per each wire (we have 4 wires), plus +2 for the
-    /// permutation polynomial
-    pub(crate) const ADDED_BLINDING_DEGREE: usize = 6;
+    /// The permutation numerator has degree at most 5n + 9: the masks
+    /// contribute 2 each for a, b, d and z, and 1 for c. Division by X^n - 1
+    /// leaves degree 4n + 9. Splitting the quotient at n, 2n and 3n therefore
+    /// requires SRS powers through n + 9 for the final chunk.
+    pub(crate) const ADDED_BLINDING_DEGREE: usize = 9;
 
     /// Setup generates the public parameters using a random number generator.
     /// This method will in most cases be used for testing and exploration.
@@ -67,7 +67,7 @@ impl PublicParameters {
             return Err(Error::DegreeIsZero);
         }
 
-        // we update the degree to match the required one (n + 6)
+        // Include the extra powers required by the blinded quotient.
         max_degree += Self::ADDED_BLINDING_DEGREE;
 
         // Generate the secret scalar x

@@ -29,6 +29,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Require proving-key capacity through degree `n + 9` instead of `n + 6`,
+  where `n` is the evaluation-domain size, so a `2^k` setup now supports at
+  most a `2^(k-1)` domain [#975]
 - Replace upstream Merlin 3.0 with `dusk-merlin` 4.0.0 [#966]
 - Remove static transcript-label caching and leaked label allocations [#966]
 - Restrict supported targets to little-endian architectures [#966]
@@ -100,6 +103,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Fix shifted-wire blinding [#975]
 - Reject serialized lengths and indexes that exceed the target pointer width [#940]
 - Report verifier byte-length arithmetic overflow as `BytesError(InvalidData)`
   instead of `NotEnoughBytes` [#940]
@@ -801,6 +805,7 @@ is necessary since `rkyv/validation` was required as a bound.
 - Proof system module.
 
 <!-- ISSUES -->
+[#975]: https://github.com/dusk-network/plonk/issues/975
 [#966]: https://github.com/dusk-network/plonk/issues/966
 [#964]: https://github.com/dusk-network/plonk/issues/964
 [#960]: https://github.com/dusk-network/plonk/issues/960
