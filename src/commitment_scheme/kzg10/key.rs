@@ -247,8 +247,10 @@ impl CommitKey {
             len.copy_from_slice(&bytes[..u64::SIZE]);
             let len = u64::from_le_bytes(len);
 
-            let powers_of_g = bytes[u64::SIZE..]
-                .chunks_exact(G1Affine::RAW_SIZE)
+            let (chunks, _) =
+                bytes[u64::SIZE..].as_chunks::<{ G1Affine::RAW_SIZE }>();
+            let powers_of_g = chunks
+                .iter()
                 .zip(0..len)
                 .map(|(c, _)| G1Affine::from_slice_unchecked(c))
                 .collect();
@@ -286,8 +288,10 @@ impl CommitKey {
 
         let mut powers_of_g = Vec::with_capacity(len);
 
-        for chunk in bytes[u64::SIZE..].chunks_exact(G1Affine::RAW_SIZE) {
-            // Safety: raw-byte chunk size is checked by `chunks_exact`.
+        let (chunks, _) =
+            bytes[u64::SIZE..].as_chunks::<{ G1Affine::RAW_SIZE }>();
+        for chunk in chunks {
+            // Safety: raw-byte chunk size is fixed by `as_chunks`.
             let point = unsafe { G1Affine::from_slice_unchecked(chunk) };
             let point_is_valid =
                 bool::from(point.is_on_curve() & point.is_torsion_free());
