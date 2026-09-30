@@ -202,6 +202,14 @@ impl Verifier {
             return Err(dusk_bytes::Error::InvalidData.into());
         }
 
+        // Both keys have fixed-size encodings: a longer segment would decode
+        // from its prefix.
+        if verifier_key_len > VerifierKey::SIZE
+            || opening_key_len > OpeningKey::SIZE
+        {
+            return Err(dusk_bytes::Error::InvalidData.into());
+        }
+
         let label = &bytes[..label_len];
         bytes = &bytes[label_len..];
 
@@ -306,7 +314,10 @@ mod tests {
     use rand::rngs::StdRng;
 
     use super::*;
-    use crate::prelude::{Circuit, Compiler, Composer, PublicParameters};
+    use crate::commitment_scheme::Commitment;
+    use crate::prelude::{
+        Circuit, Compiler, Composer, Prover, PublicParameters,
+    };
 
     #[derive(Default)]
     struct MinimalCircuit;
@@ -490,6 +501,48 @@ mod tests {
             trailing,
         ] {
             assert_invalid_verifier(&malformed);
+        }
+    }
+
+    #[test]
+    fn try_from_bytes_requires_canonical_key_encodings() {
+        let mut rng = StdRng::seed_from_u64(46);
+        let pp = PublicParameters::setup(1 << 5, &mut rng).expect("setup");
+        let (prover, verifier) =
+            Compiler::compile::<MinimalCircuit>(&pp, b"keys").expect("compile");
+
+        // Declare the key segment ending at `end` one byte longer, zero-padded.
+        let pad = |bytes: &[u8], header: usize, end: usize| {
+            let mut padded = bytes.to_vec();
+            let len = header_word(bytes, header) as u64 + 1;
+            padded[header * 8..][..8].copy_from_slice(&len.to_be_bytes());
+            padded.insert(end, 0);
+            padded
+        };
+
+        let bytes = verifier.to_bytes();
+        let key_end = 48 + header_word(&bytes, 0) + VerifierKey::SIZE;
+        assert_invalid_verifier(&pad(&bytes, 1, key_end));
+        assert_invalid_verifier(&pad(&bytes, 2, key_end + OpeningKey::SIZE));
+        // A nonzero byte at either end of the five retired slots.
+        for byte in [key_end - 5 * Commitment::SIZE, key_end - 1] {
+            let mut retired_slot = bytes.clone();
+            retired_slot[byte] = 1;
+            assert_invalid_verifier(&retired_slot);
+        }
+
+        // Padded prover-key and verifier-key segments of a prover.
+        let bytes = prover.to_bytes();
+        let prover_key_end =
+            56 + (1..3).map(|i| header_word(&bytes, i)).sum::<usize>();
+        let key_end =
+            56 + (1..5).map(|i| header_word(&bytes, i)).sum::<usize>();
+        for padded in [pad(&bytes, 2, prover_key_end), pad(&bytes, 4, key_end)]
+        {
+            assert!(matches!(
+                Prover::try_from_bytes(padded),
+                Err(Error::BytesError(dusk_bytes::Error::InvalidData))
+            ));
         }
     }
 

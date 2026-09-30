@@ -91,6 +91,14 @@ impl Serializable<{ 20 * Commitment::SIZE + u64::SIZE }> for VerifierKey {
     }
 
     fn from_bytes(buf: &[u8; Self::SIZE]) -> Result<VerifierKey, Self::Error> {
+        // The retired lookup-commitment slots are always serialized as zeroes.
+        if buf[Self::SIZE - 5 * Commitment::SIZE..]
+            .iter()
+            .any(|b| *b != 0)
+        {
+            return Err(dusk_bytes::Error::InvalidData);
+        }
+
         let mut buffer = &buf[..];
 
         Ok(Self::from_polynomial_commitments(
@@ -574,6 +582,11 @@ pub(crate) mod alloc {
                 poly_degree,
                 &v_h_coset_8n.evals,
             ) {
+                return Err(dusk_bytes::Error::InvalidData.into());
+            }
+            // Every field is length-delimited: bytes left over would make a
+            // second encoding of the same key.
+            if !buffer.is_empty() {
                 return Err(dusk_bytes::Error::InvalidData.into());
             }
 

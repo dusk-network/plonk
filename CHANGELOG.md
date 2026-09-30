@@ -106,6 +106,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Reject padded key segments in `Verifier::try_from_bytes` and
+  `Prover::try_from_bytes` [#965]
+- Reject nonzero retired lookup-commitment slots in `VerifierKey::from_bytes`
+  [#965]
 - Constrain `Composer::component_decomposition` to canonical bits for
   `N >= 255` [#980]
 - Fix shifted-wire blinding [#975]
@@ -814,6 +818,7 @@ is necessary since `rkyv/validation` was required as a bound.
 [#979]: https://github.com/dusk-network/plonk/issues/979
 [#975]: https://github.com/dusk-network/plonk/issues/975
 [#966]: https://github.com/dusk-network/plonk/issues/966
+[#965]: https://github.com/dusk-network/plonk/issues/965
 [#964]: https://github.com/dusk-network/plonk/issues/964
 [#960]: https://github.com/dusk-network/plonk/issues/960
 [#959]: https://github.com/dusk-network/plonk/issues/959

@@ -365,6 +365,12 @@ impl Prover {
             return Err(dusk_bytes::Error::InvalidData.into());
         }
 
+        // The verifier key has a fixed-size encoding: a longer segment would
+        // decode from its prefix.
+        if verifier_key_len > VerifierKey::SIZE {
+            return Err(dusk_bytes::Error::InvalidData.into());
+        }
+
         let label = &bytes[..label_len];
         bytes = &bytes[label_len..];
 
