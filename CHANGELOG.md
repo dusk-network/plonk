@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `Proof::from_slice_exact`, which rejects trailing bytes [#979]
 - Cover compressed-circuit encoding and compilation-capacity bounds [#942]
 - Add `Composer::assert_torsion_free_point` [#870]
 - Add `TorsionFreeWitnessPoint` [#870]
@@ -805,6 +806,7 @@ is necessary since `rkyv/validation` was required as a bound.
 - Proof system module.
 
 <!-- ISSUES -->
+[#979]: https://github.com/dusk-network/plonk/issues/979
 [#975]: https://github.com/dusk-network/plonk/issues/975
 [#966]: https://github.com/dusk-network/plonk/issues/966
 [#964]: https://github.com/dusk-network/plonk/issues/964

@@ -159,6 +159,21 @@ impl Serializable<{ 11 * Commitment::SIZE + ProofEvaluations::SIZE }>
     }
 }
 
+impl Proof {
+    /// Decodes a [`Proof`] from exactly [`Proof::SIZE`] bytes.
+    ///
+    /// Unlike [`DeserializableSlice::from_slice`], which ignores trailing data,
+    /// this rejects any other length with [`dusk_bytes::Error::BadLength`].
+    pub fn from_slice_exact(bytes: &[u8]) -> Result<Self, dusk_bytes::Error> {
+        let exact =
+            bytes.try_into().map_err(|_| dusk_bytes::Error::BadLength {
+                found: bytes.len(),
+                expected: Self::SIZE,
+            })?;
+        Self::from_bytes(exact)
+    }
+}
+
 #[cfg(feature = "alloc")]
 #[allow(unused_imports)]
 pub(crate) mod alloc {
@@ -1239,6 +1254,20 @@ mod proof_tests {
             assert!(
                 rkyv::from_bytes::<Proof>(&bytes[..bytes.len() - 1]).is_err()
             );
+        }
+    }
+
+    #[test]
+    fn from_slice_exact_rejects_other_lengths() {
+        let bytes = Proof::default().to_bytes();
+        assert_eq!(Proof::from_slice_exact(&bytes), Ok(Proof::default()));
+
+        let padded = [&bytes[..], &[0]].concat();
+        for bad in [&padded[..], &bytes[..Proof::SIZE - 1]] {
+            let found = bad.len();
+            let expected = Proof::SIZE;
+            let err = dusk_bytes::Error::BadLength { found, expected };
+            assert_eq!(Proof::from_slice_exact(bad), Err(err));
         }
     }
 }
