@@ -12,6 +12,7 @@
 //! need the crate-private constraint emitters the honest gadgets are built
 //! from.
 
+mod decomposition;
 mod evaluated_output;
 mod fixed_base;
 mod logic;

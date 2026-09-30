@@ -30,6 +30,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Change the verifier key of circuits calling `component_decomposition` at
+  `N >= 255` [#980]
 - Require proving-key capacity through degree `n + 9` instead of `n + 6`,
   where `n` is the evaluation-domain size, so a `2^k` setup now supports at
   most a `2^(k-1)` domain [#975]
@@ -104,6 +106,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Constrain `Composer::component_decomposition` to canonical bits for
+  `N >= 255` [#980]
 - Fix shifted-wire blinding [#975]
 - Reject serialized lengths and indexes that exceed the target pointer width [#940]
 - Report verifier byte-length arithmetic overflow as `BytesError(InvalidData)`
@@ -806,6 +810,7 @@ is necessary since `rkyv/validation` was required as a bound.
 - Proof system module.
 
 <!-- ISSUES -->
+[#980]: https://github.com/dusk-network/plonk/issues/980
 [#979]: https://github.com/dusk-network/plonk/issues/979
 [#975]: https://github.com/dusk-network/plonk/issues/975
 [#966]: https://github.com/dusk-network/plonk/issues/966
