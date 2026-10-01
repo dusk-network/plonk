@@ -62,19 +62,33 @@ impl Composer {
     /// the above example, the deconstruction of 4 for `N < 3` would result in
     /// an unsatisfied circuit.
     ///
-    /// Consumes `2 · N + 1` gates
+    /// For `N >= 255` the bits are also constrained to the canonical
+    /// representative of `scalar`, which the recomposition alone does not do
+    /// since `2^255 > r`.
+    ///
+    /// Consumes `2 · N + 1` gates, plus 36 for `N = 255` and 37 for `N = 256`.
     pub fn component_decomposition<const N: usize>(
         &mut self,
         scalar: Witness,
+    ) -> [Witness; N] {
+        self.decompose_bits(scalar, &self[scalar].to_bits())
+    }
+
+    /// [`Self::component_decomposition`] with the bit witnesses taken from
+    /// `bit_values`, so tests can emit its gates with non-canonical bits.
+    pub(super) fn decompose_bits<const N: usize>(
+        &mut self,
+        scalar: Witness,
+        bit_values: &[u8; 256],
     ) -> [Witness; N] {
         // Static assertion
         assert!(0 < N && N <= 256);
 
         let mut decomposition = [Self::ZERO; N];
+        let mut low = Self::ZERO;
 
         let acc = Self::ZERO;
-        let acc = self[scalar]
-            .to_bits()
+        let acc = bit_values
             .iter()
             .enumerate()
             .zip(decomposition.iter_mut())
@@ -89,10 +103,39 @@ impl Composer {
                     .a(*w_bit)
                     .b(acc);
 
-                self.gate_add(constraint)
+                let acc = self.gate_add(constraint);
+                if i == 253 {
+                    low = acc;
+                }
+                acc
             });
 
         self.assert_equal(acc, scalar);
+
+        // Bound the bits to an integer below `r`: bit 255 is zero and, when
+        // bit 254 is set, `low`, the exact sum of bits `0..254`, is at most the
+        // low part of `r - 1`. This is the canonical truncation guard at bit
+        // 254, where bit 254 is the whole high part and so already its
+        // `high == r_high` flag.
+        if N > 254 {
+            decomposition[255..].iter().for_each(|bit| {
+                self.assert_equal_constant(*bit, BlsScalar::zero(), None)
+            });
+            let r_low = recompose_bits(&(-BlsScalar::one()).to_bits(), 0, 254);
+            let r_low_minus_low = self.gate_add(
+                Constraint::new()
+                    .left(-BlsScalar::one())
+                    .a(low)
+                    .constant(r_low),
+            );
+            let guard = self.gate_mul(
+                Constraint::new()
+                    .mult(1)
+                    .a(decomposition[254])
+                    .b(r_low_minus_low),
+            );
+            self.range_check(guard, 254);
+        }
 
         decomposition
     }

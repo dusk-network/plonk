@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `Proof::from_slice_exact`, which rejects trailing bytes [#979]
 - Cover compressed-circuit encoding and compilation-capacity bounds [#942]
 - Add `Composer::assert_torsion_free_point` [#870]
 - Add `TorsionFreeWitnessPoint` [#870]
@@ -29,6 +30,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Change the verifier key of circuits calling `component_decomposition` at
+  `N >= 255` [#980]
 - Require proving-key capacity through degree `n + 9` instead of `n + 6`,
   where `n` is the evaluation-domain size, so a `2^k` setup now supports at
   most a `2^(k-1)` domain [#975]
@@ -103,6 +106,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Reject padded key segments in `Verifier::try_from_bytes` and
+  `Prover::try_from_bytes` [#965]
+- Reject nonzero retired lookup-commitment slots in `VerifierKey::from_bytes`
+  [#965]
+- Constrain `Composer::component_decomposition` to canonical bits for
+  `N >= 255` [#980]
 - Fix shifted-wire blinding [#975]
 - Reject serialized lengths and indexes that exceed the target pointer width [#940]
 - Report verifier byte-length arithmetic overflow as `BytesError(InvalidData)`
@@ -805,8 +814,11 @@ is necessary since `rkyv/validation` was required as a bound.
 - Proof system module.
 
 <!-- ISSUES -->
+[#980]: https://github.com/dusk-network/plonk/issues/980
+[#979]: https://github.com/dusk-network/plonk/issues/979
 [#975]: https://github.com/dusk-network/plonk/issues/975
 [#966]: https://github.com/dusk-network/plonk/issues/966
+[#965]: https://github.com/dusk-network/plonk/issues/965
 [#964]: https://github.com/dusk-network/plonk/issues/964
 [#960]: https://github.com/dusk-network/plonk/issues/960
 [#959]: https://github.com/dusk-network/plonk/issues/959
