@@ -2,3 +2,7 @@
 # Flags needed to render LaTeX in documentation
 # With this, `cargo docs` must be run with the `--no-deps` flag
 rustdocflags =  "--html-in-header ./katex-header.html"
+
+# Link 32-bit tests with the bundled linker, so no 32-bit libc is needed.
+[target.i686-unknown-linux-musl]
+linker = "rust-lld"

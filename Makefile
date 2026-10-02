@@ -6,6 +6,13 @@ test: ## Run tests
 	@cargo test --release
 	@cargo test --release --all-features
 
+# criterion's `alloca` compiles C: clang builds it with its own headers.
+test-32: ## Run tests on a 32-bit target
+	@rustup target add i686-unknown-linux-musl
+	@CC_i686_unknown_linux_musl=clang \
+		CFLAGS_i686_unknown_linux_musl="--target=i686-linux-musl -ffreestanding -nostdinc -isystem $$(clang -print-resource-dir)/include" \
+		cargo test --release --target i686-unknown-linux-musl
+
 clippy: ## Run clippy
 	@cargo clippy --features=rkyv/size_32
 
