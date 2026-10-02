@@ -37,6 +37,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   [#941]
 - Reject unreduced raw point limbs in `CommitKey::from_raw_var_bytes`, which
   `Prover::try_from_bytes` uses [#981]
+- Reject prover keys whose selector or sigma polynomials disagree with their
+  cached coset evaluations, in byte and archive decoding [#941]
 - Change the verifier key of circuits calling `component_decomposition` at
   `N >= 255` [#980]
 - Avoid redundant polynomial and KZG computations when evaluating, dividing,

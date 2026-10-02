@@ -322,6 +322,17 @@ pub(crate) mod alloc {
             true
         }
 
+        /// Whether `evaluations` are the coset evaluations of the polynomial
+        /// with `coeffs`, as preprocessing caches them for selectors.
+        pub(crate) fn matches_coset_evaluations(
+            &self,
+            coeffs: &[BlsScalar],
+            evaluations: impl ExactSizeIterator<Item = BlsScalar>,
+        ) -> bool {
+            evaluations.len() == self.size()
+                && evaluations.eq(self.coset_fft(coeffs))
+        }
+
         pub(crate) fn matches_vanishing_poly_over_coset(
             &self,
             poly_degree: u64,
