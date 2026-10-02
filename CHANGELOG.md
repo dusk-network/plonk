@@ -32,6 +32,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Change the verifier key of circuits calling `component_decomposition` at
   `N >= 255` [#980]
+- Avoid redundant polynomial and KZG computations when evaluating, dividing,
+  multiplying, and constructing aggregate witnesses [#977]
 - Require proving-key capacity through degree `n + 9` instead of `n + 6`,
   where `n` is the evaluation-domain size, so a `2^k` setup now supports at
   most a `2^(k-1)` domain [#975]
@@ -816,6 +818,7 @@ is necessary since `rkyv/validation` was required as a bound.
 <!-- ISSUES -->
 [#980]: https://github.com/dusk-network/plonk/issues/980
 [#979]: https://github.com/dusk-network/plonk/issues/979
+[#977]: https://github.com/dusk-network/plonk/issues/977
 [#975]: https://github.com/dusk-network/plonk/issues/975
 [#966]: https://github.com/dusk-network/plonk/issues/966
 [#965]: https://github.com/dusk-network/plonk/issues/965
