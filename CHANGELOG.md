@@ -115,6 +115,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Reject commit keys and public parameters whose setup secret is a root of
+  unity of a supported domain [#989]
 - Reject padded key segments in `Verifier::try_from_bytes` and
   `Prover::try_from_bytes` [#965]
 - Reject nonzero retired lookup-commitment slots in `VerifierKey::from_bytes`
@@ -823,6 +825,7 @@ is necessary since `rkyv/validation` was required as a bound.
 - Proof system module.
 
 <!-- ISSUES -->
+[#989]: https://github.com/dusk-network/plonk/issues/989
 [#971]: https://github.com/dusk-network/plonk/issues/971
 [#715]: https://github.com/dusk-network/plonk/issues/715
 [#980]: https://github.com/dusk-network/plonk/issues/980
