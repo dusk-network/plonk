@@ -30,6 +30,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Make `Composer::append_custom_gate` crate-private. Outside the crate it
+  could not set a gate selector, so its rows constrained nothing; use
+  `Composer::append_gate` instead [#988]
 - Change the verifier key of circuits calling `component_decomposition` at
   `N >= 255` [#980]
 - Avoid redundant polynomial and KZG computations when evaluating, dividing,
@@ -816,6 +819,7 @@ is necessary since `rkyv/validation` was required as a bound.
 - Proof system module.
 
 <!-- ISSUES -->
+[#988]: https://github.com/dusk-network/plonk/issues/988
 [#980]: https://github.com/dusk-network/plonk/issues/980
 [#979]: https://github.com/dusk-network/plonk/issues/979
 [#977]: https://github.com/dusk-network/plonk/issues/977
