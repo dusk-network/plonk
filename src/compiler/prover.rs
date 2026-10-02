@@ -880,7 +880,7 @@ mod tests {
 
     use super::Prover;
     use crate::error::Error;
-    use crate::fft::EvaluationDomain;
+    use crate::fft::{EvaluationDomain, Evaluations, Polynomial};
     use crate::prelude::{
         Circuit, Compiler, Composer, Constraint, PublicParameters,
     };
@@ -1505,39 +1505,32 @@ mod tests {
         let mut rng = StdRng::seed_from_u64(50);
         let pp = PublicParameters::setup(1 << 10, &mut rng)
             .expect("public parameters should build");
-        let (prover, _) = Compiler::compile::<MinimalCircuit>(&pp, b"p1.4-5")
-            .expect("circuit should compile");
-        let mut bytes = prover.to_bytes();
+        let (mut prover, _) =
+            Compiler::compile::<MinimalCircuit>(&pp, b"p1.4-5")
+                .expect("circuit should compile");
 
-        let label_len = u64::from_be_bytes(
-            bytes[u64::SIZE..2 * u64::SIZE]
-                .try_into()
-                .expect("header is complete"),
-        ) as usize;
-        let prover_key_len = u64::from_be_bytes(
-            bytes[2 * u64::SIZE..3 * u64::SIZE]
-                .try_into()
-                .expect("header is complete"),
-        ) as usize;
-        let q_m_len_offset = 7 * u64::SIZE + label_len + 2 * u64::SIZE;
-        let q_m_len =
-            u64::from_slice(&bytes[q_m_len_offset..q_m_len_offset + u64::SIZE])
-                .expect("q_m length should decode") as usize;
-        assert!(q_m_len > 1);
-
-        bytes[q_m_len_offset..q_m_len_offset + u64::SIZE]
-            .copy_from_slice(&((q_m_len - 1) as u64).to_bytes());
-        let first_q_m_coefficient = q_m_len_offset + u64::SIZE;
-        bytes.drain(
-            first_q_m_coefficient..first_q_m_coefficient + BlsScalar::SIZE,
+        // Shorten q_m with coset evaluations that still match it.
+        let q_m = &mut prover.prover_key.arithmetic.q_m;
+        assert!(q_m.0.len() > 1);
+        let domain = q_m.1.domain();
+        let shorter = Polynomial::from_coefficients_vec(q_m.0[1..].to_vec());
+        let evaluations = domain.coset_fft(&shorter);
+        *q_m = (
+            shorter,
+            Evaluations::from_vec_and_domain(evaluations, domain),
         );
-        bytes[2 * u64::SIZE..3 * u64::SIZE].copy_from_slice(
-            &((prover_key_len - BlsScalar::SIZE) as u64).to_be_bytes(),
-        );
+        let bytes = prover.to_bytes();
 
         let decoded = Prover::try_from_bytes(&bytes)
             .expect("prover with uneven polynomial lengths should decode");
         assert_eq!(decoded.to_bytes(), bytes);
+
+        // Evaluations that no longer match their polynomial are rejected.
+        prover.prover_key.arithmetic.q_m.1.evals[0] += BlsScalar::one();
+        assert!(matches!(
+            Prover::try_from_bytes(prover.to_bytes()),
+            Err(Error::BytesError(dusk_bytes::Error::InvalidData))
+        ));
     }
 
     #[test]

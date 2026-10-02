@@ -7,8 +7,11 @@
 //! Semantic checks for archived values. bytecheck derives only structural
 //! checks, and archived points and scalars hold raw Montgomery limbs.
 
+#[cfg(feature = "alloc")]
+use alloc::vec::Vec;
+
 use bytecheck::CheckBytes;
-use dusk_bls12_381::{BlsScalar, G1Affine};
+use dusk_bls12_381::BlsScalar;
 use rkyv::validation::ArchiveContext;
 use rkyv::{Archive, Archived, Deserialize, Infallible};
 
@@ -66,15 +69,9 @@ pub(crate) fn scalar_is_canonical(scalar: &Archived<BlsScalar>) -> bool {
 }
 
 /// Whether all `scalars` are canonical.
+#[cfg(feature = "alloc")]
 pub(crate) fn scalars_are_canonical(scalars: &[Archived<BlsScalar>]) -> bool {
-    #[cfg(feature = "std")]
-    {
-        use rayon::prelude::*;
-
-        scalars.par_iter().all(scalar_is_canonical)
-    }
-    #[cfg(not(feature = "std"))]
-    scalars.iter().all(scalar_is_canonical)
+    crate::util::all_parallel(scalars, scalar_is_canonical)
 }
 
 /// Whether two archived scalar slices hold the same values.
@@ -168,16 +165,23 @@ fn prover_key_is_valid(key: &ArchivedProverKey) -> bool {
     type Pair = Archived<(Polynomial, Evaluations)>;
     let (arithmetic, fixed_base, permutation) =
         (&key.arithmetic, &key.fixed_base, &key.permutation);
-    // Evaluation sets carry the canonical domain of their length.
+    // Each polynomial fits the circuit and its cached coset evaluations,
+    // which also fixes their domain.
     let fits = |pair: &Pair| {
-        pair.0.coeffs().len() <= n && pair.1.evals.len() == domain.size()
+        let coeffs: Vec<BlsScalar> =
+            pair.0.coeffs().iter().map(unarchive).collect();
+        coeffs.len() <= n
+            && domain.matches_coset_evaluations(
+                &coeffs,
+                pair.1.evals.iter().map(unarchive),
+            )
     };
     let same = |a: &Pair, b: &Pair| {
         same_scalars(a.0.coeffs(), b.0.coeffs())
             && same_scalars(&a.1.evals, &b.1.evals)
     };
 
-    [
+    crate::util::all_parallel(&[
         &arithmetic.q_m,
         &arithmetic.q_l,
         &arithmetic.q_r,
@@ -193,9 +197,7 @@ fn prover_key_is_valid(key: &ArchivedProverKey) -> bool {
         &permutation.s_sigma_2,
         &permutation.s_sigma_3,
         &permutation.s_sigma_4,
-    ]
-    .into_iter()
-    .all(fits)
+    ], |pair| fits(pair))
         // The byte encoding stores each shared selector once.
         && same(&key.logic.q_c, &arithmetic.q_c)
         && same(&fixed_base.q_l, &arithmetic.q_l)
@@ -212,6 +214,7 @@ fn prover_key_is_valid(key: &ArchivedProverKey) -> bool {
 
 #[cfg(all(test, feature = "alloc"))]
 mod tests {
+    use dusk_bls12_381::G1Affine;
     use rand::SeedableRng;
     use rand::rngs::StdRng;
     use rkyv::AlignedVec;
@@ -406,6 +409,8 @@ mod tests {
             |k| k.arithmetic.q_m.0.coeffs().last().unwrap() as *const _ as _,
             &replace(BlsScalar::zero()),
         ));
+        // Coset evaluations that no longer match their polynomial.
+        assert!(!mutated(|k| k.arithmetic.q_m.1.evals.as_ptr().cast(), &two));
         // Shared selectors that disagree.
         assert!(!mutated(|k| k.fixed_base.q_c.1.evals.as_ptr().cast(), &two));
         // Cached evaluations that disagree with the domain.
