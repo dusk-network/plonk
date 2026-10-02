@@ -30,6 +30,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Reject archived proofs and keys that their byte decoders reject: points
+  that are not canonically encoded in the prime-order subgroup, unreduced
+  scalars, shared selectors that disagree, polynomials over the circuit
+  degree, and evaluations off their domain or inconsistent with it [#981]
+  [#941]
 - Change the verifier key of circuits calling `component_decomposition` at
   `N >= 255` [#980]
 - Avoid redundant polynomial and KZG computations when evaluating, dividing,
@@ -816,6 +821,8 @@ is necessary since `rkyv/validation` was required as a bound.
 - Proof system module.
 
 <!-- ISSUES -->
+[#981]: https://github.com/dusk-network/plonk/issues/981
+[#941]: https://github.com/dusk-network/plonk/issues/941
 [#980]: https://github.com/dusk-network/plonk/issues/980
 [#979]: https://github.com/dusk-network/plonk/issues/979
 [#977]: https://github.com/dusk-network/plonk/issues/977
