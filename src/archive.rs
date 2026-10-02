@@ -77,20 +77,6 @@ pub(crate) fn scalars_are_canonical(scalars: &[Archived<BlsScalar>]) -> bool {
     scalars.iter().all(scalar_is_canonical)
 }
 
-/// Whether `point` is canonically encoded in the prime-order subgroup.
-pub(crate) fn point_is_canonical(point: &Archived<G1Affine>) -> bool {
-    let point: G1Affine = unarchive(point);
-    let raw = point.to_raw_bytes();
-    // The uncompressed encoding reduces the coordinates and normalizes the
-    // identity, so only canonical limbs survive the round trip unchanged.
-    // The flag goes first: other values assert in debug builds.
-    raw[G1Affine::RAW_SIZE - 1] <= 1
-        && Option::<G1Affine>::from(G1Affine::from_uncompressed(
-            &point.to_uncompressed(),
-        ))
-        .is_some_and(|valid| valid.to_raw_bytes() == raw)
-}
-
 /// Whether two archived scalar slices hold the same values.
 pub(crate) fn same_scalars(
     a: &[Archived<BlsScalar>],

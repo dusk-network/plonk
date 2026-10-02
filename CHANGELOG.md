@@ -35,6 +35,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   scalars, shared selectors that disagree, polynomials over the circuit
   degree, and evaluations off their domain or inconsistent with it [#981]
   [#941]
+- Reject unreduced raw point limbs in `CommitKey::from_raw_var_bytes`, which
+  `Prover::try_from_bytes` uses [#981]
 - Change the verifier key of circuits calling `component_decomposition` at
   `N >= 255` [#980]
 - Avoid redundant polynomial and KZG computations when evaluating, dividing,

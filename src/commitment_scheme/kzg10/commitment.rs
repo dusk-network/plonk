@@ -16,7 +16,7 @@ use rkyv::{
 };
 
 #[cfg(feature = "rkyv-impl")]
-use crate::archive::{InvalidArchive, check_fields, point_is_canonical};
+use crate::archive::{InvalidArchive, check_fields, unarchive};
 
 /// Holds a commitment to a polynomial in a form of a [`G1Affine`]-bls12_381
 /// point.
@@ -41,11 +41,26 @@ impl<C: ?Sized> CheckBytes<C> for ArchivedCommitment {
         context: &mut C,
     ) -> Result<&'a Self, Self::Error> {
         check_fields!(value, context, 0);
-        if !point_is_canonical(unsafe { &(*value).0 }) {
+        if !g1_is_canonical(&unarchive(unsafe { &(*value).0 })) {
             return Err(InvalidArchive);
         }
         Ok(unsafe { &*value })
     }
+}
+
+/// Whether `point` is in the prime-order subgroup with canonical limbs and
+/// identity flag, as the checked encodings guarantee. Raw and archived
+/// points hold Montgomery limbs that may not be reduced.
+pub(crate) fn g1_is_canonical(point: &G1Affine) -> bool {
+    let raw = point.to_raw_bytes();
+    // The uncompressed encoding reduces the coordinates and normalizes the
+    // identity, so only canonical limbs survive the round trip unchanged.
+    // The flag goes first: other values assert in debug builds.
+    raw[G1Affine::RAW_SIZE - 1] <= 1
+        && Option::<G1Affine>::from(G1Affine::from_uncompressed(
+            &point.to_uncompressed(),
+        ))
+        .is_some_and(|valid| valid.to_raw_bytes() == raw)
 }
 
 impl From<G1Affine> for Commitment {
