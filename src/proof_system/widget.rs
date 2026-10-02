@@ -18,8 +18,6 @@ pub mod permutation;
 pub mod range;
 
 #[cfg(feature = "rkyv-impl")]
-use bytecheck::CheckBytes;
-#[cfg(feature = "rkyv-impl")]
 use rkyv::{
     Archive, Deserialize, Serialize,
     ser::{ScratchSpace, Serializer},
@@ -33,8 +31,7 @@ use rkyv::{
 #[cfg_attr(
     feature = "rkyv-impl",
     derive(Archive, Deserialize, Serialize),
-    archive(bound(serialize = "__S: Serializer + ScratchSpace")),
-    archive_attr(derive(CheckBytes))
+    archive(bound(serialize = "__S: Serializer + ScratchSpace"))
 )]
 pub struct VerifierKey {
     /// Circuit size (not padded to a power of two).
@@ -267,8 +264,7 @@ pub(crate) mod alloc {
     #[cfg_attr(
         feature = "rkyv-impl",
         derive(Archive, Deserialize, Serialize),
-        archive(bound(serialize = "__S: Serializer + ScratchSpace")),
-        archive_attr(derive(CheckBytes))
+        archive(bound(serialize = "__S: Serializer + ScratchSpace"))
     )]
     pub struct ProverKey {
         /// Circuit size
@@ -569,9 +565,9 @@ pub(crate) mod alloc {
             let s_sigma_4 = (s_sigma_4_poly, s_sigma_4_evals);
 
             let perm_linear_evaluations = evals_from_reader(&mut buffer)?;
-            if !evaluations_domain
-                .matches_linear_poly_over_coset(&perm_linear_evaluations.evals)
-            {
+            if !evaluations_domain.matches_linear_poly_over_coset(
+                perm_linear_evaluations.evals.iter().copied(),
+            ) {
                 return Err(dusk_bytes::Error::InvalidData.into());
             }
 
@@ -580,7 +576,7 @@ pub(crate) mod alloc {
                 u64::try_from(n).map_err(|_| dusk_bytes::Error::InvalidData)?;
             if !evaluations_domain.matches_vanishing_poly_over_coset(
                 poly_degree,
-                &v_h_coset_8n.evals,
+                v_h_coset_8n.evals.iter().copied(),
             ) {
                 return Err(dusk_bytes::Error::InvalidData.into());
             }

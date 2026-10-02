@@ -15,20 +15,38 @@ use rkyv::{
     ser::{ScratchSpace, Serializer},
 };
 
+#[cfg(feature = "rkyv-impl")]
+use crate::archive::{InvalidArchive, check_fields, point_is_canonical};
+
 /// Holds a commitment to a polynomial in a form of a [`G1Affine`]-bls12_381
 /// point.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 #[cfg_attr(
     feature = "rkyv-impl",
     derive(Archive, Deserialize, Serialize),
-    archive(bound(serialize = "__S: Serializer + ScratchSpace")),
-    archive_attr(derive(CheckBytes))
+    archive(bound(serialize = "__S: Serializer + ScratchSpace"))
 )]
 pub(crate) struct Commitment(
     /// The commitment is a group element.
     #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     pub(crate) G1Affine,
 );
+
+#[cfg(feature = "rkyv-impl")]
+impl<C: ?Sized> CheckBytes<C> for ArchivedCommitment {
+    type Error = InvalidArchive;
+
+    unsafe fn check_bytes<'a>(
+        value: *const Self,
+        context: &mut C,
+    ) -> Result<&'a Self, Self::Error> {
+        check_fields!(value, context, 0);
+        if !point_is_canonical(unsafe { &(*value).0 }) {
+            return Err(InvalidArchive);
+        }
+        Ok(unsafe { &*value })
+    }
+}
 
 impl From<G1Affine> for Commitment {
     fn from(point: G1Affine) -> Commitment {

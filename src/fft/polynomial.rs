@@ -18,9 +18,14 @@ use dusk_bytes::{DeserializableSlice, Serializable};
 use rkyv::{
     Archive, Deserialize, Serialize,
     ser::{ScratchSpace, Serializer},
+    validation::ArchiveContext,
 };
 
 use super::{EvaluationDomain, Evaluations};
+#[cfg(feature = "rkyv-impl")]
+use crate::archive::{
+    InvalidArchive, check_fields, scalars_are_canonical, unarchive,
+};
 use crate::error::Error;
 use crate::util;
 
@@ -29,13 +34,45 @@ use crate::util;
 #[cfg_attr(
     feature = "rkyv-impl",
     derive(Archive, Deserialize, Serialize),
-    archive(bound(serialize = "__S: Serializer + ScratchSpace")),
-    archive_attr(derive(CheckBytes))
+    archive(bound(serialize = "__S: Serializer + ScratchSpace"))
 )]
 pub(crate) struct Polynomial {
     /// The coefficient of `x^i` is stored at location `i` in `self.coeffs`.
     #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     coeffs: Vec<BlsScalar>,
+}
+
+#[cfg(feature = "rkyv-impl")]
+impl ArchivedPolynomial {
+    pub(crate) fn coeffs(&self) -> &[rkyv::Archived<BlsScalar>] {
+        &self.coeffs
+    }
+}
+
+// Like `Polynomial::from_slice`, require canonical coefficients and no
+// leading zero, which an archive cannot truncate in place.
+#[cfg(feature = "rkyv-impl")]
+impl<C> CheckBytes<C> for ArchivedPolynomial
+where
+    C: ArchiveContext + ?Sized,
+    C::Error: bytecheck::Error,
+{
+    type Error = InvalidArchive;
+
+    unsafe fn check_bytes<'a>(
+        value: *const Self,
+        context: &mut C,
+    ) -> Result<&'a Self, Self::Error> {
+        check_fields!(value, context, coeffs);
+        let coeffs = unsafe { &(*value).coeffs };
+        let normalized = coeffs.last().is_none_or(|leading| {
+            unarchive::<BlsScalar>(leading) != BlsScalar::zero()
+        });
+        if !normalized || !scalars_are_canonical(coeffs) {
+            return Err(InvalidArchive);
+        }
+        Ok(unsafe { &*value })
+    }
 }
 
 impl Deref for Polynomial {

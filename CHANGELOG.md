@@ -30,6 +30,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Reject archived proofs and keys that their byte decoders reject: points
+  that are not canonically encoded in the prime-order subgroup, unreduced
+  scalars, shared selectors that disagree, polynomials over the circuit
+  degree, and evaluations off their domain or inconsistent with it [#981]
+  [#941]
 - Make `Composer::append_custom_gate` crate-private [#988]
 - Report length overflow in `Prover::try_from_bytes` as
   `Error::BytesError(InvalidData)` instead of `Error::NotEnoughBytes` [#971]
@@ -826,6 +831,8 @@ is necessary since `rkyv/validation` was required as a bound.
 - Proof system module.
 
 <!-- ISSUES -->
+[#981]: https://github.com/dusk-network/plonk/issues/981
+[#941]: https://github.com/dusk-network/plonk/issues/941
 [#988]: https://github.com/dusk-network/plonk/issues/988
 [#989]: https://github.com/dusk-network/plonk/issues/989
 [#971]: https://github.com/dusk-network/plonk/issues/971
