@@ -477,7 +477,7 @@ pub(crate) mod alloc {
                     }
                     let serialized_poly_size = serialized_poly_len
                         .checked_mul(BlsScalar::SIZE)
-                        .ok_or(Error::NotEnoughBytes)?;
+                        .ok_or(dusk_bytes::Error::InvalidData)?;
                     // If the announced len is zero, simply return an empty poly
                     // and leave the buffer intact.
                     if serialized_poly_size == 0 {
@@ -772,6 +772,24 @@ mod test {
         prover_key.arithmetic.q_l.1.evals.pop();
 
         prover_key.to_var_bytes();
+    }
+
+    #[test]
+    fn prover_key_coefficient_size_overflow_is_invalid_data() {
+        // A 2^30 evaluation domain allows polynomials of 2^27 coefficients,
+        // whose byte size overflows a 32-bit `usize`. On 64-bit targets the
+        // same header is a short read.
+        let n = 1u64 << 27;
+        let mut bytes = n.to_bytes().to_vec();
+        bytes.extend_from_slice(&0u64.to_bytes());
+        bytes.extend_from_slice(&n.to_bytes());
+
+        let expected = if usize::BITS == 32 {
+            Error::BytesError(dusk_bytes::Error::InvalidData)
+        } else {
+            Error::NotEnoughBytes
+        };
+        assert_eq!(ProverKey::from_slice(&bytes).err(), Some(expected));
     }
 
     #[test]
