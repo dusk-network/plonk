@@ -12,8 +12,14 @@ use crate::prelude::{Composer, Error};
 
 /// Circuit implementation that can be proved by a Composer
 ///
-/// The default implementation will be used to generate the proving arguments.
-pub trait Circuit: Default {
+/// [`Compiler::compile`] and [`Circuit::compress`] build the circuit from its
+/// [`Default`] value. A circuit without one is compiled from an instance with
+/// [`Compiler::compile_with_circuit`].
+///
+/// [`Compiler::compile`]: crate::prelude::Compiler::compile
+/// [`Compiler::compile_with_circuit`]:
+/// crate::prelude::Compiler::compile_with_circuit
+pub trait Circuit {
     /// Circuit definition
     fn circuit(&self, composer: &mut Composer) -> Result<(), Error>;
 
@@ -33,7 +39,10 @@ pub trait Circuit: Default {
     /// [`Compiler::compile_with_compressed`]:
     /// [`crate::prelude::Compiler::compile_with_compressed`]
     #[cfg(feature = "alloc")]
-    fn compress() -> Result<Vec<u8>, Error> {
+    fn compress() -> Result<Vec<u8>, Error>
+    where
+        Self: Default,
+    {
         let mut composer = Composer::initialized();
         Self::default().circuit(&mut composer)?;
 
