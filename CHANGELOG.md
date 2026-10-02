@@ -30,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Make `Composer::append_custom_gate` crate-private [#988]
 - Report length overflow in `Prover::try_from_bytes` as
   `Error::BytesError(InvalidData)` instead of `Error::NotEnoughBytes` [#971]
 - Report trailing commit-key bytes in `Prover::try_from_bytes` as
@@ -825,6 +826,7 @@ is necessary since `rkyv/validation` was required as a bound.
 - Proof system module.
 
 <!-- ISSUES -->
+[#988]: https://github.com/dusk-network/plonk/issues/988
 [#989]: https://github.com/dusk-network/plonk/issues/989
 [#971]: https://github.com/dusk-network/plonk/issues/971
 [#715]: https://github.com/dusk-network/plonk/issues/715

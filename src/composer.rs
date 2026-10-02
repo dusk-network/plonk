@@ -261,7 +261,12 @@ impl Composer {
     }
 
     /// Append a new width-4 gate/constraint.
-    pub fn append_custom_gate(&mut self, constraint: Constraint) {
+    ///
+    /// The constraint must set the selector of the identity it enforces.
+    /// Those selectors are crate-private: outside the crate, a constraint
+    /// would add a row that constrains only its public input, so use
+    /// [`Composer::append_gate`] there.
+    pub(crate) fn append_custom_gate(&mut self, constraint: Constraint) {
         self.runtime().event(RuntimeEvent::ConstraintAppended {
             #[cfg(feature = "debug")]
             c: constraint,
