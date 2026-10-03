@@ -63,6 +63,15 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: make test
 
+  test_32bit:
+    name: Tests on 32-bit
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dsherret/rust-toolchain-file@v1
+      - uses: Swatinem/rust-cache@v2
+      - run: make test-32
+
   coverage:
     name: Coverage
     runs-on: ubuntu-22.04

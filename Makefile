@@ -6,6 +6,17 @@ test: ## Run tests
 	@cargo test --release
 	@cargo test --release --all-features
 
+# criterion's `alloca` compiles C: clang builds it with its own headers.
+TEST_32 = CC_i686_unknown_linux_musl=clang \
+	CFLAGS_i686_unknown_linux_musl="--target=i686-linux-musl -ffreestanding -nostdinc -isystem $$(clang -print-resource-dir)/include" \
+	cargo test --release --target i686-unknown-linux-musl
+
+test-32: ## Run tests on a 32-bit target
+	@rustup target add i686-unknown-linux-musl
+	@$(TEST_32)
+	@# Every feature but `debug`: the dusk-cdf format is not 32-bit safe.
+	@$(TEST_32) --features rkyv-impl,legacy-proving
+
 clippy: ## Run clippy
 	@cargo clippy --features=rkyv/size_32
 

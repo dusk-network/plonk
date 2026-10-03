@@ -30,6 +30,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Report length overflow in `Prover::try_from_bytes` as
+  `Error::BytesError(InvalidData)` instead of `Error::NotEnoughBytes` [#971]
+- Report trailing commit-key bytes in `Prover::try_from_bytes` as
+  `Error::BytesError(InvalidData)` instead of `Error::NotEnoughBytes` [#971]
 - Change the verifier key of circuits calling `component_decomposition` at
   `N >= 255` [#980]
 - Avoid redundant polynomial and KZG computations when evaluating, dividing,
@@ -816,6 +820,7 @@ is necessary since `rkyv/validation` was required as a bound.
 - Proof system module.
 
 <!-- ISSUES -->
+[#971]: https://github.com/dusk-network/plonk/issues/971
 [#980]: https://github.com/dusk-network/plonk/issues/980
 [#979]: https://github.com/dusk-network/plonk/issues/979
 [#977]: https://github.com/dusk-network/plonk/issues/977
