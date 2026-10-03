@@ -30,9 +30,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Remove `Default` as a supertrait of `Circuit`. `Compiler::compile` and
-  `Circuit::compress` require it, while circuits without one compile with
-  `Compiler::compile_with_circuit` [#715]
+- Remove `Default` as a supertrait of `Circuit` [#715]
+- Require `Default` on the circuit for `Compiler::compile` and
+  `Circuit::compress` [#715]
 - Change the verifier key of circuits calling `component_decomposition` at
   `N >= 255` [#980]
 - Avoid redundant polynomial and KZG computations when evaluating, dividing,

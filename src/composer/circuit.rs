@@ -37,7 +37,7 @@ pub trait Circuit {
     /// [`Compiler::compile_with_compressed`].
     ///
     /// [`Compiler::compile_with_compressed`]:
-    /// [`crate::prelude::Compiler::compile_with_compressed`]
+    /// crate::prelude::Compiler::compile_with_compressed
     #[cfg(feature = "alloc")]
     fn compress() -> Result<Vec<u8>, Error>
     where
