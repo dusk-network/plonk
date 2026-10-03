@@ -18,8 +18,6 @@ pub mod permutation;
 pub mod range;
 
 #[cfg(feature = "rkyv-impl")]
-use bytecheck::CheckBytes;
-#[cfg(feature = "rkyv-impl")]
 use rkyv::{
     Archive, Deserialize, Serialize,
     ser::{ScratchSpace, Serializer},
@@ -33,8 +31,7 @@ use rkyv::{
 #[cfg_attr(
     feature = "rkyv-impl",
     derive(Archive, Deserialize, Serialize),
-    archive(bound(serialize = "__S: Serializer + ScratchSpace")),
-    archive_attr(derive(CheckBytes))
+    archive(bound(serialize = "__S: Serializer + ScratchSpace"))
 )]
 pub struct VerifierKey {
     /// Circuit size (not padded to a power of two).
@@ -267,8 +264,7 @@ pub(crate) mod alloc {
     #[cfg_attr(
         feature = "rkyv-impl",
         derive(Archive, Deserialize, Serialize),
-        archive(bound(serialize = "__S: Serializer + ScratchSpace")),
-        archive_attr(derive(CheckBytes))
+        archive(bound(serialize = "__S: Serializer + ScratchSpace"))
     )]
     pub struct ProverKey {
         /// Circuit size
@@ -506,72 +502,75 @@ pub(crate) mod alloc {
                     Ok(eval)
                 };
 
-            let q_m_poly = poly_from_reader(&mut buffer)?;
-            let q_m_evals = evals_from_reader(&mut buffer)?;
-            let q_m = (q_m_poly, q_m_evals);
+            let pair_from_reader = |buf: &mut &[u8]| {
+                Ok::<_, Error>((
+                    poly_from_reader(buf)?,
+                    evals_from_reader(buf)?,
+                ))
+            };
 
-            let q_l_poly = poly_from_reader(&mut buffer)?;
-            let q_l_evals = evals_from_reader(&mut buffer)?;
-            let q_l = (q_l_poly, q_l_evals);
+            let q_m = pair_from_reader(&mut buffer)?;
 
-            let q_r_poly = poly_from_reader(&mut buffer)?;
-            let q_r_evals = evals_from_reader(&mut buffer)?;
-            let q_r = (q_r_poly, q_r_evals);
+            let q_l = pair_from_reader(&mut buffer)?;
 
-            let q_o_poly = poly_from_reader(&mut buffer)?;
-            let q_o_evals = evals_from_reader(&mut buffer)?;
-            let q_o = (q_o_poly, q_o_evals);
+            let q_r = pair_from_reader(&mut buffer)?;
 
-            let q_f_poly = poly_from_reader(&mut buffer)?;
-            let q_f_evals = evals_from_reader(&mut buffer)?;
-            let q_f = (q_f_poly, q_f_evals);
+            let q_o = pair_from_reader(&mut buffer)?;
 
-            let q_c_poly = poly_from_reader(&mut buffer)?;
-            let q_c_evals = evals_from_reader(&mut buffer)?;
-            let q_c = (q_c_poly, q_c_evals);
+            let q_f = pair_from_reader(&mut buffer)?;
 
-            let q_arith_poly = poly_from_reader(&mut buffer)?;
-            let q_arith_evals = evals_from_reader(&mut buffer)?;
-            let q_arith = (q_arith_poly, q_arith_evals);
+            let q_c = pair_from_reader(&mut buffer)?;
 
-            let q_logic_poly = poly_from_reader(&mut buffer)?;
-            let q_logic_evals = evals_from_reader(&mut buffer)?;
-            let q_logic = (q_logic_poly, q_logic_evals);
+            let q_arith = pair_from_reader(&mut buffer)?;
 
-            let q_range_poly = poly_from_reader(&mut buffer)?;
-            let q_range_evals = evals_from_reader(&mut buffer)?;
-            let q_range = (q_range_poly, q_range_evals);
+            let q_logic = pair_from_reader(&mut buffer)?;
 
-            let q_fixed_group_add_poly = poly_from_reader(&mut buffer)?;
-            let q_fixed_group_add_evals = evals_from_reader(&mut buffer)?;
-            let q_fixed_group_add =
-                (q_fixed_group_add_poly, q_fixed_group_add_evals);
+            let q_range = pair_from_reader(&mut buffer)?;
 
-            let q_variable_group_add_poly = poly_from_reader(&mut buffer)?;
-            let q_variable_group_add_evals = evals_from_reader(&mut buffer)?;
-            let q_variable_group_add =
-                (q_variable_group_add_poly, q_variable_group_add_evals);
+            let q_fixed_group_add = pair_from_reader(&mut buffer)?;
 
-            let s_sigma_1_poly = poly_from_reader(&mut buffer)?;
-            let s_sigma_1_evals = evals_from_reader(&mut buffer)?;
-            let s_sigma_1 = (s_sigma_1_poly, s_sigma_1_evals);
+            let q_variable_group_add = pair_from_reader(&mut buffer)?;
 
-            let s_sigma_2_poly = poly_from_reader(&mut buffer)?;
-            let s_sigma_2_evals = evals_from_reader(&mut buffer)?;
-            let s_sigma_2 = (s_sigma_2_poly, s_sigma_2_evals);
+            let s_sigma_1 = pair_from_reader(&mut buffer)?;
 
-            let s_sigma_3_poly = poly_from_reader(&mut buffer)?;
-            let s_sigma_3_evals = evals_from_reader(&mut buffer)?;
-            let s_sigma_3 = (s_sigma_3_poly, s_sigma_3_evals);
+            let s_sigma_2 = pair_from_reader(&mut buffer)?;
 
-            let s_sigma_4_poly = poly_from_reader(&mut buffer)?;
-            let s_sigma_4_evals = evals_from_reader(&mut buffer)?;
-            let s_sigma_4 = (s_sigma_4_poly, s_sigma_4_evals);
+            let s_sigma_3 = pair_from_reader(&mut buffer)?;
+
+            let s_sigma_4 = pair_from_reader(&mut buffer)?;
+
+            // Proving relies on each selector and sigma polynomial matching
+            // its cached coset evaluations.
+            let pairs = [
+                &q_m,
+                &q_l,
+                &q_r,
+                &q_o,
+                &q_f,
+                &q_c,
+                &q_arith,
+                &q_logic,
+                &q_range,
+                &q_fixed_group_add,
+                &q_variable_group_add,
+                &s_sigma_1,
+                &s_sigma_2,
+                &s_sigma_3,
+                &s_sigma_4,
+            ];
+            if !crate::util::all_parallel(&pairs, |(poly, evals)| {
+                evaluations_domain.matches_coset_evaluations(
+                    poly,
+                    evals.evals.iter().copied(),
+                )
+            }) {
+                return Err(dusk_bytes::Error::InvalidData.into());
+            }
 
             let perm_linear_evaluations = evals_from_reader(&mut buffer)?;
-            if !evaluations_domain
-                .matches_linear_poly_over_coset(&perm_linear_evaluations.evals)
-            {
+            if !evaluations_domain.matches_linear_poly_over_coset(
+                perm_linear_evaluations.evals.iter().copied(),
+            ) {
                 return Err(dusk_bytes::Error::InvalidData.into());
             }
 
@@ -580,7 +579,7 @@ pub(crate) mod alloc {
                 u64::try_from(n).map_err(|_| dusk_bytes::Error::InvalidData)?;
             if !evaluations_domain.matches_vanishing_poly_over_coset(
                 poly_degree,
-                &v_h_coset_8n.evals,
+                v_h_coset_8n.evals.iter().copied(),
             ) {
                 return Err(dusk_bytes::Error::InvalidData.into());
             }
@@ -662,12 +661,11 @@ mod test {
     ) -> (Polynomial, Evaluations) {
         let polynomial =
             Polynomial::from_coefficients_vec(vec![BlsScalar::from(1u64); n]);
-        (polynomial, evaluations(evaluations_domain))
-    }
-
-    fn evaluations(domain: EvaluationDomain) -> Evaluations {
-        let values = vec![BlsScalar::from(2u64); domain.size()];
-        Evaluations::from_vec_and_domain(values, domain)
+        let evaluations = Evaluations::from_vec_and_domain(
+            evaluations_domain.coset_fft(&polynomial),
+            evaluations_domain,
+        );
+        (polynomial, evaluations)
     }
 
     fn prover_key(n: usize, evaluations_domain: EvaluationDomain) -> ProverKey {

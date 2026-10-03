@@ -15,6 +15,8 @@ use rkyv::{
 };
 
 use crate::BufferWriter;
+#[cfg(feature = "rkyv-impl")]
+use crate::archive::{InvalidArchive, check_fields, unarchive};
 #[cfg(feature = "alloc")]
 use crate::{
     fft::{EvaluationDomain, Polynomial},
@@ -27,8 +29,7 @@ use crate::{
 #[cfg_attr(
     feature = "rkyv-impl",
     derive(Archive, Deserialize, Serialize),
-    archive(bound(serialize = "__S: Serializer + ScratchSpace")),
-    archive_attr(derive(CheckBytes))
+    archive(bound(serialize = "__S: Serializer + ScratchSpace"))
 )]
 pub(crate) struct ProofEvaluations {
     // Evaluation of the witness polynomial for the left wire at `z`
@@ -93,6 +94,44 @@ pub(crate) struct LinearizationChallenges {
     pub(crate) fixed_base_separation: BlsScalar,
     pub(crate) variable_base_separation: BlsScalar,
     pub(crate) z: BlsScalar,
+}
+
+#[cfg(feature = "rkyv-impl")]
+impl<C: ?Sized> CheckBytes<C> for ArchivedProofEvaluations {
+    type Error = InvalidArchive;
+
+    unsafe fn check_bytes<'a>(
+        value: *const Self,
+        context: &mut C,
+    ) -> Result<&'a Self, Self::Error> {
+        check_fields!(
+            value,
+            context,
+            a_eval,
+            b_eval,
+            c_eval,
+            d_eval,
+            a_w_eval,
+            b_w_eval,
+            d_w_eval,
+            q_arith_eval,
+            q_c_eval,
+            q_l_eval,
+            q_r_eval,
+            s_sigma_1_eval,
+            s_sigma_2_eval,
+            s_sigma_3_eval,
+            z_eval,
+        );
+        // Decoding the byte encoding reduces non-canonical limbs, so it
+        // changes the value.
+        let archived = unsafe { &*value };
+        let evaluations = unarchive::<ProofEvaluations>(archived);
+        match ProofEvaluations::from_bytes(&evaluations.to_bytes()) {
+            Ok(decoded) if decoded == evaluations => Ok(archived),
+            _ => Err(InvalidArchive),
+        }
+    }
 }
 
 // The struct ProofEvaluations has 15 BlsScalars
