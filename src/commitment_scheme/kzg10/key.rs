@@ -31,6 +31,16 @@ use crate::fft::Polynomial;
 use crate::transcript::TranscriptProtocol;
 use crate::{BufferWriter, util};
 
+/// Whether `powers[n] == powers[0]` for a power of two `n` within the key,
+/// that is, whether the setup secret is a root of unity of a supported
+/// domain. The vanishing polynomial is then zero at the secret, so every
+/// commitment drops the blinding of the polynomial it hides.
+fn secret_is_domain_root<T: PartialEq>(powers: &[T]) -> bool {
+    core::iter::successors(Some(1usize), |n| n.checked_mul(2))
+        .take_while(|&n| n < powers.len())
+        .any(|n| powers[n] == powers[0])
+}
+
 /// CommitKey is used to commit to a polynomial which is bounded by the
 /// max_degree.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -131,7 +141,9 @@ where
             return Err(InvalidArchivedCommitKey);
         }
 
-        if !archived_commit_key_points_are_valid(powers) {
+        if !archived_commit_key_points_are_valid(powers)
+            || secret_is_domain_root(powers)
+        {
             return Err(InvalidArchivedCommitKey);
         }
 
@@ -302,6 +314,9 @@ impl CommitKey {
 
             powers_of_g.push(point);
         }
+        if secret_is_domain_root(&powers_of_g) {
+            return Err(dusk_bytes::Error::InvalidData.into());
+        }
 
         Ok(Self { powers_of_g })
     }
@@ -330,6 +345,9 @@ impl CommitKey {
             .chunks(G1Affine::SIZE)
             .map(G1Affine::from_slice)
             .collect::<Result<Vec<G1Affine>, dusk_bytes::Error>>()?;
+        if secret_is_domain_root(&powers_of_g) {
+            return Err(dusk_bytes::Error::InvalidData.into());
+        }
 
         Ok(CommitKey { powers_of_g })
     }
@@ -817,6 +835,38 @@ mod test {
     ) -> Polynomial {
         // Computes `f(x) / x-z`, returning it as the witness poly
         polynomial.ruffini(*point)
+    }
+
+    #[test]
+    fn commit_keys_reject_a_secret_that_is_a_domain_root() {
+        // A coherent key whose secret is an eighth root of unity: committed
+        // polynomials lose their blinding on any domain of size 8 or more.
+        let root = crate::fft::EvaluationDomain::new(8).unwrap().group_gen;
+        let mut power = BlsScalar::one();
+        let powers_of_g = (0..16)
+            .map(|_| {
+                let point = G1Affine::from(G1Affine::generator() * power);
+                power *= root;
+                point
+            })
+            .collect();
+        let ck = CommitKey { powers_of_g };
+
+        assert!(matches!(
+            CommitKey::from_slice(&ck.to_var_bytes()),
+            Err(Error::BytesError(dusk_bytes::Error::InvalidData))
+        ));
+        assert!(matches!(
+            CommitKey::from_raw_var_bytes(&ck.to_raw_var_bytes()),
+            Err(Error::BytesError(dusk_bytes::Error::InvalidData))
+        ));
+        #[cfg(feature = "rkyv-impl")]
+        assert!(
+            rkyv::check_archived_root::<CommitKey>(
+                &rkyv::to_bytes::<_, 256>(&ck).unwrap()
+            )
+            .is_err()
+        );
     }
 
     // Creates a proving key and verifier key based on a specified degree
