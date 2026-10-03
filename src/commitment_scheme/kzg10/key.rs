@@ -837,7 +837,6 @@ mod test {
         polynomial.ruffini(*point)
     }
 
-    // Creates a proving key and verifier key based on a specified degree
     #[test]
     fn commit_keys_reject_a_secret_that_is_a_domain_root() {
         // A coherent key whose secret is an eighth root of unity: committed
@@ -870,6 +869,7 @@ mod test {
         );
     }
 
+    // Creates a proving key and verifier key based on a specified degree
     fn setup_test(degree: usize) -> Result<(CommitKey, OpeningKey), Error> {
         let srs = PublicParameters::setup(degree, &mut OsRng)?;
         srs.trim(degree)
