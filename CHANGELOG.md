@@ -30,15 +30,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Reject archived proofs and keys that their byte decoders reject: points
-  that are not canonically encoded in the prime-order subgroup, unreduced
-  scalars, shared selectors that disagree, polynomials over the circuit
-  degree, and evaluations off their domain or inconsistent with it [#981]
-  [#941]
-- Reject unreduced raw point limbs in `CommitKey::from_raw_var_bytes`, which
-  `Prover::try_from_bytes` uses [#987]
+- Reject archived proofs and verifier keys whose points or scalars their byte
+  decoders reject [#981]
+- Apply the checks of `ProverKey::from_slice` to archived prover keys [#941]
+- Reject unreduced raw commit-key points in `Prover::try_from_bytes` [#987]
 - Reject prover keys whose selector or sigma polynomials disagree with their
-  cached coset evaluations, in byte and archive decoding [#986]
+  cached coset evaluations, in `Prover::try_from_bytes` and archive decoding
+  [#986]
 - Change the verifier key of circuits calling `component_decomposition` at
   `N >= 255` [#980]
 - Avoid redundant polynomial and KZG computations when evaluating, dividing,

@@ -329,7 +329,8 @@ pub(crate) mod alloc {
             coeffs: &[BlsScalar],
             evaluations: impl ExactSizeIterator<Item = BlsScalar>,
         ) -> bool {
-            evaluations.len() == self.size()
+            coeffs.len() <= self.size()
+                && evaluations.len() == self.size()
                 && evaluations.eq(self.coset_fft(coeffs))
         }
 

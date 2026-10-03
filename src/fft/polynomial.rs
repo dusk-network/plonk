@@ -711,4 +711,18 @@ mod test {
         ]);
         assert_eq!(result, expected);
     }
+
+    #[cfg(feature = "rkyv-impl")]
+    #[test]
+    fn archived_polynomials_reject_a_leading_zero() {
+        let mut poly =
+            Polynomial::from_coefficients_vec(vec![BlsScalar::one()]);
+        let bytes = rkyv::to_bytes::<_, 256>(&poly).unwrap();
+        assert!(rkyv::check_archived_root::<Polynomial>(&bytes).is_ok());
+
+        // The same polynomial with a zero leading coefficient.
+        poly.add_zero_coefficient();
+        let bytes = rkyv::to_bytes::<_, 256>(&poly).unwrap();
+        assert!(rkyv::check_archived_root::<Polynomial>(&bytes).is_err());
+    }
 }
