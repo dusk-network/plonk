@@ -53,7 +53,7 @@ impl Compiler {
         label: &[u8],
     ) -> Result<(Prover, Verifier), Error>
     where
-        C: Circuit,
+        C: Circuit + Default,
     {
         let mut composer = Composer::initialized();
         C::default().circuit(&mut composer)?;
@@ -466,7 +466,7 @@ mod tests {
     use rand::rngs::StdRng;
 
     use super::*;
-    use crate::prelude::Constraint;
+    use crate::prelude::{BlsScalar, Constraint};
 
     #[derive(Default)]
     struct FilledCircuit<const N: usize>;
@@ -478,6 +478,28 @@ mod tests {
             }
             Ok(())
         }
+    }
+
+    /// Built from a constant, so it has no `Default`.
+    struct ConstantCircuit(BlsScalar);
+
+    impl Circuit for ConstantCircuit {
+        fn circuit(&self, composer: &mut Composer) -> Result<(), Error> {
+            let witness = composer.append_witness(self.0);
+            composer.assert_equal_constant(witness, self.0, None);
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn circuit_without_default_compiles_from_an_instance() {
+        let mut rng = StdRng::seed_from_u64(715);
+        let pp = PublicParameters::setup(1 << 4, &mut rng).unwrap();
+        let circuit = ConstantCircuit(BlsScalar::from(7));
+        let (prover, verifier) =
+            Compiler::compile_with_circuit(&pp, b"instance", &circuit).unwrap();
+        let (proof, public_inputs) = prover.prove(&mut rng, &circuit).unwrap();
+        verifier.verify(&proof, &public_inputs).unwrap();
     }
 
     #[test]
