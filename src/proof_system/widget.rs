@@ -780,16 +780,24 @@ mod test {
         // whose byte size overflows a 32-bit `usize`. On 64-bit targets the
         // same header is a short read.
         let n = 1u64 << 27;
-        let mut bytes = n.to_bytes().to_vec();
-        bytes.extend_from_slice(&0u64.to_bytes());
-        bytes.extend_from_slice(&n.to_bytes());
+        let header = |poly_len: u64| {
+            let mut bytes = n.to_bytes().to_vec();
+            bytes.extend_from_slice(&0u64.to_bytes());
+            bytes.extend_from_slice(&poly_len.to_bytes());
+            bytes
+        };
 
         let expected = if usize::BITS == 32 {
             Error::BytesError(dusk_bytes::Error::InvalidData)
         } else {
             Error::NotEnoughBytes
         };
-        assert_eq!(ProverKey::from_slice(&bytes).err(), Some(expected));
+        assert_eq!(ProverKey::from_slice(&header(n)).err(), Some(expected));
+        // One coefficient fewer fits a 32-bit `usize`: a short read.
+        assert_eq!(
+            ProverKey::from_slice(&header(n - 1)).err(),
+            Some(Error::NotEnoughBytes)
+        );
     }
 
     #[test]
