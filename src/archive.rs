@@ -11,7 +11,9 @@
 use alloc::vec::Vec;
 
 use bytecheck::CheckBytes;
+#[cfg(feature = "alloc")]
 use dusk_bls12_381::BlsScalar;
+#[cfg(feature = "alloc")]
 use rkyv::validation::ArchiveContext;
 use rkyv::{Archive, Archived, Deserialize, Infallible};
 
@@ -34,18 +36,24 @@ impl core::fmt::Display for InvalidArchive {
 
 impl core::error::Error for InvalidArchive {}
 
-/// Checks the listed fields of an archived struct, mapping any failure to
-/// [`InvalidArchive`].
+/// Checks the fields of an archived struct, mapping any failure to
+/// [`InvalidArchive`]. The list must name every field: a field added later
+/// fails to compile until it is checked.
 macro_rules! check_fields {
-    ($value:ident, $context:ident, $($field:tt),+ $(,)?) => {$(
-        unsafe {
-            bytecheck::CheckBytes::check_bytes(
-                core::ptr::addr_of!((*$value).$field),
-                $context,
-            )
-        }
-        .map_err(|_| $crate::archive::InvalidArchive)?;
-    )+};
+    ($value:ident, $context:ident, $($field:tt),+ $(,)?) => {
+        let _ = |archived: &Self| {
+            let Self { $($field: _),+ } = archived;
+        };
+        $(
+            unsafe {
+                bytecheck::CheckBytes::check_bytes(
+                    core::ptr::addr_of!((*$value).$field),
+                    $context,
+                )
+            }
+            .map_err(|_| $crate::archive::InvalidArchive)?;
+        )+
+    };
 }
 pub(crate) use check_fields;
 
@@ -62,6 +70,7 @@ where
 }
 
 /// Whether `scalar` holds canonical limbs, below the modulus.
+#[cfg(feature = "alloc")]
 pub(crate) fn scalar_is_canonical(scalar: &Archived<BlsScalar>) -> bool {
     let scalar: BlsScalar = unarchive(scalar);
     // Adding zero subtracts the modulus from limbs at or above it.
@@ -75,6 +84,7 @@ pub(crate) fn scalars_are_canonical(scalars: &[Archived<BlsScalar>]) -> bool {
 }
 
 /// Whether two archived scalar slices hold the same values.
+#[cfg(feature = "alloc")]
 pub(crate) fn same_scalars(
     a: &[Archived<BlsScalar>],
     b: &[Archived<BlsScalar>],
@@ -97,6 +107,7 @@ impl<C: ?Sized> CheckBytes<C> for ArchivedVerifierKey {
         check_fields!(
             value,
             context,
+            n,
             arithmetic,
             logic,
             range,
@@ -132,6 +143,7 @@ where
         check_fields!(
             value,
             context,
+            n,
             arithmetic,
             logic,
             range,
@@ -232,6 +244,8 @@ mod tests {
             let a = composer.append_witness(BlsScalar::from(3));
             let b = composer.append_witness(BlsScalar::from(5));
             let c = composer.gate_mul(Constraint::new().mult(1).a(a).b(b));
+            // Sets q_l and q_r, which keys store more than once.
+            composer.gate_add(Constraint::new().left(1).right(1).a(a).b(b));
             composer.assert_equal_constant(c, BlsScalar::from(15), None);
             composer.component_range_bits::<8>(a);
             Ok(())
@@ -359,13 +373,83 @@ mod tests {
         let bytes = archive(&key);
         assert_eq!(rkyv::from_bytes::<VerifierKey>(&bytes).unwrap(), key);
 
-        let logic_q_c = offset::<VerifierKey>(&bytes, |k| {
-            core::ptr::addr_of!(k.logic.q_c).cast()
-        });
-        let mut bytes = bytes;
-        bytes[logic_q_c..logic_q_c + G1Affine::RAW_SIZE]
-            .copy_from_slice(&key.arithmetic.q_m.0.to_raw_bytes());
-        assert!(!checks::<VerifierKey>(&bytes));
+        let copies: [fn(&Archived<VerifierKey>) -> *const u8; 3] = [
+            |k| core::ptr::addr_of!(k.logic.q_c).cast(),
+            |k| core::ptr::addr_of!(k.fixed_base.q_l).cast(),
+            |k| core::ptr::addr_of!(k.fixed_base.q_r).cast(),
+        ];
+        for copy in copies {
+            let mut bytes = bytes.clone();
+            let at = offset::<VerifierKey>(&bytes, copy);
+            bytes[at..at + G1Affine::RAW_SIZE]
+                .copy_from_slice(&key.arithmetic.q_m.0.to_raw_bytes());
+            assert!(!checks::<VerifierKey>(&bytes));
+        }
+    }
+
+    #[test]
+    fn prover_keys_reject_polynomials_over_degree() {
+        let (prover, _) = compiled();
+        let mut key = prover.prover_key;
+        // One coefficient too many, with matching coset evaluations.
+        let domain = key.arithmetic.q_m.1.domain();
+        let poly = Polynomial::from_coefficients_vec(vec![
+            BlsScalar::one();
+            key.n + 1
+        ]);
+        let evals =
+            Evaluations::from_vec_and_domain(domain.coset_fft(&poly), domain);
+        key.arithmetic.q_m = (poly, evals);
+
+        assert!(!checks::<ProverKey>(&archive(&key)));
+        assert!(ProverKey::from_slice(&key.to_var_bytes()).is_err());
+    }
+
+    #[test]
+    fn archived_prover_keys_need_a_power_of_two_size() {
+        // Every pair holds the constant one, which fits any `n`, so only the
+        // size rule separates the two keys.
+        let archive_for = |n: usize| {
+            let mut key = compiled().0.prover_key;
+            let domain = EvaluationDomain::new(8 * n).unwrap();
+            let one = Polynomial::from_coefficients_vec(vec![BlsScalar::one()]);
+            let evals = domain.coset_fft(&one);
+            let pair = (one, Evaluations::from_vec_and_domain(evals, domain));
+            for slot in [
+                &mut key.arithmetic.q_m,
+                &mut key.arithmetic.q_l,
+                &mut key.arithmetic.q_r,
+                &mut key.arithmetic.q_o,
+                &mut key.arithmetic.q_f,
+                &mut key.arithmetic.q_c,
+                &mut key.arithmetic.q_arith,
+                &mut key.logic.q_c,
+                &mut key.logic.q_logic,
+                &mut key.range.q_range,
+                &mut key.fixed_base.q_l,
+                &mut key.fixed_base.q_r,
+                &mut key.fixed_base.q_c,
+                &mut key.fixed_base.q_fixed_group_add,
+                &mut key.variable_base.q_variable_group_add,
+                &mut key.permutation.s_sigma_1,
+                &mut key.permutation.s_sigma_2,
+                &mut key.permutation.s_sigma_3,
+                &mut key.permutation.s_sigma_4,
+            ] {
+                *slot = pair.clone();
+            }
+            let linear =
+                domain.coset_fft(&[BlsScalar::zero(), BlsScalar::one()]);
+            key.permutation.linear_evaluations =
+                Evaluations::from_vec_and_domain(linear, domain);
+            key.v_h_coset_8n =
+                domain.compute_vanishing_poly_over_coset(n as u64);
+            key.n = n;
+            archive(&key)
+        };
+        assert!(checks::<ProverKey>(&archive_for(4)));
+        // `8 * 3` rounds up to the same size-32 domain.
+        assert!(!checks::<ProverKey>(&archive_for(3)));
     }
 
     #[test]
@@ -393,8 +477,7 @@ mod tests {
         };
         let two = replace(BlsScalar::from(2));
 
-        // Halving the size leaves polynomials over degree and evaluations
-        // off the domain.
+        // Halving the size leaves evaluations off the domain.
         let n = key.n;
         assert!(!mutated(|k| core::ptr::addr_of!(k.n).cast(), &|bytes| {
             bytes[..4].copy_from_slice(&(n as u32 / 2).to_le_bytes())
@@ -404,15 +487,81 @@ mod tests {
             |k| k.arithmetic.q_m.0.coeffs().as_ptr().cast(),
             &|bytes| add_modulus(&mut bytes[..32], &R),
         ));
-        // A leading zero coefficient.
-        assert!(!mutated(
-            |k| k.arithmetic.q_m.0.coeffs().last().unwrap() as *const _ as _,
-            &replace(BlsScalar::zero()),
-        ));
-        // Coset evaluations that no longer match their polynomial.
-        assert!(!mutated(|k| k.arithmetic.q_m.1.evals.as_ptr().cast(), &two));
-        // Shared selectors that disagree.
-        assert!(!mutated(|k| k.fixed_base.q_c.1.evals.as_ptr().cast(), &two));
+        type At = fn(&Archived<ProverKey>) -> *const u8;
+        // Coset evaluations that no longer match their polynomial, for every
+        // selector and sigma. A shared selector changes in each stored copy,
+        // so that only the coset check can reject it.
+        let evaluations: [&[At]; 15] =
+            [
+                &[|k| k.arithmetic.q_m.1.evals.as_ptr().cast()],
+                &[
+                    |k| k.arithmetic.q_l.1.evals.as_ptr().cast(),
+                    |k| k.fixed_base.q_l.1.evals.as_ptr().cast(),
+                ],
+                &[
+                    |k| k.arithmetic.q_r.1.evals.as_ptr().cast(),
+                    |k| k.fixed_base.q_r.1.evals.as_ptr().cast(),
+                ],
+                &[|k| k.arithmetic.q_o.1.evals.as_ptr().cast()],
+                &[|k| k.arithmetic.q_f.1.evals.as_ptr().cast()],
+                &[
+                    |k| k.arithmetic.q_c.1.evals.as_ptr().cast(),
+                    |k| k.logic.q_c.1.evals.as_ptr().cast(),
+                    |k| k.fixed_base.q_c.1.evals.as_ptr().cast(),
+                ],
+                &[|k| k.arithmetic.q_arith.1.evals.as_ptr().cast()],
+                &[|k| k.logic.q_logic.1.evals.as_ptr().cast()],
+                &[|k| k.range.q_range.1.evals.as_ptr().cast()],
+                &[|k| k.fixed_base.q_fixed_group_add.1.evals.as_ptr().cast()],
+                &[|k| {
+                    k.variable_base.q_variable_group_add.1.evals.as_ptr().cast()
+                }],
+                &[|k| k.permutation.s_sigma_1.1.evals.as_ptr().cast()],
+                &[|k| k.permutation.s_sigma_2.1.evals.as_ptr().cast()],
+                &[|k| k.permutation.s_sigma_3.1.evals.as_ptr().cast()],
+                &[|k| k.permutation.s_sigma_4.1.evals.as_ptr().cast()],
+            ];
+        for copies in evaluations {
+            let mut bytes = bytes.clone();
+            for &at in copies {
+                let at = offset::<ProverKey>(&bytes, at);
+                two(&mut bytes[at..]);
+            }
+            assert!(!checks::<ProverKey>(&bytes));
+        }
+        // Shared selector copies that disagree, in coefficients or
+        // evaluations.
+        let copies: [(At, At); 4] = [
+            (
+                |k| k.logic.q_c.0.coeffs().as_ptr().cast(),
+                |k| k.logic.q_c.1.evals.as_ptr().cast(),
+            ),
+            (
+                |k| k.fixed_base.q_l.0.coeffs().as_ptr().cast(),
+                |k| k.fixed_base.q_l.1.evals.as_ptr().cast(),
+            ),
+            (
+                |k| k.fixed_base.q_r.0.coeffs().as_ptr().cast(),
+                |k| k.fixed_base.q_r.1.evals.as_ptr().cast(),
+            ),
+            (
+                |k| k.fixed_base.q_c.0.coeffs().as_ptr().cast(),
+                |k| k.fixed_base.q_c.1.evals.as_ptr().cast(),
+            ),
+        ];
+        assert!(
+            [
+                &key.arithmetic.q_c,
+                &key.arithmetic.q_l,
+                &key.arithmetic.q_r
+            ]
+            .iter()
+            .all(|(poly, _)| poly.len() > 1)
+        );
+        for (coeffs, evals) in copies {
+            assert!(!mutated(coeffs, &two));
+            assert!(!mutated(evals, &two));
+        }
         // Cached evaluations that disagree with the domain.
         assert!(!mutated(
             |k| k.permutation.linear_evaluations.evals.as_ptr().cast(),

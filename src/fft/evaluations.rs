@@ -248,7 +248,6 @@ mod tests {
         let archived = unsafe { rkyv::archived_root::<Evaluations>(&bytes) };
         let offset =
             |field: *const u8| field as usize - bytes.as_ptr() as usize;
-        let size = offset(core::ptr::addr_of!(archived.domain.size).cast());
         let group_gen =
             offset(core::ptr::addr_of!(archived.domain.group_gen).cast());
         let one: Vec<u8> = BlsScalar::one()
@@ -257,14 +256,18 @@ mod tests {
             .flat_map(|limb| limb.to_le_bytes())
             .collect();
 
-        // A size that disagrees with the evaluations, and a domain that is
-        // not the canonical one of its size.
-        for (at, value) in [(size, &8u64.to_le_bytes()[..]), (group_gen, &one)]
-        {
-            let mut bytes = bytes.clone();
-            bytes[at..at + value.len()].copy_from_slice(value);
-            assert!(rkyv::check_archived_root::<Evaluations>(&bytes).is_err());
-        }
+        // A domain that is not the canonical one of its size.
+        let mut mutated = bytes.clone();
+        mutated[group_gen..group_gen + one.len()].copy_from_slice(&one);
+        assert!(rkyv::check_archived_root::<Evaluations>(&mutated).is_err());
+
+        // A canonical domain whose size disagrees with the evaluations.
+        let short = Evaluations::from_vec_and_domain(
+            vec![BlsScalar::one(); 4],
+            EvaluationDomain::new(8).unwrap(),
+        );
+        let short = rkyv::to_bytes::<_, 256>(&short).unwrap();
+        assert!(rkyv::check_archived_root::<Evaluations>(&short).is_err());
     }
 
     #[test]

@@ -884,6 +884,7 @@ mod tests {
     use crate::prelude::{
         Circuit, Compiler, Composer, Constraint, PublicParameters,
     };
+    use crate::proof_system::ProverKey;
 
     #[derive(Default)]
     struct MinimalCircuit;
@@ -1525,12 +1526,34 @@ mod tests {
             .expect("prover with uneven polynomial lengths should decode");
         assert_eq!(decoded.to_bytes(), bytes);
 
-        // Evaluations that no longer match their polynomial are rejected.
-        prover.prover_key.arithmetic.q_m.1.evals[0] += BlsScalar::one();
-        assert!(matches!(
-            Prover::try_from_bytes(prover.to_bytes()),
-            Err(Error::BytesError(dusk_bytes::Error::InvalidData))
-        ));
+        // Evaluations that no longer match their polynomial are rejected,
+        // for every selector and sigma the encoding stores.
+        type Pair = (Polynomial, Evaluations);
+        let pairs: [fn(&mut ProverKey) -> &mut Pair; 15] = [
+            |k| &mut k.arithmetic.q_m,
+            |k| &mut k.arithmetic.q_l,
+            |k| &mut k.arithmetic.q_r,
+            |k| &mut k.arithmetic.q_o,
+            |k| &mut k.arithmetic.q_f,
+            |k| &mut k.arithmetic.q_c,
+            |k| &mut k.arithmetic.q_arith,
+            |k| &mut k.logic.q_logic,
+            |k| &mut k.range.q_range,
+            |k| &mut k.fixed_base.q_fixed_group_add,
+            |k| &mut k.variable_base.q_variable_group_add,
+            |k| &mut k.permutation.s_sigma_1,
+            |k| &mut k.permutation.s_sigma_2,
+            |k| &mut k.permutation.s_sigma_3,
+            |k| &mut k.permutation.s_sigma_4,
+        ];
+        for pair in pairs {
+            let mut prover = prover.clone();
+            pair(&mut prover.prover_key).1.evals[0] += BlsScalar::one();
+            assert!(matches!(
+                Prover::try_from_bytes(prover.to_bytes()),
+                Err(Error::BytesError(dusk_bytes::Error::InvalidData))
+            ));
+        }
     }
 
     #[test]
