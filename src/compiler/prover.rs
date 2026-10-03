@@ -439,6 +439,9 @@ impl Prover {
     }
 
     /// Prove the circuit using the current (latest) proving behavior.
+    ///
+    /// Proving is not constant-time: an attacker who can observe the proving
+    /// machine may learn about the witness. See the crate README.
     pub fn prove<C, R>(
         &self,
         rng: &mut R,
