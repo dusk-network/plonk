@@ -154,7 +154,8 @@ impl PublicParameters {
 
     /// Deserialize a slice of bytes into a Public Parameter struct performing
     /// security and consistency checks for each point that the bytes
-    /// contain.
+    /// contain. Rejects parameters whose setup secret is a root of unity of a
+    /// supported domain.
     ///
     /// # Note
     /// This function can be really slow if the [`PublicParameters`] have a
