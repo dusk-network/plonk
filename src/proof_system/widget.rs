@@ -17,6 +17,33 @@ pub mod logic;
 pub mod permutation;
 pub mod range;
 
+/// Lists the fifteen selector and sigma pairs of a prover key or of its
+/// archive, in serialization order, each borrowed as `$borrow`. A selector
+/// that several widgets share appears once, by its arithmetic copy.
+#[cfg(feature = "alloc")]
+macro_rules! prover_key_pairs {
+    ($key:expr, $($borrow:tt)+) => {
+        [
+            $($borrow)+ $key.arithmetic.q_m,
+            $($borrow)+ $key.arithmetic.q_l,
+            $($borrow)+ $key.arithmetic.q_r,
+            $($borrow)+ $key.arithmetic.q_o,
+            $($borrow)+ $key.arithmetic.q_f,
+            $($borrow)+ $key.arithmetic.q_c,
+            $($borrow)+ $key.arithmetic.q_arith,
+            $($borrow)+ $key.logic.q_logic,
+            $($borrow)+ $key.range.q_range,
+            $($borrow)+ $key.fixed_base.q_fixed_group_add,
+            $($borrow)+ $key.variable_base.q_variable_group_add,
+            $($borrow)+ $key.permutation.s_sigma_1,
+            $($borrow)+ $key.permutation.s_sigma_2,
+            $($borrow)+ $key.permutation.s_sigma_3,
+            $($borrow)+ $key.permutation.s_sigma_4,
+        ]
+    };
+}
+#[cfg(all(feature = "alloc", any(test, feature = "rkyv-impl")))]
+pub(crate) use prover_key_pairs;
 #[cfg(feature = "rkyv-impl")]
 use rkyv::{
     Archive, Deserialize, Serialize,
@@ -309,29 +336,14 @@ pub(crate) mod alloc {
         /// Duplicate polynomials of the ProverKey (e.g. `q_L`, `q_R` and `q_C`)
         /// are only counted once.
         fn serialization_size(&self) -> usize {
-            let polynomial_lengths = [
-                self.arithmetic.q_m.0.len(),
-                self.arithmetic.q_l.0.len(),
-                self.arithmetic.q_r.0.len(),
-                self.arithmetic.q_o.0.len(),
-                self.arithmetic.q_f.0.len(),
-                self.arithmetic.q_c.0.len(),
-                self.arithmetic.q_arith.0.len(),
-                self.logic.q_logic.0.len(),
-                self.range.q_range.0.len(),
-                self.fixed_base.q_fixed_group_add.0.len(),
-                self.variable_base.q_variable_group_add.0.len(),
-                self.permutation.s_sigma_1.0.len(),
-                self.permutation.s_sigma_2.0.len(),
-                self.permutation.s_sigma_3.0.len(),
-                self.permutation.s_sigma_4.0.len(),
-            ];
+            let pairs = prover_key_pairs!(self, &);
             let poly_size =
-                polynomial_lengths.into_iter().sum::<usize>() * BlsScalar::SIZE;
+                pairs.iter().map(|(poly, _)| poly.len()).sum::<usize>()
+                    * BlsScalar::SIZE;
             // Fetch size in bytes of each Evaluations
             let eval_size = self.evaluations_serialization_size();
 
-            let poly_num = polynomial_lengths.len();
+            let poly_num = pairs.len();
 
             // The amount of distinct evaluations in `ProverKey`
             // poly_num + 1 (permutation) + 1 (v_h_coset_8n)
@@ -357,84 +369,11 @@ pub(crate) mod alloc {
             // Write Evaluation len in bytes.
             writer.write(&(eval_size as u64).to_bytes());
 
-            // Arithmetic
-            writer.write(&(self.arithmetic.q_m.0.len() as u64).to_bytes());
-            writer.write(&self.arithmetic.q_m.0.to_var_bytes());
-            writer.write(&self.arithmetic.q_m.1.to_var_bytes());
-
-            writer.write(&(self.arithmetic.q_l.0.len() as u64).to_bytes());
-            writer.write(&self.arithmetic.q_l.0.to_var_bytes());
-            writer.write(&self.arithmetic.q_l.1.to_var_bytes());
-
-            writer.write(&(self.arithmetic.q_r.0.len() as u64).to_bytes());
-            writer.write(&self.arithmetic.q_r.0.to_var_bytes());
-            writer.write(&self.arithmetic.q_r.1.to_var_bytes());
-
-            writer.write(&(self.arithmetic.q_o.0.len() as u64).to_bytes());
-            writer.write(&self.arithmetic.q_o.0.to_var_bytes());
-            writer.write(&self.arithmetic.q_o.1.to_var_bytes());
-
-            writer.write(&(self.arithmetic.q_f.0.len() as u64).to_bytes());
-            writer.write(&self.arithmetic.q_f.0.to_var_bytes());
-            writer.write(&self.arithmetic.q_f.1.to_var_bytes());
-
-            writer.write(&(self.arithmetic.q_c.0.len() as u64).to_bytes());
-            writer.write(&self.arithmetic.q_c.0.to_var_bytes());
-            writer.write(&self.arithmetic.q_c.1.to_var_bytes());
-
-            writer.write(&(self.arithmetic.q_arith.0.len() as u64).to_bytes());
-            writer.write(&self.arithmetic.q_arith.0.to_var_bytes());
-            writer.write(&self.arithmetic.q_arith.1.to_var_bytes());
-
-            // Logic
-            writer.write(&(self.logic.q_logic.0.len() as u64).to_bytes());
-            writer.write(&self.logic.q_logic.0.to_var_bytes());
-            writer.write(&self.logic.q_logic.1.to_var_bytes());
-
-            // Range
-            writer.write(&(self.range.q_range.0.len() as u64).to_bytes());
-            writer.write(&self.range.q_range.0.to_var_bytes());
-            writer.write(&self.range.q_range.1.to_var_bytes());
-
-            // Fixed base multiplication
-            writer.write(
-                &(self.fixed_base.q_fixed_group_add.0.len() as u64).to_bytes(),
-            );
-            writer.write(&self.fixed_base.q_fixed_group_add.0.to_var_bytes());
-            writer.write(&self.fixed_base.q_fixed_group_add.1.to_var_bytes());
-
-            // Witness base addition
-            writer.write(
-                &(self.variable_base.q_variable_group_add.0.len() as u64)
-                    .to_bytes(),
-            );
-            writer.write(
-                &self.variable_base.q_variable_group_add.0.to_var_bytes(),
-            );
-            writer.write(
-                &self.variable_base.q_variable_group_add.1.to_var_bytes(),
-            );
-
-            // Permutation
-            writer
-                .write(&(self.permutation.s_sigma_1.0.len() as u64).to_bytes());
-            writer.write(&self.permutation.s_sigma_1.0.to_var_bytes());
-            writer.write(&self.permutation.s_sigma_1.1.to_var_bytes());
-
-            writer
-                .write(&(self.permutation.s_sigma_2.0.len() as u64).to_bytes());
-            writer.write(&self.permutation.s_sigma_2.0.to_var_bytes());
-            writer.write(&self.permutation.s_sigma_2.1.to_var_bytes());
-
-            writer
-                .write(&(self.permutation.s_sigma_3.0.len() as u64).to_bytes());
-            writer.write(&self.permutation.s_sigma_3.0.to_var_bytes());
-            writer.write(&self.permutation.s_sigma_3.1.to_var_bytes());
-
-            writer
-                .write(&(self.permutation.s_sigma_4.0.len() as u64).to_bytes());
-            writer.write(&self.permutation.s_sigma_4.0.to_var_bytes());
-            writer.write(&self.permutation.s_sigma_4.1.to_var_bytes());
+            for (poly, evals) in prover_key_pairs!(self, &) {
+                writer.write(&(poly.len() as u64).to_bytes());
+                writer.write(&poly.to_var_bytes());
+                writer.write(&evals.to_var_bytes());
+            }
 
             writer.write(&self.permutation.linear_evaluations.to_var_bytes());
 
@@ -509,55 +448,12 @@ pub(crate) mod alloc {
                 ))
             };
 
-            let q_m = pair_from_reader(&mut buffer)?;
-
-            let q_l = pair_from_reader(&mut buffer)?;
-
-            let q_r = pair_from_reader(&mut buffer)?;
-
-            let q_o = pair_from_reader(&mut buffer)?;
-
-            let q_f = pair_from_reader(&mut buffer)?;
-
-            let q_c = pair_from_reader(&mut buffer)?;
-
-            let q_arith = pair_from_reader(&mut buffer)?;
-
-            let q_logic = pair_from_reader(&mut buffer)?;
-
-            let q_range = pair_from_reader(&mut buffer)?;
-
-            let q_fixed_group_add = pair_from_reader(&mut buffer)?;
-
-            let q_variable_group_add = pair_from_reader(&mut buffer)?;
-
-            let s_sigma_1 = pair_from_reader(&mut buffer)?;
-
-            let s_sigma_2 = pair_from_reader(&mut buffer)?;
-
-            let s_sigma_3 = pair_from_reader(&mut buffer)?;
-
-            let s_sigma_4 = pair_from_reader(&mut buffer)?;
+            let pairs = (0..15)
+                .map(|_| pair_from_reader(&mut buffer))
+                .collect::<Result<Vec<_>, _>>()?;
 
             // Proving relies on each selector and sigma polynomial matching
             // its cached coset evaluations.
-            let pairs = [
-                &q_m,
-                &q_l,
-                &q_r,
-                &q_o,
-                &q_f,
-                &q_c,
-                &q_arith,
-                &q_logic,
-                &q_range,
-                &q_fixed_group_add,
-                &q_variable_group_add,
-                &s_sigma_1,
-                &s_sigma_2,
-                &s_sigma_3,
-                &s_sigma_4,
-            ];
             if !crate::util::all_parallel(&pairs, |(poly, evals)| {
                 evaluations_domain.matches_coset_evaluations(
                     poly,
@@ -566,6 +462,26 @@ pub(crate) mod alloc {
             }) {
                 return Err(dusk_bytes::Error::InvalidData.into());
             }
+            // In `prover_key_pairs!` order.
+            let [
+                q_m,
+                q_l,
+                q_r,
+                q_o,
+                q_f,
+                q_c,
+                q_arith,
+                q_logic,
+                q_range,
+                q_fixed_group_add,
+                q_variable_group_add,
+                s_sigma_1,
+                s_sigma_2,
+                s_sigma_3,
+                s_sigma_4,
+            ]: [_; 15] = pairs
+                .try_into()
+                .map_err(|_| dusk_bytes::Error::InvalidData)?;
 
             let perm_linear_evaluations = evals_from_reader(&mut buffer)?;
             if !evaluations_domain.matches_linear_poly_over_coset(

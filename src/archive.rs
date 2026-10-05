@@ -23,6 +23,8 @@ use crate::fft::{EvaluationDomain, Evaluations, Polynomial};
 use crate::proof_system::widget::ArchivedVerifierKey;
 #[cfg(feature = "alloc")]
 use crate::proof_system::widget::alloc::ArchivedProverKey;
+#[cfg(feature = "alloc")]
+use crate::proof_system::widget::prover_key_pairs;
 
 /// An archived value that is well formed but not a valid value of its type.
 #[derive(Debug)]
@@ -193,23 +195,7 @@ fn prover_key_is_valid(key: &ArchivedProverKey) -> bool {
             && same_scalars(&a.1.evals, &b.1.evals)
     };
 
-    crate::util::all_parallel(&[
-        &arithmetic.q_m,
-        &arithmetic.q_l,
-        &arithmetic.q_r,
-        &arithmetic.q_o,
-        &arithmetic.q_f,
-        &arithmetic.q_c,
-        &arithmetic.q_arith,
-        &key.logic.q_logic,
-        &key.range.q_range,
-        &fixed_base.q_fixed_group_add,
-        &key.variable_base.q_variable_group_add,
-        &permutation.s_sigma_1,
-        &permutation.s_sigma_2,
-        &permutation.s_sigma_3,
-        &permutation.s_sigma_4,
-    ], |pair| fits(pair))
+    crate::util::all_parallel(&prover_key_pairs!(key, &), |pair| fits(pair))
         // The byte encoding stores each shared selector once.
         && same(&key.logic.q_c, &arithmetic.q_c)
         && same(&fixed_base.q_l, &arithmetic.q_l)
@@ -415,26 +401,14 @@ mod tests {
             let one = Polynomial::from_coefficients_vec(vec![BlsScalar::one()]);
             let evals = domain.coset_fft(&one);
             let pair = (one, Evaluations::from_vec_and_domain(evals, domain));
+            for slot in prover_key_pairs!(key, &mut) {
+                *slot = pair.clone();
+            }
             for slot in [
-                &mut key.arithmetic.q_m,
-                &mut key.arithmetic.q_l,
-                &mut key.arithmetic.q_r,
-                &mut key.arithmetic.q_o,
-                &mut key.arithmetic.q_f,
-                &mut key.arithmetic.q_c,
-                &mut key.arithmetic.q_arith,
                 &mut key.logic.q_c,
-                &mut key.logic.q_logic,
-                &mut key.range.q_range,
                 &mut key.fixed_base.q_l,
                 &mut key.fixed_base.q_r,
                 &mut key.fixed_base.q_c,
-                &mut key.fixed_base.q_fixed_group_add,
-                &mut key.variable_base.q_variable_group_add,
-                &mut key.permutation.s_sigma_1,
-                &mut key.permutation.s_sigma_2,
-                &mut key.permutation.s_sigma_3,
-                &mut key.permutation.s_sigma_4,
             ] {
                 *slot = pair.clone();
             }
@@ -488,67 +462,49 @@ mod tests {
             &|bytes| add_modulus(&mut bytes[..32], &R),
         ));
         type At = fn(&Archived<ProverKey>) -> *const u8;
+        // The shared selector copies, each after the evaluations of its
+        // arithmetic copy.
+        let copies: [(At, At, At); 4] = [
+            (
+                |k| k.arithmetic.q_c.1.evals.as_ptr().cast(),
+                |k| k.logic.q_c.0.coeffs().as_ptr().cast(),
+                |k| k.logic.q_c.1.evals.as_ptr().cast(),
+            ),
+            (
+                |k| k.arithmetic.q_l.1.evals.as_ptr().cast(),
+                |k| k.fixed_base.q_l.0.coeffs().as_ptr().cast(),
+                |k| k.fixed_base.q_l.1.evals.as_ptr().cast(),
+            ),
+            (
+                |k| k.arithmetic.q_r.1.evals.as_ptr().cast(),
+                |k| k.fixed_base.q_r.0.coeffs().as_ptr().cast(),
+                |k| k.fixed_base.q_r.1.evals.as_ptr().cast(),
+            ),
+            (
+                |k| k.arithmetic.q_c.1.evals.as_ptr().cast(),
+                |k| k.fixed_base.q_c.0.coeffs().as_ptr().cast(),
+                |k| k.fixed_base.q_c.1.evals.as_ptr().cast(),
+            ),
+        ];
         // Coset evaluations that no longer match their polynomial, for every
         // selector and sigma. A shared selector changes in each stored copy,
         // so that only the coset check can reject it.
-        let evaluations: [&[At]; 15] =
-            [
-                &[|k| k.arithmetic.q_m.1.evals.as_ptr().cast()],
-                &[
-                    |k| k.arithmetic.q_l.1.evals.as_ptr().cast(),
-                    |k| k.fixed_base.q_l.1.evals.as_ptr().cast(),
-                ],
-                &[
-                    |k| k.arithmetic.q_r.1.evals.as_ptr().cast(),
-                    |k| k.fixed_base.q_r.1.evals.as_ptr().cast(),
-                ],
-                &[|k| k.arithmetic.q_o.1.evals.as_ptr().cast()],
-                &[|k| k.arithmetic.q_f.1.evals.as_ptr().cast()],
-                &[
-                    |k| k.arithmetic.q_c.1.evals.as_ptr().cast(),
-                    |k| k.logic.q_c.1.evals.as_ptr().cast(),
-                    |k| k.fixed_base.q_c.1.evals.as_ptr().cast(),
-                ],
-                &[|k| k.arithmetic.q_arith.1.evals.as_ptr().cast()],
-                &[|k| k.logic.q_logic.1.evals.as_ptr().cast()],
-                &[|k| k.range.q_range.1.evals.as_ptr().cast()],
-                &[|k| k.fixed_base.q_fixed_group_add.1.evals.as_ptr().cast()],
-                &[|k| {
-                    k.variable_base.q_variable_group_add.1.evals.as_ptr().cast()
-                }],
-                &[|k| k.permutation.s_sigma_1.1.evals.as_ptr().cast()],
-                &[|k| k.permutation.s_sigma_2.1.evals.as_ptr().cast()],
-                &[|k| k.permutation.s_sigma_3.1.evals.as_ptr().cast()],
-                &[|k| k.permutation.s_sigma_4.1.evals.as_ptr().cast()],
-            ];
-        for copies in evaluations {
+        for i in 0..prover_key_pairs!(key, &).len() {
             let mut bytes = bytes.clone();
-            for &at in copies {
-                let at = offset::<ProverKey>(&bytes, at);
-                two(&mut bytes[at..]);
+            let at = offset::<ProverKey>(&bytes, |k| {
+                prover_key_pairs!(k, &)[i].1.evals.as_ptr().cast()
+            });
+            two(&mut bytes[at..]);
+            for &(arithmetic, _, evals) in &copies {
+                if offset::<ProverKey>(&bytes, arithmetic) == at {
+                    let at = offset::<ProverKey>(&bytes, evals);
+                    two(&mut bytes[at..]);
+                }
             }
             assert!(!checks::<ProverKey>(&bytes));
         }
         // Shared selector copies that disagree, in coefficients or
         // evaluations.
-        let copies: [(At, At); 4] = [
-            (
-                |k| k.logic.q_c.0.coeffs().as_ptr().cast(),
-                |k| k.logic.q_c.1.evals.as_ptr().cast(),
-            ),
-            (
-                |k| k.fixed_base.q_l.0.coeffs().as_ptr().cast(),
-                |k| k.fixed_base.q_l.1.evals.as_ptr().cast(),
-            ),
-            (
-                |k| k.fixed_base.q_r.0.coeffs().as_ptr().cast(),
-                |k| k.fixed_base.q_r.1.evals.as_ptr().cast(),
-            ),
-            (
-                |k| k.fixed_base.q_c.0.coeffs().as_ptr().cast(),
-                |k| k.fixed_base.q_c.1.evals.as_ptr().cast(),
-            ),
-        ];
         assert!(
             [
                 &key.arithmetic.q_c,
@@ -558,7 +514,7 @@ mod tests {
             .iter()
             .all(|(poly, _)| poly.len() > 1)
         );
-        for (coeffs, evals) in copies {
+        for (_, coeffs, evals) in copies {
             assert!(!mutated(coeffs, &two));
             assert!(!mutated(evals, &two));
         }
