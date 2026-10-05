@@ -25,6 +25,7 @@ use rkyv::{
 };
 
 use super::Commitment;
+use super::commitment::g1_is_canonical;
 use super::proof::Proof;
 use crate::error::Error;
 use crate::fft::Polynomial;
@@ -272,9 +273,9 @@ impl CommitKey {
     }
 
     /// Deserialize [`CommitKey`] from bytes created by
-    /// [`CommitKey::to_raw_var_bytes`] while validating each decoded point.
-    /// Rejects a key whose setup secret is a root of unity of a supported
-    /// domain.
+    /// [`CommitKey::to_raw_var_bytes`] while validating each decoded point,
+    /// including that its raw limbs are canonical. Rejects a key whose setup
+    /// secret is a root of unity of a supported domain.
     pub fn from_raw_var_bytes(bytes: &[u8]) -> Result<Self, Error> {
         if bytes.len() < u64::SIZE {
             return Err(Error::NotEnoughBytes);
@@ -308,10 +309,7 @@ impl CommitKey {
         for chunk in chunks {
             // Safety: raw-byte chunk size is fixed by `as_chunks`.
             let point = unsafe { G1Affine::from_slice_unchecked(chunk) };
-            let point_is_valid =
-                bool::from(point.is_on_curve() & point.is_torsion_free());
-
-            if !point_is_valid {
+            if !g1_is_canonical(&point) {
                 return Err(Error::PointMalformed);
             }
 
@@ -1209,6 +1207,38 @@ mod test {
         let decoded = CommitKey::from_raw_var_bytes(&bytes)?;
 
         assert_eq!(ck, decoded);
+        Ok(())
+    }
+
+    #[test]
+    fn commit_key_bytes_raw_checked_rejects_unreduced_limbs()
+    -> Result<(), Error> {
+        const P: [u64; 6] = [
+            0xb9fe_ffff_ffff_aaab,
+            0x1eab_fffe_b153_ffff,
+            0x6730_d2a0_f6b0_f624,
+            0x6477_4b84_f385_12bf,
+            0x4b1b_a7b6_434b_acd7,
+            0x1a01_11ea_397f_e69a,
+        ];
+        let (ck, _) = setup_test(7)?;
+        let mut bytes = ck.to_raw_var_bytes();
+
+        // Adding the modulus to the first x coordinate keeps the same point
+        // under a second raw encoding.
+        let mut carry = 0u128;
+        for (limb, p) in bytes[u64::SIZE..u64::SIZE + 48].chunks_mut(8).zip(P) {
+            let sum = u64::from_le_bytes(limb.try_into().unwrap()) as u128
+                + p as u128
+                + carry;
+            limb.copy_from_slice(&(sum as u64).to_le_bytes());
+            carry = sum >> 64;
+        }
+
+        assert!(matches!(
+            CommitKey::from_raw_var_bytes(&bytes),
+            Err(Error::PointMalformed)
+        ));
         Ok(())
     }
 

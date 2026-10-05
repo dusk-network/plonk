@@ -30,6 +30,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Reject archived proofs whose points or scalars their byte decoders reject
+  [#981]
+- Apply the checks of `ProverKey::from_slice` to archived prover keys [#941]
+- Reject unreduced raw commit-key points in `Prover::try_from_bytes` [#987]
+- Reject prover keys whose selector or sigma polynomials disagree with their
+  cached coset evaluations, in `Prover::try_from_bytes` and archive decoding
+  [#986]
 - Make `Composer::append_custom_gate` crate-private [#988]
 - Report length overflow in `Prover::try_from_bytes` as
   `Error::BytesError(InvalidData)` instead of `Error::NotEnoughBytes` [#971]
@@ -826,6 +833,10 @@ is necessary since `rkyv/validation` was required as a bound.
 - Proof system module.
 
 <!-- ISSUES -->
+[#987]: https://github.com/dusk-network/plonk/issues/987
+[#986]: https://github.com/dusk-network/plonk/issues/986
+[#981]: https://github.com/dusk-network/plonk/issues/981
+[#941]: https://github.com/dusk-network/plonk/issues/941
 [#988]: https://github.com/dusk-network/plonk/issues/988
 [#989]: https://github.com/dusk-network/plonk/issues/989
 [#971]: https://github.com/dusk-network/plonk/issues/971

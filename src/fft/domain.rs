@@ -306,7 +306,7 @@ pub(crate) mod alloc {
 
         pub(crate) fn matches_linear_poly_over_coset(
             &self,
-            evaluations: &[BlsScalar],
+            evaluations: impl ExactSizeIterator<Item = BlsScalar>,
         ) -> bool {
             if evaluations.len() != self.size() {
                 return false;
@@ -314,7 +314,7 @@ pub(crate) mod alloc {
 
             let mut expected = GENERATOR;
             for evaluation in evaluations {
-                if *evaluation != expected {
+                if evaluation != expected {
                     return false;
                 }
                 expected *= self.group_gen;
@@ -322,17 +322,26 @@ pub(crate) mod alloc {
             true
         }
 
+        /// Whether `evaluations` are the coset evaluations of the polynomial
+        /// with `coeffs`, as preprocessing caches them for selectors.
+        pub(crate) fn matches_coset_evaluations(
+            &self,
+            coeffs: &[BlsScalar],
+            evaluations: impl ExactSizeIterator<Item = BlsScalar>,
+        ) -> bool {
+            coeffs.len() <= self.size()
+                && evaluations.len() == self.size()
+                && evaluations.eq(self.coset_fft(coeffs))
+        }
+
         pub(crate) fn matches_vanishing_poly_over_coset(
             &self,
             poly_degree: u64,
-            evaluations: &[BlsScalar],
+            evaluations: impl ExactSizeIterator<Item = BlsScalar>,
         ) -> bool {
             poly_degree < self.size() as u64
                 && evaluations.len() == self.size()
-                && evaluations
-                    .iter()
-                    .copied()
-                    .eq(self.vanishing_poly_over_coset(poly_degree))
+                && evaluations.eq(self.vanishing_poly_over_coset(poly_degree))
         }
 
         fn vanishing_poly_over_coset(
@@ -623,7 +632,9 @@ mod tests {
         let evaluations =
             domain.coset_fft(&[BlsScalar::zero(), BlsScalar::one()]);
 
-        assert!(domain.matches_linear_poly_over_coset(&evaluations));
+        assert!(
+            domain.matches_linear_poly_over_coset(evaluations.iter().copied())
+        );
         for (i, evaluation) in evaluations.iter().enumerate() {
             let expected =
                 GENERATOR * domain.group_gen.pow(&[i as u64, 0, 0, 0]);
@@ -631,8 +642,12 @@ mod tests {
         }
         let mut incorrect = evaluations.clone();
         incorrect[0] = incorrect[1];
-        assert!(!domain.matches_linear_poly_over_coset(&incorrect));
-        assert!(!domain.matches_linear_poly_over_coset(&evaluations[..255]));
+        assert!(
+            !domain.matches_linear_poly_over_coset(incorrect.iter().copied())
+        );
+        assert!(!domain.matches_linear_poly_over_coset(
+            evaluations[..255].iter().copied()
+        ));
     }
 
     #[test]
@@ -657,11 +672,11 @@ mod tests {
 
         assert!(!domain.matches_vanishing_poly_over_coset(
             domain.size() as u64,
-            &evaluations,
+            evaluations.iter().copied(),
         ));
         assert!(!domain.matches_vanishing_poly_over_coset(
             domain.size() as u64 + 1,
-            &evaluations,
+            evaluations.iter().copied(),
         ));
     }
 

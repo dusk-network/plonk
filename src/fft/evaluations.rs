@@ -19,10 +19,15 @@ use dusk_bytes::{DeserializableSlice, Serializable};
 use rkyv::{
     Archive, Deserialize, Serialize,
     ser::{ScratchSpace, Serializer},
+    validation::ArchiveContext,
 };
 
 use super::domain::EvaluationDomain;
 use super::polynomial::Polynomial;
+#[cfg(feature = "rkyv-impl")]
+use crate::archive::{
+    InvalidArchive, check_fields, scalars_are_canonical, unarchive,
+};
 use crate::error::Error;
 
 /// Stores a polynomial in evaluation form together with its domain.
@@ -35,8 +40,7 @@ use crate::error::Error;
 #[cfg_attr(
     feature = "rkyv-impl",
     derive(Archive, Deserialize, Serialize),
-    archive(bound(serialize = "__S: Serializer + ScratchSpace")),
-    archive_attr(derive(CheckBytes))
+    archive(bound(serialize = "__S: Serializer + ScratchSpace"))
 )]
 pub(crate) struct Evaluations {
     /// The evaluations of a polynomial over the domain `D`
@@ -45,6 +49,35 @@ pub(crate) struct Evaluations {
     #[doc(hidden)]
     #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     domain: EvaluationDomain,
+}
+
+// Like `Evaluations::from_slice`, require canonical evaluations over the
+// canonical domain of their size.
+#[cfg(feature = "rkyv-impl")]
+impl<C> CheckBytes<C> for ArchivedEvaluations
+where
+    C: ArchiveContext + ?Sized,
+    C::Error: bytecheck::Error,
+{
+    type Error = InvalidArchive;
+
+    unsafe fn check_bytes<'a>(
+        value: *const Self,
+        context: &mut C,
+    ) -> Result<&'a Self, Self::Error> {
+        check_fields!(value, context, evals, domain);
+        let archived = unsafe { &*value };
+        let domain = unarchive::<EvaluationDomain>(&archived.domain);
+        let valid = usize::try_from(domain.size).is_ok_and(|size| {
+            size.is_power_of_two()
+                && archived.evals.len() == size
+                && EvaluationDomain::new(size).is_ok_and(|new| new == domain)
+        });
+        if !valid || !scalars_are_canonical(&archived.evals) {
+            return Err(InvalidArchive);
+        }
+        Ok(archived)
+    }
 }
 
 impl Evaluations {
@@ -201,6 +234,41 @@ mod tests {
     use super::*;
     use crate::fft::domain::EvaluationDomain;
     use crate::fft::polynomial::Polynomial;
+
+    #[cfg(feature = "rkyv-impl")]
+    #[test]
+    fn archived_evaluations_require_their_canonical_domain() {
+        let domain = EvaluationDomain::new(4).unwrap();
+        let evaluations =
+            Evaluations::from_vec_and_domain(vec![BlsScalar::one(); 4], domain);
+        let bytes = rkyv::to_bytes::<_, 256>(&evaluations).unwrap();
+        let decoded = rkyv::from_bytes::<Evaluations>(&bytes).unwrap();
+        assert_eq!(decoded, evaluations);
+
+        let archived = unsafe { rkyv::archived_root::<Evaluations>(&bytes) };
+        let offset =
+            |field: *const u8| field as usize - bytes.as_ptr() as usize;
+        let group_gen =
+            offset(core::ptr::addr_of!(archived.domain.group_gen).cast());
+        let one: Vec<u8> = BlsScalar::one()
+            .internal_repr()
+            .iter()
+            .flat_map(|limb| limb.to_le_bytes())
+            .collect();
+
+        // A domain that is not the canonical one of its size.
+        let mut mutated = bytes.clone();
+        mutated[group_gen..group_gen + one.len()].copy_from_slice(&one);
+        assert!(rkyv::check_archived_root::<Evaluations>(&mutated).is_err());
+
+        // A canonical domain whose size disagrees with the evaluations.
+        let short = Evaluations::from_vec_and_domain(
+            vec![BlsScalar::one(); 4],
+            EvaluationDomain::new(8).unwrap(),
+        );
+        let short = rkyv::to_bytes::<_, 256>(&short).unwrap();
+        assert!(rkyv::check_archived_root::<Evaluations>(&short).is_err());
+    }
 
     #[test]
     fn evaluations_var_bytes_roundtrip() {

@@ -14,6 +14,21 @@ use dusk_bls12_381::{
 use ff::Field;
 use rand_core::{CryptoRng, RngCore};
 
+/// Whether `check` holds for every item, checked in parallel with `std`.
+pub(crate) fn all_parallel<T: Sync>(
+    items: &[T],
+    check: impl Fn(&T) -> bool + Sync + Send,
+) -> bool {
+    #[cfg(feature = "std")]
+    {
+        use rayon::prelude::*;
+
+        items.par_iter().all(check)
+    }
+    #[cfg(not(feature = "std"))]
+    items.iter().all(check)
+}
+
 /// Returns a vector of BlsScalars of increasing powers of x from x^0 to x^d.
 pub(crate) fn powers_of(
     scalar: &BlsScalar,
