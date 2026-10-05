@@ -377,7 +377,9 @@ impl Polynomial {
         self.iter().cloned().enumerate().collect()
     }
 
-    /// Divides a [`Polynomial`] by x-z using Ruffinis method.
+    /// Divides a [`Polynomial`] by `X - z` using Ruffini's method.
+    ///
+    /// Returns the quotient and discards the remainder, which is `self(z)`.
     pub fn ruffini(&self, z: BlsScalar) -> Polynomial {
         let quotient_len = self.coeffs.len().saturating_sub(1);
         let mut quotient = Vec::with_capacity(quotient_len);
@@ -683,8 +685,7 @@ mod test {
             BlsScalar::from(3),
         ]);
 
-        // Four product coefficients fit a size-four domain; the old extra
-        // element rounded this case up to a size-eight domain.
+        // Four product coefficients fit a size-four domain.
         let result = &left * &right;
 
         let expected = Polynomial::from_coefficients_vec(vec![
@@ -692,6 +693,28 @@ mod test {
             BlsScalar::one(),
             BlsScalar::one(),
             -BlsScalar::from(3),
+        ]);
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_mul_poly_above_power_of_two_coefficient_count() {
+        let polynomial = Polynomial::from_coefficients_vec(vec![
+            BlsScalar::one(),
+            BlsScalar::from(2),
+            BlsScalar::from(3),
+        ]);
+
+        // Five product coefficients require a size-eight domain to avoid
+        // wraparound.
+        let result = &polynomial * &polynomial;
+
+        let expected = Polynomial::from_coefficients_vec(vec![
+            BlsScalar::one(),
+            BlsScalar::from(4),
+            BlsScalar::from(10),
+            BlsScalar::from(12),
+            BlsScalar::from(9),
         ]);
         assert_eq!(result, expected);
     }
