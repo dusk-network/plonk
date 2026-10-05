@@ -170,6 +170,7 @@ pub(crate) fn compute(
     z_poly: &Polynomial,
     evaluations: &ProofEvaluations,
     domain: &EvaluationDomain,
+    split: usize,
     t_low_poly: &Polynomial,
     t_mid_poly: &Polynomial,
     t_high_poly: &Polynomial,
@@ -205,11 +206,10 @@ pub(crate) fn compute(
         z_poly,
     );
 
-    let domain_size = domain.size();
-
-    let z_n = challenges.z.pow(&[domain_size as u64, 0, 0, 0]);
-    let z_two_n = challenges.z.pow(&[2 * domain_size as u64, 0, 0, 0]);
-    let z_three_n = challenges.z.pow(&[3 * domain_size as u64, 0, 0, 0]);
+    // the quotient chunks hold `split` coefficients each
+    let z_n = challenges.z.pow(&[split as u64, 0, 0, 0]);
+    let z_two_n = challenges.z.pow(&[2 * split as u64, 0, 0, 0]);
+    let z_three_n = challenges.z.pow(&[3 * split as u64, 0, 0, 0]);
 
     let a = t_low_poly;
     let b = t_mid_poly * &z_n;

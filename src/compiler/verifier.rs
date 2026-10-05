@@ -291,6 +291,7 @@ impl Verifier {
                 &self.domain,
                 &self.public_input_roots,
                 public_inputs,
+                version.quotient_split_offset(),
             ),
         }
     }

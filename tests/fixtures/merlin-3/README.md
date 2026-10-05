@@ -9,9 +9,10 @@ and V2/V3 proofs, and can verify another build's outputs. Its RNG seed and SRS
 are deliberately deterministic and **insecure for production use**. These
 files are test fixtures, not production parameters or network transactions.
 
-`tests/plonk_versioning.rs` checks that both stored proofs still verify, and
-that changing the public input from 12 to 13 is rejected. V2 verification does
-not require enabling legacy proving.
+`tests/plonk_versioning.rs` checks that the V2 proof still verifies, and that
+changing the public input from 12 to 13 is rejected. V2 verification does not
+require enabling legacy proving. V3 has since moved its quotient split from `n`
+to `n + 3`, so the V3 proof must now be rejected.
 
 ## Reproduce independently
 

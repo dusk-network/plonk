@@ -30,7 +30,9 @@ pub enum PlonkVersion {
     V1,
     /// Legacy profile with selector-bound opening checks.
     V2,
-    /// Transcript-fixed profile.
+    /// Transcript-fixed profile. The quotient polynomial is split at
+    /// `n + 3`, so no committed polynomial exceeds degree `n + 3` and a setup
+    /// of degree `2^k + 6` proves `2^k` domains.
     V3,
 }
 
@@ -38,6 +40,15 @@ impl PlonkVersion {
     /// The version used by the default `prove` / `verify` methods.
     pub const fn current() -> Self {
         PlonkVersion::V3
+    }
+
+    /// The quotient polynomial is split into chunks of `n + offset`
+    /// coefficients.
+    pub(crate) const fn quotient_split_offset(self) -> usize {
+        match self {
+            PlonkVersion::V3 => 3,
+            _ => 0,
+        }
     }
 }
 
@@ -96,9 +107,10 @@ impl Compiler {
     }
 
     fn max_constraints(pp: &PublicParameters) -> usize {
+        // The largest domain `trim_for_domain` accepts.
         let available = pp
             .max_degree()
-            .saturating_sub(PublicParameters::ADDED_BLINDING_DEGREE);
+            .saturating_sub(PlonkVersion::V3.quotient_split_offset());
         if available == 0 {
             0
         } else {
@@ -119,7 +131,7 @@ impl Compiler {
         // here as well can unnecessarily double the required setup size.
         let n = composer.constraints().next_power_of_two();
 
-        let (commit, opening) = pp.trim(n)?;
+        let (commit, opening) = pp.trim_for_domain(n)?;
 
         let (prover, verifier) =
             Self::preprocess(label, commit, opening, composer)?;
@@ -504,24 +516,28 @@ mod tests {
 
     #[test]
     fn compressed_compilation_uses_exact_parameter_capacity() {
-        const CAPACITY: usize = 32;
-        const LIMIT: usize = CAPACITY;
+        const N: usize = 32;
         let mut rng = StdRng::seed_from_u64(942);
-        let exact = FilledCircuit::<LIMIT>::compress().unwrap();
-        let excessive = FilledCircuit::<{ LIMIT + 1 }>::compress().unwrap();
-        // Non-power-of-two budgets must round down, including the last
-        // degree before the next domain becomes available.
-        for degree in [CAPACITY, CAPACITY + 1, 2 * CAPACITY - 1] {
-            let pp = PublicParameters::setup(degree, &mut rng).unwrap();
-            assert_eq!(
-                pp.max_degree() - PublicParameters::ADDED_BLINDING_DEGREE,
-                degree
-            );
-            assert!(pp.trim(CAPACITY).is_ok());
-            assert!(pp.trim(2 * CAPACITY).is_err());
-            assert_eq!(Compiler::max_constraints(&pp), LIMIT);
-            Compiler::compile_with_compressed(&pp, b"capacity", &exact)
-                .unwrap();
+        let exact = FilledCircuit::<N>::compress().unwrap();
+        let excessive = FilledCircuit::<{ N + 1 }>::compress().unwrap();
+        // A domain needs three degrees above it, and non-power-of-two
+        // budgets round down until the next domain becomes available.
+        for (max_degree, capacity) in [
+            (N + 2, N / 2),
+            (N + 3, N),
+            (N + 6, N),
+            (N + 9, N),
+            (2 * N + 2, N),
+        ] {
+            let mut pp = PublicParameters::setup(max_degree, &mut rng).unwrap();
+            pp.commit_key = pp.commit_key.truncate(max_degree).unwrap();
+            assert_eq!(Compiler::max_constraints(&pp), capacity);
+            let direct =
+                Compiler::compile::<FilledCircuit<N>>(&pp, b"capacity");
+            let compressed =
+                Compiler::compile_with_compressed(&pp, b"capacity", &exact);
+            assert_eq!(direct.is_ok(), capacity == N);
+            assert_eq!(compressed.is_ok(), capacity == N);
             assert!(matches!(
                 Compiler::compile_with_compressed(&pp, b"capacity", &excessive),
                 Err(Error::InvalidCompressedCircuit)

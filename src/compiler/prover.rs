@@ -647,28 +647,34 @@ impl Prover {
             args,
         )?;
 
-        // Split at multiples of n. The first three chunks have degree at
-        // most n after blinding; the fourth can have degree n + 9.
-        let domain_size = domain.size();
+        // Split at multiples of `split = n + offset`. The first three chunks
+        // have degree at most `split` after blinding; the fourth has degree
+        // `deg(t) - 3 split`: `n + 9` when splitting at `n`, below `n + 3`
+        // when splitting at `n + 3`.
+        let split = domain.size() + version.quotient_split_offset();
+        let mut t_coefficients = t_poly.to_vec();
+        if t_coefficients.len() <= 3 * split {
+            t_coefficients.resize(3 * split + 1, BlsScalar::zero());
+        }
 
-        let mut t_low_vec = t_poly[0..domain_size].to_vec();
-        let mut t_mid_vec = t_poly[domain_size..2 * domain_size].to_vec();
-        let mut t_high_vec = t_poly[2 * domain_size..3 * domain_size].to_vec();
-        let mut t_fourth_vec = t_poly[3 * domain_size..].to_vec();
+        let mut t_low_vec = t_coefficients[0..split].to_vec();
+        let mut t_mid_vec = t_coefficients[split..2 * split].to_vec();
+        let mut t_high_vec = t_coefficients[2 * split..3 * split].to_vec();
+        let mut t_fourth_vec = t_coefficients[3 * split..].to_vec();
 
         // select 3 blinding factors for the quotient splitted polynomials
         let b_12 = BlsScalar::random(&mut *rng);
         let b_13 = BlsScalar::random(&mut *rng);
         let b_14 = BlsScalar::random(&mut *rng);
 
-        // t_low'(X) + b_12*X^n
+        // t_low'(X) + b_12*X^split
         t_low_vec.push(b_12);
 
-        // t_mid'(X) - b_12 + b_13*X^n
+        // t_mid'(X) - b_12 + b_13*X^split
         t_mid_vec[0] -= b_12;
         t_mid_vec.push(b_13);
 
-        // t_high'(X) - b_13 + b_14*X^n
+        // t_high'(X) - b_13 + b_14*X^split
         t_high_vec[0] -= b_13;
         t_high_vec.push(b_14);
 
@@ -802,6 +808,7 @@ impl Prover {
             &z_poly,
             &evaluations,
             &domain,
+            split,
             &t_low_poly,
             &t_mid_poly,
             &t_high_poly,
@@ -1461,16 +1468,17 @@ mod tests {
             )
             .expect("V3 proof should build");
 
-        // Pins proof bytes after the shifted-wire blinding fix, including
-        // transcript challenges and the additional proving RNG draws.
+        // Pins proof bytes after the shifted-wire blinding fix and the
+        // quotient split at `n + 3`, including transcript challenges and the
+        // additional proving RNG draws.
         verifier.verify(&proof, &inputs).unwrap();
         let expected = [
-            0x4f, 0xaf, 0xf9, 0xf9, 0x78, 0xfe, 0x95, 0x28, 0xab, 0xb9, 0x42,
-            0xd0, 0x8d, 0x07, 0x02, 0x69, 0x6b, 0xb4, 0xa3, 0x9f, 0xfa, 0x86,
-            0xa9, 0x53, 0x1f, 0xbd, 0x56, 0xcd, 0x17, 0x29, 0x7f, 0x4f, 0xaf,
-            0x83, 0xce, 0xf5, 0x26, 0xe8, 0xc6, 0xfb, 0x45, 0x4f, 0x39, 0x2f,
-            0x9f, 0x8a, 0xda, 0x53, 0x09, 0x62, 0x47, 0xbd, 0x36, 0x35, 0xb5,
-            0x19, 0x75, 0xf0, 0xf4, 0xfc, 0x04, 0xcc, 0x83, 0x82,
+            0x46, 0x82, 0xf4, 0x73, 0xa4, 0xbc, 0xca, 0x48, 0xb9, 0x43, 0x1b,
+            0xbb, 0x8f, 0x9d, 0x9f, 0xa9, 0x8f, 0xbd, 0x3a, 0x20, 0x6e, 0x00,
+            0xe6, 0x94, 0x8f, 0x89, 0x3d, 0xd6, 0x87, 0x85, 0x57, 0x2e, 0x33,
+            0x30, 0xc5, 0x9e, 0xa1, 0xe3, 0xc9, 0x49, 0x0f, 0xb9, 0xdc, 0x7a,
+            0xd9, 0xe4, 0x6a, 0xb5, 0xf6, 0xe4, 0xc3, 0xbc, 0x8a, 0x24, 0xaf,
+            0x01, 0xc7, 0x7f, 0x4d, 0x1d, 0x49, 0xbd, 0x63, 0x11,
         ];
         let digest = blake2b_simd::blake2b(&proof.to_bytes());
 

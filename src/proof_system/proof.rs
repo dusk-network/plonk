@@ -203,6 +203,7 @@ pub(crate) mod alloc {
             domain: &EvaluationDomain,
             public_input_roots: &[BlsScalar],
             pub_inputs: &[BlsScalar],
+            quotient_split_offset: usize,
         ) -> Result<(), Error> {
             // Subgroup checks are done when the proof is deserialized.
 
@@ -292,6 +293,10 @@ pub(crate) mod alloc {
 
             // Compute zero polynomial evaluated at challenge `z`
             let z_h_eval = domain.evaluate_vanishing_polynomial(&z_challenge);
+            // The quotient chunks hold `n + quotient_split_offset`
+            // coefficients each.
+            let z_pow_split = (z_h_eval + BlsScalar::one())
+                * z_challenge.pow(&[quotient_split_offset as u64, 0, 0, 0]);
 
             // Evaluate the first Lagrange polynomial and public inputs with a
             // single batch inversion. The public-input roots are fixed for a
@@ -391,6 +396,7 @@ pub(crate) mod alloc {
                 ),
                 &z_challenge,
                 z_h_eval,
+                z_pow_split,
                 &u_challenge,
                 l1_eval,
                 verifier_key,
@@ -464,6 +470,7 @@ pub(crate) mod alloc {
                     l1_eval,
                     verifier_key,
                     &domain,
+                    quotient_split_offset,
                 ),
                 &f_points,
                 &f_scalars,
@@ -686,6 +693,7 @@ pub(crate) mod alloc {
                 ),
                 &z_challenge,
                 z_h_eval,
+                z_h_eval + BlsScalar::one(),
                 &u_challenge,
                 l1_eval,
                 verifier_key,
@@ -752,6 +760,7 @@ pub(crate) mod alloc {
                     l1_eval,
                     verifier_key,
                     &domain,
+                    0,
                 ),
                 &f_points,
                 &f_scalars,
@@ -800,6 +809,7 @@ pub(crate) mod alloc {
             ): (&BlsScalar, &BlsScalar, &BlsScalar, &BlsScalar),
             z_challenge: &BlsScalar,
             z_h_eval: BlsScalar,
+            z_pow_split: BlsScalar,
             u_challenge: &BlsScalar,
             l1_eval: BlsScalar,
             verifier_key: &VerifierKey,
@@ -850,7 +860,7 @@ pub(crate) mod alloc {
             );
 
             let z_h_eval_neg = -z_h_eval;
-            let z_pow_n = z_h_eval + BlsScalar::one();
+            let z_pow_n = z_pow_split;
             let z_n = z_pow_n * z_h_eval_neg;
             let z_two_n = z_pow_n.square() * z_h_eval_neg;
             let z_three_n = z_two_n * z_pow_n;
@@ -890,6 +900,7 @@ pub(crate) mod alloc {
             l1_eval: BlsScalar,
             verifier_key: &VerifierKey,
             domain: &EvaluationDomain,
+            quotient_split_offset: usize,
         ) -> G1Projective {
             let mut scalars = Vec::with_capacity(10);
             let mut points = Vec::with_capacity(10);
@@ -934,7 +945,7 @@ pub(crate) mod alloc {
                 self.z_comm.0,
             );
 
-            let domain_size = domain.size() as u64;
+            let domain_size = (domain.size() + quotient_split_offset) as u64;
             let z_h_eval = -domain.evaluate_vanishing_polynomial(z_challenge);
 
             scalars.push(z_h_eval);
@@ -1569,6 +1580,7 @@ mod soundness_tests {
                 &z_poly,
                 &evals_q0,
                 &domain,
+                domain.size(),
                 &t_low_poly,
                 &t_mid_poly,
                 &t_high_poly,
@@ -1635,6 +1647,7 @@ mod soundness_tests {
             &z_poly,
             &evaluations,
             &domain,
+            domain.size(),
             &t_low_poly,
             &t_mid_poly,
             &t_high_poly,

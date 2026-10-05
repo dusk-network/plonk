@@ -108,27 +108,35 @@ fn prover_rejects_truncated_commit_key_length_high_bits() {
 }
 
 #[test]
-fn upstream_merlin_3_proofs_remain_valid() {
+fn upstream_merlin_3_proofs_keep_their_status() {
     let verifier = Verifier::try_from_bytes(include_bytes!(
         "fixtures/merlin-3/verifier.bin"
     ))
     .expect("upstream verifier must deserialize");
 
-    for (version, bytes) in [
+    // V3 has since moved its quotient split from `n` to `n + 3`, so only the
+    // V2 proof still verifies.
+    for (version, bytes, valid) in [
         (
             PlonkVersion::V2,
             include_bytes!("fixtures/merlin-3/v2.proof"),
+            true,
         ),
         (
             PlonkVersion::V3,
             include_bytes!("fixtures/merlin-3/v3.proof"),
+            false,
         ),
     ] {
         let proof =
             Proof::from_slice(bytes).expect("upstream proof must decode");
-        verifier
-            .verify_with_version(&proof, &[BlsScalar::from(12u64)], version)
-            .expect("upstream proof must verify with the matching version");
+        assert_eq!(
+            verifier
+                .verify_with_version(&proof, &[BlsScalar::from(12u64)], version)
+                .is_ok(),
+            valid,
+            "{version:?} upstream proof"
+        );
         assert!(
             verifier
                 .verify_with_version(&proof, &[BlsScalar::from(13u64)], version)

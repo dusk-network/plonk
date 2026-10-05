@@ -54,10 +54,12 @@ impl Circuit for PaddedCircuit {
 #[test]
 fn blinded_proofs_respect_exact_key_capacity_after_serialization() {
     let mut rng = StdRng::seed_from_u64(0xb11d);
+    // Each entry: a version, then key allowances above `n` that proving must
+    // reject, then allowances it must accept.
     let versions = [
-        PlonkVersion::V3,
+        (PlonkVersion::V3, &[2][..], &[3, 6][..]),
         #[cfg(feature = "legacy-proving")]
-        PlonkVersion::V2,
+        (PlonkVersion::V2, &[6, 8], &[9]),
     ];
 
     // Include the minimum domain n = 4, padded circuits, and exact fills.
@@ -101,7 +103,7 @@ fn blinded_proofs_respect_exact_key_capacity_after_serialization() {
         let old_verifier =
             Verifier::try_from_bytes(old_verifier.to_bytes()).unwrap();
 
-        for version in versions {
+        for (version, rejected, accepted) in versions {
             let (proof, inputs) = prover
                 .prove_with_version(&mut rng, &circuit, version)
                 .unwrap();
@@ -115,17 +117,25 @@ fn blinded_proofs_respect_exact_key_capacity_after_serialization() {
 
             // Decoding a key does not establish sufficient capacity.
             // Undersized keys must fail when used for proving.
-            for allowance in [6, 8] {
+            for &allowance in rejected.iter().chain(accepted) {
                 let mut short_prover = prover.clone();
                 short_prover.commit_key =
                     pp.commit_key.truncate(size + allowance).unwrap();
                 let short_prover =
                     Prover::try_from_bytes(short_prover.to_bytes()).unwrap();
-                assert!(matches!(
-                    short_prover
-                        .prove_with_version(&mut rng, &circuit, version),
-                    Err(Error::PolynomialDegreeTooLarge)
-                ));
+                let result = short_prover
+                    .prove_with_version(&mut rng, &circuit, version);
+                if rejected.contains(&allowance) {
+                    assert!(matches!(
+                        result,
+                        Err(Error::PolynomialDegreeTooLarge)
+                    ));
+                } else {
+                    let (proof, inputs) = result.unwrap();
+                    verifier
+                        .verify_with_version(&proof, &inputs, version)
+                        .unwrap();
+                }
             }
         }
     }

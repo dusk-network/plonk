@@ -185,6 +185,7 @@ impl PublicParameters {
     ///
     /// Returns an error if the truncated degree is larger than the public
     /// parameters configured degree.
+    #[cfg(test)]
     pub(crate) fn trim(
         &self,
         truncated_degree: usize,
@@ -193,6 +194,22 @@ impl PublicParameters {
             .commit_key
             .truncate(truncated_degree + Self::ADDED_BLINDING_DEGREE)?;
         Ok((truncated_prover_key, self.opening_key.clone()))
+    }
+
+    /// Trim for an evaluation domain of size `n`: the commit key covers degree
+    /// `n + 9` where the setup reaches it, which V2 proving needs, and at
+    /// least `n + 3`, which V3 needs.
+    pub(crate) fn trim_for_domain(
+        &self,
+        n: usize,
+    ) -> Result<(CommitKey, OpeningKey), Error> {
+        let degree = (n + Self::ADDED_BLINDING_DEGREE).min(self.max_degree());
+        if degree
+            < n + crate::compiler::PlonkVersion::V3.quotient_split_offset()
+        {
+            return Err(Error::TruncatedDegreeTooLarge);
+        }
+        Ok((self.commit_key.truncate(degree)?, self.opening_key.clone()))
     }
 
     /// Max degree specifies the largest Polynomial

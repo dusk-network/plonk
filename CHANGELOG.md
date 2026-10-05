@@ -30,6 +30,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Split the V3 quotient polynomial at `n + 3` instead of `n`, so compilation and
+  V3 proving need proving-key capacity through degree `n + 3`, where `n` is the
+  evaluation-domain size. V3 proofs made with the previous split no longer
+  verify [#994]
 - Remove `Default` as a supertrait of `Circuit` [#715]
 - Require `Default` on the circuit for `Compiler::compile` and
   `Circuit::compress` [#715]
@@ -37,9 +41,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `N >= 255` [#980]
 - Avoid redundant polynomial and KZG computations when evaluating, dividing,
   multiplying, and constructing aggregate witnesses [#977]
-- Require proving-key capacity through degree `n + 9` instead of `n + 6`,
-  where `n` is the evaluation-domain size, so a `2^k` setup now supports at
-  most a `2^(k-1)` domain [#975]
+- Require proving-key capacity through degree `n + 9` instead of `n + 6` for V2
+  proving, where `n` is the evaluation-domain size [#975]
 - Replace upstream Merlin 3.0 with `dusk-merlin` 4.0.0 [#966]
 - Remove static transcript-label caching and leaked label allocations [#966]
 - Restrict supported targets to little-endian architectures [#966]
@@ -819,6 +822,7 @@ is necessary since `rkyv/validation` was required as a bound.
 - Proof system module.
 
 <!-- ISSUES -->
+[#994]: https://github.com/dusk-network/plonk/issues/994
 [#715]: https://github.com/dusk-network/plonk/issues/715
 [#980]: https://github.com/dusk-network/plonk/issues/980
 [#979]: https://github.com/dusk-network/plonk/issues/979
