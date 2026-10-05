@@ -280,8 +280,11 @@ impl CommitKey {
             .and_then(|size| size.checked_add(u64::SIZE))
             .ok_or(dusk_bytes::Error::InvalidData)?;
 
-        if bytes.len() != expected_len {
+        if bytes.len() < expected_len {
             return Err(Error::NotEnoughBytes);
+        }
+        if bytes.len() > expected_len {
+            return Err(dusk_bytes::Error::InvalidData.into());
         }
 
         let mut powers_of_g = Vec::with_capacity(len);
@@ -1165,6 +1168,20 @@ mod test {
         assert!(matches!(
             CommitKey::from_raw_var_bytes(&bytes),
             Err(Error::NotEnoughBytes)
+        ));
+        Ok(())
+    }
+
+    #[test]
+    fn commit_key_bytes_raw_checked_rejects_trailing_bytes() -> Result<(), Error>
+    {
+        let (ck, _) = setup_test(7)?;
+        let mut bytes = ck.to_raw_var_bytes();
+        bytes.push(0);
+
+        assert!(matches!(
+            CommitKey::from_raw_var_bytes(&bytes),
+            Err(Error::BytesError(dusk_bytes::Error::InvalidData))
         ));
         Ok(())
     }

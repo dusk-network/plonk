@@ -32,6 +32,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Report length overflow in `Prover::try_from_bytes` as
   `Error::BytesError(InvalidData)` instead of `Error::NotEnoughBytes` [#971]
+- Report trailing commit-key bytes in `Prover::try_from_bytes` as
+  `Error::BytesError(InvalidData)` instead of `Error::NotEnoughBytes` [#971]
 - Remove `Default` as a supertrait of `Circuit` [#715]
 - Require `Default` on the circuit for `Compiler::compile` and
   `Circuit::compress` [#715]
