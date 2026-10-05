@@ -76,7 +76,7 @@ jobs:
           find target/release/deps -type f -executable ! -name "*.*" |
           xargs -n1 kcov --exclude-pattern=/.cargo,/usr/lib --verify target/cov
       - name: Upload coverage
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v7
         with:
           token: ${{secrets.CODECOV_TOKEN}}
 
