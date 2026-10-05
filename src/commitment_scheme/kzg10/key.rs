@@ -275,15 +275,16 @@ impl CommitKey {
             return Err(dusk_bytes::Error::InvalidData.into());
         }
 
-        let expected_len = u64::SIZE
-            .checked_add(
-                len.checked_mul(G1Affine::RAW_SIZE)
-                    .ok_or(Error::NotEnoughBytes)?,
-            )
-            .ok_or(Error::NotEnoughBytes)?;
+        let expected_len = len
+            .checked_mul(G1Affine::RAW_SIZE)
+            .and_then(|size| size.checked_add(u64::SIZE))
+            .ok_or(dusk_bytes::Error::InvalidData)?;
 
-        if bytes.len() != expected_len {
+        if bytes.len() < expected_len {
             return Err(Error::NotEnoughBytes);
+        }
+        if bytes.len() > expected_len {
+            return Err(dusk_bytes::Error::InvalidData.into());
         }
 
         let mut powers_of_g = Vec::with_capacity(len);
@@ -825,6 +826,25 @@ mod test {
         srs.trim(degree)
     }
     #[test]
+    fn commit_key_size_overflow_is_invalid_data() {
+        // A count whose byte size overflows `usize` is invalid, while one that
+        // fits but has no points behind it is a short read.
+        for (len, expected) in [
+            (
+                usize::MAX / G1Affine::RAW_SIZE + 1,
+                Error::BytesError(dusk_bytes::Error::InvalidData),
+            ),
+            (usize::MAX / G1Affine::RAW_SIZE, Error::NotEnoughBytes),
+        ] {
+            let bytes = (len as u64).to_le_bytes();
+            assert_eq!(
+                CommitKey::from_raw_var_bytes(&bytes).err(),
+                Some(expected)
+            );
+        }
+    }
+
+    #[test]
     fn test_commit_rejects_oversized_polynomial() -> Result<(), Error> {
         let degree = 25;
         let (ck, _) = setup_test(degree)?;
@@ -1148,6 +1168,20 @@ mod test {
         assert!(matches!(
             CommitKey::from_raw_var_bytes(&bytes),
             Err(Error::NotEnoughBytes)
+        ));
+        Ok(())
+    }
+
+    #[test]
+    fn commit_key_bytes_raw_checked_rejects_trailing_bytes() -> Result<(), Error>
+    {
+        let (ck, _) = setup_test(7)?;
+        let mut bytes = ck.to_raw_var_bytes();
+        bytes.push(0);
+
+        assert!(matches!(
+            CommitKey::from_raw_var_bytes(&bytes),
+            Err(Error::BytesError(dusk_bytes::Error::InvalidData))
         ));
         Ok(())
     }
