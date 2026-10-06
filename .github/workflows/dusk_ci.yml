@@ -6,71 +6,58 @@ on:
 name: Continuous integration
 
 jobs:
-  analyze:
-    name: Code Analysis
-    uses: dusk-network/.github/.github/workflows/code-analysis.yml@main
+  code-quality:
+    name: Code quality
+    uses: dusk-network/.github/.github/workflows/run-make.yml@main
     with:
-      clippy_default: false
-      clippy_args: --features=rkyv/size_32
+      make_target: cq
 
   dusk_analyzer:
     name: Dusk Analyzer
     uses: dusk-network/.github/.github/workflows/dusk-analysis.yml@main
 
-  build_benches:
-    name: Build Benchmarks
-    runs-on: core
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dsherret/rust-toolchain-file@v1
-      - uses: Swatinem/rust-cache@v2
-      - run: cargo bench --no-run
+  build-benches:
+    name: Build benchmarks
+    uses: dusk-network/.github/.github/workflows/run-make.yml@main
+    with:
+      make_target: build-benches
 
-  run_examples:
-    name: Run Examples
-    runs-on: core
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dsherret/rust-toolchain-file@v1
-      - uses: Swatinem/rust-cache@v2
-      - run: cargo run --release --example circuit
+  run-examples:
+    name: Run examples
+    uses: dusk-network/.github/.github/workflows/run-make.yml@main
+    with:
+      make_target: run-examples
 
-  build_docs:
-    name: Build Documentation
-    runs-on: core
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dsherret/rust-toolchain-file@v1
-      - run: make doc
-      - run: make doc-internal
+  doc:
+    name: Build documentation
+    uses: dusk-network/.github/.github/workflows/run-make.yml@main
+    with:
+      make_target: doc
 
-  build_no_std:
-    name: Build no_std
-    runs-on: core
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dsherret/rust-toolchain-file@v1
-      - uses: Swatinem/rust-cache@v2
-      - run: make no-std
-      - run: cargo check --target thumbv6m-none-eabi --no-default-features --features alloc,rkyv-impl,rkyv/size_32
+  doc-internal:
+    name: Build internal documentation
+    uses: dusk-network/.github/.github/workflows/run-make.yml@main
+    with:
+      make_target: doc-internal
+
+  no-std:
+    name: Run no-std checks
+    uses: dusk-network/.github/.github/workflows/run-make.yml@main
+    with:
+      make_target: no-std
 
   test:
-    name: Tests
-    runs-on: core
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dsherret/rust-toolchain-file@v1
-      - uses: Swatinem/rust-cache@v2
-      - run: make test
+    name: Run tests
+    uses: dusk-network/.github/.github/workflows/run-make.yml@main
+    with:
+      make_target: test
 
-  test_32bit:
-    name: Tests on 32-bit
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dsherret/rust-toolchain-file@v1
-      - uses: Swatinem/rust-cache@v2
-      - run: make test-32
+  test-32:
+    name: Run tests on 32-bit
+    uses: dusk-network/.github/.github/workflows/run-make.yml@main
+    with:
+      make_target: test-32
+      runner: ubuntu-22.04
 
   coverage:
     name: Coverage
