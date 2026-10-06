@@ -25,7 +25,6 @@ dusk-jubjub = {version = "0.15", default-features = false}
 ff = {version = "0.13", default-features = false}
 subtle = {version = "2", default-features = false}
 hashbrown = {version = "0.12", default-features=false, features = ["ahash"]}
-msgpacker = {version = "=0.4.8", default-features=false, features = ["alloc", "derive"], optional=true}
 miniz_oxide = {version = "0.9", default-features=false, features = ["with-alloc"], optional = true}
 rayon = {version = "1.3", optional = true}
 sha2 = {version = "0.10", default-features = false, optional = true}
@@ -52,12 +51,11 @@ std = [
     "dusk-bls12_381/default",  # Includes `parallel`
     "dusk-jubjub/default",
     "hashbrown/default",
-    "msgpacker/std",
     "miniz_oxide/std",
     "alloc",
     "rayon"
 ]
-alloc = ["dusk-bls12_381/alloc", "msgpacker", "miniz_oxide", "sha2"]
+alloc = ["dusk-bls12_381/alloc", "miniz_oxide", "sha2"]
 debug = ["dusk-cdf", "backtrace"]
 rkyv-impl = ["dusk-bls12_381/rkyv-impl", "dusk-jubjub/rkyv-impl", "rkyv", "rkyv/validation", "bytecheck"]
 
