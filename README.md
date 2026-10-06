@@ -33,6 +33,16 @@ This crate includes a variety of features which are briefly explained below:
 - `debug`: Enables the runtime debugger backend, outputting [CDF](https://crates.io/crates/dusk-cdf) files to the path defined in the `CDF_OUTPUT` environment variable. When used, the binary must be compiled with `debug = true`. For more info, check the [cargo book](https://doc.rust-lang.org/cargo/reference/profiles.html#debug).
   __It is recommended to derive the std output and std error and then place them in a text file for efficient gate analysis.__
 
+## Side channels
+
+Proving is not constant-time. The KZG commitments to witness polynomials use a
+variable-time multi-scalar multiplication, so an attacker who can observe the
+proving machine (timing, cache or branch-predictor traces) may learn about the
+witness. Prove on hardware such an attacker cannot observe. Fixed-base scalar
+multiplication computes its NAF digits and selects each round's addend without
+branching on the scalar; other witness code makes no such guarantee.
+Verification only handles public data.
+
 ## Documentation
 
 The crate documentation provides information about all the functions that the library provides, as well

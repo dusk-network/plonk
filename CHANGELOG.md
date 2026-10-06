@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Document that proving is not constant-time [#992]
 - Add `Proof::from_slice_exact`, which rejects trailing bytes [#979]
 - Cover compressed-circuit encoding and compilation-capacity bounds [#942]
 - Add `Composer::assert_torsion_free_point` [#870]
@@ -30,6 +31,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Compute fixed-base scalar multiplication digits and select their addends
+  without branching on the scalar [#992]
 - Reject archived proofs whose points or scalars their byte decoders reject
   [#981]
 - Apply the checks of `ProverKey::from_slice` to archived prover keys [#941]
@@ -833,6 +836,7 @@ is necessary since `rkyv/validation` was required as a bound.
 - Proof system module.
 
 <!-- ISSUES -->
+[#992]: https://github.com/dusk-network/plonk/issues/992
 [#987]: https://github.com/dusk-network/plonk/issues/987
 [#986]: https://github.com/dusk-network/plonk/issues/986
 [#981]: https://github.com/dusk-network/plonk/issues/981

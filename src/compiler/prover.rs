@@ -26,6 +26,9 @@ use crate::transcript::TranscriptProtocol;
 use crate::util::batch_inversion;
 
 /// Turbo Prover with processed keys
+///
+/// Proving is not constant-time: an attacker who can observe the proving
+/// machine may learn about the witness. See the crate README.
 #[derive(Clone)]
 pub struct Prover {
     label: Vec<u8>,

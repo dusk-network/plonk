@@ -12,6 +12,7 @@ use alloc::vec::Vec;
 
 use dusk_bls12_381::BlsScalar;
 use dusk_jubjub::{JubJubAffine, JubJubExtended, JubJubScalar};
+use subtle::{Choice, ConditionallyNegatable, ConditionallySelectable};
 
 use super::{
     Composer, Constraint, TorsionFreeWitnessPoint, Witness, WitnessPoint,
@@ -135,14 +136,7 @@ impl Composer {
                 None => return Err(Error::JubJubScalarMalformed),
             };
 
-        let width = 2;
-        let wnaf_entries = scalar.compute_windowed_naf(width);
-
-        debug_assert_eq!(
-            wnaf_entries.len(),
-            FIXED_BASE_SIGNED_DIGIT_ROUNDS,
-            "the wnaf_entries array is expected to be 256 elements long"
-        );
+        let wnaf_entries = naf(&scalar);
 
         // The generator passed the exact prime-order validation above, so
         // its multiples cannot leave the prime-order subgroup.
@@ -192,13 +186,30 @@ impl Composer {
             .iter()
             .rev()
             .enumerate()
-            .map(|(i, entry)| {
-                let (scalar_to_add, point_to_add) = match entry {
-                    0 => (BlsScalar::zero(), JubJubAffine::identity()),
-                    -1 => (BlsScalar::one().neg(), -wnaf_point_multiples[i]),
-                    1 => (BlsScalar::one(), wnaf_point_multiples[i]),
-                    _ => return Err(Error::UnsupportedWNAF2k),
-                };
+            .map(|(i, &digit)| {
+                if !(-1..=1).contains(&digit) {
+                    return Err(Error::UnsupportedWNAF2k);
+                }
+                // Honest digits are secret: select their addends without
+                // branching on them.
+                let nonzero = Choice::from((digit & 1) as u8);
+                let negative = Choice::from(digit as u8 >> 7);
+                let mut scalar_to_add = BlsScalar::conditional_select(
+                    &BlsScalar::zero(),
+                    &BlsScalar::one(),
+                    nonzero,
+                );
+                let point_to_add = JubJubAffine::conditional_select(
+                    &JubJubAffine::identity(),
+                    &wnaf_point_multiples[i],
+                    nonzero,
+                );
+                let point_to_add = JubJubAffine::conditional_select(
+                    &point_to_add,
+                    &-point_to_add,
+                    negative,
+                );
+                scalar_to_add.conditional_negate(negative);
 
                 let prev_accumulator = two * scalar_acc[i];
                 let scalar = prev_accumulator + scalar_to_add;
@@ -325,5 +336,56 @@ impl Composer {
                 .constant(max_jubjub_scalar),
         );
         self.range_check(distance_from_max, JUBJUB_SCALAR_BITS);
+    }
+}
+
+/// Width-2 NAF of `scalar`, as `compute_windowed_naf(2)` but without
+/// branching on the scalar: digit `i` is bit `i + 1` of `3 * scalar` minus
+/// bit `i + 1` of `scalar`.
+fn naf(scalar: &JubJubScalar) -> [i8; FIXED_BASE_SIGNED_DIGIT_ROUNDS] {
+    let bytes = scalar.to_bytes();
+    let scalar_limbs: [u64; 4] = core::array::from_fn(|i| {
+        u64::from_le_bytes(core::array::from_fn(|j| bytes[8 * i + j]))
+    });
+    // The scalar is below 2^252, so its triple fits four limbs.
+    let mut triple = [0u64; 4];
+    let mut carry = 0u128;
+    for i in 0..4 {
+        let double = scalar_limbs[i] << 1
+            | scalar_limbs.get(i.wrapping_sub(1)).map_or(0, |l| l >> 63);
+        let sum = scalar_limbs[i] as u128 + double as u128 + carry;
+        triple[i] = sum as u64;
+        carry = sum >> 64;
+    }
+    let bit = |limbs: &[u64; 4], i: usize| {
+        limbs.get(i / 64).map_or(0, |l| (l >> (i % 64) & 1) as i8)
+    };
+    core::array::from_fn(|i| bit(&triple, i + 1) - bit(&scalar_limbs, i + 1))
+}
+
+#[cfg(test)]
+mod tests {
+    use ff::Field;
+    use rand::SeedableRng;
+    use rand::rngs::StdRng;
+
+    use super::*;
+
+    #[test]
+    fn naf_matches_windowed_naf() {
+        let mut rng = StdRng::seed_from_u64(0xdead);
+        let edges = [
+            JubJubScalar::zero(),
+            JubJubScalar::one(),
+            -JubJubScalar::one(),
+            JubJubScalar::from(3u64),
+            JubJubScalar::from(u64::MAX),
+        ];
+        for scalar in edges
+            .into_iter()
+            .chain((0..10_000).map(|_| JubJubScalar::random(&mut rng)))
+        {
+            assert_eq!(naf(&scalar), scalar.compute_windowed_naf(2));
+        }
     }
 }
