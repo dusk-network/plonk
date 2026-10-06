@@ -31,6 +31,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Remove the `msgpacker` dependency [#1004]
+- Reject compressed circuits with an integer above `usize::MAX` instead of
+  truncating it on 32-bit targets [#1004]
 - Compute fixed-base scalar multiplication digits and select their addends
   without branching on the scalar [#992]
 - Reject archived proofs whose points or scalars their byte decoders reject
@@ -836,6 +839,7 @@ is necessary since `rkyv/validation` was required as a bound.
 - Proof system module.
 
 <!-- ISSUES -->
+[#1004]: https://github.com/dusk-network/plonk/issues/1004
 [#992]: https://github.com/dusk-network/plonk/issues/992
 [#987]: https://github.com/dusk-network/plonk/issues/987
 [#986]: https://github.com/dusk-network/plonk/issues/986
