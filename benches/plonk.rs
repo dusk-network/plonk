@@ -27,7 +27,7 @@ impl<const DEGREE: usize> Default for BenchCircuit<DEGREE> {
             b: BlsScalar::from(3u64),
             x: BlsScalar::from(6u64),
             y: JubJubScalar::from(7u64),
-            z: dusk_jubjub::GENERATOR_EXTENDED * &JubJubScalar::from(7u64),
+            z: dusk_jubjub::GENERATOR_EXTENDED * JubJubScalar::from(7u64),
         }
     }
 }
@@ -89,7 +89,7 @@ fn run<const DEGREE: usize>(
     label: &'static [u8],
 ) {
     let (prover, verifier) =
-        Compiler::compile::<BenchCircuit<DEGREE>>(&pp, label)
+        Compiler::compile::<BenchCircuit<DEGREE>>(pp, label)
             .expect("failed to compile circuit");
 
     let circuit: BenchCircuit<DEGREE> = BenchCircuit::default();

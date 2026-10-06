@@ -28,7 +28,7 @@ pub(crate) fn check_satisfied_circuit<C, R>(
 
     assert_eq!(*pi_expected, pi_circuit);
 
-    verifier.verify(&proof, &pi_expected).expect(msg);
+    verifier.verify(&proof, pi_expected).expect(msg);
 }
 
 // Check that proving rejects a satisfied circuit whose public-input count does

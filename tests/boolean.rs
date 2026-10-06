@@ -56,25 +56,25 @@ fn component_boolean() {
     // Test default works:
     let msg = "Default circuit verification should pass";
     let circuit = TestCircuit::default();
-    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, msg);
 
     // Test one works
     let msg = "Circuit with bit = 1 should pass";
     let bit = BlsScalar::one();
     let circuit = TestCircuit::new(bit);
-    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, msg);
 
     // Test zero works
     let msg = "Circuit with bit = 0 should pass";
     let bit = BlsScalar::zero();
     let circuit = TestCircuit::new(bit);
-    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, msg);
 
     // Test -zero works
     let msg = "Circuit with bit = -0 should pass";
     let bit = -BlsScalar::zero();
     let circuit = TestCircuit::new(bit);
-    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, msg);
 
     // Test -one fails
     let msg = "Circuit with bit = -1 shouldn't pass";
