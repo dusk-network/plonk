@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Parallelize construction of the verifier pairing inputs with Rayon when `std` is enabled, retaining the serial `no_std` path [#1001]
+
 ## [0.24.0] - 2026-10-08
 
 ### Added
@@ -842,6 +846,7 @@ is necessary since `rkyv/validation` was required as a bound.
 [#1011]: https://github.com/dusk-network/plonk/issues/1011
 [#1006]: https://github.com/dusk-network/plonk/issues/1006
 [#1004]: https://github.com/dusk-network/plonk/issues/1004
+[#1001]: https://github.com/dusk-network/plonk/issues/1001
 [#992]: https://github.com/dusk-network/plonk/issues/992
 [#987]: https://github.com/dusk-network/plonk/issues/987
 [#986]: https://github.com/dusk-network/plonk/issues/986

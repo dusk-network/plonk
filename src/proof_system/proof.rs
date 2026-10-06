@@ -440,13 +440,22 @@ pub(crate) mod alloc {
             //
             // Note that we negate this value to be able to subtract
             // the pairings later on, using the multi Miller loop.
-            let left_projective = -(self.w_z_chall_comm.0
-                + (self.w_z_chall_w_comm.0 * u_challenge));
+            let compute_left = || {
+                -(self.w_z_chall_comm.0
+                    + (self.w_z_chall_w_comm.0 * u_challenge))
+            };
 
             // Compute the G_1 element of the second pairing:
             // z * [W_z]_1 + (u * z * w) * [W_zw]_1 + [F]_1 - [E]_1
-            let right_projective =
-                msm_variable_base(&scalarmuls_points, &scalarmuls_scalars);
+            let compute_right =
+                || msm_variable_base(&scalarmuls_points, &scalarmuls_scalars);
+
+            #[cfg(feature = "std")]
+            let (left_projective, right_projective) =
+                rayon::join(compute_left, compute_right);
+            #[cfg(not(feature = "std"))]
+            let (left_projective, right_projective) =
+                (compute_left(), compute_right());
 
             #[cfg(test)]
             assert_grouped_msm_equivalence(
@@ -728,13 +737,22 @@ pub(crate) mod alloc {
             //
             // Note that we negate this value to be able to subtract
             // the pairings later on, using the multi Miller loop.
-            let left_projective = -(self.w_z_chall_comm.0
-                + (self.w_z_chall_w_comm.0 * u_challenge));
+            let compute_left = || {
+                -(self.w_z_chall_comm.0
+                    + (self.w_z_chall_w_comm.0 * u_challenge))
+            };
 
             // Compute the G_1 element of the second pairing:
             // z * [W_z]_1 + (u * z * w) * [W_zw]_1 + [F]_1 - [E]_1
-            let right_projective =
-                msm_variable_base(&scalarmuls_points, &scalarmuls_scalars);
+            let compute_right =
+                || msm_variable_base(&scalarmuls_points, &scalarmuls_scalars);
+
+            #[cfg(feature = "std")]
+            let (left_projective, right_projective) =
+                rayon::join(compute_left, compute_right);
+            #[cfg(not(feature = "std"))]
+            let (left_projective, right_projective) =
+                (compute_left(), compute_right());
 
             #[cfg(test)]
             assert_grouped_msm_equivalence(
