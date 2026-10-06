@@ -535,6 +535,7 @@ impl<'a> PackedCircuitReader<'a> {
 mod tests {
     use std::panic::catch_unwind;
 
+    use dusk_jubjub::{GENERATOR_EXTENDED, JubJubScalar};
     use rand_core::OsRng;
 
     use super::*;
@@ -843,5 +844,202 @@ mod tests {
             circuit.public_inputs = public_inputs;
             assert_invalid_without_panicking(&circuit);
         }
+    }
+
+    // Circuit IDs hash the compressed bytes, so the msgpack encoding must not
+    // change. Each case pins the full packed bytes and decodes them back.
+    fn assert_packed_encoding(
+        circuit: &CompressedCircuit,
+        expected: &[u8],
+        max_constraints: usize,
+    ) {
+        let mut packed = Vec::new();
+        circuit.pack(&mut packed);
+        assert_eq!(packed, expected);
+
+        let unpacked =
+            CompressedCircuit::unpack_bounded(expected, max_constraints)
+                .unwrap();
+        assert_eq!(&unpacked, circuit);
+    }
+
+    #[test]
+    fn packed_encoding_is_pinned() {
+        // `true`, an array16 header, every integer width up to uint32 and both
+        // encodings of a scalar byte.
+        let mut scalar = [0x2a; BlsScalar::SIZE];
+        scalar[..4].copy_from_slice(&[0x00, 0x7f, 0x80, 0xff]);
+        let circuit = CompressedCircuit {
+            hades_optimization: true,
+            public_inputs: (0..16).collect(),
+            witnesses: 0x1234,
+            scalars: vec![scalar],
+            polynomials: vec![CompressedPolynomial {
+                q_m: 0,
+                q_l: 127,
+                q_r: 128,
+                q_o: 255,
+                q_f: 256,
+                q_c: 65535,
+                q_arith: 65536,
+                q_range: u32::MAX as usize,
+                q_logic: 1,
+                q_fixed_group_add: 2,
+                q_variable_group_add: 3,
+            }],
+            constraints: vec![CompressedConstraint {
+                polynomial: 4,
+                a: 5,
+                b: 6,
+                c: 7,
+                d: 8,
+            }],
+        };
+        let expected = [
+            // hades_optimization
+            &[0xc3][..],
+            // public_inputs
+            &[0xdc, 0x00, 0x10],
+            &[0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07],
+            &[0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f],
+            // witnesses
+            &[0xcd, 0x12, 0x34],
+            // scalars
+            &[0x91, 0x00, 0x7f, 0xcc, 0x80, 0xcc, 0xff],
+            &[0x2a; BlsScalar::SIZE - 4],
+            // polynomials
+            &[0x91, 0x00, 0x7f, 0xcc, 0x80, 0xcc, 0xff, 0xcd, 0x01, 0x00],
+            &[0xcd, 0xff, 0xff, 0xce, 0x00, 0x01, 0x00, 0x00],
+            &[0xce, 0xff, 0xff, 0xff, 0xff, 0x01, 0x02, 0x03],
+            // constraints
+            &[0x91, 0x04, 0x05, 0x06, 0x07, 0x08],
+        ]
+        .concat();
+        assert_packed_encoding(&circuit, &expected, 16);
+
+        // `false` and empty fixarray headers.
+        let empty = CompressedCircuit {
+            hades_optimization: false,
+            public_inputs: Vec::new(),
+            witnesses: 0,
+            scalars: Vec::new(),
+            polynomials: Vec::new(),
+            constraints: Vec::new(),
+        };
+        assert_packed_encoding(
+            &empty,
+            &[0xc2, 0x90, 0x00, 0x90, 0x90, 0x90],
+            0,
+        );
+
+        // The longest fixarray header.
+        let fifteen = CompressedCircuit {
+            public_inputs: (0..15).collect(),
+            ..empty.clone()
+        };
+        let expected = [
+            &[0xc2, 0x9f][..],
+            &[0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07],
+            &[0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e],
+            &[0x00, 0x90, 0x90, 0x90],
+        ]
+        .concat();
+        assert_packed_encoding(&fifteen, &expected, 15);
+
+        // An array32 header.
+        let len = usize::from(u16::MAX) + 1;
+        let long = CompressedCircuit {
+            constraints: vec![CompressedConstraint::default(); len],
+            ..empty.clone()
+        };
+        let expected = [
+            &[0xc2, 0x90, 0x00, 0x90, 0x90, 0xdd, 0x00, 0x01, 0x00, 0x00][..],
+            &vec![0x00; len * CompressedCircuit::INDICES_PER_CONSTRAINT],
+        ]
+        .concat();
+        assert_packed_encoding(&long, &expected, len);
+
+        // uint64, which only a 64-bit `usize` reaches.
+        #[cfg(target_pointer_width = "64")]
+        {
+            let wide = CompressedCircuit {
+                witnesses: u32::MAX as usize + 1,
+                constraints: vec![CompressedConstraint {
+                    d: usize::MAX,
+                    ..CompressedConstraint::default()
+                }],
+                ..empty
+            };
+            let expected = [
+                &[0xc2, 0x90][..],
+                &[0xcf, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00],
+                &[0x90, 0x90, 0x91, 0x00, 0x00, 0x00, 0x00],
+                &[0xcf, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff],
+            ]
+            .concat();
+            assert_packed_encoding(&wide, &expected, 1);
+        }
+    }
+
+    #[derive(Default)]
+    struct PinnedCircuit;
+
+    impl Circuit for PinnedCircuit {
+        fn circuit(&self, composer: &mut Composer) -> Result<(), Error> {
+            let a = composer.append_witness(BlsScalar::from(3));
+            let b = composer.append_public(BlsScalar::from(5));
+
+            let constraint =
+                Constraint::new().left(2).right(7).constant(11).a(a).b(b);
+            let sum = composer.gate_add(constraint);
+            let constraint = Constraint::new().mult(13).a(sum).b(a);
+            let product = composer.gate_mul(constraint);
+
+            composer.component_range_bits::<16>(product);
+            composer.append_logic_xor::<4>(a, b);
+
+            let scalar = composer.append_witness(JubJubScalar::from(9u64));
+            let point =
+                composer.component_mul_generator(scalar, GENERATOR_EXTENDED)?;
+            composer.component_add_point(point, point);
+
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn compressed_circuit_is_pinned() {
+        const PACKED_LEN: usize = 47596;
+        const PACKED_BLAKE2B: &str = "05b0f486fe4fda64b7d9f2b12533d037\
+            bec546f8dc2905092b3eee142026f0b352f869dc763b621291cb67d3f69e1326\
+            9f688e654848f62b1207f64b29de515d";
+
+        let compressed = PinnedCircuit::compress().unwrap();
+        let packed =
+            miniz_oxide::inflate::decompress_to_vec(&compressed).unwrap();
+
+        assert_eq!(packed.len(), PACKED_LEN);
+        assert_eq!(
+            blake2b_simd::blake2b(&packed).to_hex().as_str(),
+            PACKED_BLAKE2B
+        );
+        assert_eq!(
+            compressed,
+            miniz_oxide::deflate::compress_to_vec(&packed, 10)
+        );
+
+        // The pin covers every selector, stored scalars and public inputs.
+        let circuit =
+            CompressedCircuit::unpack_bounded(&packed, PACKED_LEN).unwrap();
+        for selector in 0..CompressedCircuit::SELECTORS_PER_POLYNOMIAL {
+            assert!(
+                circuit
+                    .polynomials
+                    .iter()
+                    .any(|p| p.scalar_indices()[selector] != 0)
+            );
+        }
+        assert!(!circuit.scalars.is_empty());
+        assert!(!circuit.public_inputs.is_empty());
     }
 }
