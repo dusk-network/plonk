@@ -88,7 +88,7 @@ pub(crate) fn compute(
     );
 
     #[cfg(not(feature = "std"))]
-    let range = (0..quotient_domain.size()).into_iter();
+    let range = 0..quotient_domain.size();
 
     #[cfg(feature = "std")]
     let range = (0..quotient_domain.size()).into_par_iter();
@@ -177,7 +177,7 @@ fn compute_circuit_satisfiability_equation(
     let public_eval_8n = quotient_domain.coset_fft(pi_poly);
 
     #[cfg(not(feature = "std"))]
-    let range = (0..quotient_domain.size()).into_iter();
+    let range = 0..quotient_domain.size();
 
     #[cfg(feature = "std")]
     let range = (0..quotient_domain.size()).into_par_iter();
@@ -284,7 +284,7 @@ fn compute_permutation_checks(
         });
 
     #[cfg(not(feature = "std"))]
-    let range = (0..quotient_domain.size()).into_iter();
+    let range = 0..quotient_domain.size();
 
     #[cfg(feature = "std")]
     let range = (0..quotient_domain.size()).into_par_iter();

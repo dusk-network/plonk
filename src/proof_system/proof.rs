@@ -463,7 +463,7 @@ pub(crate) mod alloc {
                     &u_challenge,
                     l1_eval,
                     verifier_key,
-                    &domain,
+                    domain,
                 ),
                 &f_points,
                 &f_scalars,
@@ -751,7 +751,7 @@ pub(crate) mod alloc {
                     &u_challenge,
                     l1_eval,
                     verifier_key,
-                    &domain,
+                    domain,
                 ),
                 &f_points,
                 &f_scalars,
@@ -1030,7 +1030,7 @@ pub(crate) mod alloc {
 
         // Indices with non-zero evaluations
         #[cfg(not(feature = "std"))]
-        let range = (0..evaluations.len()).into_iter();
+        let range = 0..evaluations.len();
 
         #[cfg(feature = "std")]
         let range = (0..evaluations.len()).into_par_iter();
@@ -1044,7 +1044,7 @@ pub(crate) mod alloc {
 
         // Only compute the denominators with non-zero evaluations
         #[cfg(not(feature = "std"))]
-        let range = (0..non_zero_evaluations.len()).into_iter();
+        let range = 0..non_zero_evaluations.len();
 
         #[cfg(feature = "std")]
         let range = (0..non_zero_evaluations.len()).into_par_iter();

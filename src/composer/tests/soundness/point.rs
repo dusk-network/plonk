@@ -1460,7 +1460,7 @@ fn compile(pp: &PublicParameters) -> (Prover, Verifier) {
 fn curve_addition_binds_the_helper_wire() {
     assert_eq!(PlonkVersion::current(), PlonkVersion::V3);
 
-    let mut rng = StdRng::seed_from_u64(0x_add_9_0117);
+    let mut rng = StdRng::seed_from_u64(0xadd9_0117);
     let pp = PublicParameters::setup(1 << 8, &mut rng).expect("setup");
     let (prover, verifier) = compile(&pp);
 

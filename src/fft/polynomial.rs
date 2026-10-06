@@ -605,9 +605,7 @@ mod test {
         assert_eq!(p_bytes.len(), (degree + 1) * BlsScalar::SIZE,);
 
         // test leading coefficients are truncated at deserialization
-        for _ in 0..BlsScalar::SIZE {
-            p_bytes.push(0);
-        }
+        p_bytes.extend([0; BlsScalar::SIZE]);
         let p_deserialized = Polynomial::from_slice(&p_bytes[..])
             .expect("Deserialization should succeed");
         p.truncate_leading_zeros();

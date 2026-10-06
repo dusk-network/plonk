@@ -1432,7 +1432,7 @@ mod tests {
         let witnesses: Vec<_> = (0..domain.size())
             .map(|i| BlsScalar::from(i as u64))
             .collect();
-        let mut sequential_rng = StdRng::seed_from_u64(0x51_6d_a);
+        let mut sequential_rng = StdRng::seed_from_u64(0x0005_16da);
         let mut precomputed_rng = sequential_rng.clone();
 
         let sequential = [

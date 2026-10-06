@@ -256,18 +256,17 @@ impl Debugger {
                     .filter(|s| !s.starts_with("core::"))
                     .filter(|s| !s.starts_with("std::"))
                     .is_some()
+                    && let Some(path) = symbol.filename()
                 {
-                    if let Some(path) = symbol.filename() {
-                        let line = symbol.lineno().unwrap_or_default() as u64;
-                        let col = symbol.colno().unwrap_or_default() as u64;
-                        let path = path
-                            .canonicalize()
-                            .unwrap_or_default()
-                            .display()
-                            .to_string();
+                    let line = symbol.lineno().unwrap_or_default() as u64;
+                    let col = symbol.colno().unwrap_or_default() as u64;
+                    let path = path
+                        .canonicalize()
+                        .unwrap_or_default()
+                        .display()
+                        .to_string();
 
-                        source.replace(EncodableSource::new(line, col, path));
-                    }
+                    source.replace(EncodableSource::new(line, col, path));
                 }
             });
 
@@ -280,10 +279,10 @@ impl Debugger {
     fn write_output(&self) {
         let path = match env::var("CDF_OUTPUT") {
             Ok(path) => PathBuf::from(path),
-            Err(env::VarError::NotPresent) => return (),
+            Err(env::VarError::NotPresent) => return,
             Err(env::VarError::NotUnicode(_)) => {
                 eprintln!("the provided `CDF_OUTPUT` isn't valid unicode");
-                return ();
+                return;
             }
         };
 
@@ -350,9 +349,7 @@ impl Debugger {
             .and_then(|config| {
                 Encoder::init_file(config, witnesses, constraints, &path)
             })
-            .and_then(|mut c| {
-                c.write_all(EncoderContextFileProvider::default())
-            })
+            .and_then(|mut c| c.write_all(EncoderContextFileProvider))
         {
             eprintln!(
                 "failed to output CDF file to '{}': {}",
