@@ -23,12 +23,14 @@ use crate::commitment_scheme::Commitment;
 // We open at `z`:
 //   a, b, c, d, s_sigma_1, s_sigma_2, s_sigma_3,
 //   q_arith, q_c, q_l, q_r
+#[cfg(feature = "alloc")]
 const V_MAX_DEGREE: usize = 11;
 // Legacy number of (unshifted) polynomials opened at `z`, excluding the
 // linearization polynomial `r(X)`.
 //
 // This matches the pre-soundness-fix batching that does NOT bind selector /
 // constant evaluations in the batched opening at `z`.
+#[cfg(feature = "alloc")]
 const V_MAX_DEGREE_LEGACY: usize = 7;
 
 #[cfg(feature = "rkyv-impl")]
