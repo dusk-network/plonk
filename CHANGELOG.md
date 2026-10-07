@@ -22,12 +22,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `Error::CircuitUnsatisfied` [#877]
 - Add `Display` for `Error` to builds without the `std` feature [#895]
 - Add `core::error::Error` for `Error` to builds without the `std` feature [#895]
-- Cover curve-addition poles directly in point soundness regressions and update
-  their module documentation [#910]
-- Isolate the collapsed curve-addition pole residual in a point soundness
-  regression [#914]
-- Cover the positive curve-addition pole with an isolated soundness regression
-  [#916]
 
 ### Changed
 
@@ -67,11 +61,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and commitment keys [#964]
 - Bind proof construction to the public-input rows recorded at compile time [#957]
 - Reject serialized provers that predate the compiled public-input row layout [#957]
-- Update Criterion to 0.8 and align the dev-only `itertools` dependency [#953]
 - Raise the MSRV to Rust 1.96.1 [#951]
 - Update `blake2b_simd` to 1.0.5 [#950]
-- Replace the deprecated `tempdir` development dependency with `tempfile`
-  [#949]
 - Update `miniz_oxide` to 0.9 and replace the unmaintained `adler` dependency
   with `adler2` [#948]
 - Align `hashbrown` with the version used by the optional RKYV dependency graph
@@ -862,10 +853,8 @@ is necessary since `rkyv/validation` was required as a bound.
 [#960]: https://github.com/dusk-network/plonk/issues/960
 [#959]: https://github.com/dusk-network/plonk/issues/959
 [#957]: https://github.com/dusk-network/plonk/issues/957
-[#953]: https://github.com/dusk-network/plonk/issues/953
 [#951]: https://github.com/dusk-network/plonk/issues/951
 [#950]: https://github.com/dusk-network/plonk/issues/950
-[#949]: https://github.com/dusk-network/plonk/issues/949
 [#948]: https://github.com/dusk-network/plonk/issues/948
 [#943]: https://github.com/dusk-network/plonk/issues/943
 [#942]: https://github.com/dusk-network/plonk/issues/942
@@ -880,10 +869,7 @@ is necessary since `rkyv/validation` was required as a bound.
 [#927]: https://github.com/dusk-network/plonk/issues/927
 [#920]: https://github.com/dusk-network/plonk/issues/920
 [#919]: https://github.com/dusk-network/plonk/issues/919
-[#916]: https://github.com/dusk-network/plonk/issues/916
-[#914]: https://github.com/dusk-network/plonk/issues/914
 [#913]: https://github.com/dusk-network/plonk/issues/913
-[#910]: https://github.com/dusk-network/plonk/issues/910
 [#908]: https://github.com/dusk-network/plonk/issues/908
 [#902]: https://github.com/dusk-network/plonk/issues/902
 [#903]: https://github.com/dusk-network/plonk/issues/903
