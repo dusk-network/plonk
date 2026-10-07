@@ -31,6 +31,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Reject compressed circuits with bytes after the end of the deflate stream
+  [#1006]
 - Remove the `msgpacker` dependency [#1004]
 - Reject compressed circuits with an integer above `usize::MAX` instead of
   truncating it on 32-bit targets [#1004]
@@ -839,6 +841,7 @@ is necessary since `rkyv/validation` was required as a bound.
 - Proof system module.
 
 <!-- ISSUES -->
+[#1006]: https://github.com/dusk-network/plonk/issues/1006
 [#1004]: https://github.com/dusk-network/plonk/issues/1004
 [#992]: https://github.com/dusk-network/plonk/issues/992
 [#987]: https://github.com/dusk-network/plonk/issues/987

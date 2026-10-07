@@ -4,10 +4,15 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
+use alloc::boxed::Box;
 use alloc::vec::Vec;
 
 use dusk_bytes::Serializable;
 use hashbrown::HashMap;
+use miniz_oxide::inflate::TINFLStatus;
+use miniz_oxide::inflate::core::{
+    DecompressorOxide, decompress, inflate_flags,
+};
 
 use super::{BlsScalar, Composer, Constraint, Error, Gate, Selector, Witness};
 
@@ -80,6 +85,46 @@ fn scalar_map(hades_optimization: bool) -> HashMap<BlsScalar, usize> {
         }
     }
     scalars
+}
+
+/// Inflates a raw deflate stream into at most `max_size` bytes.
+///
+/// Unlike `miniz_oxide::inflate::decompress_to_vec_with_limit`, this rejects
+/// input left over after the end of the stream.
+///
+/// The loop copies the one inside `decompress_to_vec_with_limit`. No public
+/// `miniz_oxide` function inflates into a size-limited vector and also reports
+/// how much input it consumed. The functions that report consumed input fill
+/// a buffer the caller sizes, so this loop grows that buffer up to `max_size`.
+fn inflate_exact(compressed: &[u8], max_size: usize) -> Result<Vec<u8>, Error> {
+    let flags = inflate_flags::TINFL_FLAG_USING_NON_WRAPPING_OUTPUT_BUF;
+    let mut decompressor = Box::<DecompressorOxide>::default();
+    let mut inflated =
+        vec![0; compressed.len().saturating_mul(2).min(max_size)];
+    let mut input = compressed;
+    let mut written = 0;
+
+    loop {
+        let (status, consumed, produced) =
+            decompress(&mut decompressor, input, &mut inflated, written, flags);
+        written += produced;
+        input = input
+            .get(consumed..)
+            .ok_or(Error::InvalidCompressedCircuit)?;
+
+        match status {
+            TINFLStatus::Done if input.is_empty() => {
+                inflated.truncate(written);
+                return Ok(inflated);
+            }
+            TINFLStatus::HasMoreOutput if inflated.len() < max_size => {
+                // grow by at least one byte, so an empty buffer still grows
+                let len = inflated.len().saturating_mul(2).max(1).min(max_size);
+                inflated.resize(len, 0);
+            }
+            _ => return Err(Error::InvalidCompressedCircuit),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -265,10 +310,7 @@ impl CompressedCircuit {
         max_constraints: usize,
     ) -> Result<Composer, Error> {
         let max_size = Self::packed_size_limit(max_constraints)?;
-        let compressed = miniz_oxide::inflate::decompress_to_vec_with_limit(
-            compressed, max_size,
-        )
-        .map_err(|_| Error::InvalidCompressedCircuit)?;
+        let compressed = inflate_exact(compressed, max_size)?;
         let circuit = Self::unpack_bounded(&compressed, max_constraints)?;
 
         let scalar_map = scalar_map(circuit.hades_optimization);
@@ -593,6 +635,21 @@ mod tests {
             result.unwrap(),
             Err(Error::InvalidCompressedCircuit)
         ));
+    }
+
+    #[test]
+    fn trailing_bytes_after_deflate_stream_are_rejected() {
+        let encoded = encode(&circuit());
+
+        for suffix in [&[0][..], &[0xff; 32], &encoded[..]] {
+            let mut padded = encoded.clone();
+            padded.extend_from_slice(suffix);
+
+            assert!(matches!(
+                CompressedCircuit::from_bytes(&padded, MAX_CONSTRAINTS),
+                Err(Error::InvalidCompressedCircuit)
+            ));
+        }
     }
 
     #[test]
