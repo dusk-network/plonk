@@ -8,6 +8,7 @@
 
 pub(crate) mod linearization_poly;
 pub(crate) mod proof;
+#[cfg(any(feature = "alloc", feature = "rkyv-impl"))]
 pub(crate) mod widget;
 
 cfg_if::cfg_if!(

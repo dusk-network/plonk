@@ -73,8 +73,11 @@ mod tests {
         let gate_copy = gate;
         assert_eq!(gate, gate_copy);
 
-        // Clone
-        let gate_clone = gate_copy.clone();
+        // Clone, as generic code calls it
+        fn clone_of<T: Clone>(value: &T) -> T {
+            value.clone()
+        }
+        let gate_clone = clone_of(&gate_copy);
         assert_eq!(gate_copy, gate_clone);
 
         // Debug fmt should not panic

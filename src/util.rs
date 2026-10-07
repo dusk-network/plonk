@@ -166,7 +166,7 @@ mod test {
         let four = BlsScalar::from(4);
         let five = BlsScalar::from(5);
 
-        let original_scalars = vec![one, two, three, four, five];
+        let original_scalars = [one, two, three, four, five];
         let mut inverted_scalars = vec![one, two, three, four, five];
 
         batch_inversion(&mut inverted_scalars);

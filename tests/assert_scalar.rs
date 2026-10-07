@@ -65,7 +65,7 @@ fn assert_equal() {
     // 0 = 0
     let msg = "Default circuit verification should pass";
     let circuit = TestCircuit::default();
-    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, msg);
 
     // Test:
     // 1 = 1
@@ -73,15 +73,15 @@ fn assert_equal() {
     let scalar_a = BlsScalar::one();
     let scalar_b = BlsScalar::one();
     let circuit = TestCircuit::new(scalar_a, scalar_b);
-    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, msg);
 
     // Test:
     // x = x
     let msg = "Satisfied circuit verification should pass";
     let scalar_a = BlsScalar::random(&mut rng);
-    let scalar_b = scalar_a.clone();
+    let scalar_b = scalar_a;
     let circuit = TestCircuit::new(scalar_a, scalar_b);
-    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, msg);
 
     // Test:
     // 1 != 0
@@ -89,7 +89,7 @@ fn assert_equal() {
     let scalar_a = BlsScalar::one();
     let scalar_b = BlsScalar::zero();
     let circuit = TestCircuit::new(scalar_a, scalar_b);
-    check_unsatisfied_circuit(&prover, &circuit, &mut rng, &msg);
+    check_unsatisfied_circuit(&prover, &circuit, &mut rng, msg);
 
     // Test:
     // x != y
@@ -97,7 +97,7 @@ fn assert_equal() {
     let scalar_a = BlsScalar::random(&mut rng);
     let scalar_b = BlsScalar::random(&mut rng);
     let circuit = TestCircuit::new(scalar_a, scalar_b);
-    check_unsatisfied_circuit(&prover, &circuit, &mut rng, &msg);
+    check_unsatisfied_circuit(&prover, &circuit, &mut rng, msg);
 }
 
 #[test]
@@ -153,7 +153,7 @@ fn assert_equal_constant() {
     let msg = "Default circuit verification should pass";
     let circuit = TestCircuit::default();
     let pi = vec![];
-    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, msg);
 
     // Test public input doesn't match
     let msg = "Proving should reject an unexpected public input";
@@ -162,7 +162,7 @@ fn assert_equal_constant() {
     let public_value = BlsScalar::zero();
     let public = Some(public_value);
     let circuit = TestCircuit::new(scalar, constant, public);
-    check_public_input_count_mismatch(&prover, 0, 1, &circuit, &mut rng, &msg);
+    check_public_input_count_mismatch(&prover, 0, 1, &circuit, &mut rng, msg);
 
     // Test constant doesn't match
     let msg = "Proof creation should not be possible with different constant than in circuit description";
@@ -170,7 +170,7 @@ fn assert_equal_constant() {
     let constant = BlsScalar::one();
     let public = None;
     let circuit = TestCircuit::new(scalar, constant, public);
-    check_unsatisfied_circuit(&prover, &circuit, &mut rng, &msg);
+    check_unsatisfied_circuit(&prover, &circuit, &mut rng, msg);
 
     // Test: public = Some(_), constant = zero
     //
@@ -187,18 +187,18 @@ fn assert_equal_constant() {
     // 0 = 0 + 0
     let msg = "Default circuit verification should pass";
     let pi = vec![BlsScalar::zero()];
-    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, msg);
 
     // Test:
     // witness = 0 + pi
     let msg = "Satisfied circuit should verify";
     let scalar = BlsScalar::random(&mut rng);
     let constant = BlsScalar::zero();
-    let public_value = scalar.clone();
+    let public_value = scalar;
     let public = Some(public_value);
     let pi = vec![public_value];
     let circuit = TestCircuit::new(scalar, constant, public);
-    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, msg);
 
     // Test public input doesn't match
     let msg = "Proving should reject a missing public input";
@@ -206,7 +206,7 @@ fn assert_equal_constant() {
     let constant = BlsScalar::zero();
     let public = None;
     let circuit = TestCircuit::new(scalar, constant, public);
-    check_public_input_count_mismatch(&prover, 1, 0, &circuit, &mut rng, &msg);
+    check_public_input_count_mismatch(&prover, 1, 0, &circuit, &mut rng, msg);
 
     // Test constant doesn't match
     let msg = "Proof creation should not be possible with different constant than in circuit description";
@@ -214,13 +214,13 @@ fn assert_equal_constant() {
     let constant = BlsScalar::one();
     let public = Some(BlsScalar::zero());
     let circuit = TestCircuit::new(scalar, constant, public);
-    check_unsatisfied_circuit(&prover, &circuit, &mut rng, &msg);
+    check_unsatisfied_circuit(&prover, &circuit, &mut rng, msg);
 
     // Test: public = None, constant = random
     //
     // Compile new circuit descriptions for the prover and verifier
     let constant = BlsScalar::random(&mut rng);
-    let scalar = constant.clone();
+    let scalar = constant;
     let public = None;
     let circuit = TestCircuit::new(scalar, constant, public);
     let (prover, verifier) =
@@ -231,14 +231,14 @@ fn assert_equal_constant() {
     // x = x + None
     let msg = "Default circuit verification should pass";
     let pi = vec![];
-    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, msg);
 
     // Test public input doesn't match
     let msg = "Proving should reject an unexpected public input";
     let public_value = BlsScalar::zero();
     let public = Some(public_value);
     let circuit = TestCircuit::new(scalar, constant, public);
-    check_public_input_count_mismatch(&prover, 0, 1, &circuit, &mut rng, &msg);
+    check_public_input_count_mismatch(&prover, 0, 1, &circuit, &mut rng, msg);
 
     // Test constant doesn't match
     let msg = "Proof creation should not be possible with different constant than in circuit description";
@@ -246,13 +246,13 @@ fn assert_equal_constant() {
     let constant = BlsScalar::one();
     let public = None;
     let circuit = TestCircuit::new(scalar, constant, public);
-    check_unsatisfied_circuit(&prover, &circuit, &mut rng, &msg);
+    check_unsatisfied_circuit(&prover, &circuit, &mut rng, msg);
 
     // Test: public = Some(_), constant = random
     //
     // Compile new circuit descriptions for the prover and verifier
     let constant = BlsScalar::random(&mut rng);
-    let scalar = constant.clone();
+    let scalar = constant;
     let public = Some(BlsScalar::zero());
     let circuit = TestCircuit::new(scalar, constant, public);
     let (prover, verifier) =
@@ -263,7 +263,7 @@ fn assert_equal_constant() {
     // 0 = 0 + 0
     let msg = "Default circuit verification should pass";
     let pi = vec![BlsScalar::zero()];
-    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, msg);
 
     // Test:
     // witness = constant + pi
@@ -273,14 +273,14 @@ fn assert_equal_constant() {
     let public = Some(public_value);
     let pi = vec![public_value];
     let circuit = TestCircuit::new(scalar, constant, public);
-    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, msg);
 
     // Test public input doesn't match
     let msg = "Proving should reject a missing public input";
-    let scalar = constant.clone();
+    let scalar = constant;
     let public = None;
     let circuit = TestCircuit::new(scalar, constant, public);
-    check_public_input_count_mismatch(&prover, 1, 0, &circuit, &mut rng, &msg);
+    check_public_input_count_mismatch(&prover, 1, 0, &circuit, &mut rng, msg);
 
     // Test constant doesn't match
     let msg = "Proof creation should not be possible with different constant than in circuit description";
@@ -288,5 +288,5 @@ fn assert_equal_constant() {
     let constant = BlsScalar::one();
     let public = Some(BlsScalar::zero());
     let circuit = TestCircuit::new(scalar, constant, public);
-    check_unsatisfied_circuit(&prover, &circuit, &mut rng, &msg);
+    check_unsatisfied_circuit(&prover, &circuit, &mut rng, msg);
 }

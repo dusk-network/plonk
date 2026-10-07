@@ -151,7 +151,7 @@ mod tests {
         assert_eq!(proof.evaluated_point, expected_eval);
 
         let expected_commitment_proj: G1Projective =
-            c0.0 * &powers[0] + c1.0 * &powers[1] + c2.0 * &powers[2];
+            c0.0 * powers[0] + c1.0 * powers[1] + c2.0 * powers[2];
         let expected_commitment: Commitment = expected_commitment_proj.into();
 
         assert_eq!(proof.commitment_to_polynomial, expected_commitment);

@@ -54,14 +54,14 @@ fn range() {
     // 0 < 2^0
     let msg = "Default circuit verification should pass";
     let circuit = TestCircuit::<0>::default();
-    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, msg);
 
     // Test:
     // 1 < 2^0
     let msg = "Verification of satisfied circuit should pass";
     let a = BlsScalar::one();
     let circuit: TestCircuit<0> = TestCircuit::new(a);
-    check_unsatisfied_circuit(&prover, &circuit, &mut rng, &msg);
+    check_unsatisfied_circuit(&prover, &circuit, &mut rng, msg);
 
     // Test:
     // random !< 2^0
@@ -69,7 +69,7 @@ fn range() {
     let a = BlsScalar::random(&mut rng);
     assert!(a != BlsScalar::zero());
     let circuit: TestCircuit<0> = TestCircuit::new(a);
-    check_unsatisfied_circuit(&prover, &circuit, &mut rng, &msg);
+    check_unsatisfied_circuit(&prover, &circuit, &mut rng, msg);
 
     // Test bits = 2
     //
@@ -84,14 +84,14 @@ fn range() {
     let msg = "Verification of a satisfied circuit should pass";
     let a = BlsScalar::one();
     let circuit: TestCircuit<BITS_2> = TestCircuit::new(a);
-    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, msg);
 
     // Test fails:
     // 4 !< 2^2
     let msg = "Proof creation of an unsatisfied circuit should fail";
     let a = BlsScalar::from(4);
     let circuit: TestCircuit<BITS_2> = TestCircuit::new(a);
-    check_unsatisfied_circuit(&prover, &circuit, &mut rng, &msg);
+    check_unsatisfied_circuit(&prover, &circuit, &mut rng, msg);
 
     // Test bits = 7 (odd width)
     //
@@ -106,14 +106,14 @@ fn range() {
     let msg = "Verification of a satisfied odd-width circuit should pass";
     let a = BlsScalar::from(127);
     let circuit: TestCircuit<BITS_7> = TestCircuit::new(a);
-    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, msg);
 
     // Test fails:
     // 2^7 !< 2^7
     let msg = "Proof creation of an unsatisfied odd-width circuit should fail";
     let a = BlsScalar::from(128);
     let circuit: TestCircuit<BITS_7> = TestCircuit::new(a);
-    check_unsatisfied_circuit(&prover, &circuit, &mut rng, &msg);
+    check_unsatisfied_circuit(&prover, &circuit, &mut rng, msg);
 
     // Test bits = 74
     //
@@ -128,21 +128,21 @@ fn range() {
     let msg = "Verification of a satisfied circuit should pass";
     let a = BlsScalar::pow_of_2(73);
     let circuit: TestCircuit<BITS_74> = TestCircuit::new(a);
-    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, msg);
 
     // Test:
     // 2^74 - 1 < 2^74
     let msg = "Verification of a satisfied circuit should pass";
     let a = BlsScalar::pow_of_2(74) - BlsScalar::one();
     let circuit: TestCircuit<BITS_74> = TestCircuit::new(a);
-    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, msg);
 
     // Test fails:
     // 2^74 !< 2^74
     let msg = "Proof creation of an unsatisfied circuit should fail";
     let a = BlsScalar::pow_of_2(74);
     let circuit: TestCircuit<BITS_74> = TestCircuit::new(a);
-    check_unsatisfied_circuit(&prover, &circuit, &mut rng, &msg);
+    check_unsatisfied_circuit(&prover, &circuit, &mut rng, msg);
 
     // Test bits = 256
     //
@@ -157,12 +157,12 @@ fn range() {
     let msg = "Verification of a satisfied circuit should pass";
     let a = BlsScalar::pow_of_2(255);
     let circuit: TestCircuit<BITS_256> = TestCircuit::new(a);
-    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, msg);
 
     // Test:
     // -bls(1) < 2^256
     let msg = "Verification of a satisfied circuit should pass";
     let a = -BlsScalar::one();
     let circuit: TestCircuit<BITS_256> = TestCircuit::new(a);
-    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, msg);
 }

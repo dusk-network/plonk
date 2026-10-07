@@ -69,7 +69,7 @@ fn append_logic_and() {
     // Test default works
     let msg = "Default circuit verification should pass";
     let circuit = TestCircuit::<0>::default();
-    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, msg);
 
     // Test comparing 0 bits is always zero
     let msg = "Circuit verification of satisfied circuit should pass";
@@ -80,7 +80,7 @@ fn append_logic_and() {
         b,
         result: BlsScalar::zero(),
     };
-    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, msg);
 
     // Test with bits = 32
     //
@@ -95,13 +95,13 @@ fn append_logic_and() {
     let b = BlsScalar::from(0xffff_0000_0000_ffff);
     let result = BlsScalar::from(0x0000_0ff0);
     let circuit: TestCircuit<BIT_PAIRS_16> = TestCircuit { a, b, result };
-    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, msg);
 
     // Test random works:
     let a = BlsScalar::random(&mut rng);
     let b = BlsScalar::random(&mut rng);
     let circuit: TestCircuit<BIT_PAIRS_16> = TestCircuit::new(a, b);
-    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, msg);
 
     // Test invalid circuit fails
     let msg = "Proof creation of unsatisfied circuit should fail";
@@ -118,7 +118,7 @@ fn append_logic_and() {
         b,
         result: wrong_result,
     };
-    check_unsatisfied_circuit(&prover, &circuit_unsatisfied, &mut rng, &msg);
+    check_unsatisfied_circuit(&prover, &circuit_unsatisfied, &mut rng, msg);
     // sanity check
     let circuit_satisfied: TestCircuit<BIT_PAIRS_16> = TestCircuit {
         a,
@@ -131,7 +131,7 @@ fn append_logic_and() {
         &pi,
         &circuit_satisfied,
         &mut rng,
-        &"Sanity check should pass",
+        "Sanity check should pass",
     );
 
     // Test with bits = 254 (the maximum width, BIT_PAIRS = 127)
@@ -148,14 +148,14 @@ fn append_logic_and() {
     let b = -BlsScalar::one();
     let result = a & b & bit_mask;
     let circuit: TestCircuit<BIT_PAIRS_127> = TestCircuit { a, b, result };
-    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, msg);
 
     // Test random works:
     let msg = "Circuit verification with random values should pass";
     let a = BlsScalar::random(&mut rng);
     let b = BlsScalar::random(&mut rng);
     let circuit: TestCircuit<BIT_PAIRS_127> = TestCircuit::new(a, b);
-    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, msg);
 
     // Test invalid circuit fails
     let msg = "Proof creation of unsatisfied circuit should fail";
@@ -170,7 +170,7 @@ fn append_logic_and() {
         b,
         result: wrong_result,
     };
-    check_unsatisfied_circuit(&prover, &circuit, &mut rng, &msg);
+    check_unsatisfied_circuit(&prover, &circuit, &mut rng, msg);
     // sanity check
     let circuit_satisfied: TestCircuit<BIT_PAIRS_127> = TestCircuit {
         a,
@@ -183,7 +183,7 @@ fn append_logic_and() {
         &pi,
         &circuit_satisfied,
         &mut rng,
-        &"Sanity check should pass",
+        "Sanity check should pass",
     );
 }
 
@@ -243,7 +243,7 @@ fn append_logic_xor() {
     // Test default works
     let msg = "Default circuit verification should pass";
     let circuit = TestCircuit::<0>::default();
-    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, msg);
 
     // Test comparing 0 bits is always zero
     let msg = "Circuit verification of satisfied circuit should pass";
@@ -254,7 +254,7 @@ fn append_logic_xor() {
         b,
         result: BlsScalar::zero(),
     };
-    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, msg);
 
     // Test with bits = 32
     //
@@ -270,13 +270,13 @@ fn append_logic_xor() {
     let result = BlsScalar::from(0x0f0f_f00f);
     let circuit: TestCircuit<BIT_PAIRS_16> = TestCircuit { a, b, result };
 
-    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, msg);
 
     // Test random works:
     let a = BlsScalar::random(&mut rng);
     let b = BlsScalar::random(&mut rng);
     let circuit: TestCircuit<BIT_PAIRS_16> = TestCircuit::new(a, b);
-    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, msg);
 
     // Test invalid circuit fails
     let msg = "Proof creation of unsatisfied circuit should fail";
@@ -293,7 +293,7 @@ fn append_logic_xor() {
         b,
         result: wrong_result,
     };
-    check_unsatisfied_circuit(&prover, &circuit_unsatisfied, &mut rng, &msg);
+    check_unsatisfied_circuit(&prover, &circuit_unsatisfied, &mut rng, msg);
     // sanity check
     let circuit_satisfied: TestCircuit<BIT_PAIRS_16> = TestCircuit {
         a,
@@ -306,7 +306,7 @@ fn append_logic_xor() {
         &pi,
         &circuit_satisfied,
         &mut rng,
-        &"Sanity check should pass",
+        "Sanity check should pass",
     );
 
     // Test with bits = 254 (the maximum width, BIT_PAIRS = 127)
@@ -323,14 +323,14 @@ fn append_logic_xor() {
     let b = BlsScalar::zero();
     let result = a & bit_mask;
     let circuit: TestCircuit<BIT_PAIRS_127> = TestCircuit { a, b, result };
-    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, msg);
 
     // Test random works:
     let msg = "Circuit verification with random values should pass";
     let a = BlsScalar::random(&mut rng);
     let b = BlsScalar::random(&mut rng);
     let circuit: TestCircuit<BIT_PAIRS_127> = TestCircuit::new(a, b);
-    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, msg);
 
     // Test invalid circuit fails
     let msg = "Proof creation of unsatisfied circuit should fail";
@@ -345,7 +345,7 @@ fn append_logic_xor() {
         b,
         result: wrong_result,
     };
-    check_unsatisfied_circuit(&prover, &circuit, &mut rng, &msg);
+    check_unsatisfied_circuit(&prover, &circuit, &mut rng, msg);
     // sanity check
     let circuit_satisfied: TestCircuit<BIT_PAIRS_127> = TestCircuit {
         a,
@@ -358,6 +358,6 @@ fn append_logic_xor() {
         &pi,
         &circuit_satisfied,
         &mut rng,
-        &"Sanity check should pass",
+        "Sanity check should pass",
     );
 }

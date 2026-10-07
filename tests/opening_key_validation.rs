@@ -92,8 +92,9 @@ fn forged_identity_proof() -> Proof {
         PROOF_COMMITMENTS * G1_SIZE
             + PROOF_EVALUATIONS * SCALAR_SIZE
     ];
-    for commitment in
-        bytes[..PROOF_COMMITMENTS * G1_SIZE].chunks_exact_mut(G1_SIZE)
+    for commitment in bytes[..PROOF_COMMITMENTS * G1_SIZE]
+        .as_chunks_mut::<G1_SIZE>()
+        .0
     {
         commitment[0] = 0xc0;
     }

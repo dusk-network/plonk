@@ -35,7 +35,7 @@ fn component_add_point() {
             let p1 = JubJubExtended::identity();
             let p2 = JubJubExtended::identity();
             let sum = JubJubExtended::identity();
-            Self::new(p1.into(), p2.into(), sum.into())
+            Self::new(p1, p2, sum)
         }
     }
 
@@ -72,43 +72,43 @@ fn component_add_point() {
     let msg = "Default circuit verification should pass";
     let circuit = TestCircuit::default();
     let pi = vec![];
-    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, msg);
 
     // Test identity works:
     let msg = "Adding identity should not change the point";
-    let p1 = dusk_jubjub::GENERATOR_EXTENDED * &JubJubScalar::random(&mut rng);
+    let p1 = dusk_jubjub::GENERATOR_EXTENDED * JubJubScalar::random(&mut rng);
     let p2 = JubJubExtended::identity();
-    let sum = p1.clone();
+    let sum = p1;
     let circuit = TestCircuit::new(p1, p2, sum);
     let pi = vec![];
-    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, msg);
 
     // Test distributivity:
     // a * GENERATOR + b * GENERATOR = (a + b) * GENERATOR
     let msg = "Random point addition should satisfy the circuit";
     let a = JubJubScalar::random(&mut rng);
     let b = JubJubScalar::random(&mut rng);
-    let p1 = dusk_jubjub::GENERATOR_EXTENDED * &a;
-    let p2 = dusk_jubjub::GENERATOR_EXTENDED * &b;
-    let sum = dusk_jubjub::GENERATOR_EXTENDED * &(a + b);
+    let p1 = dusk_jubjub::GENERATOR_EXTENDED * a;
+    let p2 = dusk_jubjub::GENERATOR_EXTENDED * b;
+    let sum = dusk_jubjub::GENERATOR_EXTENDED * (a + b);
     let circuit = TestCircuit::new(p1, p2, sum);
     let pi = vec![];
-    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, msg);
 
     // Test random works:
     let msg = "Random point addition should satisfy the circuit";
-    let p1 = dusk_jubjub::GENERATOR_EXTENDED * &JubJubScalar::random(&mut rng);
-    let p2 = dusk_jubjub::GENERATOR_EXTENDED * &JubJubScalar::random(&mut rng);
+    let p1 = dusk_jubjub::GENERATOR_EXTENDED * JubJubScalar::random(&mut rng);
+    let p2 = dusk_jubjub::GENERATOR_EXTENDED * JubJubScalar::random(&mut rng);
     let sum = p1 + p2;
     let circuit = TestCircuit::new(p1, p2, sum);
     let pi = vec![];
-    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, msg);
 
     // Unsatisfied circuit
     let msg = "Unsatisfied circuit should not pass";
-    let p1 = dusk_jubjub::GENERATOR_EXTENDED * &JubJubScalar::from(0xdecafu64);
-    let p2 = dusk_jubjub::GENERATOR_EXTENDED * &JubJubScalar::from(0xcafeu64);
-    let sum = dusk_jubjub::GENERATOR_EXTENDED * &JubJubScalar::from(0xcabu64);
+    let p1 = dusk_jubjub::GENERATOR_EXTENDED * JubJubScalar::from(0xdecafu64);
+    let p2 = dusk_jubjub::GENERATOR_EXTENDED * JubJubScalar::from(0xcafeu64);
+    let sum = dusk_jubjub::GENERATOR_EXTENDED * JubJubScalar::from(0xcabu64);
     let circuit = TestCircuit::new(p1, p2, sum);
     check_unsatisfied_circuit(&prover, &circuit, &mut rng, msg);
 }
@@ -136,7 +136,7 @@ fn component_sub_point() {
             let p1 = JubJubExtended::identity();
             let p2 = JubJubExtended::identity();
             let sub = JubJubExtended::identity();
-            Self::new(p1.into(), p2.into(), sub.into())
+            Self::new(p1, p2, sub)
         }
     }
 
@@ -173,40 +173,40 @@ fn component_sub_point() {
     let msg = "Default circuit verification should pass";
     let circuit = TestCircuit::default();
     let pi = vec![];
-    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, msg);
 
     // Test identity works:
     let msg = "Subtracting identity should not change the point";
-    let p1 = dusk_jubjub::GENERATOR_EXTENDED * &JubJubScalar::random(&mut rng);
+    let p1 = dusk_jubjub::GENERATOR_EXTENDED * JubJubScalar::random(&mut rng);
     let p2 = JubJubExtended::identity();
-    let sub = p1.clone();
+    let sub = p1;
     let circuit = TestCircuit::new(p1, p2, sub);
     let pi = vec![];
-    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, msg);
 
     // Test identity works (second case):
     let msg = "Subtracting point from identity should negate the point";
-    let p1 = dusk_jubjub::GENERATOR_EXTENDED * &JubJubScalar::random(&mut rng);
+    let p1 = dusk_jubjub::GENERATOR_EXTENDED * JubJubScalar::random(&mut rng);
     let p2 = JubJubExtended::identity();
-    let sub = -p1.clone();
+    let sub = -p1;
     let circuit = TestCircuit::new(p2, p1, sub);
     let pi = vec![];
-    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, msg);
 
     // Test random works:
     let msg = "Random point subtraction should satisfy the circuit";
-    let p1 = dusk_jubjub::GENERATOR_EXTENDED * &JubJubScalar::random(&mut rng);
-    let p2 = dusk_jubjub::GENERATOR_EXTENDED * &JubJubScalar::random(&mut rng);
+    let p1 = dusk_jubjub::GENERATOR_EXTENDED * JubJubScalar::random(&mut rng);
+    let p2 = dusk_jubjub::GENERATOR_EXTENDED * JubJubScalar::random(&mut rng);
     let sub = p1 - p2;
     let circuit = TestCircuit::new(p1, p2, sub);
     let pi = vec![];
-    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, msg);
 
     // Unsatisfied circuit
     let msg = "Unsatisfied circuit should not pass";
-    let p1 = dusk_jubjub::GENERATOR_EXTENDED * &JubJubScalar::from(0xdecafu64);
-    let p2 = dusk_jubjub::GENERATOR_EXTENDED * &JubJubScalar::from(0xcafeu64);
-    let sub = dusk_jubjub::GENERATOR_EXTENDED * &JubJubScalar::from(0xcabu64);
+    let p1 = dusk_jubjub::GENERATOR_EXTENDED * JubJubScalar::from(0xdecafu64);
+    let p2 = dusk_jubjub::GENERATOR_EXTENDED * JubJubScalar::from(0xcafeu64);
+    let sub = dusk_jubjub::GENERATOR_EXTENDED * JubJubScalar::from(0xcabu64);
     let circuit = TestCircuit::new(p1, p2, sub);
     check_unsatisfied_circuit(&prover, &circuit, &mut rng, msg);
 }
@@ -228,7 +228,7 @@ fn component_neg_point() {
         fn default() -> Self {
             let p = JubJubExtended::identity();
             let neg_p = JubJubExtended::identity();
-            Self::new(p.into(), neg_p.into())
+            Self::new(p, neg_p)
         }
     }
 
@@ -263,7 +263,7 @@ fn component_neg_point() {
     let msg = "Default circuit verification should pass";
     let circuit = TestCircuit::default();
     let pi = vec![];
-    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, msg);
 
     // Test identity works:
     let msg = "Negating the identity should not change it";
@@ -272,21 +272,20 @@ fn component_neg_point() {
     assert_eq!(p, neg_p);
     let circuit = TestCircuit::new(p, neg_p);
     let pi = vec![];
-    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, msg);
 
     // Test random works:
     let msg = "Random point negation should satisfy the circuit";
-    let p = dusk_jubjub::GENERATOR_EXTENDED * &JubJubScalar::random(&mut rng);
+    let p = dusk_jubjub::GENERATOR_EXTENDED * JubJubScalar::random(&mut rng);
     let neg_p = -p;
     let circuit = TestCircuit::new(p, neg_p);
     let pi = vec![];
-    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, msg);
 
     // Unsatisfied circuit
     let msg = "Unsatisfied circuit should not pass";
-    let p = dusk_jubjub::GENERATOR_EXTENDED * &JubJubScalar::from(0xdecafu64);
-    let neg_p =
-        dusk_jubjub::GENERATOR_EXTENDED * &JubJubScalar::from(0xcafeu64);
+    let p = dusk_jubjub::GENERATOR_EXTENDED * JubJubScalar::from(0xdecafu64);
+    let neg_p = dusk_jubjub::GENERATOR_EXTENDED * JubJubScalar::from(0xcafeu64);
     let circuit = TestCircuit::new(p, neg_p);
     check_unsatisfied_circuit(&prover, &circuit, &mut rng, msg);
 }
@@ -368,7 +367,7 @@ fn component_mul_generator() {
     // GENERATOR * random
     let msg = "Circuit with random scalar should pass";
     let scalar = JubJubScalar::random(&mut rng);
-    let result = generator * &scalar;
+    let result = generator * scalar;
     let circuit = TestCircuit::new(scalar, generator, result);
     check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, msg);
 
@@ -377,7 +376,7 @@ fn component_mul_generator() {
     // signed digit the fixed-base gadget must retain.
     let msg = "Circuit with scalar -1 (r - 1) should pass";
     let scalar = -JubJubScalar::one();
-    let result = generator * &scalar;
+    let result = generator * scalar;
     let circuit = TestCircuit::new(scalar, generator, result);
     check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, msg);
 
@@ -399,7 +398,7 @@ fn component_mul_generator() {
         ("bit 251 plus one", two_to_251 + JubJubScalar::one()),
     ];
     for (case, scalar) in carry_boundaries {
-        let result = generator * &scalar;
+        let result = generator * scalar;
         let circuit = TestCircuit::new(scalar, generator, result);
         check_satisfied_circuit(
             &prover,
@@ -415,7 +414,7 @@ fn component_mul_generator() {
     // and ensure proving fails for the same scalar.
     for s in 0u64..16 {
         let scalar = JubJubScalar::from(s);
-        let result = generator * &scalar;
+        let result = generator * scalar;
         let ok_msg = format!("Circuit with scalar {s} should pass");
         let circuit = TestCircuit::new(scalar, generator, result);
         check_satisfied_circuit(
@@ -433,7 +432,7 @@ fn component_mul_generator() {
     // GENERATOR * 7 != GENERATOR * 8
     let msg = "Unsatisfied circuit should not pass";
     let scalar = JubJubScalar::from(7u64);
-    let result = dusk_jubjub::GENERATOR_EXTENDED * &JubJubScalar::from(8u64);
+    let result = dusk_jubjub::GENERATOR_EXTENDED * JubJubScalar::from(8u64);
     let circuit = TestCircuit::new(scalar, generator, result);
     check_unsatisfied_circuit(&prover, &circuit, &mut rng, msg);
 
@@ -609,7 +608,7 @@ fn component_mul_generator_rejects_mixed_order_generator() {
     // `is_small_order` runs, so only the `r`-multiplication in
     // `is_torsion_free` separates it from an honest generator.
     let prime_order_part =
-        dusk_jubjub::GENERATOR_EXTENDED * &JubJubScalar::from(0xdead_beef_u64);
+        dusk_jubjub::GENERATOR_EXTENDED * JubJubScalar::from(0xdead_beef_u64);
 
     for (order, torsion) in torsion_points() {
         let generator = prime_order_part + JubJubExtended::from(torsion);
@@ -652,7 +651,7 @@ fn component_mul_generator_accepts_prime_order_generator() {
     // An honest base other than `GENERATOR`, so the rejection tests above
     // cannot pass by refusing every generator.
     let generator =
-        dusk_jubjub::GENERATOR_EXTENDED * &JubJubScalar::from(0xdead_beef_u64);
+        dusk_jubjub::GENERATOR_EXTENDED * JubJubScalar::from(0xdead_beef_u64);
     assert!(bool::from(generator.is_prime_order()));
 
     assert!(composer.component_mul_generator(scalar, generator).is_ok());
@@ -757,7 +756,7 @@ fn point_entry_points_accept_honest_points() {
     // the rejection tests above cannot pass against entry points that refuse
     // every point.
     let extended =
-        dusk_jubjub::GENERATOR_EXTENDED * &JubJubScalar::from(0xdead_beef_u64);
+        dusk_jubjub::GENERATOR_EXTENDED * JubJubScalar::from(0xdead_beef_u64);
     let affine = JubJubAffine::from(extended);
 
     let point = composer
@@ -841,7 +840,7 @@ fn component_mul_point() {
     let msg = "Default circuit verification should pass";
     let circuit = TestCircuit::default();
     let pi = vec![];
-    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, msg);
 
     // Test:
     // GENERATOR * 1 = GENERATOR
@@ -851,7 +850,7 @@ fn component_mul_point() {
     let result = dusk_jubjub::GENERATOR_EXTENDED;
     let circuit = TestCircuit::new(scalar, point, result);
     let pi = vec![];
-    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, msg);
 
     // Test:
     // random * 0 = (0, 1)
@@ -859,31 +858,31 @@ fn component_mul_point() {
         "Circuit with random point multiplied by zero should be the o = (0,1)";
     let scalar = JubJubScalar::zero();
     let point =
-        dusk_jubjub::GENERATOR_EXTENDED * &JubJubScalar::random(&mut rng);
+        dusk_jubjub::GENERATOR_EXTENDED * JubJubScalar::random(&mut rng);
     let result: JubJubExtended =
         JubJubAffine::from_raw_unchecked(BlsScalar::zero(), BlsScalar::one())
             .into();
     let circuit = TestCircuit::new(scalar, point, result);
     let pi = vec![];
-    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, msg);
 
     // Test: random works
     let msg = "Circuit with random point multiplication should pass";
     let scalar = JubJubScalar::random(&mut rng);
     let point =
-        dusk_jubjub::GENERATOR_EXTENDED * &JubJubScalar::random(&mut rng);
-    let result = point * &scalar;
+        dusk_jubjub::GENERATOR_EXTENDED * JubJubScalar::random(&mut rng);
+    let result = point * scalar;
     let circuit = TestCircuit::new(scalar, point, result);
     let pi = vec![];
-    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, msg);
 
     // Unsatisfied circuit
     let msg = "Unsatisfied circuit should not pass";
     let scalar = JubJubScalar::random(&mut rng);
     let point =
-        dusk_jubjub::GENERATOR_EXTENDED * &JubJubScalar::random(&mut rng);
+        dusk_jubjub::GENERATOR_EXTENDED * JubJubScalar::random(&mut rng);
     let result =
-        dusk_jubjub::GENERATOR_EXTENDED * &JubJubScalar::random(&mut rng);
+        dusk_jubjub::GENERATOR_EXTENDED * JubJubScalar::random(&mut rng);
     let circuit = TestCircuit::new(scalar, point, result);
     check_unsatisfied_circuit(&prover, &circuit, &mut rng, msg);
 }

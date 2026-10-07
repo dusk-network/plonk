@@ -1034,8 +1034,8 @@ fn component_mul_generator_layout_matches_golden() {
 
 fn limbs_from_canonical_bytes(bytes: [u8; 32]) -> [u64; 4] {
     let mut limbs = [0u64; 4];
-    for (limb, chunk) in limbs.iter_mut().zip(bytes.chunks_exact(8)) {
-        *limb = u64::from_le_bytes(chunk.try_into().expect("8-byte chunk"));
+    for (limb, chunk) in limbs.iter_mut().zip(bytes.as_chunks::<8>().0) {
+        *limb = u64::from_le_bytes(*chunk);
     }
     limbs
 }
@@ -1145,7 +1145,7 @@ fn fixed_base_width_bound_is_tight_for_the_field_moduli() {
     let effective_width =
         FIXED_BASE_SIGNED_DIGIT_ROUNDS - FIXED_BASE_LEADING_ZERO_ROUNDS;
     assert!(
-        effective_width >= bit_length(jubjub_modulus_minus_one) + 1,
+        effective_width > bit_length(jubjub_modulus_minus_one),
         "the effective width must fit every canonical scalar's NAF",
     );
 }

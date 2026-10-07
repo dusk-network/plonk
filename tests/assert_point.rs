@@ -58,26 +58,26 @@ fn assert_equal_point() {
     let msg = "Default circuit verification should pass";
     let circuit = TestCircuit::default();
     let pi = vec![];
-    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, rng, &msg);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, rng, msg);
 
     // Test sanity:
     // 42 * GENERATOR = 42 * GENERATOR
     let msg = "Circuit verification with equal points should pass";
     let scalar = JubJubScalar::from(42u64);
-    let p1 = dusk_jubjub::GENERATOR_EXTENDED * &scalar;
-    let p2 = dusk_jubjub::GENERATOR_EXTENDED * &scalar;
+    let p1 = dusk_jubjub::GENERATOR_EXTENDED * scalar;
+    let p2 = dusk_jubjub::GENERATOR_EXTENDED * scalar;
     let circuit = TestCircuit::new(p1.into(), p2.into());
     let pi = vec![];
-    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, rng, &msg);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, rng, msg);
 
     // Test:
     // GENERATOR != 42 * GENERATOR
     let msg = "prover should fail because the points are not equal";
     let scalar = JubJubScalar::from(42u64);
     let p1 = dusk_jubjub::GENERATOR;
-    let p2 = dusk_jubjub::GENERATOR_EXTENDED * &scalar;
+    let p2 = dusk_jubjub::GENERATOR_EXTENDED * scalar;
     let circuit = TestCircuit::new(p1, p2.into());
-    check_unsatisfied_circuit(&prover, &circuit, rng, &msg);
+    check_unsatisfied_circuit(&prover, &circuit, rng, msg);
 
     // Test:
     // assertion of points with different x-coordinates fails
@@ -87,7 +87,7 @@ fn assert_equal_point() {
     let p2 =
         JubJubAffine::from_raw_unchecked(BlsScalar::zero(), BlsScalar::one());
     let circuit = TestCircuit::new(p1, p2);
-    check_unsatisfied_circuit(&prover, &circuit, rng, &msg);
+    check_unsatisfied_circuit(&prover, &circuit, rng, msg);
 
     // Test:
     // assertion of points with different y-coordinates fails
@@ -97,7 +97,7 @@ fn assert_equal_point() {
     let p2 =
         JubJubAffine::from_raw_unchecked(BlsScalar::one(), BlsScalar::zero());
     let circuit = TestCircuit::new(p1, p2);
-    check_unsatisfied_circuit(&prover, &circuit, rng, &msg);
+    check_unsatisfied_circuit(&prover, &circuit, rng, msg);
 }
 
 #[test]
@@ -149,27 +149,27 @@ fn assert_equal_public_point() {
         dusk_jubjub::GENERATOR.get_u(),
         dusk_jubjub::GENERATOR.get_v(),
     ];
-    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, rng, &msg);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, rng, msg);
 
     // Test sanity:
     // 42 * GENERATOR = 42 * GENERATOR
     let msg = "Circuit verification with equal points should pass";
     let scalar = JubJubScalar::from(42u64);
-    let point = dusk_jubjub::GENERATOR_EXTENDED * &scalar;
-    let public = dusk_jubjub::GENERATOR_EXTENDED * &scalar;
+    let point = dusk_jubjub::GENERATOR_EXTENDED * scalar;
+    let public = dusk_jubjub::GENERATOR_EXTENDED * scalar;
     let circuit = TestCircuit::new(point.into(), public.into());
     let public_affine: JubJubAffine = public.into();
     let pi = vec![public_affine.get_u(), public_affine.get_v()];
-    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, rng, &msg);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, rng, msg);
 
     // Test:
     // GENERATOR != 42 * GENERATOR
     let msg = "prover should fail because the points are not equal";
     let scalar = JubJubScalar::from(42u64);
     let point = dusk_jubjub::GENERATOR;
-    let public = dusk_jubjub::GENERATOR_EXTENDED * &scalar;
+    let public = dusk_jubjub::GENERATOR_EXTENDED * scalar;
     let circuit = TestCircuit::new(point, public.into());
-    check_unsatisfied_circuit(&prover, &circuit, rng, &msg);
+    check_unsatisfied_circuit(&prover, &circuit, rng, msg);
 
     // Test:
     // assertion of points with different x-coordinates fails
@@ -179,7 +179,7 @@ fn assert_equal_public_point() {
     let public =
         JubJubAffine::from_raw_unchecked(BlsScalar::zero(), BlsScalar::one());
     let circuit = TestCircuit::new(point, public);
-    check_unsatisfied_circuit(&prover, &circuit, rng, &msg);
+    check_unsatisfied_circuit(&prover, &circuit, rng, msg);
 
     // Test:
     // assertion of points with different y-coordinates fails
@@ -189,5 +189,5 @@ fn assert_equal_public_point() {
     let public =
         JubJubAffine::from_raw_unchecked(BlsScalar::one(), BlsScalar::zero());
     let circuit = TestCircuit::new(point, public);
-    check_unsatisfied_circuit(&prover, &circuit, rng, &msg);
+    check_unsatisfied_circuit(&prover, &circuit, rng, msg);
 }

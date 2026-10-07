@@ -1164,10 +1164,12 @@ mod test {
 
         let point = &mut bytes[point_offset..point_offset + G1Affine::SIZE];
         for (chunk, limb) in point
-            .chunks_exact_mut(8)
+            .as_chunks_mut::<8>()
+            .0
+            .iter_mut()
             .zip(BASE_FIELD_MODULUS.iter().rev())
         {
-            chunk.copy_from_slice(&limb.to_be_bytes());
+            *chunk = limb.to_be_bytes();
         }
         point[0] |= 0x80;
         let result =

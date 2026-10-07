@@ -20,40 +20,15 @@
 
 ## Commands
 
-### Build
+Run `make help` to list all available targets. Key points:
 
-    cargo build
-    make clippy                                  # Preferred — checks and lints in one step
-
-### Test
-
-    make test                                    # Full suite (release mode)
-    cargo test --release                         # Default features
-    cargo test --release --all-features          # All features
-    cargo test --release -t <test_name>          # Single test
-    cargo run --release --example circuit        # Run example
-
-**Tests MUST use `--release`** — debug mode takes up to an hour for proof tests.
-
-### Lint
-
-    make clippy
-    make fmt                                     # Requires nightly toolchain
-
-### no_std Verification
-
-    make no-std
-
-### Docs
-
-    make doc                                     # Build docs with KaTeX
-    make doc-local                               # Build and open in browser
-
-### PR Minimum
-
-    make test
-    make fmt
-    make clippy
+- **Always use `make` targets**: the Makefile is the source of truth for
+  build, test, lint and docs commands. Each CI job runs one target.
+- **Tests MUST use `--release`**: debug mode takes up to an hour for proof
+  tests. `make test` does this. Run a single test with
+  `cargo test --release <test_name>`.
+- `make fmt` needs the nightly toolchain.
+- Before a PR, run `make cq` and `make test`.
 
 ## Architecture
 

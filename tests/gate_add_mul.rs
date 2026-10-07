@@ -94,7 +94,7 @@ fn gate_add_mul() {
 
     // Test default works:
     let msg = "Default circuit verification should pass";
-    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, msg);
 
     // Test satisfied circuit:
     // a + b + a·b + d + public + 1 = result
@@ -104,7 +104,7 @@ fn gate_add_mul() {
     let d = BlsScalar::one();
     let result = a + b + a * b + d + public + CONST;
     let circuit = TestCircuit::new(a, b, d, public, result);
-    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, msg);
 
     // Test satisfied circuit:
     // a + b + a·b + d + public + 1 = result
@@ -116,7 +116,7 @@ fn gate_add_mul() {
     let pi = vec![public, public];
     let result = a + b + a * b + d + public + CONST;
     let circuit = TestCircuit::new(a, b, d, public, result);
-    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, &msg);
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, msg);
 
     // Test unsatisfied circuit:
     let msg = "Proof creation of unsatisfied circuit should fail";
@@ -126,7 +126,7 @@ fn gate_add_mul() {
     let public = BlsScalar::random(&mut rng);
     let result = a + b + a * b + d + public + CONST + BlsScalar::one();
     let circuit = TestCircuit::new(a, b, d, public, result);
-    check_unsatisfied_circuit(&prover, &circuit, &mut rng, &msg);
+    check_unsatisfied_circuit(&prover, &circuit, &mut rng, msg);
 
     // Test unsatisfied circuit:
     // a + b + a·b + d + public + 1 = result
@@ -137,7 +137,7 @@ fn gate_add_mul() {
     let public = BlsScalar::one();
     let result = BlsScalar::from(42);
     let circuit = TestCircuit::new(a, b, d, public, result);
-    check_unsatisfied_circuit(&prover, &circuit, &mut rng, &msg);
+    check_unsatisfied_circuit(&prover, &circuit, &mut rng, msg);
 
     // Test circuit where circuit description doesn't match
     let msg = "Proof creation of circuit that has different constant than in description should fail";
@@ -148,5 +148,5 @@ fn gate_add_mul() {
     let incorrect_constant = -BlsScalar::from(2u64);
     let result = a + b + a * b + d + public + incorrect_constant;
     let circuit = TestCircuit::new(a, b, d, public, result);
-    check_unsatisfied_circuit(&prover, &circuit, &mut rng, &msg);
+    check_unsatisfied_circuit(&prover, &circuit, &mut rng, msg);
 }

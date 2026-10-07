@@ -31,7 +31,7 @@ fn circuit_with_all_gates() {
                 b: BlsScalar::from(3u64),
                 x: BlsScalar::from(6u64),
                 y: JubJubScalar::from(7u64),
-                z: dusk_jubjub::GENERATOR_EXTENDED * &JubJubScalar::from(7u64),
+                z: dusk_jubjub::GENERATOR_EXTENDED * JubJubScalar::from(7u64),
             }
         }
     }

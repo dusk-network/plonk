@@ -23,12 +23,14 @@ use crate::commitment_scheme::Commitment;
 // We open at `z`:
 //   a, b, c, d, s_sigma_1, s_sigma_2, s_sigma_3,
 //   q_arith, q_c, q_l, q_r
+#[cfg(feature = "alloc")]
 const V_MAX_DEGREE: usize = 11;
 // Legacy number of (unshifted) polynomials opened at `z`, excluding the
 // linearization polynomial `r(X)`.
 //
 // This matches the pre-soundness-fix batching that does NOT bind selector /
 // constant evaluations in the batched opening at `z`.
+#[cfg(feature = "alloc")]
 const V_MAX_DEGREE_LEGACY: usize = 7;
 
 #[cfg(feature = "rkyv-impl")]
@@ -463,7 +465,7 @@ pub(crate) mod alloc {
                     &u_challenge,
                     l1_eval,
                     verifier_key,
-                    &domain,
+                    domain,
                 ),
                 &f_points,
                 &f_scalars,
@@ -751,7 +753,7 @@ pub(crate) mod alloc {
                     &u_challenge,
                     l1_eval,
                     verifier_key,
-                    &domain,
+                    domain,
                 ),
                 &f_points,
                 &f_scalars,
@@ -1030,7 +1032,7 @@ pub(crate) mod alloc {
 
         // Indices with non-zero evaluations
         #[cfg(not(feature = "std"))]
-        let range = (0..evaluations.len()).into_iter();
+        let range = 0..evaluations.len();
 
         #[cfg(feature = "std")]
         let range = (0..evaluations.len()).into_par_iter();
@@ -1044,7 +1046,7 @@ pub(crate) mod alloc {
 
         // Only compute the denominators with non-zero evaluations
         #[cfg(not(feature = "std"))]
-        let range = (0..non_zero_evaluations.len()).into_iter();
+        let range = 0..non_zero_evaluations.len();
 
         #[cfg(feature = "std")]
         let range = (0..non_zero_evaluations.len()).into_par_iter();

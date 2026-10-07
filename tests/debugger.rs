@@ -26,19 +26,16 @@ fn generate_cdf_works() -> io::Result<()> {
     let path = dir.path().canonicalize()?.join("test.cdf");
 
     let label = b"transcript-arguments";
-    let pp = PublicParameters::setup(1 << 5, rng)
-        .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+    let pp = PublicParameters::setup(1 << 5, rng).map_err(io::Error::other)?;
 
     let (prover, _verifier) = Compiler::compile::<EmptyCircuit>(&pp, label)
-        .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+        .map_err(io::Error::other)?;
 
     unsafe {
         env::set_var("CDF_OUTPUT", &path);
     }
 
-    prover
-        .prove(rng, &EmptyCircuit)
-        .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+    prover.prove(rng, &EmptyCircuit).map_err(io::Error::other)?;
 
     path.canonicalize().and_then(CircuitDescription::open)?;
 
