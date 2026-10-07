@@ -1014,8 +1014,9 @@ fn component_mul_generator_layout_matches_golden() {
     // `gate_digest` captured from `component_mul_generator` as it stands with
     // the unreleased signed-digit and canonicality bounds.
     const GOLDEN: [u8; 32] = [
-        12, 248, 174, 80, 4, 183, 76, 71, 51, 243, 231, 56, 142, 43, 223, 49,
-        71, 66, 186, 118, 187, 39, 149, 99, 2, 10, 183, 18, 145, 85, 227, 83,
+        200, 66, 135, 31, 114, 104, 192, 72, 55, 116, 164, 227, 102, 46, 16,
+        136, 225, 122, 141, 125, 76, 47, 124, 158, 138, 251, 219, 72, 111, 128,
+        215, 69,
     ];
 
     let mut composer = Composer::initialized();

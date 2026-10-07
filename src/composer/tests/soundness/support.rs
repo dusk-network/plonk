@@ -90,9 +90,15 @@ pub(super) fn gate_layout<C: Circuit>(circuit: &C) -> Vec<Gate> {
 /// converse of the digest's contract — an unchanged digest meaning an unchanged
 /// verifier key — which only holds while every field is folded in. A field
 /// added to `Gate` must fail to compile here, not silently drop out.
+///
+/// The fold starts from one, not zero. From zero, leading fields that fold in
+/// as zero leave the accumulator at zero, so a prefix of all-zero gates would
+/// not move the digest. The goldens were re-captured when the seed changed,
+/// from layouts that still matched their previous digests, so each golden's
+/// stated provenance holds.
 pub(super) fn gate_digest(gates: &[Gate]) -> [u8; 32] {
     let mult = BlsScalar::from(1_000_003u64);
-    let mut acc = BlsScalar::zero();
+    let mut acc = BlsScalar::one();
     for gate in gates {
         let Gate {
             q_m,
@@ -185,4 +191,34 @@ pub(super) fn assert_rejected<C: Circuit>(
              constraint — it is not exercising the constraint under test",
         ),
     }
+}
+
+/// A gate whose selectors and wires all fold in as zero must still move the
+/// digest when it leads the layout, else a change that prepends such gates
+/// keeps every golden green.
+#[test]
+fn gate_digest_counts_a_zero_gate_prefix() {
+    let zero_gate = Gate {
+        q_m: BlsScalar::zero(),
+        q_l: BlsScalar::zero(),
+        q_r: BlsScalar::zero(),
+        q_o: BlsScalar::zero(),
+        q_f: BlsScalar::zero(),
+        q_c: BlsScalar::zero(),
+        q_arith: BlsScalar::zero(),
+        q_range: BlsScalar::zero(),
+        q_logic: BlsScalar::zero(),
+        q_fixed_group_add: BlsScalar::zero(),
+        q_variable_group_add: BlsScalar::zero(),
+        a: Composer::ZERO,
+        b: Composer::ZERO,
+        c: Composer::ZERO,
+        d: Composer::ZERO,
+    };
+    let gates = Composer::initialized().constraints;
+    let mut prefixed = vec![zero_gate];
+    prefixed.extend_from_slice(&gates);
+
+    assert_ne!(gate_digest(&prefixed), gate_digest(&gates));
+    assert_ne!(gate_digest(&[zero_gate]), gate_digest(&[]));
 }
