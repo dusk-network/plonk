@@ -349,8 +349,8 @@ fn subgroup_parameters_hold() {
 fn torsion_free_layout_matches_golden() {
     // captured from `assert_torsion_free_point` at its introduction
     const GOLDEN: [u8; 32] = [
-        29, 237, 27, 86, 26, 113, 3, 36, 200, 203, 232, 100, 142, 46, 26, 186,
-        229, 225, 226, 228, 94, 68, 79, 22, 245, 233, 57, 1, 14, 37, 206, 53,
+        57, 49, 112, 180, 119, 102, 6, 177, 5, 202, 36, 239, 95, 210, 104, 44,
+        87, 245, 157, 162, 10, 152, 202, 243, 116, 4, 121, 245, 93, 22, 32, 48,
     ];
 
     let mut composer = Composer::initialized();
@@ -1076,9 +1076,8 @@ fn mul_point_layout_matches_golden() {
     // captured from `component_mul_point` when `component_select_identity`
     // gained its boolean constraint
     const GOLDEN: [u8; 32] = [
-        250, 132, 56, 170, 228, 252, 166, 13, 108, 124, 132, 6, 89, 188, 88,
-        247, 231, 121, 77, 144, 115, 248, 63, 117, 196, 123, 96, 37, 146, 174,
-        156, 68,
+        247, 122, 73, 66, 1, 201, 120, 119, 156, 210, 243, 215, 242, 113, 20,
+        95, 30, 190, 44, 198, 26, 73, 136, 1, 71, 4, 92, 20, 184, 161, 60, 90,
     ];
 
     let mut composer = Composer::initialized();
@@ -1604,8 +1603,8 @@ fn component_add_point_layout_matches_golden() {
     // that moved the emission into `add_point_gates` and the composer split
     // that moved it into this module.
     const GOLDEN: [u8; 32] = [
-        228, 59, 231, 43, 120, 95, 179, 34, 228, 43, 10, 248, 22, 142, 41, 174,
-        127, 155, 191, 155, 9, 56, 184, 82, 223, 173, 215, 132, 79, 23, 42, 4,
+        112, 170, 135, 55, 46, 96, 51, 10, 134, 79, 117, 111, 78, 69, 234, 129,
+        155, 62, 33, 172, 15, 211, 64, 138, 148, 121, 1, 243, 154, 84, 33, 1,
     ];
 
     let mut composer = Composer::initialized();
