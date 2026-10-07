@@ -83,7 +83,8 @@ impl Compiler {
     ///
     /// The supplied public parameters bound decompression and circuit
     /// reconstruction. Compressed descriptions containing more data than can
-    /// be compiled with `pp` are rejected as malformed.
+    /// be compiled with `pp` are rejected as malformed. So are buffers with
+    /// bytes after the end of the compressed stream.
     pub fn compile_with_compressed(
         pp: &PublicParameters,
         label: &[u8],
