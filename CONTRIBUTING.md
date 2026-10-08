@@ -38,10 +38,8 @@ other kind of inconsistency with your code.
 
 - Do not open PRs that are not linked or related to a previously opened issue. 
 
-- Update the `Unreleased` section of the [CHANGELOG](https://github.com/dusk-network/plonk/blob/master/CHANGELOG.md)
-if your PR includes anything that it's worth to be noticed in there. Avoid adding things
-like doc-nitpicks and similar changes which do not affect directly any added,
-fixed, removed or changed feature.
+- Follow the [changelog section of AGENTS.md](AGENTS.md#changelog) to decide on and write
+an entry in the [CHANGELOG](https://github.com/dusk-network/plonk/blob/master/CHANGELOG.md).
 
 # Code of Conduct
 
