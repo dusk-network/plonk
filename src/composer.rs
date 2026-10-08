@@ -40,6 +40,9 @@ pub(crate) use constraint_system::{Selector, WireData, WiredWitness};
 pub use gate::Gate;
 pub(crate) use permutation::Permutation;
 
+// At module level so the composer tests can pin its limbs.
+const MINUS_ONE: BlsScalar = BlsScalar::one().neg();
+
 /// Construct and prove circuits
 #[derive(Debug, Clone)]
 pub struct Composer {
@@ -336,12 +339,6 @@ impl Composer {
         // either 1 or -1, so we can optimize these
         let c = {
             const ONE: BlsScalar = BlsScalar::one();
-            const MINUS_ONE: BlsScalar = BlsScalar([
-                0xfffffffd00000003,
-                0xfb38ec08fffb13fc,
-                0x99ad88181ce5880f,
-                0x5bc8f5f97cd877d8,
-            ]);
 
             // Can't use a match pattern here since `BlsScalar` doesn't derive
             // `PartialEq`

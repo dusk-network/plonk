@@ -31,6 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Update `dusk-bls12_381` to `0.16` and `dusk-jubjub` to `0.16` [#1011]
 - Reject compressed circuits with bytes after the end of the deflate stream
   [#1006]
 - Remove the `msgpacker` dependency [#1004]
@@ -841,6 +842,7 @@ is necessary since `rkyv/validation` was required as a bound.
 - Proof system module.
 
 <!-- ISSUES -->
+[#1011]: https://github.com/dusk-network/plonk/issues/1011
 [#1006]: https://github.com/dusk-network/plonk/issues/1006
 [#1004]: https://github.com/dusk-network/plonk/issues/1004
 [#992]: https://github.com/dusk-network/plonk/issues/992

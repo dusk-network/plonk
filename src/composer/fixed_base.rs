@@ -119,7 +119,6 @@ impl Composer {
     ) -> Result<TorsionFreeWitnessPoint, Error> {
         let generator = generator.into();
 
-        // Check Z first: is_on_curve converts to affine and panics on Z = 0.
         if generator.get_z() == BlsScalar::zero()
             || !bool::from(generator.is_on_curve())
             || !bool::from(generator.is_prime_order())

@@ -110,6 +110,13 @@ impl Polynomial {
             || self.coeffs.iter().all(|coeff| coeff == &BlsScalar::zero())
     }
 
+    /// Constructs a polynomial that keeps its leading zeros, for tests of code
+    /// that must not rely on them being dropped.
+    #[cfg(test)]
+    pub(crate) fn from_coefficients_untrimmed(coeffs: Vec<BlsScalar>) -> Self {
+        Self { coeffs }
+    }
+
     /// Constructs a new polynomial from a list of coefficients, dropping any
     /// leading zeros. Coefficients that are empty, or entirely zero, give the
     /// zero polynomial.
