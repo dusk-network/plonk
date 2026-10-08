@@ -60,9 +60,10 @@ impl WitnessPoint {
 /// Decoding bytes into an affine point or binding a point to a commitment
 /// does **not** establish subgroup membership on its own: decoding only
 /// guarantees an on-curve point, and a commitment only binds the value.
-/// [`Composer::component_mul_generator`] does return the typed point: it
-/// validates its generator to be of exact prime order, so every multiple of
-/// it lies in the subgroup.
+/// [`Composer::component_mul_generator`] and
+/// [`Composer::component_mul_generator_pair`] do return the typed point: they
+/// validate their generators to be of exact prime order, so every multiple of
+/// them lies in the subgroup.
 ///
 /// The prime-order subgroup contains the identity, so a torsion-free point
 /// may still be the identity — consumers that must rule it out have to
@@ -76,6 +77,7 @@ impl WitnessPoint {
 /// [`Composer::component_neg_point`]: crate::prelude::Composer::component_neg_point
 /// [`Composer::component_select_identity`]: crate::prelude::Composer::component_select_identity
 /// [`Composer::component_mul_generator`]: crate::prelude::Composer::component_mul_generator
+/// [`Composer::component_mul_generator_pair`]: crate::prelude::Composer::component_mul_generator_pair
 #[derive(Debug, Clone, Copy)]
 pub struct TorsionFreeWitnessPoint(WitnessPoint);
 

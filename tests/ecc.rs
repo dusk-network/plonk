@@ -657,6 +657,206 @@ fn component_mul_generator_accepts_prime_order_generator() {
     assert!(composer.component_mul_generator(scalar, generator).is_ok());
 }
 
+/// The generators of a double signature, which `component_mul_generator_pair`
+/// is exercised with.
+fn pair_generators() -> [JubJubExtended; 2] {
+    [
+        dusk_jubjub::GENERATOR_EXTENDED,
+        dusk_jubjub::GENERATOR_NUMS_EXTENDED,
+    ]
+}
+
+#[test]
+fn component_mul_generator_pair() {
+    pub struct TestCircuit {
+        scalar: JubJubScalar,
+        results: [JubJubExtended; 2],
+    }
+
+    impl TestCircuit {
+        pub fn new(scalar: JubJubScalar, results: [JubJubExtended; 2]) -> Self {
+            Self { scalar, results }
+        }
+
+        pub fn honest(scalar: JubJubScalar) -> Self {
+            Self::new(scalar, pair_generators().map(|g| g * scalar))
+        }
+    }
+
+    impl Default for TestCircuit {
+        fn default() -> Self {
+            Self::honest(JubJubScalar::zero())
+        }
+    }
+
+    impl Circuit for TestCircuit {
+        fn circuit(&self, composer: &mut Composer) -> Result<(), Error> {
+            let w_scalar = composer.append_witness(self.scalar);
+            let w_result_a = composer.append_point(self.results[0])?;
+            let w_result_b = composer.append_point(self.results[1])?;
+
+            let [generator_a, generator_b] = pair_generators();
+            let (result_a, result_b) = composer.component_mul_generator_pair(
+                w_scalar,
+                generator_a,
+                generator_b,
+            )?;
+
+            composer.assert_equal_point(w_result_a, result_a.into());
+            composer.assert_equal_point(w_result_b, result_b.into());
+
+            Ok(())
+        }
+    }
+
+    let label = b"component_mul_generator_pair";
+    let mut rng = StdRng::seed_from_u64(0xbea2);
+    let capacity = 1 << 11;
+    let pp = PublicParameters::setup(capacity, &mut rng)
+        .expect("Creation of public parameter shouldn't fail");
+    let (prover, verifier) = Compiler::compile::<TestCircuit>(&pp, label)
+        .expect("Circuit should compile");
+    let pi = vec![];
+
+    // The scalars `component_mul_generator` is tested at: the edges, `r - 1`
+    // with its width-2 NAF carry into digit 252, and the carries around the
+    // highest ordinary bit of a canonical Jubjub scalar.
+    let two_to_251 = JubJubScalar::from_raw([0, 0, 0, 1 << 59]);
+    let scalars = [
+        ("zero", JubJubScalar::zero()),
+        ("one", JubJubScalar::one()),
+        ("a random scalar", JubJubScalar::random(&mut rng)),
+        ("scalar -1 (r - 1)", -JubJubScalar::one()),
+        ("low carry at 3", JubJubScalar::from(3u64)),
+        (
+            "carry into bit 251",
+            JubJubScalar::from_raw([
+                u64::MAX,
+                u64::MAX,
+                u64::MAX,
+                (1 << 59) - 1,
+            ]),
+        ),
+        ("exact bit 251", two_to_251),
+        ("bit 251 plus one", two_to_251 + JubJubScalar::one()),
+    ];
+    for (case, scalar) in scalars {
+        check_satisfied_circuit(
+            &prover,
+            &verifier,
+            &pi,
+            &TestCircuit::honest(scalar),
+            &mut rng,
+            &format!("Circuit with {case} should pass"),
+        );
+    }
+
+    // Each result is bound on its own: shifting either, or swapping them,
+    // fails.
+    let [generator_a, generator_b] = pair_generators();
+    let scalar = JubJubScalar::from(0xc0ffee_u64);
+    let [result_a, result_b] = TestCircuit::honest(scalar).results;
+    let wrong_results = [
+        (
+            "the first result shifted",
+            [result_a + generator_a, result_b],
+        ),
+        (
+            "the second result shifted",
+            [result_a, result_b + generator_b],
+        ),
+        ("the results swapped", [result_b, result_a]),
+    ];
+    for (case, results) in wrong_results {
+        check_unsatisfied_circuit(
+            &prover,
+            &TestCircuit::new(scalar, results),
+            &mut rng,
+            &format!("Circuit with {case} should fail"),
+        );
+    }
+}
+
+#[test]
+fn component_mul_generator_pair_rejects_either_invalid_generator() {
+    // The guard of `component_mul_generator`, applied to each generator before
+    // any gate is appended.
+    let off_curve: JubJubExtended =
+        JubJubAffine::from_raw_unchecked(BlsScalar::zero(), BlsScalar::zero())
+            .into();
+    let prime_order_part =
+        dusk_jubjub::GENERATOR_EXTENDED * JubJubScalar::from(0xdead_beef_u64);
+    let mut invalid = vec![
+        ("the identity".to_string(), JubJubExtended::identity()),
+        ("a zero-Z point".to_string(), zero_z_point()),
+        ("an off-curve point".to_string(), off_curve),
+    ];
+    for (order, torsion) in torsion_points() {
+        invalid.push((format!("an order-{order} point"), torsion.into()));
+        invalid.push((
+            format!("a point of order {order}r"),
+            prime_order_part + JubJubExtended::from(torsion),
+        ));
+    }
+
+    let honest = dusk_jubjub::GENERATOR_EXTENDED;
+    for (case, generator) in invalid {
+        for (position, [a, b]) in [
+            ("first", [generator, honest]),
+            ("second", [honest, generator]),
+        ] {
+            let mut composer = Composer::initialized();
+            let scalar = composer.append_witness(JubJubScalar::one());
+            let constraints = composer.constraints();
+
+            let result = composer.component_mul_generator_pair(scalar, a, b);
+
+            assert!(
+                matches!(result, Err(Error::JubJubGeneratorNotPrimeOrder)),
+                "{case} as the {position} generator"
+            );
+            assert_eq!(
+                composer.constraints(),
+                constraints,
+                "{case} as the {position} generator: no gate appended"
+            );
+        }
+    }
+}
+
+#[test]
+fn component_mul_generator_pair_rejects_non_canonical_scalar() {
+    let mut composer = Composer::initialized();
+    let scalar = composer.append_witness(-BlsScalar::one());
+    let constraints = composer.constraints();
+    let [generator_a, generator_b] = pair_generators();
+
+    let result =
+        composer.component_mul_generator_pair(scalar, generator_a, generator_b);
+
+    assert!(matches!(result, Err(Error::JubJubScalarMalformed)));
+    assert_eq!(composer.constraints(), constraints, "no gate appended");
+}
+
+#[test]
+fn component_mul_generator_pair_accepts_prime_order_generators() {
+    let mut composer = Composer::initialized();
+    let scalar = composer.append_witness(JubJubScalar::one());
+    // An honest base other than `GENERATOR`, in both accepted input forms.
+    let generator =
+        dusk_jubjub::GENERATOR_EXTENDED * JubJubScalar::from(0xdead_beef_u64);
+
+    assert!(
+        composer
+            .component_mul_generator_pair(
+                scalar,
+                generator,
+                JubJubAffine::from(generator),
+            )
+            .is_ok()
+    );
+}
+
 /// An extended point with `Z = 0` and the honest generator's numerators, so
 /// only the `Z` guard separates it from a valid point.
 fn zero_z_point() -> JubJubExtended {

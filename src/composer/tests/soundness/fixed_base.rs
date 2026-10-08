@@ -4,7 +4,8 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-//! Soundness regressions for `component_mul_generator`.
+//! Soundness regressions for `component_mul_generator` and
+//! `component_mul_generator_pair`.
 //!
 //! The fixed-base widget advances two accumulators from the same signed digits:
 //! a scalar recurrence in the BLS scalar field and a point recurrence on
@@ -41,6 +42,17 @@
 //! only reach into `proof_system::widget`, and building both widget keys by
 //! struct literal makes a new field on either break the build here rather than
 //! silently weaken the pin.
+//!
+//! The pair gadget emits the single gadget for its first generator and then a
+//! second point chain whose rows read their digits off the first chain's
+//! scalar accumulator. Its forgeries fill the two chains of the production
+//! emitter from digits of their own. With the first chain honest, a second
+//! chain on another scalar, or on an alias of the same one, is turned away by
+//! its own rows. With both chains on an alias or a modulus wrap, the shared
+//! canonicality check or leading-zero bound turns it away, as for the single
+//! gadget. That binding is wiring rather than a constraint the forgeries
+//! could skip, so a layout test also pins the second chain's `d` wires to the
+//! first chain's.
 
 use alloc::format;
 use alloc::vec::Vec;
@@ -58,7 +70,7 @@ use crate::composer::fixed_base::{
     FIXED_BASE_LEADING_ZERO_ROUNDS, FIXED_BASE_MAX_SOUND_WIDTH,
     FIXED_BASE_SIGNED_DIGIT_ROUNDS, JUBJUB_SCALAR_BITS,
 };
-use crate::composer::{Composer, Constraint, Witness, WitnessPoint};
+use crate::composer::{Composer, Constraint, Gate, Witness, WitnessPoint};
 use crate::error::Error;
 use crate::fft::{EvaluationDomain, Evaluations, Polynomial};
 use crate::prelude::{
@@ -138,8 +150,16 @@ fn leading_endpoint(
 fn point_from_signed_digits(
     digits: &[i8; FIXED_BASE_SIGNED_DIGIT_ROUNDS],
 ) -> JubJubExtended {
+    multiple_from_signed_digits(dusk_jubjub::GENERATOR_EXTENDED, digits)
+}
+
+/// `[k]generator` for the integer `k` the signed digits encode.
+fn multiple_from_signed_digits(
+    generator: JubJubExtended,
+    digits: &[i8; FIXED_BASE_SIGNED_DIGIT_ROUNDS],
+) -> JubJubExtended {
     let mut point = JubJubExtended::identity();
-    let mut multiple = dusk_jubjub::GENERATOR_EXTENDED;
+    let mut multiple = generator;
 
     for digit in digits {
         point = match digit {
@@ -1143,5 +1163,357 @@ fn fixed_base_width_bound_is_tight_for_the_field_moduli() {
     assert!(
         effective_width > bit_length(jubjub_modulus_minus_one),
         "the effective width must fit every canonical scalar's NAF",
+    );
+}
+
+// ---------------------------------------------------------------------------
+// One decomposition for a pair of generators.
+// ---------------------------------------------------------------------------
+
+/// The generators a double signature multiplies its response by.
+fn pair_generators() -> [JubJubExtended; 2] {
+    [
+        dusk_jubjub::GENERATOR_EXTENDED,
+        dusk_jubjub::GENERATOR_NUMS_EXTENDED,
+    ]
+}
+
+/// Multiplies both [`pair_generators`] by a public scalar and claims both
+/// multiples publicly. A forgery fills each chain of the production emitter
+/// from digits of its own and claims the multiples they encode: it emits the
+/// honest gate layout, and only the values on its wires differ.
+#[derive(Clone)]
+struct FixedBasePairCircuit {
+    scalar: BlsScalar,
+    claimed_points: [JubJubExtended; 2],
+    forged_digits: Option<[[i8; FIXED_BASE_SIGNED_DIGIT_ROUNDS]; 2]>,
+}
+
+impl Default for FixedBasePairCircuit {
+    fn default() -> Self {
+        Self::honest(JubJubScalar::zero())
+    }
+}
+
+impl FixedBasePairCircuit {
+    fn honest(scalar: JubJubScalar) -> Self {
+        Self {
+            scalar: BlsScalar::from(scalar),
+            claimed_points: pair_generators()
+                .map(|generator| generator * scalar),
+            forged_digits: None,
+        }
+    }
+
+    fn forged(
+        scalar: BlsScalar,
+        digits: [[i8; FIXED_BASE_SIGNED_DIGIT_ROUNDS]; 2],
+    ) -> Self {
+        let [generator_a, generator_b] = pair_generators();
+
+        Self {
+            scalar,
+            claimed_points: [
+                multiple_from_signed_digits(generator_a, &digits[0]),
+                multiple_from_signed_digits(generator_b, &digits[1]),
+            ],
+            forged_digits: Some(digits),
+        }
+    }
+}
+
+impl Circuit for FixedBasePairCircuit {
+    fn circuit(&self, composer: &mut Composer) -> Result<(), Error> {
+        let scalar = composer.append_public(self.scalar);
+        let [generator_a, generator_b] = pair_generators();
+        let (a, b) = match &self.forged_digits {
+            None => {
+                let (a, b) = composer.component_mul_generator_pair(
+                    scalar,
+                    generator_a,
+                    generator_b,
+                )?;
+                (a.into(), b.into())
+            }
+            Some([digits_a, digits_b]) => composer
+                .append_fixed_base_signed_digits_pair(
+                    scalar,
+                    (generator_a, digits_a),
+                    (generator_b, digits_b),
+                )?,
+        };
+        composer.assert_equal_public_point(a, self.claimed_points[0])?;
+        composer.assert_equal_public_point(b, self.claimed_points[1])?;
+        Ok(())
+    }
+}
+
+fn compile_pair(pp: &PublicParameters) -> (Prover, Verifier) {
+    Compiler::compile::<FixedBasePairCircuit>(pp, b"fixed-base-pair-soundness")
+        .expect("compile fixed-base pair soundness circuit")
+}
+
+/// `digits` with the one row `round` reads, digit `255 - round`, moved by one.
+fn moved_digit(
+    digits: &[i8; FIXED_BASE_SIGNED_DIGIT_ROUNDS],
+    round: usize,
+) -> [i8; FIXED_BASE_SIGNED_DIGIT_ROUNDS] {
+    let mut moved = *digits;
+    let digit = &mut moved[FIXED_BASE_SIGNED_DIGIT_ROUNDS - 1 - round];
+    *digit = if *digit == 1 { 0 } else { *digit + 1 };
+    moved
+}
+
+/// Require a forgery that keeps the first chain on the honest digits and
+/// fills the second from `second` to be rejected. The public scalar, the
+/// shared bounds and the first result all hold, so only the second chain's
+/// rows, which read the first chain's digits, can reject it.
+fn assert_second_chain_rejected(
+    prover: &Prover,
+    rng: &mut StdRng,
+    honest: &FixedBasePairCircuit,
+    second: [i8; FIXED_BASE_SIGNED_DIGIT_ROUNDS],
+    case: &str,
+) {
+    let scalar = JubJubScalar::from_bytes(&honest.scalar.to_bytes())
+        .expect("the honest scalar is canonical");
+    let digits = scalar.compute_windowed_naf(2);
+    assert_ne!(second, digits, "{case}: must forge the second chain");
+
+    let forgery = FixedBasePairCircuit::forged(honest.scalar, [digits, second]);
+    assert_eq!(
+        forgery.claimed_points[0], honest.claimed_points[0],
+        "{case}: the first result must stay honest",
+    );
+
+    assert_rejected(prover, rng, honest, &forgery, case);
+}
+
+/// The pair's second chain reads its digits from the first chain's scalar
+/// accumulator, so both results follow one decomposition. Each forgery here
+/// claims the second result for another scalar. The moved digits cover the
+/// first row, whose digit the leading-zero bound pins on the first chain
+/// only, a middle row, and the last row, which reads the closing accumulator
+/// off the anchor row.
+#[test]
+fn fixed_base_pair_binds_both_results_to_one_decomposition() {
+    assert_eq!(PlonkVersion::current(), PlonkVersion::V3);
+
+    let mut rng = StdRng::seed_from_u64(0x9a12_b1d5);
+    let pp = PublicParameters::setup(1 << 11, &mut rng).expect("setup");
+    let (prover, verifier) = compile_pair(&pp);
+
+    // The gate layout does not depend on the scalar, so one compiled key
+    // serves every case below.
+    for (label, scalar) in helper_wire_scalars() {
+        let honest = FixedBasePairCircuit::honest(scalar);
+        assert_verifies(&prover, &verifier, &mut rng, &honest);
+
+        let digits = scalar.compute_windowed_naf(2);
+        let other = scalar + JubJubScalar::from(0x5eed_u64);
+        let cases = [
+            (
+                "first row's digit moved past the width bound",
+                moved_digit(&digits, 0),
+            ),
+            (
+                "middle row's digit moved",
+                moved_digit(&digits, MID_CHAIN_ROUND),
+            ),
+            ("last row's digit moved", moved_digit(&digits, LAST_ROUND)),
+            ("digits of another scalar", other.compute_windowed_naf(2)),
+        ];
+        for (case, second) in cases {
+            let case = format!("{label}: second chain on the {case}");
+            let [_, generator_b] = pair_generators();
+            assert_ne!(
+                multiple_from_signed_digits(generator_b, &second),
+                honest.claimed_points[1],
+                "{case}: the second result must claim another multiple",
+            );
+
+            assert_second_chain_rejected(
+                &prover, &mut rng, &honest, second, &case,
+            );
+        }
+    }
+}
+
+/// The pair applies the canonicality check and the leading-zero bound once,
+/// to the scalar accumulator both chains read. Filling both chains from the
+/// digits of a noncanonical alias or of a modulus wrap satisfies every
+/// fixed-base row and the closing equality, so only those shared bounds can
+/// reject it, as for `component_mul_generator`. The aliases claim the honest
+/// multiples: `[k + r]G = [k]G`. An alias in the second chain alone is turned
+/// away by that chain's rows instead.
+#[test]
+fn fixed_base_pair_rejects_noncanonical_aliases_and_wraps() {
+    assert_eq!(PlonkVersion::current(), PlonkVersion::V3);
+
+    let mut rng = StdRng::seed_from_u64(0x0a11_a5e5);
+    let pp = PublicParameters::setup(1 << 11, &mut rng).expect("setup");
+    let (prover, verifier) = compile_pair(&pp);
+
+    let scalar = JubJubScalar::from(0xdead_beef_u64);
+    let honest = FixedBasePairCircuit::honest(scalar);
+    assert_verifies(&prover, &verifier, &mut rng, &honest);
+
+    // The integer `k + r` fits the effective signed-digit width, so its
+    // binary digits pass every fixed-base row and the leading-zero bound.
+    let r = BlsScalar::from(-JubJubScalar::one()) + BlsScalar::one();
+    let alias = BlsScalar::from(scalar) + r;
+    let alias_digits =
+        binary_digits(limbs_from_canonical_bytes(alias.to_bytes()), 1);
+    let r_digits = binary_digits(JUBJUB_MODULUS, 1);
+    for (public, digits) in [(alias, alias_digits), (r, r_digits)] {
+        assert_eq!(signed_digit_endpoint(&digits), public);
+        assert_eq!(leading_endpoint(&digits), BlsScalar::zero());
+    }
+
+    let aliases = [
+        ("Jubjub modulus r", r, r_digits, JubJubScalar::zero()),
+        ("alias k + r of a canonical k", alias, alias_digits, scalar),
+    ];
+    for (case, public, digits, canonical) in aliases {
+        let case = format!("both chains on the {case}");
+        let forgery = FixedBasePairCircuit::forged(public, [digits, digits]);
+        assert_eq!(
+            forgery.claimed_points,
+            pair_generators().map(|generator| generator * canonical),
+            "{case}: the alias must reach the multiples of its canonical scalar",
+        );
+
+        assert_rejected(&prover, &mut rng, &honest, &forgery, &case);
+    }
+
+    // The second chain alone on the alias claims the honest second multiple
+    // too, so nothing but its binding to the first chain's digits rejects
+    // it.
+    let [_, generator_b] = pair_generators();
+    assert_eq!(
+        multiple_from_signed_digits(generator_b, &alias_digits),
+        honest.claimed_points[1],
+    );
+    assert_second_chain_rejected(
+        &prover,
+        &mut rng,
+        &honest,
+        alias_digits,
+        "second chain alone on the alias k + r",
+    );
+
+    // q == 0 and 1 - q == 1 in the BLS scalar field.
+    let mut q_minus_one = BLS_MODULUS;
+    q_minus_one[0] -= 1;
+    let wraps = [
+        (
+            "q as public zero",
+            BlsScalar::zero(),
+            binary_digits(BLS_MODULUS, 1),
+        ),
+        (
+            "1 - q as public one",
+            BlsScalar::one(),
+            binary_digits(q_minus_one, -1),
+        ),
+    ];
+    for (case, public, digits) in wraps {
+        let case = format!("both chains on {case}");
+        assert_eq!(
+            signed_digit_endpoint(&digits),
+            public,
+            "{case}: the closing field equality must pass",
+        );
+        assert_ne!(
+            leading_endpoint(&digits),
+            BlsScalar::zero(),
+            "{case}: the shared width bound must be what rejects the wrap",
+        );
+
+        let forgery = FixedBasePairCircuit::forged(public, [digits, digits]);
+        assert_rejected(&prover, &mut rng, &honest, &forgery, &case);
+    }
+}
+
+/// The `d` wires a fixed-base chain reads its digits from: those of its
+/// signed-digit rows, then that of the anchor row after them.
+fn chain_scalar_wires(gates: &[Gate]) -> Vec<Witness> {
+    let rows: Vec<_> = (0..gates.len())
+        .filter(|&row| gates[row].q_fixed_group_add != BlsScalar::zero())
+        .collect();
+    let anchor = rows.last().expect("a fixed-base chain") + 1;
+
+    rows.into_iter()
+        .chain([anchor])
+        .map(|row| gates[row].d)
+        .collect()
+}
+
+/// The pair's first multiplication is `component_mul_generator`'s emission
+/// gate for gate, so it carries every constraint of the single gadget. The
+/// second adds its own point chain, whose rows read the first chain's scalar
+/// accumulator, and nothing else. Pins the gate counts the pair's
+/// documentation states.
+#[test]
+fn component_mul_generator_pair_extends_the_single_gadget() {
+    let [generator_a, generator_b] = pair_generators();
+    let emission = |pair: bool| {
+        let mut composer = Composer::initialized();
+        let scalar = composer.append_witness(JubJubScalar::from(0xdead_u64));
+        let start = composer.constraints.len();
+        if pair {
+            composer
+                .component_mul_generator_pair(scalar, generator_a, generator_b)
+                .expect("honest fixed-base pair");
+        } else {
+            composer
+                .component_mul_generator(scalar, generator_a)
+                .expect("honest fixed-base multiplication");
+        }
+        composer.constraints.split_off(start)
+    };
+    let single = emission(false);
+    let pair = emission(true);
+    let (first, second) = pair.split_at(single.len());
+
+    assert_eq!(first, single, "the pair must start with the single gadget");
+    assert_eq!(
+        chain_scalar_wires(second),
+        chain_scalar_wires(first),
+        "the second chain must read the first chain's scalar accumulator",
+    );
+
+    // The second chain: the identity pins of its point accumulator, its
+    // signed-digit rows and its anchor row.
+    assert_eq!(second.len(), 2 + FIXED_BASE_SIGNED_DIGIT_ROUNDS + 1);
+    assert_eq!(single.len(), 331);
+    assert_eq!(pair.len(), 590);
+}
+
+/// Pins `component_mul_generator_pair`'s layout on its own, as
+/// [`component_mul_generator_layout_matches_golden`] does the single
+/// gadget's. A changed digest changes the verifier key of every circuit that
+/// calls the pair.
+#[test]
+fn component_mul_generator_pair_layout_matches_golden() {
+    // `gate_digest` captured from `component_mul_generator_pair` at its
+    // introduction.
+    const GOLDEN: [u8; 32] = [
+        80, 134, 202, 236, 51, 16, 254, 36, 211, 116, 2, 53, 35, 229, 177, 255,
+        8, 59, 208, 121, 129, 213, 64, 10, 77, 21, 9, 137, 97, 183, 131, 50,
+    ];
+
+    let mut composer = Composer::initialized();
+    let (_, scalar) = helper_wire_scalars()[0];
+    let scalar = composer.append_witness(BlsScalar::from(scalar));
+    let [generator_a, generator_b] = pair_generators();
+    composer
+        .component_mul_generator_pair(scalar, generator_a, generator_b)
+        .expect("honest fixed-base pair");
+
+    assert_eq!(
+        gate_digest(&composer.constraints),
+        GOLDEN,
+        "component_mul_generator_pair's gate layout drifted from the pinned one",
     );
 }
