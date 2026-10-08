@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add `Composer::component_mul_generator_pair`, which multiplies two
   generators by one scalar decomposed once [#1015]
+- Add `Composer::component_mul_point_pair`, which multiplies two points by one
+  scalar decomposed once [#1015]
 
 ### Changed
 

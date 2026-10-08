@@ -53,7 +53,8 @@ impl WitnessPoint {
 ///
 /// Once established, membership is preserved by the group operations
 /// ([`Composer::component_add_point`], [`Composer::component_sub_point`],
-/// [`Composer::component_mul_point`], [`Composer::component_neg_point`],
+/// [`Composer::component_mul_point`], [`Composer::component_mul_point_pair`],
+/// [`Composer::component_neg_point`],
 /// [`Composer::component_select_identity`]), which therefore take and return
 /// this type: a point in the subgroup cannot leave it.
 ///
@@ -74,6 +75,7 @@ impl WitnessPoint {
 /// [`Composer::component_add_point`]: crate::prelude::Composer::component_add_point
 /// [`Composer::component_sub_point`]: crate::prelude::Composer::component_sub_point
 /// [`Composer::component_mul_point`]: crate::prelude::Composer::component_mul_point
+/// [`Composer::component_mul_point_pair`]: crate::prelude::Composer::component_mul_point_pair
 /// [`Composer::component_neg_point`]: crate::prelude::Composer::component_neg_point
 /// [`Composer::component_select_identity`]: crate::prelude::Composer::component_select_identity
 /// [`Composer::component_mul_generator`]: crate::prelude::Composer::component_mul_generator

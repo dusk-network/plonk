@@ -4,8 +4,8 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-//! Soundness regressions for `assert_torsion_free_point` and
-//! `component_add_point`.
+//! Soundness regressions for `assert_torsion_free_point`,
+//! `component_add_point` and `component_mul_point_pair`.
 //!
 //! The subgroup check must admit exactly the prime-order subgroup: honest
 //! members (identity included) prove, while on-curve torsion components and
@@ -53,6 +53,14 @@
 //! they tie the local residual constructions to the widget's own identity,
 //! while building the `ProverKey` by struct literal makes a new field on it
 //! break the build here rather than silently weaken either pin.
+//!
+//! The pair multiplication decomposes its scalar once and runs a ladder per
+//! point over the same bit witnesses. Its forgeries keep the honest layout and
+//! either run one ladder on another scalar's bits, which its selection rows
+//! reject, or fill the shared decomposition with non-boolean bits that still
+//! recompose to the public scalar, which only the boolean constraints reject.
+//! A layout test pins the second ladder's selection rows to the first
+//! ladder's bit wires.
 
 use dusk_bls12_381::BlsScalar;
 use dusk_jubjub::{
@@ -63,12 +71,12 @@ use rand::SeedableRng;
 use rand::rngs::StdRng;
 
 use super::support::{
-    assert_rejected, assert_verifies, gate_digest, gate_layout, invert,
+    assert_rejected, assert_verifies, gate_digest, gate_layout, invert, pow,
     steering_target,
 };
 use crate::composer::point::EIGHT_INV;
 use crate::composer::{
-    Composer, Constraint, TorsionFreeWitnessPoint, Witness, WitnessPoint,
+    Composer, Constraint, Gate, TorsionFreeWitnessPoint, Witness, WitnessPoint,
 };
 use crate::fft::{EvaluationDomain, Evaluations, Polynomial};
 use crate::prelude::{
@@ -1624,5 +1632,405 @@ fn component_add_point_layout_matches_golden() {
         GOLDEN,
         "component_add_point's gate layout drifted from the deployed \
          verifier keys",
+    );
+}
+
+// ---------------------------------------------------------------------------
+// One decomposition for a pair of points.
+// ---------------------------------------------------------------------------
+
+/// The bases the pair circuit multiplies: two distinct subgroup members.
+fn pair_bases() -> [JubJubAffine; 2] {
+    [
+        prime_order_point(),
+        (GENERATOR_EXTENDED * JubJubScalar::from(0xb0b_u64)).into(),
+    ]
+}
+
+/// The bits of `scalar`, least significant first, as the decomposition takes
+/// them.
+fn scalar_bits(scalar: JubJubScalar) -> [u8; 256] {
+    BlsScalar::from(scalar).to_bits()
+}
+
+/// The value the decomposition's recomposition rows give 252 bits, which a
+/// forgery may leave non-boolean.
+fn recomposition(bits: &[u8; 256]) -> BlsScalar {
+    bits[..252]
+        .iter()
+        .rev()
+        .fold(BlsScalar::zero(), |value, bit| {
+            value.double() + BlsScalar::from(*bit as u64)
+        })
+}
+
+/// The product `mul_point_gates` computes from the values on its bit wires,
+/// `bits`, which a forgery may leave non-boolean: per round a doubling, then
+/// the addition of the selection `(t·x, 1 - t + t·y)` for bit value `t`.
+///
+/// Panics where an addition has no affine image. There `add_point_gates`
+/// falls back to a value its gates reject, which would put a second
+/// unsatisfied constraint into the forgery.
+fn ladder_product(bits: &[u8; 256], base: JubJubAffine) -> JubJubAffine {
+    let add = |a: JubJubAffine, b: JubJubAffine| {
+        let sum = JubJubExtended::from(a) + b;
+        assert_ne!(
+            sum.get_z(),
+            BlsScalar::zero(),
+            "the ladder must stay off the curve-addition poles",
+        );
+        JubJubAffine::from(sum)
+    };
+
+    bits[..252]
+        .iter()
+        .rev()
+        .fold(JubJubAffine::identity(), |product, bit| {
+            let t = BlsScalar::from(*bit as u64);
+            let selected = JubJubAffine::from_raw_unchecked(
+                t * base.get_u(),
+                BlsScalar::one() - t + t * base.get_v(),
+            );
+            add(add(product, product), selected)
+        })
+}
+
+/// An attacker's fork of `Composer::mul_point_gates`: the same gates with the
+/// same wiring, its addends selected as if the scalar's bits were `bits`
+/// rather than the values on `wires`. The selection rows are emitted as
+/// `component_select_zero` and `component_select_one` emit them, with their
+/// outputs assigned from `bits`; [`assert_rejected`] compares the layout
+/// against the production gadget's.
+fn forge_ladder(
+    composer: &mut Composer,
+    wires: &[Witness; 252],
+    bits: &[u8; 256],
+    base: TorsionFreeWitnessPoint,
+) -> WitnessPoint {
+    let (x, y) = (*base.x(), *base.y());
+    let mut product = WitnessPoint::from(Composer::IDENTITY);
+
+    for (wire, bit) in wires.iter().zip(&bits[..252]).rev() {
+        product = composer.add_point_gates(product, product);
+
+        let bit = BlsScalar::from(*bit as u64);
+        let selected_x = bit * composer[x];
+        let selected_x = forged_mul(composer, *wire, x, selected_x);
+        let selected_y = BlsScalar::one() - bit + bit * composer[y];
+        let selected_y = composer.append_witness(selected_y);
+        composer.append_gate(
+            Constraint::new()
+                .mult(1)
+                .left(-BlsScalar::one())
+                .output(-BlsScalar::one())
+                .constant(1)
+                .a(*wire)
+                .b(y)
+                .c(selected_y),
+        );
+
+        let selected = WitnessPoint::new(selected_x, selected_y);
+        product = composer.add_point_gates(product, selected);
+    }
+
+    product
+}
+
+/// How a pair circuit fills the layout of `component_mul_point_pair`.
+enum PairMode {
+    Honest,
+    /// The shared decomposition holds `bits`, which may be non-boolean, and
+    /// both ladders select their addends from those values as the production
+    /// gates do.
+    Decomposition([u8; 256]),
+    /// The decomposition is honest, and the ladder of base `index` selects
+    /// its addends as if the scalar's bits were `bits`.
+    Ladder {
+        index: usize,
+        bits: [u8; 256],
+    },
+}
+
+/// Multiplies both [`pair_bases`] by one public scalar and claims both
+/// products publicly.
+struct MulPointPairCircuit {
+    scalar: BlsScalar,
+    claimed: [JubJubAffine; 2],
+    mode: PairMode,
+}
+
+impl Default for MulPointPairCircuit {
+    fn default() -> Self {
+        Self::honest(JubJubScalar::zero())
+    }
+}
+
+impl MulPointPairCircuit {
+    fn honest(scalar: JubJubScalar) -> Self {
+        Self {
+            scalar: BlsScalar::from(scalar),
+            claimed: pair_bases()
+                .map(|base| (JubJubExtended::from(base) * scalar).into()),
+            mode: PairMode::Honest,
+        }
+    }
+
+    /// The public `scalar` decomposed into `bits`, and both products claimed
+    /// to be what the ladders then compute.
+    fn forged_decomposition(scalar: BlsScalar, bits: [u8; 256]) -> Self {
+        Self {
+            scalar,
+            claimed: pair_bases().map(|base| ladder_product(&bits, base)),
+            mode: PairMode::Decomposition(bits),
+        }
+    }
+
+    /// The honest decomposition of `scalar`, with the ladder of base `index`
+    /// following `bits` and its product claimed to be the one they select.
+    fn forged_ladder(
+        scalar: JubJubScalar,
+        index: usize,
+        bits: [u8; 256],
+    ) -> Self {
+        let mut claimed = Self::honest(scalar).claimed;
+        claimed[index] = ladder_product(&bits, pair_bases()[index]);
+
+        Self {
+            scalar: BlsScalar::from(scalar),
+            claimed,
+            mode: PairMode::Ladder { index, bits },
+        }
+    }
+}
+
+impl Circuit for MulPointPairCircuit {
+    fn circuit(&self, composer: &mut Composer) -> Result<(), Error> {
+        let scalar = composer.append_public(self.scalar);
+        let [a, b] = pair_bases();
+        let bases = [
+            composer.append_constant_point(a)?,
+            composer.append_constant_point(b)?,
+        ];
+
+        let products = match &self.mode {
+            PairMode::Honest => {
+                let (a, b) = composer
+                    .component_mul_point_pair(scalar, bases[0], bases[1]);
+                [a.into(), b.into()]
+            }
+            PairMode::Decomposition(bits) => {
+                let wires = composer.decompose_bits::<252>(scalar, bits);
+                bases.map(|base| composer.mul_point_gates(&wires, base))
+            }
+            PairMode::Ladder { index, bits } => {
+                let wires = composer.component_decomposition::<252>(scalar);
+                // `from_fn` fills the ladders in order, as the gadget emits
+                // them.
+                core::array::from_fn(|ladder| {
+                    if ladder == *index {
+                        forge_ladder(composer, &wires, bits, bases[ladder])
+                    } else {
+                        composer.mul_point_gates(&wires, bases[ladder])
+                    }
+                })
+            }
+        };
+
+        for (product, claimed) in products.into_iter().zip(self.claimed) {
+            composer.assert_equal_public_point(product, claimed)?;
+        }
+
+        Ok(())
+    }
+}
+
+fn compile_pair(pp: &PublicParameters) -> (Prover, Verifier) {
+    Compiler::compile::<MulPointPairCircuit>(pp, b"mul-point-pair-soundness")
+        .expect("compile mul-point pair soundness circuit")
+}
+
+/// Both ladders of `component_mul_point_pair` select their addends with the
+/// bit witnesses of one decomposition. A prover who runs either ladder on the
+/// bits of another scalar, here the honest one with a bit flipped at the
+/// first, a middle or the last round, assigns its selection rows outputs they
+/// do not compute from the shared bits. The decomposition, the other ladder,
+/// every addition and both public claims hold, so only those rows can reject
+/// it.
+#[test]
+fn mul_point_pair_binds_both_ladders_to_one_decomposition() {
+    let mut rng = StdRng::seed_from_u64(0x9a12_d0b1);
+    let pp = PublicParameters::setup(1 << 13, &mut rng).expect("setup");
+    let (prover, verifier) = compile_pair(&pp);
+
+    // `r - 2`: full width, so every flipped round moves a nonidentity
+    // accumulator.
+    let scalar = -JubJubScalar::from(2u64);
+    let honest = MulPointPairCircuit::honest(scalar);
+    assert_verifies(&prover, &verifier, &mut rng, &honest);
+
+    // On the honest bits the host-side ladder must walk the real curve and
+    // land on `dusk-jubjub`'s own products.
+    let bits = scalar_bits(scalar);
+    assert_eq!(
+        pair_bases().map(|base| ladder_product(&bits, base)),
+        honest.claimed,
+    );
+
+    let cases = [
+        ("second ladder on a flipped first-round bit", 1, 251),
+        ("second ladder on a flipped middle-round bit", 1, 125),
+        ("second ladder on a flipped last-round bit", 1, 0),
+        ("first ladder on a flipped last-round bit", 0, 0),
+    ];
+    for (case, index, flipped) in cases {
+        let mut forged = bits;
+        forged[flipped] ^= 1;
+
+        let forgery = MulPointPairCircuit::forged_ladder(scalar, index, forged);
+        assert_ne!(
+            forgery.claimed[index], honest.claimed[index],
+            "{case}: the forged ladder must claim another product",
+        );
+        assert_eq!(
+            forgery.claimed[1 - index],
+            honest.claimed[1 - index],
+            "{case}: the other ladder must stay honest",
+        );
+
+        assert_rejected(&prover, &mut rng, &honest, &forgery, case);
+    }
+}
+
+/// The pair constrains the shared bits to booleans once, in the decomposition
+/// both ladders read. A non-boolean decomposition still recomposes to the
+/// public scalar: here one carries a set bit into the clear bit below it as a
+/// `2`, and one reaches `2^252 + k`, past the bound `component_mul_point`
+/// sets, through a top bit of `2`. Both ladders then select off-curve addends.
+/// Every recomposition, selection and addition row holds on those values, as
+/// do both public claims, so only the boolean constraints can reject them.
+#[test]
+fn mul_point_pair_rejects_non_boolean_decompositions() {
+    let mut rng = StdRng::seed_from_u64(0xb001_ea25);
+    let pp = PublicParameters::setup(1 << 13, &mut rng).expect("setup");
+    let (prover, verifier) = compile_pair(&pp);
+
+    let scalar = JubJubScalar::from(0xdead_beef_u64);
+    let honest = MulPointPairCircuit::honest(scalar);
+    assert_verifies(&prover, &verifier, &mut rng, &honest);
+
+    let bits = scalar_bits(scalar);
+    let carried = (1..252)
+        .find(|&bit| bits[bit] == 1 && bits[bit - 1] == 0)
+        .expect("a set bit above a clear one");
+    let mut carried_down = bits;
+    carried_down[carried] = 0;
+    carried_down[carried - 1] = 2;
+
+    assert_eq!(bits[251], 0, "the top bit must be clear to carry 2^252 in");
+    let mut past_bound = bits;
+    past_bound[251] = 2;
+
+    let cases = [
+        (
+            "set bit carried down as a 2",
+            BlsScalar::from(scalar),
+            carried_down,
+        ),
+        (
+            "2^252 + k through a top bit of 2",
+            BlsScalar::from(scalar) + pow(252),
+            past_bound,
+        ),
+    ];
+    for (case, public, forged) in cases {
+        assert_eq!(
+            recomposition(&forged),
+            public,
+            "{case}: the bits must recompose to the public scalar",
+        );
+
+        let forgery = MulPointPairCircuit::forged_decomposition(public, forged);
+        for product in forgery.claimed {
+            assert!(
+                !bool::from(product.is_on_curve()),
+                "{case}: the non-boolean ladder must claim an off-curve product",
+            );
+        }
+
+        assert_rejected(&prover, &mut rng, &honest, &forgery, case);
+    }
+}
+
+/// `component_mul_point_pair` starts with `component_mul_point`'s emission
+/// gate for gate, so it carries every constraint of the single gadget. The
+/// second ladder's selection rows read the first ladder's bit wires, and
+/// nothing else is added. Pins the gate counts the pair's documentation
+/// states.
+#[test]
+fn mul_point_pair_extends_the_single_gadget() {
+    // Per ladder round: a doubling's two rows, the two selection rows reading
+    // the round's bit on their `a` wire, and an addition's two rows.
+    const ROUND: usize = 6;
+
+    let emission = |pair: bool| {
+        let mut composer = Composer::initialized();
+        let scalar = composer.append_witness(JubJubScalar::from(17u64));
+        let [a, b] = pair_bases().map(|base| {
+            let base = composer.append_point(base).expect("honest point");
+            TorsionFreeWitnessPoint::new_unchecked(base)
+        });
+        let start = composer.constraints.len();
+        if pair {
+            composer.component_mul_point_pair(scalar, a, b);
+        } else {
+            composer.component_mul_point(scalar, a);
+        }
+        composer.constraints.split_off(start)
+    };
+    let single = emission(false);
+    let pair = emission(true);
+    let (first, second) = pair.split_at(single.len());
+
+    assert_eq!(first, single, "the pair must start with the single gadget");
+    let selection_bits = |ladder: &[Gate]| {
+        ladder
+            .chunks(ROUND)
+            .map(|round| [round[2].a, round[3].a])
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(
+        selection_bits(second),
+        selection_bits(&first[first.len() - second.len()..]),
+        "the second ladder must select with the first ladder's bit wires",
+    );
+
+    assert_eq!(second.len(), 252 * ROUND);
+    assert_eq!(single.len(), 2017);
+    assert_eq!(pair.len(), 3529);
+}
+
+/// Pins `component_mul_point_pair`'s layout on its own, as
+/// [`mul_point_layout_matches_golden`] does the single gadget's.
+#[test]
+fn mul_point_pair_layout_matches_golden() {
+    // captured from `component_mul_point_pair` at its introduction
+    const GOLDEN: [u8; 32] = [
+        21, 147, 198, 73, 242, 144, 92, 7, 246, 69, 225, 219, 133, 112, 225,
+        215, 78, 1, 174, 229, 124, 227, 42, 124, 148, 199, 163, 207, 80, 154,
+        137, 102,
+    ];
+
+    let mut composer = Composer::initialized();
+    let scalar = composer.append_witness(JubJubScalar::from(17u64));
+    let [a, b] = pair_bases().map(|base| {
+        let base = composer.append_point(base).expect("honest point");
+        TorsionFreeWitnessPoint::new_unchecked(base)
+    });
+    composer.component_mul_point_pair(scalar, a, b);
+    assert_eq!(
+        gate_digest(&composer.constraints),
+        GOLDEN,
+        "component_mul_point_pair gate layout drifted — verifier keys of \
+         every consumer circuit change",
     );
 }

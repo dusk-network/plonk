@@ -456,6 +456,60 @@ impl Composer {
         // Turn scalar into bits
         let scalar_bits = self.component_decomposition::<252>(jubjub);
 
+        let result = self.mul_point_gates(&scalar_bits, point);
+
+        TorsionFreeWitnessPoint::new_unchecked(result)
+    }
+
+    /// Evaluate `jubjub · point_a` and `jubjub · point_b` as a pair of
+    /// [`TorsionFreeWitnessPoint`]s, decomposing `jubjub` once.
+    ///
+    /// As for [`Self::component_mul_point`], subgroup membership of the bases
+    /// is carried by the [`TorsionFreeWitnessPoint`] type, and group closure
+    /// keeps both results in the subgroup.
+    ///
+    /// The soundness guarantees are those of two
+    /// [`Self::component_mul_point`] calls on `jubjub`. This gadget emits
+    /// `component_mul_point(jubjub, point_a)` verbatim, then a second
+    /// double-and-add ladder for `point_b` that selects its addends with the
+    /// same bit witnesses. Both results are therefore multiples by the one
+    /// integer that the 252 boolean-constrained bits recompose to: `jubjub`,
+    /// bounded below `2^252` exactly as by [`Self::component_mul_point`],
+    /// which does not constrain it to the canonical Jubjub interval.
+    ///
+    /// Consumes 3529 gates against 4034 for two [`Self::component_mul_point`]
+    /// calls: the second multiplication shares the 505-gate bit
+    /// decomposition.
+    pub fn component_mul_point_pair(
+        &mut self,
+        jubjub: Witness,
+        point_a: TorsionFreeWitnessPoint,
+        point_b: TorsionFreeWitnessPoint,
+    ) -> (TorsionFreeWitnessPoint, TorsionFreeWitnessPoint) {
+        let scalar_bits = self.component_decomposition::<252>(jubjub);
+
+        let a = self.mul_point_gates(&scalar_bits, point_a);
+        let b = self.mul_point_gates(&scalar_bits, point_b);
+
+        (
+            TorsionFreeWitnessPoint::new_unchecked(a),
+            TorsionFreeWitnessPoint::new_unchecked(b),
+        )
+    }
+
+    /// The gates behind [`Self::component_mul_point`] after the
+    /// decomposition: a double-and-add ladder over `scalar_bits`, most
+    /// significant bit first, starting from the identity. Reachable from the
+    /// `composer` subtree for its unit tests.
+    ///
+    /// Like the other private seams, it returns the untyped point: the caller
+    /// owns the boolean constraint on `scalar_bits` that makes every addend a
+    /// subgroup member.
+    pub(super) fn mul_point_gates(
+        &mut self,
+        scalar_bits: &[Witness; 252],
+        point: TorsionFreeWitnessPoint,
+    ) -> WitnessPoint {
         let mut result = WitnessPoint::from(Self::IDENTITY);
 
         for bit in scalar_bits.iter().rev() {
@@ -468,7 +522,7 @@ impl Composer {
             result = self.add_point_gates(result, point_to_add);
         }
 
-        TorsionFreeWitnessPoint::new_unchecked(result)
+        result
     }
 
     /// Conditionally selects a [`WitnessPoint`] based on an input bit.

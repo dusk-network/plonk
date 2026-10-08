@@ -1082,3 +1082,245 @@ fn component_mul_point() {
     let circuit = TestCircuit::new(scalar, point, result);
     check_unsatisfied_circuit(&prover, &circuit, &mut rng, msg);
 }
+
+/// `[k]point` for the integer `k` that the low 252 bits of `scalar` encode:
+/// the product of the ladder in `component_mul_point`, and `[scalar]point`
+/// whenever `scalar < 2^252`.
+fn ladder_multiple(point: JubJubExtended, scalar: BlsScalar) -> JubJubExtended {
+    scalar.to_bits()[..252].iter().rev().fold(
+        JubJubExtended::identity(),
+        |product, bit| match bit {
+            1 => product.double() + point,
+            _ => product.double(),
+        },
+    )
+}
+
+/// The bases `component_mul_point_pair` is exercised with.
+fn pair_points() -> [JubJubExtended; 2] {
+    [
+        dusk_jubjub::GENERATOR_EXTENDED * JubJubScalar::from(0xdead_u64),
+        dusk_jubjub::GENERATOR_EXTENDED * JubJubScalar::from(0xbeef_u64),
+    ]
+}
+
+/// Multiplies both bases by one scalar with `component_mul_point_pair`.
+struct MulPointPairCircuit {
+    scalar: BlsScalar,
+    points: [JubJubExtended; 2],
+    results: [JubJubExtended; 2],
+}
+
+impl MulPointPairCircuit {
+    fn new(
+        scalar: BlsScalar,
+        points: [JubJubExtended; 2],
+        results: [JubJubExtended; 2],
+    ) -> Self {
+        Self {
+            scalar,
+            points,
+            results,
+        }
+    }
+
+    /// The circuit claiming the products of the ladder.
+    fn honest(scalar: BlsScalar, points: [JubJubExtended; 2]) -> Self {
+        Self::new(scalar, points, points.map(|p| ladder_multiple(p, scalar)))
+    }
+}
+
+impl Default for MulPointPairCircuit {
+    fn default() -> Self {
+        Self::honest(BlsScalar::zero(), pair_points())
+    }
+}
+
+impl Circuit for MulPointPairCircuit {
+    fn circuit(&self, composer: &mut Composer) -> Result<(), Error> {
+        let w_scalar = composer.append_witness(self.scalar);
+        let w_point_a = composer.append_point(self.points[0])?;
+        let w_point_b = composer.append_point(self.points[1])?;
+        let w_result_a = composer.append_point(self.results[0])?;
+        let w_result_b = composer.append_point(self.results[1])?;
+
+        // The test bases are multiples of the prime-order generator, so
+        // subgroup membership holds by construction.
+        let w_point_a = TorsionFreeWitnessPoint::new_unchecked(w_point_a);
+        let w_point_b = TorsionFreeWitnessPoint::new_unchecked(w_point_b);
+
+        let (result_a, result_b) =
+            composer.component_mul_point_pair(w_scalar, w_point_a, w_point_b);
+
+        composer.assert_equal_point(w_result_a, result_a.into());
+        composer.assert_equal_point(w_result_b, result_b.into());
+
+        Ok(())
+    }
+}
+
+/// Multiplies one base by a scalar with `component_mul_point`, as the
+/// reference for the scalar bound of the pair.
+struct MulPointCircuit {
+    scalar: BlsScalar,
+    point: JubJubExtended,
+    result: JubJubExtended,
+}
+
+impl Default for MulPointCircuit {
+    fn default() -> Self {
+        let [point, _] = pair_points();
+
+        Self {
+            scalar: BlsScalar::zero(),
+            point,
+            result: JubJubExtended::identity(),
+        }
+    }
+}
+
+impl Circuit for MulPointCircuit {
+    fn circuit(&self, composer: &mut Composer) -> Result<(), Error> {
+        let w_scalar = composer.append_witness(self.scalar);
+        let w_point = composer.append_point(self.point)?;
+        let w_result = composer.append_point(self.result)?;
+
+        // A multiple of the prime-order generator.
+        let w_point = TorsionFreeWitnessPoint::new_unchecked(w_point);
+        let result = composer.component_mul_point(w_scalar, w_point);
+
+        composer.assert_equal_point(w_result, result.into());
+
+        Ok(())
+    }
+}
+
+#[test]
+fn component_mul_point_pair() {
+    let label = b"component_mul_point_pair";
+    let mut rng = StdRng::seed_from_u64(0xdee2);
+    let capacity = 1 << 13;
+    let pp = PublicParameters::setup(capacity, &mut rng)
+        .expect("Creation of public parameter shouldn't fail");
+    let (prover, verifier) =
+        Compiler::compile::<MulPointPairCircuit>(&pp, label)
+            .expect("Circuit should compile");
+    let pi = vec![];
+
+    let random_points = [(); 2].map(|_| {
+        dusk_jubjub::GENERATOR_EXTENDED * JubJubScalar::random(&mut rng)
+    });
+    let cases = [
+        ("zero", BlsScalar::zero(), pair_points()),
+        ("one", BlsScalar::one(), pair_points()),
+        (
+            "a random scalar and random points",
+            JubJubScalar::random(&mut rng).into(),
+            random_points,
+        ),
+        (
+            "scalar -1 (r - 1)",
+            (-JubJubScalar::one()).into(),
+            pair_points(),
+        ),
+        (
+            "the same point twice",
+            JubJubScalar::random(&mut rng).into(),
+            [pair_points()[0]; 2],
+        ),
+    ];
+    for (case, scalar, points) in cases {
+        let circuit = MulPointPairCircuit::honest(scalar, points);
+        assert_eq!(
+            circuit.results,
+            points.map(|point| point
+                * JubJubScalar::from_bytes(&scalar.to_bytes()).unwrap()),
+            "{case}: the ladder must compute the true multiples"
+        );
+        check_satisfied_circuit(
+            &prover,
+            &verifier,
+            &pi,
+            &circuit,
+            &mut rng,
+            &format!("Circuit with {case} should pass"),
+        );
+    }
+
+    // Each result is bound on its own: shifting either, or swapping them,
+    // fails.
+    let scalar = BlsScalar::from(0xc0ffee_u64);
+    let points = pair_points();
+    let [result_a, result_b] =
+        MulPointPairCircuit::honest(scalar, points).results;
+    let wrong_results = [
+        ("the first result shifted", [result_a + points[0], result_b]),
+        (
+            "the second result shifted",
+            [result_a, result_b + points[1]],
+        ),
+        ("the results swapped", [result_b, result_a]),
+    ];
+    for (case, results) in wrong_results {
+        check_unsatisfied_circuit(
+            &prover,
+            &MulPointPairCircuit::new(scalar, points, results),
+            &mut rng,
+            &format!("Circuit with {case} should fail"),
+        );
+    }
+}
+
+#[test]
+fn component_mul_point_pair_keeps_the_scalar_bound_of_component_mul_point() {
+    let mut rng = StdRng::seed_from_u64(0xb0d);
+    let pp = PublicParameters::setup(1 << 13, &mut rng)
+        .expect("Creation of public parameter shouldn't fail");
+    let (single_prover, _) =
+        Compiler::compile::<MulPointCircuit>(&pp, b"mul_point_bound")
+            .expect("Circuit should compile");
+    let (pair_prover, _) =
+        Compiler::compile::<MulPointPairCircuit>(&pp, b"mul_point_pair_bound")
+            .expect("Circuit should compile");
+
+    // Both gadgets bound the scalar below `2^252`, not to the canonical Jubjub
+    // interval: `r` and the scalars above it up to `2^252 - 1` multiply as
+    // integers, and from `2^252` the decomposition fails. Each circuit claims
+    // the products of its ladder, so only the bound can reject it.
+    let r = BlsScalar::from(-JubJubScalar::one()) + BlsScalar::one();
+    let two_to_252 = BlsScalar::pow_of_2(252);
+    let cases = [
+        ("r", r, true),
+        ("r + 1", r + BlsScalar::one(), true),
+        ("2^252 - 1", two_to_252 - BlsScalar::one(), true),
+        ("2^252", two_to_252, false),
+        ("q - 1", -BlsScalar::one(), false),
+    ];
+    for (case, scalar, accepted) in cases {
+        let pair = MulPointPairCircuit::honest(scalar, pair_points());
+        let single = MulPointCircuit {
+            scalar,
+            point: pair.points[0],
+            result: pair.results[0],
+        };
+
+        for (gadget, outcome) in [
+            (
+                "component_mul_point",
+                single_prover.prove(&mut rng, &single),
+            ),
+            (
+                "component_mul_point_pair",
+                pair_prover.prove(&mut rng, &pair),
+            ),
+        ] {
+            match outcome {
+                Ok(_) => assert!(accepted, "{gadget} must reject {case}"),
+                Err(Error::CircuitUnsatisfied) => {
+                    assert!(!accepted, "{gadget} must accept {case}")
+                }
+                Err(other) => panic!("{gadget} with {case}: {other:?}"),
+            }
+        }
+    }
+}
