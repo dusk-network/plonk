@@ -1002,17 +1002,12 @@ fn forced_accumulators_satisfy_the_widget_output_checks() {
 /// and the gadget cannot drift together. The layout is the same for every
 /// scalar: nothing in the emission branches on a witness value.
 ///
-/// It does not yet stand for any shipped verifier key: the signed-digit and
-/// canonicality bounds it includes are unreleased, and they already changed
-/// the key of every caller. Until the release that ships them it is a drift
-/// pin only, and becomes a compatibility pin then. The soundness suite's other
-/// goldens are a mix of the two — which one a golden is depends on whether the
-/// gadget it was captured from has shipped, so read each one's own note rather
-/// than assuming.
+/// A changed digest therefore changes the verifier key of every circuit that
+/// calls the gadget.
 #[test]
 fn component_mul_generator_layout_matches_golden() {
-    // `gate_digest` captured from `component_mul_generator` as it stands with
-    // the unreleased signed-digit and canonicality bounds.
+    // `gate_digest` of `component_mul_generator`'s emission, signed-digit and
+    // canonicality bounds included.
     const GOLDEN: [u8; 32] = [
         200, 66, 135, 31, 114, 104, 192, 72, 55, 116, 164, 227, 102, 46, 16,
         136, 225, 122, 141, 125, 76, 47, 124, 158, 138, 251, 219, 72, 111, 128,

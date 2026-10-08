@@ -1,6 +1,6 @@
 [package]
 name = "dusk-plonk"
-version = "0.22.1"
+version = "0.24.0"
 categories =["algorithms", "cryptography", "science", "mathematics"]
 edition = "2024"
 rust-version = "1.96.1"
