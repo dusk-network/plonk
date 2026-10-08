@@ -439,7 +439,7 @@ fn component_mul_generator() {
     // Test unsatisfied:
     // invalid jubjub scalar panics
     let msg = "Unsatisfied circuit with invalid scalar should panic";
-    let scalar = JubJubScalar::from_raw((-BlsScalar::one()).0);
+    let scalar = JubJubScalar::from_raw(*(-BlsScalar::one()).internal_repr());
     let result = dusk_jubjub::GENERATOR_EXTENDED;
     let circuit = TestCircuit::new(scalar, generator, result);
     check_unsatisfied_circuit(&prover, &circuit, &mut rng, msg);
@@ -657,11 +657,8 @@ fn component_mul_generator_accepts_prime_order_generator() {
     assert!(composer.component_mul_generator(scalar, generator).is_ok());
 }
 
-/// An extended point whose affine projection `(U/Z, V/Z)` is undefined:
-/// dusk-jubjub inverts `Z` unchecked and panics on zero. The numerators are
-/// the honest generator's coordinates, so nothing but the `Z` guard separates
-/// this input from a valid one — and `is_on_curve` cannot be what rejects it,
-/// since it projects internally and would panic first.
+/// An extended point with `Z = 0` and the honest generator's numerators, so
+/// only the `Z` guard separates it from a valid point.
 fn zero_z_point() -> JubJubExtended {
     let generator = JubJubAffine::from(dusk_jubjub::GENERATOR_EXTENDED);
 
@@ -708,8 +705,7 @@ fn assert_equal_public_point_rejects_zero_z_point() {
 fn append_constant_point_separates_its_rejection_branches() {
     let mut composer = Composer::initialized();
 
-    // Degenerate representation: refused before the membership check, which
-    // is the only order in which its `is_on_curve` half can run at all.
+    // Degenerate representation: refused before the membership check.
     assert!(matches!(
         composer.append_constant_point(zero_z_point()),
         Err(Error::JubJubPointDegenerate)

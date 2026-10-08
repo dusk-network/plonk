@@ -935,17 +935,8 @@ fn append_logic_xor_wires_its_inputs() {
 /// here. A golden at a width nobody downstream compiles would pin nothing
 /// anyone ships.
 ///
-/// **This is a drift pin, not yet a compatibility pin.** The gates binding the
-/// gadget's accumulators to its inputs are unreleased — `v0.22.1` carries no
-/// such binding at all — and they changed the layout, and so the verifier key,
-/// of every caller. The digests below therefore stand for no deployed key; they
-/// become a compatibility pin at the release that ships the binding. The
-/// `BIT_PAIRS <= 127` cap is not part of that despite landing in the same
-/// window: it is a `const` assertion that emits no gate, and `v0.22.1` derived
-/// the same quad count at every width the cap still admits. The suite's other
-/// goldens are a mix of the two kinds — which one a golden is depends on
-/// whether the gadget it was captured from has shipped, so read each one's own
-/// note rather than assuming.
+/// A changed digest therefore changes the verifier key of every circuit that
+/// calls the gadget.
 ///
 /// Both entry points are pinned. They share the emission body, so a drift there
 /// moves both digests and either would catch it; the second is what catches a
@@ -957,8 +948,7 @@ fn append_logic_xor_wires_its_inputs() {
 /// lets [`assert_rejected`] compare an honest circuit against a forged one.
 #[test]
 fn append_logic_component_layout_matches_golden() {
-    // `gate_digest`s captured from the gadget as it stands with the unreleased
-    // width cap and input-binding gates.
+    // `gate_digest`s of the gadget's emission, input-binding gates included.
     const GOLDEN_XOR: [u8; 32] = [
         144, 87, 81, 59, 135, 78, 155, 91, 230, 93, 80, 40, 151, 22, 209, 177,
         33, 107, 254, 195, 187, 67, 144, 231, 32, 113, 221, 26, 9, 47, 164, 32,

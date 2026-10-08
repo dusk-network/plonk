@@ -9,4 +9,20 @@
 //! These reach composer internals that are not part of the public API, so they
 //! live here rather than in the crate-root `tests/` directory.
 
+use dusk_bls12_381::BlsScalar;
+
 mod soundness;
+
+#[test]
+fn minus_one_keeps_its_previous_limbs() {
+    // Montgomery limbs of the hand-written constant `MINUS_ONE` replaced.
+    const PREVIOUS: [u64; 4] = [
+        0xfffffffd00000003,
+        0xfb38ec08fffb13fc,
+        0x99ad88181ce5880f,
+        0x5bc8f5f97cd877d8,
+    ];
+
+    assert_eq!(super::MINUS_ONE.internal_repr(), &PREVIOUS);
+    assert_eq!(super::MINUS_ONE, -BlsScalar::one());
+}

@@ -29,11 +29,8 @@ pub(super) const EIGHT_INV: JubJubScalar = JubJubScalar::from_raw([
 /// Reject an extended point that has no affine image.
 ///
 /// A `JubJubExtended` represents the affine point `(U/Z, V/Z)`, so `Z = 0`
-/// denotes no point at all. dusk-jubjub's projection inverts `Z` without
-/// checking it and aborts the process on zero, and it exposes no fallible
-/// conversion to defer to. The point entry points below therefore call this
-/// *before* projecting, and before `JubJubExtended::is_on_curve`: that
-/// predicate projects internally, so it would abort rather than reject.
+/// denotes no point at all; the point entry points below reject it before
+/// projecting to affine.
 fn reject_degenerate_z(point: &JubJubExtended) -> Result<(), Error> {
     if point.get_z() == BlsScalar::zero() {
         return Err(Error::JubJubPointDegenerate);

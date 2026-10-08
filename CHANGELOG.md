@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.24.0] - 2026-10-08
+
 ### Added
 
 - Document that proving is not constant-time [#992]
@@ -25,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Update `dusk-bls12_381` to `0.16` and `dusk-jubjub` to `0.16` [#1011]
 - Reject compressed circuits with bytes after the end of the deflate stream
   [#1006]
 - Remove the `msgpacker` dependency [#1004]
@@ -173,6 +176,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   endpoint to the nonidentity point `[q]G`, allowing a proof of a false public
   scalar/point relation.
 - Wrap the debugger's rotated (`_w`) wire reads to row 0
+
+## [0.23.0] - 2026-05-29 [yanked]
+
+Replaced by 0.24.0.
 
 ## [0.22.1] - 2026-06-12
 
@@ -832,6 +839,7 @@ is necessary since `rkyv/validation` was required as a bound.
 - Proof system module.
 
 <!-- ISSUES -->
+[#1011]: https://github.com/dusk-network/plonk/issues/1011
 [#1006]: https://github.com/dusk-network/plonk/issues/1006
 [#1004]: https://github.com/dusk-network/plonk/issues/1004
 [#992]: https://github.com/dusk-network/plonk/issues/992
@@ -1012,7 +1020,8 @@ is necessary since `rkyv/validation` was required as a bound.
 [#282]: https://github.com/dusk-network/plonk/issues/282
 
 <!-- VERSIONS -->
-[Unreleased]: https://github.com/dusk-network/plonk/compare/v0.22.1...HEAD
+[Unreleased]: https://github.com/dusk-network/plonk/compare/v0.24.0...HEAD
+[0.24.0]: https://github.com/dusk-network/plonk/compare/v0.22.1...v0.24.0
 [0.22.1]: https://github.com/dusk-network/plonk/compare/v0.22.0...v0.22.1
 [0.22.0]: https://github.com/dusk-network/plonk/compare/v0.21.0...v0.22.0
 [0.21.0]: https://github.com/dusk-network/plonk/compare/v0.20.3...v0.21.0

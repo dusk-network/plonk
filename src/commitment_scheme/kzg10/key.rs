@@ -11,7 +11,7 @@ use alloc::vec::Vec;
 
 #[cfg(feature = "rkyv-impl")]
 use bytecheck::CheckBytes;
-use dusk_bls12_381::multiscalar_mul::msm_variable_base;
+use dusk_bls12_381::multiscalar_mul::try_msm_variable_base;
 use dusk_bls12_381::{BlsScalar, G1Affine, G1Projective, G2Affine, G2Prepared};
 use dusk_bytes::{DeserializableSlice, Serializable};
 use merlin::Transcript;
@@ -401,7 +401,8 @@ impl CommitKey {
     /// Commits to a [`Polynomial`] returning the corresponding [`Commitment`].
     ///
     /// Returns an error if the polynomial's degree is more than the max degree
-    /// of the commit key.
+    /// of the commit key, or if it has more coefficients than the key has
+    /// powers.
     pub(crate) fn commit(
         &self,
         polynomial: &Polynomial,
@@ -409,11 +410,11 @@ impl CommitKey {
         // Check whether we can safely commit to this polynomial
         self.check_commit_degree_is_within_bounds(polynomial.degree())?;
 
-        // Compute commitment
-        Ok(Commitment::from(msm_variable_base(
-            &self.powers_of_g,
-            polynomial,
-        )))
+        // The degree skips leading zeros, but the MSM consumes every
+        // coefficient.
+        try_msm_variable_base(&self.powers_of_g, polynomial)
+            .map(Commitment::from)
+            .map_err(|_| Error::PolynomialDegreeTooLarge)
     }
 
     /// Computes a single witness for multiple polynomials at the same point, by
@@ -901,6 +902,21 @@ mod test {
         let (ck, _) = setup_test(degree)?;
 
         let poly = Polynomial::rand(ck.max_degree() + 1, &mut OsRng);
+        assert_eq!(ck.commit(&poly), Err(Error::PolynomialDegreeTooLarge));
+        Ok(())
+    }
+
+    #[test]
+    fn test_commit_rejects_polynomial_longer_than_key() -> Result<(), Error> {
+        let degree = 25;
+        let (ck, _) = setup_test(degree)?;
+
+        // Degree 0, so the degree check passes, but one coefficient more than
+        // the key has powers: the MSM would consume all of them.
+        let mut coeffs = alloc::vec![BlsScalar::zero(); ck.max_degree() + 2];
+        coeffs[0] = BlsScalar::one();
+        let poly = Polynomial::from_coefficients_untrimmed(coeffs);
+
         assert_eq!(ck.commit(&poly), Err(Error::PolynomialDegreeTooLarge));
         Ok(())
     }
