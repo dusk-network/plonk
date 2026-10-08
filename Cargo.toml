@@ -82,6 +82,11 @@ required-features = ["alloc"]
 name = "plonk"
 harness = false
 
+[[bench]]
+name = "verification"
+harness = false
+required-features = ["std"]
+
 [[test]]
 name = "append_gate"
 required-features = ["alloc"]
