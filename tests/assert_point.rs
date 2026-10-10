@@ -191,3 +191,70 @@ fn assert_equal_public_point() {
     let circuit = TestCircuit::new(point, public);
     check_unsatisfied_circuit(&prover, &circuit, rng, msg);
 }
+
+#[test]
+fn append_public_point() {
+    pub struct TestCircuit {
+        point: JubJubAffine,
+    }
+
+    impl TestCircuit {
+        pub fn new(point: JubJubAffine) -> Self {
+            Self { point }
+        }
+    }
+
+    impl Default for TestCircuit {
+        fn default() -> Self {
+            Self::new(dusk_jubjub::GENERATOR)
+        }
+    }
+
+    impl Circuit for TestCircuit {
+        fn circuit(&self, composer: &mut Composer) -> Result<(), Error> {
+            composer.append_public_point(self.point)?;
+
+            Ok(())
+        }
+    }
+
+    // Compile common circuit descriptions for the prover and verifier to be
+    // used by all tests
+    let label = b"append_public_point";
+    let rng = &mut StdRng::seed_from_u64(0xbeef);
+    let capacity = 1 << 4;
+    let pp = PublicParameters::setup(capacity, rng)
+        .expect("Creation of public parameter shouldn't fail");
+    let (prover, verifier) = Compiler::compile::<TestCircuit>(&pp, label)
+        .expect("Circuit should compile");
+
+    // Test default works:
+    // the coordinates of the point are the public inputs
+    let msg = "Default circuit verification should pass";
+    let circuit = TestCircuit::default();
+    let generator = dusk_jubjub::GENERATOR;
+    let pi = vec![generator.get_u(), generator.get_v()];
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, rng, msg);
+
+    // Test:
+    // a proof only verifies against the coordinates of its own point
+    let msg = "Circuit verification with a public point should pass";
+    let scalar = JubJubScalar::from(42u64);
+    let point: JubJubAffine = (dusk_jubjub::GENERATOR_EXTENDED * scalar).into();
+    let circuit = TestCircuit::new(point);
+    let pi = vec![point.get_u(), point.get_v()];
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, rng, msg);
+
+    let (proof, _) = prover
+        .prove(rng, &circuit)
+        .expect("Prover for valid circuit shouldn't fail");
+    for wrong_pi in [
+        vec![generator.get_u(), point.get_v()],
+        vec![point.get_u(), generator.get_v()],
+    ] {
+        assert!(
+            verifier.verify(&proof, &wrong_pi).is_err(),
+            "verification should fail with a coordinate of another point"
+        );
+    }
+}
