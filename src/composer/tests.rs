@@ -11,6 +11,8 @@
 
 use dusk_bls12_381::BlsScalar;
 
+use super::{Composer, Constraint, WireData};
+
 mod soundness;
 
 #[test]
@@ -25,4 +27,23 @@ fn minus_one_keeps_its_previous_limbs() {
 
     assert_eq!(super::MINUS_ONE.internal_repr(), &PREVIOUS);
     assert_eq!(super::MINUS_ONE, -BlsScalar::one());
+}
+
+/// Both gates that read a witness must have their wires linked into one cycle
+/// of the copy permutation. The permutation argument enforces that cycle, so
+/// without it the two gates could read different values.
+#[test]
+fn gates_reading_one_witness_share_a_permutation_cycle() {
+    let mut composer = Composer::initialized();
+    let x = composer.append_witness(BlsScalar::from(7u64));
+
+    let first = composer.constraints();
+    composer.append_gate(Constraint::new().a(x));
+    let second = composer.constraints();
+    composer.append_gate(Constraint::new().b(x));
+
+    let n = composer.constraints();
+    let [left, right, _, _] = composer.perm.compute_sigma_permutations(n);
+    assert_eq!(left[first], WireData::Right(second));
+    assert_eq!(right[second], WireData::Left(first));
 }

@@ -18,5 +18,6 @@ mod fixed_base;
 mod logic;
 mod point;
 mod range;
+mod select;
 mod support;
 mod truncate;

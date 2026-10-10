@@ -290,3 +290,60 @@ fn assert_equal_constant() {
     let circuit = TestCircuit::new(scalar, constant, public);
     check_unsatisfied_circuit(&prover, &circuit, &mut rng, msg);
 }
+
+#[test]
+fn append_constant() {
+    pub struct TestCircuit {
+        constant: BlsScalar,
+        public: BlsScalar,
+    }
+
+    impl TestCircuit {
+        pub fn new(constant: BlsScalar, public: BlsScalar) -> Self {
+            Self { constant, public }
+        }
+    }
+
+    impl Default for TestCircuit {
+        fn default() -> Self {
+            // a nonzero constant, so that it can't pass for the zero witness
+            let constant = BlsScalar::from(42u64);
+            Self::new(constant, constant)
+        }
+    }
+
+    impl Circuit for TestCircuit {
+        fn circuit(&self, composer: &mut Composer) -> Result<(), Error> {
+            let w_constant = composer.append_constant(self.constant);
+
+            // expose the value of the constant witness as a public input
+            composer.assert_equal_constant(w_constant, 0, Some(self.public));
+
+            Ok(())
+        }
+    }
+
+    // Compile common circuit descriptions for the prover and verifier to be
+    // used by all tests
+    let label = b"append_constant";
+    let mut rng = StdRng::seed_from_u64(0xc0ffee);
+    let capacity = 1 << 4;
+    let pp = PublicParameters::setup(capacity, &mut rng)
+        .expect("Creation of public parameter shouldn't fail");
+    let (prover, verifier) = Compiler::compile::<TestCircuit>(&pp, label)
+        .expect("Circuit should compile");
+
+    // Test default works:
+    // the appended witness holds the constant
+    let msg = "Default circuit verification should pass";
+    let circuit = TestCircuit::default();
+    let pi = vec![BlsScalar::from(42u64)];
+    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, &mut rng, msg);
+
+    // Test constant doesn't match:
+    // the circuit description pins the witness to the compiled constant
+    let msg = "Proof creation should not be possible with different constant than in circuit description";
+    let constant = BlsScalar::random(&mut rng);
+    let circuit = TestCircuit::new(constant, constant);
+    check_unsatisfied_circuit(&prover, &circuit, &mut rng, msg);
+}

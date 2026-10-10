@@ -849,6 +849,26 @@ mod tests {
         }
     }
 
+    /// A compressed circuit stores a scalar of the Hades dictionary as its
+    /// index, so every compressed circuit depends on the dictionary's values,
+    /// not only on its size, which is all `compressed_circuit_is_pinned` sees.
+    #[test]
+    fn hades_dictionary_is_pinned() {
+        const DICTIONARY_BLAKE2B: &str = "aba602ed119b67d26dfac88e74d9e6fc\
+            b7164bb994aaa0544142aa5aad1cfcc3546671be1a197ba31259196394e061a2\
+            8f59b7f2105ad8ebd7a00f9d875bcd3e";
+
+        let mut state = blake2b_simd::State::new();
+        hades::constants()
+            .iter()
+            .chain(hades::mds().iter().flatten())
+            .for_each(|scalar| {
+                state.update(&scalar.to_bytes());
+            });
+
+        assert_eq!(state.finalize().to_hex().as_str(), DICTIONARY_BLAKE2B);
+    }
+
     #[derive(Default)]
     struct PinnedCircuit;
 

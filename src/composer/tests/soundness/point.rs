@@ -4,8 +4,9 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-//! Soundness regressions for `assert_torsion_free_point` and
-//! `component_add_point`.
+//! Soundness regressions for `assert_torsion_free_point`,
+//! `component_add_point`, `component_neg_point` and
+//! `append_constant_point`.
 //!
 //! The subgroup check must admit exactly the prime-order subgroup: honest
 //! members (identity included) prove, while on-curve torsion components and
@@ -1625,4 +1626,104 @@ fn component_add_point_layout_matches_golden() {
         "component_add_point's gate layout drifted from the deployed \
          verifier keys",
     );
+}
+
+/// `component_neg_point` on a prime-order point, either honest or with its
+/// single row emitted over a forged negated coordinate.
+#[derive(Default)]
+struct NegPoint {
+    forged_x: Option<BlsScalar>,
+}
+
+impl Circuit for NegPoint {
+    fn circuit(&self, composer: &mut Composer) -> Result<(), Error> {
+        let point = composer.append_point(prime_order_point())?;
+        // the fixture is a multiple of the generator
+        let point = TorsionFreeWitnessPoint::new_unchecked(point);
+        match self.forged_x {
+            None => {
+                composer.component_neg_point(point);
+            }
+            Some(x) => {
+                let neg_x = composer.append_witness(x);
+                composer.append_gate(
+                    Constraint::new()
+                        .left(-BlsScalar::one())
+                        .a(*point.x())
+                        .output(-BlsScalar::one())
+                        .c(neg_x),
+                );
+            }
+        }
+        Ok(())
+    }
+}
+
+#[test]
+fn neg_point_binds_the_negated_coordinate() {
+    let mut rng = StdRng::seed_from_u64(0x0e9);
+    let pp = PublicParameters::setup(1 << 5, &mut rng).expect("setup");
+    let (prover, verifier) =
+        Compiler::compile::<NegPoint>(&pp, b"neg-point").expect("compile");
+    let honest = NegPoint::default();
+    assert_verifies(&prover, &verifier, &mut rng, &honest);
+
+    // the point itself passed off as its negation
+    let forged = NegPoint {
+        forged_x: Some(prime_order_point().get_u()),
+    };
+    assert_rejected(&prover, &mut rng, &honest, &forged, "x for -x");
+}
+
+/// `append_constant_point` on a prime-order point, either honest or with each
+/// coordinate allocated and pinned to the constant over a forged value.
+#[derive(Default)]
+struct ConstantPoint {
+    forged: Option<(BlsScalar, BlsScalar)>,
+}
+
+impl Circuit for ConstantPoint {
+    fn circuit(&self, composer: &mut Composer) -> Result<(), Error> {
+        let point = prime_order_point();
+        match self.forged {
+            None => {
+                composer.append_constant_point(point)?;
+            }
+            Some((x, y)) => {
+                for (forged, constant) in
+                    [(x, point.get_u()), (y, point.get_v())]
+                {
+                    let coordinate = composer.append_witness(forged);
+                    composer.assert_equal_constant(coordinate, constant, None);
+                }
+            }
+        }
+        Ok(())
+    }
+}
+
+#[test]
+fn constant_point_pins_both_coordinates() {
+    let mut rng = StdRng::seed_from_u64(0xc0);
+    let pp = PublicParameters::setup(1 << 5, &mut rng).expect("setup");
+    let (prover, verifier) =
+        Compiler::compile::<ConstantPoint>(&pp, b"constant-point")
+            .expect("compile");
+    let honest = ConstantPoint::default();
+    assert_verifies(&prover, &verifier, &mut rng, &honest);
+
+    // `(-u, v)` is the negated point, and `(u, -v)` is the negated point
+    // plus the 2-torsion point `(0, -1)`: each keeps one coordinate of the
+    // constant, and the second would carry a torsion component as a subgroup
+    // member.
+    let point = prime_order_point();
+    for (case, forged) in [
+        ("x", (-point.get_u(), point.get_v())),
+        ("y", (point.get_u(), -point.get_v())),
+    ] {
+        let forged = ConstantPoint {
+            forged: Some(forged),
+        };
+        assert_rejected(&prover, &mut rng, &honest, &forged, case);
+    }
 }

@@ -1561,4 +1561,35 @@ mod tests {
             Err(Error::BytesError(dusk_bytes::Error::InvalidData))
         ));
     }
+
+    #[test]
+    fn prover_try_from_bytes_rejects_truncated_segments_without_panicking() {
+        let mut rng = StdRng::seed_from_u64(57);
+        let pp = PublicParameters::setup(1 << 5, &mut rng)
+            .expect("public parameters should build");
+        let (prover, _) =
+            Compiler::compile::<MinimalCircuit>(&pp, b"truncated-segments")
+                .expect("circuit should compile");
+        let bytes = prover.to_bytes();
+
+        // The label and the three keys follow the 56-byte header, so a cut
+        // inside them leaves fewer bytes than the header declares.
+        let segments: usize = (1..5)
+            .map(|i| {
+                let word = &bytes[i * u64::SIZE..(i + 1) * u64::SIZE];
+                u64::from_be_bytes(word.try_into().expect("header word"))
+                    as usize
+            })
+            .sum();
+        for len in [56, 56 + segments / 2, 56 + segments - 1] {
+            let result = std::panic::catch_unwind(|| {
+                Prover::try_from_bytes(&bytes[..len])
+            });
+            assert!(result.is_ok(), "deserializer should never panic");
+            assert!(matches!(
+                result.expect("checked above"),
+                Err(Error::NotEnoughBytes)
+            ));
+        }
+    }
 }
