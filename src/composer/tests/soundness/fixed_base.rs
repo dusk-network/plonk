@@ -366,6 +366,33 @@ fn fixed_base_requires_a_canonical_jubjub_scalar_under_v3() {
     );
 }
 
+#[test]
+fn fixed_base_rejects_a_scalar_above_its_bit_width() {
+    let mut rng = StdRng::seed_from_u64(0x000c_a100_2ca1);
+    let pp = PublicParameters::setup(1 << 10, &mut rng).expect("setup");
+    let (prover, verifier) = compile(&pp);
+
+    let max = FixedBaseCircuit::honest(-JubJubScalar::one());
+    assert_verifies(&prover, &verifier, &mut rng, &max);
+
+    // The field's `-1` is above `2^252`, yet `(r - 1) - (-1) = r` is below it,
+    // and the single digit `-1` reaches it with the leading rows at zero. Only
+    // the `< 2^252` range check on the scalar itself rejects it.
+    let mut digits = [0i8; FIXED_BASE_SIGNED_DIGIT_ROUNDS];
+    digits[0] = -1;
+    assert_eq!(signed_digit_endpoint(&digits), -BlsScalar::one());
+    assert_eq!(leading_endpoint(&digits), BlsScalar::zero());
+
+    let wrapped = FixedBaseCircuit::forged(-BlsScalar::one(), digits);
+    assert_rejected(
+        &prover,
+        &mut rng,
+        &max,
+        &wrapped,
+        "the field's -1 is noncanonical",
+    );
+}
+
 // ---------------------------------------------------------------------------
 // Helper-wire binding.
 // ---------------------------------------------------------------------------
