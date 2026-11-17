@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Replace `PublicParameters::from_slice_unchecked` with the checked, fallible `PublicParameters::from_raw_var_bytes` [#1021]
+- Reject raw commitment-key points with flag bytes above 1 in
+  `Prover::try_from_bytes` [#1021]
 - Parallelize construction of the verifier pairing inputs with Rayon when `std` is enabled, retaining the serial `no_std` path [#1001]
 
 ## [0.24.0] - 2026-10-08
@@ -843,6 +846,7 @@ is necessary since `rkyv/validation` was required as a bound.
 - Proof system module.
 
 <!-- ISSUES -->
+[#1021]: https://github.com/dusk-network/plonk/issues/1021
 [#1011]: https://github.com/dusk-network/plonk/issues/1011
 [#1006]: https://github.com/dusk-network/plonk/issues/1006
 [#1004]: https://github.com/dusk-network/plonk/issues/1004

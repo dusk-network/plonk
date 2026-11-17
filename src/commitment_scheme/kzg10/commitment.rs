@@ -51,12 +51,12 @@ impl<C: ?Sized> CheckBytes<C> for ArchivedCommitment {
 /// Whether `point` is in the prime-order subgroup with canonical limbs and
 /// identity flag, as the checked encodings guarantee. Raw and archived
 /// points hold Montgomery limbs that may not be reduced.
-#[cfg(any(feature = "alloc", feature = "rkyv-impl"))]
+#[cfg(feature = "rkyv-impl")]
 pub(crate) fn g1_is_canonical(point: &G1Affine) -> bool {
     let raw = point.to_raw_bytes();
     // The uncompressed encoding reduces the coordinates and normalizes the
     // identity, so only canonical limbs survive the round trip unchanged.
-    // The flag goes first: other values assert in debug builds.
+    // Check the archived flag before converting the point.
     raw[G1Affine::RAW_SIZE - 1] <= 1
         && Option::<G1Affine>::from(G1Affine::from_uncompressed(
             &point.to_uncompressed(),
