@@ -16,15 +16,16 @@ use rkyv::{
 };
 
 #[cfg(feature = "rkyv-impl")]
-use crate::archive::{InvalidArchive, check_fields, unarchive};
+use crate::archive::{InvalidArchive, unarchive};
 
 /// Holds a commitment to a polynomial in a form of a [`G1Affine`]-bls12_381
 /// point.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 #[cfg_attr(
     feature = "rkyv-impl",
-    derive(Archive, Deserialize, Serialize),
-    archive(bound(serialize = "__S: Serializer + ScratchSpace"))
+    derive(Archive, Serialize),
+    archive(bound(serialize = "__S: Serializer + ScratchSpace")),
+    archive_attr(derive(CheckBytes))
 )]
 pub(crate) struct Commitment(
     /// The commitment is a group element.
@@ -33,18 +34,20 @@ pub(crate) struct Commitment(
 );
 
 #[cfg(feature = "rkyv-impl")]
-impl<C: ?Sized> CheckBytes<C> for ArchivedCommitment {
-    type Error = InvalidArchive;
-
-    unsafe fn check_bytes<'a>(
-        value: *const Self,
-        context: &mut C,
-    ) -> Result<&'a Self, Self::Error> {
-        check_fields!(value, context, 0);
-        if !g1_is_canonical(&unarchive(unsafe { &(*value).0 })) {
-            return Err(InvalidArchive);
+impl<D> Deserialize<Commitment, D> for ArchivedCommitment
+where
+    D: rkyv::Fallible + ?Sized,
+    D::Error: From<InvalidArchive>,
+{
+    fn deserialize(
+        &self,
+        _deserializer: &mut D,
+    ) -> Result<Commitment, D::Error> {
+        let point = unarchive(&self.0);
+        if !g1_is_canonical(&point) {
+            return Err(InvalidArchive.into());
         }
-        Ok(unsafe { &*value })
+        Ok(Commitment(point))
     }
 }
 

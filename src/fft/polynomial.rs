@@ -18,14 +18,11 @@ use dusk_bytes::{DeserializableSlice, Serializable};
 use rkyv::{
     Archive, Deserialize, Serialize,
     ser::{ScratchSpace, Serializer},
-    validation::ArchiveContext,
 };
 
 use super::{EvaluationDomain, Evaluations};
 #[cfg(feature = "rkyv-impl")]
-use crate::archive::{
-    InvalidArchive, check_fields, scalars_are_canonical, unarchive,
-};
+use crate::archive::{InvalidArchive, scalars_are_canonical, unarchive};
 use crate::error::Error;
 use crate::util;
 
@@ -33,8 +30,9 @@ use crate::util;
 #[derive(Debug, Eq, PartialEq, Clone)]
 #[cfg_attr(
     feature = "rkyv-impl",
-    derive(Archive, Deserialize, Serialize),
-    archive(bound(serialize = "__S: Serializer + ScratchSpace"))
+    derive(Archive, Serialize),
+    archive(bound(serialize = "__S: Serializer + ScratchSpace")),
+    archive_attr(derive(CheckBytes))
 )]
 pub(crate) struct Polynomial {
     /// The coefficient of `x^i` is stored at location `i` in `self.coeffs`.
@@ -52,26 +50,25 @@ impl ArchivedPolynomial {
 // Like `Polynomial::from_slice`, require canonical coefficients and no
 // leading zero, which an archive cannot truncate in place.
 #[cfg(feature = "rkyv-impl")]
-impl<C> CheckBytes<C> for ArchivedPolynomial
+impl<D> Deserialize<Polynomial, D> for ArchivedPolynomial
 where
-    C: ArchiveContext + ?Sized,
-    C::Error: bytecheck::Error,
+    D: rkyv::Fallible + ?Sized,
+    D::Error: From<InvalidArchive>,
 {
-    type Error = InvalidArchive;
-
-    unsafe fn check_bytes<'a>(
-        value: *const Self,
-        context: &mut C,
-    ) -> Result<&'a Self, Self::Error> {
-        check_fields!(value, context, coeffs);
-        let coeffs = unsafe { &(*value).coeffs };
+    fn deserialize(
+        &self,
+        _deserializer: &mut D,
+    ) -> Result<Polynomial, D::Error> {
+        let coeffs = self.coeffs();
         let normalized = coeffs.last().is_none_or(|leading| {
             unarchive::<BlsScalar>(leading) != BlsScalar::zero()
         });
         if !normalized || !scalars_are_canonical(coeffs) {
-            return Err(InvalidArchive);
+            return Err(InvalidArchive.into());
         }
-        Ok(unsafe { &*value })
+        Ok(Polynomial {
+            coeffs: coeffs.iter().map(unarchive).collect(),
+        })
     }
 }
 
@@ -746,11 +743,11 @@ mod test {
         let mut poly =
             Polynomial::from_coefficients_vec(vec![BlsScalar::one()]);
         let bytes = rkyv::to_bytes::<_, 256>(&poly).unwrap();
-        assert!(rkyv::check_archived_root::<Polynomial>(&bytes).is_ok());
+        assert!(crate::archive::from_bytes::<Polynomial>(&bytes).is_ok());
 
         // The same polynomial with a zero leading coefficient.
         poly.add_zero_coefficient();
         let bytes = rkyv::to_bytes::<_, 256>(&poly).unwrap();
-        assert!(rkyv::check_archived_root::<Polynomial>(&bytes).is_err());
+        assert!(crate::archive::from_bytes::<Polynomial>(&bytes).is_err());
     }
 }

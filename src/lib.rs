@@ -75,7 +75,7 @@ if #[cfg(feature = "alloc")] {
 pub(crate) mod debugger;
 
 #[cfg(feature = "rkyv-impl")]
-mod archive;
+pub mod archive;
 mod buffer_writer;
 mod commitment_scheme;
 mod error;

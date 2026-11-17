@@ -42,11 +42,13 @@ macro_rules! prover_key_pairs {
         ]
     };
 }
+#[cfg(feature = "rkyv-impl")]
+use bytecheck::CheckBytes;
 #[cfg(all(feature = "alloc", any(test, feature = "rkyv-impl")))]
 pub(crate) use prover_key_pairs;
 #[cfg(feature = "rkyv-impl")]
 use rkyv::{
-    Archive, Deserialize, Serialize,
+    Archive, Serialize,
     ser::{ScratchSpace, Serializer},
 };
 
@@ -57,8 +59,9 @@ use rkyv::{
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 #[cfg_attr(
     feature = "rkyv-impl",
-    derive(Archive, Deserialize, Serialize),
-    archive(bound(serialize = "__S: Serializer + ScratchSpace"))
+    derive(Archive, Serialize),
+    archive(bound(serialize = "__S: Serializer + ScratchSpace")),
+    archive_attr(derive(CheckBytes))
 )]
 pub struct VerifierKey {
     /// Circuit size (not padded to a power of two).
@@ -290,8 +293,9 @@ pub(crate) mod alloc {
     #[derive(Debug, PartialEq, Eq, Clone)]
     #[cfg_attr(
         feature = "rkyv-impl",
-        derive(Archive, Deserialize, Serialize),
-        archive(bound(serialize = "__S: Serializer + ScratchSpace"))
+        derive(Archive, Serialize),
+        archive(bound(serialize = "__S: Serializer + ScratchSpace")),
+        archive_attr(derive(CheckBytes))
     )]
     pub struct ProverKey {
         /// Circuit size
@@ -953,15 +957,18 @@ mod test {
         #[cfg(feature = "rkyv-impl")]
         {
             let bytes = rkyv::to_bytes::<_, 256>(&verifier_key).unwrap();
-            let decoded = rkyv::from_bytes::<VerifierKey>(&bytes).unwrap();
+            let decoded =
+                crate::archive::from_bytes::<VerifierKey>(&bytes).unwrap();
             assert_eq!(decoded, verifier_key);
             assert_eq!(
                 rkyv::to_bytes::<_, 256>(&decoded).unwrap().as_slice(),
                 bytes.as_slice()
             );
             assert!(
-                rkyv::from_bytes::<VerifierKey>(&bytes[..bytes.len() - 1])
-                    .is_err()
+                crate::archive::from_bytes::<VerifierKey>(
+                    &bytes[..bytes.len() - 1]
+                )
+                .is_err()
             );
         }
     }

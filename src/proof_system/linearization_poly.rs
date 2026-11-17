@@ -16,7 +16,7 @@ use rkyv::{
 
 use crate::BufferWriter;
 #[cfg(feature = "rkyv-impl")]
-use crate::archive::{InvalidArchive, check_fields, unarchive};
+use crate::archive::{InvalidArchive, scalar_is_canonical, unarchive};
 #[cfg(feature = "alloc")]
 use crate::{
     fft::{EvaluationDomain, Polynomial},
@@ -28,8 +28,9 @@ use crate::{
 #[derive(Debug, Eq, PartialEq, Clone, Default)]
 #[cfg_attr(
     feature = "rkyv-impl",
-    derive(Archive, Deserialize, Serialize),
-    archive(bound(serialize = "__S: Serializer + ScratchSpace"))
+    derive(Archive, Serialize),
+    archive(bound(serialize = "__S: Serializer + ScratchSpace")),
+    archive_attr(derive(CheckBytes))
 )]
 pub(crate) struct ProofEvaluations {
     // Evaluation of the witness polynomial for the left wire at `z`
@@ -97,16 +98,17 @@ pub(crate) struct LinearizationChallenges {
 }
 
 #[cfg(feature = "rkyv-impl")]
-impl<C: ?Sized> CheckBytes<C> for ArchivedProofEvaluations {
-    type Error = InvalidArchive;
-
-    unsafe fn check_bytes<'a>(
-        value: *const Self,
-        context: &mut C,
-    ) -> Result<&'a Self, Self::Error> {
-        check_fields!(
-            value,
-            context,
+impl<D> Deserialize<ProofEvaluations, D> for ArchivedProofEvaluations
+where
+    D: rkyv::Fallible + ?Sized,
+    D::Error: From<InvalidArchive>,
+{
+    fn deserialize(
+        &self,
+        _deserializer: &mut D,
+    ) -> Result<ProofEvaluations, D::Error> {
+        // Keep the field list exhaustive when evaluations are added.
+        let Self {
             a_eval,
             b_eval,
             c_eval,
@@ -122,15 +124,46 @@ impl<C: ?Sized> CheckBytes<C> for ArchivedProofEvaluations {
             s_sigma_2_eval,
             s_sigma_3_eval,
             z_eval,
-        );
-        // Decoding the byte encoding reduces non-canonical limbs, so it
-        // changes the value.
-        let archived = unsafe { &*value };
-        let evaluations = unarchive::<ProofEvaluations>(archived);
-        match ProofEvaluations::from_bytes(&evaluations.to_bytes()) {
-            Ok(decoded) if decoded == evaluations => Ok(archived),
-            _ => Err(InvalidArchive),
+        } = self;
+        if ![
+            a_eval,
+            b_eval,
+            c_eval,
+            d_eval,
+            a_w_eval,
+            b_w_eval,
+            d_w_eval,
+            q_arith_eval,
+            q_c_eval,
+            q_l_eval,
+            q_r_eval,
+            s_sigma_1_eval,
+            s_sigma_2_eval,
+            s_sigma_3_eval,
+            z_eval,
+        ]
+        .into_iter()
+        .all(scalar_is_canonical)
+        {
+            return Err(InvalidArchive.into());
         }
+        Ok(ProofEvaluations {
+            a_eval: unarchive(a_eval),
+            b_eval: unarchive(b_eval),
+            c_eval: unarchive(c_eval),
+            d_eval: unarchive(d_eval),
+            a_w_eval: unarchive(a_w_eval),
+            b_w_eval: unarchive(b_w_eval),
+            d_w_eval: unarchive(d_w_eval),
+            q_arith_eval: unarchive(q_arith_eval),
+            q_c_eval: unarchive(q_c_eval),
+            q_l_eval: unarchive(q_l_eval),
+            q_r_eval: unarchive(q_r_eval),
+            s_sigma_1_eval: unarchive(s_sigma_1_eval),
+            s_sigma_2_eval: unarchive(s_sigma_2_eval),
+            s_sigma_3_eval: unarchive(s_sigma_3_eval),
+            z_eval: unarchive(z_eval),
+        })
     }
 }
 

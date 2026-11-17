@@ -4,29 +4,30 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-//! Semantic checks for archived values. bytecheck derives only structural
-//! checks, and archived points and scalars hold raw Montgomery limbs.
-
-#[cfg(feature = "alloc")]
-use alloc::vec::Vec;
+//! Checked RKYV deserialization of PLONK values.
+//!
+//! Archive byte checking does not establish all PLONK invariants. Use
+//! [`from_bytes`] to validate point and scalar representations, domains,
+//! polynomials and key invariants before obtaining a usable value. Archive
+//! layouts and serialization are unchanged. Deserialization requires a fallible
+//! context whose error can represent [`InvalidArchive`]; `rkyv::Infallible` and
+//! `rkyv::from_bytes` cannot perform these checks. Custom contexts can
+//! implement `From<InvalidArchive>` for their error, or use [`Deserializer`].
 
 use bytecheck::CheckBytes;
-#[cfg(feature = "alloc")]
 use dusk_bls12_381::BlsScalar;
-#[cfg(feature = "alloc")]
-use rkyv::validation::ArchiveContext;
 use rkyv::{Archive, Archived, Deserialize, Infallible};
 
-use crate::commitment_scheme::Commitment;
 #[cfg(feature = "alloc")]
 use crate::fft::{EvaluationDomain, Evaluations, Polynomial};
-use crate::proof_system::widget::ArchivedVerifierKey;
 #[cfg(feature = "alloc")]
-use crate::proof_system::widget::alloc::ArchivedProverKey;
+use crate::proof_system::widget::alloc::{ArchivedProverKey, ProverKey};
 #[cfg(feature = "alloc")]
 use crate::proof_system::widget::prover_key_pairs;
+#[cfg(feature = "alloc")]
+use crate::proof_system::widget::{ArchivedVerifierKey, VerifierKey};
 
-/// An archived value that is well formed but not a valid value of its type.
+/// An archive that is structurally malformed or violates PLONK invariants.
 #[derive(Debug)]
 pub struct InvalidArchive;
 
@@ -38,26 +39,30 @@ impl core::fmt::Display for InvalidArchive {
 
 impl core::error::Error for InvalidArchive {}
 
-/// Checks the fields of an archived struct, mapping any failure to
-/// [`InvalidArchive`]. The list must name every field: a field added later
-/// fails to compile until it is checked.
-macro_rules! check_fields {
-    ($value:ident, $context:ident, $($field:tt),+ $(,)?) => {
-        let _ = |archived: &Self| {
-            let Self { $($field: _),+ } = archived;
-        };
-        $(
-            unsafe {
-                bytecheck::CheckBytes::check_bytes(
-                    core::ptr::addr_of!((*$value).$field),
-                    $context,
-                )
-            }
-            .map_err(|_| $crate::archive::InvalidArchive)?;
-        )+
-    };
+/// A fallible RKYV deserializer that preserves semantic validation errors.
+#[derive(Default)]
+pub struct Deserializer;
+
+impl rkyv::Fallible for Deserializer {
+    type Error = InvalidArchive;
 }
-pub(crate) use check_fields;
+
+/// Structurally checks an archive and deserializes it with semantic validation.
+///
+/// Generic RKYV callers can instead check the archive with
+/// `rkyv::check_archived_root` and deserialize using [`Deserializer`] or a
+/// context whose error implements `From<InvalidArchive>`.
+pub fn from_bytes<'a, T>(bytes: &'a [u8]) -> Result<T, InvalidArchive>
+where
+    T: Archive,
+    Archived<T>: 'a
+        + CheckBytes<rkyv::validation::validators::DefaultValidator<'a>>
+        + Deserialize<T, Deserializer>,
+{
+    rkyv::check_archived_root::<T>(bytes)
+        .map_err(|_| InvalidArchive)?
+        .deserialize(&mut Deserializer)
+}
 
 /// Copies a structurally checked archived value.
 pub(crate) fn unarchive<T>(archived: &Archived<T>) -> T
@@ -72,7 +77,6 @@ where
 }
 
 /// Whether `scalar` holds canonical limbs, below the modulus.
-#[cfg(feature = "alloc")]
 pub(crate) fn scalar_is_canonical(scalar: &Archived<BlsScalar>) -> bool {
     let scalar: BlsScalar = unarchive(scalar);
     // Adding zero subtracts the modulus from limbs at or above it.
@@ -85,89 +89,66 @@ pub(crate) fn scalars_are_canonical(scalars: &[Archived<BlsScalar>]) -> bool {
     crate::util::all_parallel(scalars, scalar_is_canonical)
 }
 
-/// Whether two archived scalar slices hold the same values.
-#[cfg(feature = "alloc")]
-pub(crate) fn same_scalars(
-    a: &[Archived<BlsScalar>],
-    b: &[Archived<BlsScalar>],
-) -> bool {
-    a.len() == b.len()
-        && a.iter()
-            .zip(b)
-            .all(|(a, b)| unarchive::<BlsScalar>(a) == unarchive(b))
-}
-
 // The byte encoding stores each shared selector once, so archived copies must
-// agree.
-impl<C: ?Sized> CheckBytes<C> for ArchivedVerifierKey {
-    type Error = InvalidArchive;
-
-    unsafe fn check_bytes<'a>(
-        value: *const Self,
-        context: &mut C,
-    ) -> Result<&'a Self, Self::Error> {
-        check_fields!(
-            value,
-            context,
-            n,
-            arithmetic,
-            logic,
-            range,
-            fixed_base,
-            variable_base,
-            permutation,
-        );
-        let key = unsafe { &*value };
-        let same = |a, b| unarchive::<Commitment>(a) == unarchive(b);
-        if same(&key.logic.q_c, &key.arithmetic.q_c)
-            && same(&key.fixed_base.q_l, &key.arithmetic.q_l)
-            && same(&key.fixed_base.q_r, &key.arithmetic.q_r)
+// agree as well.
+#[cfg(feature = "alloc")]
+impl<D> Deserialize<VerifierKey, D> for ArchivedVerifierKey
+where
+    D: rkyv::Fallible + ?Sized,
+    D::Error: From<InvalidArchive>,
+{
+    fn deserialize(
+        &self,
+        deserializer: &mut D,
+    ) -> Result<VerifierKey, D::Error> {
+        let key = VerifierKey {
+            n: self.n.deserialize(deserializer)?,
+            arithmetic: self.arithmetic.deserialize(deserializer)?,
+            logic: self.logic.deserialize(deserializer)?,
+            range: self.range.deserialize(deserializer)?,
+            fixed_base: self.fixed_base.deserialize(deserializer)?,
+            variable_base: self.variable_base.deserialize(deserializer)?,
+            permutation: self.permutation.deserialize(deserializer)?,
+        };
+        if key.logic.q_c != key.arithmetic.q_c
+            || key.fixed_base.q_l != key.arithmetic.q_l
+            || key.fixed_base.q_r != key.arithmetic.q_r
         {
-            Ok(key)
-        } else {
-            Err(InvalidArchive)
+            return Err(InvalidArchive.into());
         }
+        Ok(key)
     }
 }
 
 #[cfg(feature = "alloc")]
-impl<C> CheckBytes<C> for ArchivedProverKey
+impl<D> Deserialize<ProverKey, D> for ArchivedProverKey
 where
-    C: ArchiveContext + ?Sized,
-    C::Error: bytecheck::Error,
+    D: rkyv::Fallible + ?Sized,
+    D::Error: From<InvalidArchive>,
 {
-    type Error = InvalidArchive;
-
-    unsafe fn check_bytes<'a>(
-        value: *const Self,
-        context: &mut C,
-    ) -> Result<&'a Self, Self::Error> {
-        check_fields!(
-            value,
-            context,
-            n,
-            arithmetic,
-            logic,
-            range,
-            fixed_base,
-            variable_base,
-            permutation,
-            v_h_coset_8n,
-        );
-        let key = unsafe { &*value };
-        if prover_key_is_valid(key) {
-            Ok(key)
-        } else {
-            Err(InvalidArchive)
+    fn deserialize(&self, deserializer: &mut D) -> Result<ProverKey, D::Error> {
+        let key = ProverKey {
+            n: self.n.deserialize(deserializer)?,
+            arithmetic: self.arithmetic.deserialize(deserializer)?,
+            logic: self.logic.deserialize(deserializer)?,
+            range: self.range.deserialize(deserializer)?,
+            fixed_base: self.fixed_base.deserialize(deserializer)?,
+            variable_base: self.variable_base.deserialize(deserializer)?,
+            permutation: self.permutation.deserialize(deserializer)?,
+            v_h_coset_8n: self.v_h_coset_8n.deserialize(deserializer)?,
+        };
+        if !prover_key_is_valid(&key) {
+            return Err(InvalidArchive.into());
         }
+        Ok(key)
     }
 }
 
 /// Applies the key-level checks of `ProverKey::from_slice`. Each polynomial
 /// and evaluation set has already passed its own checks.
 #[cfg(feature = "alloc")]
-fn prover_key_is_valid(key: &ArchivedProverKey) -> bool {
-    let n = unarchive::<usize>(&key.n);
+fn prover_key_is_valid(key: &ProverKey) -> bool {
+    let n = key.n;
     let Some(domain) = n
         .checked_mul(8)
         .filter(|size| size.is_power_of_two())
@@ -176,37 +157,30 @@ fn prover_key_is_valid(key: &ArchivedProverKey) -> bool {
         return false;
     };
 
-    type Pair = Archived<(Polynomial, Evaluations)>;
+    type Pair = (Polynomial, Evaluations);
     let (arithmetic, fixed_base, permutation) =
         (&key.arithmetic, &key.fixed_base, &key.permutation);
     // Each polynomial fits the circuit and its cached coset evaluations,
     // which also fixes their domain.
     let fits = |pair: &Pair| {
-        let coeffs: Vec<BlsScalar> =
-            pair.0.coeffs().iter().map(unarchive).collect();
-        coeffs.len() <= n
+        pair.0.len() <= n
             && domain.matches_coset_evaluations(
-                &coeffs,
-                pair.1.evals.iter().map(unarchive),
+                &pair.0,
+                pair.1.evals.iter().copied(),
             )
-    };
-    let same = |a: &Pair, b: &Pair| {
-        same_scalars(a.0.coeffs(), b.0.coeffs())
-            && same_scalars(&a.1.evals, &b.1.evals)
     };
 
     crate::util::all_parallel(&prover_key_pairs!(key, &), |pair| fits(pair))
-        // The byte encoding stores each shared selector once.
-        && same(&key.logic.q_c, &arithmetic.q_c)
-        && same(&fixed_base.q_l, &arithmetic.q_l)
-        && same(&fixed_base.q_r, &arithmetic.q_r)
-        && same(&fixed_base.q_c, &arithmetic.q_c)
+        && key.logic.q_c == arithmetic.q_c
+        && fixed_base.q_l == arithmetic.q_l
+        && fixed_base.q_r == arithmetic.q_r
+        && fixed_base.q_c == arithmetic.q_c
         && domain.matches_linear_poly_over_coset(
-            permutation.linear_evaluations.evals.iter().map(unarchive),
+            permutation.linear_evaluations.evals.iter().copied(),
         )
         && domain.matches_vanishing_poly_over_coset(
             n as u64,
-            key.v_h_coset_8n.evals.iter().map(unarchive),
+            key.v_h_coset_8n.evals.iter().copied(),
         )
 }
 
@@ -284,10 +258,10 @@ mod tests {
     fn checks<T: Archive>(bytes: &[u8]) -> bool
     where
         Archived<T>: for<'a> CheckBytes<
-            rkyv::validation::validators::DefaultValidator<'a>,
-        >,
+                rkyv::validation::validators::DefaultValidator<'a>,
+            > + Deserialize<T, Deserializer>,
     {
-        rkyv::check_archived_root::<T>(bytes).is_ok()
+        from_bytes::<T>(bytes).is_ok()
     }
 
     fn compiled() -> (Prover, Proof) {
@@ -303,7 +277,7 @@ mod tests {
     fn archived_proofs_reject_invalid_elements() {
         let (_, proof) = compiled();
         let bytes = archive(&proof);
-        assert_eq!(rkyv::from_bytes::<Proof>(&bytes).unwrap(), proof);
+        assert_eq!(from_bytes::<Proof>(&bytes).unwrap(), proof);
 
         let a_comm = offset::<Proof>(&bytes, |p: &ArchivedProof| {
             core::ptr::addr_of!(p.a_comm).cast()
@@ -353,11 +327,38 @@ mod tests {
     }
 
     #[test]
+    fn nested_archives_preserve_semantic_validation() {
+        #[derive(Archive, rkyv::Serialize, Deserialize)]
+        #[archive(bound(deserialize = "__D::Error: From<InvalidArchive>"))]
+        #[archive_attr(derive(CheckBytes))]
+        struct WrappedProof {
+            proof: Proof,
+        }
+
+        let (_, proof) = compiled();
+        let mut bytes = archive(&WrappedProof {
+            proof: proof.clone(),
+        });
+        assert_eq!(from_bytes::<WrappedProof>(&bytes).unwrap().proof, proof);
+
+        let at = offset::<WrappedProof>(&bytes, |wrapped| {
+            core::ptr::addr_of!(wrapped.proof.a_comm).cast()
+        });
+        let mut off_curve = G1Affine::identity().to_raw_bytes();
+        off_curve[G1Affine::RAW_SIZE - 1] = 0;
+        bytes[at..at + G1Affine::RAW_SIZE].copy_from_slice(&off_curve);
+        // Structure remains valid; deserialization must still reject an
+        // off-curve point inside a downstream archive.
+        assert!(rkyv::check_archived_root::<WrappedProof>(&bytes).is_ok());
+        assert!(from_bytes::<WrappedProof>(&bytes).is_err());
+    }
+
+    #[test]
     fn archived_verifier_keys_share_selectors() {
         let (prover, _) = compiled();
         let key = prover.verifier_key;
         let bytes = archive(&key);
-        assert_eq!(rkyv::from_bytes::<VerifierKey>(&bytes).unwrap(), key);
+        assert_eq!(from_bytes::<VerifierKey>(&bytes).unwrap(), key);
 
         let copies: [fn(&Archived<VerifierKey>) -> *const u8; 3] = [
             |k| core::ptr::addr_of!(k.logic.q_c).cast(),
@@ -431,7 +432,7 @@ mod tests {
         let (prover, _) = compiled();
         let key = prover.prover_key;
         let bytes = archive(&key);
-        assert_eq!(rkyv::from_bytes::<ProverKey>(&bytes).unwrap(), key);
+        assert_eq!(from_bytes::<ProverKey>(&bytes).unwrap(), key);
 
         let mutated = |at: fn(&Archived<ProverKey>) -> *const u8,
                        mutate: &dyn Fn(&mut [u8])| {
