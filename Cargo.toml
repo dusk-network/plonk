@@ -87,6 +87,11 @@ name = "verification"
 harness = false
 required-features = ["std"]
 
+[[bench]]
+name = "raw_decoding"
+harness = false
+required-features = ["alloc"]
+
 [[test]]
 name = "append_gate"
 required-features = ["alloc"]
