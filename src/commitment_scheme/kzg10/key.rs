@@ -31,6 +31,9 @@ use crate::fft::Polynomial;
 use crate::transcript::TranscriptProtocol;
 use crate::{BufferWriter, util};
 
+#[cfg(feature = "std")]
+const PARALLEL_RAW_DECODE_MIN_POINTS: usize = 256;
+
 /// Whether `powers[n] == powers[0]` for a power of two `n` within the key,
 /// that is, whether the setup secret is a root of unity of a supported
 /// domain. The vanishing polynomial is then zero at the secret, so every
@@ -245,7 +248,8 @@ impl CommitKey {
     /// Deserialize [`CommitKey`] from bytes created by
     /// [`CommitKey::to_raw_var_bytes`] while validating each decoded point,
     /// including that its raw limbs are canonical. Rejects a key whose setup
-    /// secret is a root of unity of a supported domain.
+    /// secret is a root of unity of a supported domain. With `std`, large
+    /// keys validate their points in parallel.
     pub fn from_raw_var_bytes(bytes: &[u8]) -> Result<Self, Error> {
         if bytes.len() < u64::SIZE {
             return Err(Error::NotEnoughBytes);
@@ -272,17 +276,26 @@ impl CommitKey {
             return Err(dusk_bytes::Error::InvalidData.into());
         }
 
-        let mut powers_of_g = Vec::with_capacity(len);
-
         let (chunks, _) =
             bytes[u64::SIZE..].as_chunks::<{ G1Affine::RAW_SIZE }>();
-        for chunk in chunks {
-            let point =
-                Option::<G1Affine>::from(G1Affine::from_raw_slice(chunk))
-                    .ok_or(Error::PointMalformed)?;
+        let decode = |chunk: &[u8; G1Affine::RAW_SIZE]| {
+            Option::<G1Affine>::from(G1Affine::from_raw_slice(chunk))
+                .ok_or(Error::PointMalformed)
+        };
+        let decode_serial =
+            || chunks.iter().map(decode).collect::<Result<Vec<_>, _>>();
+        #[cfg(not(feature = "std"))]
+        let powers_of_g = decode_serial()?;
+        #[cfg(feature = "std")]
+        let powers_of_g = if chunks.len() >= PARALLEL_RAW_DECODE_MIN_POINTS {
+            use rayon::prelude::*;
 
-            powers_of_g.push(point);
-        }
+            // Each point must pass its subgroup check. A single randomized
+            // sum can cancel small-order torsion with appreciable probability.
+            chunks.par_iter().map(decode).collect::<Result<_, _>>()?
+        } else {
+            decode_serial()?
+        };
         if secret_is_domain_root(&powers_of_g) {
             return Err(dusk_bytes::Error::InvalidData.into());
         }
@@ -1216,6 +1229,17 @@ mod test {
                 Err(Error::NotEnoughBytes)
             );
         }
+
+        // Exercise the parallel decoder with a malformed point near the end.
+        let (key, _) = setup_test(PARALLEL_RAW_DECODE_MIN_POINTS).unwrap();
+        let mut bytes = key.to_raw_var_bytes();
+        assert_eq!(CommitKey::from_raw_var_bytes(&bytes).unwrap(), key);
+        let last_point = bytes.len() - G1Affine::RAW_SIZE;
+        bytes[last_point..].copy_from_slice(&point.to_raw_bytes());
+        assert_eq!(
+            CommitKey::from_raw_var_bytes(&bytes),
+            Err(Error::PointMalformed)
+        );
     }
 
     #[test]

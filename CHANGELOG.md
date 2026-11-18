@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Replace `PublicParameters::from_slice_unchecked` with the checked, fallible `PublicParameters::from_raw_var_bytes` [#1021]
 - Reject raw commitment-key points with flag bytes above 1 in
   `Prover::try_from_bytes` [#1021]
+- Validate large raw commitment keys in parallel in `Prover::try_from_bytes`
+  when `std` is enabled [#1021]
 - Parallelize construction of the verifier pairing inputs with Rayon when `std` is enabled, retaining the serial `no_std` path [#1001]
 
 ## [0.24.0] - 2026-10-08

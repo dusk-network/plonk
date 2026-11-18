@@ -123,6 +123,7 @@ impl PublicParameters {
     /// Validates the opening key and the canonical field, curve, subgroup and
     /// identity representation of each commitment-key point. Rejects truncated
     /// or trailing data and setup secrets that are supported domain roots.
+    /// With `std`, large commitment keys are decoded in parallel.
     pub fn from_raw_var_bytes(bytes: &[u8]) -> Result<Self, Error> {
         if bytes.len() < OpeningKey::SIZE {
             return Err(Error::NotEnoughBytes);
