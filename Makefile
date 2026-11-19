@@ -31,7 +31,7 @@ fmt: ## Format code (requires nightly)
 	@cargo +nightly fmt --all $(if $(CHECK),-- --check,)
 
 bench: ## Run benchmarks
-	@cargo bench
+	@cargo bench $(BENCH_ARGS)
 
 build-benches: ## Build benchmarks
 	@cargo bench --no-run
