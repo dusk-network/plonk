@@ -20,7 +20,10 @@ use crate::fft::{EvaluationDomain, Evaluations, Polynomial};
 #[cfg_attr(
     feature = "rkyv-impl",
     derive(Archive, Deserialize, Serialize),
-    archive(bound(serialize = "__S: Serializer + ScratchSpace")),
+    archive(bound(
+        serialize = "__S: Serializer + ScratchSpace",
+        deserialize = "__D::Error: From<crate::archive::InvalidArchive>"
+    )),
     archive_attr(derive(CheckBytes))
 )]
 pub(crate) struct ProverKey {

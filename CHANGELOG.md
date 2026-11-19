@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Require a fallible RKYV deserializer for `Proof` and expose
+  `archive::from_bytes` for checked decoding [#1023]
 - Replace `PublicParameters::from_slice_unchecked` with the checked, fallible `PublicParameters::from_raw_var_bytes` [#1021]
 - Reject raw commitment-key points with flag bytes above 1 in
   `Prover::try_from_bytes` [#1021]
@@ -848,6 +850,7 @@ is necessary since `rkyv/validation` was required as a bound.
 - Proof system module.
 
 <!-- ISSUES -->
+[#1023]: https://github.com/dusk-network/plonk/issues/1023
 [#1021]: https://github.com/dusk-network/plonk/issues/1021
 [#1011]: https://github.com/dusk-network/plonk/issues/1011
 [#1006]: https://github.com/dusk-network/plonk/issues/1006

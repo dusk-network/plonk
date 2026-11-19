@@ -57,7 +57,10 @@ use rkyv::{
 #[cfg_attr(
     feature = "rkyv-impl",
     derive(Archive, Deserialize, Serialize),
-    archive(bound(serialize = "__S: Serializer + ScratchSpace")),
+    archive(bound(
+        serialize = "__S: Serializer + ScratchSpace",
+        deserialize = "__D::Error: From<crate::archive::InvalidArchive>"
+    )),
     archive_attr(derive(CheckBytes))
 )]
 pub struct Proof {
@@ -1265,14 +1268,15 @@ mod proof_tests {
         #[cfg(feature = "rkyv-impl")]
         {
             let bytes = rkyv::to_bytes::<_, 256>(&proof).unwrap();
-            let decoded = rkyv::from_bytes::<Proof>(&bytes).unwrap();
+            let decoded = crate::archive::from_bytes::<Proof>(&bytes).unwrap();
             assert_eq!(decoded, proof);
             assert_eq!(
                 rkyv::to_bytes::<_, 256>(&decoded).unwrap().as_slice(),
                 bytes.as_slice()
             );
             assert!(
-                rkyv::from_bytes::<Proof>(&bytes[..bytes.len() - 1]).is_err()
+                crate::archive::from_bytes::<Proof>(&bytes[..bytes.len() - 1])
+                    .is_err()
             );
         }
     }
