@@ -309,7 +309,7 @@ impl CompressedCircuit {
         compressed: &[u8],
         max_constraints: usize,
     ) -> Result<Composer, Error> {
-        let max_size = Self::packed_size_limit(max_constraints)?;
+        let max_size = Self::packed_size_limit(max_constraints);
         let compressed = inflate_exact(compressed, max_size)?;
         let circuit = Self::unpack_bounded(&compressed, max_constraints)?;
 
@@ -595,6 +595,26 @@ mod tests {
     }
 
     #[test]
+    fn compiler_accepts_two_constraint_compressed_circuit() {
+        let pp = PublicParameters::setup(8, &mut OsRng).unwrap();
+        let mut circuit = circuit();
+        circuit.constraints.push(CompressedConstraint::default());
+        let encoded = encode(&circuit);
+
+        let result = catch_unwind(|| {
+            Compiler::compile_with_compressed(&pp, b"two-row-circuit", &encoded)
+        });
+        assert!(result.is_ok(), "two-constraint compilation must not panic");
+        let (prover, verifier) = result.unwrap().unwrap();
+        assert_eq!(prover.constraints, 2);
+        assert_eq!(prover.size, 2);
+        assert!(
+            crate::compiler::Verifier::try_from_bytes(verifier.to_bytes())
+                .is_ok()
+        );
+    }
+
+    #[test]
     fn excessive_collection_counts_are_rejected_without_panicking() {
         let mut public_inputs = circuit();
         public_inputs.public_inputs = vec![0; MAX_CONSTRAINTS + 1];
@@ -622,8 +642,7 @@ mod tests {
 
     #[test]
     fn inflated_size_is_rejected_without_panicking() {
-        let max_size =
-            CompressedCircuit::packed_size_limit(MAX_CONSTRAINTS).unwrap();
+        let max_size = CompressedCircuit::packed_size_limit(MAX_CONSTRAINTS);
         let compressed =
             miniz_oxide::deflate::compress_to_vec(&vec![0; max_size + 1], 10);
 

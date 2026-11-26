@@ -27,6 +27,12 @@ pub use verifier::Verifier;
 #[non_exhaustive]
 pub enum PlonkVersion {
     /// Legacy profile for historical compatibility.
+    ///
+    /// # Security
+    ///
+    /// `V1` does not bind selector polynomial evaluations in the opening
+    /// transcript. It must only be used to verify finalized historical proofs;
+    /// new proofs and verifiers must use [`PlonkVersion::current`].
     V1,
     /// Legacy profile with selector-bound opening checks.
     V2,
@@ -139,7 +145,7 @@ impl Compiler {
         let constraints = prover.constraints();
         let size = constraints.next_power_of_two();
 
-        let domain = EvaluationDomain::new(size - 1)?;
+        let domain = EvaluationDomain::new(size)?;
 
         // 1. pad circuit to a power of two
         //
