@@ -36,8 +36,36 @@ pub(crate) struct ProverKey {
     pub(crate) linear_evaluations: Evaluations,
 }
 
+#[derive(Clone, Copy)]
+pub(crate) struct PermutationChallenges {
+    alpha: BlsScalar,
+    beta: BlsScalar,
+    beta_k1: BlsScalar,
+    beta_k2: BlsScalar,
+    beta_k3: BlsScalar,
+    gamma: BlsScalar,
+}
+
+impl PermutationChallenges {
+    pub(crate) fn new(
+        alpha: &BlsScalar,
+        beta: &BlsScalar,
+        gamma: &BlsScalar,
+    ) -> Self {
+        Self {
+            alpha: *alpha,
+            beta: *beta,
+            beta_k1: beta * K1,
+            beta_k2: beta * K2,
+            beta_k3: beta * K3,
+            gamma: *gamma,
+        }
+    }
+}
+
 impl ProverKey {
-    pub(crate) fn compute_quotient_i(
+    #[inline]
+    pub(crate) fn compute_quotient_i_with_challenges(
         &self,
         index: usize,
         a_i: &BlsScalar,
@@ -46,82 +74,34 @@ impl ProverKey {
         d_i: &BlsScalar,
         z_i: &BlsScalar,
         z_i_w: &BlsScalar,
-        alpha: &BlsScalar,
         l1_alpha_sq: &BlsScalar,
-        beta: &BlsScalar,
-        gamma: &BlsScalar,
-    ) -> BlsScalar {
-        let a = self.compute_quotient_identity_range_check_i(
-            index, a_i, b_i, c_i, d_i, z_i, alpha, beta, gamma,
-        );
-        let b = self.compute_quotient_copy_range_check_i(
-            index, a_i, b_i, c_i, d_i, z_i_w, alpha, beta, gamma,
-        );
-        let c = self.compute_quotient_term_check_one_i(z_i, l1_alpha_sq);
-        a + b + c
-    }
-
-    // (a(x) + beta * X + gamma) (b(X) + beta * k1 * X + gamma) (o(X) + beta *
-    // k2 * X + gamma)(d(X) + beta * k3 * X + gamma)z(X) * alpha
-    fn compute_quotient_identity_range_check_i(
-        &self,
-        index: usize,
-        a_i: &BlsScalar,
-        b_i: &BlsScalar,
-        c_i: &BlsScalar,
-        d_i: &BlsScalar,
-        z_i: &BlsScalar,
-        alpha: &BlsScalar,
-        beta: &BlsScalar,
-        gamma: &BlsScalar,
+        challenges: &PermutationChallenges,
     ) -> BlsScalar {
         let x = self.linear_evaluations[index];
+        let a_g = a_i + challenges.gamma;
+        let b_g = b_i + challenges.gamma;
+        let c_g = c_i + challenges.gamma;
+        let d_g = d_i + challenges.gamma;
 
-        (a_i + (beta * x) + gamma)
-            * (b_i + (beta * K1 * x) + gamma)
-            * (c_i + (beta * K2 * x) + gamma)
-            * (d_i + (beta * K3 * x) + gamma)
-            * z_i
-            * alpha
-    }
+        let identity = (a_g + challenges.beta * x)
+            * (b_g + challenges.beta_k1 * x)
+            * (c_g + challenges.beta_k2 * x)
+            * (d_g + challenges.beta_k3 * x)
+            * z_i;
 
-    // (a(x) + beta* Sigma1(X) + gamma) (b(X) + beta * Sigma2(X) + gamma) (o(X)
-    // + beta * Sigma3(X) + gamma)(d(X) + beta * Sigma4(X) + gamma) Z(X.omega) *
-    // alpha
-    fn compute_quotient_copy_range_check_i(
-        &self,
-        index: usize,
-        a_i: &BlsScalar,
-        b_i: &BlsScalar,
-        c_i: &BlsScalar,
-        d_i: &BlsScalar,
-        z_i_w: &BlsScalar,
-        alpha: &BlsScalar,
-        beta: &BlsScalar,
-        gamma: &BlsScalar,
-    ) -> BlsScalar {
         let s_sigma_1_eval = self.s_sigma_1.1[index];
         let s_sigma_2_eval = self.s_sigma_2.1[index];
         let s_sigma_3_eval = self.s_sigma_3.1[index];
         let s_sigma_4_eval = self.s_sigma_4.1[index];
 
-        let product = (a_i + (beta * s_sigma_1_eval) + gamma)
-            * (b_i + (beta * s_sigma_2_eval) + gamma)
-            * (c_i + (beta * s_sigma_3_eval) + gamma)
-            * (d_i + (beta * s_sigma_4_eval) + gamma)
-            * z_i_w
-            * alpha;
+        let copy = (a_g + challenges.beta * s_sigma_1_eval)
+            * (b_g + challenges.beta * s_sigma_2_eval)
+            * (c_g + challenges.beta * s_sigma_3_eval)
+            * (d_g + challenges.beta * s_sigma_4_eval)
+            * z_i_w;
 
-        -product
-    }
-
-    // L_1(X)[Z(X) - 1]
-    fn compute_quotient_term_check_one_i(
-        &self,
-        z_i: &BlsScalar,
-        l1_alpha_sq: &BlsScalar,
-    ) -> BlsScalar {
-        (z_i - BlsScalar::one()) * l1_alpha_sq
+        let check_one = (z_i - BlsScalar::one()) * l1_alpha_sq;
+        (identity - copy) * challenges.alpha + check_one
     }
 
     pub(crate) fn compute_linearization(

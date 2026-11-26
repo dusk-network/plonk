@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Fuse quotient polynomial evaluation and hoist widget challenges in `Prover::prove` [#1029]
 - Optimize FFT transforms and polynomial evaluation in `Prover::prove` [#1028]
 - Replace `PublicParameters::from_slice_unchecked` with the checked, fallible `PublicParameters::from_raw_var_bytes` [#1021]
 - Reject raw commitment-key points with flag bytes above 1 in
@@ -849,6 +850,7 @@ is necessary since `rkyv/validation` was required as a bound.
 - Proof system module.
 
 <!-- ISSUES -->
+[#1029]: https://github.com/dusk-network/plonk/issues/1029
 [#1028]: https://github.com/dusk-network/plonk/issues/1028
 [#1021]: https://github.com/dusk-network/plonk/issues/1021
 [#1011]: https://github.com/dusk-network/plonk/issues/1011

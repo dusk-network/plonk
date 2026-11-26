@@ -49,13 +49,16 @@ impl ProverKey {
         c_i: &BlsScalar,
         d_i: &BlsScalar,
     ) -> BlsScalar {
+        let q_arith_i = &self.q_arith.1[index];
+        if *q_arith_i == BlsScalar::zero() {
+            return BlsScalar::zero();
+        }
         let q_m_i = &self.q_m.1[index];
         let q_l_i = &self.q_l.1[index];
         let q_r_i = &self.q_r.1[index];
         let q_o_i = &self.q_o.1[index];
         let q_f_i = &self.q_f.1[index];
         let q_c_i = &self.q_c.1[index];
-        let q_arith_i = &self.q_arith.1[index];
 
         // (a(x)b(x)q_M(x) + a(x)q_L(x) + b(X)q_R(x) + c(X)q_O(X) + d(x)q_F(X) +
         // q_C(X)) * q_arith(X)

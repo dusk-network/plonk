@@ -35,7 +35,30 @@ pub(crate) struct ProverKey {
     pub(crate) q_fixed_group_add: (Polynomial, Evaluations),
 }
 
+#[derive(Clone, Copy)]
+pub(crate) struct FixedBaseChallenges {
+    challenge: BlsScalar,
+    kappa: BlsScalar,
+    kappa_sq: BlsScalar,
+    kappa_cu: BlsScalar,
+}
+
+impl FixedBaseChallenges {
+    pub(crate) fn new(ecc_separation_challenge: &BlsScalar) -> Self {
+        let kappa = ecc_separation_challenge.square();
+        let kappa_sq = kappa.square();
+        let kappa_cu = kappa_sq * kappa;
+        Self {
+            challenge: *ecc_separation_challenge,
+            kappa,
+            kappa_sq,
+            kappa_cu,
+        }
+    }
+}
+
 impl ProverKey {
+    #[cfg(test)]
     pub(crate) fn compute_quotient_i(
         &self,
         index: usize,
@@ -48,12 +71,38 @@ impl ProverKey {
         d_i: &BlsScalar,   // accumulated_bit
         d_i_w: &BlsScalar, // accumulated_bit_w
     ) -> BlsScalar {
-        let q_fixed_group_add_i = &self.q_fixed_group_add.1[index];
-        let q_c_i = &self.q_c.1[index];
+        let challenges = FixedBaseChallenges::new(ecc_separation_challenge);
+        self.compute_quotient_i_with_challenges(
+            index,
+            &challenges,
+            a_i,
+            a_i_w,
+            b_i,
+            b_i_w,
+            c_i,
+            d_i,
+            d_i_w,
+        )
+    }
 
-        let kappa = ecc_separation_challenge.square();
-        let kappa_sq = kappa.square();
-        let kappa_cu = kappa_sq * kappa;
+    #[inline]
+    pub(crate) fn compute_quotient_i_with_challenges(
+        &self,
+        index: usize,
+        challenges: &FixedBaseChallenges,
+        a_i: &BlsScalar,   // acc_x or curr_x
+        a_i_w: &BlsScalar, // shifted x
+        b_i: &BlsScalar,   // acc_y or curr_y
+        b_i_w: &BlsScalar, // shifted y
+        c_i: &BlsScalar,   // xy_alpha
+        d_i: &BlsScalar,   // accumulated_bit
+        d_i_w: &BlsScalar, // accumulated_bit_w
+    ) -> BlsScalar {
+        let q_fixed_group_add_i = &self.q_fixed_group_add.1[index];
+        if *q_fixed_group_add_i == BlsScalar::zero() {
+            return BlsScalar::zero();
+        }
+        let q_c_i = &self.q_c.1[index];
 
         let x_beta = &self.q_l.1[index];
         let y_beta = &self.q_r.1[index];
@@ -65,41 +114,41 @@ impl ProverKey {
 
         let xy_alpha = c_i;
 
-        let accumulated_bit = d_i;
-        let accumulated_bit_w = d_i_w;
-        let bit = extract_bit(accumulated_bit, accumulated_bit_w);
+        let bit = extract_bit(d_i, d_i_w);
+        let bit_sq = bit.square();
+        let one = BlsScalar::one();
 
-        // Checks
-        //
-        // Check bit consistency
-        let bit_consistency = check_bit_consistency(bit);
+        // Check bit consistency: bit * (bit - 1) * (bit + 1) = bit * (bit^2 -
+        // 1)
+        let bit_consistency = bit * (bit_sq - one);
 
         // Derive y_alpha and x_alpha from bit
-        let y_alpha =
-            bit.square() * (y_beta - BlsScalar::one()) + BlsScalar::one();
+        let y_alpha = bit_sq * (y_beta - one) + one;
         let x_alpha = bit * x_beta;
 
         // xy_alpha consistency check
-        let xy_consistency = ((bit * q_c_i) - xy_alpha) * kappa;
+        let xy_consistency = ((bit * q_c_i) - xy_alpha) * challenges.kappa;
+
+        let d_term = xy_alpha * acc_x * acc_y * EDWARDS_D;
 
         // x accumulator consistency check
         let x_3 = acc_x_w;
-        let lhs = x_3 + (x_3 * xy_alpha * acc_x * acc_y * EDWARDS_D);
+        let lhs = x_3 + (x_3 * d_term);
         let rhs = (acc_x * y_alpha) + (acc_y * x_alpha);
-        let x_acc_consistency = (lhs - rhs) * kappa_sq;
+        let x_acc_consistency = (lhs - rhs) * challenges.kappa_sq;
 
         // y accumulator consistency check
         let y_3 = acc_y_w;
-        let lhs = y_3 - (y_3 * xy_alpha * acc_x * acc_y * EDWARDS_D);
+        let lhs = y_3 - (y_3 * d_term);
         let rhs = (acc_y * y_alpha) + (acc_x * x_alpha);
-        let y_acc_consistency = (lhs - rhs) * kappa_cu;
+        let y_acc_consistency = (lhs - rhs) * challenges.kappa_cu;
 
         let identity = bit_consistency
             + x_acc_consistency
             + y_acc_consistency
             + xy_consistency;
 
-        identity * q_fixed_group_add_i * ecc_separation_challenge
+        identity * q_fixed_group_add_i * challenges.challenge
     }
 
     pub(crate) fn compute_linearization(

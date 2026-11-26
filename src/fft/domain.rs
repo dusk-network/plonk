@@ -212,8 +212,32 @@ pub(crate) mod alloc {
             scale_in_place(evals, self.size_inv);
         }
 
+        /// Precompute the `n / 2` powers of `self.group_gen` for reusing across
+        /// multiple FFTs over the same domain.
+        pub(crate) fn precompute_fft_roots(&self) -> Vec<BlsScalar> {
+            compute_roots(self.group_gen, self.size() / 2)
+        }
+
         /// Compute a FFT over a coset of the domain.
         pub(crate) fn coset_fft(&self, coeffs: &[BlsScalar]) -> Vec<BlsScalar> {
+            self.coset_fft_inner(coeffs, None)
+        }
+
+        /// Compute a FFT over a coset of the domain using precomputed domain
+        /// roots of unity.
+        pub(crate) fn coset_fft_with_roots(
+            &self,
+            coeffs: &[BlsScalar],
+            roots: &[BlsScalar],
+        ) -> Vec<BlsScalar> {
+            self.coset_fft_inner(coeffs, Some(roots))
+        }
+
+        fn coset_fft_inner(
+            &self,
+            coeffs: &[BlsScalar],
+            roots: Option<&[BlsScalar]>,
+        ) -> Vec<BlsScalar> {
             let n = self.size();
             let len = coeffs.len().min(n);
             if len == 0 {
@@ -230,12 +254,13 @@ pub(crate) mod alloc {
                 &mut evals,
                 self.group_gen,
                 self.log_size_of_group,
-                None,
+                roots,
             );
             evals
         }
 
         /// Compute an IFFT over a coset of the domain.
+        #[cfg(test)]
         pub(crate) fn coset_ifft(&self, evals: &[BlsScalar]) -> Vec<BlsScalar> {
             let mut coeffs = bitreverse_copy_from_slice(
                 evals,
@@ -248,7 +273,6 @@ pub(crate) mod alloc {
 
         /// Compute an IFFT over a coset of the domain, modifying the input
         /// vector in place.
-        #[cfg(test)]
         pub(crate) fn coset_ifft_in_place(&self, evals: &mut Vec<BlsScalar>) {
             let n = self.size();
             let log_n = self.log_size_of_group;

@@ -28,32 +28,53 @@ pub(crate) struct ProverKey {
     pub(crate) q_range: (Polynomial, Evaluations),
 }
 
+#[derive(Clone, Copy)]
+pub(crate) struct RangeChallenges {
+    challenge: BlsScalar,
+    kappa: BlsScalar,
+    kappa_sq: BlsScalar,
+    kappa_cu: BlsScalar,
+}
+
+impl RangeChallenges {
+    pub(crate) fn new(range_separation_challenge: &BlsScalar) -> Self {
+        let kappa = range_separation_challenge.square();
+        let kappa_sq = kappa.square();
+        let kappa_cu = kappa_sq * kappa;
+        Self {
+            challenge: *range_separation_challenge,
+            kappa,
+            kappa_sq,
+            kappa_cu,
+        }
+    }
+}
+
 impl ProverKey {
-    pub(crate) fn compute_quotient_i(
+    #[inline]
+    pub(crate) fn compute_quotient_i_with_challenges(
         &self,
         index: usize,
-        range_separation_challenge: &BlsScalar,
+        challenges: &RangeChallenges,
         a_i: &BlsScalar,
         b_i: &BlsScalar,
         c_i: &BlsScalar,
         d_i: &BlsScalar,
         d_i_w: &BlsScalar,
     ) -> BlsScalar {
-        let four = BlsScalar::from(4);
         let q_range_i = &self.q_range.1[index];
-
-        let kappa = range_separation_challenge.square();
-        let kappa_sq = kappa.square();
-        let kappa_cu = kappa_sq * kappa;
+        if *q_range_i == BlsScalar::zero() {
+            return BlsScalar::zero();
+        }
 
         // Delta([o(X) - 4 * d(X)]) + Delta([b(X) - 4 * o(X)]) + Delta([a(X) - 4
         // * b(X)]) + Delta([d(Xg) - 4 * a(X)]) * Q_Range(X)
         //
-        let b_1 = delta(c_i - four * d_i);
-        let b_2 = delta(b_i - four * c_i) * kappa;
-        let b_3 = delta(a_i - four * b_i) * kappa_sq;
-        let b_4 = delta(d_i_w - four * a_i) * kappa_cu;
-        (b_1 + b_2 + b_3 + b_4) * q_range_i * range_separation_challenge
+        let b_1 = delta(c_i - d_i.double().double());
+        let b_2 = delta(b_i - c_i.double().double()) * challenges.kappa;
+        let b_3 = delta(a_i - b_i.double().double()) * challenges.kappa_sq;
+        let b_4 = delta(d_i_w - a_i.double().double()) * challenges.kappa_cu;
+        (b_1 + b_2 + b_3 + b_4) * q_range_i * challenges.challenge
     }
 
     pub(crate) fn compute_linearization(
@@ -85,9 +106,11 @@ impl ProverKey {
 }
 
 // Computes f(f-1)(f-2)(f-3)
+#[inline]
 pub(crate) fn delta(f: BlsScalar) -> BlsScalar {
-    let f_1 = f - BlsScalar::one();
-    let f_2 = f - BlsScalar::from(2);
-    let f_3 = f - BlsScalar::from(3);
+    let one = BlsScalar::one();
+    let f_1 = f - one;
+    let f_2 = f_1 - one;
+    let f_3 = f_2 - one;
     f * f_1 * f_2 * f_3
 }

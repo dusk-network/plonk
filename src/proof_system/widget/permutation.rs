@@ -5,7 +5,7 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 #[cfg(feature = "alloc")]
-mod proverkey;
+pub(crate) mod proverkey;
 
 mod verifierkey;
 

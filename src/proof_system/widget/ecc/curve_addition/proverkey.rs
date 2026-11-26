@@ -29,7 +29,27 @@ pub(crate) struct ProverKey {
     pub(crate) q_variable_group_add: (Polynomial, Evaluations),
 }
 
+#[derive(Clone, Copy)]
+pub(crate) struct CurveAddChallenges {
+    challenge: BlsScalar,
+    kappa: BlsScalar,
+    kappa_sq: BlsScalar,
+}
+
+impl CurveAddChallenges {
+    pub(crate) fn new(curve_add_separation_challenge: &BlsScalar) -> Self {
+        let kappa = curve_add_separation_challenge.square();
+        let kappa_sq = kappa.square();
+        Self {
+            challenge: *curve_add_separation_challenge,
+            kappa,
+            kappa_sq,
+        }
+    }
+}
+
 impl ProverKey {
+    #[cfg(test)]
     pub(crate) fn compute_quotient_i(
         &self,
         index: usize,
@@ -42,9 +62,38 @@ impl ProverKey {
         d_i: &BlsScalar,   // y_2
         d_i_w: &BlsScalar, // x_1 * y_2
     ) -> BlsScalar {
-        let q_variable_group_add_i = &self.q_variable_group_add.1[index];
+        let challenges =
+            CurveAddChallenges::new(curve_add_separation_challenge);
+        self.compute_quotient_i_with_challenges(
+            index,
+            &challenges,
+            a_i,
+            a_i_w,
+            b_i,
+            b_i_w,
+            c_i,
+            d_i,
+            d_i_w,
+        )
+    }
 
-        let kappa = curve_add_separation_challenge.square();
+    #[inline]
+    pub(crate) fn compute_quotient_i_with_challenges(
+        &self,
+        index: usize,
+        challenges: &CurveAddChallenges,
+        a_i: &BlsScalar,   // x_1
+        a_i_w: &BlsScalar, // x_3
+        b_i: &BlsScalar,   // y_1
+        b_i_w: &BlsScalar, // y_3
+        c_i: &BlsScalar,   // x_2
+        d_i: &BlsScalar,   // y_2
+        d_i_w: &BlsScalar, // x_1 * y_2
+    ) -> BlsScalar {
+        let q_variable_group_add_i = &self.q_variable_group_add.1[index];
+        if *q_variable_group_add_i == BlsScalar::zero() {
+            return BlsScalar::zero();
+        }
 
         let x_1 = a_i;
         let x_3 = a_i_w;
@@ -54,28 +103,27 @@ impl ProverKey {
         let y_2 = d_i;
         let x1_y2 = d_i_w;
 
-        // Checks
-        //
         // Check x1 * y2 is correct
         let xy_consistency = x_1 * y_2 - x1_y2;
 
         let y1_x2 = y_1 * x_2;
         let y1_y2 = y_1 * y_2;
         let x1_x2 = x_1 * x_2;
+        let d_prod = EDWARDS_D * x1_y2 * y1_x2;
 
         // Check x_3 is correct
         let x3_lhs = x1_y2 + y1_x2;
-        let x3_rhs = x_3 + (x_3 * EDWARDS_D * x1_y2 * y1_x2);
-        let x3_consistency = (x3_lhs - x3_rhs) * kappa;
+        let x3_rhs = x_3 + (x_3 * d_prod);
+        let x3_consistency = (x3_lhs - x3_rhs) * challenges.kappa;
 
-        // // Check y_3 is correct
+        // Check y_3 is correct
         let y3_lhs = y1_y2 + x1_x2;
-        let y3_rhs = y_3 - y_3 * EDWARDS_D * x1_y2 * y1_x2;
-        let y3_consistency = (y3_lhs - y3_rhs) * kappa.square();
+        let y3_rhs = y_3 - (y_3 * d_prod);
+        let y3_consistency = (y3_lhs - y3_rhs) * challenges.kappa_sq;
 
         let identity = xy_consistency + x3_consistency + y3_consistency;
 
-        identity * q_variable_group_add_i * curve_add_separation_challenge
+        identity * q_variable_group_add_i * challenges.challenge
     }
 
     pub(crate) fn compute_linearization(
@@ -95,8 +143,6 @@ impl ProverKey {
         let y_2 = evaluations.d_eval;
         let x1_y2 = evaluations.d_w_eval;
 
-        // Checks
-        //
         // Check x1 * y2 is correct
         let xy_consistency = x_1 * y_2 - x1_y2;
 
