@@ -27,7 +27,6 @@ use crate::archive::{
     InvalidArchive, check_fields, scalars_are_canonical, unarchive,
 };
 use crate::error::Error;
-use crate::util;
 
 /// Represents a polynomial in coeffiient form.
 #[derive(Debug, Eq, PartialEq, Clone)]
@@ -162,22 +161,12 @@ impl Polynomial {
 
     /// Evaluates a [`Polynomial`] at a given value in the field.
     pub(crate) fn evaluate(&self, value: &BlsScalar) -> BlsScalar {
-        if self.is_zero() {
-            return BlsScalar::zero();
+        let mut result = BlsScalar::zero();
+        for coeff in self.coeffs.iter().rev() {
+            result *= value;
+            result += coeff;
         }
-
-        // Compute powers of the value
-        let powers = util::powers_of(value, self.len() - 1);
-
-        // Multiply the powers of the value by the coefficients
-        let mul_coeff = self.iter().zip(powers).map(|(c, p)| p * c);
-
-        // Sum it all up
-        let mut sum = BlsScalar::zero();
-        for value in mul_coeff {
-            sum += &value;
-        }
-        sum
+        result
     }
 
     /// Given a [`Polynomial`], return it in it's bytes representation
@@ -515,6 +504,30 @@ mod test {
         let constant =
             Polynomial::from_coefficients_vec(vec![BlsScalar::from(7)]);
         assert_eq!(constant.evaluate(&BlsScalar::from(5)), BlsScalar::from(7));
+    }
+
+    #[test]
+    fn test_evaluate_horner_matches_power_sum() {
+        let mut rng = StdRng::seed_from_u64(0x5150);
+        let point = BlsScalar::random(&mut rng);
+        assert_eq!(Polynomial::zero().evaluate(&point), BlsScalar::zero());
+
+        for degree in [0usize, 1, 2, 17, 257] {
+            let poly = Polynomial::rand(degree, &mut rng);
+            let mut expected = BlsScalar::zero();
+            let mut pow = BlsScalar::one();
+            for coeff in poly.iter() {
+                expected += *coeff * pow;
+                pow *= point;
+            }
+            assert_eq!(poly.evaluate(&point), expected);
+
+            let mut padded = poly.coeffs.clone();
+            padded.push(BlsScalar::zero());
+            padded.push(BlsScalar::zero());
+            let untrimmed = Polynomial::from_coefficients_untrimmed(padded);
+            assert_eq!(untrimmed.evaluate(&point), expected);
+        }
     }
 
     #[test]
