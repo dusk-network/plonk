@@ -56,7 +56,7 @@ std = [
     "rayon"
 ]
 alloc = ["dusk-bls12_381/alloc", "miniz_oxide", "sha2"]
-debug = ["dusk-cdf", "backtrace"]
+debug = ["std", "dusk-cdf", "backtrace"]
 rkyv-impl = ["dusk-bls12_381/rkyv-impl", "dusk-jubjub/rkyv-impl", "rkyv", "rkyv/validation", "bytecheck"]
 
 [profile.release]

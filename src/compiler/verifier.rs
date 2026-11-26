@@ -256,6 +256,12 @@ impl Verifier {
     }
 
     /// Verify a generated proof using an explicitly selected version.
+    ///
+    /// # Security
+    ///
+    /// [`PlonkVersion::V1`] omits selector evaluation binding and must only be
+    /// used to verify finalized historical proofs. Prefer [`Verifier::verify`]
+    /// for all current proofs.
     pub fn verify_with_version(
         &self,
         proof: &Proof,

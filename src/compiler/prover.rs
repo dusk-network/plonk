@@ -70,6 +70,7 @@ impl Prover {
     ) -> Result<Self, Error> {
         if constraints.checked_next_power_of_two() != Some(size)
             || prover_key.n != size
+            || verifier_key.n != constraints
             || public_input_indexes
                 .iter()
                 .any(|index| *index >= constraints)
@@ -1591,5 +1592,23 @@ mod tests {
                 Err(Error::NotEnoughBytes)
             ));
         }
+    }
+
+    #[test]
+    fn prover_try_from_bytes_rejects_mismatched_verifier_key_n() {
+        let mut rng = StdRng::seed_from_u64(58);
+        let pp = PublicParameters::setup(1 << 5, &mut rng)
+            .expect("public parameters should build");
+        let (mut prover, _) =
+            Compiler::compile::<MinimalCircuit>(&pp, b"mismatched-vk-n")
+                .expect("circuit should compile");
+
+        prover.verifier_key.n += 1;
+        let bytes = prover.to_bytes();
+
+        assert!(matches!(
+            Prover::try_from_bytes(&bytes),
+            Err(Error::BytesError(dusk_bytes::Error::InvalidData))
+        ));
     }
 }

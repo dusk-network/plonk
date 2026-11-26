@@ -62,14 +62,11 @@ impl CompressedCircuit {
     }
 
     /// Returns the largest packed size of a circuit with at most
-    /// `max_constraints` constraints.
-    pub(super) fn packed_size_limit(
-        max_constraints: usize,
-    ) -> Result<usize, Error> {
+    /// `max_constraints` constraints, saturating at `usize::MAX`.
+    pub(super) fn packed_size_limit(max_constraints: usize) -> usize {
         max_constraints
-            .checked_mul(Self::PACKED_BYTES_PER_CONSTRAINT)
-            .and_then(|size| size.checked_add(Self::PACKED_FIXED_BYTES))
-            .ok_or(Error::InvalidCompressedCircuit)
+            .saturating_mul(Self::PACKED_BYTES_PER_CONSTRAINT)
+            .saturating_add(Self::PACKED_FIXED_BYTES)
     }
 
     /// Decodes a packed circuit, bounding every collection by
@@ -79,9 +76,8 @@ impl CompressedCircuit {
         max_constraints: usize,
     ) -> Result<Self, Error> {
         let mut reader = PackedCircuitReader::new(packed);
-        let max_scalars = max_constraints
-            .checked_mul(Self::SELECTORS_PER_POLYNOMIAL)
-            .ok_or(Error::InvalidCompressedCircuit)?;
+        let max_scalars =
+            max_constraints.saturating_mul(Self::SELECTORS_PER_POLYNOMIAL);
 
         let circuit = Self {
             hades_optimization: reader.unpack_bool()?,
@@ -378,14 +374,12 @@ mod tests {
         };
         packed.clear();
         worst.pack(&mut packed);
-        assert!(
-            packed.len() <= CompressedCircuit::packed_size_limit(1).unwrap()
-        );
+        assert!(packed.len() <= CompressedCircuit::packed_size_limit(1));
         #[cfg(target_pointer_width = "64")]
         assert_eq!(
             packed.len()
                 + 4 * (CompressedCircuit::PACKED_VECTOR_HEADER_BYTES - 1),
-            CompressedCircuit::packed_size_limit(1).unwrap()
+            CompressedCircuit::packed_size_limit(1)
         );
 
         packed.clear();
@@ -538,6 +532,29 @@ mod tests {
         assert_eq!(
             CompressedCircuit::unpack_bounded(&packed, 0),
             Err(Error::InvalidCompressedCircuit)
+        );
+    }
+
+    #[test]
+    fn large_constraint_budget_saturates_without_rejecting_small_circuits() {
+        assert_eq!(
+            CompressedCircuit::packed_size_limit(usize::MAX),
+            usize::MAX
+        );
+
+        let circuit = CompressedCircuit {
+            hades_optimization: false,
+            public_inputs: Vec::new(),
+            witnesses: 0,
+            scalars: Vec::new(),
+            polynomials: Vec::new(),
+            constraints: Vec::new(),
+        };
+        let mut packed = Vec::new();
+        circuit.pack(&mut packed);
+        assert_eq!(
+            CompressedCircuit::unpack_bounded(&packed, usize::MAX),
+            Ok(circuit)
         );
     }
 }

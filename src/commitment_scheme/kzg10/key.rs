@@ -90,7 +90,8 @@ impl core::error::Error for InvalidArchivedCommitKey {}
 
 #[cfg(feature = "rkyv-impl")]
 fn archived_g1_is_valid(bytes: &[u8; G1Affine::SIZE]) -> bool {
-    G1Affine::from_slice(bytes).is_ok()
+    G1Affine::from_slice(bytes)
+        .is_ok_and(|point| !bool::from(point.is_identity()))
 }
 
 #[cfg(feature = "rkyv-impl")]
@@ -280,6 +281,7 @@ impl CommitKey {
             bytes[u64::SIZE..].as_chunks::<{ G1Affine::RAW_SIZE }>();
         let decode = |chunk: &[u8; G1Affine::RAW_SIZE]| {
             Option::<G1Affine>::from(G1Affine::from_raw_slice(chunk))
+                .filter(|point| !bool::from(point.is_identity()))
                 .ok_or(Error::PointMalformed)
         };
         let decode_serial =
@@ -327,7 +329,12 @@ impl CommitKey {
             .chunks(G1Affine::SIZE)
             .map(G1Affine::from_slice)
             .collect::<Result<Vec<G1Affine>, dusk_bytes::Error>>()?;
-        if secret_is_domain_root(&powers_of_g) {
+        if powers_of_g.is_empty()
+            || powers_of_g
+                .iter()
+                .any(|point| bool::from(point.is_identity()))
+            || secret_is_domain_root(&powers_of_g)
+        {
             return Err(dusk_bytes::Error::InvalidData.into());
         }
 
@@ -657,6 +664,30 @@ impl OpeningKey {
             prepared_h,
             prepared_x_h,
         })
+    }
+
+    /// Checks that a [`CommitKey`] matches this [`OpeningKey`]'s generator and,
+    /// when degree >= 1, satisfies the setup pairing relation
+    /// `e(x * g, h) == e(g, x * h)`.
+    pub(crate) fn matches_commit_key(&self, commit_key: &CommitKey) -> bool {
+        let Some(&g) = commit_key.powers_of_g.first() else {
+            return false;
+        };
+        if g != self.g {
+            return false;
+        }
+        if let Some(&x_g) = commit_key.powers_of_g.get(1) {
+            let neg_g = -self.g;
+            let pairing = dusk_bls12_381::multi_miller_loop(&[
+                (&x_g, &self.prepared_h),
+                (&neg_g, &self.prepared_x_h),
+            ])
+            .final_exponentiation();
+            if pairing != dusk_bls12_381::Gt::identity() {
+                return false;
+            }
+        }
+        true
     }
 
     /// Checks whether a batch of polynomials evaluated at different points
@@ -1186,12 +1217,18 @@ mod test {
 
     #[test]
     fn commit_key_raw_rejects_invalid_flags_and_identity_aliases() {
+        let mut valid = 1u64.to_le_bytes().to_vec();
+        valid.extend_from_slice(&G1Affine::generator().to_raw_bytes());
+        assert!(CommitKey::from_raw_var_bytes(&valid).is_ok());
+
+        // Canonical infinity and alternate flags/coordinates are all rejected
+        // because no valid setup power of `G` is the identity.
         let mut bytes = 1u64.to_le_bytes().to_vec();
         bytes.extend_from_slice(&G1Affine::identity().to_raw_bytes());
-        assert!(CommitKey::from_raw_var_bytes(&bytes).is_ok());
-
-        // Canonical infinity is accepted, but alternate flags and coordinates
-        // are rejected before any arithmetic can use them.
+        assert_eq!(
+            CommitKey::from_raw_var_bytes(&bytes),
+            Err(Error::PointMalformed)
+        );
         bytes[u64::SIZE] = 1;
         assert_eq!(
             CommitKey::from_raw_var_bytes(&bytes),
@@ -1205,6 +1242,33 @@ mod test {
                 Err(Error::PointMalformed)
             );
         }
+    }
+
+    #[test]
+    fn commit_keys_reject_identity_power_and_empty_slice() {
+        assert!(matches!(
+            CommitKey::from_slice(&[]),
+            Err(Error::BytesError(dusk_bytes::Error::InvalidData))
+        ));
+
+        let (mut ck, _) = setup_test(7).unwrap();
+        ck.powers_of_g[3] = G1Affine::identity();
+
+        assert!(matches!(
+            CommitKey::from_slice(&ck.to_var_bytes()),
+            Err(Error::BytesError(dusk_bytes::Error::InvalidData))
+        ));
+        assert_eq!(
+            CommitKey::from_raw_var_bytes(&ck.to_raw_var_bytes()),
+            Err(Error::PointMalformed)
+        );
+        #[cfg(feature = "rkyv-impl")]
+        assert!(
+            rkyv::check_archived_root::<CommitKey>(
+                &rkyv::to_bytes::<_, 256>(&ck).unwrap()
+            )
+            .is_err()
+        );
     }
 
     #[test]
