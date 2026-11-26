@@ -9,12 +9,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Reject `G1Affine::identity()` powers and empty slices in `CommitKey`
+  deserialization, and verify `OpeningKey`/`CommitKey` consistency in
+  `PublicParameters::from_slice` and `PublicParameters::from_raw_var_bytes`
+  [#1031]
+- Document security caveats on `PlonkVersion::V1` and
+  `Verifier::verify_with_version` [#1031]
 - Replace `PublicParameters::from_slice_unchecked` with the checked, fallible `PublicParameters::from_raw_var_bytes` [#1021]
 - Reject raw commitment-key points with flag bytes above 1 in
   `Prover::try_from_bytes` [#1021]
 - Validate large raw commitment keys in parallel in `Prover::try_from_bytes`
   when `std` is enabled [#1021]
 - Parallelize construction of the verifier pairing inputs with Rayon when `std` is enabled, retaining the serial `no_std` path [#1001]
+
+### Fixed
+
+- Fix out-of-bounds panic when compiling two-constraint compressed circuits
+  [#1031]
+- Enforce `verifier_key.n == constraints` in `Prover::new` [#1031]
+- Saturate compressed-circuit byte and scalar bounds for large constraint
+  budgets [#1031]
+- Enable `std` from the `debug` feature so `--no-default-features --features
+  debug` compiles [#1031]
 
 ## [0.24.0] - 2026-10-08
 
@@ -848,6 +864,7 @@ is necessary since `rkyv/validation` was required as a bound.
 - Proof system module.
 
 <!-- ISSUES -->
+[#1031]: https://github.com/dusk-network/plonk/issues/1031
 [#1021]: https://github.com/dusk-network/plonk/issues/1021
 [#1011]: https://github.com/dusk-network/plonk/issues/1011
 [#1006]: https://github.com/dusk-network/plonk/issues/1006
