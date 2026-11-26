@@ -14,7 +14,7 @@ use rayon::prelude::*;
 
 use crate::composer::{WireData, Witness};
 use crate::fft::{EvaluationDomain, Polynomial};
-use crate::util::batch_inversion;
+use crate::util::batch_inversion_with_scratch;
 
 pub(crate) mod constants;
 
@@ -218,79 +218,115 @@ impl Permutation {
         gamma: &BlsScalar,
         sigma_evaluations: [&[BlsScalar]; 4],
     ) -> Vec<BlsScalar> {
+        const PERM_CHUNK_SIZE: usize = 512;
+
         let n = domain.size();
-        let roots: Vec<_> = domain.elements().collect();
-        let numerators =
-            Self::permutation_numerators(&roots, wires, beta, gamma);
-        let mut denominators = Self::permutation_denominators(
-            wires,
-            sigma_evaluations,
-            beta,
-            gamma,
-        );
+        if n == 0 {
+            return Vec::new();
+        }
 
-        assert!(
-            denominators.iter().all(|value| *value != BlsScalar::zero()),
-            "permutation denominator must be nonzero"
-        );
-        batch_inversion(&mut denominators);
+        let beta_k1 = beta * K1;
+        let beta_k2 = beta * K2;
+        let beta_k3 = beta * K3;
+        let group_gen = domain.group_gen;
+        let chunk_step =
+            group_gen.pow_vartime(&[PERM_CHUNK_SIZE as u64, 0, 0, 0]);
 
-        let mut permutation = Vec::with_capacity(n);
-        let mut product = BlsScalar::one();
+        // Compute `ratios[i] = numerator[i] / denominator[i]` in L1-resident
+        // chunks so both root generation and Montgomery batch inversion run in
+        // parallel without full-domain intermediate allocations.
+        let mut ratios = vec![BlsScalar::zero(); n];
 
-        for i in 0..n {
-            permutation.push(product);
-            if i + 1 < n {
-                product *= numerators[i] * denominators[i];
+        let process_chunk =
+            |chunk_idx: usize,
+             out_chunk: &mut [BlsScalar],
+             denoms: &mut Vec<BlsScalar>,
+             prod: &mut Vec<BlsScalar>| {
+                let start = chunk_idx * PERM_CHUNK_SIZE;
+                let len = out_chunk.len();
+                let mut root =
+                    chunk_step.pow_vartime(&[chunk_idx as u64, 0, 0, 0]);
+
+                denoms.clear();
+                for (offset, slot) in out_chunk.iter_mut().enumerate() {
+                    let i = start + offset;
+                    let a_g = wires[0][i] + gamma;
+                    let b_g = wires[1][i] + gamma;
+                    let c_g = wires[2][i] + gamma;
+                    let d_g = wires[3][i] + gamma;
+
+                    let num = (a_g + beta * root)
+                        * (b_g + beta_k1 * root)
+                        * (c_g + beta_k2 * root)
+                        * (d_g + beta_k3 * root);
+                    let den = (a_g + beta * sigma_evaluations[0][i])
+                        * (b_g + beta * sigma_evaluations[1][i])
+                        * (c_g + beta * sigma_evaluations[2][i])
+                        * (d_g + beta * sigma_evaluations[3][i]);
+                    assert!(
+                        den != BlsScalar::zero(),
+                        "permutation denominator must be nonzero"
+                    );
+                    *slot = num;
+                    denoms.push(den);
+                    root *= &group_gen;
+                }
+
+                batch_inversion_with_scratch(denoms, prod);
+                for (slot, den_inv) in
+                    out_chunk[..len].iter_mut().zip(denoms.iter())
+                {
+                    *slot *= den_inv;
+                }
+            };
+
+        #[cfg(feature = "std")]
+        if n >= PERM_CHUNK_SIZE * 2 && rayon::current_num_threads() > 1 {
+            ratios
+                .par_chunks_mut(PERM_CHUNK_SIZE)
+                .enumerate()
+                .for_each_init(
+                    || {
+                        (
+                            Vec::with_capacity(PERM_CHUNK_SIZE),
+                            Vec::with_capacity(PERM_CHUNK_SIZE),
+                        )
+                    },
+                    |(denoms, prod), (chunk_idx, out_chunk)| {
+                        process_chunk(chunk_idx, out_chunk, denoms, prod);
+                    },
+                );
+        } else {
+            let mut denoms = Vec::with_capacity(PERM_CHUNK_SIZE.min(n));
+            let mut prod = Vec::with_capacity(PERM_CHUNK_SIZE.min(n));
+            for (chunk_idx, out_chunk) in
+                ratios.chunks_mut(PERM_CHUNK_SIZE).enumerate()
+            {
+                process_chunk(chunk_idx, out_chunk, &mut denoms, &mut prod);
             }
         }
 
-        permutation
-    }
-
-    fn permutation_numerators(
-        roots: &[BlsScalar],
-        wires: [&[BlsScalar]; 4],
-        beta: &BlsScalar,
-        gamma: &BlsScalar,
-    ) -> Vec<BlsScalar> {
         #[cfg(not(feature = "std"))]
-        let range = 0..roots.len();
-        #[cfg(feature = "std")]
-        let range = (0..roots.len()).into_par_iter();
+        {
+            let mut denoms = Vec::with_capacity(PERM_CHUNK_SIZE.min(n));
+            let mut prod = Vec::with_capacity(PERM_CHUNK_SIZE.min(n));
+            for (chunk_idx, out_chunk) in
+                ratios.chunks_mut(PERM_CHUNK_SIZE).enumerate()
+            {
+                process_chunk(chunk_idx, out_chunk, &mut denoms, &mut prod);
+            }
+        }
 
-        range
-            .map(|i| {
-                let beta_root = beta * roots[i];
-                let a = wires[0][i] + beta_root + gamma;
-                let b = wires[1][i] + beta_root * K1 + gamma;
-                let c = wires[2][i] + beta_root * K2 + gamma;
-                let d = wires[3][i] + beta_root * K3 + gamma;
-                a * b * c * d
-            })
-            .collect()
-    }
+        // Prefix product in place: `permutation[0] = 1`,
+        // `permutation[i + 1] = permutation[i] * ratios[i]`.
+        let mut product = BlsScalar::one();
+        for slot in &mut ratios {
+            let ratio = *slot;
+            *slot = product;
+            product *= &ratio;
+        }
 
-    fn permutation_denominators(
-        wires: [&[BlsScalar]; 4],
-        sigma_evaluations: [&[BlsScalar]; 4],
-        beta: &BlsScalar,
-        gamma: &BlsScalar,
-    ) -> Vec<BlsScalar> {
-        #[cfg(not(feature = "std"))]
-        let range = 0..wires[0].len();
-        #[cfg(feature = "std")]
-        let range = (0..wires[0].len()).into_par_iter();
-
-        range
-            .map(|i| {
-                let a = wires[0][i] + beta * sigma_evaluations[0][i] + gamma;
-                let b = wires[1][i] + beta * sigma_evaluations[1][i] + gamma;
-                let c = wires[2][i] + beta * sigma_evaluations[2][i] + gamma;
-                let d = wires[3][i] + beta * sigma_evaluations[3][i] + gamma;
-                a * b * c * d
-            })
-            .collect()
+        ratios
     }
 }
 
@@ -1130,5 +1166,87 @@ mod test {
 
             assert_eq!(z_eval, shifted_z_eval)
         }
+    }
+
+    #[test]
+    fn compute_permutation_vec_matches_slow_reference_across_sizes_and_threads()
+    {
+        for log_n in [4u32, 11] {
+            let n = 1usize << log_n;
+            let domain = EvaluationDomain::new(n).unwrap();
+            let mut perm = Permutation::new();
+            let w0 = perm.new_witness();
+            let w1 = perm.new_witness();
+            let w2 = perm.new_witness();
+            let w3 = perm.new_witness();
+            for i in 0..n {
+                perm.add_witnesses_to_map(w0, w1, w2, w3, i);
+            }
+            let sigmas = perm.compute_sigma_polynomials(n, &domain);
+            let sigma_evals = [
+                domain.fft(&sigmas[0]),
+                domain.fft(&sigmas[1]),
+                domain.fft(&sigmas[2]),
+                domain.fft(&sigmas[3]),
+            ];
+            let a = vec![BlsScalar::from(2u64); n];
+            let b = vec![BlsScalar::from(3u64); n];
+            let c = vec![BlsScalar::from(5u64); n];
+            let d = vec![BlsScalar::from(7u64); n];
+            let beta = BlsScalar::from(19u64);
+            let gamma = BlsScalar::from(23u64);
+
+            let (expected, _, _) = compute_slow_permutation_poly(
+                &domain,
+                a.iter().copied(),
+                b.iter().copied(),
+                c.iter().copied(),
+                d.iter().copied(),
+                &beta,
+                &gamma,
+                (&sigmas[0], &sigmas[1], &sigmas[2], &sigmas[3]),
+            );
+
+            for threads in [1, 3, 4, 8, 9] {
+                let pool = rayon::ThreadPoolBuilder::new()
+                    .num_threads(threads)
+                    .build()
+                    .unwrap();
+                let actual = pool.install(|| {
+                    perm.compute_permutation_vec(
+                        &domain,
+                        [&a, &b, &c, &d],
+                        &beta,
+                        &gamma,
+                        [
+                            &sigma_evals[0],
+                            &sigma_evals[1],
+                            &sigma_evals[2],
+                            &sigma_evals[3],
+                        ],
+                    )
+                });
+                assert_eq!(
+                    actual, expected,
+                    "perm vec mismatch for 2^{log_n} threads={threads}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    #[should_panic(expected = "permutation denominator must be nonzero")]
+    fn compute_permutation_vec_panics_on_zero_denominator() {
+        let n = 8;
+        let domain = EvaluationDomain::new(n).unwrap();
+        let perm = Permutation::new();
+        let zeros = vec![BlsScalar::zero(); n];
+        let _ = perm.compute_permutation_vec(
+            &domain,
+            [&zeros, &zeros, &zeros, &zeros],
+            &BlsScalar::one(),
+            &BlsScalar::zero(),
+            [&zeros, &zeros, &zeros, &zeros],
+        );
     }
 }

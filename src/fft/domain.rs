@@ -184,7 +184,49 @@ pub(crate) mod alloc {
                 self.size(),
                 self.log_size_of_group,
             );
-            self.ifft_bitreversed(&mut coeffs);
+            self.ifft_bitreversed_with_roots(&mut coeffs, None);
+            coeffs
+        }
+
+        /// Compute an IFFT using precomputed inverse-domain roots of unity.
+        pub(crate) fn ifft_with_roots(
+            &self,
+            evals: &[BlsScalar],
+            roots: &[BlsScalar],
+        ) -> Vec<BlsScalar> {
+            let mut coeffs = bitreverse_copy_from_slice(
+                evals,
+                self.size(),
+                self.log_size_of_group,
+            );
+            self.ifft_bitreversed_with_roots(&mut coeffs, Some(roots));
+            coeffs
+        }
+
+        /// Compute a single-threaded IFFT using precomputed inverse-domain
+        /// roots of unity. Used when outer callers already run multiple IFFTs
+        /// in parallel and nested Rayon barriers would add overhead.
+        pub(crate) fn serial_ifft_with_roots(
+            &self,
+            evals: &[BlsScalar],
+            roots: &[BlsScalar],
+        ) -> Vec<BlsScalar> {
+            let n = self.size();
+            let log_n = self.log_size_of_group;
+            let len = evals.len().min(n);
+            let mut coeffs = vec![BlsScalar::zero(); n];
+            for (k, &val) in evals[..len].iter().enumerate() {
+                coeffs[bitreverse(k as u32, log_n) as usize] = val;
+            }
+            serial_fft_bitreversed(
+                &mut coeffs,
+                self.group_gen_inv,
+                log_n,
+                Some(roots),
+            );
+            for val in &mut coeffs {
+                *val *= &self.size_inv;
+            }
             coeffs
         }
 
@@ -199,15 +241,19 @@ pub(crate) mod alloc {
                 evals.resize(n, BlsScalar::zero());
                 bitreverse_permute_serial(evals, log_n);
             }
-            self.ifft_bitreversed(evals);
+            self.ifft_bitreversed_with_roots(evals, None);
         }
 
-        fn ifft_bitreversed(&self, evals: &mut [BlsScalar]) {
+        fn ifft_bitreversed_with_roots(
+            &self,
+            evals: &mut [BlsScalar],
+            roots: Option<&[BlsScalar]>,
+        ) {
             best_fft_bitreversed(
                 evals,
                 self.group_gen_inv,
                 self.log_size_of_group,
-                None,
+                roots,
             );
             scale_in_place(evals, self.size_inv);
         }
@@ -216,6 +262,12 @@ pub(crate) mod alloc {
         /// multiple FFTs over the same domain.
         pub(crate) fn precompute_fft_roots(&self) -> Vec<BlsScalar> {
             compute_roots(self.group_gen, self.size() / 2)
+        }
+
+        /// Precompute the `n / 2` powers of `self.group_gen_inv` for reusing
+        /// across multiple IFFTs over the same domain.
+        pub(crate) fn precompute_ifft_roots(&self) -> Vec<BlsScalar> {
+            compute_roots(self.group_gen_inv, self.size() / 2)
         }
 
         /// Compute a FFT over a coset of the domain.
@@ -295,9 +347,25 @@ pub(crate) mod alloc {
             distribute_powers_scaled(evals, self.generator_inv, self.size_inv);
         }
 
+        /// Evaluate the first Lagrange polynomial `L_1(tau)` for this domain.
+        pub(crate) fn evaluate_first_lagrange_coefficient(
+            &self,
+            tau: BlsScalar,
+        ) -> BlsScalar {
+            let one = BlsScalar::one();
+            let t_size = tau.pow(&[self.size, 0, 0, 0]);
+            if t_size == one {
+                if tau == one { one } else { BlsScalar::zero() }
+            } else {
+                let l = (t_size - one) * self.size_inv;
+                l * (tau - one).invert().unwrap()
+            }
+        }
+
         #[allow(clippy::needless_range_loop)]
         /// Evaluate all the lagrange polynomials defined by this domain at the
         /// point `tau`.
+        #[cfg(test)]
         pub(crate) fn evaluate_all_lagrange_coefficients(
             &self,
             tau: BlsScalar,
@@ -1290,10 +1358,21 @@ mod tests {
 
             let actual = domain.fft(&input);
             assert_eq!(actual, expected, "domain.fft mismatch for 2^{log_n}");
+            let inv_roots = domain.precompute_ifft_roots();
             assert_eq!(
                 domain.ifft(&actual),
                 input,
                 "ifft roundtrip failed for 2^{log_n}"
+            );
+            assert_eq!(
+                domain.ifft_with_roots(&actual, &inv_roots),
+                input,
+                "ifft_with_roots roundtrip failed for 2^{log_n}"
+            );
+            assert_eq!(
+                domain.serial_ifft_with_roots(&actual, &inv_roots),
+                input,
+                "serial_ifft_with_roots roundtrip failed for 2^{log_n}"
             );
 
             let coset = domain.coset_fft(&input);
@@ -1411,6 +1490,27 @@ mod tests {
                     s
                 });
                 assert_eq!(par_scaled, expected_scaled);
+            }
+        }
+    }
+
+    #[test]
+    fn evaluate_first_lagrange_coefficient_matches_all_lagrange() {
+        for log_n in [1u32, 2, 5, 8] {
+            let domain = EvaluationDomain::new(1 << log_n).unwrap();
+            let omega = domain.group_gen;
+            for tau in [
+                BlsScalar::one(),
+                omega,
+                omega.pow(&[3, 0, 0, 0]),
+                BlsScalar::zero(),
+                GENERATOR,
+                BlsScalar::from(123_456_789u64),
+            ] {
+                assert_eq!(
+                    domain.evaluate_first_lagrange_coefficient(tau),
+                    domain.evaluate_all_lagrange_coefficients(tau)[0],
+                );
             }
         }
     }

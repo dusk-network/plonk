@@ -411,13 +411,48 @@ impl CommitKey {
         }
 
         let max_len = polynomials.iter().map(|poly| poly.len()).max().unwrap();
-        let mut coefficients = vec![BlsScalar::zero(); max_len];
-        let mut power = BlsScalar::one();
+        if max_len == 0 {
+            return Polynomial::zero();
+        }
 
-        for (index, polynomial) in polynomials.iter().enumerate() {
-            if index != 0 {
-                power *= v_challenge;
+        let powers = util::powers_of(v_challenge, polynomials.len() - 1);
+        let mut coefficients = vec![BlsScalar::zero(); max_len];
+
+        #[cfg(feature = "std")]
+        {
+            const PARALLEL_AGG_MIN_LEN: usize = 1 << 12;
+            const AGG_CHUNK_SIZE: usize = 512;
+            if max_len >= PARALLEL_AGG_MIN_LEN
+                && rayon::current_num_threads() > 1
+            {
+                use rayon::prelude::*;
+
+                coefficients
+                    .par_chunks_mut(AGG_CHUNK_SIZE)
+                    .enumerate()
+                    .for_each(|(chunk_idx, out_chunk)| {
+                        let start = chunk_idx * AGG_CHUNK_SIZE;
+                        for (polynomial, power) in
+                            polynomials.iter().zip(&powers)
+                        {
+                            if start < polynomial.len() {
+                                let end = (start + out_chunk.len())
+                                    .min(polynomial.len());
+                                for (coeff, term) in out_chunk[..end - start]
+                                    .iter_mut()
+                                    .zip(&polynomial[start..end])
+                                {
+                                    *coeff += *term * power;
+                                }
+                            }
+                        }
+                    });
+                return Polynomial::from_coefficients_vec(coefficients)
+                    .ruffini(*point);
             }
+        }
+
+        for (polynomial, power) in polynomials.iter().zip(&powers) {
             for (coefficient, term) in
                 coefficients.iter_mut().zip(polynomial.iter())
             {

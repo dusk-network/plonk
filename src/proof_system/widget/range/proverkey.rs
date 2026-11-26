@@ -77,13 +77,11 @@ impl ProverKey {
         (b_1 + b_2 + b_3 + b_4) * q_range_i * challenges.challenge
     }
 
-    pub(crate) fn compute_linearization(
-        &self,
+    pub(crate) fn linearization_scalar(
         range_separation_challenge: &BlsScalar,
         evaluations: &ProofEvaluations,
-    ) -> Polynomial {
+    ) -> BlsScalar {
         let four = BlsScalar::from(4);
-        let q_range_poly = &self.q_range.0;
 
         let kappa = range_separation_challenge.square();
         let kappa_sq = kappa.square();
@@ -99,9 +97,7 @@ impl ProverKey {
         let b_4 =
             delta(evaluations.d_w_eval - four * evaluations.a_eval) * kappa_cu;
 
-        let t = (b_1 + b_2 + b_3 + b_4) * range_separation_challenge;
-
-        q_range_poly * &t
+        (b_1 + b_2 + b_3 + b_4) * range_separation_challenge
     }
 }
 

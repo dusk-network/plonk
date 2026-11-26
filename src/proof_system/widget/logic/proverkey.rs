@@ -131,13 +131,11 @@ impl ProverKey {
         q_logic_i * (c_3 + c_0 + c_1 + c_2 + c_4) * challenges.challenge
     }
 
-    pub(crate) fn compute_linearization(
-        &self,
+    pub(crate) fn linearization_scalar(
         logic_separation_challenge: &BlsScalar,
         evaluations: &ProofEvaluations,
-    ) -> Polynomial {
+    ) -> BlsScalar {
         let four = BlsScalar::from(4);
-        let q_logic_poly = &self.q_logic.0;
 
         let kappa = logic_separation_challenge.square();
         let kappa_sq = kappa.square();
@@ -159,9 +157,18 @@ impl ProverKey {
         let c_4 =
             delta_xor_and(&a, &b, &w, &d, &evaluations.q_c_eval) * kappa_qu;
 
-        let t = (c_0 + c_1 + c_2 + c_3 + c_4) * logic_separation_challenge;
+        (c_0 + c_1 + c_2 + c_3 + c_4) * logic_separation_challenge
+    }
 
-        q_logic_poly * &t
+    #[cfg(test)]
+    pub(crate) fn compute_linearization(
+        &self,
+        logic_separation_challenge: &BlsScalar,
+        evaluations: &ProofEvaluations,
+    ) -> Polynomial {
+        let t =
+            Self::linearization_scalar(logic_separation_challenge, evaluations);
+        &self.q_logic.0 * &t
     }
 }
 

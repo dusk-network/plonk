@@ -14,6 +14,7 @@ use rkyv::{
 };
 
 use crate::fft::{Evaluations, Polynomial};
+#[cfg(test)]
 use crate::proof_system::linearization_poly::ProofEvaluations;
 
 #[derive(Debug, Eq, PartialEq, Clone)]
@@ -72,6 +73,7 @@ impl ProverKey {
         (a_1 + a_2 + a_3 + a_4 + a_5 + a_6) * q_arith_i
     }
 
+    #[cfg(test)]
     pub(crate) fn compute_linearization(
         &self,
         evaluations: &ProofEvaluations,
@@ -83,23 +85,11 @@ impl ProverKey {
         let q_f_poly = &self.q_f.0;
         let q_c_poly = &self.q_c.0;
 
-        // (a_eval * b_eval * q_m_poly + a_eval * q_l + b_eval * q_r + c_eval
-        // * q_o + d_eval * q_f + q_c) * q_arith_eval
-        //
-        // a_eval * b_eval * q_m_poly
         let ab = evaluations.a_eval * evaluations.b_eval;
         let a_0 = q_m_poly * &ab;
-
-        // a_eval * q_l
         let a_1 = q_l_poly * &evaluations.a_eval;
-
-        // b_eval * q_r
         let a_2 = q_r_poly * &evaluations.b_eval;
-
-        //c_eval * q_o
         let a_3 = q_o_poly * &evaluations.c_eval;
-
-        // d_eval * q_f
         let a_4 = q_f_poly * &evaluations.d_eval;
 
         let mut a = &a_0 + &a_1;
@@ -108,7 +98,6 @@ impl ProverKey {
         a = &a + &a_4;
         a = &a + q_c_poly;
         a = &a * &evaluations.q_arith_eval;
-
         a
     }
 }

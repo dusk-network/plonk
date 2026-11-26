@@ -151,15 +151,25 @@ impl Prover {
         let blinders: Vec<_> = (0..=hiding_degree)
             .map(|_| BlsScalar::random(&mut *rng))
             .collect();
-        Self::blind_poly_with_blinders(witnesses, &blinders, domain)
+        Self::blind_poly_with_blinders(
+            witnesses, &blinders, domain, None, false,
+        )
     }
 
     fn blind_poly_with_blinders(
         witnesses: &[BlsScalar],
         blinders: &[BlsScalar],
         domain: &EvaluationDomain,
+        ifft_roots: Option<&[BlsScalar]>,
+        serial_inner: bool,
     ) -> Polynomial {
-        let mut coefficients = domain.ifft(witnesses);
+        let mut coefficients = match ifft_roots {
+            Some(roots) if serial_inner => {
+                domain.serial_ifft_with_roots(witnesses, roots)
+            }
+            Some(roots) => domain.ifft_with_roots(witnesses, roots),
+            None => domain.ifft(witnesses),
+        };
 
         for (i, blinding_scalar) in blinders.iter().copied().enumerate() {
             coefficients[i] -= blinding_scalar;
@@ -190,8 +200,18 @@ impl Prover {
             &blinders[6..8],
             &blinders[8..],
         ];
+        let ifft_roots = domain.precompute_ifft_roots();
+        // Up to 2^15, running each of the 4 parallel wire IFFTs on its own
+        // thread without nested Rayon barriers avoids contention.
+        let serial_inner = domain.size() <= (1 << 15);
         let blind = |i: usize| {
-            Self::blind_poly_with_blinders(witnesses[i], blinders[i], domain)
+            Self::blind_poly_with_blinders(
+                witnesses[i],
+                blinders[i],
+                domain,
+                Some(&ifft_roots),
+                serial_inner,
+            )
         };
         #[cfg(feature = "std")]
         {
@@ -206,6 +226,32 @@ impl Prover {
         {
             [blind(0), blind(1), blind(2), blind(3)]
         }
+    }
+
+    fn evaluate_polynomials<const N: usize>(
+        targets: &[(&Polynomial, BlsScalar); N],
+        domain_size: usize,
+    ) -> [BlsScalar; N] {
+        #[cfg(feature = "std")]
+        {
+            const PARALLEL_EVAL_MIN_DOMAIN: usize = 1 << 10;
+            if domain_size >= PARALLEL_EVAL_MIN_DOMAIN
+                && rayon::current_num_threads() > 1
+            {
+                use rayon::prelude::*;
+
+                let mut values = [BlsScalar::zero(); N];
+                values.par_iter_mut().zip(&targets[..]).for_each(
+                    |(slot, (poly, point))| {
+                        *slot = poly.evaluate(point);
+                    },
+                );
+                return values;
+            }
+        }
+
+        let _ = domain_size;
+        core::array::from_fn(|i| targets[i].0.evaluate(&targets[i].1))
     }
 
     fn commit_polynomials(
@@ -540,12 +586,6 @@ impl Prover {
                     .ok_or(Error::PublicInputNotFound { index: *index })
             })
             .collect::<Result<Vec<_>, _>>()?;
-        let dense_public_inputs = Composer::dense_public_inputs(
-            &self.public_input_indexes,
-            &public_inputs,
-            self.size,
-        );
-
         public_inputs
             .iter()
             .for_each(|pi| transcript.append_scalar(b"pi", pi));
@@ -626,8 +666,17 @@ impl Prover {
             transcript.challenge_scalar(b"variable base separation challenge");
 
         // compute public inputs polynomial
-        let pi_poly = domain.ifft(&dense_public_inputs);
-        let pi_poly = Polynomial::from_coefficients_vec(pi_poly);
+        let pi_poly = if public_inputs.iter().all(|pi| *pi == BlsScalar::zero())
+        {
+            Polynomial::zero()
+        } else {
+            let dense_public_inputs = Composer::dense_public_inputs(
+                &self.public_input_indexes,
+                &public_inputs,
+                self.size,
+            );
+            Polynomial::from_coefficients_vec(domain.ifft(&dense_public_inputs))
+        };
 
         // compute quotient polynomial
         let wires = (&a_poly, &b_poly, &c_poly, &d_poly);
@@ -701,33 +750,48 @@ impl Prover {
         // round 4
         // compute evaluation challenge 'z'
         let z_challenge = transcript.challenge_scalar(b"z_challenge");
+        let z_w_challenge = z_challenge * domain.group_gen;
 
-        // compute opening evaluations
-        let a_eval = a_poly.evaluate(&z_challenge);
-        let b_eval = b_poly.evaluate(&z_challenge);
-        let c_eval = c_poly.evaluate(&z_challenge);
-        let d_eval = d_poly.evaluate(&z_challenge);
+        // compute opening, shifted, and selector evaluations
+        let eval_targets: [(&Polynomial, BlsScalar); 15] = [
+            (&a_poly, z_challenge),
+            (&b_poly, z_challenge),
+            (&c_poly, z_challenge),
+            (&d_poly, z_challenge),
+            (&self.prover_key.permutation.s_sigma_1.0, z_challenge),
+            (&self.prover_key.permutation.s_sigma_2.0, z_challenge),
+            (&self.prover_key.permutation.s_sigma_3.0, z_challenge),
+            (&z_poly, z_w_challenge),
+            (&a_poly, z_w_challenge),
+            (&b_poly, z_w_challenge),
+            (&d_poly, z_w_challenge),
+            // These selector/constant polynomials are shared across widgets.
+            // Evaluate them from the arithmetic key to match transcript-seeded
+            // commitments under the corresponding labels.
+            (&self.prover_key.arithmetic.q_arith.0, z_challenge),
+            (&self.prover_key.arithmetic.q_c.0, z_challenge),
+            (&self.prover_key.arithmetic.q_l.0, z_challenge),
+            (&self.prover_key.arithmetic.q_r.0, z_challenge),
+        ];
 
-        let s_sigma_1_eval = self
-            .prover_key
-            .permutation
-            .s_sigma_1
-            .0
-            .evaluate(&z_challenge);
-        let s_sigma_2_eval = self
-            .prover_key
-            .permutation
-            .s_sigma_2
-            .0
-            .evaluate(&z_challenge);
-        let s_sigma_3_eval = self
-            .prover_key
-            .permutation
-            .s_sigma_3
-            .0
-            .evaluate(&z_challenge);
-
-        let z_eval = z_poly.evaluate(&(z_challenge * domain.group_gen));
+        let eval_values = Self::evaluate_polynomials(&eval_targets, size);
+        let [
+            a_eval,
+            b_eval,
+            c_eval,
+            d_eval,
+            s_sigma_1_eval,
+            s_sigma_2_eval,
+            s_sigma_3_eval,
+            z_eval,
+            a_w_eval,
+            b_w_eval,
+            d_w_eval,
+            q_arith_eval,
+            q_c_eval,
+            q_l_eval,
+            q_r_eval,
+        ] = eval_values;
 
         // add opening evaluations to transcript.
         transcript.append_scalar(b"a_eval", &a_eval);
@@ -740,21 +804,6 @@ impl Prover {
         transcript.append_scalar(b"s_sigma_3_eval", &s_sigma_3_eval);
 
         transcript.append_scalar(b"z_eval", &z_eval);
-
-        // compute shifted evaluations
-        let a_w_eval = a_poly.evaluate(&(z_challenge * domain.group_gen));
-        let b_w_eval = b_poly.evaluate(&(z_challenge * domain.group_gen));
-        let d_w_eval = d_poly.evaluate(&(z_challenge * domain.group_gen));
-
-        // compute selector evaluations
-        let q_arith_eval =
-            self.prover_key.arithmetic.q_arith.0.evaluate(&z_challenge);
-        // These selector/constant polynomials are shared across widgets.
-        // Evaluate them from the arithmetic key to match transcript-seeded
-        // commitments under the corresponding labels.
-        let q_c_eval = self.prover_key.arithmetic.q_c.0.evaluate(&z_challenge);
-        let q_l_eval = self.prover_key.arithmetic.q_l.0.evaluate(&z_challenge);
-        let q_r_eval = self.prover_key.arithmetic.q_r.0.evaluate(&z_challenge);
 
         // add shifted evaluations to transcript
         transcript.append_scalar(b"a_w_eval", &a_w_eval);
@@ -786,8 +835,9 @@ impl Prover {
         };
 
         // round 5
-        // compute the challenge 'v'
+        // compute the opening challenges 'v' and 'v_w'
         let v_challenge = transcript.challenge_scalar(b"v_challenge");
+        let v_w_challenge = transcript.challenge_scalar(b"v_w_challenge");
 
         // compute linearization polynomial
         let r_poly = linearization_poly::compute(
@@ -812,41 +862,52 @@ impl Prover {
             &public_inputs,
         );
 
-        // compute the opening proof polynomial 'W_z(X)'
-        let aggregate_witness = CommitKey::compute_aggregate_witness(
-            &[
-                &r_poly,
-                &a_poly,
-                &b_poly,
-                &c_poly,
-                &d_poly,
-                &self.prover_key.permutation.s_sigma_1.0,
-                &self.prover_key.permutation.s_sigma_2.0,
-                &self.prover_key.permutation.s_sigma_3.0,
-                // Bind selector evaluations (q_*) used inside the verifier
-                // linearization commitment to their committed polynomials
-                // by including them in the same batched opening at `z`.
-                &self.prover_key.arithmetic.q_arith.0,
-                &self.prover_key.arithmetic.q_c.0,
-                &self.prover_key.arithmetic.q_l.0,
-                &self.prover_key.arithmetic.q_r.0,
-            ],
-            &z_challenge,
-            &v_challenge,
-        );
-        let w_z_chall_comm = self.commit_key.commit(&aggregate_witness)?;
+        let compute_w_z = || -> Result<Commitment, Error> {
+            // compute the opening proof polynomial 'W_z(X)'
+            let aggregate_witness = CommitKey::compute_aggregate_witness(
+                &[
+                    &r_poly,
+                    &a_poly,
+                    &b_poly,
+                    &c_poly,
+                    &d_poly,
+                    &self.prover_key.permutation.s_sigma_1.0,
+                    &self.prover_key.permutation.s_sigma_2.0,
+                    &self.prover_key.permutation.s_sigma_3.0,
+                    // Bind selector evaluations (q_*) used inside the verifier
+                    // linearization commitment to their committed polynomials
+                    // by including them in the same batched opening at `z`.
+                    &self.prover_key.arithmetic.q_arith.0,
+                    &self.prover_key.arithmetic.q_c.0,
+                    &self.prover_key.arithmetic.q_l.0,
+                    &self.prover_key.arithmetic.q_r.0,
+                ],
+                &z_challenge,
+                &v_challenge,
+            );
+            self.commit_key.commit(&aggregate_witness)
+        };
 
-        // compute the shifted challenge 'v_w'
-        let v_w_challenge = transcript.challenge_scalar(b"v_w_challenge");
+        let compute_w_zw = || -> Result<Commitment, Error> {
+            // compute the shifted opening proof polynomial 'W_zw(X)'
+            let shifted_aggregate_witness =
+                CommitKey::compute_aggregate_witness(
+                    &[&z_poly, &a_poly, &b_poly, &d_poly],
+                    &z_w_challenge,
+                    &v_w_challenge,
+                );
+            self.commit_key.commit(&shifted_aggregate_witness)
+        };
 
-        // compute the shifted opening proof polynomial 'W_zw(X)'
-        let shifted_aggregate_witness = CommitKey::compute_aggregate_witness(
-            &[&z_poly, &a_poly, &b_poly, &d_poly],
-            &(z_challenge * domain.group_gen),
-            &v_w_challenge,
-        );
-        let w_z_chall_w_comm =
-            self.commit_key.commit(&shifted_aggregate_witness)?;
+        #[cfg(feature = "std")]
+        let (w_z_chall_comm, w_z_chall_w_comm) = {
+            let (w_z, w_zw) = rayon::join(compute_w_z, compute_w_zw);
+            (w_z?, w_zw?)
+        };
+
+        #[cfg(not(feature = "std"))]
+        let (w_z_chall_comm, w_z_chall_w_comm) =
+            (compute_w_z()?, compute_w_zw()?);
 
         let proof = Proof {
             a_comm,
@@ -1590,6 +1651,120 @@ mod tests {
                 result.expect("checked above"),
                 Err(Error::NotEnoughBytes)
             ));
+        }
+    }
+
+    #[cfg(feature = "std")]
+    #[test]
+    fn deterministic_proof_is_bit_identical_across_thread_counts_and_pi_modes()
+    {
+        use dusk_jubjub::{JubJubExtended, JubJubScalar};
+
+        use crate::composer::TorsionFreeWitnessPoint;
+
+        struct MixedCircuit {
+            public_value: Option<BlsScalar>,
+            bad_witness: bool,
+        }
+
+        impl Circuit for MixedCircuit {
+            fn circuit(&self, composer: &mut Composer) -> Result<(), Error> {
+                let a_val = if self.bad_witness {
+                    BlsScalar::from(3u64)
+                } else {
+                    BlsScalar::from(2u64)
+                };
+                let a = composer.append_witness(a_val);
+                let b = composer.append_witness(BlsScalar::from(3u64));
+                let y = composer.append_witness(JubJubScalar::from(7u64));
+                let z = composer.append_point(
+                    JubJubExtended::from(dusk_jubjub::GENERATOR_EXTENDED)
+                        * JubJubScalar::from(7u64),
+                )?;
+                let tf_z = TorsionFreeWitnessPoint::new_unchecked(z);
+
+                if let Some(pi) = self.public_value {
+                    composer.append_public(pi);
+                }
+
+                for _ in 0..4 {
+                    let prod =
+                        composer.gate_mul(Constraint::new().mult(1).a(a).b(b));
+                    composer.assert_equal_constant(
+                        prod,
+                        BlsScalar::from(6u64),
+                        None,
+                    );
+                    composer.component_range_bits::<32>(a);
+                    composer.append_logic_and::<16>(a, b);
+                    composer.append_logic_xor::<16>(a, b);
+                    composer.component_add_point(tf_z, tf_z);
+                    composer.component_mul_generator(
+                        y,
+                        dusk_jubjub::GENERATOR_EXTENDED,
+                    )?;
+                }
+                Ok(())
+            }
+        }
+
+        let mut setup_rng = StdRng::seed_from_u64(0xCAFE_BABE);
+        let pp = PublicParameters::setup(1 << 12, &mut setup_rng).unwrap();
+
+        for public_value in [
+            None,
+            Some(BlsScalar::zero()),
+            Some(BlsScalar::from(12345u64)),
+        ] {
+            let circuit = MixedCircuit {
+                public_value,
+                bad_witness: false,
+            };
+            let (prover, verifier) =
+                Compiler::compile_with_circuit(&pp, b"det-threads", &circuit)
+                    .unwrap();
+            // Ensure 8n >= 16384 so parallel FFT & parallel quotient chunks
+            // run.
+            assert!(prover.quotient_domain.size() >= (1 << 14));
+
+            let ref_pool = rayon::ThreadPoolBuilder::new()
+                .num_threads(1)
+                .build()
+                .unwrap();
+            let (ref_proof, ref_pi) = ref_pool.install(|| {
+                let mut rng = StdRng::seed_from_u64(0xDEAD_BEEF);
+                prover.prove(&mut rng, &circuit).unwrap()
+            });
+            verifier.verify(&ref_proof, &ref_pi).unwrap();
+            let ref_bytes = ref_proof.to_bytes();
+
+            for threads in [3, 4, 8, 9] {
+                let pool = rayon::ThreadPoolBuilder::new()
+                    .num_threads(threads)
+                    .build()
+                    .unwrap();
+                let (proof, pi) = pool.install(|| {
+                    let mut rng = StdRng::seed_from_u64(0xDEAD_BEEF);
+                    prover.prove(&mut rng, &circuit).unwrap()
+                });
+                assert_eq!(
+                    proof.to_bytes(),
+                    ref_bytes,
+                    "proof bytes differed for pi={public_value:?} with {threads} threads"
+                );
+                assert_eq!(pi, ref_pi);
+                verifier.verify(&proof, &pi).unwrap();
+            }
+
+            let bad_circuit = MixedCircuit {
+                public_value,
+                bad_witness: true,
+            };
+            let mut bad_rng = StdRng::seed_from_u64(0xBAD0_C0DE);
+            assert_eq!(
+                prover.prove(&mut bad_rng, &bad_circuit),
+                Err(Error::CircuitUnsatisfied)
+            );
         }
     }
 }

@@ -1044,23 +1044,25 @@ pub(crate) mod alloc {
         point: &BlsScalar,
         domain: &EvaluationDomain,
     ) -> BlsScalar {
+        if evaluations.is_empty() {
+            return BlsScalar::zero();
+        }
+
+        let non_zero_evaluations: Vec<usize> = evaluations
+            .iter()
+            .enumerate()
+            .filter_map(|(i, evaluation)| {
+                (*evaluation != BlsScalar::zero()).then_some(i)
+            })
+            .collect();
+
+        if non_zero_evaluations.is_empty() {
+            return BlsScalar::zero();
+        }
+
         let numerator = (point.pow(&[domain.size() as u64, 0, 0, 0])
             - BlsScalar::one())
             * domain.size_inv;
-
-        // Indices with non-zero evaluations
-        #[cfg(not(feature = "std"))]
-        let range = 0..evaluations.len();
-
-        #[cfg(feature = "std")]
-        let range = (0..evaluations.len()).into_par_iter();
-
-        let non_zero_evaluations: Vec<usize> = range
-            .filter(|&i| {
-                let evaluation = &evaluations[i];
-                evaluation != &BlsScalar::zero()
-            })
-            .collect();
 
         // Only compute the denominators with non-zero evaluations
         #[cfg(not(feature = "std"))]

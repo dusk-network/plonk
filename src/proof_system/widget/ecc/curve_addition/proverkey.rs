@@ -126,13 +126,10 @@ impl ProverKey {
         identity * q_variable_group_add_i * challenges.challenge
     }
 
-    pub(crate) fn compute_linearization(
-        &self,
+    pub(crate) fn linearization_scalar(
         curve_add_separation_challenge: &BlsScalar,
         evaluations: &ProofEvaluations,
-    ) -> Polynomial {
-        let q_variable_group_add_poly = &self.q_variable_group_add.0;
-
+    ) -> BlsScalar {
         let kappa = curve_add_separation_challenge.square();
 
         let x_1 = evaluations.a_eval;
@@ -162,6 +159,6 @@ impl ProverKey {
 
         let identity = xy_consistency + x3_consistency + y3_consistency;
 
-        q_variable_group_add_poly * &(identity * curve_add_separation_challenge)
+        identity * curve_add_separation_challenge
     }
 }

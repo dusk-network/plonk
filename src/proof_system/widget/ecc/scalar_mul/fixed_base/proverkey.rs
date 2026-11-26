@@ -151,13 +151,10 @@ impl ProverKey {
         identity * q_fixed_group_add_i * challenges.challenge
     }
 
-    pub(crate) fn compute_linearization(
-        &self,
+    pub(crate) fn linearization_scalar(
         ecc_separation_challenge: &BlsScalar,
         evaluations: &ProofEvaluations,
-    ) -> Polynomial {
-        let q_fixed_group_add_poly = &self.q_fixed_group_add.0;
-
+    ) -> BlsScalar {
         let kappa = ecc_separation_challenge.square();
         let kappa_sq = kappa.square();
         let kappa_cu = kappa_sq * kappa;
@@ -204,7 +201,18 @@ impl ProverKey {
             + y_acc_consistency
             + xy_consistency;
 
-        q_fixed_group_add_poly * &(a * ecc_separation_challenge)
+        a * ecc_separation_challenge
+    }
+
+    #[cfg(test)]
+    pub(crate) fn compute_linearization(
+        &self,
+        ecc_separation_challenge: &BlsScalar,
+        evaluations: &ProofEvaluations,
+    ) -> Polynomial {
+        let scalar =
+            Self::linearization_scalar(ecc_separation_challenge, evaluations);
+        &self.q_fixed_group_add.0 * &scalar
     }
 }
 

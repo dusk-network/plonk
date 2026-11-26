@@ -174,6 +174,74 @@ fn circuit_with_all_gates() {
 }
 
 #[test]
+fn four_row_circuit_with_zero_upper_permutation_blinders_verifies() {
+    use rand_core::{CryptoRng, Error as RngError, RngCore};
+
+    #[derive(Default)]
+    struct FourRowCircuit;
+
+    impl Circuit for FourRowCircuit {
+        fn circuit(&self, _composer: &mut Composer) -> Result<(), Error> {
+            Ok(())
+        }
+    }
+
+    // Fixed 17-scalar blinder schedule:
+    // - draws 0..11: wire blinders (nonzero)
+    // - draw 11: z_poly constant blinder b_0 (nonzero)
+    // - draws 12..14: z_poly linear and quadratic blinders b_1, b_2 (both zero)
+    // - draws 14..17: split-quotient blinders b_12, b_13, b_14 (nonzero)
+    //
+    // On a 4-row circuit this gives `z_poly.degree() == 4`. Legacy `master`
+    // inferred a 2-element domain from `z_poly.degree() - 2` and produced an
+    // invalid proof; evaluating `L_1` on the actual proving domain fixes this
+    // edge case (an intentional exception to byte compatibility with `master`).
+    struct ZeroUpperPermBlinderRng {
+        draw: usize,
+    }
+
+    impl RngCore for ZeroUpperPermBlinderRng {
+        fn next_u32(&mut self) -> u32 {
+            unreachable!("BlsScalar::random draws via fill_bytes")
+        }
+
+        fn next_u64(&mut self) -> u64 {
+            unreachable!("BlsScalar::random draws via fill_bytes")
+        }
+
+        fn fill_bytes(&mut self, dest: &mut [u8]) {
+            dest.fill(0);
+            if self.draw != 12 && self.draw != 13 {
+                dest[0] = (self.draw as u8).wrapping_add(1);
+            }
+            self.draw += 1;
+        }
+
+        fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), RngError> {
+            self.fill_bytes(dest);
+            Ok(())
+        }
+    }
+
+    impl CryptoRng for ZeroUpperPermBlinderRng {}
+
+    let mut setup_rng = StdRng::seed_from_u64(0x4a0b_0001);
+    let pp = PublicParameters::setup(4, &mut setup_rng)
+        .expect("public parameters should build");
+    let (prover, verifier) =
+        Compiler::compile::<FourRowCircuit>(&pp, b"zero-upper-perm-blinders")
+            .expect("circuit should compile");
+    let mut proving_rng = ZeroUpperPermBlinderRng { draw: 0 };
+    let (proof, inputs) = prover
+        .prove(&mut proving_rng, &FourRowCircuit)
+        .expect("proof should build");
+    assert_eq!(proving_rng.draw, 17);
+    verifier.verify(&proof, &inputs).expect(
+        "four-row proof with zero upper permutation blinders must verify",
+    );
+}
+
+#[test]
 fn deterministic_v3_proof_matches_master_digest() {
     #[derive(Default)]
     struct MinimalCircuit;
