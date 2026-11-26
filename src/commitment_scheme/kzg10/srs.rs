@@ -131,6 +131,9 @@ impl PublicParameters {
         let opening_key = OpeningKey::from_slice(&bytes[..OpeningKey::SIZE])?;
         let commit_key =
             CommitKey::from_raw_var_bytes(&bytes[OpeningKey::SIZE..])?;
+        if !opening_key.matches_commit_key(&commit_key) {
+            return Err(dusk_bytes::Error::InvalidData.into());
+        }
         Ok(Self {
             commit_key,
             opening_key,
@@ -161,6 +164,9 @@ impl PublicParameters {
         let mut buf = bytes;
         let opening_key = OpeningKey::from_reader(&mut buf)?;
         let commit_key = CommitKey::from_slice(buf)?;
+        if !opening_key.matches_commit_key(&commit_key) {
+            return Err(dusk_bytes::Error::InvalidData.into());
+        }
 
         let pp = PublicParameters {
             commit_key,
@@ -494,6 +500,43 @@ mod test {
         assert_eq!(pp.opening_key.g, pp_p.opening_key.g);
         assert_eq!(pp.opening_key.h, pp_p.opening_key.h);
         assert_eq!(pp.opening_key.x_h, pp_p.opening_key.x_h);
+    }
+
+    #[test]
+    fn public_parameters_reject_mismatched_key_halves() {
+        let pp_a = PublicParameters::setup(8, &mut OsRng).unwrap();
+        let pp_b = PublicParameters::setup(8, &mut OsRng).unwrap();
+
+        // Different setups: opening key from A paired with commit key from B.
+        let mixed = PublicParameters {
+            commit_key: pp_b.commit_key.clone(),
+            opening_key: pp_a.opening_key.clone(),
+        };
+        assert!(matches!(
+            PublicParameters::from_slice(&mixed.to_var_bytes()),
+            Err(Error::BytesError(dusk_bytes::Error::InvalidData))
+        ));
+        assert!(matches!(
+            PublicParameters::from_raw_var_bytes(&mixed.to_raw_var_bytes()),
+            Err(Error::BytesError(dusk_bytes::Error::InvalidData))
+        ));
+
+        // Same generator `powers_of_g[0] == opening_key.g`, but mismatched
+        // secret in `powers_of_g[1]`.
+        let mut wrong_secret = pp_a.clone();
+        wrong_secret.commit_key.powers_of_g[1] = G1Affine::from(
+            pp_a.opening_key.g * dusk_bls12_381::BlsScalar::from(7u64),
+        );
+        assert!(matches!(
+            PublicParameters::from_slice(&wrong_secret.to_var_bytes()),
+            Err(Error::BytesError(dusk_bytes::Error::InvalidData))
+        ));
+        assert!(matches!(
+            PublicParameters::from_raw_var_bytes(
+                &wrong_secret.to_raw_var_bytes()
+            ),
+            Err(Error::BytesError(dusk_bytes::Error::InvalidData))
+        ));
     }
 
     #[cfg(feature = "rkyv-impl")]
