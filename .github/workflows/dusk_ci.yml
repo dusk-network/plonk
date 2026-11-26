@@ -66,11 +66,21 @@ jobs:
       - uses: actions/checkout@v4
       - uses: Swatinem/rust-cache@v2
       - run: sudo apt install -y kcov
-      - run: RUSTFLAGS='-Cdebuginfo=2 -Cllvm-args=--inline-threshold=0 -Clink-dead-code' cargo test --release --no-run --all-features
+      - name: Build test binaries
+        run: |
+          set -euo pipefail
+          mkdir -p target
+          RUSTFLAGS='-Cdebuginfo=2 -Cllvm-args=--inline-threshold=0 -Clink-dead-code' \
+            cargo test --release --no-run --all-features --message-format=json-render-diagnostics \
+            | jq -r 'select(.reason == "compiler-artifact" and .profile.test == true and .executable != null) | .executable' \
+            > target/coverage-bins.txt
+          test -s target/coverage-bins.txt
       - name: Collect coverage
-        run: >
-          find target/release/deps -type f -executable ! -name "*.*" |
-          xargs -n1 kcov --exclude-pattern=/.cargo,/usr/lib --verify target/cov
+        run: |
+          set -euo pipefail
+          while IFS= read -r bin; do
+            kcov --exclude-pattern=/.cargo,/usr/lib --verify target/cov "$bin"
+          done < target/coverage-bins.txt
       - name: Upload coverage
         uses: codecov/codecov-action@v7
         with:
